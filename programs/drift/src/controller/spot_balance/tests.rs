@@ -6,8 +6,8 @@ use solana_program::pubkey::Pubkey;
 use crate::controller::insurance::settle_revenue_to_insurance_fund;
 use crate::controller::spot_balance::*;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits;
-use crate::create_account_info;
 use crate::create_anchor_account_info;
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
@@ -63,11 +63,10 @@ fn test_daily_withdraw_limits() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -88,7 +87,7 @@ fn test_daily_withdraw_limits() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -409,11 +408,10 @@ fn test_check_withdraw_limits() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -726,11 +724,10 @@ fn check_fee_collection() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -751,7 +748,7 @@ fn check_fee_collection() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1099,11 +1096,10 @@ fn check_fee_collection_larger_nums() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1124,7 +1120,7 @@ fn check_fee_collection_larger_nums() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1515,11 +1511,10 @@ fn attempt_borrow_with_massive_upnl() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1537,7 +1532,7 @@ fn attempt_borrow_with_massive_upnl() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         unrealized_pnl_initial_asset_weight: 0,

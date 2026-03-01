@@ -18,7 +18,7 @@ use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::State;
 use crate::state::user::PerpPosition;
-use crate::test_utils::{create_account_info, get_account_bytes};
+use crate::test_utils::get_account_bytes;
 
 use crate::bn::U192;
 use crate::controller::amm::update_pool_balances;
@@ -27,12 +27,13 @@ use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::SpotPosition;
 use crate::test_utils::get_anchor_account_bytes;
-use crate::test_utils::get_hardcoded_pyth_price;
+use crate::test_utils::get_pyth_price_mantissa;
 use anchor_lang::prelude::{AccountLoader, Clock};
 use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
@@ -2403,19 +2404,14 @@ fn recenter_amm_2() {
     // let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
     // let oracle_market_bytes = decoded_bytes.as_mut_slice();
 
-    let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
+    let mut oracle_price = get_pyth_price_mantissa(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    let mut data = get_account_bytes(&mut oracle_price);
-    let mut lamports2 = 0;
-
-    let oracle_account_info = create_account_info(
+    create_anchor_account_info!(
+        oracle_price,
         &oracle_price_key,
-        true,
-        &mut lamports2,
-        &mut data[..],
-        &pyth_program,
+        PythLazerOracle,
+        oracle_account_info
     );
 
     //https://explorer.solana.com/block/243485436
@@ -2438,7 +2434,7 @@ fn recenter_amm_2() {
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
     let oracle_price_data = oracle_map
-        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .get_price_data(&(oracle_price_key, OracleSource::PythLazer))
         .unwrap();
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
@@ -2545,19 +2541,14 @@ fn test_move_amm() {
     // let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
     // let oracle_market_bytes = decoded_bytes.as_mut_slice();
 
-    let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
+    let mut oracle_price = get_pyth_price_mantissa(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    let mut data = get_account_bytes(&mut oracle_price);
-    let mut lamports2 = 0;
-
-    let oracle_account_info = create_account_info(
+    create_anchor_account_info!(
+        oracle_price,
         &oracle_price_key,
-        true,
-        &mut lamports2,
-        &mut data[..],
-        &pyth_program,
+        PythLazerOracle,
+        oracle_account_info
     );
 
     //https://explorer.solana.com/block/243485436
@@ -2580,7 +2571,7 @@ fn test_move_amm() {
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
     let oracle_price_data = oracle_map
-        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .get_price_data(&(oracle_price_key, OracleSource::PythLazer))
         .unwrap();
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,

@@ -413,12 +413,13 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
-    use crate::test_utils::{get_positions, get_pyth_price};
-    use crate::{create_account_info, PRICE_PRECISION_I64};
+    use crate::test_utils::{get_positions, get_pyth_price, get_pyth_price_mantissa};
+    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_bid() {
@@ -427,11 +428,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -453,7 +453,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -518,11 +518,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -544,7 +543,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -609,11 +608,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -637,7 +635,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -703,11 +701,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -749,7 +746,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -900,11 +897,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -946,7 +942,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1085,11 +1081,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1131,7 +1126,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1211,11 +1206,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1257,7 +1251,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION / 99, // big loss
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1334,11 +1328,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1380,7 +1373,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1450,15 +1443,14 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 3);
 
         let mut sol_oracle_price = get_pyth_price(1, 6);
-        sol_oracle_price.agg.price /= 10000; // < 1 penny
+        sol_oracle_price.price /= 10000; // < 1 penny
 
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1504,11 +1496,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1533,7 +1524,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1601,11 +1592,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1648,7 +1638,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1718,11 +1708,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1765,7 +1754,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1830,11 +1819,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1877,7 +1865,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1957,11 +1945,12 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, OrderType, PerpPosition, SpotPosition, User};
-    use crate::test_utils::{get_positions, get_pyth_price};
-    use crate::{create_account_info, PRICE_PRECISION_I64};
+    use crate::test_utils::{get_positions, get_pyth_price, get_pyth_price_mantissa};
+    use crate::PRICE_PRECISION_I64;
     use crate::{create_anchor_account_info, BASE_PRECISION_I64};
     use crate::{test_utils::*, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64};
 
@@ -1972,11 +1961,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2018,7 +2006,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2083,11 +2071,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2130,7 +2117,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2240,11 +2227,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2286,7 +2272,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2350,22 +2336,20 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             sol_oracle_account_info
         );
 
-        let mut usdc_oracle_price = get_hardcoded_pyth_price(99 * 10000, 6); // $.99
+        let mut usdc_oracle_price = get_pyth_price_mantissa(99 * 10000, 6); // $.99
         let usdc_oracle_price_key =
-            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+            Pubkey::from_str("Gnt27xtC473ZT2Mw5u8wZ68Z3gULkSTb5DuxJy7eJotD").unwrap();
+        create_anchor_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             usdc_oracle_account_info
         );
         let oracle_account_infos = Vec::from([sol_oracle_account_info, usdc_oracle_account_info]);
@@ -2376,7 +2360,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::PythStableCoin,
+            oracle_source: OracleSource::PythLazerStableCoin,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -2390,7 +2374,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: usdc_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2501,22 +2485,20 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             sol_oracle_account_info
         );
 
-        let mut usdc_oracle_price = get_hardcoded_pyth_price(101 * 10000, 6); // $1.01
+        let mut usdc_oracle_price = get_pyth_price_mantissa(101 * 10000, 6); // $1.01
         let usdc_oracle_price_key =
-            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+            Pubkey::from_str("Gnt27xtC473ZT2Mw5u8wZ68Z3gULkSTb5DuxJy7eJotD").unwrap();
+        create_anchor_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             usdc_oracle_account_info
         );
         let oracle_account_infos = Vec::from([sol_oracle_account_info, usdc_oracle_account_info]);
@@ -2527,7 +2509,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::PythStableCoin,
+            oracle_source: OracleSource::PythLazerStableCoin,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
@@ -2543,7 +2525,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: usdc_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2648,23 +2630,21 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             sol_oracle_account_info
         );
 
         let usdc_price = 101 * 10000; // $1.01
-        let mut usdc_oracle_price = get_hardcoded_pyth_price(usdc_price, 6);
+        let mut usdc_oracle_price = get_pyth_price_mantissa(usdc_price, 6);
         let usdc_oracle_price_key =
-            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkiF").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+            Pubkey::from_str("Gnt27xtC473ZT2Mw5u8wZ68Z3gULkSTb5DuxJy7eJotD").unwrap();
+        create_anchor_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             usdc_oracle_account_info
         );
         let oracle_account_infos = Vec::from([sol_oracle_account_info, usdc_oracle_account_info]);
@@ -2673,7 +2653,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::PythStableCoin,
+            oracle_source: OracleSource::PythLazerStableCoin,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -2687,7 +2667,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: usdc_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2817,11 +2797,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2863,7 +2842,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2931,7 +2910,6 @@ mod calculate_max_withdrawable_amount {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         LIQUIDATION_FEE_PRECISION, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
@@ -2941,6 +2919,7 @@ mod calculate_max_withdrawable_amount {
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
@@ -2954,11 +2933,10 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2980,7 +2958,7 @@ mod calculate_max_withdrawable_amount {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3040,11 +3018,10 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3069,7 +3046,7 @@ mod calculate_max_withdrawable_amount {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3128,11 +3105,10 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3157,7 +3133,7 @@ mod calculate_max_withdrawable_amount {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3217,7 +3193,6 @@ mod validate_spot_margin_trading {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
@@ -3228,6 +3203,7 @@ mod validate_spot_margin_trading {
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
@@ -3244,11 +3220,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3269,7 +3244,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3327,11 +3302,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3352,7 +3326,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3410,11 +3384,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3435,7 +3408,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3493,11 +3466,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3518,7 +3490,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3576,11 +3548,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3601,7 +3572,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3659,11 +3630,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3684,7 +3654,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3742,11 +3712,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3789,7 +3758,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3868,18 +3837,18 @@ mod calculate_user_equity {
 
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
     use crate::{
-        create_account_info, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64,
-        QUOTE_PRECISION_I64,
-    };
-    use crate::{
         create_anchor_account_info, MarketStatus, AMM_RESERVE_PRECISION, PEG_PRECISION,
         PRICE_PRECISION,
+    };
+    use crate::{
+        BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION_I64,
     };
 
     #[test]
@@ -3889,11 +3858,10 @@ mod calculate_user_equity {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3987,11 +3955,10 @@ mod calculate_user_equity {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4085,11 +4052,10 @@ mod calculate_user_equity {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4111,7 +4077,7 @@ mod calculate_user_equity {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4306,7 +4272,6 @@ mod pools {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
@@ -4321,11 +4286,12 @@ mod pools {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
-    use crate::test_utils::{get_positions, get_pyth_price};
+    use crate::test_utils::{get_positions, get_pyth_price, get_pyth_price_mantissa};
 
     #[test]
     pub fn spot() {
@@ -4334,11 +4300,10 @@ mod pools {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4393,11 +4358,10 @@ mod pools {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4446,7 +4410,6 @@ mod isolated_position {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::create_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4460,11 +4423,12 @@ mod isolated_position {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, PositionFlag, SpotPosition, User};
     use crate::test_utils::*;
-    use crate::test_utils::{get_positions, get_pyth_price};
+    use crate::test_utils::{get_positions, get_pyth_price, get_pyth_price_mantissa};
     use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
 
     #[test]
@@ -4474,11 +4438,10 @@ mod isolated_position {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4520,7 +4483,7 @@ mod isolated_position {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4648,12 +4611,13 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-    use crate::{create_account_info, create_anchor_account_info, MARGIN_PRECISION};
+    use crate::{create_anchor_account_info, MARGIN_PRECISION};
 
     #[test]
     pub fn check_user_not_changed() {
@@ -4662,11 +4626,10 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4708,7 +4671,7 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,

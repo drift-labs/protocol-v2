@@ -24,10 +24,10 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User};
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
-use crate::{create_account_info, SettlePnlMode};
-use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
+use crate::{create_anchor_account_info, SettlePnlMode, PRICE_PRECISION_I64};
 use anchor_lang::prelude::Clock;
 
 #[test]
@@ -56,11 +56,10 @@ pub fn user_no_position() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -83,9 +82,9 @@ pub fn user_no_position() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -174,11 +173,10 @@ pub fn user_does_not_meet_maintenance_requirement() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -201,9 +199,9 @@ pub fn user_does_not_meet_maintenance_requirement() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -299,11 +297,10 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -326,9 +323,9 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -447,11 +444,10 @@ pub fn enable_high_leverage_mode_fails_when_user_does_not_meet_maintenance_requi
     let mut oracle_price = get_pyth_price(50, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -474,9 +470,9 @@ pub fn enable_high_leverage_mode_fails_when_user_does_not_meet_maintenance_requi
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -569,11 +565,10 @@ pub fn user_unsettled_negative_pnl() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -596,9 +591,9 @@ pub fn user_unsettled_negative_pnl() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -706,11 +701,10 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -733,9 +727,9 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -841,11 +835,10 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -868,9 +861,9 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -979,11 +972,10 @@ pub fn market_fee_pool_receives_portion() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1007,9 +999,9 @@ pub fn market_fee_pool_receives_portion() {
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -1118,11 +1110,10 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -1151,9 +1142,9 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
                 ..PoolBalance::default()
             },
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -1262,11 +1253,10 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let mut oracle_price = get_pyth_price(150, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -1289,9 +1279,9 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -1400,11 +1390,10 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
     let mut oracle_price = get_pyth_price(150, 10);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -1427,9 +1416,9 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -1535,11 +1524,10 @@ pub fn user_long_negative_unrealized_pnl() {
     let mut oracle_price = get_pyth_price(50, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -1562,9 +1550,9 @@ pub fn user_long_negative_unrealized_pnl() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -1673,11 +1661,10 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let mut oracle_price = get_pyth_price(50, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -1700,9 +1687,9 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -1811,11 +1798,10 @@ pub fn user_short_negative_unrealized_pnl() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -1838,9 +1824,9 @@ pub fn user_short_negative_unrealized_pnl() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -1947,14 +1933,13 @@ pub fn user_invalid_oracle_position() {
         ..State::default()
     };
     let mut oracle_price = get_pyth_price(100, 6);
-    oracle_price.curr_slot = clock.slot - 10;
+    oracle_price.posted_slot = clock.slot - 10;
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -1978,9 +1963,9 @@ pub fn user_invalid_oracle_position() {
             oracle: oracle_price_key,
             curve_update_intensity: 100,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -2044,7 +2029,7 @@ pub fn user_invalid_oracle_position() {
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
     assert!(!market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
     let result = settle_pnl(
@@ -2070,7 +2055,7 @@ pub fn user_invalid_oracle_position() {
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
     assert!(!market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
     let result = settle_pnl(
@@ -2096,7 +2081,7 @@ pub fn user_invalid_oracle_position() {
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
     assert!(!market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
     let result = settle_pnl(
@@ -2117,11 +2102,11 @@ pub fn user_invalid_oracle_position() {
     market
         .amm
         .historical_oracle_data
-        .last_oracle_price_twap_5min = oracle_price.agg.price * 95 / 100;
+        .last_oracle_price_twap_5min = oracle_price.price * 95 / 100;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
     assert!(!market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
     let result = settle_pnl(
@@ -2142,12 +2127,12 @@ pub fn user_invalid_oracle_position() {
     market
         .amm
         .historical_oracle_data
-        .last_oracle_price_twap_5min = oracle_price.agg.price - 789789;
+        .last_oracle_price_twap_5min = oracle_price.price - 789789;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
     assert!(market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
     let result = settle_pnl(
         0,
@@ -2176,7 +2161,7 @@ pub fn is_price_divergence_ok_on_invalid_oracle() {
     };
 
     let mut oracle_price = get_pyth_price(100, 6);
-    oracle_price.curr_slot = clock.slot - 10;
+    oracle_price.posted_slot = clock.slot - 10;
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
 
@@ -2198,9 +2183,9 @@ pub fn is_price_divergence_ok_on_invalid_oracle() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -2220,26 +2205,26 @@ pub fn is_price_divergence_ok_on_invalid_oracle() {
     };
 
     assert!(market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
-    market.amm.mark_std = (oracle_price.agg.price / 100) as u64;
-    market.amm.oracle_std = (oracle_price.agg.price / 190) as u64;
+    market.amm.mark_std = (oracle_price.price / 100) as u64;
+    market.amm.oracle_std = (oracle_price.price / 190) as u64;
 
     assert!(market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
-    market.amm.mark_std = (oracle_price.agg.price / 10) as u64;
+    market.amm.mark_std = (oracle_price.price / 10) as u64;
 
     assert!(!market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
-    market.amm.oracle_std = (oracle_price.agg.price * 10) as u64;
+    market.amm.oracle_std = (oracle_price.price * 10) as u64;
 
     assert!(!market
-        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 }
 
@@ -2267,11 +2252,10 @@ pub fn isolated_perp_position_negative_pnl() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -2294,9 +2278,9 @@ pub fn isolated_perp_position_negative_pnl() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -2401,11 +2385,10 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -2428,9 +2411,9 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
             base_asset_amount_long: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()

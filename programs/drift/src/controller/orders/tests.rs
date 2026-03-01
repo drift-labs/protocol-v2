@@ -103,11 +103,10 @@ pub mod fill_order_protected_maker {
         MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats,
         UserStatsPausedOperations, UserStatus,
     };
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
-    };
-    use crate::{create_account_info, QUOTE_PRECISION_I64};
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
 
     use super::*;
     use crate::state::fill_mode::FillMode;
@@ -126,11 +125,10 @@ pub mod fill_order_protected_maker {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -153,9 +151,9 @@ pub mod fill_order_protected_maker {
                 long_spread: 10000,
                 short_spread: 10000,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap,
-                    last_oracle_price_twap_5min: oracle_price.twap,
-                    last_oracle_price: oracle_price.agg.price,
+                    last_oracle_price_twap: oracle_price.price,
+                    last_oracle_price_twap_5min: oracle_price.price,
+                    last_oracle_price: oracle_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -448,9 +446,8 @@ pub mod fulfill_order_with_maker_order {
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
 
     use crate::create_account_info;
-    use crate::test_utils::{
-        create_account_info, get_account_bytes, get_orders, get_positions, get_pyth_price,
-    };
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
+    use crate::test_utils::{get_account_bytes, get_orders, get_positions, get_pyth_price};
 
     use super::*;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -2204,14 +2201,13 @@ pub mod fulfill_order_with_maker_order {
         };
 
         let mut oracle_price = get_pyth_price(100, 6);
-        oracle_price.curr_slot = slot - 10000;
+        oracle_price.posted_slot = slot - 10000;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2373,11 +2369,10 @@ pub mod fulfill_order_with_maker_order {
         let mut oracle_price = get_pyth_price(99, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2525,11 +2520,10 @@ pub mod fulfill_order_with_maker_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2677,11 +2671,10 @@ pub mod fulfill_order_with_maker_order {
         let mut oracle_price = get_pyth_price(101, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3075,8 +3068,9 @@ pub mod fulfill_order {
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-    use crate::{create_account_info, PERCENTAGE_PRECISION_U64};
+    use crate::{create_anchor_account_info, PERCENTAGE_PRECISION_U64};
 
     use super::*;
 
@@ -3164,11 +3158,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             _oracle_account_info
         );
 
@@ -3232,11 +3225,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3480,11 +3472,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3699,11 +3690,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4143,11 +4133,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4311,11 +4300,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
 
@@ -4515,11 +4503,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
 
@@ -4703,11 +4690,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4885,11 +4871,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -5075,11 +5060,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -5722,11 +5706,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -5934,11 +5917,10 @@ pub mod fulfill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -6106,11 +6088,10 @@ pub mod fill_order {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
-    };
-    use crate::{create_account_info, QUOTE_PRECISION_I64};
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
 
     use super::*;
     use crate::error::ErrorCode;
@@ -6130,11 +6111,10 @@ pub mod fill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -6156,9 +6136,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap,
-                    last_oracle_price_twap_5min: oracle_price.twap,
-                    last_oracle_price: oracle_price.agg.price,
+                    last_oracle_price_twap: oracle_price.price,
+                    last_oracle_price_twap_5min: oracle_price.price,
+                    last_oracle_price: oracle_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -6331,11 +6311,10 @@ pub mod fill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -6357,9 +6336,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap,
-                    last_oracle_price_twap_5min: oracle_price.twap,
-                    last_oracle_price: oracle_price.agg.price,
+                    last_oracle_price_twap: oracle_price.price,
+                    last_oracle_price_twap_5min: oracle_price.price,
+                    last_oracle_price: oracle_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -6670,11 +6649,10 @@ pub mod fill_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -6697,9 +6675,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap,
-                    last_oracle_price_twap_5min: oracle_price.twap,
-                    last_oracle_price: oracle_price.agg.price,
+                    last_oracle_price_twap: oracle_price.price,
+                    last_oracle_price_twap_5min: oracle_price.price,
+                    last_oracle_price: oracle_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -9422,6 +9400,7 @@ pub mod fulfill_spot_order {
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
 
@@ -9613,11 +9592,10 @@ pub mod fulfill_spot_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -9885,11 +9863,10 @@ pub mod fulfill_spot_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -10172,11 +10149,10 @@ pub mod fulfill_spot_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -10343,8 +10319,9 @@ pub mod fill_spot_order {
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::*;
-    use crate::test_utils::{create_account_info, get_orders, get_pyth_price};
+    use crate::test_utils::{get_orders, get_pyth_price};
 
     use super::*;
 
@@ -10361,11 +10338,10 @@ pub mod fill_spot_order {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -10524,10 +10500,9 @@ pub mod force_cancel_orders {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_positions, get_pyth_price, get_spot_positions,
-    };
+    use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;
 
@@ -10544,11 +10519,10 @@ pub mod force_cancel_orders {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -10574,9 +10548,9 @@ pub mod force_cancel_orders {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap,
-                    last_oracle_price_twap_5min: oracle_price.twap,
-                    last_oracle_price: oracle_price.agg.price,
+                    last_oracle_price_twap: oracle_price.price,
+                    last_oracle_price_twap_5min: oracle_price.price,
+                    last_oracle_price: oracle_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -10773,10 +10747,9 @@ pub mod cancel_reduce_only_trigger_orders {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User};
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_positions, get_pyth_price, get_spot_positions,
-    };
+    use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;
 
@@ -10793,11 +10766,10 @@ pub mod cancel_reduce_only_trigger_orders {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -10823,9 +10795,9 @@ pub mod cancel_reduce_only_trigger_orders {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap,
-                    last_oracle_price_twap_5min: oracle_price.twap,
-                    last_oracle_price: oracle_price.agg.price,
+                    last_oracle_price_twap: oracle_price.price,
+                    last_oracle_price_twap_5min: oracle_price.price,
+                    last_oracle_price: oracle_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -11037,12 +11009,10 @@ pub mod get_maker_orders_info {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User};
     use crate::state::user_map::UserMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
-    };
-    use crate::{create_account_info, get_orders};
-    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::{create_anchor_account_info, get_orders, QUOTE_PRECISION_I64};
 
     use super::*;
 
@@ -11060,11 +11030,10 @@ pub mod get_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -11086,9 +11055,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap,
-                    last_oracle_price_twap_5min: pyth_price.twap,
-                    last_oracle_price: pyth_price.agg.price,
+                    last_oracle_price_twap: pyth_price.price,
+                    last_oracle_price_twap_5min: pyth_price.price,
+                    last_oracle_price: pyth_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -11250,11 +11219,10 @@ pub mod get_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -11276,9 +11244,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap,
-                    last_oracle_price_twap_5min: pyth_price.twap,
-                    last_oracle_price: pyth_price.agg.price,
+                    last_oracle_price_twap: pyth_price.price,
+                    last_oracle_price_twap_5min: pyth_price.price,
+                    last_oracle_price: pyth_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -11441,11 +11409,10 @@ pub mod get_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -11467,9 +11434,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap,
-                    last_oracle_price_twap_5min: pyth_price.twap,
-                    last_oracle_price: pyth_price.agg.price,
+                    last_oracle_price_twap: pyth_price.price,
+                    last_oracle_price_twap_5min: pyth_price.price,
+                    last_oracle_price: pyth_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -11618,11 +11585,10 @@ pub mod get_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -11644,9 +11610,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap,
-                    last_oracle_price_twap_5min: pyth_price.twap,
-                    last_oracle_price: pyth_price.agg.price,
+                    last_oracle_price_twap: pyth_price.price,
+                    last_oracle_price_twap_5min: pyth_price.price,
+                    last_oracle_price: pyth_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -11869,11 +11835,10 @@ pub mod get_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -11895,9 +11860,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap,
-                    last_oracle_price_twap_5min: pyth_price.twap,
-                    last_oracle_price: pyth_price.agg.price,
+                    last_oracle_price_twap: pyth_price.price,
+                    last_oracle_price_twap_5min: pyth_price.price,
+                    last_oracle_price: pyth_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -12062,11 +12027,10 @@ pub mod get_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -12088,9 +12052,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap,
-                    last_oracle_price_twap_5min: pyth_price.twap,
-                    last_oracle_price: pyth_price.agg.price,
+                    last_oracle_price_twap: pyth_price.price,
+                    last_oracle_price_twap_5min: pyth_price.price,
+                    last_oracle_price: pyth_price.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -12308,11 +12272,10 @@ pub mod get_spot_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -12465,11 +12428,10 @@ pub mod get_spot_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -12624,11 +12586,10 @@ pub mod get_spot_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -12768,11 +12729,10 @@ pub mod get_spot_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -12990,11 +12950,10 @@ pub mod get_spot_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
@@ -13151,11 +13110,10 @@ pub mod get_spot_maker_orders_info {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             pyth_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();

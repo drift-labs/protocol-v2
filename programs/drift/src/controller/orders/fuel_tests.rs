@@ -80,9 +80,9 @@ pub mod fuel_scoring {
 
     use crate::controller::orders::fulfill_perp_order;
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION_I64};
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
 
     use crate::math::constants::PRICE_PRECISION_U64;
     use crate::math::constants::{
@@ -112,11 +112,10 @@ pub mod fuel_scoring {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -390,11 +389,10 @@ pub mod fuel_scoring {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -660,11 +658,10 @@ pub mod fuel_scoring {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();

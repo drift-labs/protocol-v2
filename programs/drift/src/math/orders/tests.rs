@@ -1085,7 +1085,8 @@ mod calculate_max_spot_order_size {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-    use crate::{create_account_info, PositionDirection, QUOTE_PRECISION, SPOT_IMF_PRECISION};
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
+    use crate::{create_anchor_account_info, PositionDirection, QUOTE_PRECISION, SPOT_IMF_PRECISION};
     use crate::{create_anchor_account_info, MARGIN_PRECISION};
 
     #[test]
@@ -1095,11 +1096,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1121,7 +1121,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1202,11 +1202,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1228,7 +1227,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1310,11 +1309,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1336,7 +1334,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1417,11 +1415,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1443,7 +1440,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1507,11 +1504,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1533,7 +1529,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1615,11 +1611,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1641,7 +1636,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1723,11 +1718,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1749,7 +1743,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1831,11 +1825,10 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1857,7 +1850,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1954,13 +1947,14 @@ mod calculate_max_perp_order_size {
     use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{MarginMode, Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
     use crate::{
-        create_account_info, PositionDirection, MARGIN_PRECISION, PRICE_PRECISION_I64,
+        create_anchor_account_info, PositionDirection, MARGIN_PRECISION, PRICE_PRECISION_I64,
         QUOTE_PRECISION, SPOT_IMF_PRECISION,
     };
     use crate::{
@@ -1975,11 +1969,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2097,11 +2090,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2202,11 +2194,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2324,11 +2315,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2429,11 +2419,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2552,11 +2541,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2675,11 +2663,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2798,11 +2785,11 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let drift_program = crate::ID;
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2921,11 +2908,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3044,11 +3030,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3167,11 +3152,10 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
