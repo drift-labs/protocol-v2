@@ -40,7 +40,6 @@ import {
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
-	getPythPullOraclePublicKey,
 	getUserStatsAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getPythLazerOraclePublicKey,
@@ -4732,47 +4731,12 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async initializePythPullOracle(
-		feedId: string
-	): Promise<TransactionSignature> {
-		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
-			feedId
-		);
-		const tx = await this.buildTransaction(initializePythPullOracleIx);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getInitializePythPullOracleIx(
-		feedId: string
-	): Promise<TransactionInstruction> {
-		const feedIdBuffer = getFeedIdUint8Array(feedId);
-		return await this.program.instruction.initializePythPullOracle(
-			feedIdBuffer,
-			{
-				accounts: {
-					admin: this.useHotWalletAdmin
-						? this.wallet.publicKey
-						: this.getStateAccount().admin,
-					state: await this.getStatePublicKey(),
-					systemProgram: SystemProgram.programId,
-					priceFeed: getPythPullOraclePublicKey(
-						this.program.programId,
-						feedIdBuffer
-					),
-					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
-				},
-			}
-		);
-	}
-
 	public async initializePythLazerOracle(
 		feedId: number
 	): Promise<TransactionSignature> {
-		const initializePythPullOracleIx =
+		const initializePythLazerOracleIx =
 			await this.getInitializePythLazerOracleIx(feedId);
-		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const tx = await this.buildTransaction(initializePythLazerOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
