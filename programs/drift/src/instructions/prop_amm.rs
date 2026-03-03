@@ -1,9 +1,9 @@
 //! Match perp orders against prop AMM (midprice_pino) liquidity. Uses Drift as the exchange:
 //! taker and makers are Drift users; matcher authority is a PDA of this program.
 //!
-//! Each PropAMM account must be associated with a Drift User + UserStats account (the maker).
+//! Each PropAMM account must be associated with a Drift User account (the maker).
 //! Remaining accounts: [midprice_program], [spot_market_0, spot_market_1, ...] (num_spot_markets collateral spot markets),
-//! then for each AMM: (matcher_authority, midprice_account, maker_user, maker_user_stats).
+//! then for each AMM: (midprice_account, maker_user).
 //! Midprice accounts must have authorized_exchange_program_id = Drift program id; authority = maker's wallet (User.authority).
 //! Matcher_authority = PDA(drift_program_id, ["matcher", maker_user.key()]).
 
@@ -25,7 +25,8 @@ use crate::state::events::{
 };
 use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::PerpMarket;
+use crate::state::paused_operations::PerpOperation;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{SpotMarketMap, SpotMarketSet};
@@ -80,7 +81,6 @@ pub(crate) struct AmmView {
     key: Pubkey,
     mid_price: u64,
     maker_user_remaining_index: usize,
-    maker_user_stats_remaining_index: usize,
     midprice_remaining_index: usize,
 }
 
@@ -126,7 +126,6 @@ pub(crate) struct PropAmmMatchResult {
     pub taker_quote_delta: i64,
     pub total_quote_volume: u64,
     pub maker_deltas: BTreeMap<Pubkey, (i64, i64)>,
-    pub maker_quote_volume: BTreeMap<Pubkey, u64>,
     pub external_fills: Vec<PendingExternalFill>,
 }
 
@@ -506,19 +505,19 @@ fn find_amm_start_after_spot_markets(remaining_accounts: &[AccountInfo]) -> Drif
     Ok(i)
 }
 
-/// Parses remaining_accounts: midprice_program (0), spot markets [1..amm_start], global_matcher (amm_start), then per-AMM triples (midprice, maker_user, maker_stats).
+/// Parses remaining_accounts: midprice_program (0), spot markets [1..amm_start], global_matcher (amm_start), then per-AMM pairs (midprice, maker_user).
 /// Returns (midprice_program_account_index, amm_views).
 pub(crate) fn parse_amm_views(
     remaining_accounts: &[AccountInfo],
     amm_start: usize,
     program_id: &Pubkey,
 ) -> DriftResult<(usize, Vec<AmmView>)> {
-    const ACCOUNTS_PER_AMM: usize = 3; // midprice, maker_user, maker_user_stats (global matcher is separate)
+    const ACCOUNTS_PER_AMM: usize = 2; // midprice, maker_user (global matcher is separate)
     const GLOBAL_MATCHER_SLOTS: usize = 1;
     validate!(
         remaining_accounts.len() >= amm_start + GLOBAL_MATCHER_SLOTS + ACCOUNTS_PER_AMM,
         ErrorCode::InvalidSpotMarketAccount,
-        "remaining_accounts: need midprice_program + spot_markets + global_matcher + at least one AMM triple"
+        "remaining_accounts: need midprice_program + spot_markets + global_matcher + at least one AMM pair"
     )?;
     let midprice_program = &remaining_accounts[0];
     validate!(
@@ -537,7 +536,7 @@ pub(crate) fn parse_amm_views(
     validate!(
         amm_slice.len() % ACCOUNTS_PER_AMM == 0,
         ErrorCode::InvalidSpotMarketAccount,
-        "remaining_accounts after global_matcher must be (midprice, maker_user, maker_user_stats)*"
+        "remaining_accounts after global_matcher must be (midprice, maker_user)*"
     )?;
 
     let mut amm_views: Vec<AmmView> = Vec::with_capacity(amm_slice.len() / ACCOUNTS_PER_AMM);
@@ -547,11 +546,9 @@ pub(crate) fn parse_amm_views(
         let base = amm_start + GLOBAL_MATCHER_SLOTS + pair_idx * ACCOUNTS_PER_AMM;
         let midprice_info = &amm_slice[pair_idx * ACCOUNTS_PER_AMM];
         let maker_user_info = &amm_slice[pair_idx * ACCOUNTS_PER_AMM + 1];
-        let maker_user_stats_info = &amm_slice[pair_idx * ACCOUNTS_PER_AMM + 2];
 
         let midprice_idx = base;
         let maker_user_idx = base + 1;
-        let maker_user_stats_idx = base + 2;
 
         let pair = (midprice_info.key(), maker_user_info.key());
         validate!(
@@ -571,16 +568,6 @@ pub(crate) fn parse_amm_views(
             ErrorCode::InvalidSpotMarketAccount,
             "maker user must be writable"
         )?;
-        validate!(
-            *maker_user_stats_info.owner == *program_id,
-            ErrorCode::InvalidSpotMarketAccount,
-            "maker user_stats must be owned by Drift"
-        )?;
-        validate!(
-            maker_user_stats_info.is_writable,
-            ErrorCode::InvalidSpotMarketAccount,
-            "maker user_stats must be writable"
-        )?;
 
         let mid_price = read_external_mid_price(
             midprice_info,
@@ -592,7 +579,6 @@ pub(crate) fn parse_amm_views(
             key: midprice_info.key(),
             mid_price,
             maker_user_remaining_index: maker_user_idx,
-            maker_user_stats_remaining_index: maker_user_stats_idx,
             midprice_remaining_index: midprice_idx,
         });
     }
@@ -702,10 +688,6 @@ pub(crate) fn run_prop_amm_matching(
             let entry = result.maker_deltas.entry(maker_pubkey).or_insert((0, 0));
             entry.0 = entry.0.safe_add(-base_delta)?;
             entry.1 = entry.1.safe_add(-quote_delta)?;
-            let vol = *result.maker_quote_volume.get(&maker_pubkey).unwrap_or(&0);
-            result
-                .maker_quote_volume
-                .insert(maker_pubkey, vol.safe_add(fill_quote_u64)?);
             if let Some(ref mut frontier) = frontiers[allocation.idx] {
                 frontier.size = frontier.size.safe_sub(allocation.share)?;
             }
@@ -761,6 +743,11 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             ErrorCode::InvalidOrder,
             "prop AMM match requires limit order"
         )?;
+        validate!(
+            !order.post_only,
+            ErrorCode::InvalidOrder,
+            "post_only orders cannot be filled as taker via prop AMM"
+        )?;
         let size = order.get_base_asset_amount_unfilled(None)?;
         validate!(
             size > 0,
@@ -783,11 +770,32 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         )
     };
 
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
     let perp_market = ctx.accounts.perp_market.load()?;
     validate!(
         perp_market.market_index == market_index,
         ErrorCode::InvalidMarketAccount,
         "perp_market account must match order market_index"
+    )?;
+    validate!(
+        matches!(
+            perp_market.status,
+            MarketStatus::Active | MarketStatus::ReduceOnly
+        ),
+        ErrorCode::MarketFillOrderPaused,
+        "Market not active"
+    )?;
+    validate!(
+        !perp_market.is_operation_paused(PerpOperation::Fill),
+        ErrorCode::MarketFillOrderPaused,
+        "Market fills paused"
+    )?;
+    validate!(
+        !perp_market.is_in_settlement(now),
+        ErrorCode::MarketFillOrderPaused,
+        "Market is in settlement mode"
     )?;
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)?;
     drop(perp_market);
@@ -816,11 +824,8 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     let taker_quote_delta = result.taker_quote_delta;
     let total_quote_volume = result.total_quote_volume;
     let maker_deltas = result.maker_deltas;
-    let maker_quote_volume = result.maker_quote_volume;
     let external_fills = result.external_fills;
 
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
     let spot_slice = &remaining_accounts[1..amm_start];
     let mut spot_iter: Peekable<Iter<AccountInfo>> = spot_slice.iter().peekable();
     let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), &mut spot_iter)?;
@@ -849,6 +854,15 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     drop(user);
     drop(perp_market);
 
+    let perp_market_map =
+        PerpMarketMap::from_single_loader(&ctx.accounts.perp_market, market_index)?;
+    let oracle_guard_rails = ctx.accounts.state.oracle_guard_rails;
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(oracle_guard_rails),
+    )?;
+
     // Margin check: taker must still meet margin after fill (same rule as fill_perp_order: Maintenance if position decreasing, Fill if risk-increasing).
     let taker_user = ctx.accounts.user.load()?;
     let position_after = taker_user
@@ -864,16 +878,8 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         MarginRequirementType::Fill
     };
     {
-        let perp_market_map =
-            PerpMarketMap::from_single_loader(&ctx.accounts.perp_market, market_index)?;
-        let state = ctx.accounts.state.as_ref();
-        let mut oracle_map = OracleMap::load_one(
-            &ctx.accounts.oracle,
-            clock.slot,
-            Some(state.oracle_guard_rails),
-        )?;
         let taker_margin_context = MarginContext::standard(taker_margin_type)
-            .fuel_perp_delta(market_index, taker_base_delta)
+            .fuel_perp_delta(market_index, -taker_base_delta)
             .fuel_numerator(&taker_user, now);
         let taker_margin_calc =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -921,7 +927,6 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             .find(|a| remaining_accounts[a.maker_user_remaining_index].key() == maker_user_key)
             .ok_or(ErrorCode::InvalidSpotMarketAccount)?;
         let maker_info = &remaining_accounts[amm_view.maker_user_remaining_index];
-        let maker_stats_info = &remaining_accounts[amm_view.maker_user_stats_remaining_index];
         let maker_loader: AccountLoader<User> =
             AccountLoader::try_from(maker_info).or(Err(ErrorCode::CouldNotLoadUserData))?;
         let mut maker = maker_loader.load_mut()?;
@@ -944,63 +949,42 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             &maker_delta,
         )?;
         drop(maker);
-        let quote_vol = maker_quote_volume
-            .get(&maker_user_key)
-            .copied()
-            .unwrap_or(0);
-        if quote_vol > 0 {
-            let maker_stats_loader: AccountLoader<crate::state::user::UserStats> =
-                AccountLoader::try_from(maker_stats_info)
-                    .or(Err(ErrorCode::InvalidSpotMarketAccount))?;
-            let mut maker_stats = maker_stats_loader.load_mut()?;
-            maker_stats.update_maker_volume_30d(market.fuel_boost_maker, quote_vol, now)?;
-        }
         drop(market);
 
         // Margin check: maker must still meet margin after fill (same as fill_perp_order: select_margin_type_for_perp_maker, then meets_margin_requirement).
         let maker_for_margin = maker_loader.load()?;
         let (maker_margin_type, _maker_risk_increasing) =
             select_margin_type_for_perp_maker(&maker_for_margin, base_delta, market_index)?;
-        {
-            let perp_market_map =
-                PerpMarketMap::from_single_loader(&ctx.accounts.perp_market, market_index)?;
-            let state = ctx.accounts.state.as_ref();
-            let mut oracle_map = OracleMap::load_one(
-                &ctx.accounts.oracle,
-                clock.slot,
-                Some(state.oracle_guard_rails),
+        let maker_margin_context = MarginContext::standard(maker_margin_type)
+            .fuel_perp_delta(market_index, -base_delta)
+            .fuel_numerator(&maker_for_margin, now);
+        let maker_margin_calc =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &maker_for_margin,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                maker_margin_context,
             )?;
-            let maker_margin_context = MarginContext::standard(maker_margin_type)
-                .fuel_perp_delta(market_index, -base_delta)
-                .fuel_numerator(&maker_for_margin, now);
-            let maker_margin_calc =
-                calculate_margin_requirement_and_total_collateral_and_liability_info(
-                    &maker_for_margin,
-                    &perp_market_map,
-                    &spot_market_map,
-                    &mut oracle_map,
-                    maker_margin_context,
-                )?;
-            if !maker_margin_calc.meets_margin_requirement() {
-                let (margin_requirement, total_collateral) =
-                    if maker_margin_calc.has_isolated_margin_calculation(market_index) {
-                        let isolated =
-                            maker_margin_calc.get_isolated_margin_calculation(market_index)?;
-                        (isolated.margin_requirement, isolated.total_collateral)
-                    } else {
-                        (
-                            maker_margin_calc.margin_requirement,
-                            maker_margin_calc.total_collateral,
-                        )
-                    };
-                msg!(
-                    "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
-                    maker_user_key,
-                    margin_requirement,
-                    total_collateral
-                );
-                return Err(ErrorCode::InsufficientCollateral.into());
-            }
+        if !maker_margin_calc.meets_margin_requirement() {
+            let (margin_requirement, total_collateral) =
+                if maker_margin_calc.has_isolated_margin_calculation(market_index) {
+                    let isolated =
+                        maker_margin_calc.get_isolated_margin_calculation(market_index)?;
+                    (isolated.margin_requirement, isolated.total_collateral)
+                } else {
+                    (
+                        maker_margin_calc.margin_requirement,
+                        maker_margin_calc.total_collateral,
+                    )
+                };
+            msg!(
+                "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
+                maker_user_key,
+                margin_requirement,
+                total_collateral
+            );
+            return Err(ErrorCode::InsufficientCollateral.into());
         }
     }
 
@@ -1110,7 +1094,7 @@ mod tests {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::SpotMarket;
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{PerpPosition, SpotPosition, User, UserStats};
+    use crate::state::user::{PerpPosition, SpotPosition, User};
     use crate::{
         create_account_info, create_executable_program_account_info, get_account_bytes,
         get_anchor_account_bytes, get_pyth_price,
@@ -1181,9 +1165,6 @@ mod tests {
         let mut maker_user = User::default();
         maker_user.authority = maker_user_key;
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
-        let mut maker_stats = UserStats::default();
-        maker_stats.authority = maker_user_key;
-        crate::create_anchor_account_info!(maker_stats, UserStats, maker_stats_info);
 
         let mid_price = 100 * PRICE_PRECISION_U64;
         let data = make_midprice_account_data(
@@ -1222,10 +1203,8 @@ mod tests {
         let mut remaining: Vec<AccountInfo> = vec![program_info, global_matcher_info];
         remaining.push(midprice_info.clone());
         remaining.push(maker_user_info.clone());
-        remaining.push(maker_stats_info.clone());
         remaining.push(midprice_info);
         remaining.push(maker_user_info);
-        remaining.push(maker_stats_info);
 
         let res = parse_amm_views(remaining.as_slice(), 1, &program_id);
         match res {
@@ -1243,9 +1222,6 @@ mod tests {
         let mut maker_user = User::default();
         maker_user.authority = maker_user_key;
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
-        let mut maker_stats = UserStats::default();
-        maker_stats.authority = maker_user_key;
-        crate::create_anchor_account_info!(maker_stats, UserStats, maker_stats_info);
 
         let mid_price = 100 * PRICE_PRECISION_U64;
         let ask_size = 50 * BASE_PRECISION_U64;
@@ -1284,7 +1260,6 @@ mod tests {
             global_matcher_info,
             midprice_info,
             maker_user_info,
-            maker_stats_info,
         ];
         let slice = remaining_accounts.as_slice();
 
@@ -1448,9 +1423,6 @@ mod tests {
         let mut maker_user = User::default();
         maker_user.authority = maker_user_key;
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
-        let mut maker_stats = UserStats::default();
-        maker_stats.authority = maker_user_key;
-        crate::create_anchor_account_info!(maker_stats, UserStats, maker_stats_info);
 
         // Midprice account claims market_index = 1, but order will be for market 0.
         let data = make_midprice_account_data_with_market(
@@ -1494,7 +1466,6 @@ mod tests {
             global_matcher_info,
             midprice_info,
             maker_user_info,
-            maker_stats_info,
         ];
         let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id).unwrap();
         // Validation must reject when midprice market_index != order market_index.
@@ -1516,9 +1487,6 @@ mod tests {
         let mut maker_user = User::default();
         maker_user.authority = maker_user_key;
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
-        let mut maker_stats = UserStats::default();
-        maker_stats.authority = maker_user_key;
-        crate::create_anchor_account_info!(maker_stats, UserStats, maker_stats_info);
 
         // authorized_exchange = wrong_exchange, not Drift.
         let data = make_midprice_account_data_with_market(
@@ -1562,7 +1530,6 @@ mod tests {
             global_matcher_info,
             midprice_info,
             maker_user_info,
-            maker_stats_info,
         ];
         // parse_amm_views calls read_external_mid_price which must validate authorized_exchange == program_id.
         let res = parse_amm_views(remaining.as_slice(), 1, &program_id);
@@ -1581,9 +1548,6 @@ mod tests {
         let mut maker_user = User::default();
         maker_user.authority = taker_and_maker_key;
         crate::create_anchor_account_info!(maker_user, &taker_and_maker_key, User, maker_user_info);
-        let mut maker_stats = UserStats::default();
-        maker_stats.authority = taker_and_maker_key;
-        crate::create_anchor_account_info!(maker_stats, UserStats, maker_stats_info);
 
         let data = make_midprice_account_data(
             100 * PRICE_PRECISION_U64,
@@ -1625,7 +1589,6 @@ mod tests {
             global_matcher_info,
             midprice_info,
             maker_user_info,
-            maker_stats_info,
         ];
         let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id).unwrap();
         // Taker pubkey same as maker account key (the User account passed as maker).
@@ -1644,9 +1607,6 @@ mod tests {
         let mut maker_user = User::default();
         maker_user.authority = maker_user_key;
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
-        let mut maker_stats = UserStats::default();
-        maker_stats.authority = maker_user_key;
-        crate::create_anchor_account_info!(maker_stats, UserStats, maker_stats_info);
 
         let data = make_midprice_account_data(
             100 * PRICE_PRECISION_U64,
@@ -1688,7 +1648,6 @@ mod tests {
             global_matcher_info,
             midprice_info,
             maker_user_info,
-            maker_stats_info,
         ];
         let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id).unwrap();
         let result = run_prop_amm_matching(
@@ -1715,9 +1674,6 @@ mod tests {
         let mut maker_user = User::default();
         maker_user.authority = maker_user_key;
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
-        let mut maker_stats = UserStats::default();
-        maker_stats.authority = maker_user_key;
-        crate::create_anchor_account_info!(maker_stats, UserStats, maker_stats_info);
         let mid_price = 100 * PRICE_PRECISION_U64;
         let ask_size = 50 * BASE_PRECISION_U64;
         let data = make_midprice_account_data(mid_price, ask_size, &maker_user_key, &program_id);
@@ -1752,7 +1708,6 @@ mod tests {
             global_matcher_info,
             midprice_info,
             maker_user_info,
-            maker_stats_info,
         ];
         let slice = remaining.as_slice();
         let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
@@ -1782,12 +1737,7 @@ mod tests {
             authority: maker_key_0,
             ..User::default()
         };
-        let mut maker_stats_0 = UserStats {
-            authority: maker_key_0,
-            ..UserStats::default()
-        };
         crate::create_anchor_account_info!(maker_user_0, &maker_key_0, User, maker_user_info_0);
-        crate::create_anchor_account_info!(maker_stats_0, UserStats, maker_stats_info_0);
         let midprice_key_0 = Pubkey::new_unique();
         let mut midprice_lamports_0 = 0u64;
         let mut midprice_data_0 =
@@ -1805,12 +1755,7 @@ mod tests {
             authority: maker_key_1,
             ..User::default()
         };
-        let mut maker_stats_1 = UserStats {
-            authority: maker_key_1,
-            ..UserStats::default()
-        };
         crate::create_anchor_account_info!(maker_user_1, &maker_key_1, User, maker_user_info_1);
-        crate::create_anchor_account_info!(maker_stats_1, UserStats, maker_stats_info_1);
         let midprice_key_1 = Pubkey::new_unique();
         let mut midprice_lamports_1 = 0u64;
         let mut midprice_data_1 =
@@ -1845,10 +1790,8 @@ mod tests {
             global_matcher_info,
             midprice_info_0,
             maker_user_info_0,
-            maker_stats_info_0,
             midprice_info_1,
             maker_user_info_1,
-            maker_stats_info_1,
         ];
         let slice = remaining.as_slice();
         let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
@@ -1878,12 +1821,7 @@ mod tests {
             authority: mk0,
             ..User::default()
         };
-        let mut ms0 = UserStats {
-            authority: mk0,
-            ..UserStats::default()
-        };
         crate::create_anchor_account_info!(mu0, &mk0, User, mu_i0);
-        crate::create_anchor_account_info!(ms0, UserStats, ms_i0);
         let mp0 = Pubkey::new_unique();
         let mut ml0 = 0u64;
         let mut md0 = make_midprice_account_data(mid_price, ask_size, &mk0, &program_id);
@@ -1894,12 +1832,7 @@ mod tests {
             authority: mk1,
             ..User::default()
         };
-        let mut ms1 = UserStats {
-            authority: mk1,
-            ..UserStats::default()
-        };
         crate::create_anchor_account_info!(mu1, &mk1, User, mu_i1);
-        crate::create_anchor_account_info!(ms1, UserStats, ms_i1);
         let mp1 = Pubkey::new_unique();
         let mut ml1 = 0u64;
         let mut md1 = make_midprice_account_data(mid_price, ask_size, &mk1, &program_id);
@@ -1910,12 +1843,7 @@ mod tests {
             authority: mk2,
             ..User::default()
         };
-        let mut ms2 = UserStats {
-            authority: mk2,
-            ..UserStats::default()
-        };
         crate::create_anchor_account_info!(mu2, &mk2, User, mu_i2);
-        crate::create_anchor_account_info!(ms2, UserStats, ms_i2);
         let mp2 = Pubkey::new_unique();
         let mut ml2 = 0u64;
         let mut md2 = make_midprice_account_data(mid_price, ask_size, &mk2, &program_id);
@@ -1926,12 +1854,7 @@ mod tests {
             authority: mk3,
             ..User::default()
         };
-        let mut ms3 = UserStats {
-            authority: mk3,
-            ..UserStats::default()
-        };
         crate::create_anchor_account_info!(mu3, &mk3, User, mu_i3);
-        crate::create_anchor_account_info!(ms3, UserStats, ms_i3);
         let mp3 = Pubkey::new_unique();
         let mut ml3 = 0u64;
         let mut md3 = make_midprice_account_data(mid_price, ask_size, &mk3, &program_id);
@@ -1959,16 +1882,12 @@ mod tests {
             global_matcher_info,
             mi0,
             mu_i0,
-            ms_i0,
             mi1,
             mu_i1,
-            ms_i1,
             mi2,
             mu_i2,
-            ms_i2,
             mi3,
             mu_i3,
-            ms_i3,
         ];
         let slice = remaining.as_slice();
         let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
@@ -1991,18 +1910,13 @@ mod tests {
         let ask_size = 50 * BASE_PRECISION_U64;
 
         macro_rules! one_amm {
-            ($mk:ident, $mu:ident, $ms:ident, $mu_i:ident, $ms_i:ident, $mp:ident, $ml:ident, $md:ident, $mi:ident) => {
+            ($mk:ident, $mu:ident, $mu_i:ident, $mp:ident, $ml:ident, $md:ident, $mi:ident) => {
                 let $mk = Pubkey::new_unique();
                 let mut $mu = User {
                     authority: $mk,
                     ..User::default()
                 };
-                let mut $ms = UserStats {
-                    authority: $mk,
-                    ..UserStats::default()
-                };
                 crate::create_anchor_account_info!($mu, &$mk, User, $mu_i);
-                crate::create_anchor_account_info!($ms, UserStats, $ms_i);
                 let $mp = Pubkey::new_unique();
                 let mut $ml = 0u64;
                 let mut $md = make_midprice_account_data(mid_price, ask_size, &$mk, &program_id);
@@ -2010,14 +1924,14 @@ mod tests {
                     create_account_info(&$mp, true, &mut $ml, &mut $md[..], &midprice_prog_id);
             };
         }
-        one_amm!(mk0, mu0, ms0, mu_i0, ms_i0, mp0, ml0, md0, mi0);
-        one_amm!(mk1, mu1, ms1, mu_i1, ms_i1, mp1, ml1, md1, mi1);
-        one_amm!(mk2, mu2, ms2, mu_i2, ms_i2, mp2, ml2, md2, mi2);
-        one_amm!(mk3, mu3, ms3, mu_i3, ms_i3, mp3, ml3, md3, mi3);
-        one_amm!(mk4, mu4, ms4, mu_i4, ms_i4, mp4, ml4, md4, mi4);
-        one_amm!(mk5, mu5, ms5, mu_i5, ms_i5, mp5, ml5, md5, mi5);
-        one_amm!(mk6, mu6, ms6, mu_i6, ms_i6, mp6, ml6, md6, mi6);
-        one_amm!(mk7, mu7, ms7, mu_i7, ms_i7, mp7, ml7, md7, mi7);
+        one_amm!(mk0, mu0, mu_i0, mp0, ml0, md0, mi0);
+        one_amm!(mk1, mu1, mu_i1, mp1, ml1, md1, mi1);
+        one_amm!(mk2, mu2, mu_i2, mp2, ml2, md2, mi2);
+        one_amm!(mk3, mu3, mu_i3, mp3, ml3, md3, mi3);
+        one_amm!(mk4, mu4, mu_i4, mp4, ml4, md4, mi4);
+        one_amm!(mk5, mu5, mu_i5, mp5, ml5, md5, mi5);
+        one_amm!(mk6, mu6, mu_i6, mp6, ml6, md6, mi6);
+        one_amm!(mk7, mu7, mu_i7, mp7, ml7, md7, mi7);
 
         let mut prog_lamps = 0u64;
         let mut prog_data = [0u8; 0];
@@ -2041,28 +1955,20 @@ mod tests {
             global_matcher_info,
             mi0,
             mu_i0,
-            ms_i0,
             mi1,
             mu_i1,
-            ms_i1,
             mi2,
             mu_i2,
-            ms_i2,
             mi3,
             mu_i3,
-            ms_i3,
             mi4,
             mu_i4,
-            ms_i4,
             mi5,
             mu_i5,
-            ms_i5,
             mi6,
             mu_i6,
-            ms_i6,
             mi7,
             mu_i7,
-            ms_i7,
         ];
         let slice = remaining.as_slice();
         let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();

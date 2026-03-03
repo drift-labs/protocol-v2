@@ -20,6 +20,11 @@ import {
 	Transaction,
 	TransactionInstruction,
 } from '@solana/web3.js';
+import {
+	createAssociatedTokenAccountIdempotentInstruction,
+	createMintToInstruction,
+	getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
 
 /** Min size for midprice_pino account (midprice_book_view::ACCOUNT_MIN_LEN) */
 const MIDPRICE_ACCOUNT_MIN_LEN = 106;
@@ -52,7 +57,6 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	mockUserUSDCAccountWithAuthority,
 	sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
@@ -178,7 +182,8 @@ function buildMidpriceSetOrdersInstruction(
 	data.writeUInt8(MIDPRICE_IX_SET_ORDERS, 0);
 	data.writeUInt16LE(askLen, 1);
 	data.writeUInt16LE(bidLen, 3);
-	let off = 4;
+	// Entries start after opcode (1) + lengths (4) = 5.
+	let off = 1 + 4;
 	for (const e of entries) {
 		// offset i64 LE, size u64 LE
 		data.writeBigInt64LE(BigInt(e.offset.toString()), off);
@@ -328,10 +333,9 @@ describe('PropAMM CU usage (bankrun)', () => {
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const oracleKey = new PublicKey(market.amm.oracle);
 
-		// Create N maker users (Drift user + user_stats)
+		// Create N makers (Drift User accounts + PropAMM books).
 		const makerKeypairs: Keypair[] = [];
 		const makerUserPDAs: PublicKey[] = [];
-		const makerStatsPDAs: PublicKey[] = [];
 		const midpriceKeypairs: Keypair[] = [];
 		for (let i = 0; i < numPropAmms; i++) {
 			const kp = Keypair.generate();
@@ -340,23 +344,50 @@ describe('PropAMM CU usage (bankrun)', () => {
 			makerUserPDAs.push(
 				await getUserAccountPublicKey(driftProgramId, kp.publicKey, 0)
 			);
-			makerStatsPDAs.push(
-				getUserStatsAccountPublicKey(driftProgramId, kp.publicKey)
-			);
 			midpriceKeypairs.push(Keypair.generate());
 		}
 
-		// Initialize maker Drift users so accounts exist
+		const connection = bankrunContextWrapper.connection;
+		const tokenProgram = (await connection.getAccountInfo(usdcMint.publicKey))
+			.owner;
+		const midpriceAccountSpace =
+			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2; // space for 2 orders (128 bytes)
+		const rentExempt = midpriceProgramId
+			? await connection.getMinimumBalanceForRentExemption(midpriceAccountSpace)
+			: 0;
+
+		// Setup: 1 tx per maker (create ATA+mint, init Drift user+deposit, create/init midprice, seed liquidity).
 		for (let i = 0; i < numPropAmms; i++) {
-			const makerUsdcAccount = await mockUserUSDCAccountWithAuthority(
-				usdcMint,
-				usdcAmount,
-				bankrunContextWrapper,
-				makerKeypairs[i]
+			const maker = makerKeypairs[i];
+			const makerUsdcAccount = getAssociatedTokenAddressSync(
+				usdcMint.publicKey,
+				maker.publicKey
 			);
+
+			const setupIxs: TransactionInstruction[] = [];
+			setupIxs.push(
+				createAssociatedTokenAccountIdempotentInstruction(
+					bankrunContextWrapper.context.payer.publicKey,
+					makerUsdcAccount,
+					maker.publicKey,
+					usdcMint.publicKey,
+					tokenProgram
+				)
+			);
+			setupIxs.push(
+				createMintToInstruction(
+					usdcMint.publicKey,
+					makerUsdcAccount,
+					bankrunContextWrapper.context.payer.publicKey,
+					usdcAmount.toNumber(),
+					undefined,
+					tokenProgram
+				)
+			);
+
 			const makerClient = new TestClient({
 				connection: bankrunContextWrapper.connection.toConnection(),
-				wallet: new anchor.Wallet(makerKeypairs[i]),
+				wallet: new anchor.Wallet(maker),
 				programID: driftProgramId,
 				opts: { commitment: 'confirmed' },
 				activeSubAccountId: 0,
@@ -370,14 +401,68 @@ describe('PropAMM CU usage (bankrun)', () => {
 				},
 			});
 			await makerClient.subscribe();
-			await makerClient.initializeUserAccountAndDepositCollateral(
-				usdcAmount,
-				makerUsdcAccount
-			);
+			const { ixs: initUserIxs } =
+				await makerClient.createInitializeUserAccountAndDepositCollateralIxs(
+					usdcAmount,
+					makerUsdcAccount
+				);
+			setupIxs.push(...initUserIxs);
 			await makerClient.unsubscribe();
+
+			if (midpriceProgramId) {
+				setupIxs.push(
+					SystemProgram.createAccount({
+						fromPubkey: bankrunContextWrapper.context.payer.publicKey,
+						newAccountPubkey: midpriceKeypairs[i].publicKey,
+						lamports: rentExempt,
+						space: midpriceAccountSpace,
+						programId: midpriceProgramId,
+					})
+				);
+				setupIxs.push(
+					buildMidpriceInitializeInstruction(
+						midpriceProgramId,
+						midpriceKeypairs[i].publicKey,
+						maker.publicKey,
+						driftProgramId,
+						marketIndex
+					)
+				);
+				// Set mid_price = 100 so an ask at offset PRICE_PRECISION has price 101 (crosses taker buy @ 101)
+				setupIxs.push(
+					buildMidpriceUpdateMidPriceInstruction(
+						midpriceProgramId,
+						midpriceKeypairs[i].publicKey,
+						maker.publicKey,
+						new BN(100).mul(PRICE_PRECISION)
+					)
+				);
+				// One ask: offset PRICE_PRECISION => price 101 (crosses). Size = 1 base so taker margin passes
+				setupIxs.push(
+					buildMidpriceSetOrdersInstruction(
+						midpriceProgramId,
+						midpriceKeypairs[i].publicKey,
+						maker.publicKey,
+						1,
+						0,
+						[
+							{
+								offset: PRICE_PRECISION,
+								size: new BN(1).mul(BASE_PRECISION),
+							},
+						]
+					)
+				);
+			}
+
+			const setupTx = new Transaction().add(...setupIxs);
+			await bankrunContextWrapper.sendTransaction(setupTx, [
+				maker,
+				midpriceKeypairs[i],
+			]);
 		}
 
-		// Remaining: [midprice_program], [spot_markets...], one global PropAMM matcher, then per AMM: midprice, maker_user, maker_user_stats
+		// Remaining: [midprice_program], [spot_markets...], global PropAMM matcher, then per AMM: (midprice, maker_user)
 		const remaining: { pubkey: PublicKey; isWritable: boolean }[] = [];
 		remaining.push({
 			pubkey: midpriceProgramId ?? driftProgramId,
@@ -398,7 +483,6 @@ describe('PropAMM CU usage (bankrun)', () => {
 				isWritable: true,
 			});
 			remaining.push({ pubkey: makerUserPDAs[i], isWritable: true });
-			remaining.push({ pubkey: makerStatsPDAs[i], isWritable: true });
 		}
 
 		const orderId = 1;
@@ -415,90 +499,12 @@ describe('PropAMM CU usage (bankrun)', () => {
 			remaining
 		);
 
-		const tx = new Transaction();
-		const wallet = bankrunContextWrapper.provider.wallet.publicKey;
-		const connection = bankrunContextWrapper.connection;
-
-		// When midprice_pino is loaded: create and initialize midprice accounts, set mid_price and add liquidity so the taker order can match
-		// Use extra space so set_orders validate_bounds (ORDERS_DATA_OFFSET + total_orders*16 <= data.len()) passes in-program
-		const midpriceAccountSpace =
-			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2; // space for 2 orders (128 bytes)
-		if (midpriceProgramId) {
-			const rentExempt =
-				await connection.getMinimumBalanceForRentExemption(
-					midpriceAccountSpace
-				);
-			for (let i = 0; i < numPropAmms; i++) {
-				tx.add(
-					SystemProgram.createAccount({
-						fromPubkey: wallet,
-						newAccountPubkey: midpriceKeypairs[i].publicKey,
-						lamports: rentExempt,
-						space: midpriceAccountSpace,
-						programId: midpriceProgramId,
-					})
-				);
-				tx.add(
-					buildMidpriceInitializeInstruction(
-						midpriceProgramId,
-						midpriceKeypairs[i].publicKey,
-						makerKeypairs[i].publicKey,
-						driftProgramId,
-						marketIndex,
-						makerUserPDAs[i] // store User PDA as authority so Drift can pass maker_user in CPI
-					)
-				);
-				// Set mid_price = 100 so an ask at offset PRICE_PRECISION has price 101 (crosses taker buy @ 101)
-				tx.add(
-					buildMidpriceUpdateMidPriceInstruction(
-						midpriceProgramId,
-						midpriceKeypairs[i].publicKey,
-						makerKeypairs[i].publicKey,
-						new BN(100).mul(PRICE_PRECISION)
-					)
-				);
-				// One ask: offset PRICE_PRECISION => price 101 (crosses). Size = 1 base so taker margin passes
-				const setOrdersData = Buffer.alloc(1 + 4 + 16);
-				setOrdersData.writeUInt8(MIDPRICE_IX_SET_ORDERS, 0);
-				setOrdersData.writeUInt16LE(1, 1); // ask_len
-				setOrdersData.writeUInt16LE(0, 3); // bid_len
-				setOrdersData.writeBigInt64LE(BigInt(PRICE_PRECISION.toString()), 5);
-				setOrdersData.writeBigUInt64LE(BigInt(new BN(1).mul(BASE_PRECISION).toString()), 13); // 1 base
-				tx.add(
-					new TransactionInstruction({
-						programId: midpriceProgramId,
-						keys: [
-							{
-								pubkey: midpriceKeypairs[i].publicKey,
-								isSigner: false,
-								isWritable: true,
-							},
-							{
-								pubkey: makerKeypairs[i].publicKey,
-								isSigner: true,
-								isWritable: false,
-							},
-						],
-						data: setOrdersData,
-					})
-				);
-			}
-		}
-		tx.add(matchIx);
-
-		const { blockhash } =
-			await connection.getLatestBlockhash('confirmed');
-		tx.recentBlockhash = blockhash;
-		tx.feePayer = wallet;
-		// Signer order must match first appearance in the message: fee payer, then per AMM (createAccount newAccount + initialize authority)
-		const signers: Keypair[] = [bankrunContextWrapper.provider.wallet.payer];
-		if (midpriceProgramId) {
-			for (let i = 0; i < numPropAmms; i++) {
-				signers.push(midpriceKeypairs[i], makerKeypairs[i]);
-			}
-		}
-		tx.sign(...signers);
-		return { tx, signers };
+		// Final tx: match ix only (setup is done above).
+		const tx = new Transaction().add(matchIx);
+		tx.recentBlockhash = await bankrunContextWrapper.getLatestBlockhash();
+		tx.feePayer = bankrunContextWrapper.context.payer.publicKey;
+		tx.sign(bankrunContextWrapper.context.payer);
+		return { tx, signers: [] };
 	}
 
 	async function measurePropAmmMatchCU(numPropAmms: number): Promise<number> {
@@ -531,15 +537,21 @@ describe('PropAMM CU usage (bankrun)', () => {
 		);
 	});
 
-	// it('measures CU for 2 PropAMM fills', async () => {
-	// 	const cu = await measurePropAmmMatchCU(2);
-	// 	console.log('PropAMM match CU (2 AMMs):', cu);
-	// 	assert(cu > 0, 'should consume compute units');
-	// });
+	it('measures CU for 2 PropAMM fills', async () => {
+		const cu = await measurePropAmmMatchCU(2);
+		console.log('PropAMM match CU (2 AMMs):', cu);
+		assert(cu > 0, 'should consume compute units');
+	});
 
-	// it('measures CU for 4 PropAMM fills', async () => {
-	// 	const cu = await measurePropAmmMatchCU(4);
-	// 	console.log('PropAMM match CU (4 AMMs):', cu);
-	// 	assert(cu > 0, 'should consume compute units');
-	// });
+	it('measures CU for 4 PropAMM fills', async () => {
+		const cu = await measurePropAmmMatchCU(4);
+		console.log('PropAMM match CU (4 AMMs):', cu);
+		assert(cu > 0, 'should consume compute units');
+	});
+
+	it('measures CU for 6 PropAMM fills', async () => {
+		const cu = await measurePropAmmMatchCU(6);
+		console.log('PropAMM match CU (6 AMMs):', cu);
+		assert(cu > 0, 'should consume compute units');
+	});
 });

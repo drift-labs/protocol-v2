@@ -23,7 +23,7 @@ echo "Building midprice_pino in $MIDPRICE_DIR..."
 # build midprice program with latest solana tools
 (cd "$MIDPRICE_DIR" && cargo build-sbf --tools-version v1.52)
 echo "copying built midprice_pino.so to $..."
-cp programs/midprice_pino/target/sbpf-solana-solana/release/midprice_pino.so "$DEPLOY"
+cp programs/midprice_pino/target/deploy/midprice_pino.so "$DEPLOY"
 
 # build drift program with compatible/legacy tools
 echo "Building drift program"
@@ -48,7 +48,9 @@ fi
 echo "Done. Bankrun tests will load midprice_pino from $FIXTURES."
 
 if $RUN_TESTS; then
-  echo ""
-  echo "Running PropAMM bankrun tests..."
+  anchor test
+  echo """
+  echo "Running PropAMM bankrun tests"
+  echo """
   ANCHOR_WALLET=~/.config/solana/id.json ts-mocha -t 120000 ./tests/propAmmCUs.ts
 fi
