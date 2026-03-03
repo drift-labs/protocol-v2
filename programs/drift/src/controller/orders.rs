@@ -1817,7 +1817,7 @@ fn fulfill_perp_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let mut maker_fills: BTreeMap<Pubkey, (i64, bool)> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -1882,6 +1882,8 @@ fn fulfill_perp_order(
             }
             PerpFulfillmentMethod::Match(maker_key, maker_order_index, maker_price) => {
                 let mut maker = makers_and_referrer.get_ref_mut(maker_key)?;
+                let maker_is_isolated_position =
+                    maker.get_perp_position(market_index)?.is_isolated();
                 let mut maker_stats = if maker.authority == user.authority {
                     None
                 } else {
@@ -1930,6 +1932,7 @@ fn fulfill_perp_order(
                         maker_key,
                         maker_direction,
                         maker_fill_base_asset_amount,
+                        maker_is_isolated_position,
                     )?;
                 }
 
@@ -1952,7 +1955,7 @@ fn fulfill_perp_order(
         quote_asset_amount
     )?;
 
-    let total_maker_fill = maker_fills.values().sum::<i64>();
+    let total_maker_fill = maker_fills.values().map(|(fill, _)| fill).sum::<i64>();
 
     validate!(
         total_maker_fill.unsigned_abs() <= base_asset_amount,
@@ -2040,9 +2043,8 @@ fn fulfill_perp_order(
         }
     }
 
-    for (maker_key, maker_base_asset_amount_filled) in maker_fills {
+    for (maker_key, (maker_base_asset_amount_filled, maker_is_isolated_position)) in maker_fills {
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
-        let maker_is_isolated_position = maker.get_perp_position(market_index)?.is_isolated();
 
         let maker_stats = if maker.authority == user.authority {
             None
@@ -2169,10 +2171,11 @@ fn get_referrer<'a>(
 
 #[inline(always)]
 fn update_maker_fills_map(
-    map: &mut BTreeMap<Pubkey, i64>,
+    map: &mut BTreeMap<Pubkey, (i64, bool)>,
     maker_key: &Pubkey,
     maker_direction: PositionDirection,
     fill: u64,
+    is_isolated_position: bool,
 ) -> DriftResult {
     let signed_fill = match maker_direction {
         PositionDirection::Long => fill.cast::<i64>()?,
@@ -2180,9 +2183,9 @@ fn update_maker_fills_map(
     };
 
     if let Some(maker_filled) = map.get_mut(maker_key) {
-        *maker_filled = maker_filled.safe_add(signed_fill)?;
+        *maker_filled = (maker_filled.0.safe_add(signed_fill)?, is_isolated_position);
     } else {
-        map.insert(*maker_key, signed_fill);
+        map.insert(*maker_key, (signed_fill, is_isolated_position));
     }
 
     Ok(())
@@ -4538,7 +4541,7 @@ fn fulfill_spot_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let mut maker_fills: BTreeMap<Pubkey, (i64, bool)> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -4580,6 +4583,7 @@ fn fulfill_spot_order(
                         maker_key,
                         maker_direction,
                         base_filled,
+                        false,
                     )?;
                 }
 
