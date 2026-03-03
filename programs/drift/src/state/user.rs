@@ -40,11 +40,13 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
     validate_any_isolated_tier_requirements,
 };
-use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarginTypeConfig};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market_map::SpotMarketMap;
 
+#[cfg(test)]
+mod isolated_transfer_tests;
 #[cfg(test)]
 mod tests;
 
@@ -760,7 +762,7 @@ impl User {
         perp_market_map: &PerpMarketMap,
         spot_market_map: &SpotMarketMap,
         oracle_map: &mut OracleMap,
-        margin_requirement_type: MarginRequirementType,
+        margin_type_config: MarginTypeConfig,
         withdraw_market_index: u16,
         withdraw_amount: u128,
         user_stats: &mut UserStats,
@@ -768,8 +770,13 @@ impl User {
         to_isolated_position: bool,
         isolated_market_index: u16,
     ) -> DriftResult<bool> {
-        let strict = margin_requirement_type == MarginRequirementType::Initial;
-        let context = MarginContext::standard(margin_requirement_type)
+        let strict = if !to_isolated_position {
+            margin_type_config.get_isolated_margin_requirement_type(isolated_market_index)
+                == MarginRequirementType::Initial
+        } else {
+            margin_type_config.get_cross_margin_requirement_type() == MarginRequirementType::Initial
+        };
+        let context = MarginContext::standard_with_config(margin_type_config)
             .strict(strict)
             .ignore_invalid_deposit_oracles(true)
             .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
@@ -793,27 +800,12 @@ impl User {
 
         validate_any_isolated_tier_requirements(self, &calculation)?;
 
-        if to_isolated_position {
-            validate!(
-                calculation.meets_cross_margin_requirement(),
-                ErrorCode::InsufficientCollateral,
-                "margin calculation: {:?}",
-                calculation
-            )?;
-        } else {
-            // may not exist if user withdrew their remaining deposit
-            if let Some(isolated_margin_calculation) = calculation
-                .isolated_margin_calculations
-                .get(&isolated_market_index)
-            {
-                validate!(
-                    isolated_margin_calculation.meets_margin_requirement(),
-                    ErrorCode::InsufficientCollateral,
-                    "margin calculation: {:?}",
-                    calculation
-                )?;
-            }
-        }
+        validate!(
+            calculation.meets_margin_requirement(),
+            ErrorCode::InsufficientCollateral,
+            "margin calculation: {:?}",
+            calculation
+        )?;
 
         user_stats.update_fuel_bonus(
             self,

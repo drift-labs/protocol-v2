@@ -27,7 +27,7 @@ pub enum MarginCalculationMode {
 
 #[derive(Clone, Copy, Debug)]
 pub struct MarginContext {
-    pub margin_type: MarginRequirementType,
+    pub margin_type_config: MarginTypeConfig,
     pub mode: MarginCalculationMode,
     pub strict: bool,
     pub ignore_invalid_deposit_oracles: bool,
@@ -64,7 +64,22 @@ impl MarketIdentifier {
 impl MarginContext {
     pub fn standard(margin_type: MarginRequirementType) -> Self {
         Self {
-            margin_type,
+            margin_type_config: MarginTypeConfig::Default(margin_type),
+            mode: MarginCalculationMode::Standard,
+            strict: false,
+            ignore_invalid_deposit_oracles: false,
+            margin_buffer: 0,
+            fuel_bonus_numerator: 0,
+            fuel_bonus: 0,
+            fuel_perp_delta: None,
+            fuel_spot_deltas: [(0, 0); 2],
+            margin_ratio_override: None,
+        }
+    }
+
+    pub fn standard_with_config(margin_type_config: MarginTypeConfig) -> Self {
+        Self {
+            margin_type_config,
             mode: MarginCalculationMode::Standard,
             strict: false,
             ignore_invalid_deposit_oracles: false,
@@ -125,7 +140,7 @@ impl MarginContext {
 
     pub fn liquidation(margin_buffer: u32) -> Self {
         Self {
-            margin_type: MarginRequirementType::Maintenance,
+            margin_type_config: MarginTypeConfig::Default(MarginRequirementType::Maintenance),
             mode: MarginCalculationMode::Liquidation {
                 market_to_track_margin_requirement: None,
             },
@@ -695,5 +710,58 @@ impl MarginCalculation {
     pub fn has_isolated_margin_calculation(&self, market_index: u16) -> bool {
         self.isolated_margin_calculations
             .contains_key(&market_index)
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum MarginTypeConfig {
+    Default(MarginRequirementType),
+    IsolatedPositionOverride {
+        market_index: u16,
+        margin_requirement_type: MarginRequirementType,
+        default_isolated_margin_requirement_type: MarginRequirementType,
+        cross_margin_requirement_type: MarginRequirementType,
+    },
+    CrossMarginOverride {
+        margin_requirement_type: MarginRequirementType,
+        default_margin_requirement_type: MarginRequirementType,
+    },
+}
+
+impl MarginTypeConfig {
+    pub fn get_cross_margin_requirement_type(&self) -> MarginRequirementType {
+        match self {
+            MarginTypeConfig::Default(margin_requirement_type) => *margin_requirement_type,
+            MarginTypeConfig::IsolatedPositionOverride {
+                cross_margin_requirement_type,
+                ..
+            } => *cross_margin_requirement_type,
+            MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type,
+                ..
+            } => *margin_requirement_type,
+        }
+    }
+
+    pub fn get_isolated_margin_requirement_type(&self, market_index: u16) -> MarginRequirementType {
+        match self {
+            MarginTypeConfig::Default(margin_requirement_type) => *margin_requirement_type,
+            MarginTypeConfig::IsolatedPositionOverride {
+                margin_requirement_type,
+                default_isolated_margin_requirement_type,
+                market_index: self_market_index,
+                ..
+            } => {
+                if *self_market_index == market_index {
+                    *margin_requirement_type
+                } else {
+                    *default_isolated_margin_requirement_type
+                }
+            }
+            MarginTypeConfig::CrossMarginOverride {
+                default_margin_requirement_type,
+                ..
+            } => *default_margin_requirement_type,
+        }
     }
 }
