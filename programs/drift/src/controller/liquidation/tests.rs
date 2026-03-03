@@ -10631,7 +10631,8 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
 
 mod liquidation_mode {
     use crate::state::liquidation_mode::{
-        CrossMarginLiquidatePerpMode, IsolatedMarginLiquidatePerpMode, LiquidatePerpMode,
+        get_perp_liquidation_mode, CrossMarginLiquidatePerpMode, IsolatedMarginLiquidatePerpMode,
+        LiquidatePerpMode,
     };
     use std::collections::BTreeSet;
     use std::str::FromStr;
@@ -10865,5 +10866,35 @@ mod liquidation_mode {
                 .unwrap(),
             true
         );
+    }
+
+    #[test]
+    pub fn tests_get_cancel_orders_params() {
+        let mut perp_positions = [PerpPosition::default(); 8];
+        perp_positions[0] = PerpPosition {
+            market_index: 0,
+            quote_asset_amount: 0,
+            isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64,
+            position_flag: PositionFlag::IsolatedPosition as u8,
+            ..PerpPosition::default()
+        };
+        let user = User {
+            orders: [Order::default(); 32],
+            perp_positions,
+            spot_positions: [SpotPosition::default(); 8],
+            ..User::default()
+        };
+
+        let mode = get_perp_liquidation_mode(&user, 0).unwrap();
+        assert_eq!(
+            mode.as_ref().user_is_being_liquidated(&user).unwrap(),
+            false
+        );
+        let (cancel_market_type, cancel_market_index) = mode.get_cancel_orders_params();
+        assert_eq!(
+            cancel_market_type,
+            Some(crate::state::user::MarketType::Perp)
+        );
+        assert_eq!(cancel_market_index, Some(0));
     }
 }
