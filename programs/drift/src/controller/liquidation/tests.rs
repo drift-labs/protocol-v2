@@ -11018,9 +11018,15 @@ mod liquidation_mode {
         };
 
         let mode = get_perp_liquidation_mode(&user, 0).unwrap();
-        assert_eq!(mode.as_ref().user_is_being_liquidated(&user).unwrap(), false);
+        assert_eq!(
+            mode.as_ref().user_is_being_liquidated(&user).unwrap(),
+            false
+        );
         let (cancel_market_type, cancel_market_index) = mode.get_cancel_orders_params();
-        assert_eq!(cancel_market_type, Some(crate::state::user::MarketType::Perp));
+        assert_eq!(
+            cancel_market_type,
+            Some(crate::state::user::MarketType::Perp)
+        );
         assert_eq!(cancel_market_index, Some(0));
     }
 }

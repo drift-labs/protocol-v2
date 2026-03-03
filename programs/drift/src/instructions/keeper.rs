@@ -35,12 +35,15 @@ use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    GOV_SPOT_MARKET_INDEX, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+    BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT, GOV_SPOT_MARKET_INDEX, QUOTE_PRECISION_I128,
+    QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
 };
 use crate::math::lp_pool::perp_lp_pool_settlement;
 use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
-use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
+use crate::math::orders::{
+    estimate_price_from_side, filter_bids_asks_by_oracle_divergence, find_bids_and_asks_from_users,
+};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -2688,6 +2691,12 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
 
     let (bids, asks) =
         find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+    let (bids, asks) = filter_bids_asks_by_oracle_divergence(
+        bids,
+        asks,
+        oracle_price_data.price,
+        BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT,
+    )?;
     let estimated_bid = estimate_price_from_side(&bids, depth)?;
     let estimated_ask = estimate_price_from_side(&asks, depth)?;
 
