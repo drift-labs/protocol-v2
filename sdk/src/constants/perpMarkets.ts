@@ -381,6 +381,19 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1729622442000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'Nvidia',
+		category: ['Equity'],
+		symbol: 'NVDA-PERP',
+		baseAssetSymbol: 'NVDA',
+		marketIndex: 29,
+		oracle: new PublicKey('9LBDN399ErNzSzErinpnmeoZcsqNMSCyQ6WP4pynuQKz'),
+		launchTs: 1772563593000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythFeedId:
+			'0xb1073854ed24cbc755dc527418f52b7d271f6cc967bbf8d8129112b18860a593',
+		pythLazerId: 1314,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
