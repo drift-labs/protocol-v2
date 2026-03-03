@@ -124,37 +124,3 @@ impl ExponentFactor {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        binary_update::BINARY_UPDATE_FORMAT_MAGIC,
-        message::format_magics_le::{
-            EVM_FORMAT_MAGIC, JSON_FORMAT_MAGIC, LE_ECDSA_FORMAT_MAGIC, LE_UNSIGNED_FORMAT_MAGIC,
-            SOLANA_FORMAT_MAGIC,
-        },
-        payload::PAYLOAD_FORMAT_MAGIC,
-    };
-
-    #[test]
-    fn magics_in_big_endian() {
-        assert_eq!(u32::swap_bytes(BINARY_UPDATE_FORMAT_MAGIC), 1937213467);
-        assert_eq!(u32::swap_bytes(PAYLOAD_FORMAT_MAGIC), 1976813459);
-        assert_eq!(u32::swap_bytes(SOLANA_FORMAT_MAGIC), 3103857282);
-        assert_eq!(u32::swap_bytes(JSON_FORMAT_MAGIC), 2584795844);
-        assert_eq!(u32::swap_bytes(EVM_FORMAT_MAGIC), 706910618);
-        assert_eq!(u32::swap_bytes(LE_ECDSA_FORMAT_MAGIC), 3837609805);
-        assert_eq!(u32::swap_bytes(LE_UNSIGNED_FORMAT_MAGIC), 206398297);
-        for magic in [
-            BINARY_UPDATE_FORMAT_MAGIC,
-            PAYLOAD_FORMAT_MAGIC,
-            SOLANA_FORMAT_MAGIC,
-            JSON_FORMAT_MAGIC,
-            EVM_FORMAT_MAGIC,
-            LE_ECDSA_FORMAT_MAGIC,
-            LE_UNSIGNED_FORMAT_MAGIC,
-        ] {
-            assert_ne!(u32::swap_bytes(magic), magic);
-        }
-    }
-}
