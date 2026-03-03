@@ -9,6 +9,7 @@ use anchor_lang::prelude::*;
 use pyth_lazer::message::SolanaMessage;
 use pyth_lazer::payload::{PayloadData, PayloadPropertyValue};
 use pyth_lazer::price::Price;
+use pyth_lazer::signature;
 use pyth_lazer::storage::{verify_message_direct, Storage};
 use solana_program::sysvar::instructions::load_current_index_checked;
 
@@ -29,13 +30,17 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
     let storage_account_data = ctx.accounts.pyth_lazer_storage.try_borrow_data()?;
     let pyth_storage = Storage::try_deserialize(&mut &storage_account_data[..])?;
 
-    verify_message_direct(
+    signature::verify_message(
         &pyth_storage,
         &ctx.accounts.ix_sysvar,
         &pyth_message,
         ix_idx - 1,
         0,
-    )?;
+    )
+    .map_err(|err| {
+        msg!("signature verification error: {:?}", err);
+        err
+    })?;
 
     let deserialized_pyth_message = SolanaMessage::deserialize_slice(&pyth_message)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -98,7 +103,7 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 
         if current_timestamp >= next_timestamp.unwrap() {
             msg!(
-                "Skipping lazer price update. current ts {} >= next_timestamp {}",
+                "Skipping lazer price update. current ts {} < next_timestamp {}",
                 current_timestamp,
                 next_timestamp.unwrap()
             );
