@@ -2603,7 +2603,7 @@ pub fn settle_pnl_no_unsettled_pnl_isolated_open_position_returns_no_unsettled_p
     let mut user = User {
         perp_positions: get_positions(PerpPosition {
             market_index: 0,
-            quote_asset_amount: 0,
+            quote_asset_amount: -100 * QUOTE_PRECISION_I64,
             base_asset_amount: BASE_PRECISION_I64,
             isolated_position_scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
             position_flag: PositionFlag::IsolatedPosition as u8,
@@ -2740,6 +2740,7 @@ pub fn settle_pnl_no_unsettled_pnl_isolated_zero_balance_returns_no_unsettled_pn
             market_index: 0,
             quote_asset_amount: 0,
             base_asset_amount: 0,
+            open_orders: 1,
             isolated_position_scaled_balance: 0,
             position_flag: PositionFlag::IsolatedPosition as u8,
             ..PerpPosition::default()
