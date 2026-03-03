@@ -1,6 +1,7 @@
 pub mod liquidate_perp {
     use crate::math::constants::ONE_HOUR;
     use crate::state::state::State;
+    use crate::state::user::UserStatus;
     use std::collections::BTreeSet;
     use std::str::FromStr;
 
@@ -37,6 +38,120 @@ pub mod liquidate_perp {
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::{create_account_info, PRICE_PRECISION_I64};
+
+    /// After fix: When cross-margin user's position was fully liquidated, they were stuck in
+    /// BEING_LIQUIDATED. Now liquidate_perp succeeds via early-exit path and clears it.
+    #[test]
+    pub fn clear_being_liquidated_when_position_fully_liquidated() {
+        let now = 0_i64;
+        let slot = 0_u64;
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            number_of_users_with_base: 1,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let perp_market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+        let mut user = User {
+            orders: [Order::default(); 32],
+            perp_positions: [PerpPosition::default(); 8],
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            status: UserStatus::BeingLiquidated as u8,
+            ..User::default()
+        };
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
+        assert!(user.is_cross_margin_being_liquidated());
+        liquidate_perp(
+            0,
+            BASE_PRECISION_U64,
+            None,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            slot,
+            now,
+            &state,
+        )
+        .unwrap();
+        assert!(!user.is_cross_margin_being_liquidated());
+    }
 
     #[test]
     pub fn successful_liquidation_long_perp() {
@@ -10657,7 +10772,7 @@ mod liquidation_mode {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::PositionFlag;
-    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
+    use crate::state::user::{Order, PerpPosition, SpotPosition, User, UserStatus};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
 
@@ -10869,17 +10984,34 @@ mod liquidation_mode {
     }
 
     #[test]
-    pub fn tests_get_cancel_orders_params() {
+    pub fn get_perp_liquidation_mode_returns_cross_margin_when_no_position() {
+        let perp_positions = [PerpPosition::default(); 8];
+        let mut user = User {
+            perp_positions,
+            spot_positions: [SpotPosition::default(); 8],
+            status: UserStatus::BeingLiquidated as u8,
+            ..User::default()
+        };
+
+        // Before fix: would error here with UserHasNoPositionInMarket (get_perp_position fails when no position)
+        let mode = get_perp_liquidation_mode(&user, 0).unwrap();
+        assert_eq!(mode.as_ref().user_is_being_liquidated(&user).unwrap(), true);
+        mode.exit_liquidation(&mut user).unwrap();
+        assert!(!user.is_cross_margin_being_liquidated());
+    }
+
+    #[test]
+    pub fn get_perp_liquidation_mode_returns_isolated_when_isolated_position() {
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 0,
-            quote_asset_amount: 0,
-            isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64,
+            base_asset_amount: 1,
+            quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+            isolated_position_scaled_balance: 90 * SPOT_BALANCE_PRECISION_U64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             ..PerpPosition::default()
         };
         let user = User {
-            orders: [Order::default(); 32],
             perp_positions,
             spot_positions: [SpotPosition::default(); 8],
             ..User::default()
