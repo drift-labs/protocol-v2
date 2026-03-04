@@ -331,6 +331,11 @@ pub mod drift {
         )
     }
 
+    /// Creates the global PropAMM matcher PDA (idempotent). Call once before using match_perp_order_via_prop_amm.
+    pub fn initialize_prop_amm_matcher(ctx: Context<InitializePropAmmMatcher>) -> Result<()> {
+        handle_initialize_prop_amm_matcher(ctx)
+    }
+
     /// Match a perp order against prop AMM (midprice_pino) liquidity. Permissionless: anyone may call.
     /// Remaining accounts: [midprice_program], [spot_markets...] (canonical: consume while SpotMarket discriminator), then (matcher, midprice, maker_user, maker_stats)* per AMM.
     pub fn match_perp_order_via_prop_amm<'c: 'info, 'info>(

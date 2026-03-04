@@ -8,6 +8,9 @@
  *   ./test-scripts/build-midprice-pino-for-bankrun.sh
  * (builds midprice_pino, copies .so to tests/fixtures, then runs this test).
  * Or build+deploy only: ./test-scripts/build-midprice-pino-for-bankrun.sh --no-test
+ *
+ * When using midprice, run `anchor build` first so Drift is built with initialize_prop_amm_matcher
+ * (otherwise before() fails with InstructionFallbackNotFound 0x65).
  */
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
@@ -27,13 +30,19 @@ import {
 } from '@solana/spl-token';
 
 /** Min size for midprice_pino account (midprice_book_view::ACCOUNT_MIN_LEN) */
-const MIDPRICE_ACCOUNT_MIN_LEN = 106;
+const MIDPRICE_ACCOUNT_MIN_LEN = 90;
 /** Order entry size (offset i64 + size u64) */
 const MIDPRICE_ORDER_ENTRY_SIZE = 16;
 /** midprice_pino instructions */
 const MIDPRICE_IX_UPDATE_MID_PRICE = 0;
 const MIDPRICE_IX_INITIALIZE = 1;
 const MIDPRICE_IX_SET_ORDERS = 2;
+const MIDPRICE_IX_SET_QUOTE_TTL = 5;
+const MIDPRICE_IX_CLOSE_ACCOUNT = 6;
+const MIDPRICE_IX_TRANSFER_AUTHORITY = 7;
+/** Layout offsets for reading fields back from account data (midprice_book_view) */
+const MIDPRICE_QUOTE_TTL_OFFSET = 74;
+const MIDPRICE_SEQUENCE_NUMBER_OFFSET = 82;
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -65,12 +74,40 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 const DRIFT_DECIMALS = 6;
 
-function matchPerpOrderViaPropAmmInstructionDiscriminator(): Buffer {
-	// Anchor uses snake_case instruction name for discriminator
-	const hash = createHash('sha256')
-		.update('global:match_perp_order_via_prop_amm')
-		.digest();
+function instructionDiscriminator(name: string): Buffer {
+	const hash = createHash('sha256').update(`global:${name}`).digest();
 	return hash.subarray(0, 8);
+}
+
+function matchPerpOrderViaPropAmmInstructionDiscriminator(): Buffer {
+	return instructionDiscriminator('match_perp_order_via_prop_amm');
+}
+
+const SYSVAR_RENT_PUBKEY = new PublicKey(
+	'SysvarRent111111111111111111111111111111111'
+);
+
+/** Build Drift initialize_prop_amm_matcher ix via program client (IDL) so discriminator/accounts match deployed program. */
+async function buildInitializePropAmmMatcherInstruction(
+	program: Program,
+	provider: { publicKey: PublicKey },
+	driftProgramId: PublicKey
+): Promise<TransactionInstruction> {
+	const m = (program.methods as Record<string, unknown>).initializePropAmmMatcher;
+	if (typeof m !== 'function') {
+		throw new Error(
+			'IDL missing initializePropAmmMatcher. Run: anchor build, then re-run this test.'
+		);
+	}
+	const accounts = {
+		payer: provider.publicKey,
+		propAmmMatcher: getPropAmmMatcherPDA(driftProgramId),
+		rent: SYSVAR_RENT_PUBKEY,
+		systemProgram: SystemProgram.programId,
+	};
+	return (m as () => { accounts: (a: typeof accounts) => { instruction: () => Promise<TransactionInstruction> } })()
+		.accounts(accounts)
+		.instruction();
 }
 
 function buildMatchPerpOrderViaPropAmmInstruction(
@@ -116,23 +153,21 @@ function buildMatchPerpOrderViaPropAmmInstruction(
 }
 
 /** Build midprice_pino initialize_mid_price_account ix (opcode 1). Accounts: [midprice_account, authority (signer)].
- * If authorityToStore is set, it is stored as the fill authority (e.g. Drift User PDA) so apply_fills_batch can use that account; otherwise the signer's address is stored.
+ * Payload: market_index (u16) [| authority_to_store (32)]. If authorityToStore is set it is stored as authority; otherwise the signer's address is stored.
  */
 function buildMidpriceInitializeInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
 	authority: PublicKey,
-	authorizedExchangeProgramId: PublicKey,
 	marketIndex: number,
 	authorityToStore?: PublicKey
 ): TransactionInstruction {
-	const payloadLen = 2 + 32 + (authorityToStore ? 32 : 0);
+	const payloadLen = 2 + (authorityToStore ? 32 : 0);
 	const data = Buffer.alloc(1 + payloadLen);
 	data.writeUInt8(MIDPRICE_IX_INITIALIZE, 0);
 	data.writeUInt16LE(marketIndex, 1);
-	authorizedExchangeProgramId.toBuffer().copy(data, 3);
 	if (authorityToStore) {
-		authorityToStore.toBuffer().copy(data, 3 + 32);
+		authorityToStore.toBuffer().copy(data, 3);
 	}
 	return new TransactionInstruction({
 		programId: midpriceProgramId,
@@ -144,16 +179,16 @@ function buildMidpriceInitializeInstruction(
 	});
 }
 
-/** Build midprice_pino update_mid_price ix (opcode 0). Payload: 16 bytes (mid_price u64 LE + 8 padding). Accounts: [midprice_account, authority]. */
+/** Build midprice_pino update_mid_price ix (opcode 0). Payload: 16 bytes. Accounts: [midprice_account, authority, clock]. */
 function buildMidpriceUpdateMidPriceInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
 	authority: PublicKey,
-	midPriceU64: BN
+	midPriceU64: BN,
+	clock?: PublicKey
 ): TransactionInstruction {
 	const data = Buffer.alloc(1 + 16);
 	data.writeUInt8(MIDPRICE_IX_UPDATE_MID_PRICE, 0);
-	// First 8 bytes = mid_price (u64 LE), next 8 = 0
 	const lo = midPriceU64.and(new BN(0xffffffff)).toNumber();
 	const hi = midPriceU64.shrn(32).and(new BN(0xffffffff)).toNumber();
 	data.writeUInt32LE(lo, 1);
@@ -163,29 +198,29 @@ function buildMidpriceUpdateMidPriceInstruction(
 		keys: [
 			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
 			{ pubkey: authority, isSigner: true, isWritable: false },
+			{ pubkey: clock ?? SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false },
 		],
 		data,
 	});
 }
 
-/** Build midprice_pino set_orders ix (opcode 2). Payload: [ask_len:u16, bid_len:u16, ...(offset:i64, size:u64)]. Accounts: [midprice_account, authority]. */
+/** Build midprice_pino set_orders ix (opcode 2). Payload: [ask_len, bid_len, ...entries]. Accounts: [midprice_account, authority, clock]. */
 function buildMidpriceSetOrdersInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
 	authority: PublicKey,
 	askLen: number,
 	bidLen: number,
-	entries: { offset: BN; size: BN }[]
+	entries: { offset: BN; size: BN }[],
+	clock?: PublicKey
 ): TransactionInstruction {
 	const payloadLen = 4 + entries.length * MIDPRICE_ORDER_ENTRY_SIZE;
 	const data = Buffer.alloc(1 + payloadLen);
 	data.writeUInt8(MIDPRICE_IX_SET_ORDERS, 0);
 	data.writeUInt16LE(askLen, 1);
 	data.writeUInt16LE(bidLen, 3);
-	// Entries start after opcode (1) + lengths (4) = 5.
 	let off = 1 + 4;
 	for (const e of entries) {
-		// offset i64 LE, size u64 LE
 		data.writeBigInt64LE(BigInt(e.offset.toString()), off);
 		off += 8;
 		data.writeBigUInt64LE(BigInt(e.size.toString()), off);
@@ -196,6 +231,7 @@ function buildMidpriceSetOrdersInstruction(
 		keys: [
 			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
 			{ pubkey: authority, isSigner: true, isWritable: false },
+			{ pubkey: clock ?? SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false },
 		],
 		data,
 	});
@@ -206,6 +242,71 @@ function writeU64LE(buf: Buffer, offset: number, n: BN): void {
 	const hi = n.shrn(32).and(new BN(0xffffffff)).toNumber();
 	buf.writeUInt32LE(lo, offset);
 	buf.writeUInt32LE(hi, offset + 4);
+}
+
+/** Build midprice_pino set_quote_ttl ix (opcode 5). Payload: 8 bytes (u64 LE). Accounts: [midprice_account, authority]. */
+function buildMidpriceSetQuoteTtlInstruction(
+	midpriceProgramId: PublicKey,
+	midpriceAccount: PublicKey,
+	authority: PublicKey,
+	ttlSlots: bigint
+): TransactionInstruction {
+	const data = Buffer.alloc(1 + 8);
+	data.writeUInt8(MIDPRICE_IX_SET_QUOTE_TTL, 0);
+	data.writeBigUInt64LE(ttlSlots, 1);
+	return new TransactionInstruction({
+		programId: midpriceProgramId,
+		keys: [
+			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
+			{ pubkey: authority, isSigner: true, isWritable: false },
+		],
+		data,
+	});
+}
+
+/** Build midprice_pino close_account ix (opcode 6). Accounts: [midprice_account, authority, destination]. */
+function buildMidpriceCloseAccountInstruction(
+	midpriceProgramId: PublicKey,
+	midpriceAccount: PublicKey,
+	authority: PublicKey,
+	destination: PublicKey
+): TransactionInstruction {
+	const data = Buffer.alloc(1);
+	data.writeUInt8(MIDPRICE_IX_CLOSE_ACCOUNT, 0);
+	return new TransactionInstruction({
+		programId: midpriceProgramId,
+		keys: [
+			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
+			{ pubkey: authority, isSigner: true, isWritable: false },
+			{ pubkey: destination, isSigner: false, isWritable: true },
+		],
+		data,
+	});
+}
+
+/** Build midprice_pino transfer_authority ix (opcode 7). Payload: 32 bytes (new authority pubkey). */
+function buildMidpriceTransferAuthorityInstruction(
+	midpriceProgramId: PublicKey,
+	midpriceAccount: PublicKey,
+	currentAuthority: PublicKey,
+	newAuthority: PublicKey
+): TransactionInstruction {
+	const data = Buffer.alloc(1 + 32);
+	data.writeUInt8(MIDPRICE_IX_TRANSFER_AUTHORITY, 0);
+	newAuthority.toBuffer().copy(data, 1);
+	return new TransactionInstruction({
+		programId: midpriceProgramId,
+		keys: [
+			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
+			{ pubkey: currentAuthority, isSigner: true, isWritable: false },
+		],
+		data,
+	});
+}
+
+/** Read a u64 LE from a Buffer at the given offset. */
+function readU64LE(buf: Buffer, offset: number): bigint {
+	return buf.readBigUInt64LE(offset);
 }
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
@@ -315,6 +416,28 @@ describe('PropAMM CU usage (bankrun)', () => {
 		await driftClient.placePerpOrder(orderParams);
 		await driftClient.fetchAccounts();
 		await sleep(500);
+
+		// When using real midprice_pino, create global PropAMM matcher PDA so fill CPI accepts it (matcher.owner == Drift).
+		// Use program client (IDL) so instruction discriminator and accounts match the deployed program.
+		if (midpriceProgramId) {
+			const initMatcherIx = await buildInitializePropAmmMatcherInstruction(
+				program,
+				{ publicKey: bankrunContextWrapper.context.payer.publicKey },
+				program.programId
+			);
+			const initMatcherTx = new Transaction().add(initMatcherIx);
+			try {
+				await bankrunContextWrapper.sendTransaction(initMatcherTx, []);
+			} catch (err: unknown) {
+				const msg = err instanceof Error ? err.message : String(err);
+				if (msg.includes('0x65') || msg.includes('InstructionFallbackNotFound')) {
+					throw new Error(
+						'Drift program missing initialize_prop_amm_matcher. Run: anchor build (or your full build), then re-run this test.'
+					);
+				}
+				throw err;
+			}
+		}
 	});
 
 	after(async () => {
@@ -424,7 +547,6 @@ describe('PropAMM CU usage (bankrun)', () => {
 						midpriceProgramId,
 						midpriceKeypairs[i].publicKey,
 						maker.publicKey,
-						driftProgramId,
 						marketIndex
 					)
 				);
@@ -456,10 +578,14 @@ describe('PropAMM CU usage (bankrun)', () => {
 			}
 
 			const setupTx = new Transaction().add(...setupIxs);
-			await bankrunContextWrapper.sendTransaction(setupTx, [
-				maker,
-				midpriceKeypairs[i],
-			]);
+			const setupSig = await bankrunContextWrapper.sendTransaction(
+				setupTx,
+				[maker, midpriceKeypairs[i]]
+			);
+			assert(
+				setupSig && setupSig.length > 0,
+				`setup tx for maker ${i} should succeed`
+			);
 		}
 
 		// Remaining: [midprice_program], [spot_markets...], global PropAMM matcher, then per AMM: (midprice, maker_user)
@@ -512,11 +638,15 @@ describe('PropAMM CU usage (bankrun)', () => {
 		const sim = await bankrunContextWrapper.connection.simulateTransaction(
 			tx
 		);
+		assert.strictEqual(sim.value.err, null, 'simulation should succeed');
 		const cu = Number(sim.value.unitsConsumed ?? 0);
 		return cu;
 	}
 
-	it('measures CU for 1 PropAMM fill', async () => {
+	it('measures CU for 1 PropAMM fill', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
 		const cu = await measurePropAmmMatchCU(1);
 		console.log('PropAMM match CU (1 AMM):', cu);
 		assert(cu > 0, 'should consume compute units');
@@ -527,7 +657,8 @@ describe('PropAMM CU usage (bankrun)', () => {
 			this.skip();
 		}
 		const { tx, signers } = await buildAndSignMatchTx(1);
-		await bankrunContextWrapper.sendTransaction(tx, signers);
+		const sig = await bankrunContextWrapper.sendTransaction(tx, signers);
+		assert(sig && sig.length > 0, 'match transaction should succeed');
 		await driftClient.fetchAccounts();
 		const order = driftClient.getOrder(1);
 		assert(order, 'taker order 1 should exist');
@@ -537,21 +668,193 @@ describe('PropAMM CU usage (bankrun)', () => {
 		);
 	});
 
-	it('measures CU for 2 PropAMM fills', async () => {
+	it('measures CU for 2 PropAMM fills', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
 		const cu = await measurePropAmmMatchCU(2);
 		console.log('PropAMM match CU (2 AMMs):', cu);
 		assert(cu > 0, 'should consume compute units');
 	});
 
-	it('measures CU for 4 PropAMM fills', async () => {
+	it('measures CU for 4 PropAMM fills', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
 		const cu = await measurePropAmmMatchCU(4);
 		console.log('PropAMM match CU (4 AMMs):', cu);
 		assert(cu > 0, 'should consume compute units');
 	});
 
-	it('measures CU for 6 PropAMM fills', async () => {
+	it('measures CU for 6 PropAMM fills', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
 		const cu = await measurePropAmmMatchCU(6);
 		console.log('PropAMM match CU (6 AMMs):', cu);
 		assert(cu > 0, 'should consume compute units');
+	});
+
+	// -------------------------------------------------------------------
+	// set_quote_ttl + sequence number integration tests
+	// -------------------------------------------------------------------
+
+	it('set_quote_ttl writes TTL and bumps sequence number', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		const maker = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(maker, 10 ** 9);
+		const midpriceKp = Keypair.generate();
+		const space =
+			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2;
+		const rentExempt =
+			await bankrunContextWrapper.connection.getMinimumBalanceForRentExemption(
+				space
+			);
+
+		const setupTx = new Transaction().add(
+			SystemProgram.createAccount({
+				fromPubkey: bankrunContextWrapper.context.payer.publicKey,
+				newAccountPubkey: midpriceKp.publicKey,
+				lamports: rentExempt,
+				space,
+				programId: midpriceProgramId,
+			}),
+			buildMidpriceInitializeInstruction(
+				midpriceProgramId,
+				midpriceKp.publicKey,
+				maker.publicKey,
+				99
+			)
+		);
+		const setupSig = await bankrunContextWrapper.sendTransaction(setupTx, [
+			maker,
+			midpriceKp,
+		]);
+		assert(setupSig && setupSig.length > 0, 'setup tx should succeed');
+
+		// Read account: sequence should be 1 after init, TTL should be 0
+		let acctInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				midpriceKp.publicKey
+			);
+		assert(acctInfo, 'midprice account should exist');
+		let seq = readU64LE(acctInfo.data, MIDPRICE_SEQUENCE_NUMBER_OFFSET);
+		assert.equal(seq, BigInt(1), 'sequence should be 1 after init');
+		let ttl = readU64LE(acctInfo.data, MIDPRICE_QUOTE_TTL_OFFSET);
+		assert.equal(ttl, BigInt(0), 'TTL should be 0 after init');
+
+		// Set quote TTL to 150
+		const ttlValue = BigInt(150);
+		const setTtlTx = new Transaction().add(
+			buildMidpriceSetQuoteTtlInstruction(
+				midpriceProgramId,
+				midpriceKp.publicKey,
+				maker.publicKey,
+				ttlValue
+			)
+		);
+		const ttlSig = await bankrunContextWrapper.sendTransaction(setTtlTx, [
+			maker,
+		]);
+		assert(ttlSig && ttlSig.length > 0, 'set_quote_ttl tx should succeed');
+
+		acctInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			midpriceKp.publicKey
+		);
+		seq = readU64LE(acctInfo.data, MIDPRICE_SEQUENCE_NUMBER_OFFSET);
+		assert.equal(seq, BigInt(2), 'sequence should be 2 after set_quote_ttl');
+		ttl = readU64LE(acctInfo.data, MIDPRICE_QUOTE_TTL_OFFSET);
+		assert.equal(ttl, ttlValue, 'TTL should match set value');
+	});
+
+	it('sequence number increments across multiple instructions', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		const maker = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(maker, 10 ** 9);
+		const midpriceKp = Keypair.generate();
+		const space =
+			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2;
+		const rentExempt =
+			await bankrunContextWrapper.connection.getMinimumBalanceForRentExemption(
+				space
+			);
+
+		// Init (seq -> 1)
+		const setupTx = new Transaction().add(
+			SystemProgram.createAccount({
+				fromPubkey: bankrunContextWrapper.context.payer.publicKey,
+				newAccountPubkey: midpriceKp.publicKey,
+				lamports: rentExempt,
+				space,
+				programId: midpriceProgramId,
+			}),
+			buildMidpriceInitializeInstruction(
+				midpriceProgramId,
+				midpriceKp.publicKey,
+				maker.publicKey,
+				99
+			)
+		);
+		let sig = await bankrunContextWrapper.sendTransaction(setupTx, [
+			maker,
+			midpriceKp,
+		]);
+		assert(sig && sig.length > 0, 'init tx should succeed');
+
+		// update_mid_price (seq -> 2)
+		const updateTx = new Transaction().add(
+			buildMidpriceUpdateMidPriceInstruction(
+				midpriceProgramId,
+				midpriceKp.publicKey,
+				maker.publicKey,
+				new BN(100).mul(PRICE_PRECISION)
+			)
+		);
+		sig = await bankrunContextWrapper.sendTransaction(updateTx, [maker]);
+		assert(sig && sig.length > 0, 'update_mid_price tx should succeed');
+
+		// set_orders (seq -> 3)
+		const ordersTx = new Transaction().add(
+			buildMidpriceSetOrdersInstruction(
+				midpriceProgramId,
+				midpriceKp.publicKey,
+				maker.publicKey,
+				1,
+				0,
+				[{ offset: PRICE_PRECISION, size: BASE_PRECISION }]
+			)
+		);
+		sig = await bankrunContextWrapper.sendTransaction(ordersTx, [maker]);
+		assert(sig && sig.length > 0, 'set_orders tx should succeed');
+
+		// set_quote_ttl (seq -> 4)
+		const ttlTx = new Transaction().add(
+			buildMidpriceSetQuoteTtlInstruction(
+				midpriceProgramId,
+				midpriceKp.publicKey,
+				maker.publicKey,
+				BigInt(50)
+			)
+		);
+		sig = await bankrunContextWrapper.sendTransaction(ttlTx, [maker]);
+		assert(sig && sig.length > 0, 'set_quote_ttl tx should succeed');
+
+		const acctInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				midpriceKp.publicKey
+			);
+		const seq = readU64LE(
+			acctInfo.data,
+			MIDPRICE_SEQUENCE_NUMBER_OFFSET
+		);
+		assert.equal(
+			seq,
+			BigInt(4),
+			'sequence should be 4 after init + update + set_orders + set_ttl'
+		);
 	});
 });

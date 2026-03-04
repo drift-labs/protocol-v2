@@ -131,6 +131,15 @@ pub mod lp_pool_hot_wallet {
     declare_id!("GP9qHLX8rx4BgRULGPV1poWQPdGuzbxGbvTB12DfmwFk");
 }
 
+/// Canonical midprice_pino program ID. CPI to any other program is rejected to prevent abuse.
+pub mod midprice_program {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("3DrLvHpasWASfdQCUPphLYA2qVUFWLJwiZsxeLe8mWPk"); // TODO: set real midprice_pino deploy ID
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("3DrLvHpasWASfdQCUPphLYA2qVUFWLJwiZsxeLe8mWPk");
+}
+
 pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
     serum_program::id(),
     jupiter_mainnet_3::id(),

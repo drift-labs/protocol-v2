@@ -1,32 +1,89 @@
-//! Provides midprice based orderbook externally fillable by authorized matcher program
+//! Provides midprice based orderbook externally fillable by authorized matcher program.
+//!
+//! ## Account layout
+//!
+//! | Offset | Size | Field |
+//! |--------|------|-------|
+//! | 0 | 8 | Layout version (u64 LE) |
+//! | 8 | 32 | Authority pubkey |
+//! | 40 | 16 | Mid price (u64 LE price + 8 reserved) |
+//! | 56 | 8 | Ref slot (u64 LE, last quote-setting slot) |
+//! | 64 | 2 | Market index (u16 LE) |
+//! | 66 | 2 | Ask length (u16 LE) |
+//! | 68 | 2 | Bid length (u16 LE) |
+//! | 70 | 2 | Ask head (u16 LE) |
+//! | 72 | 2 | Bid head (u16 LE) |
+//! | 74 | 8 | Quote TTL in slots (u64 LE, 0 = no expiry) |
+//! | 82 | 8 | Sequence number (u64 LE, monotonic) |
+//! | 90+ | 16xN | Order entries (offset: i64, size: u64) |
+//!
+//! ## Instructions
+//!
+//! | Opcode | Name | Accounts | Payload |
+//! |--------|------|----------|---------|
+//! | 0 | update_mid_price | [midprice (w), authority (s), clock] | 16 bytes |
+//! | 1 | initialize | [midprice (w), authority (s)] | 2 or 34 bytes: market_index (u16) [\| authority_to_store (32)] |
+//! | 2 | set_orders | [midprice (w), authority (s), clock] | 4 + 16*N bytes |
+//! | 3 | apply_fills | [matcher (s), clock, midprice_0 (w), midprice_1 (w), …] | 2 bytes market_index (u16 LE, must match each midprice account) then per maker: u16 num_fills + 11*num_fills bytes |
+//! | 5 | set_quote_ttl | [midprice (w), authority (s)] | 8 bytes |
+//! | 6 | close_account | [midprice (w), authority (s), dest (w)] | 0 bytes |
+//! | 7 | transfer_authority | [midprice (w), authority (s)] | 32 bytes |
+//!
+//! ## Error codes
+//!
+//! Returned as `ProgramError::Custom(u32)` where the low byte is a bitmask:
+//!
+//! | Bit | Value | Meaning |
+//! |-----|-------|---------|
+//! | 0 | 0x01 | Account not writable |
+//! | 1 | 0x02 | Missing required signature |
+//! | 2 | 0x04 | Account not owned by this program |
+//! | 3 | 0x08 | Account data too small |
+//! | 4 | 0x10 | Authority mismatch |
+//! | 5 | 0x20 | Already initialized |
+//! | 6 | 0x40 | Unsupported layout version |
+//! | 7 | 0x80 | Quote expired (TTL exceeded during apply_fills) |
+//! | 8 | 0x100 | CPI market_index does not match midprice account |
+//! | 9 | 0x200 | accounts[1] is not the Clock sysvar (apply_fills) |
 #![cfg_attr(target_os = "solana", no_std)]
 
 use midprice_book_view::{
-    MidpriceBookViewMut, ACCOUNT_MIN_LEN, AUTHORITY_OFFSET, AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET,
-    LAYOUT_VERSION_INITIAL, LAYOUT_VERSION_OFFSET, MARKET_INDEX_OFFSET, MAX_ORDERS, MID_PRICE_OFFSET,
-    ORDERS_DATA_OFFSET, ORDER_ENTRY_SIZE,
+    MidpriceBookViewMut, ACCOUNT_MIN_LEN, AUTHORITY_OFFSET, LAYOUT_VERSION_INITIAL,
+    LAYOUT_VERSION_OFFSET, MARKET_INDEX_OFFSET, MAX_ORDERS, MID_PRICE_OFFSET, ORDERS_DATA_OFFSET,
+    ORDER_ENTRY_SIZE, QUOTE_TTL_OFFSET, REF_SLOT_OFFSET, SEQUENCE_NUMBER_OFFSET,
 };
 use pinocchio::{
     account::AccountView, error::ProgramError, no_allocator, nostd_panic_handler,
     program_entrypoint, Address, ProgramResult,
 };
 use pinocchio_log::log;
-use solana_pubkey::Pubkey;
+use solana_pubkey::pubkey;
 
 const IX_UPDATE_MID_PRICE: u8 = 0;
 const IX_INITIALIZE_MID_PRICE_ACCOUNT: u8 = 1;
 const IX_SET_ORDERS: u8 = 2;
-const IX_APPLY_FILL: u8 = 3;
-const IX_APPLY_FILLS_BATCH: u8 = 4;
+const IX_APPLY_FILLS: u8 = 3;
+const IX_SET_QUOTE_TTL: u8 = 5;
+const IX_CLOSE_ACCOUNT: u8 = 6;
+const IX_TRANSFER_AUTHORITY: u8 = 7;
 const APPLY_FILL_ENTRY_SIZE: usize = 11; // [abs_index:u16 | is_ask:u8 | fill_size:u64]
+const APPLY_FILLS_NUM_FILLS_SIZE: usize = 2; // u16 LE per maker
+const APPLY_FILLS_MARKET_INDEX_SIZE: usize = 2; // u16 LE at start of payload; must match each midprice account
+/// Authorized exchange program ID (for matcher PDA derivation).
+const DRIFT_PROGRAM_ID: Address = pubkey!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
+/// Seed for the matcher PDA (must match the exchange's PROP_AMM_MATCHER_SEED).
+const PROP_AMM_MATCHER_SEED: &[u8] = b"prop_amm_matcher";
+/// Clock sysvar; must be accounts[1] for apply_fills.
+const CLOCK_SYSVAR_ID: Address = pubkey!("SysvarC1ock11111111111111111111111111111111");
 
-const AUTH_ERR_IMMUTABLE: u8 = 1 << 0;
-const AUTH_ERR_MISSING_SIGNATURE: u8 = 1 << 1;
-const AUTH_ERR_ILLEGAL_OWNER: u8 = 1 << 2;
-const AUTH_ERR_INVALID_ACCOUNT_DATA: u8 = 1 << 3;
-const AUTH_ERR_INVALID_AUTHORITY: u8 = 1 << 4;
-const AUTH_ERR_ALREADY_INITIALIZED: u8 = 1 << 5;
-const AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION: u8 = 1 << 6;
+const AUTH_ERR_IMMUTABLE: u8 = 1 << 0; // 0x01
+const AUTH_ERR_MISSING_SIGNATURE: u8 = 1 << 1; // 0x02
+const AUTH_ERR_ILLEGAL_OWNER: u8 = 1 << 2; // 0x04
+const AUTH_ERR_INVALID_ACCOUNT_DATA: u8 = 1 << 3; // 0x08
+const AUTH_ERR_INVALID_AUTHORITY: u8 = 1 << 4; // 0x10
+const AUTH_ERR_ALREADY_INITIALIZED: u8 = 1 << 5; // 0x20
+const AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION: u8 = 1 << 6; // 0x40
+const AUTH_ERR_INVALID_CLOCK: u32 = 1 << 7; // apply_fills: accounts[1] not Clock
 
 program_entrypoint!(process_instruction);
 no_allocator!();
@@ -57,8 +114,10 @@ pub fn process_instruction(
         }
         IX_UPDATE_MID_PRICE => process_update_mid_price(program_id, accounts, payload),
         IX_SET_ORDERS => process_set_orders(program_id, accounts, payload),
-        IX_APPLY_FILL => process_apply_fill(program_id, accounts, payload),
-        IX_APPLY_FILLS_BATCH => process_apply_fills_batch(program_id, accounts, payload),
+        IX_APPLY_FILLS => process_apply_fills(program_id, accounts, payload),
+        IX_SET_QUOTE_TTL => process_set_quote_ttl(program_id, accounts, payload),
+        IX_CLOSE_ACCOUNT => process_close_account(program_id, accounts, payload),
+        IX_TRANSFER_AUTHORITY => process_transfer_authority(program_id, accounts, payload),
         _ => {
             log!(64, "midprice: unknown opcode={}", *opcode);
             Err(ProgramError::InvalidInstructionData)
@@ -66,103 +125,151 @@ pub fn process_instruction(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------------
+
+/// Validates the 2-account pattern: accounts[0] = midprice (writable, program-owned),
+/// accounts[1] = authority (signer). Returns mutable account data after checking layout and authority.
+fn validate_authority_and_borrow_mut<'a>(
+    program_id: &Address,
+    accounts: &'a [AccountView],
+) -> Result<&'a mut [u8], ProgramError> {
+    if accounts.len() < 2 {
+        log!(64, "midprice: accounts_len={} want >= 2", accounts.len());
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    let midprice_account = &accounts[0];
+    let authority = &accounts[1];
+
+    let mut err: u8 = 0;
+    if !midprice_account.is_writable() {
+        err |= AUTH_ERR_IMMUTABLE;
+    }
+    if !authority.is_signer() {
+        err |= AUTH_ERR_MISSING_SIGNATURE;
+    }
+    if midprice_account.data_len() < ACCOUNT_MIN_LEN {
+        err |= AUTH_ERR_INVALID_ACCOUNT_DATA;
+    }
+    // Safety: owner pointer comes from Solana runtime and is always valid.
+    if !unsafe {
+        authority_matches_32(
+            midprice_account.owner().as_ref().as_ptr(),
+            program_id.as_ref().as_ptr(),
+        )
+    } {
+        err |= AUTH_ERR_ILLEGAL_OWNER;
+    }
+    if err != 0 {
+        log!(64, "midprice: auth check failed err={}", err);
+        return Err(ProgramError::Custom(err as u32));
+    }
+
+    // Safety: no other borrows exist on this account.
+    let data = unsafe { midprice_account.borrow_unchecked_mut() };
+    check_layout_version(data)?;
+
+    if data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32] != *authority.address().as_ref() {
+        log!(64, "midprice: stored authority mismatch");
+        return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
+    }
+
+    Ok(data)
+}
+
+/// Validates init preconditions (writable, program-owned, signer, min length). Does not check
+/// layout version or stored authority since the account is uninitialized.
+fn validate_init_preconditions(
+    program_id: &Address,
+    accounts: &[AccountView],
+) -> Result<(), ProgramError> {
+    if accounts.len() != 2 {
+        log!(64, "midprice init: accounts_len={} want 2", accounts.len());
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    let midprice_account = &accounts[0];
+    let authority = &accounts[1];
+
+    let mut err: u8 = 0;
+    if !midprice_account.is_writable() {
+        err |= AUTH_ERR_IMMUTABLE;
+    }
+    if !authority.is_signer() {
+        err |= AUTH_ERR_MISSING_SIGNATURE;
+    }
+    if midprice_account.data_len() < ACCOUNT_MIN_LEN {
+        err |= AUTH_ERR_INVALID_ACCOUNT_DATA;
+    }
+    // Safety: owner pointer from Solana runtime.
+    if !unsafe {
+        authority_matches_32(
+            midprice_account.owner().as_ref().as_ptr(),
+            program_id.as_ref().as_ptr(),
+        )
+    } {
+        err |= AUTH_ERR_ILLEGAL_OWNER;
+    }
+    if err != 0 {
+        log!(64, "midprice init: auth check failed err={}", err);
+        return Err(ProgramError::Custom(err as u32));
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Instruction handlers
+// ---------------------------------------------------------------------------
+
 fn process_initialize_mid_price_account(
     program_id: &Address,
     accounts: &[AccountView],
     payload: &[u8],
 ) -> ProgramResult {
-    // init payload: [market_index:u16 | authorized_exchange_program_id:[u8;32]] or
-    //               [market_index:u16 | authorized_exchange_program_id:[u8;32] | authority_to_store:[u8;32]]
-    // If authority_to_store is present (payload.len() == 66), it is the pubkey stored as authority (e.g. exchange User PDA)
-    // so that apply_fills_batch can be called with that account as authority. Otherwise store the signer's address.
-    if payload.len() != 34 && payload.len() != 66 {
+    if payload.len() != 2 && payload.len() != 34 {
         log!(
             64,
-            "midprice init: bad payload_len={} want 34 or 66",
+            "midprice init: bad payload_len={} want 2 or 34",
             payload.len()
         );
         return Err(ProgramError::InvalidInstructionData);
     }
     let market_index = u16::from_le_bytes([payload[0], payload[1]]);
-    let authorized_exchange_program_id = &payload[2..34];
-    let authority_to_store: Option<&[u8]> = if payload.len() >= 66 {
-        Some(&payload[34..66])
+    let authority_to_store: Option<&[u8]> = if payload.len() >= 34 {
+        Some(&payload[2..34])
     } else {
         None
     };
-    // enforce invariant: exactly 2 accounts
-    if accounts.len() != 2 {
-        log!(64, "midprice init: bad accounts_len={} want 2", accounts.len());
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
+
+    validate_init_preconditions(program_id, accounts)?;
 
     let mid_price_account = &accounts[0];
     let authority = &accounts[1];
 
-    let writable = mid_price_account.is_writable();
-    let signer = authority.is_signer();
-    let data_len = mid_price_account.data_len();
-
-    // Safety: account view is provided by Solana runtime; owner address pointer is valid.
-    let owner_ptr = unsafe { mid_price_account.owner().as_ref().as_ptr() };
-    let program_id_ptr = program_id.as_ref().as_ptr();
-
-    let mut err: u8 = 0;
-    if !writable {
-        err |= AUTH_ERR_IMMUTABLE;
-    }
-    if !signer {
-        err |= AUTH_ERR_MISSING_SIGNATURE;
-    }
-    if data_len < ACCOUNT_MIN_LEN {
-        err |= AUTH_ERR_INVALID_ACCOUNT_DATA;
-    }
-    if !unsafe { authority_matches_32(owner_ptr, program_id_ptr) } {
-        err |= AUTH_ERR_ILLEGAL_OWNER;
-    }
-    if err != 0 {
-        return Err(ProgramError::Custom(err as u32));
-    }
-
-    // Safety: we don't borrow the account anywhere else.
+    // Safety: no other borrows exist on this account.
     let data = unsafe { mid_price_account.borrow_unchecked_mut() };
 
-    // Reject re-initialization if authority slot is already set.
-    let stored_ptr = unsafe { data.as_ptr().add(AUTHORITY_OFFSET) };
-    if !unsafe { ptr_is_zero_32(stored_ptr) } {
+    // Reject re-initialization if account is already initialized.
+    if !unsafe { ptr_is_zero_32(data.as_ptr().add(AUTHORITY_OFFSET)) } {
+        log!(64, "midprice init: already initialized");
         return Err(ProgramError::Custom(AUTH_ERR_ALREADY_INITIALIZED as u32));
     }
 
     let authority_src: &[u8] = authority_to_store.unwrap_or_else(|| authority.address().as_ref());
 
-    let market_index_bytes = market_index.to_le_bytes();
+    data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+        .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+    data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority_src);
+    data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 16].fill(0);
+    data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].fill(0);
+    data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2].copy_from_slice(&market_index.to_le_bytes());
+    data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8].fill(0);
+    data[SEQUENCE_NUMBER_OFFSET..SEQUENCE_NUMBER_OFFSET + 8].fill(0);
 
-    // Safety: prechecks above guarantee account data has at least ACCOUNT_MIN_LEN bytes.
-    unsafe {
-        core::ptr::write(
-            data.as_mut_ptr().add(LAYOUT_VERSION_OFFSET) as *mut u64,
-            LAYOUT_VERSION_INITIAL,
-        );
-        core::ptr::copy_nonoverlapping(
-            authority_src.as_ptr(),
-            data.as_mut_ptr().add(AUTHORITY_OFFSET),
-            32,
-        );
-        core::ptr::copy_nonoverlapping(
-            authorized_exchange_program_id.as_ptr(),
-            data.as_mut_ptr().add(AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET),
-            32,
-        );
-        core::ptr::write_bytes(data.as_mut_ptr().add(MID_PRICE_OFFSET), 0, 16);
-        core::ptr::copy_nonoverlapping(
-            market_index_bytes.as_ptr(),
-            data.as_mut_ptr().add(MARKET_INDEX_OFFSET),
-            2,
-        );
-    }
     let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
     book.set_lengths_and_reset_heads(0, 0)
         .map_err(|_| ProgramError::InvalidAccountData)?;
+    book.increment_sequence_number();
     Ok(())
 }
 
@@ -171,89 +278,57 @@ fn process_set_orders(
     accounts: &[AccountView],
     payload: &[u8],
 ) -> ProgramResult {
-    // payload format:
-    // [ask_len: u16 | bid_len: u16 | packed entries...]
-    // entries are repeated (offset: i64, size: u64), asks first then bids.
     if payload.len() < 4 {
+        log!(
+            64,
+            "midprice set_orders: payload_len={} want >= 4",
+            payload.len()
+        );
         return Err(ProgramError::InvalidInstructionData);
     }
     if (payload.len() - 4) % ORDER_ENTRY_SIZE != 0 {
+        log!(64, "midprice set_orders: payload not aligned to entry size");
         return Err(ProgramError::InvalidInstructionData);
-    }
-    // enforce invariant: exactly 2 accounts
-    if accounts.len() != 2 {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
-    let midprice_account = &accounts[0];
-    let authority = &accounts[1];
-
-    let writable = midprice_account.is_writable();
-    let signer = authority.is_signer();
-    let data_len = midprice_account.data_len();
-
-    // Safety: account view is provided by Solana runtime; owner address pointer is valid.
-    let owner_ptr = unsafe { midprice_account.owner().as_ref().as_ptr() };
-    let program_id_ptr = program_id.as_ref().as_ptr();
-
-    let mut err: u8 = 0;
-    if !writable {
-        err |= AUTH_ERR_IMMUTABLE;
-    }
-    if !signer {
-        err |= AUTH_ERR_MISSING_SIGNATURE;
-    }
-    if data_len < ACCOUNT_MIN_LEN {
-        err |= AUTH_ERR_INVALID_ACCOUNT_DATA;
-    }
-    if !unsafe { authority_matches_32(owner_ptr, program_id_ptr) } {
-        err |= AUTH_ERR_ILLEGAL_OWNER;
-    }
-    if err != 0 {
-        return Err(ProgramError::Custom(err as u32));
     }
 
     let ask_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
     let bid_len = u16::from_le_bytes([payload[2], payload[3]]) as usize;
     let orders_len = ask_len + bid_len;
     let payload_orders_bytes = payload.len() - 4;
-    let payload_orders_len = payload_orders_bytes / ORDER_ENTRY_SIZE;
-    if orders_len != payload_orders_len {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    let capacity_bytes = data_len - ORDERS_DATA_OFFSET;
-    if payload_orders_bytes > capacity_bytes {
+    if orders_len != payload_orders_bytes / ORDER_ENTRY_SIZE {
+        log!(64, "midprice set_orders: ask+bid len mismatch");
         return Err(ProgramError::InvalidInstructionData);
     }
     if orders_len > MAX_ORDERS {
+        log!(
+            64,
+            "midprice set_orders: orders_len={} > max={}",
+            orders_len,
+            MAX_ORDERS
+        );
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    // Safety: we don't borrow the account anywhere else
-    let data = unsafe { midprice_account.borrow_unchecked_mut() };
-    check_layout_version(data)?;
+    let current_slot =
+        read_slot_from_clock_account(accounts).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let data = validate_authority_and_borrow_mut(program_id, accounts)?;
 
-    let authority_ptr = authority.address().as_ref().as_ptr();
-    let stored_ptr = unsafe { data.as_ptr().add(AUTHORITY_OFFSET) };
-    if !unsafe { authority_matches_32(stored_ptr, authority_ptr) } {
-        return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
+    if payload_orders_bytes > data.len() - ORDERS_DATA_OFFSET {
+        log!(64, "midprice set_orders: orders exceed account capacity");
+        return Err(ProgramError::InvalidInstructionData);
     }
+
+    data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].copy_from_slice(&current_slot.to_le_bytes());
 
     {
         let mut book =
             MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
         book.set_lengths_and_reset_heads(ask_len as u16, bid_len as u16)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+        book.increment_sequence_number();
     }
-    // Safety: all ranges are validated above.
-    unsafe {
-        core::ptr::copy_nonoverlapping(
-            payload[4..].as_ptr(),
-            data.as_mut_ptr().add(ORDERS_DATA_OFFSET),
-            payload_orders_bytes,
-        );
-    }
+    data[ORDERS_DATA_OFFSET..ORDERS_DATA_OFFSET + payload_orders_bytes]
+        .copy_from_slice(&payload[4..]);
 
     Ok(())
 }
@@ -263,182 +338,362 @@ fn process_update_mid_price(
     accounts: &[AccountView],
     payload: &[u8],
 ) -> ProgramResult {
-    // payload is exactly 16 bytes
     if payload.len() != 16 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    // enforce invariant: exactly 2 accounts
-    if accounts.len() != 2 {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
-    let prop_amm = &accounts[0];
-    let authority = &accounts[1];
-
-    let writable = prop_amm.is_writable();
-    let signer = authority.is_signer();
-    let data_len = prop_amm.data_len();
-
-    // Safety: account view is provided by Solana runtime; owner address pointer is valid.
-    let owner_ptr = unsafe { prop_amm.owner().as_ref().as_ptr() };
-    let program_id_ptr = program_id.as_ref().as_ptr();
-
-    let mut err: u8 = 0;
-    if !writable {
-        err |= AUTH_ERR_IMMUTABLE;
-    }
-    if !signer {
-        err |= AUTH_ERR_MISSING_SIGNATURE;
-    }
-    if data_len < ACCOUNT_MIN_LEN {
-        err |= AUTH_ERR_INVALID_ACCOUNT_DATA;
-    }
-    if !unsafe { authority_matches_32(owner_ptr, program_id_ptr) } {
-        err |= AUTH_ERR_ILLEGAL_OWNER;
-    }
-    if err != 0 {
-        return Err(ProgramError::Custom(err as u32));
-    }
-
-    // Safety: we don't borrow the account anywhere else
-    {
-        let data = unsafe { prop_amm.borrow_unchecked_mut() };
-        check_layout_version(data)?;
-
-        // Safety: prechecks above guarantee at least ACCOUNT_MIN_LEN bytes.
-        let authority_ptr = authority.address().as_ref().as_ptr();
-        let stored_ptr = unsafe { data.as_ptr().add(AUTHORITY_OFFSET) };
-
-        if !unsafe { authority_matches_32(stored_ptr, authority_ptr) } {
-            return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
-        }
-
-        // Safety: payload length is checked to be exactly 16 bytes above.
-        // Prechecks ensure account data length is at least ACCOUNT_MIN_LEN (48),
-        // and MID_PRICE_OFFSET..MID_PRICE_OFFSET+16 is a 16-byte in-bounds region.
-        unsafe {
-            core::ptr::copy_nonoverlapping(
-                payload.as_ptr(),
-                data.as_mut_ptr().add(MID_PRICE_OFFSET),
-                16,
-            );
-        }
-    }
-
-    Ok(())
-}
-
-fn process_apply_fill(
-    program_id: &Address,
-    accounts: &[AccountView],
-    payload: &[u8],
-) -> ProgramResult {
-    // payload: [abs_index:u16 | is_ask:u8 | fill_size:u64]
-    if payload.len() != APPLY_FILL_ENTRY_SIZE {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    if accounts.len() != 3 {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
-    let midprice_account = &accounts[0];
-    let authority = &accounts[1];
-    let matcher_authority = &accounts[2];
-
-    if !midprice_account.is_writable() {
-        return Err(ProgramError::Custom(AUTH_ERR_IMMUTABLE as u32));
-    }
-    let data_len = midprice_account.data_len();
-    if data_len < ACCOUNT_MIN_LEN {
-        return Err(ProgramError::Custom(AUTH_ERR_INVALID_ACCOUNT_DATA as u32));
-    }
-    // Safety: account view is provided by Solana runtime; owner address pointer is valid.
-    let owner_ptr = unsafe { midprice_account.owner().as_ref().as_ptr() };
-    let program_id_ptr = program_id.as_ref().as_ptr();
-    if !unsafe { authority_matches_32(owner_ptr, program_id_ptr) } {
-        return Err(ProgramError::Custom(AUTH_ERR_ILLEGAL_OWNER as u32));
-    }
-
-    if !matcher_authority.is_signer() {
-        return Err(ProgramError::Custom(AUTH_ERR_MISSING_SIGNATURE as u32));
-    }
-    // Safety: we don't borrow the account anywhere else.
-    let data = unsafe { midprice_account.borrow_unchecked_mut() };
-    check_layout_version(data)?;
-    if !matcher_authority_matches(data, matcher_authority)? {
-        return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
-    }
-    let authority_ptr = authority.address().as_ref().as_ptr();
-    let stored_ptr = unsafe { data.as_ptr().add(AUTHORITY_OFFSET) };
-    if !unsafe { authority_matches_32(stored_ptr, authority_ptr) } {
-        return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
-    }
-
-    let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
-    apply_fill_entry(&mut book, payload)?;
-    Ok(())
-}
-
-fn process_apply_fills_batch(
-    program_id: &Address,
-    accounts: &[AccountView],
-    payload: &[u8],
-) -> ProgramResult {
-    // payload: repeated [abs_index:u16 | is_ask:u8 | fill_size:u64]
-    if payload.is_empty() || payload.len() % APPLY_FILL_ENTRY_SIZE != 0 {
         log!(
             64,
-            "midprice apply_fills_batch: bad payload len={} mod {}",
-            payload.len(),
-            APPLY_FILL_ENTRY_SIZE
+            "midprice update: bad payload_len={} want 16",
+            payload.len()
         );
         return Err(ProgramError::InvalidInstructionData);
     }
+
+    let current_slot =
+        read_slot_from_clock_account(accounts).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let data = validate_authority_and_borrow_mut(program_id, accounts)?;
+
+    data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 16].copy_from_slice(payload);
+    data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].copy_from_slice(&current_slot.to_le_bytes());
+
+    let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
+    book.increment_sequence_number();
+
+    Ok(())
+}
+
+fn process_apply_fills(
+    program_id: &Address,
+    accounts: &[AccountView],
+    payload: &[u8],
+) -> ProgramResult {
+    // Accounts: [matcher (s), clock, midprice_0 (w), midprice_1 (w), ...]
+    if accounts.len() < 3 {
+        log!(
+            64,
+            "midprice apply_fills: accounts_len={} want >= 3",
+            accounts.len()
+        );
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    let num_makers = accounts.len() - 2;
+    if num_makers == 0 {
+        log!(64, "midprice apply_fills: need at least one maker");
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    let matcher = &accounts[0];
+    if !matcher.is_signer() {
+        log!(64, "midprice apply_fills: matcher not signer");
+        return Err(ProgramError::Custom(AUTH_ERR_MISSING_SIGNATURE as u32));
+    }
+
+    if accounts[1].address().as_ref() != CLOCK_SYSVAR_ID.as_ref() {
+        log!(
+            64,
+            "midprice apply_fills: accounts[1] is not the Clock sysvar"
+        );
+        return Err(ProgramError::Custom(AUTH_ERR_INVALID_CLOCK));
+    }
+    let current_slot =
+        read_slot_from_clock_at(accounts, 1).ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+    // Matcher must be the authorized exchange's matcher PDA.
+    let (expected_matcher_pda, _bump) =
+        Address::try_find_program_address(&[PROP_AMM_MATCHER_SEED], &DRIFT_PROGRAM_ID)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+    if matcher.address().as_ref() != expected_matcher_pda.as_ref() {
+        log!(
+            64,
+            "midprice apply_fills: matcher is not authorized exchange PDA"
+        );
+        return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
+    }
+
+    if payload.len() < APPLY_FILLS_MARKET_INDEX_SIZE {
+        log!(
+            64,
+            "midprice apply_fills: payload too short for market_index"
+        );
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let expected_market_index = u16::from_le_bytes(
+        payload[0..APPLY_FILLS_MARKET_INDEX_SIZE]
+            .try_into()
+            .unwrap(),
+    );
+
+    let mut payload_offset = APPLY_FILLS_MARKET_INDEX_SIZE;
+    for maker_i in 0..num_makers {
+        if payload_offset + APPLY_FILLS_NUM_FILLS_SIZE > payload.len() {
+            log!(
+                64,
+                "midprice apply_fills: payload short for maker {}",
+                maker_i
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let num_fills = u16::from_le_bytes(
+            payload[payload_offset..payload_offset + 2]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        payload_offset += APPLY_FILLS_NUM_FILLS_SIZE;
+        if num_fills > MAX_ORDERS {
+            log!(
+                64,
+                "midprice apply_fills: maker {} num_fills {} > MAX_ORDERS {}",
+                maker_i,
+                num_fills,
+                MAX_ORDERS
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let entries_len = num_fills * APPLY_FILL_ENTRY_SIZE;
+        if payload_offset + entries_len > payload.len() {
+            log!(
+                64,
+                "midprice apply_fills: payload short for maker {} fills",
+                maker_i
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let entries = &payload[payload_offset..payload_offset + entries_len];
+        payload_offset += entries_len;
+
+        // Skip this maker on validation failure; other makers can still be filled.
+        let data = match validate_fill_accounts_for_maker(program_id, accounts, maker_i) {
+            Ok(d) => d,
+            Err(_) => {
+                log!(
+                    64,
+                    "midprice apply_fills: maker {} account validation failed, skipping",
+                    maker_i
+                );
+                continue;
+            }
+        };
+
+        let stored_market_index = u16::from_le_bytes(
+            data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
+                .try_into()
+                .unwrap(),
+        );
+        if stored_market_index != expected_market_index {
+            log!(
+                64,
+                "midprice apply_fills: maker {} market_index mismatch, skipping",
+                maker_i
+            );
+            continue;
+        }
+
+        let ref_slot = match data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].try_into() {
+            Ok(b) => u64::from_le_bytes(b),
+            Err(_) => {
+                log!(
+                    64,
+                    "midprice apply_fills: maker {} bad ref_slot, skipping",
+                    maker_i
+                );
+                continue;
+            }
+        };
+        let quote_ttl_slots = match data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8].try_into() {
+            Ok(b) => u64::from_le_bytes(b),
+            Err(_) => {
+                log!(
+                    64,
+                    "midprice apply_fills: maker {} bad quote_ttl, skipping",
+                    maker_i
+                );
+                continue;
+            }
+        };
+        if quote_ttl_slots > 0 {
+            if current_slot.saturating_sub(ref_slot) > quote_ttl_slots {
+                log!(
+                    64,
+                    "midprice apply_fills: maker {} quote expired, skipping",
+                    maker_i
+                );
+                continue;
+            }
+        }
+
+        let mut book = match MidpriceBookViewMut::new(data) {
+            Ok(b) => b,
+            Err(_) => {
+                log!(
+                    64,
+                    "midprice apply_fills: maker {} book view failed, skipping",
+                    maker_i
+                );
+                continue;
+            }
+        };
+        let mut start = 0usize;
+        while start < entries.len() {
+            let end = start + APPLY_FILL_ENTRY_SIZE;
+            apply_fill_entry(&mut book, &entries[start..end])?;
+            start = end;
+        }
+        book.increment_sequence_number();
+    }
+    if payload_offset != payload.len() {
+        log!(64, "midprice apply_fills: payload trailing bytes");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    Ok(())
+}
+
+fn process_set_quote_ttl(
+    program_id: &Address,
+    accounts: &[AccountView],
+    payload: &[u8],
+) -> ProgramResult {
+    if payload.len() != 8 {
+        log!(
+            64,
+            "midprice set_quote_ttl: bad payload_len={} want 8",
+            payload.len()
+        );
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let data = validate_authority_and_borrow_mut(program_id, accounts)?;
+
+    data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8].copy_from_slice(payload);
+
+    let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
+    book.increment_sequence_number();
+    Ok(())
+}
+
+/// Close the midprice account, transferring lamports to a destination.
+/// Accounts: [midprice (writable), authority (signer), destination (writable)].
+fn process_close_account(
+    program_id: &Address,
+    accounts: &[AccountView],
+    _payload: &[u8],
+) -> ProgramResult {
     if accounts.len() != 3 {
-        log!(64, "midprice apply_fills_batch: accounts_len={} want 3", accounts.len());
+        log!(64, "midprice close: accounts_len={} want 3", accounts.len());
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     let midprice_account = &accounts[0];
     let authority = &accounts[1];
-    let matcher_authority = &accounts[2];
+    let destination = &accounts[2];
 
+    let mut err: u8 = 0;
     if !midprice_account.is_writable() {
+        err |= AUTH_ERR_IMMUTABLE;
+    }
+    if !authority.is_signer() {
+        err |= AUTH_ERR_MISSING_SIGNATURE;
+    }
+    if midprice_account.data_len() < ACCOUNT_MIN_LEN {
+        err |= AUTH_ERR_INVALID_ACCOUNT_DATA;
+    }
+    if !unsafe {
+        authority_matches_32(
+            midprice_account.owner().as_ref().as_ptr(),
+            program_id.as_ref().as_ptr(),
+        )
+    } {
+        err |= AUTH_ERR_ILLEGAL_OWNER;
+    }
+    if err != 0 {
+        log!(64, "midprice close: auth check failed err={}", err);
+        return Err(ProgramError::Custom(err as u32));
+    }
+    if !destination.is_writable() {
+        log!(64, "midprice close: destination not writable");
         return Err(ProgramError::Custom(AUTH_ERR_IMMUTABLE as u32));
     }
-    let data_len = midprice_account.data_len();
-    if data_len < ACCOUNT_MIN_LEN {
+
+    {
+        // Safety: no other borrows on this account.
+        let data = unsafe { midprice_account.borrow_unchecked_mut() };
+        check_layout_version(data)?;
+        if data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32] != *authority.address().as_ref() {
+            log!(64, "midprice close: authority mismatch");
+            return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
+        }
+    }
+
+    let source_lamports = midprice_account.lamports();
+    destination.set_lamports(destination.lamports() + source_lamports);
+    midprice_account.set_lamports(0);
+
+    // Safety: lamports have been moved out; no active borrows on owner.
+    unsafe { midprice_account.close_unchecked() };
+    Ok(())
+}
+
+/// Transfer authority to a new pubkey.
+/// Accounts: [midprice (writable), current_authority (signer)].
+/// Payload: [new_authority: [u8; 32]].
+fn process_transfer_authority(
+    program_id: &Address,
+    accounts: &[AccountView],
+    payload: &[u8],
+) -> ProgramResult {
+    if payload.len() != 32 {
+        log!(
+            64,
+            "midprice transfer_authority: bad payload_len={} want 32",
+            payload.len()
+        );
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let data = validate_authority_and_borrow_mut(program_id, accounts)?;
+
+    data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(payload);
+
+    let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
+    book.increment_sequence_number();
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Fill helpers
+// ---------------------------------------------------------------------------
+
+/// Validates one maker's midprice account (writable, owned by program, layout).
+fn validate_fill_accounts_for_maker<'a>(
+    program_id: &Address,
+    accounts: &'a [AccountView],
+    maker_index: usize,
+) -> Result<&'a mut [u8], ProgramError> {
+    let midprice_idx = 2 + maker_index;
+    if midprice_idx >= accounts.len() {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    let midprice_account = &accounts[midprice_idx];
+
+    if !midprice_account.is_writable() {
+        log!(64, "midprice fill: account not writable");
+        return Err(ProgramError::Custom(AUTH_ERR_IMMUTABLE as u32));
+    }
+    if midprice_account.data_len() < ACCOUNT_MIN_LEN {
+        log!(64, "midprice fill: account data too small");
         return Err(ProgramError::Custom(AUTH_ERR_INVALID_ACCOUNT_DATA as u32));
     }
-    let owner_ptr = unsafe { midprice_account.owner().as_ref().as_ptr() };
-    let program_id_ptr = program_id.as_ref().as_ptr();
-    if !unsafe { authority_matches_32(owner_ptr, program_id_ptr) } {
+    if !unsafe {
+        authority_matches_32(
+            midprice_account.owner().as_ref().as_ptr(),
+            program_id.as_ref().as_ptr(),
+        )
+    } {
+        log!(64, "midprice fill: illegal owner");
         return Err(ProgramError::Custom(AUTH_ERR_ILLEGAL_OWNER as u32));
     }
 
-    if !matcher_authority.is_signer() {
-        return Err(ProgramError::Custom(AUTH_ERR_MISSING_SIGNATURE as u32));
-    }
-    // Safety: we don't borrow the account anywhere else.
     let data = unsafe { midprice_account.borrow_unchecked_mut() };
     check_layout_version(data)?;
-    if !matcher_authority_matches(data, matcher_authority)? {
-        return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
-    }
-    let authority_ptr = authority.address().as_ref().as_ptr();
-    let stored_ptr = unsafe { data.as_ptr().add(AUTHORITY_OFFSET) };
-    if !unsafe { authority_matches_32(stored_ptr, authority_ptr) } {
-        return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
-    }
 
-    let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
-    let mut start = 0usize;
-    while start < payload.len() {
-        let end = start + APPLY_FILL_ENTRY_SIZE;
-        apply_fill_entry(&mut book, &payload[start..end])?;
-        start = end;
-    }
-    Ok(())
+    Ok(data)
 }
 
 fn apply_fill_entry(book: &mut MidpriceBookViewMut, entry: &[u8]) -> ProgramResult {
@@ -477,55 +732,48 @@ fn apply_fill_entry(book: &mut MidpriceBookViewMut, entry: &[u8]) -> ProgramResu
     Ok(())
 }
 
-/// Global matcher PDA seed: one matcher can apply fills to all PropAMM books for this exchange.
-const PROP_AMM_MATCHER_SEED: &[u8] = b"prop_amm_matcher";
+// ---------------------------------------------------------------------------
+// Shared utilities
+// ---------------------------------------------------------------------------
 
-fn matcher_authority_matches(
-    data: &[u8],
-    matcher_authority: &AccountView,
-) -> Result<bool, ProgramError> {
-    let authorized_exchange_program_id_bytes: [u8; 32] = data
-        [AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET..AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET + 32]
-        .try_into()
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-    let authorized_exchange_program_id =
-        Pubkey::new_from_array(authorized_exchange_program_id_bytes);
-    let matcher_ptr = matcher_authority.address().as_ref().as_ptr();
-
-    // Per-maker matcher: PDA(exchange, ["matcher", authority])
-    let authority_seed = &data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32];
-    let per_maker_matcher = Pubkey::find_program_address(
-        &[b"matcher", authority_seed],
-        &authorized_exchange_program_id,
-    )
-    .0;
-    if unsafe { authority_matches_32(matcher_ptr, per_maker_matcher.as_ref().as_ptr()) } {
-        return Ok(true);
+/// Read current slot from the Clock sysvar account at the given index (avoids Clock::get() syscall).
+fn read_slot_from_clock_at(accounts: &[AccountView], index: usize) -> Option<u64> {
+    if accounts.len() <= index {
+        return None;
     }
+    let clock_account = &accounts[index];
+    if clock_account.data_len() < 8 {
+        return None;
+    }
+    let data = unsafe { clock_account.borrow_unchecked() };
+    let slot_bytes: [u8; 8] = data[0..8].try_into().ok()?;
+    Some(u64::from_le_bytes(slot_bytes))
+}
 
-    // Global PropAMM matcher: PDA(exchange, ["prop_amm_matcher"]) — one matcher for all books
-    let global_matcher = Pubkey::find_program_address(
-        &[PROP_AMM_MATCHER_SEED],
-        &authorized_exchange_program_id,
-    )
-    .0;
-    Ok(unsafe { authority_matches_32(matcher_ptr, global_matcher.as_ref().as_ptr()) })
+/// Read current slot from the Clock sysvar at accounts[2]. Used by update_mid_price and set_orders.
+fn read_slot_from_clock_account(accounts: &[AccountView]) -> Option<u64> {
+    read_slot_from_clock_at(accounts, 2)
 }
 
 fn check_layout_version(data: &[u8]) -> ProgramResult {
     if data.len() < LAYOUT_VERSION_OFFSET + 8 {
-        return Err(ProgramError::Custom(AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION as u32));
+        return Err(ProgramError::Custom(
+            AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION as u32,
+        ));
     }
     let version_bytes: [u8; 8] = data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
         .try_into()
         .map_err(|_| ProgramError::Custom(AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION as u32))?;
     let version = u64::from_le_bytes(version_bytes);
     if version != LAYOUT_VERSION_INITIAL {
-        return Err(ProgramError::Custom(AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION as u32));
+        return Err(ProgramError::Custom(
+            AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION as u32,
+        ));
     }
     Ok(())
 }
 
+/// Compares two 32-byte regions as 4 u64 words (used where CU cost matters).
 #[inline(always)]
 unsafe fn authority_matches_32(stored_ptr: *const u8, authority_ptr: *const u8) -> bool {
     let d0 = core::ptr::read_unaligned(stored_ptr as *const u64)
@@ -546,4 +794,1397 @@ unsafe fn ptr_is_zero_32(ptr: *const u8) -> bool {
     let d2 = core::ptr::read_unaligned(ptr.add(16) as *const u64);
     let d3 = core::ptr::read_unaligned(ptr.add(24) as *const u64);
     (d0 | d1 | d2 | d3) == 0
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::ptr;
+    use midprice_book_view::{
+        ASK_HEAD_OFFSET, ASK_LEN_OFFSET, BID_HEAD_OFFSET, BID_LEN_OFFSET, LAYOUT_VERSION_INITIAL,
+    };
+    use solana_account_view::{RuntimeAccount, NOT_BORROWED};
+
+    /// Test addresses (use byte arrays to avoid pubkey! const-eval limits in tests).
+    fn test_program_id() -> Address {
+        Address::new_from_array([1u8; 32])
+    }
+    fn test_authority() -> Address {
+        Address::new_from_array([2u8; 32])
+    }
+    fn test_midprice_account() -> Address {
+        Address::new_from_array([3u8; 32])
+    }
+    fn test_system_program() -> Address {
+        Address::new_from_array([0u8; 32])
+    }
+    fn test_new_authority() -> Address {
+        Address::new_from_array([4u8; 32])
+    }
+    fn test_wrong_clock() -> Address {
+        Address::new_from_array([5u8; 32])
+    }
+
+    /// Build a single mock account backing (RuntimeAccount header + data). Caller must keep
+    /// the returned Vec alive while using the AccountView.
+    fn mock_account_backing(
+        address: Address,
+        owner: Address,
+        data_len: usize,
+        is_signer: bool,
+        is_writable: bool,
+        lamports: u64,
+        data_init: Option<&[u8]>,
+    ) -> Vec<u8> {
+        let hdr_size = core::mem::size_of::<RuntimeAccount>();
+        let total = hdr_size + data_len;
+        let mut backing = vec![0u8; total];
+        let hdr = backing.as_mut_ptr() as *mut RuntimeAccount;
+        unsafe {
+            ptr::write(
+                hdr,
+                RuntimeAccount {
+                    borrow_state: NOT_BORROWED,
+                    is_signer: if is_signer { 1 } else { 0 },
+                    is_writable: if is_writable { 1 } else { 0 },
+                    executable: 0,
+                    resize_delta: 0,
+                    address,
+                    owner,
+                    lamports,
+                    data_len: data_len as u64,
+                },
+            );
+            if let Some(d) = data_init {
+                let data_ptr = (hdr as *mut u8).add(hdr_size);
+                let copy_len = core::cmp::min(d.len(), data_len);
+                ptr::copy_nonoverlapping(d.as_ptr(), data_ptr, copy_len);
+            }
+        }
+        backing
+    }
+
+    /// Create an AccountView from a backing buffer. The backing must outlive the view.
+    fn account_view_from_backing(backing: &mut [u8]) -> AccountView {
+        unsafe { AccountView::new_unchecked(backing.as_mut_ptr() as *mut RuntimeAccount) }
+    }
+
+    /// Build midprice account data with given header and order sizes (asks then bids). Each order
+    /// is stored as offset=0 i64 + size u64. Used for apply_fills tests.
+    fn make_midprice_data_with_orders(
+        authority: &Address,
+        market_index: u16,
+        ref_slot: u64,
+        quote_ttl_slots: u64,
+        ask_sizes: &[u64],
+        bid_sizes: &[u64],
+    ) -> Vec<u8> {
+        let ask_len = ask_sizes.len() as u16;
+        let bid_len = bid_sizes.len() as u16;
+        let total_orders = ask_len as usize + bid_len as usize;
+        let data_len = ORDERS_DATA_OFFSET + total_orders * ORDER_ENTRY_SIZE;
+        let mut data = vec![0u8; data_len];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].copy_from_slice(&ref_slot.to_le_bytes());
+        data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
+            .copy_from_slice(&market_index.to_le_bytes());
+        data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&ask_len.to_le_bytes());
+        data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&bid_len.to_le_bytes());
+        data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+        data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+        data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8]
+            .copy_from_slice(&quote_ttl_slots.to_le_bytes());
+        data[SEQUENCE_NUMBER_OFFSET..SEQUENCE_NUMBER_OFFSET + 8]
+            .copy_from_slice(&0u64.to_le_bytes());
+        let mut off = ORDERS_DATA_OFFSET;
+        for &sz in ask_sizes {
+            data[off..off + 8].copy_from_slice(&0i64.to_le_bytes());
+            data[off + 8..off + 16].copy_from_slice(&sz.to_le_bytes());
+            off += ORDER_ENTRY_SIZE;
+        }
+        for &sz in bid_sizes {
+            data[off..off + 8].copy_from_slice(&0i64.to_le_bytes());
+            data[off + 8..off + 16].copy_from_slice(&sz.to_le_bytes());
+            off += ORDER_ENTRY_SIZE;
+        }
+        data
+    }
+
+    /// Build one fill entry: [abs_index u16 LE][is_ask u8][fill_size u64 LE].
+    fn fill_entry(abs_index: u16, is_ask: bool, fill_size: u64) -> [u8; APPLY_FILL_ENTRY_SIZE] {
+        let mut buf = [0u8; APPLY_FILL_ENTRY_SIZE];
+        buf[0..2].copy_from_slice(&abs_index.to_le_bytes());
+        buf[2] = if is_ask { 1 } else { 0 };
+        buf[3..11].copy_from_slice(&fill_size.to_le_bytes());
+        buf
+    }
+
+    /// Common setup for apply_fills: matcher (signer), clock (slot), returns (matcher_backing, clock_backing, current_slot).
+    fn apply_fills_setup_matcher_clock(current_slot: u64) -> (Vec<u8>, Vec<u8>, u64) {
+        let (expected_matcher_pda, _) =
+            Address::try_find_program_address(&[b"prop_amm_matcher"], &DRIFT_PROGRAM_ID).unwrap();
+        let matcher_backing = mock_account_backing(
+            expected_matcher_pda,
+            DRIFT_PROGRAM_ID,
+            0,
+            true,
+            false,
+            0,
+            None,
+        );
+        let clock_backing = mock_account_backing(
+            CLOCK_SYSVAR_ID,
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&current_slot.to_le_bytes()),
+        );
+        (matcher_backing, clock_backing, current_slot)
+    }
+
+    #[test]
+    fn process_instruction_empty_data_returns_invalid_instruction_data() {
+        let program_id = test_program_id();
+        let accounts: &[AccountView] = &[];
+        let result = process_instruction(&program_id, accounts, &[]);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_instruction_unknown_opcode_returns_invalid_instruction_data() {
+        let program_id = test_program_id();
+        let accounts: &[AccountView] = &[];
+        let ix = [99u8]; // unknown opcode
+        let result = process_instruction(&program_id, accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_initialize_success() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            None,
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let payload: [u8; 2] = [0x01, 0x00]; // market_index = 1
+        let ix = [IX_INITIALIZE_MID_PRICE_ACCOUNT, payload[0], payload[1]];
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        // Check layout version and authority written
+        let data = unsafe { accounts[0].borrow_unchecked() };
+        assert_eq!(
+            data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8],
+            LAYOUT_VERSION_INITIAL.to_le_bytes()
+        );
+        assert_eq!(
+            data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32],
+            authority.as_ref()[..]
+        );
+    }
+
+    #[test]
+    fn process_initialize_wrong_account_count() {
+        let program_id = test_program_id();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            None,
+        );
+        let accounts = [account_view_from_backing(&mut midprice_backing)];
+        let ix = [IX_INITIALIZE_MID_PRICE_ACCOUNT, 0u8, 0u8];
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::NotEnoughAccountKeys)));
+    }
+
+    #[test]
+    fn process_initialize_invalid_payload_length() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            None,
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let ix = [IX_INITIALIZE_MID_PRICE_ACCOUNT, 0u8]; // only 1 byte payload
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_initialize_authority_not_signer() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            None,
+        );
+        let mut auth_backing = mock_account_backing(
+            authority,
+            test_system_program(),
+            0,
+            false, // not signer
+            false,
+            0,
+            None,
+        );
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let ix = [IX_INITIALIZE_MID_PRICE_ACCOUNT, 0u8, 0u8];
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::Custom(0x02)))); // AUTH_ERR_MISSING_SIGNATURE
+    }
+
+    #[test]
+    fn process_initialize_midprice_not_writable() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            false, // not writable
+            1000,
+            None,
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let ix = [IX_INITIALIZE_MID_PRICE_ACCOUNT, 0u8, 0u8];
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::Custom(0x01)))); // AUTH_ERR_IMMUTABLE
+    }
+
+    #[test]
+    fn process_initialize_reinit_fails() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let ix = [IX_INITIALIZE_MID_PRICE_ACCOUNT, 0u8, 0u8];
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::Custom(0x20)))); // AUTH_ERR_ALREADY_INITIALIZED
+    }
+
+    #[test]
+    fn process_update_mid_price_invalid_payload_length() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let slot: u64 = 100;
+        let mut clock_backing = mock_account_backing(
+            CLOCK_SYSVAR_ID,
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&slot.to_le_bytes()),
+        );
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+            account_view_from_backing(&mut clock_backing),
+        ];
+        let ix = [IX_UPDATE_MID_PRICE, 0u8, 0u8]; // only 2 payload bytes, need 16
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_update_mid_price_success() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let slot: u64 = 42;
+        let mut clock_backing = mock_account_backing(
+            CLOCK_SYSVAR_ID,
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&slot.to_le_bytes()),
+        );
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+            account_view_from_backing(&mut clock_backing),
+        ];
+        let price_payload: [u8; 16] = [1u8; 16]; // arbitrary 16 bytes
+        let mut ix = vec![IX_UPDATE_MID_PRICE];
+        ix.extend_from_slice(&price_payload);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let data = unsafe { accounts[0].borrow_unchecked() };
+        assert_eq!(data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 16], price_payload);
+        assert_eq!(
+            data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8],
+            slot.to_le_bytes()
+        );
+    }
+
+    #[test]
+    fn process_set_orders_invalid_payload_too_short() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let mut clock_backing = mock_account_backing(
+            CLOCK_SYSVAR_ID,
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&100u64.to_le_bytes()),
+        );
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+            account_view_from_backing(&mut clock_backing),
+        ];
+        let ix = [IX_SET_ORDERS, 0u8, 0u8]; // payload len 2, need at least 4
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_set_orders_success_empty_book() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let slot: u64 = 50;
+        let mut clock_backing = mock_account_backing(
+            CLOCK_SYSVAR_ID,
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&slot.to_le_bytes()),
+        );
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+            account_view_from_backing(&mut clock_backing),
+        ];
+        // ask_len=0, bid_len=0, no orders
+        let payload: [u8; 4] = [0, 0, 0, 0];
+        let mut ix = vec![IX_SET_ORDERS];
+        ix.extend_from_slice(&payload);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let data = unsafe { accounts[0].borrow_unchecked() };
+        assert_eq!(
+            data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8],
+            slot.to_le_bytes()
+        );
+    }
+
+    #[test]
+    fn process_set_quote_ttl_invalid_payload_length() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let ix = [IX_SET_QUOTE_TTL, 0u8]; // 1 byte, need 8
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_set_quote_ttl_success() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let ttl: u64 = 100;
+        let mut ix = vec![IX_SET_QUOTE_TTL];
+        ix.extend_from_slice(&ttl.to_le_bytes());
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let data = unsafe { accounts[0].borrow_unchecked() };
+        assert_eq!(
+            data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8],
+            ttl.to_le_bytes()
+        );
+    }
+
+    #[test]
+    fn process_transfer_authority_invalid_payload_length() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let mut ix = vec![IX_TRANSFER_AUTHORITY];
+        ix.extend_from_slice(&[0u8; 16]); // only 16 bytes payload, need 32
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_transfer_authority_success() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let new_authority = test_new_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+        let mut ix = vec![IX_TRANSFER_AUTHORITY];
+        ix.extend_from_slice(new_authority.as_ref());
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let data = unsafe { accounts[0].borrow_unchecked() };
+        assert_eq!(
+            data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32],
+            new_authority.as_ref()[..]
+        );
+    }
+
+    #[test]
+    fn process_close_account_wrong_account_count() {
+        let program_id = test_program_id();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            None,
+        );
+        let accounts = [account_view_from_backing(&mut midprice_backing)];
+        let ix = [IX_CLOSE_ACCOUNT];
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::NotEnoughAccountKeys)));
+    }
+
+    #[test]
+    fn process_apply_fills_too_few_accounts() {
+        let program_id = test_program_id();
+        let accounts: &[AccountView] = &[];
+        let ix = [IX_APPLY_FILLS, 0u8, 0u8]; // market_index 0
+        let result = process_instruction(&program_id, accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::NotEnoughAccountKeys)));
+    }
+
+    #[test]
+    fn process_apply_fills_matcher_not_signer() {
+        let program_id = test_program_id();
+        let (expected_matcher_pda, _) =
+            Address::try_find_program_address(&[b"prop_amm_matcher"], &DRIFT_PROGRAM_ID).unwrap();
+        let mut matcher_backing = mock_account_backing(
+            expected_matcher_pda,
+            DRIFT_PROGRAM_ID,
+            0,
+            false, // not signer
+            false,
+            0,
+            None,
+        );
+        let mut clock_backing = mock_account_backing(
+            CLOCK_SYSVAR_ID,
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&0u64.to_le_bytes()),
+        );
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            None,
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let ix = [IX_APPLY_FILLS, 0u8, 0u8, 0u8, 0u8]; // market_index 0, num_fills 0 for one maker
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::Custom(0x02)))); // missing signature
+    }
+
+    #[test]
+    fn process_apply_fills_wrong_clock_account() {
+        let program_id = test_program_id();
+        let (expected_matcher_pda, _) =
+            Address::try_find_program_address(&[b"prop_amm_matcher"], &DRIFT_PROGRAM_ID).unwrap();
+        let mut matcher_backing = mock_account_backing(
+            expected_matcher_pda,
+            DRIFT_PROGRAM_ID,
+            0,
+            true,
+            false,
+            0,
+            None,
+        );
+        // accounts[1] is not Clock sysvar
+        let mut wrong_clock_backing = mock_account_backing(
+            test_wrong_clock(),
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&0u64.to_le_bytes()),
+        );
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            None,
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut wrong_clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let ix = [IX_APPLY_FILLS, 1u8, 0u8, 0u8, 0u8]; // market_index 1, num_fills 0
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::Custom(0x80)))); // AUTH_ERR_INVALID_CLOCK
+    }
+
+    // ---------- apply_fills: success and functional coverage ----------
+
+    #[test]
+    fn process_apply_fills_success_single_fill_reduces_order_size() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let current_slot = 100u64;
+        let (mut matcher_backing, mut clock_backing, _) =
+            apply_fills_setup_matcher_clock(current_slot);
+        let market_index = 1u16;
+        let ref_slot = 90u64;
+        let data = make_midprice_data_with_orders(
+            &authority,
+            market_index,
+            ref_slot,
+            0,         // no TTL
+            &[100u64], // 1 ask, size 100
+            &[],
+        );
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        // Fill 50 from ask at abs_index 0.
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&market_index.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes()); // num_fills
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out_data = unsafe { accounts[2].borrow_unchecked() };
+        let base = ORDERS_DATA_OFFSET + 8;
+        let size_after = u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap());
+        assert_eq!(size_after, 50);
+    }
+
+    #[test]
+    fn process_apply_fills_success_full_fill_advances_ask_head() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let current_slot = 100u64;
+        let (mut matcher_backing, mut clock_backing, _) =
+            apply_fills_setup_matcher_clock(current_slot);
+        let market_index = 1u16;
+        let data = make_midprice_data_with_orders(
+            &authority,
+            market_index,
+            90,
+            0,
+            &[100u64], // 1 ask
+            &[],
+        );
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, true, 100); // full fill
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&market_index.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out_data = unsafe { accounts[2].borrow_unchecked() };
+        let ask_head =
+            u16::from_le_bytes([out_data[ASK_HEAD_OFFSET], out_data[ASK_HEAD_OFFSET + 1]]);
+        assert_eq!(ask_head, 1);
+    }
+
+    #[test]
+    fn process_apply_fills_success_bid_fill() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let market_index = 0u16;
+        let data = make_midprice_data_with_orders(&authority, market_index, 40, 0, &[], &[200u64]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, false, 80); // bid at abs_index 0 (first bid)
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&market_index.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out_data = unsafe { accounts[2].borrow_unchecked() };
+        let base = ORDERS_DATA_OFFSET + 8;
+        assert_eq!(
+            u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
+            120
+        );
+    }
+
+    #[test]
+    fn process_apply_fills_success_multiple_fills_same_maker() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let market_index = 2u16;
+        let data =
+            make_midprice_data_with_orders(&authority, market_index, 40, 0, &[100u64, 200u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let e1 = fill_entry(0, true, 30);
+        let e2 = fill_entry(1, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&market_index.to_le_bytes());
+        ix.extend_from_slice(&2u16.to_le_bytes());
+        ix.extend_from_slice(&e1);
+        ix.extend_from_slice(&e2);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out_data = unsafe { accounts[2].borrow_unchecked() };
+        let base0 = ORDERS_DATA_OFFSET + 8;
+        let base1 = ORDERS_DATA_OFFSET + ORDER_ENTRY_SIZE + 8;
+        assert_eq!(
+            u64::from_le_bytes(out_data[base0..base0 + 8].try_into().unwrap()),
+            70
+        );
+        assert_eq!(
+            u64::from_le_bytes(out_data[base1..base1 + 8].try_into().unwrap()),
+            150
+        );
+    }
+
+    #[test]
+    fn process_apply_fills_success_two_makers_second_filled() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let market_index = 1u16;
+        let data0 = make_midprice_data_with_orders(&authority, market_index, 40, 0, &[100u64], &[]);
+        let data1 = make_midprice_data_with_orders(&authority, market_index, 40, 0, &[100u64], &[]);
+        let len0 = data0.len();
+        let len1 = data1.len();
+        let mut mid0 = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            len0,
+            false,
+            true,
+            1000,
+            Some(&data0),
+        );
+        let mut mid1 = mock_account_backing(
+            Address::new_from_array([10u8; 32]),
+            program_id,
+            len1,
+            false,
+            true,
+            1000,
+            Some(&data1),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut mid0),
+            account_view_from_backing(&mut mid1),
+        ];
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&market_index.to_le_bytes());
+        ix.extend_from_slice(&0u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out1 = unsafe { accounts[3].borrow_unchecked() };
+        let base = ORDERS_DATA_OFFSET + 8;
+        assert_eq!(
+            u64::from_le_bytes(out1[base..base + 8].try_into().unwrap()),
+            50
+        );
+    }
+
+    #[test]
+    fn process_apply_fills_market_index_mismatch_skips_maker() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let data = make_midprice_data_with_orders(&authority, 5, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let market_index_payload = 1u16;
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&market_index_payload.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out_data = unsafe { accounts[2].borrow_unchecked() };
+        let base = ORDERS_DATA_OFFSET + 8;
+        assert_eq!(
+            u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
+            100
+        );
+    }
+
+    #[test]
+    fn process_apply_fills_quote_expired_skips_maker() {
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let current_slot = 200u64;
+        let ref_slot = 100u64;
+        let quote_ttl_slots = 50u64;
+        let (mut matcher_backing, mut clock_backing, _) =
+            apply_fills_setup_matcher_clock(current_slot);
+        let data = make_midprice_data_with_orders(
+            &authority,
+            1,
+            ref_slot,
+            quote_ttl_slots,
+            &[100u64],
+            &[],
+        );
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out_data = unsafe { accounts[2].borrow_unchecked() };
+        let base = ORDERS_DATA_OFFSET + 8;
+        assert_eq!(
+            u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
+            100
+        );
+    }
+
+    #[test]
+    fn process_apply_fills_quote_not_expired_applies_fill() {
+        let program_id = test_program_id();
+        let current_slot = 100u64;
+        let ref_slot = 90u64;
+        let quote_ttl_slots = 20u64;
+        let (mut matcher_backing, mut clock_backing, _) =
+            apply_fills_setup_matcher_clock(current_slot);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(
+            &authority,
+            1,
+            ref_slot,
+            quote_ttl_slots,
+            &[100u64],
+            &[],
+        );
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out_data = unsafe { accounts[2].borrow_unchecked() };
+        let base = ORDERS_DATA_OFFSET + 8;
+        assert_eq!(
+            u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
+            50
+        );
+    }
+
+    #[test]
+    fn process_apply_fills_payload_trailing_bytes_fails() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        ix.push(0xff);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_apply_fills_payload_short_for_maker_fails() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_apply_fills_num_fills_exceeds_max_fails() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&(MAX_ORDERS as u16 + 1).to_le_bytes());
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_apply_fills_fill_size_exceeds_order_fails() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, true, 101);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_apply_fills_fill_size_zero_fails() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, true, 0);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_apply_fills_invalid_is_ask_fails() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let mut entry = fill_entry(0, true, 50);
+        entry[2] = 2;
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_apply_fills_abs_index_out_of_range_fails() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(1, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::InvalidInstructionData)));
+    }
+
+    #[test]
+    fn process_apply_fills_wrong_matcher_pda_fails() {
+        let program_id = test_program_id();
+        let mut wrong_matcher_backing =
+            mock_account_backing(test_authority(), DRIFT_PROGRAM_ID, 0, true, false, 0, None);
+        let mut clock_backing = mock_account_backing(
+            CLOCK_SYSVAR_ID,
+            test_system_program(),
+            8,
+            false,
+            false,
+            0,
+            Some(&50u64.to_le_bytes()),
+        );
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut wrong_matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut midprice_backing),
+        ];
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(matches!(result, Err(ProgramError::Custom(0x10))));
+    }
+
+    #[test]
+    fn process_apply_fills_maker_not_writable_skipped_others_succeed() {
+        let program_id = test_program_id();
+        let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
+        let authority = test_authority();
+        let data = make_midprice_data_with_orders(&authority, 1, 40, 0, &[100u64], &[]);
+        let data_len = data.len();
+        let mut mid0 = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            data_len,
+            false,
+            false,
+            1000,
+            Some(&data),
+        );
+        let mut mid1 = mock_account_backing(
+            Address::new_from_array([11u8; 32]),
+            program_id,
+            data_len,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let accounts = [
+            account_view_from_backing(&mut matcher_backing),
+            account_view_from_backing(&mut clock_backing),
+            account_view_from_backing(&mut mid0),
+            account_view_from_backing(&mut mid1),
+        ];
+        let entry = fill_entry(0, true, 50);
+        let mut ix = vec![IX_APPLY_FILLS];
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        ix.extend_from_slice(&1u16.to_le_bytes());
+        ix.extend_from_slice(&entry);
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+        let out1 = unsafe { accounts[3].borrow_unchecked() };
+        let base = ORDERS_DATA_OFFSET + 8;
+        assert_eq!(
+            u64::from_le_bytes(out1[base..base + 8].try_into().unwrap()),
+            50
+        );
+    }
 }

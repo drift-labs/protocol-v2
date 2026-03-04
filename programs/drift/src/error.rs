@@ -700,6 +700,8 @@ pub enum ErrorCode {
     InvalidOrderScaleOrderCount,
     #[msg("Invalid scale order price range")]
     InvalidOrderScalePriceRange,
+    #[msg("Midprice quote expired")]
+    MidpriceQuoteExpired,
 }
 
 #[macro_export]

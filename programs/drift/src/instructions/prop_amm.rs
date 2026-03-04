@@ -4,10 +4,11 @@
 //! Each PropAMM account must be associated with a Drift User account (the maker).
 //! Remaining accounts: [midprice_program], [spot_market_0, spot_market_1, ...] (num_spot_markets collateral spot markets),
 //! then for each AMM: (midprice_account, maker_user).
-//! Midprice accounts must have authorized_exchange_program_id = Drift program id; authority = maker's wallet (User.authority).
+//! Midprice accounts have authority = maker's wallet (User.authority); only Drift's matcher PDA can apply_fills (hardcoded in midprice_pino).
 //! Matcher_authority = PDA(drift_program_id, ["matcher", maker_user.key()]).
 
 use crate::controller::orders::update_order_after_fill;
+use crate::controller::pda;
 use crate::controller::position::{
     add_new_position, get_position_index, update_position_and_market, PositionDirection,
 };
@@ -40,9 +41,9 @@ use anchor_lang::Discriminator;
 use midprice_book_view::{
     MidpriceBookView, ACCOUNT_MIN_LEN as MIDPRICE_ACCOUNT_MIN_LEN,
     AUTHORITY_OFFSET as MIDPRICE_AUTHORITY_OFFSET,
-    AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET as MIDPRICE_AUTHORIZED_EXCHANGE_OFFSET,
     MARKET_INDEX_OFFSET as MIDPRICE_MARKET_INDEX_OFFSET, MAX_ORDERS as MIDPRICE_MAX_ORDERS,
-    MID_PRICE_OFFSET as MIDPRICE_VALUE_OFFSET,
+    MID_PRICE_OFFSET as MIDPRICE_VALUE_OFFSET, QUOTE_TTL_OFFSET as MIDPRICE_QUOTE_TTL_OFFSET,
+    REF_SLOT_OFFSET as MIDPRICE_REF_SLOT_OFFSET,
 };
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
@@ -51,7 +52,7 @@ use std::slice::Iter;
 
 const BUY: u8 = 0;
 const SELL: u8 = 1;
-const MIDPRICE_IX_APPLY_FILLS_BATCH: u8 = 4;
+const MIDPRICE_IX_APPLY_FILLS: u8 = 3;
 /// Drift User account: 8-byte discriminator then authority (Pubkey).
 const USER_AUTHORITY_OFFSET: usize = 8;
 /// One matcher PDA can apply fills to all PropAMM books (saves tx size vs per-maker matcher).
@@ -157,7 +158,7 @@ fn read_external_mid_price(
     midprice_info: &AccountInfo,
     midprice_program_id: &Pubkey,
     maker_user_info: &AccountInfo,
-    drift_program_id: &Pubkey,
+    current_slot: u64,
 ) -> DriftResult<u64> {
     validate!(
         *midprice_info.owner == *midprice_program_id,
@@ -176,7 +177,8 @@ fn read_external_mid_price(
         <[u8; 32]>::try_from(&data[MIDPRICE_AUTHORITY_OFFSET..MIDPRICE_AUTHORITY_OFFSET + 32])
             .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
     let stored_authority = Pubkey::new_from_array(auth_arr);
-    // Midprice authority is the signer of init (maker's wallet). Drift User.authority is that wallet.
+    // Midprice authority may be the maker's wallet (User.authority) or the maker's User PDA.
+    // Stored authority (e.g. User PDA) is used for other midprice instructions; apply_fills is permissionless and does not take authority accounts.
     let maker_user_data = maker_user_info
         .try_borrow_data()
         .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
@@ -193,22 +195,31 @@ fn read_external_mid_price(
     validate!(
         stored_authority == maker_authority,
         ErrorCode::InvalidSpotMarketAccount,
-        "midprice authority must match maker user"
-    )?;
-    let authorized_exchange_arr: [u8; 32] = <[u8; 32]>::try_from(
-        &data[MIDPRICE_AUTHORIZED_EXCHANGE_OFFSET..MIDPRICE_AUTHORIZED_EXCHANGE_OFFSET + 32],
-    )
-    .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
-    let stored_authorized_exchange = Pubkey::new_from_array(authorized_exchange_arr);
-    validate!(
-        stored_authorized_exchange == *drift_program_id,
-        ErrorCode::InvalidSpotMarketAccount,
-        "midprice authorized_exchange must be Drift program"
+        "midprice authority must match maker user (wallet or User PDA)"
     )?;
     let price_arr: [u8; 8] =
         <[u8; 8]>::try_from(&data[MIDPRICE_VALUE_OFFSET..MIDPRICE_VALUE_OFFSET + 8])
             .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
     let mid_price = u64::from_le_bytes(price_arr);
+
+    let ref_slot = u64::from_le_bytes(
+        <[u8; 8]>::try_from(&data[MIDPRICE_REF_SLOT_OFFSET..MIDPRICE_REF_SLOT_OFFSET + 8])
+            .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?,
+    );
+    let quote_ttl_slots = u64::from_le_bytes(
+        <[u8; 8]>::try_from(&data[MIDPRICE_QUOTE_TTL_OFFSET..MIDPRICE_QUOTE_TTL_OFFSET + 8])
+            .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?,
+    );
+    if quote_ttl_slots > 0 {
+        validate!(
+            current_slot.saturating_sub(ref_slot) <= quote_ttl_slots,
+            ErrorCode::MidpriceQuoteExpired,
+            "midprice quote expired (slot age {} > ttl {})",
+            current_slot.saturating_sub(ref_slot),
+            quote_ttl_slots
+        )?;
+    }
+
     let book = MidpriceBookView::new(&data).map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
     let total = book.total_orders();
     validate!(
@@ -394,65 +405,41 @@ fn refresh_exhausted_frontiers(
     Ok(())
 }
 
-fn apply_external_fills_batch_via_cpi<'a>(
+/// Single CPI to midprice_pino apply_fills: [matcher, clock, midprice_0, midprice_1, ...], payload: u16 market_index (CPI protection) then per maker u16 num_fills + 11*num_fills bytes. No authority accounts; filling is permissionless.
+fn apply_external_fills_via_cpi<'a>(
     midprice_program: &AccountInfo<'a>,
-    midprice_info: &AccountInfo<'a>,
-    authority_info: &AccountInfo<'a>,
-    matcher_authority: &AccountInfo<'a>,
-    fills: &[ExternalFill],
+    remaining_accounts: &[AccountInfo<'a>],
+    clock: &AccountInfo<'a>,
+    external_fills: &[PendingExternalFill],
+    global_matcher_idx: usize,
+    market_index: u16,
     program_id: &Pubkey,
 ) -> DriftResult<()> {
-    if fills.is_empty() {
+    if external_fills.is_empty() {
         return Ok(());
     }
-    let mut data = Vec::with_capacity(1 + fills.len() * 11);
-    data.push(MIDPRICE_IX_APPLY_FILLS_BATCH);
-    for fill in fills {
-        data.extend_from_slice(&fill.abs_index.to_le_bytes());
-        data.push(if fill.is_ask { 1 } else { 0 });
-        data.extend_from_slice(&fill.fill_size.to_le_bytes());
-    }
-
-    let ix = Instruction {
-        program_id: *midprice_program.key,
-        accounts: vec![
-            AccountMeta::new(midprice_info.key(), false),
-            AccountMeta::new_readonly(authority_info.key(), false),
-            AccountMeta::new_readonly(matcher_authority.key(), true),
-        ],
-        data,
-    };
     let (expected_matcher, bump) = prop_amm_matcher_pda(program_id);
+    let matcher_authority = &remaining_accounts[global_matcher_idx];
     validate!(
         matcher_authority.key() == expected_matcher,
         ErrorCode::InvalidSpotMarketAccount,
         "matcher must be global PropAMM matcher PDA"
     )?;
-    let bump_byte = [bump];
-    let signer_seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED, bump_byte.as_slice()];
-    invoke_signed(
-        &ix,
-        &[
-            midprice_program.clone(),
-            midprice_info.clone(),
-            authority_info.clone(),
-            matcher_authority.clone(),
-        ],
-        &[signer_seeds],
-    )
-    .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
-    Ok(())
-}
 
-fn flush_external_fill_batches<'a>(
-    midprice_program: &AccountInfo<'a>,
-    remaining_accounts: &[AccountInfo<'a>],
-    external_fills: &[PendingExternalFill],
-    global_matcher_idx: usize,
-    program_id: &Pubkey,
-) -> DriftResult<()> {
     let mut batch: Vec<ExternalFill> = Vec::new();
     let mut range_start = 0usize;
+    let mut accounts: Vec<AccountMeta> = vec![
+        AccountMeta::new_readonly(matcher_authority.key(), true),
+        AccountMeta::new_readonly(clock.key(), false),
+    ];
+    let mut cpi_accounts: Vec<AccountInfo> = vec![
+        midprice_program.clone(),
+        matcher_authority.clone(),
+        clock.clone(),
+    ];
+    let mut payload: Vec<u8> = vec![MIDPRICE_IX_APPLY_FILLS];
+    payload.extend_from_slice(&market_index.to_le_bytes());
+
     while range_start < external_fills.len() {
         let current_midprice_idx = external_fills[range_start].midprice_remaining_index;
         let current_maker_user_idx = external_fills[range_start].maker_user_remaining_index;
@@ -471,17 +458,53 @@ fn flush_external_fill_batches<'a>(
                 .map(|pending| pending.fill),
         );
 
-        apply_external_fills_batch_via_cpi(
-            midprice_program,
-            &remaining_accounts[current_midprice_idx],
-            &remaining_accounts[current_maker_user_idx],
-            &remaining_accounts[global_matcher_idx],
-            &batch,
-            program_id,
-        )?;
+        accounts.push(AccountMeta::new(
+            remaining_accounts[current_midprice_idx].key(),
+            false,
+        ));
+        cpi_accounts.push(remaining_accounts[current_midprice_idx].clone());
+
+        payload.extend_from_slice(&(batch.len() as u16).to_le_bytes());
+        for fill in &batch {
+            payload.extend_from_slice(&fill.abs_index.to_le_bytes());
+            payload.push(if fill.is_ask { 1 } else { 0 });
+            payload.extend_from_slice(&fill.fill_size.to_le_bytes());
+        }
+
         range_start = range_end;
     }
+
+    let ix = Instruction {
+        program_id: *midprice_program.key,
+        accounts,
+        data: payload,
+    };
+
+    let bump_byte = [bump];
+    let signer_seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED, bump_byte.as_slice()];
+    invoke_signed(&ix, &cpi_accounts, &[signer_seeds])
+        .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
     Ok(())
+}
+
+fn flush_external_fill_batches<'a>(
+    midprice_program: &AccountInfo<'a>,
+    remaining_accounts: &[AccountInfo<'a>],
+    clock: &AccountInfo<'a>,
+    external_fills: &[PendingExternalFill],
+    global_matcher_idx: usize,
+    market_index: u16,
+    program_id: &Pubkey,
+) -> DriftResult<()> {
+    apply_external_fills_via_cpi(
+        midprice_program,
+        remaining_accounts,
+        clock,
+        external_fills,
+        global_matcher_idx,
+        market_index,
+        program_id,
+    )
 }
 
 /// Finds the first index after midprice_program (0) that is not a SpotMarket account.
@@ -511,6 +534,7 @@ pub(crate) fn parse_amm_views(
     remaining_accounts: &[AccountInfo],
     amm_start: usize,
     program_id: &Pubkey,
+    current_slot: u64,
 ) -> DriftResult<(usize, Vec<AmmView>)> {
     const ACCOUNTS_PER_AMM: usize = 2; // midprice, maker_user (global matcher is separate)
     const GLOBAL_MATCHER_SLOTS: usize = 1;
@@ -524,6 +548,12 @@ pub(crate) fn parse_amm_views(
         midprice_program.executable,
         ErrorCode::InvalidSpotMarketAccount,
         "first remaining account must be midprice program"
+    )?;
+    let expected_midprice_program_id = crate::ids::midprice_program::id();
+    validate!(
+        midprice_program.key() == expected_midprice_program_id,
+        ErrorCode::InvalidSpotMarketAccount,
+        "first remaining account must be the canonical midprice program (CPI to other programs is not allowed)"
     )?;
     let (expected_matcher, _bump) = prop_amm_matcher_pda(program_id);
     validate!(
@@ -573,7 +603,7 @@ pub(crate) fn parse_amm_views(
             midprice_info,
             midprice_program.key,
             maker_user_info,
-            program_id,
+            current_slot,
         )?;
         amm_views.push(AmmView {
             key: midprice_info.key(),
@@ -714,8 +744,46 @@ pub(crate) fn run_prop_amm_matching(
 /// - **Integer overflow**: SafeMath / checked_mul / try_from used; pro-rata remainder capped so allocation.share <= level.size.
 /// - **PDA**: Matcher PDA derived and validated in apply_external_fills_batch_via_cpi; invoke_signed with correct seeds.
 /// - **Reentrancy**: No state read after CPI; CPI is last step.
-/// - **Cross-program**: authorized_exchange == Drift in read_external_mid_price; midprice market_index validated.
+/// - **Cross-program**: only Drift's matcher PDA can apply_fills (hardcoded in midprice_pino); midprice market_index validated.
 /// - **Self-trade**: validate_taker_not_any_maker rejects taker == maker.
+
+/// Creates the global PropAMM matcher PDA so that midprice_pino's fill CPI can verify matcher.owner() == Drift.
+/// Idempotent: safe to call if the account already exists (skips creation when already owned by program).
+pub fn handle_initialize_prop_amm_matcher(ctx: Context<InitializePropAmmMatcher>) -> Result<()> {
+    if ctx.accounts.prop_amm_matcher.owner == ctx.program_id
+        && ctx.accounts.prop_amm_matcher.lamports() > 0
+    {
+        return Ok(());
+    }
+    let seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED];
+    pda::seed_and_create_pda(
+        ctx.program_id,
+        &ctx.accounts.payer.to_account_info(),
+        &Rent::get()?,
+        1_usize, // minimum space so account is owned by program
+        ctx.program_id,
+        &ctx.accounts.system_program.to_account_info(),
+        &ctx.accounts.prop_amm_matcher,
+        seeds,
+    )?;
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct InitializePropAmmMatcher<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [PROP_AMM_MATCHER_SEED],
+        bump,
+    )]
+    /// CHECK: Created by seed_and_create_pda; owner set to program_id so midprice_pino accepts it as matcher.
+    pub prop_amm_matcher: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
 pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, MatchPerpOrderViaPropAmm<'info>>,
     taker_order_id: u32,
@@ -805,7 +873,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     // Canonical layout: [midprice_program], [spot_markets...] (consume while SpotMarket discriminator), then AMM quads.
     let amm_start = find_amm_start_after_spot_markets(remaining_accounts)?;
     let (midprice_program_idx, amm_views) =
-        parse_amm_views(remaining_accounts, amm_start, program_id)?;
+        parse_amm_views(remaining_accounts, amm_start, program_id, clock.slot)?;
 
     if amm_views.is_empty() {
         return Ok(());
@@ -857,11 +925,8 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     let perp_market_map =
         PerpMarketMap::from_single_loader(&ctx.accounts.perp_market, market_index)?;
     let oracle_guard_rails = ctx.accounts.state.oracle_guard_rails;
-    let mut oracle_map = OracleMap::load_one(
-        &ctx.accounts.oracle,
-        clock.slot,
-        Some(oracle_guard_rails),
-    )?;
+    let mut oracle_map =
+        OracleMap::load_one(&ctx.accounts.oracle, clock.slot, Some(oracle_guard_rails))?;
 
     // Margin check: taker must still meet margin after fill (same rule as fill_perp_order: Maintenance if position decreasing, Fill if risk-increasing).
     let taker_user = ctx.accounts.user.load()?;
@@ -967,17 +1032,17 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
                 maker_margin_context,
             )?;
         if !maker_margin_calc.meets_margin_requirement() {
-            let (margin_requirement, total_collateral) =
-                if maker_margin_calc.has_isolated_margin_calculation(market_index) {
-                    let isolated =
-                        maker_margin_calc.get_isolated_margin_calculation(market_index)?;
-                    (isolated.margin_requirement, isolated.total_collateral)
-                } else {
-                    (
-                        maker_margin_calc.margin_requirement,
-                        maker_margin_calc.total_collateral,
-                    )
-                };
+            let (margin_requirement, total_collateral) = if maker_margin_calc
+                .has_isolated_margin_calculation(market_index)
+            {
+                let isolated = maker_margin_calc.get_isolated_margin_calculation(market_index)?;
+                (isolated.margin_requirement, isolated.total_collateral)
+            } else {
+                (
+                    maker_margin_calc.margin_requirement,
+                    maker_margin_calc.total_collateral,
+                )
+            };
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_user_key,
@@ -1044,8 +1109,10 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     flush_external_fill_batches(
         &remaining_accounts[midprice_program_idx],
         remaining_accounts,
+        &ctx.accounts.clock.to_account_info(),
         &external_fills,
         amm_start,
+        market_index,
         program_id,
     )?;
 
@@ -1100,10 +1167,9 @@ mod tests {
         get_anchor_account_bytes, get_pyth_price,
     };
     use midprice_book_view::{
-        ACCOUNT_MIN_LEN, ASK_HEAD_OFFSET, ASK_LEN_OFFSET, AUTHORITY_OFFSET,
-        AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET, BID_HEAD_OFFSET, BID_LEN_OFFSET,
-        LAYOUT_VERSION_INITIAL, MARKET_INDEX_OFFSET, MID_PRICE_OFFSET, ORDERS_DATA_OFFSET,
-        ORDER_ENTRY_SIZE,
+        ACCOUNT_MIN_LEN, ASK_HEAD_OFFSET, ASK_LEN_OFFSET, AUTHORITY_OFFSET, BID_HEAD_OFFSET,
+        BID_LEN_OFFSET, LAYOUT_VERSION_INITIAL, MARKET_INDEX_OFFSET, MID_PRICE_OFFSET,
+        ORDERS_DATA_OFFSET, ORDER_ENTRY_SIZE, QUOTE_TTL_OFFSET, REF_SLOT_OFFSET,
     };
 
     fn drift_program_id() -> Pubkey {
@@ -1111,23 +1177,12 @@ mod tests {
     }
 
     fn midprice_program_id() -> Pubkey {
-        Pubkey::new_from_array([7u8; 32])
+        crate::ids::midprice_program::id()
     }
 
     /// Build a minimal midprice account buffer: 1 ask at (offset=1, size=size), mid_price=mid.
-    fn make_midprice_account_data(
-        mid_price: u64,
-        ask_size: u64,
-        authority: &Pubkey,
-        authorized_exchange: &Pubkey,
-    ) -> Vec<u8> {
-        make_midprice_account_data_with_market(
-            mid_price,
-            ask_size,
-            authority,
-            authorized_exchange,
-            0,
-        )
+    fn make_midprice_account_data(mid_price: u64, ask_size: u64, authority: &Pubkey) -> Vec<u8> {
+        make_midprice_account_data_with_market(mid_price, ask_size, authority, 0)
     }
 
     /// Same as above but with explicit market_index (for security tests).
@@ -1135,14 +1190,11 @@ mod tests {
         mid_price: u64,
         ask_size: u64,
         authority: &Pubkey,
-        authorized_exchange: &Pubkey,
         market_index: u16,
     ) -> Vec<u8> {
         let mut data = vec![0u8; ACCOUNT_MIN_LEN + ORDER_ENTRY_SIZE];
         data[0..8].copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
-        data[AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET..AUTHORIZED_EXCHANGE_PROGRAM_ID_OFFSET + 32]
-            .copy_from_slice(authorized_exchange.as_ref());
         data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
@@ -1167,12 +1219,7 @@ mod tests {
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
 
         let mid_price = 100 * PRICE_PRECISION_U64;
-        let data = make_midprice_account_data(
-            mid_price,
-            100 * BASE_PRECISION_U64,
-            &maker_user_key,
-            &program_id,
-        );
+        let data = make_midprice_account_data(mid_price, 100 * BASE_PRECISION_U64, &maker_user_key);
         let midprice_prog_id = midprice_program_id();
         let mut midprice_lamports = 0u64;
         let mut midprice_data = data.clone();
@@ -1206,7 +1253,7 @@ mod tests {
         remaining.push(midprice_info);
         remaining.push(maker_user_info);
 
-        let res = parse_amm_views(remaining.as_slice(), 1, &program_id);
+        let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100);
         match res {
             Err(e) => assert_eq!(e, ErrorCode::InvalidSpotMarketAccount),
             Ok(_) => panic!("duplicate (midprice, maker_user) must be rejected"),
@@ -1225,7 +1272,7 @@ mod tests {
 
         let mid_price = 100 * PRICE_PRECISION_U64;
         let ask_size = 50 * BASE_PRECISION_U64;
-        let data = make_midprice_account_data(mid_price, ask_size, &maker_user_key, &program_id);
+        let data = make_midprice_account_data(mid_price, ask_size, &maker_user_key);
         let midprice_prog_id = midprice_program_id();
         let mut midprice_lamports = 0u64;
         let mut midprice_data = data;
@@ -1263,7 +1310,7 @@ mod tests {
         ];
         let slice = remaining_accounts.as_slice();
 
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100).unwrap();
         let taker_size = 30 * BASE_PRECISION_U64;
         let limit_price = 101 * PRICE_PRECISION_U64;
         let result = run_prop_amm_matching(
@@ -1429,7 +1476,6 @@ mod tests {
             100 * PRICE_PRECISION_U64,
             50 * BASE_PRECISION_U64,
             &maker_user_key,
-            &program_id,
             1, // wrong market_index
         );
         let midprice_key = Pubkey::new_unique();
@@ -1467,7 +1513,7 @@ mod tests {
             midprice_info,
             maker_user_info,
         ];
-        let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id, 100).unwrap();
         // Validation must reject when midprice market_index != order market_index.
         let order_market_index: u16 = 0;
         let res = validate_midprice_market_indices(&amm_views, &remaining, order_market_index);
@@ -1477,23 +1523,19 @@ mod tests {
         );
     }
 
-    /// SECURITY: Midprice account must have authorized_exchange_program_id = Drift.
-    /// Otherwise a book for another exchange could be used and we'd apply Drift position updates against untrusted liquidity.
+    /// SECURITY: Only Drift's matcher PDA can apply_fills (midprice_pino hardcodes DRIFT_PROGRAM_ID for PDA check).
     #[test]
-    fn security_authorized_exchange_must_be_drift() {
+    fn security_matcher_pda_enforced_by_midprice() {
         let program_id = drift_program_id();
-        let wrong_exchange = Pubkey::new_unique();
         let maker_user_key = Pubkey::new_unique();
         let mut maker_user = User::default();
         maker_user.authority = maker_user_key;
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
 
-        // authorized_exchange = wrong_exchange, not Drift.
         let data = make_midprice_account_data_with_market(
             100 * PRICE_PRECISION_U64,
             50 * BASE_PRECISION_U64,
             &maker_user_key,
-            &wrong_exchange, // not program_id
             0,
         );
         let midprice_key = Pubkey::new_unique();
@@ -1531,11 +1573,126 @@ mod tests {
             midprice_info,
             maker_user_info,
         ];
-        // parse_amm_views calls read_external_mid_price which must validate authorized_exchange == program_id.
-        let res = parse_amm_views(remaining.as_slice(), 1, &program_id);
+        // parse_amm_views accepts valid midprice layout; apply_fills matcher PDA is enforced in midprice_pino.
+        let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100);
+        assert!(
+            res.is_ok(),
+            "valid midprice with correct authority should parse"
+        );
+    }
+
+    /// SECURITY: First remaining account must be the canonical midprice program, not an arbitrary executable.
+    /// Otherwise an attacker could pass their own program and we would CPI to it with (midprice, maker_user, matcher).
+    #[test]
+    fn security_midprice_program_must_be_canonical() {
+        let program_id = drift_program_id();
+        let wrong_program_id = Pubkey::new_unique(); // not crate::ids::midprice_program::id()
+        let maker_user_key = Pubkey::new_unique();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_user_key;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        let data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            50 * BASE_PRECISION_U64,
+            &maker_user_key,
+        );
+        let midprice_key = Pubkey::new_unique();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &wrong_program_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let wrong_program_info = create_executable_program_account_info(
+            &wrong_program_id,
+            &mut prog_lamps,
+            &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut global_matcher_lamports = 0u64;
+        let mut global_matcher_data = [0u8; 0];
+        let global_matcher_info = create_account_info(
+            &global_matcher_pda,
+            true,
+            &mut global_matcher_lamports,
+            &mut global_matcher_data[..],
+            &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> = vec![
+            wrong_program_info,
+            global_matcher_info,
+            midprice_info,
+            maker_user_info,
+        ];
+        let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100);
         assert!(
             res.is_err(),
-            "midprice with authorized_exchange != Drift must be rejected"
+            "remaining_accounts[0] must be the canonical midprice program, not an arbitrary executable"
+        );
+    }
+
+    /// SECURITY: Midprice account must be owned by the canonical midprice program.
+    /// Otherwise we could pass a Drift-owned or attacker-owned account that looks like midprice data.
+    #[test]
+    fn security_midprice_account_must_be_owned_by_midprice_program() {
+        let program_id = drift_program_id();
+        let canonical_midprice_prog_id = midprice_program_id();
+        let wrong_owner = Pubkey::new_unique();
+        let maker_user_key = Pubkey::new_unique();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_user_key;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        let data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            50 * BASE_PRECISION_U64,
+            &maker_user_key,
+        );
+        let midprice_key = Pubkey::new_unique();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &wrong_owner,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &canonical_midprice_prog_id,
+            &mut prog_lamps,
+            &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut global_matcher_lamports = 0u64;
+        let mut global_matcher_data = [0u8; 0];
+        let global_matcher_info = create_account_info(
+            &global_matcher_pda,
+            true,
+            &mut global_matcher_lamports,
+            &mut global_matcher_data[..],
+            &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> = vec![
+            program_info,
+            global_matcher_info,
+            midprice_info,
+            maker_user_info,
+        ];
+        let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100);
+        assert!(
+            res.is_err(),
+            "midprice account must be owned by the canonical midprice program"
         );
     }
 
@@ -1553,7 +1710,6 @@ mod tests {
             100 * PRICE_PRECISION_U64,
             50 * BASE_PRECISION_U64,
             &taker_and_maker_key,
-            &program_id,
         );
         let midprice_key = Pubkey::new_unique();
         let midprice_prog_id = midprice_program_id();
@@ -1590,7 +1746,7 @@ mod tests {
             midprice_info,
             maker_user_info,
         ];
-        let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id, 100).unwrap();
         // Taker pubkey same as maker account key (the User account passed as maker).
         let res = validate_taker_not_any_maker(&taker_and_maker_key, &amm_views, &remaining);
         assert!(
@@ -1612,7 +1768,6 @@ mod tests {
             100 * PRICE_PRECISION_U64,
             50 * BASE_PRECISION_U64,
             &maker_user_key,
-            &program_id,
         );
         let midprice_key = Pubkey::new_unique();
         let midprice_prog_id = midprice_program_id();
@@ -1649,7 +1804,7 @@ mod tests {
             midprice_info,
             maker_user_info,
         ];
-        let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(remaining.as_slice(), 1, &program_id, 100).unwrap();
         let result = run_prop_amm_matching(
             &amm_views,
             remaining.as_slice(),
@@ -1676,7 +1831,7 @@ mod tests {
         crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
         let mid_price = 100 * PRICE_PRECISION_U64;
         let ask_size = 50 * BASE_PRECISION_U64;
-        let data = make_midprice_account_data(mid_price, ask_size, &maker_user_key, &program_id);
+        let data = make_midprice_account_data(mid_price, ask_size, &maker_user_key);
         let mut midprice_lamports = 0u64;
         let mut midprice_data = data;
         let midprice_info = create_account_info(
@@ -1710,7 +1865,7 @@ mod tests {
             maker_user_info,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100).unwrap();
         let result = run_prop_amm_matching(
             &amm_views,
             slice,
@@ -1740,8 +1895,7 @@ mod tests {
         crate::create_anchor_account_info!(maker_user_0, &maker_key_0, User, maker_user_info_0);
         let midprice_key_0 = Pubkey::new_unique();
         let mut midprice_lamports_0 = 0u64;
-        let mut midprice_data_0 =
-            make_midprice_account_data(mid_price, ask_size, &maker_key_0, &program_id);
+        let mut midprice_data_0 = make_midprice_account_data(mid_price, ask_size, &maker_key_0);
         let midprice_info_0 = create_account_info(
             &midprice_key_0,
             true,
@@ -1758,8 +1912,7 @@ mod tests {
         crate::create_anchor_account_info!(maker_user_1, &maker_key_1, User, maker_user_info_1);
         let midprice_key_1 = Pubkey::new_unique();
         let mut midprice_lamports_1 = 0u64;
-        let mut midprice_data_1 =
-            make_midprice_account_data(mid_price, ask_size, &maker_key_1, &program_id);
+        let mut midprice_data_1 = make_midprice_account_data(mid_price, ask_size, &maker_key_1);
         let midprice_info_1 = create_account_info(
             &midprice_key_1,
             true,
@@ -1794,7 +1947,7 @@ mod tests {
             maker_user_info_1,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100).unwrap();
         let result = run_prop_amm_matching(
             &amm_views,
             slice,
@@ -1824,7 +1977,7 @@ mod tests {
         crate::create_anchor_account_info!(mu0, &mk0, User, mu_i0);
         let mp0 = Pubkey::new_unique();
         let mut ml0 = 0u64;
-        let mut md0 = make_midprice_account_data(mid_price, ask_size, &mk0, &program_id);
+        let mut md0 = make_midprice_account_data(mid_price, ask_size, &mk0);
         let mi0 = create_account_info(&mp0, true, &mut ml0, &mut md0[..], &midprice_prog_id);
 
         let mk1 = Pubkey::new_unique();
@@ -1835,7 +1988,7 @@ mod tests {
         crate::create_anchor_account_info!(mu1, &mk1, User, mu_i1);
         let mp1 = Pubkey::new_unique();
         let mut ml1 = 0u64;
-        let mut md1 = make_midprice_account_data(mid_price, ask_size, &mk1, &program_id);
+        let mut md1 = make_midprice_account_data(mid_price, ask_size, &mk1);
         let mi1 = create_account_info(&mp1, true, &mut ml1, &mut md1[..], &midprice_prog_id);
 
         let mk2 = Pubkey::new_unique();
@@ -1846,7 +1999,7 @@ mod tests {
         crate::create_anchor_account_info!(mu2, &mk2, User, mu_i2);
         let mp2 = Pubkey::new_unique();
         let mut ml2 = 0u64;
-        let mut md2 = make_midprice_account_data(mid_price, ask_size, &mk2, &program_id);
+        let mut md2 = make_midprice_account_data(mid_price, ask_size, &mk2);
         let mi2 = create_account_info(&mp2, true, &mut ml2, &mut md2[..], &midprice_prog_id);
 
         let mk3 = Pubkey::new_unique();
@@ -1857,7 +2010,7 @@ mod tests {
         crate::create_anchor_account_info!(mu3, &mk3, User, mu_i3);
         let mp3 = Pubkey::new_unique();
         let mut ml3 = 0u64;
-        let mut md3 = make_midprice_account_data(mid_price, ask_size, &mk3, &program_id);
+        let mut md3 = make_midprice_account_data(mid_price, ask_size, &mk3);
         let mi3 = create_account_info(&mp3, true, &mut ml3, &mut md3[..], &midprice_prog_id);
 
         let mut prog_lamps = 0u64;
@@ -1890,7 +2043,7 @@ mod tests {
             mu_i3,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100).unwrap();
         // Keep taker size modest so total quote fits in i64
         let taker_size = 4 * 5 * BASE_PRECISION_U64;
         let result =
@@ -1919,7 +2072,7 @@ mod tests {
                 crate::create_anchor_account_info!($mu, &$mk, User, $mu_i);
                 let $mp = Pubkey::new_unique();
                 let mut $ml = 0u64;
-                let mut $md = make_midprice_account_data(mid_price, ask_size, &$mk, &program_id);
+                let mut $md = make_midprice_account_data(mid_price, ask_size, &$mk);
                 let $mi =
                     create_account_info(&$mp, true, &mut $ml, &mut $md[..], &midprice_prog_id);
             };
@@ -1971,7 +2124,7 @@ mod tests {
             mu_i7,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id).unwrap();
+        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100).unwrap();
         // Keep taker size modest so total quote fits in i64
         let taker_size = 8 * 5 * BASE_PRECISION_U64;
         let result =
@@ -1980,5 +2133,192 @@ mod tests {
         let total_filled: u64 = result.external_fills.iter().map(|p| p.fill.fill_size).sum();
         assert!(total_filled > 0);
         assert!(result.external_fills.len() >= 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // TTL enforcement tests
+    // -----------------------------------------------------------------------
+
+    fn make_midprice_data_with_ttl(
+        mid_price: u64,
+        ask_size: u64,
+        authority: &Pubkey,
+        ref_slot: u64,
+        quote_ttl_slots: u64,
+    ) -> Vec<u8> {
+        let mut data = make_midprice_account_data(mid_price, ask_size, authority);
+        data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].copy_from_slice(&ref_slot.to_le_bytes());
+        data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8]
+            .copy_from_slice(&quote_ttl_slots.to_le_bytes());
+        data
+    }
+
+    /// TTL=0 means no expiry; quote is accepted regardless of slot age.
+    #[test]
+    fn ttl_disabled_quote_accepted() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let maker_user_key = Pubkey::new_unique();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_user_key;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        let mid_price = 100 * PRICE_PRECISION_U64;
+        let data = make_midprice_data_with_ttl(
+            mid_price,
+            100 * BASE_PRECISION_U64,
+            &maker_user_key,
+            50, // ref_slot=50, old
+            0,  // ttl=0 => disabled
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+
+        let result =
+            read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 999_999);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), mid_price);
+    }
+
+    /// Quote within TTL window is accepted.
+    #[test]
+    fn ttl_within_window_accepted() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let maker_user_key = Pubkey::new_unique();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_user_key;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        let mid_price = 100 * PRICE_PRECISION_U64;
+        let data = make_midprice_data_with_ttl(
+            mid_price,
+            100 * BASE_PRECISION_U64,
+            &maker_user_key,
+            100, // ref_slot
+            50,  // ttl=50 slots
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+
+        // current_slot=140, age=40 <= ttl=50 => accepted
+        let result =
+            read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 140);
+        assert!(result.is_ok());
+    }
+
+    /// Quote at exactly the TTL boundary is still accepted (<=).
+    #[test]
+    fn ttl_at_boundary_accepted() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let maker_user_key = Pubkey::new_unique();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_user_key;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        let mid_price = 100 * PRICE_PRECISION_U64;
+        let data = make_midprice_data_with_ttl(
+            mid_price,
+            100 * BASE_PRECISION_U64,
+            &maker_user_key,
+            100, // ref_slot
+            50,  // ttl=50
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+
+        // current_slot=150, age=50 == ttl=50 => accepted
+        let result =
+            read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 150);
+        assert!(result.is_ok());
+    }
+
+    /// Quote past TTL is rejected with MidpriceQuoteExpired.
+    #[test]
+    fn ttl_expired_rejected() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let maker_user_key = Pubkey::new_unique();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_user_key;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        let mid_price = 100 * PRICE_PRECISION_U64;
+        let data = make_midprice_data_with_ttl(
+            mid_price,
+            100 * BASE_PRECISION_U64,
+            &maker_user_key,
+            100, // ref_slot
+            50,  // ttl=50
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+
+        // current_slot=151, age=51 > ttl=50 => expired
+        let result =
+            read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 151);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ErrorCode::MidpriceQuoteExpired);
+    }
+
+    /// apply_fills CPI: matcher and clock once, then one midprice per maker (no authority accounts).
+    #[test]
+    fn apply_fills_cpi_matcher_clock_once_then_makers() {
+        use anchor_lang::solana_program::sysvar;
+        let midprice_program_id = midprice_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let matcher_key = prop_amm_matcher_pda(&drift_program_id()).0;
+        let clock_key = sysvar::clock::ID;
+        let mut data = vec![MIDPRICE_IX_APPLY_FILLS];
+        data.extend_from_slice(&0u16.to_le_bytes()); // market_index (CPI protection)
+        data.extend_from_slice(&1u16.to_le_bytes()); // one maker, one fill
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.push(1); // is_ask
+        data.extend_from_slice(&1u64.to_le_bytes());
+        let ix = Instruction {
+            program_id: midprice_program_id,
+            accounts: vec![
+                AccountMeta::new_readonly(matcher_key, true),
+                AccountMeta::new_readonly(clock_key, false),
+                AccountMeta::new(midprice_key, false),
+            ],
+            data,
+        };
+        assert_eq!(ix.accounts.len(), 3, "one maker: matcher, clock, midprice");
+        assert_eq!(ix.accounts[0].pubkey, matcher_key);
+        assert_eq!(ix.accounts[1].pubkey, clock_key);
     }
 }
