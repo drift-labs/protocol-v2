@@ -304,6 +304,10 @@ pub fn settle_pnl(
                 )?;
             }
             user.update_last_active_slot(clock.slot);
+            crate::validation::position::validate_perp_position_with_perp_market(
+                &user.perp_positions[position_index],
+                &*perp_market,
+            )?;
             return Ok(());
         }
         let msg = format!("User has no unsettled pnl for market {}", market_index);
