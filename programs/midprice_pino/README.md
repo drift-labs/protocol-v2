@@ -34,7 +34,7 @@ Midprice-based orderbook program integrated with **Drift** as the exchange.
 | 0 | `update_mid_price` | `[midprice (w), authority (s)]` | 16 bytes (u64 price + 8 reserved) |
 | 1 | `initialize` | `[midprice (w), authority (s)]` | 2 or 34 bytes: `market_index:u16 [\| authority_to_store:[u8;32]]` |
 | 2 | `set_orders` | `[midprice (w), authority (s)]` | `ask_len:u16 \| bid_len:u16 \| entries…` |
-| 3 | `apply_fills` | `[matcher (s), clock, midprice_0 (w), midprice_1 (w), …]` | First 2 bytes: `market_index` (u16 LE); must match each midprice account's stored market_index (CPI protection). Then per maker: `u16 num_fills` + 11×num_fills bytes. Filling is permissionless (no authority accounts). |
+| 3 | `apply_fills` | `[matcher (s), clock, midprice_0 (w), midprice_1 (w), …]` | First 2 bytes: `market_index` (u16 LE); must match each midprice account's stored market_index (CPI protection). Then per maker: `u16 num_fills` + `u64 expected_sequence_number` (snapshot) + 11×num_fills bytes. Makers whose on-chain `sequence_number` does not match `expected_sequence_number` are skipped. Filling is permissionless (no authority accounts). |
 | 5 | `set_quote_ttl` | `[midprice (w), authority (s)]` | 8 bytes (u64 LE TTL in slots) |
 | 6 | `close_account` | `[midprice (w), authority (s), dest (w)]` | 0 bytes |
 | 7 | `transfer_authority` | `[midprice (w), authority (s)]` | 32 bytes (new authority pubkey) |

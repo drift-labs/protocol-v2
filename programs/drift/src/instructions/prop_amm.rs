@@ -44,6 +44,7 @@ use midprice_book_view::{
     MARKET_INDEX_OFFSET as MIDPRICE_MARKET_INDEX_OFFSET, MAX_ORDERS as MIDPRICE_MAX_ORDERS,
     MID_PRICE_OFFSET as MIDPRICE_VALUE_OFFSET, QUOTE_TTL_OFFSET as MIDPRICE_QUOTE_TTL_OFFSET,
     REF_SLOT_OFFSET as MIDPRICE_REF_SLOT_OFFSET,
+    SEQUENCE_NUMBER_OFFSET as MIDPRICE_SEQUENCE_NUMBER_OFFSET,
 };
 use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
@@ -81,6 +82,8 @@ pub(crate) struct AmmView {
     #[allow(dead_code)]
     key: Pubkey,
     mid_price: u64,
+    /// sequence_number snapshot taken when reading the midprice book for matching.
+    sequence_number_snapshot: u64,
     maker_user_remaining_index: usize,
     midprice_remaining_index: usize,
 }
@@ -104,6 +107,8 @@ pub(crate) struct ExternalFill {
 pub(crate) struct PendingExternalFill {
     pub midprice_remaining_index: usize,
     pub maker_user_remaining_index: usize,
+    /// sequence_number snapshot for this (midprice, maker_user) pair.
+    pub sequence_number_snapshot: u64,
     pub fill: ExternalFill,
 }
 
@@ -159,7 +164,7 @@ fn read_external_mid_price(
     midprice_program_id: &Pubkey,
     maker_user_info: &AccountInfo,
     current_slot: u64,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, u64)> {
     validate!(
         *midprice_info.owner == *midprice_program_id,
         ErrorCode::InvalidSpotMarketAccount,
@@ -220,6 +225,13 @@ fn read_external_mid_price(
         )?;
     }
 
+    let sequence_number = u64::from_le_bytes(
+        <[u8; 8]>::try_from(
+            &data[MIDPRICE_SEQUENCE_NUMBER_OFFSET..MIDPRICE_SEQUENCE_NUMBER_OFFSET + 8],
+        )
+        .map_err(|_| ErrorCode::InvalidSpotMarketAccount)?,
+    );
+
     let book = MidpriceBookView::new(&data).map_err(|_| ErrorCode::InvalidSpotMarketAccount)?;
     let total = book.total_orders();
     validate!(
@@ -227,7 +239,7 @@ fn read_external_mid_price(
         ErrorCode::InvalidSpotMarketAccount,
         "midprice orders overflow"
     )?;
-    Ok(mid_price)
+    Ok((mid_price, sequence_number))
 }
 
 fn find_external_top_level_from(
@@ -405,7 +417,10 @@ fn refresh_exhausted_frontiers(
     Ok(())
 }
 
-/// Single CPI to midprice_pino apply_fills: [matcher, clock, midprice_0, midprice_1, ...], payload: u16 market_index (CPI protection) then per maker u16 num_fills + 11*num_fills bytes. No authority accounts; filling is permissionless.
+/// Single CPI to midprice_pino apply_fills: [matcher, clock, midprice_0, midprice_1, ...],
+/// payload: u16 market_index (CPI protection) then, per maker, `u16 num_fills`,
+/// `u64 expected_sequence_number` (snapshot when matching), and 11*num_fills bytes of entries.
+/// No authority accounts; filling is permissionless.
 fn apply_external_fills_via_cpi<'a>(
     midprice_program: &AccountInfo<'a>,
     remaining_accounts: &[AccountInfo<'a>],
@@ -443,6 +458,7 @@ fn apply_external_fills_via_cpi<'a>(
     while range_start < external_fills.len() {
         let current_midprice_idx = external_fills[range_start].midprice_remaining_index;
         let current_maker_user_idx = external_fills[range_start].maker_user_remaining_index;
+        let expected_sequence = external_fills[range_start].sequence_number_snapshot;
         let mut range_end = range_start;
         while range_end < external_fills.len()
             && external_fills[range_end].midprice_remaining_index == current_midprice_idx
@@ -465,6 +481,7 @@ fn apply_external_fills_via_cpi<'a>(
         cpi_accounts.push(remaining_accounts[current_midprice_idx].clone());
 
         payload.extend_from_slice(&(batch.len() as u16).to_le_bytes());
+        payload.extend_from_slice(&expected_sequence.to_le_bytes());
         for fill in &batch {
             payload.extend_from_slice(&fill.abs_index.to_le_bytes());
             payload.push(if fill.is_ask { 1 } else { 0 });
@@ -571,6 +588,14 @@ pub(crate) fn parse_amm_views(
 
     let mut amm_views: Vec<AmmView> = Vec::with_capacity(amm_slice.len() / ACCOUNTS_PER_AMM);
     let mut seen_pairs: Vec<(Pubkey, Pubkey)> = Vec::new();
+    let mut seen_midprices: Vec<Pubkey> = Vec::new();
+    let mut seen_makers: Vec<Pubkey> = Vec::new();
+
+    // Global accounts in remaining_accounts that must not overlap with any (midprice, maker_user).
+    let mut reserved_keys: Vec<Pubkey> = Vec::with_capacity(amm_start + GLOBAL_MATCHER_SLOTS);
+    for i in 0..=amm_start {
+        reserved_keys.push(remaining_accounts[i].key());
+    }
 
     for pair_idx in 0..(amm_slice.len() / ACCOUNTS_PER_AMM) {
         let base = amm_start + GLOBAL_MATCHER_SLOTS + pair_idx * ACCOUNTS_PER_AMM;
@@ -580,7 +605,38 @@ pub(crate) fn parse_amm_views(
         let midprice_idx = base;
         let maker_user_idx = base + 1;
 
-        let pair = (midprice_info.key(), maker_user_info.key());
+        let midprice_key = midprice_info.key();
+        let maker_user_key = maker_user_info.key();
+
+        // Disallow overlap between any AMM account and the global accounts (midprice_program,
+        // spot markets, global matcher).
+        validate!(
+            !reserved_keys.contains(&midprice_key),
+            ErrorCode::InvalidSpotMarketAccount,
+            "midprice account must not overlap with global accounts"
+        )?;
+        validate!(
+            !reserved_keys.contains(&maker_user_key),
+            ErrorCode::InvalidSpotMarketAccount,
+            "maker user must not overlap with global accounts"
+        )?;
+
+        // Disallow duplicate midprice or duplicate maker user within the same instruction.
+        validate!(
+            !seen_midprices.contains(&midprice_key),
+            ErrorCode::InvalidSpotMarketAccount,
+            "duplicate midprice account"
+        )?;
+        seen_midprices.push(midprice_key);
+
+        validate!(
+            !seen_makers.contains(&maker_user_key),
+            ErrorCode::InvalidSpotMarketAccount,
+            "duplicate maker user account"
+        )?;
+        seen_makers.push(maker_user_key);
+
+        let pair = (midprice_key, maker_user_key);
         validate!(
             !seen_pairs.contains(&pair),
             ErrorCode::InvalidSpotMarketAccount,
@@ -599,7 +655,7 @@ pub(crate) fn parse_amm_views(
             "maker user must be writable"
         )?;
 
-        let mid_price = read_external_mid_price(
+        let (mid_price, sequence_number_snapshot) = read_external_mid_price(
             midprice_info,
             midprice_program.key,
             maker_user_info,
@@ -608,6 +664,7 @@ pub(crate) fn parse_amm_views(
         amm_views.push(AmmView {
             key: midprice_info.key(),
             mid_price,
+            sequence_number_snapshot,
             maker_user_remaining_index: maker_user_idx,
             midprice_remaining_index: midprice_idx,
         });
@@ -659,6 +716,92 @@ pub(crate) fn validate_taker_not_any_maker(
     Ok(())
 }
 
+/// Filter out makers that would breach margin after their fill. Returns filtered maker_deltas,
+/// filtered external_fills, and recomputed taker_base_delta, taker_quote_delta, total_quote_volume
+/// so that only solvent makers are applied (skip semantics: one insolvent maker does not revert the tx).
+pub(crate) fn filter_prop_amm_makers_by_margin<'a>(
+    maker_deltas: &BTreeMap<Pubkey, (i64, i64)>,
+    external_fills: &[PendingExternalFill],
+    amm_views: &[AmmView],
+    remaining_accounts: &'a [AccountInfo<'a>],
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    market_index: u16,
+    now: i64,
+) -> DriftResult<(
+    BTreeMap<Pubkey, (i64, i64)>,
+    Vec<PendingExternalFill>,
+    i64,
+    i64,
+    u64,
+)> {
+    let mut solvent_keys = std::collections::BTreeSet::new();
+    for (maker_user_key, &(base_delta, quote_delta)) in maker_deltas {
+        if base_delta == 0 && quote_delta == 0 {
+            solvent_keys.insert(*maker_user_key);
+            continue;
+        }
+        let amm_view = amm_views
+            .iter()
+            .find(|a| remaining_accounts[a.maker_user_remaining_index].key() == *maker_user_key)
+            .ok_or(ErrorCode::InvalidSpotMarketAccount)?;
+        let maker_info = &remaining_accounts[amm_view.maker_user_remaining_index];
+        let maker_loader: AccountLoader<User> =
+            AccountLoader::try_from(maker_info).map_err(|_| ErrorCode::CouldNotLoadUserData)?;
+        let maker_for_margin = maker_loader
+            .load()
+            .map_err(|_| ErrorCode::CouldNotLoadUserData)?;
+        let (maker_margin_type, _) =
+            select_margin_type_for_perp_maker(&maker_for_margin, base_delta, market_index)?;
+        let maker_margin_context = MarginContext::standard(maker_margin_type)
+            .fuel_perp_delta(market_index, -base_delta)
+            .fuel_numerator(&maker_for_margin, now);
+        let maker_margin_calc =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &maker_for_margin,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                maker_margin_context,
+            )?;
+        if maker_margin_calc.meets_margin_requirement() {
+            solvent_keys.insert(*maker_user_key);
+        }
+    }
+
+    let filtered_maker_deltas: BTreeMap<Pubkey, (i64, i64)> = maker_deltas
+        .iter()
+        .filter(|(k, _)| solvent_keys.contains(*k))
+        .map(|(k, v)| (*k, *v))
+        .collect();
+
+    let filtered_external_fills: Vec<PendingExternalFill> = external_fills
+        .iter()
+        .filter(|pf| {
+            solvent_keys.contains(&remaining_accounts[pf.maker_user_remaining_index].key())
+        })
+        .copied()
+        .collect();
+
+    let mut taker_base_delta = 0i64;
+    let mut taker_quote_delta = 0i64;
+    let mut total_quote_volume = 0u64;
+    for (_, (base, quote)) in &filtered_maker_deltas {
+        taker_base_delta = taker_base_delta.saturating_sub(*base);
+        taker_quote_delta = taker_quote_delta.saturating_sub(*quote);
+        total_quote_volume = total_quote_volume.saturating_add(quote.unsigned_abs());
+    }
+
+    Ok((
+        filtered_maker_deltas,
+        filtered_external_fills,
+        taker_base_delta,
+        taker_quote_delta,
+        total_quote_volume,
+    ))
+}
+
 /// Runs the prop AMM matching loop; returns deltas and external fills (no account updates).
 pub(crate) fn run_prop_amm_matching(
     amm_views: &[AmmView],
@@ -689,6 +832,7 @@ pub(crate) fn run_prop_amm_matching(
             result.external_fills.push(PendingExternalFill {
                 midprice_remaining_index: amm_view.midprice_remaining_index,
                 maker_user_remaining_index: amm_view.maker_user_remaining_index,
+                sequence_number_snapshot: amm_view.sequence_number_snapshot,
                 fill: ExternalFill {
                     abs_index: allocation.level.abs_index as u16,
                     is_ask: allocation.level.is_ask,
@@ -884,19 +1028,35 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
 
     let result = run_prop_amm_matching(&amm_views, remaining_accounts, side, limit_price, size)?;
 
-    if result.external_fills.is_empty() {
-        return Ok(());
-    }
-
-    let taker_base_delta = result.taker_base_delta;
-    let taker_quote_delta = result.taker_quote_delta;
-    let total_quote_volume = result.total_quote_volume;
-    let maker_deltas = result.maker_deltas;
-    let external_fills = result.external_fills;
-
     let spot_slice = &remaining_accounts[1..amm_start];
     let mut spot_iter: Peekable<Iter<AccountInfo>> = spot_slice.iter().peekable();
     let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), &mut spot_iter)?;
+
+    // Filter out insolvent makers before applying any state changes. This recomputes taker deltas
+    // and total_quote_volume so they only reflect solvent makers (skip semantics).
+    let perp_market_map =
+        PerpMarketMap::from_single_loader(&ctx.accounts.perp_market, market_index)?;
+    let oracle_guard_rails = ctx.accounts.state.oracle_guard_rails;
+    let mut oracle_map =
+        OracleMap::load_one(&ctx.accounts.oracle, clock.slot, Some(oracle_guard_rails))?;
+
+    let (maker_deltas, external_fills, taker_base_delta, taker_quote_delta, total_quote_volume) =
+        filter_prop_amm_makers_by_margin(
+            &result.maker_deltas,
+            &result.external_fills,
+            &amm_views,
+            remaining_accounts,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            market_index,
+            now,
+        )?;
+
+    if external_fills.is_empty() {
+        return Ok(());
+    }
+
     let base_filled = taker_base_delta.unsigned_abs() as u64;
     let mut user = ctx.accounts.user.load_mut()?;
     let mut perp_market = ctx.accounts.perp_market.load_mut()?;
@@ -921,12 +1081,6 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
 
     drop(user);
     drop(perp_market);
-
-    let perp_market_map =
-        PerpMarketMap::from_single_loader(&ctx.accounts.perp_market, market_index)?;
-    let oracle_guard_rails = ctx.accounts.state.oracle_guard_rails;
-    let mut oracle_map =
-        OracleMap::load_one(&ctx.accounts.oracle, clock.slot, Some(oracle_guard_rails))?;
 
     // Margin check: taker must still meet margin after fill (same rule as fill_perp_order: Maintenance if position decreasing, Fill if risk-increasing).
     let taker_user = ctx.accounts.user.load()?;
@@ -982,7 +1136,9 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     taker_stats.update_taker_volume_30d(fuel_boost_taker, total_quote_volume, now)?;
     drop(taker_stats);
 
-    // Apply maker deltas: load each maker user + user_stats, update position + market, update maker volume, then margin check.
+    // Apply maker deltas: load each maker user + user_stats, update position + market, update maker volume.
+    // Maker margin has already been enforced by filter_prop_amm_makers_by_margin; we do not
+    // revert the tx here on additional maker margin failures (skip semantics).
     for (maker_user_key, (base_delta, quote_delta)) in maker_deltas {
         if base_delta == 0 && quote_delta == 0 {
             continue;
@@ -1015,42 +1171,6 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         )?;
         drop(maker);
         drop(market);
-
-        // Margin check: maker must still meet margin after fill (same as fill_perp_order: select_margin_type_for_perp_maker, then meets_margin_requirement).
-        let maker_for_margin = maker_loader.load()?;
-        let (maker_margin_type, _maker_risk_increasing) =
-            select_margin_type_for_perp_maker(&maker_for_margin, base_delta, market_index)?;
-        let maker_margin_context = MarginContext::standard(maker_margin_type)
-            .fuel_perp_delta(market_index, -base_delta)
-            .fuel_numerator(&maker_for_margin, now);
-        let maker_margin_calc =
-            calculate_margin_requirement_and_total_collateral_and_liability_info(
-                &maker_for_margin,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                maker_margin_context,
-            )?;
-        if !maker_margin_calc.meets_margin_requirement() {
-            let (margin_requirement, total_collateral) = if maker_margin_calc
-                .has_isolated_margin_calculation(market_index)
-            {
-                let isolated = maker_margin_calc.get_isolated_margin_calculation(market_index)?;
-                (isolated.margin_requirement, isolated.total_collateral)
-            } else {
-                (
-                    maker_margin_calc.margin_requirement,
-                    maker_margin_calc.total_collateral,
-                )
-            };
-            msg!(
-                "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
-                maker_user_key,
-                margin_requirement,
-                total_collateral
-            );
-            return Err(ErrorCode::InsufficientCollateral.into());
-        }
     }
 
     // Emit fill event and increment fill_record_id.
@@ -1170,6 +1290,7 @@ mod tests {
         ACCOUNT_MIN_LEN, ASK_HEAD_OFFSET, ASK_LEN_OFFSET, AUTHORITY_OFFSET, BID_HEAD_OFFSET,
         BID_LEN_OFFSET, LAYOUT_VERSION_INITIAL, MARKET_INDEX_OFFSET, MID_PRICE_OFFSET,
         ORDERS_DATA_OFFSET, ORDER_ENTRY_SIZE, QUOTE_TTL_OFFSET, REF_SLOT_OFFSET,
+        SUBACCOUNT_INDEX_OFFSET,
     };
 
     fn drift_program_id() -> Pubkey {
@@ -1198,6 +1319,8 @@ mod tests {
         data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
+        data[SUBACCOUNT_INDEX_OFFSET..SUBACCOUNT_INDEX_OFFSET + 2]
+            .copy_from_slice(&0u16.to_le_bytes());
         data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&1u16.to_le_bytes());
         data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
         data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
@@ -2185,7 +2308,8 @@ mod tests {
         let result =
             read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 999_999);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), mid_price);
+        let (returned_mid_price, _sequence_number) = result.unwrap();
+        assert_eq!(returned_mid_price, mid_price);
     }
 
     /// Quote within TTL window is accepted.
@@ -2305,6 +2429,7 @@ mod tests {
         let mut data = vec![MIDPRICE_IX_APPLY_FILLS];
         data.extend_from_slice(&0u16.to_le_bytes()); // market_index (CPI protection)
         data.extend_from_slice(&1u16.to_le_bytes()); // one maker, one fill
+        data.extend_from_slice(&0u64.to_le_bytes()); // expected sequence_number
         data.extend_from_slice(&0u16.to_le_bytes());
         data.push(1); // is_ask
         data.extend_from_slice(&1u64.to_le_bytes());
@@ -2320,5 +2445,226 @@ mod tests {
         assert_eq!(ix.accounts.len(), 3, "one maker: matcher, clock, midprice");
         assert_eq!(ix.accounts[0].pubkey, matcher_key);
         assert_eq!(ix.accounts[1].pubkey, clock_key);
+    }
+
+    /// Insolvent makers are skipped; only solvent makers are included in filtered result (skip semantics).
+    #[test]
+    fn filter_prop_amm_makers_by_margin_skips_insolvent_maker() {
+        use crate::state::oracle_map::OracleMap;
+        let slot = 0_u64;
+        let program_id = drift_program_id();
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        let mut oracle_price = get_pyth_price(100, 6);
+        crate::create_account_info!(
+            oracle_price,
+            &oracle_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut perp_market = PerpMarket {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                oracle: oracle_key,
+                order_tick_size: 1,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: 100 * crate::math::constants::PRICE_PRECISION_I64,
+                    last_oracle_price_twap: 100 * crate::math::constants::PRICE_PRECISION_I64,
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Active,
+            ..PerpMarket::default_test()
+        };
+        perp_market.amm.max_base_asset_reserve = u64::MAX as u128;
+        perp_market.amm.min_base_asset_reserve = 0;
+        crate::create_anchor_account_info!(perp_market, PerpMarket, perp_market_info);
+        let perp_market_map = PerpMarketMap::load_one(&perp_market_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+            ..SpotMarket::default()
+        };
+        crate::create_anchor_account_info!(spot_market, SpotMarket, spot_market_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_info, true).unwrap();
+
+        // Maker 1 (solvent): has spot collateral; after fill (short 50 base) still meets margin.
+        let maker_solvent_key = Pubkey::new_unique();
+        let mut spot_positions_solvent = [SpotPosition::default(); 8];
+        spot_positions_solvent[0] = SpotPosition {
+            market_index: 0,
+            balance_type: crate::state::spot_market::SpotBalanceType::Deposit,
+            scaled_balance: 100_000 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let mut maker_solvent = User {
+            authority: maker_solvent_key,
+            spot_positions: spot_positions_solvent,
+            perp_positions: [PerpPosition::default(); 8],
+            ..User::default()
+        };
+        crate::create_anchor_account_info!(
+            maker_solvent,
+            &maker_solvent_key,
+            User,
+            maker_solvent_info
+        );
+
+        // Maker 2 (insolvent): no spot collateral; after fill would breach margin.
+        let maker_insolvent_key = Pubkey::new_unique();
+        let mut maker_insolvent = User {
+            authority: maker_insolvent_key,
+            spot_positions: [SpotPosition::default(); 8],
+            perp_positions: [PerpPosition::default(); 8],
+            ..User::default()
+        };
+        crate::create_anchor_account_info!(
+            maker_insolvent,
+            &maker_insolvent_key,
+            User,
+            maker_insolvent_info
+        );
+
+        let midprice_prog_id = midprice_program_id();
+        let mid1_key = Pubkey::new_unique();
+        let mid2_key = Pubkey::new_unique();
+        let mut mid1_data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            100 * BASE_PRECISION_U64,
+            &maker_solvent_key,
+        );
+        let mut mid2_data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            100 * BASE_PRECISION_U64,
+            &maker_insolvent_key,
+        );
+        let mut mid1_lamports = 0u64;
+        let mut mid2_lamports = 0u64;
+        let mid1_info = create_account_info(
+            &mid1_key,
+            true,
+            &mut mid1_lamports,
+            &mut mid1_data[..],
+            &midprice_prog_id,
+        );
+        let mid2_info = create_account_info(
+            &mid2_key,
+            true,
+            &mut mid2_lamports,
+            &mut mid2_data[..],
+            &midprice_prog_id,
+        );
+
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id,
+            &mut prog_lamps,
+            &mut prog_data[..],
+        );
+        let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut matcher_lamports = 0u64;
+        let mut matcher_data = [0u8; 0];
+        let matcher_info = create_account_info(
+            &matcher_pda,
+            true,
+            &mut matcher_lamports,
+            &mut matcher_data[..],
+            &program_id,
+        );
+
+        let remaining_accounts: Vec<AccountInfo> = vec![
+            program_info,
+            matcher_info,
+            mid1_info,
+            maker_solvent_info,
+            mid2_info,
+            maker_insolvent_info,
+        ];
+        // AmmView indices: mid1=2, maker1=3; mid2=4, maker2=5
+        let amm_views = vec![
+            AmmView {
+                key: mid1_key,
+                mid_price: 100 * PRICE_PRECISION_U64,
+                sequence_number_snapshot: 0,
+                maker_user_remaining_index: 3,
+                midprice_remaining_index: 2,
+            },
+            AmmView {
+                key: mid2_key,
+                mid_price: 100 * PRICE_PRECISION_U64,
+                sequence_number_snapshot: 0,
+                maker_user_remaining_index: 5,
+                midprice_remaining_index: 4,
+            },
+        ];
+        // Maker selling (short): base_delta negative, quote_delta positive (receives quote).
+        let base_delta = -50_i64 * (BASE_PRECISION_U64 as i64);
+        let quote_delta = 5000_i64 * (crate::math::constants::PRICE_PRECISION_I64);
+        let mut maker_deltas = BTreeMap::new();
+        maker_deltas.insert(maker_solvent_key, (base_delta, quote_delta));
+        maker_deltas.insert(maker_insolvent_key, (base_delta, quote_delta));
+
+        let external_fills = vec![
+            PendingExternalFill {
+                midprice_remaining_index: 2,
+                maker_user_remaining_index: 3,
+                sequence_number_snapshot: 0,
+                fill: ExternalFill {
+                    abs_index: 0,
+                    is_ask: true,
+                    fill_size: 50 * BASE_PRECISION_U64,
+                },
+            },
+            PendingExternalFill {
+                midprice_remaining_index: 4,
+                maker_user_remaining_index: 5,
+                sequence_number_snapshot: 0,
+                fill: ExternalFill {
+                    abs_index: 0,
+                    is_ask: true,
+                    fill_size: 50 * BASE_PRECISION_U64,
+                },
+            },
+        ];
+
+        let (filtered_deltas, filtered_fills, taker_base, taker_quote, total_quote) =
+            filter_prop_amm_makers_by_margin(
+                &maker_deltas,
+                &external_fills,
+                &amm_views,
+                &remaining_accounts,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                0, // market_index
+                0, // now
+            )
+            .unwrap();
+
+        assert_eq!(filtered_deltas.len(), 1, "only solvent maker should remain");
+        assert!(filtered_deltas.contains_key(&maker_solvent_key));
+        assert!(!filtered_deltas.contains_key(&maker_insolvent_key));
+        assert_eq!(filtered_fills.len(), 1);
+        assert_eq!(
+            remaining_accounts[filtered_fills[0].maker_user_remaining_index].key(),
+            maker_solvent_key
+        );
+        assert_eq!(taker_base, -base_delta);
+        assert_eq!(taker_quote, -quote_delta);
+        assert_eq!(total_quote, quote_delta.unsigned_abs());
     }
 }

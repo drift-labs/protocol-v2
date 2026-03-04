@@ -10,13 +10,15 @@ pub const AUTHORITY_OFFSET: usize = LAYOUT_VERSION_OFFSET + LAYOUT_VERSION_SIZE;
 pub const MID_PRICE_OFFSET: usize = AUTHORITY_OFFSET + 32; // 40
 pub const REF_SLOT_OFFSET: usize = MID_PRICE_OFFSET + 16; // 56
 pub const MARKET_INDEX_OFFSET: usize = REF_SLOT_OFFSET + 8; // 64
-pub const ASK_LEN_OFFSET: usize = MARKET_INDEX_OFFSET + 2; // 66
-pub const BID_LEN_OFFSET: usize = ASK_LEN_OFFSET + 2; // 68
-pub const ASK_HEAD_OFFSET: usize = BID_LEN_OFFSET + 2; // 70
-pub const BID_HEAD_OFFSET: usize = ASK_HEAD_OFFSET + 2; // 72
-pub const QUOTE_TTL_OFFSET: usize = BID_HEAD_OFFSET + 2; // 74
-pub const SEQUENCE_NUMBER_OFFSET: usize = QUOTE_TTL_OFFSET + 8; // 82
-pub const ORDERS_DATA_OFFSET: usize = SEQUENCE_NUMBER_OFFSET + 8; // 90
+/// Drift User subaccount index this midprice account is tied to (u16 LE).
+pub const SUBACCOUNT_INDEX_OFFSET: usize = MARKET_INDEX_OFFSET + 2; // 66
+pub const ASK_LEN_OFFSET: usize = SUBACCOUNT_INDEX_OFFSET + 2; // 68
+pub const BID_LEN_OFFSET: usize = ASK_LEN_OFFSET + 2; // 70
+pub const ASK_HEAD_OFFSET: usize = BID_LEN_OFFSET + 2; // 72
+pub const BID_HEAD_OFFSET: usize = ASK_HEAD_OFFSET + 2; // 74
+pub const QUOTE_TTL_OFFSET: usize = BID_HEAD_OFFSET + 2; // 76
+pub const SEQUENCE_NUMBER_OFFSET: usize = QUOTE_TTL_OFFSET + 8; // 84
+pub const ORDERS_DATA_OFFSET: usize = SEQUENCE_NUMBER_OFFSET + 8; // 92
 pub const ORDER_ENTRY_SIZE: usize = 16; // (offset: i64, size: u64)
 pub const MAX_ORDERS: usize = 128;
 pub const ACCOUNT_MIN_LEN: usize = ORDERS_DATA_OFFSET;
@@ -67,6 +69,10 @@ impl<'a> MidpriceBookView<'a> {
 
     pub fn sequence_number(&self) -> u64 {
         read_u64(self.data, SEQUENCE_NUMBER_OFFSET)
+    }
+
+    pub fn subaccount_index(&self) -> u16 {
+        read_u16(self.data, SUBACCOUNT_INDEX_OFFSET)
     }
 
     pub fn order_offset_i64(&self, index: usize) -> Result<i64, BookError> {
@@ -296,14 +302,15 @@ mod tests {
         assert_eq!(MID_PRICE_OFFSET, 40);
         assert_eq!(REF_SLOT_OFFSET, 56);
         assert_eq!(MARKET_INDEX_OFFSET, 64);
-        assert_eq!(ASK_LEN_OFFSET, 66);
-        assert_eq!(BID_LEN_OFFSET, 68);
-        assert_eq!(ASK_HEAD_OFFSET, 70);
-        assert_eq!(BID_HEAD_OFFSET, 72);
-        assert_eq!(QUOTE_TTL_OFFSET, 74);
-        assert_eq!(SEQUENCE_NUMBER_OFFSET, 82);
-        assert_eq!(ORDERS_DATA_OFFSET, 90);
-        assert_eq!(ACCOUNT_MIN_LEN, 90);
+        assert_eq!(SUBACCOUNT_INDEX_OFFSET, 66);
+        assert_eq!(ASK_LEN_OFFSET, 68);
+        assert_eq!(BID_LEN_OFFSET, 70);
+        assert_eq!(ASK_HEAD_OFFSET, 72);
+        assert_eq!(BID_HEAD_OFFSET, 74);
+        assert_eq!(QUOTE_TTL_OFFSET, 76);
+        assert_eq!(SEQUENCE_NUMBER_OFFSET, 84);
+        assert_eq!(ORDERS_DATA_OFFSET, 92);
+        assert_eq!(ACCOUNT_MIN_LEN, 92);
     }
 
     #[test]
