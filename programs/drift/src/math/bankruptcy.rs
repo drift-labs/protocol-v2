@@ -20,6 +20,11 @@ pub fn is_cross_margin_bankrupt(user: &User) -> bool {
     }
 
     for perp_position in user.perp_positions.iter() {
+        // Skip isolated perp positions - they are handled by is_isolated_margin_bankrupt
+        if perp_position.is_isolated() {
+            continue;
+        }
+
         if perp_position.base_asset_amount != 0
             || perp_position.quote_asset_amount > 0
             || perp_position.has_open_order()
