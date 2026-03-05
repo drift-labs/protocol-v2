@@ -170,6 +170,68 @@ fn formualic_k_tests() {
 }
 
 #[test]
+fn formulaic_k_skip_with_market_config_flag() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 512295081967,
+            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+            sqrt_k: 500 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 50000000,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+            base_asset_amount_with_amm: -12295081967,
+            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            curve_update_intensity: 100,
+            ..AMM::default()
+        },
+        ..PerpMarket::default()
+    };
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+        amm::calculate_terminal_reserves(&market.amm).unwrap();
+    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+            .unwrap();
+    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market.amm.max_base_asset_reserve = max_base_asset_reserve;
+
+    let prev_sqrt_k = market.amm.sqrt_k;
+
+    // let reserve_price = market.amm.reserve_price().unwrap();
+    let now = 10000;
+    let oracle_price_data = OraclePriceData {
+        price: 50 * PRICE_PRECISION_I64,
+        confidence: 0,
+        delay: 2,
+        has_sufficient_number_of_data_points: true,
+        sequence_id: None,
+    };
+
+    // zero funding cost
+    let funding_cost: i128 = 0;
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
+    assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
+    assert_eq!(
+        market.amm.total_fee_minus_distributions,
+        1000 * QUOTE_PRECISION as i128
+    );
+
+    // positive means amm supossedly paid $500 in funding payments for interval
+    let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
+
+    // Set bit flag to skip formulaic update
+    market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
+    assert!(prev_sqrt_k == market.amm.sqrt_k);
+
+    // Disable bit flag
+    market.market_config = 0u8;
+
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
+    assert!(prev_sqrt_k > market.amm.sqrt_k);
+}
+
+#[test]
 fn iterative_bounds_formualic_k_tests() {
     let mut market = PerpMarket {
         amm: AMM {
