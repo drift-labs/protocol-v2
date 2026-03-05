@@ -30,7 +30,7 @@ use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::paused_operations::PerpOperation;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{MarketConfigFlag, PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::User;
 use crate::validate;
@@ -396,6 +396,10 @@ pub fn formulaic_update_k(
     funding_imbalance_cost: i128,
     now: i64,
 ) -> DriftResult {
+    if market.has_market_config_flag(MarketConfigFlag::DisableFormulaicKUpdate) {
+        return Ok(());
+    }
+
     let peg_multiplier_before = market.amm.peg_multiplier;
     let base_asset_reserve_before = market.amm.base_asset_reserve;
     let quote_asset_reserve_before = market.amm.quote_asset_reserve;
