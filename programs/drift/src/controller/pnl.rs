@@ -278,10 +278,10 @@ pub fn settle_pnl(
     }
 
     if user_unsettled_pnl == 0 {
-        let perp_position = &user.perp_positions[position_index];
         let can_transfer_isolated_position_deposit =
-            perp_position.can_transfer_isolated_position_deposit();
-        let isolated_token_amount = perp_position.get_isolated_token_amount(&spot_market)?;
+            user.perp_positions[position_index].can_transfer_isolated_position_deposit();
+        let isolated_token_amount =
+            user.perp_positions[position_index].get_isolated_token_amount(&spot_market)?;
         if can_transfer_isolated_position_deposit {
             // Clear isolated balance by transferring to user's quote spot position
             if isolated_token_amount > 0 {
