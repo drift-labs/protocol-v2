@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: allow for swap-involved ATA closures [#2118](https://github.com/drift-labs/protocol-v2/pull/2118)
+- program: add market config flag to disable formulaic k update [#2136](https://github.com/drift-labs/protocol-v2/pull/2136)
 
 ### Fixes
 
