@@ -62,7 +62,8 @@ use crate::state::oracle::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
-    ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
+    ContractTier, ContractType, InsuranceClaim, MarketConfigFlag, MarketStatus, PerpMarket,
+    PoolBalance, AMM,
 };
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -5240,6 +5241,15 @@ pub fn handle_update_perp_market_config(
     ctx: Context<HotAdminUpdatePerpMarket>,
     market_config: u8,
 ) -> Result<()> {
+    let allowed_bits = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+
+    validate!(
+        market_config & !allowed_bits == 0,
+        ErrorCode::InvalidPerpMarketConfig,
+        "unknown bits set in market_config: {:?}",
+        market_config
+    )?;
+
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
 
