@@ -154,6 +154,11 @@ impl ContractTier {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+pub enum MarketConfigFlag {
+    DisableFormulaicKUpdate = 0b00000001,
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -252,7 +257,8 @@ pub struct PerpMarket {
     pub lp_exchange_fee_excluscion_scalar: u8,
     pub last_fill_price: u64,
     pub lp_pool_id: u8,
-    pub padding: [u8; 23],
+    pub market_config: u8,
+    pub padding: [u8; 22],
 }
 
 impl Default for PerpMarket {
@@ -300,7 +306,8 @@ impl Default for PerpMarket {
             lp_paused_operations: 0,
             last_fill_price: 0,
             lp_pool_id: 0,
-            padding: [0; 23],
+            market_config: 0,
+            padding: [0; 22],
         }
     }
 }
@@ -316,6 +323,10 @@ impl MarketIndexOffset for PerpMarket {
 impl PerpMarket {
     pub fn oracle_id(&self) -> OracleIdentifier {
         (self.amm.oracle, self.amm.oracle_source)
+    }
+
+    pub fn has_market_config_flag(&self, flag: MarketConfigFlag) -> bool {
+        self.market_config & flag as u8 != 0
     }
 
     pub fn is_in_settlement(&self, now: i64) -> bool {
