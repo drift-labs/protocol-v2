@@ -112,12 +112,12 @@ describe('perp market config flag', () => {
 
 	it('reject unknown bits in market config', async () => {
 		const marketIndex = 0;
-
+		let threw = false;
 		try {
 			await driftClient.updatePerpMarketConfig(marketIndex, 0xff);
-			assert(false, 'should have failed');
 		} catch (e) {
-			assert(e);
+			threw = true;
 		}
+		assert(threw, 'should have thrown for invalid bits');
 	});
 });
