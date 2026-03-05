@@ -336,6 +336,20 @@ pub mod drift {
         handle_initialize_prop_amm_matcher(ctx)
     }
 
+    /// Initializes a midprice (Prop AMM) account via CPI to the midprice program. Drift supplies the perp_market so the client does not load it; tick sizes are stored on the midprice account.
+    /// The midprice account must already exist at the PDA derived by the midprice program.
+    pub fn initialize_prop_amm_midprice(
+        ctx: Context<InitializePropAmmMidprice>,
+        subaccount_index: u16,
+    ) -> Result<()> {
+        handle_initialize_prop_amm_midprice(ctx, subaccount_index)
+    }
+
+    /// Updates order_tick_size and min_order_size on a midprice account via CPI. Drift reads current values from perp_market.
+    pub fn update_prop_amm_tick_sizes(ctx: Context<UpdatePropAmmTickSizes>) -> Result<()> {
+        handle_update_prop_amm_tick_sizes(ctx)
+    }
+
     /// Match a perp order against prop AMM (midprice_pino) liquidity. Permissionless: anyone may call.
     /// Remaining accounts: [midprice_program], [spot_markets...] (canonical: consume while SpotMarket discriminator), then (matcher, midprice, maker_user, maker_stats)* per AMM.
     pub fn match_perp_order_via_prop_amm<'c: 'info, 'info>(

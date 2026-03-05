@@ -30,7 +30,7 @@ import {
 } from '@solana/spl-token';
 
 /** Min size for midprice_pino account (midprice_book_view::ACCOUNT_MIN_LEN) */
-const MIDPRICE_ACCOUNT_MIN_LEN = 92;
+const MIDPRICE_ACCOUNT_MIN_LEN = 112;
 /** Order entry size (offset i64 + size u64) */
 const MIDPRICE_ORDER_ENTRY_SIZE = 16;
 /** midprice_pino instructions */
@@ -41,8 +41,8 @@ const MIDPRICE_IX_SET_QUOTE_TTL = 5;
 const MIDPRICE_IX_CLOSE_ACCOUNT = 6;
 const MIDPRICE_IX_TRANSFER_AUTHORITY = 7;
 /** Layout offsets for reading fields back from account data (midprice_book_view) */
-const MIDPRICE_QUOTE_TTL_OFFSET = 76;
-const MIDPRICE_SEQUENCE_NUMBER_OFFSET = 84;
+const MIDPRICE_QUOTE_TTL_OFFSET = 96;
+const MIDPRICE_SEQUENCE_NUMBER_OFFSET = 104;
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -106,6 +106,39 @@ async function buildInitializePropAmmMatcherInstruction(
 		systemProgram: SystemProgram.programId,
 	};
 	return (m as () => { accounts: (a: typeof accounts) => { instruction: () => Promise<TransactionInstruction> } })()
+		.accounts(accounts)
+		.instruction();
+}
+
+/** Build Drift initialize_prop_amm_midprice ix (CPI into midprice_pino initialize). */
+async function buildInitializePropAmmMidpriceInstruction(args: {
+	program: Program;
+	authority: PublicKey;
+	midpriceAccount: PublicKey;
+	perpMarket: PublicKey;
+	midpriceProgram: PublicKey;
+	driftProgramId: PublicKey;
+	subaccountIndex: number;
+}): Promise<TransactionInstruction> {
+	const m = (args.program.methods as Record<string, unknown>)
+		.initializePropAmmMidprice;
+	if (typeof m !== 'function') {
+		throw new Error(
+			'IDL missing initializePropAmmMidprice. Run: anchor build, then re-run this test.'
+		);
+	}
+	const accounts = {
+		authority: args.authority,
+		midpriceAccount: args.midpriceAccount,
+		perpMarket: args.perpMarket,
+		midpriceProgram: args.midpriceProgram,
+		propAmmMatcher: getPropAmmMatcherPDA(args.driftProgramId),
+	};
+	return (m as (subaccountIndex: number) => {
+		accounts: (a: typeof accounts) => {
+			instruction: () => Promise<TransactionInstruction>;
+		};
+	})(args.subaccountIndex)
 		.accounts(accounts)
 		.instruction();
 }
@@ -174,34 +207,7 @@ function getMidpricePDA(
 	);
 }
 
-/** Build midprice_pino initialize_mid_price_account ix (opcode 1). Accounts: [midprice_account (PDA), authority (signer)].
- * Payload: market_index (u16), subaccount_index (u16) [| authority_to_store (32)]. If authorityToStore is set it is stored as authority; otherwise the signer's address is stored.
- */
-function buildMidpriceInitializeInstruction(
-	midpriceProgramId: PublicKey,
-	midpriceAccount: PublicKey,
-	authority: PublicKey,
-	marketIndex: number,
-	subaccountIndex: number,
-	authorityToStore?: PublicKey
-): TransactionInstruction {
-	const payloadLen = 4 + (authorityToStore ? 32 : 0);
-	const data = Buffer.alloc(1 + payloadLen);
-	data.writeUInt8(MIDPRICE_IX_INITIALIZE, 0);
-	data.writeUInt16LE(marketIndex, 1);
-	data.writeUInt16LE(subaccountIndex, 3);
-	if (authorityToStore) {
-		authorityToStore.toBuffer().copy(data, 5);
-	}
-	return new TransactionInstruction({
-		programId: midpriceProgramId,
-		keys: [
-			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
-			{ pubkey: authority, isSigner: true, isWritable: false },
-		],
-		data,
-	});
-}
+// NOTE: midprice_pino `initialize` is CPI-only; tests must call Drift's `initialize_prop_amm_midprice`.
 
 /** Build midprice_pino update_mid_price ix (opcode 0). Payload: 16 bytes. Accounts: [midprice_account, authority, clock]. */
 function buildMidpriceUpdateMidPriceInstruction(
@@ -228,7 +234,7 @@ function buildMidpriceUpdateMidPriceInstruction(
 	});
 }
 
-/** Build midprice_pino set_orders ix (opcode 2). Payload: [ask_len, bid_len, ...entries]. Accounts: [midprice_account, authority, clock]. */
+/** Build midprice_pino set_orders ix (opcode 2). Payload: [ask_len, bid_len, ...entries]. Accounts: [midprice_account, authority, clock, drift_perp_market]. */
 function buildMidpriceSetOrdersInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
@@ -374,7 +380,9 @@ describe('PropAMM CU usage (bankrun)', () => {
 			? [{ name: 'midprice_pino', programId: midpriceProgramId }]
 			: [];
 		const context = await startAnchor('', extraPrograms, []);
-		bankrunContextWrapper = new BankrunContextWrapper(context);
+		// We create midprice accounts at PDAs; bankrun signature verification would reject PDA "signatures"
+		// used by SystemProgram.createAccount in these tests.
+		bankrunContextWrapper = new BankrunContextWrapper(context, false);
 		bulkAccountLoader = new TestBulkAccountLoader(
 			bankrunContextWrapper.connection,
 			'processed',
@@ -569,13 +577,15 @@ describe('PropAMM CU usage (bankrun)', () => {
 					})
 				);
 				setupIxs.push(
-					buildMidpriceInitializeInstruction(
-						midpriceProgramId,
-						midpricePda,
-						maker.publicKey,
-						marketIndex,
-						0 // subaccountIndex
-					)
+					await buildInitializePropAmmMidpriceInstruction({
+						program,
+						authority: maker.publicKey,
+						midpriceAccount: midpricePda,
+						perpMarket,
+						midpriceProgram: midpriceProgramId,
+						driftProgramId,
+						subaccountIndex: 0,
+					})
 				);
 				// Set mid_price = 100 so an ask at offset PRICE_PRECISION has price 101 (crosses taker buy @ 101)
 				setupIxs.push(
@@ -599,7 +609,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 								offset: PRICE_PRECISION,
 								size: new BN(1).mul(BASE_PRECISION),
 							},
-						]
+						],
 					)
 				);
 			}
@@ -786,13 +796,15 @@ describe('PropAMM CU usage (bankrun)', () => {
 			})
 		);
 		setupIxs.push(
-			buildMidpriceInitializeInstruction(
-				midpriceProgramId,
-				midpricePda,
-				maker.publicKey,
-				marketIndex,
-				0
-			)
+			await buildInitializePropAmmMidpriceInstruction({
+				program,
+				authority: maker.publicKey,
+				midpriceAccount: midpricePda,
+				perpMarket,
+				midpriceProgram: midpriceProgramId,
+				driftProgramId,
+				subaccountIndex: 0,
+			})
 		);
 		setupIxs.push(
 			buildMidpriceUpdateMidPriceInstruction(
@@ -814,7 +826,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 						offset: PRICE_PRECISION,
 						size: new BN(1).mul(BASE_PRECISION),
 					},
-				]
+				],
 			)
 		);
 
@@ -897,11 +909,11 @@ describe('PropAMM CU usage (bankrun)', () => {
 		}
 		const maker = Keypair.generate();
 		await bankrunContextWrapper.fundKeypair(maker, 10 ** 9);
-		const marketIndexForTtl = 99;
+		const perpMarket = getPerpMarketPublicKeySync(program.programId, marketIndex);
 		const [midpricePda] = getMidpricePDA(
 			midpriceProgramId,
 			maker.publicKey,
-			marketIndexForTtl,
+			marketIndex,
 			0
 		);
 		const space =
@@ -911,6 +923,16 @@ describe('PropAMM CU usage (bankrun)', () => {
 				space
 			);
 
+		const initMidpriceIx = await buildInitializePropAmmMidpriceInstruction({
+			program,
+			authority: maker.publicKey,
+			midpriceAccount: midpricePda,
+			perpMarket,
+			midpriceProgram: midpriceProgramId,
+			driftProgramId: program.programId,
+			subaccountIndex: 0,
+		});
+
 		const setupTx = new Transaction().add(
 			SystemProgram.createAccount({
 				fromPubkey: bankrunContextWrapper.context.payer.publicKey,
@@ -919,13 +941,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				space,
 				programId: midpriceProgramId,
 			}),
-			buildMidpriceInitializeInstruction(
-				midpriceProgramId,
-				midpricePda,
-				maker.publicKey,
-				marketIndexForTtl,
-				0
-			)
+			initMidpriceIx
 		);
 		const setupSig = await bankrunContextWrapper.sendTransaction(setupTx, [
 			maker,
@@ -969,11 +985,11 @@ describe('PropAMM CU usage (bankrun)', () => {
 		}
 		const maker = Keypair.generate();
 		await bankrunContextWrapper.fundKeypair(maker, 10 ** 9);
-		const marketIndexSeq = 99;
+		const perpMarket = getPerpMarketPublicKeySync(program.programId, marketIndex);
 		const [midpricePda] = getMidpricePDA(
 			midpriceProgramId,
 			maker.publicKey,
-			marketIndexSeq,
+			marketIndex,
 			0
 		);
 		const space =
@@ -982,6 +998,16 @@ describe('PropAMM CU usage (bankrun)', () => {
 			await bankrunContextWrapper.connection.getMinimumBalanceForRentExemption(
 				space
 			);
+
+		const initMidpriceIx = await buildInitializePropAmmMidpriceInstruction({
+			program,
+			authority: maker.publicKey,
+			midpriceAccount: midpricePda,
+			perpMarket,
+			midpriceProgram: midpriceProgramId,
+			driftProgramId: program.programId,
+			subaccountIndex: 0,
+		});
 
 		// Init (seq -> 1)
 		const setupTx = new Transaction().add(
@@ -992,13 +1018,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				space,
 				programId: midpriceProgramId,
 			}),
-			buildMidpriceInitializeInstruction(
-				midpriceProgramId,
-				midpricePda,
-				maker.publicKey,
-				marketIndexSeq,
-				0
-			)
+			initMidpriceIx
 		);
 		let sig = await bankrunContextWrapper.sendTransaction(setupTx, [
 			maker,

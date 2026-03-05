@@ -1,27 +1,119 @@
 #![no_std]
 
-/// u64 at start of account: layout/version discriminator for upgrade pathways.
-pub const LAYOUT_VERSION_OFFSET: usize = 0;
+/// 4-byte account discriminator at the very start (identifies midprice accounts).
+pub const ACCOUNT_DISCRIMINATOR_OFFSET: usize = 0;
+pub const ACCOUNT_DISCRIMINATOR_SIZE: usize = 4;
+/// Magic "midp" (midprice) to identify account type without relying on SpotMarket scan.
+pub const MIDPRICE_ACCOUNT_DISCRIMINATOR: [u8; 4] = [b'm', b'i', b'd', b'p'];
+
+/// u64 layout/version discriminator for upgrade pathways (after account discriminator).
+pub const LAYOUT_VERSION_OFFSET: usize = ACCOUNT_DISCRIMINATOR_OFFSET + ACCOUNT_DISCRIMINATOR_SIZE; // 4
 const LAYOUT_VERSION_SIZE: usize = 8;
-/// Initial layout version written on account creation (v1: no authorized_exchange field; exchange is hardcoded Drift).
+/// Initial layout version written on account creation
 pub const LAYOUT_VERSION_INITIAL: u64 = 1;
 
-pub const AUTHORITY_OFFSET: usize = LAYOUT_VERSION_OFFSET + LAYOUT_VERSION_SIZE; // 8
-pub const MID_PRICE_OFFSET: usize = AUTHORITY_OFFSET + 32; // 40
-pub const REF_SLOT_OFFSET: usize = MID_PRICE_OFFSET + 16; // 56
-pub const MARKET_INDEX_OFFSET: usize = REF_SLOT_OFFSET + 8; // 64
+pub const AUTHORITY_OFFSET: usize = LAYOUT_VERSION_OFFSET + LAYOUT_VERSION_SIZE; // 12
+pub const MID_PRICE_OFFSET: usize = AUTHORITY_OFFSET + 32; // 44
+pub const REF_SLOT_OFFSET: usize = MID_PRICE_OFFSET + 16; // 60
+pub const MARKET_INDEX_OFFSET: usize = REF_SLOT_OFFSET + 8; // 68
 /// Drift User subaccount index this midprice account is tied to (u16 LE).
-pub const SUBACCOUNT_INDEX_OFFSET: usize = MARKET_INDEX_OFFSET + 2; // 66
-pub const ASK_LEN_OFFSET: usize = SUBACCOUNT_INDEX_OFFSET + 2; // 68
-pub const BID_LEN_OFFSET: usize = ASK_LEN_OFFSET + 2; // 70
-pub const ASK_HEAD_OFFSET: usize = BID_LEN_OFFSET + 2; // 72
-pub const BID_HEAD_OFFSET: usize = ASK_HEAD_OFFSET + 2; // 74
-pub const QUOTE_TTL_OFFSET: usize = BID_HEAD_OFFSET + 2; // 76
-pub const SEQUENCE_NUMBER_OFFSET: usize = QUOTE_TTL_OFFSET + 8; // 84
-pub const ORDERS_DATA_OFFSET: usize = SEQUENCE_NUMBER_OFFSET + 8; // 92
+pub const SUBACCOUNT_INDEX_OFFSET: usize = MARKET_INDEX_OFFSET + 2; // 70
+/// Order tick size (u64 LE) and min order size (u64 LE) stored at init; updated via update_tick_sizes (CPI from exchange).
+pub const ORDER_TICK_SIZE_OFFSET: usize = SUBACCOUNT_INDEX_OFFSET + 2; // 72
+pub const MIN_ORDER_SIZE_OFFSET: usize = ORDER_TICK_SIZE_OFFSET + 8; // 80
+pub const ASK_LEN_OFFSET: usize = MIN_ORDER_SIZE_OFFSET + 8; // 88
+pub const BID_LEN_OFFSET: usize = ASK_LEN_OFFSET + 2; // 90
+pub const ASK_HEAD_OFFSET: usize = BID_LEN_OFFSET + 2; // 92
+pub const BID_HEAD_OFFSET: usize = ASK_HEAD_OFFSET + 2; // 94
+pub const QUOTE_TTL_OFFSET: usize = BID_HEAD_OFFSET + 2; // 96
+pub const SEQUENCE_NUMBER_OFFSET: usize = QUOTE_TTL_OFFSET + 8; // 104
+pub const ORDERS_DATA_OFFSET: usize = SEQUENCE_NUMBER_OFFSET + 8; // 112
 pub const ORDER_ENTRY_SIZE: usize = 16; // (offset: i64, size: u64)
 pub const MAX_ORDERS: usize = 128;
 pub const ACCOUNT_MIN_LEN: usize = ORDERS_DATA_OFFSET;
+
+// -----------------------------------------------------------------------------
+// apply_fills instruction (CPI from exchange: remove filled orders, update books)
+// -----------------------------------------------------------------------------
+
+/// Instruction discriminator for apply_fills.
+pub const APPLY_FILLS_OPCODE: u8 = 3;
+
+/// Per-fill entry in apply_fills payload: abs_index (u16) + is_ask (u8) + fill_size (u64) = 11 bytes.
+pub const APPLY_FILL_ENTRY_SIZE: usize = 11;
+/// market_index at start of payload (u16 LE).
+pub const APPLY_FILLS_MARKET_INDEX_SIZE: usize = 2;
+/// num_fills per maker (u16 LE).
+pub const APPLY_FILLS_NUM_FILLS_SIZE: usize = 2;
+/// expected_sequence per maker (u64 LE).
+pub const APPLY_FILLS_SEQ_NUM_SIZE: usize = 8;
+
+/// Sink for building apply_fills instruction data without allocating inside this crate.
+pub trait ApplyFillsSink {
+    fn extend_from_slice(&mut self, bytes: &[u8]);
+}
+
+/// Writes full apply_fills instruction data (opcode + market_index + per-maker batches).
+/// Each batch is (expected_sequence, fills) where each fill is (abs_index, is_ask, fill_size).
+pub fn write_apply_fills_instruction_data<S: ApplyFillsSink>(
+    sink: &mut S,
+    market_index: u16,
+    maker_batches: &[(u64, &[(u16, bool, u64)])],
+) {
+    sink.extend_from_slice(&[APPLY_FILLS_OPCODE]);
+    sink.extend_from_slice(&market_index.to_le_bytes());
+    for (expected_sequence, fills) in maker_batches.iter() {
+        sink.extend_from_slice(&(fills.len() as u16).to_le_bytes());
+        sink.extend_from_slice(&expected_sequence.to_le_bytes());
+        for (abs_index, is_ask, fill_size) in fills.iter() {
+            sink.extend_from_slice(&abs_index.to_le_bytes());
+            sink.extend_from_slice(&[u8::from(*is_ask)]);
+            sink.extend_from_slice(&fill_size.to_le_bytes());
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// First crossing level (matching: find first book level that crosses taker's limit)
+// -----------------------------------------------------------------------------
+
+/// Which side of the book the taker is taking (Long = taking asks, Short = taking bids).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TakingSide {
+    /// Taker is buyer; scan asks (offset > 0), cross when maker_price <= taker_limit.
+    TakingAsks,
+    /// Taker is seller; scan bids (offset < 0), cross when maker_price >= taker_limit.
+    TakingBids,
+}
+
+/// First book level that crosses the taker's limit price (price, size, abs_index, is_ask).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FirstCrossingLevel {
+    pub price: u64,
+    pub size: u64,
+    pub abs_index: usize,
+    pub is_ask: bool,
+}
+
+fn maker_price_from_offset(mid_price: u64, offset: i64) -> Option<u64> {
+    if offset == 0 {
+        return None;
+    }
+    if offset > 0 {
+        mid_price.checked_add(offset as u64)
+    } else {
+        mid_price.checked_sub(offset.unsigned_abs() as u64)
+    }
+}
+
+fn is_crossing(side: TakingSide, taker_limit_price: u64, maker_price: u64, offset: i64) -> bool {
+    match side {
+        TakingSide::TakingAsks => offset > 0 && maker_price <= taker_limit_price,
+        TakingSide::TakingBids => offset < 0 && maker_price >= taker_limit_price,
+    }
+}
+
+// -----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BookError {
@@ -42,9 +134,32 @@ impl<'a> MidpriceBookView<'a> {
         if data.len() < ACCOUNT_MIN_LEN {
             return Err(BookError::InvalidData);
         }
+        if data[ACCOUNT_DISCRIMINATOR_OFFSET
+            ..ACCOUNT_DISCRIMINATOR_OFFSET + ACCOUNT_DISCRIMINATOR_SIZE]
+            != MIDPRICE_ACCOUNT_DISCRIMINATOR
+        {
+            return Err(BookError::InvalidData);
+        }
         let v = Self { data };
         v.validate_bounds()?;
         Ok(v)
+    }
+
+    /// Authority pubkey (32 bytes) this midprice account is keyed by.
+    pub fn authority(&self) -> Result<[u8; 32], BookError> {
+        self.data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32]
+            .try_into()
+            .map_err(|_| BookError::InvalidData)
+    }
+
+    /// Mid price value (low 8 bytes of the 16-byte price field).
+    pub fn mid_price_u64(&self) -> u64 {
+        read_u64(self.data, MID_PRICE_OFFSET)
+    }
+
+    /// Reference slot for quote TTL.
+    pub fn ref_slot(&self) -> u64 {
+        read_u64(self.data, REF_SLOT_OFFSET)
     }
 
     pub fn ask_len(&self) -> u16 {
@@ -75,6 +190,21 @@ impl<'a> MidpriceBookView<'a> {
         read_u16(self.data, SUBACCOUNT_INDEX_OFFSET)
     }
 
+    /// Market index this midprice account is tied to (u16 LE).
+    pub fn market_index(&self) -> u16 {
+        read_u16(self.data, MARKET_INDEX_OFFSET)
+    }
+
+    /// Order tick size (0 = any price allowed).
+    pub fn order_tick_size(&self) -> u64 {
+        read_u64(self.data, ORDER_TICK_SIZE_OFFSET)
+    }
+
+    /// Minimum order size.
+    pub fn min_order_size(&self) -> u64 {
+        read_u64(self.data, MIN_ORDER_SIZE_OFFSET)
+    }
+
     pub fn order_offset_i64(&self, index: usize) -> Result<i64, BookError> {
         let base = entry_base(self.data, index, self.total_orders())?;
         Ok(i64::from_le_bytes(
@@ -95,6 +225,50 @@ impl<'a> MidpriceBookView<'a> {
 
     pub fn total_orders(&self) -> usize {
         self.ask_len() as usize + self.bid_len() as usize
+    }
+
+    /// First level in the book that crosses the taker's limit (if any).
+    /// `start_from_abs_index`: if provided, start scanning from this index; otherwise start from ask_head (TakingAsks) or bid_head (TakingBids).
+    pub fn find_first_crossing_level(
+        &self,
+        side: TakingSide,
+        mid_price: u64,
+        taker_limit_price: u64,
+        start_from_abs_index: Option<usize>,
+    ) -> Result<Option<FirstCrossingLevel>, BookError> {
+        let ask_len = self.ask_len() as usize;
+        let bid_len = self.bid_len() as usize;
+        let ask_head = self.ask_head() as usize;
+        let bid_head = self.bid_head() as usize;
+
+        let (default_start, end, is_ask) = match side {
+            TakingSide::TakingAsks => (ask_head, ask_len, true),
+            TakingSide::TakingBids => (ask_len + bid_head, ask_len + bid_len, false),
+        };
+        let start = start_from_abs_index
+            .unwrap_or(default_start)
+            .max(default_start);
+
+        for abs_index in start..end {
+            let size = self.order_size_u64(abs_index)?;
+            if size == 0 {
+                continue;
+            }
+            let offset = self.order_offset_i64(abs_index)?;
+            let Some(price) = maker_price_from_offset(mid_price, offset) else {
+                continue;
+            };
+            if !is_crossing(side, taker_limit_price, price, offset) {
+                return Ok(None);
+            }
+            return Ok(Some(FirstCrossingLevel {
+                price,
+                size,
+                abs_index,
+                is_ask,
+            }));
+        }
+        Ok(None)
     }
 
     pub fn validate_bounds(&self) -> Result<(), BookError> {
@@ -160,6 +334,14 @@ impl<'a> MidpriceBookViewMut<'a> {
 
     pub fn set_quote_ttl_slots(&mut self, value: u64) {
         write_u64(self.data, QUOTE_TTL_OFFSET, value);
+    }
+
+    pub fn set_order_tick_size(&mut self, value: u64) {
+        write_u64(self.data, ORDER_TICK_SIZE_OFFSET, value);
+    }
+
+    pub fn set_min_order_size(&mut self, value: u64) {
+        write_u64(self.data, MIN_ORDER_SIZE_OFFSET, value);
     }
 
     pub fn increment_sequence_number(&mut self) -> u64 {
@@ -291,26 +473,33 @@ mod tests {
     }
 
     fn init_header(buf: &mut [u8]) {
+        buf[ACCOUNT_DISCRIMINATOR_OFFSET
+            ..ACCOUNT_DISCRIMINATOR_OFFSET + ACCOUNT_DISCRIMINATOR_SIZE]
+            .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         buf[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
     }
 
     #[test]
     fn test_layout_offsets() {
-        assert_eq!(LAYOUT_VERSION_OFFSET, 0);
-        assert_eq!(AUTHORITY_OFFSET, 8);
-        assert_eq!(MID_PRICE_OFFSET, 40);
-        assert_eq!(REF_SLOT_OFFSET, 56);
-        assert_eq!(MARKET_INDEX_OFFSET, 64);
-        assert_eq!(SUBACCOUNT_INDEX_OFFSET, 66);
-        assert_eq!(ASK_LEN_OFFSET, 68);
-        assert_eq!(BID_LEN_OFFSET, 70);
-        assert_eq!(ASK_HEAD_OFFSET, 72);
-        assert_eq!(BID_HEAD_OFFSET, 74);
-        assert_eq!(QUOTE_TTL_OFFSET, 76);
-        assert_eq!(SEQUENCE_NUMBER_OFFSET, 84);
-        assert_eq!(ORDERS_DATA_OFFSET, 92);
-        assert_eq!(ACCOUNT_MIN_LEN, 92);
+        assert_eq!(ACCOUNT_DISCRIMINATOR_OFFSET, 0);
+        assert_eq!(ACCOUNT_DISCRIMINATOR_SIZE, 4);
+        assert_eq!(LAYOUT_VERSION_OFFSET, 4);
+        assert_eq!(AUTHORITY_OFFSET, 12);
+        assert_eq!(MID_PRICE_OFFSET, 44);
+        assert_eq!(REF_SLOT_OFFSET, 60);
+        assert_eq!(MARKET_INDEX_OFFSET, 68);
+        assert_eq!(SUBACCOUNT_INDEX_OFFSET, 70);
+        assert_eq!(ORDER_TICK_SIZE_OFFSET, 72);
+        assert_eq!(MIN_ORDER_SIZE_OFFSET, 80);
+        assert_eq!(ASK_LEN_OFFSET, 88);
+        assert_eq!(BID_LEN_OFFSET, 90);
+        assert_eq!(ASK_HEAD_OFFSET, 92);
+        assert_eq!(BID_HEAD_OFFSET, 94);
+        assert_eq!(QUOTE_TTL_OFFSET, 96);
+        assert_eq!(SEQUENCE_NUMBER_OFFSET, 104);
+        assert_eq!(ORDERS_DATA_OFFSET, 112);
+        assert_eq!(ACCOUNT_MIN_LEN, 112);
     }
 
     #[test]
