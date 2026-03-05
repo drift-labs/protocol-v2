@@ -96,6 +96,7 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
+  perpMarketConfig.ts
   # whitelist.ts
 )
 
