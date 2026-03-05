@@ -599,6 +599,89 @@ pub fn cancel_orders(
     Ok(canceled_order_ids)
 }
 
+/// Cancels all trigger orders for a specific market when a position is completely closed.
+///
+/// This function is called after a position is fully closed to automatically cancel any
+/// remaining trigger orders (stop-loss/take-profit) for that market, preventing orphaned
+/// orders from executing unexpectedly and creating unintended positions.
+///
+/// # Arguments
+/// * `user` - Mutable reference to the user account
+/// * `user_key` - Public key of the user
+/// * `market_index` - Index of the market whose trigger orders should be cancelled
+/// * `market_type` - Type of market (Perp or Spot)
+/// * `perp_market_map` - Reference to perp market map
+/// * `spot_market_map` - Reference to spot market map
+/// * `oracle_map` - Mutable reference to oracle map
+/// * `now` - Current timestamp
+/// * `slot` - Current slot number
+///
+/// # Returns
+/// * `DriftResult` - Ok(()) if successful, error otherwise
+///
+/// # Example Flow
+/// 1. User opens short position with stop-loss trigger order at $110
+/// 2. User manually closes position at current price
+/// 3. This function cancels the stop-loss order to prevent it from triggering later
+///
+/// # See Also
+/// * Issue #923: https://github.com/drift-labs/protocol-v2/issues/923
+pub fn cancel_trigger_orders_for_closed_position(
+    user: &mut User,
+    user_key: &Pubkey,
+    market_index: u16,
+    market_type: MarketType,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+) -> DriftResult {
+    // Iterate through all user orders to find trigger orders for this market
+    for order_index in 0..user.orders.len() {
+        // Skip orders that are not currently open
+        if user.orders[order_index].status != OrderStatus::Open {
+            continue;
+        }
+
+        // Only cancel trigger orders (TriggerMarket or TriggerLimit)
+        // Regular limit/market orders are not affected
+        if !user.orders[order_index].must_be_triggered() {
+            continue;
+        }
+
+        // Only cancel orders for the specified market type (perp vs spot)
+        if user.orders[order_index].market_type != market_type {
+            continue;
+        }
+
+        // Only cancel orders for the specific market index
+        if user.orders[order_index].market_index != market_index {
+            continue;
+        }
+
+        // Cancel the trigger order
+        cancel_order(
+            order_index,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::OrderExpired,
+            None,
+            0,
+            false,
+        )?;
+    }
+
+    user.update_last_active_slot(slot);
+
+    Ok(())
+}
+
 pub fn cancel_order_by_order_id(
     order_id: u32,
     user: &AccountLoader<User>,
@@ -2116,6 +2199,28 @@ fn fulfill_perp_order(
             ErrorCode::InvalidOracle,
             "oracle stale for margin but open interest increased"
         )?;
+    }
+
+    // Fix for issue #923: Cancel all trigger orders if position is completely closed
+    // Only check if we actually filled something (base_asset_amount > 0)
+    if base_asset_amount > 0 {
+        let position_index = get_position_index(&user.perp_positions, market_index)?;
+
+        // If position is now completely closed (base_asset_amount == 0), cancel all trigger orders
+        // This prevents orphaned stop-loss/take-profit orders from executing unexpectedly
+        if user.perp_positions[position_index].base_asset_amount == 0 {
+            cancel_trigger_orders_for_closed_position(
+                user,
+                user_key,
+                market_index,
+                MarketType::Perp,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                now,
+                slot,
+            )?;
+        }
     }
 
     Ok((base_asset_amount, quote_asset_amount))
@@ -4847,6 +4952,28 @@ fn fulfill_spot_order(
                     maker_margin_calculation.total_collateral
                 );
             return Err(ErrorCode::InsufficientCollateral);
+        }
+    }
+
+    // Fix for issue #923: Cancel all trigger orders if spot position is completely closed
+    // Only check if we actually filled something (base_asset_amount > 0)
+    if base_asset_amount > 0 {
+        let spot_position_index = user.get_spot_position_index(base_market_index)?;
+
+        // If spot position is now completely closed (scaled_balance == 0), cancel all trigger orders
+        // This prevents orphaned stop-loss/take-profit orders from executing unexpectedly
+        if user.spot_positions[spot_position_index].scaled_balance == 0 {
+            cancel_trigger_orders_for_closed_position(
+                user,
+                user_key,
+                base_market_index,
+                MarketType::Spot,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                now,
+                slot,
+            )?;
         }
     }
 
