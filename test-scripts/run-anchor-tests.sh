@@ -77,6 +77,7 @@ test_files=(
   roundInFavorBaseAsset.ts
   serumTest.ts
   settlePNLInvariant.ts
+  settlePnlIsolatedEarlyReturn.ts
   spotDepositWithdraw.ts
   spotDepositWithdraw22.ts
   spotDepositWithdraw22TransferHooks.ts
