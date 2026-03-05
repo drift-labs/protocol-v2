@@ -9328,6 +9328,32 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "updatePerpMarketConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketConfig",
+          "type": "u8"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -10586,11 +10612,15 @@
             "type": "u8"
           },
           {
+            "name": "marketConfig",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                23
+                22
               ]
             }
           }
@@ -13289,102 +13319,6 @@
       }
     },
     {
-      "name": "ScaleOrderParams",
-      "docs": [
-        "Parameters for placing scale orders - multiple limit orders distributed across a price range"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
-            }
-          },
-          {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "totalBaseAssetAmount",
-            "docs": [
-              "Total base asset amount to distribute across all orders"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "startPrice",
-            "docs": [
-              "Starting price for the scale (in PRICE_PRECISION)"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "endPrice",
-            "docs": [
-              "Ending price for the scale (in PRICE_PRECISION)"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "orderCount",
-            "docs": [
-              "Number of orders to place (min 2, max 32)"
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "sizeDistribution",
-            "docs": [
-              "How to distribute sizes across orders"
-            ],
-            "type": {
-              "defined": "SizeDistribution"
-            }
-          },
-          {
-            "name": "reduceOnly",
-            "docs": [
-              "Whether orders should be reduce-only"
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "postOnly",
-            "docs": [
-              "Post-only setting for all orders"
-            ],
-            "type": {
-              "defined": "PostOnlyParam"
-            }
-          },
-          {
-            "name": "bitFlags",
-            "docs": [
-              "Bit flags (e.g., for high leverage mode)"
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "maxTs",
-            "docs": [
-              "Maximum timestamp for orders to be valid"
-            ],
-            "type": {
-              "option": "i64"
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "InsuranceClaim",
       "type": {
         "kind": "struct",
@@ -14268,6 +14202,102 @@
                 "u8",
                 17
               ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ScaleOrderParams",
+      "docs": [
+        "Parameters for placing scale orders - multiple limit orders distributed across a price range"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "totalBaseAssetAmount",
+            "docs": [
+              "Total base asset amount to distribute across all orders"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "startPrice",
+            "docs": [
+              "Starting price for the scale (in PRICE_PRECISION)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "endPrice",
+            "docs": [
+              "Ending price for the scale (in PRICE_PRECISION)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "orderCount",
+            "docs": [
+              "Number of orders to place (min 2, max 32)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "sizeDistribution",
+            "docs": [
+              "How to distribute sizes across orders"
+            ],
+            "type": {
+              "defined": "SizeDistribution"
+            }
+          },
+          {
+            "name": "reduceOnly",
+            "docs": [
+              "Whether orders should be reduce-only"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "docs": [
+              "Post-only setting for all orders"
+            ],
+            "type": {
+              "defined": "PostOnlyParam"
+            }
+          },
+          {
+            "name": "bitFlags",
+            "docs": [
+              "Bit flags (e.g., for high leverage mode)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "maxTs",
+            "docs": [
+              "Maximum timestamp for orders to be valid"
+            ],
+            "type": {
+              "option": "i64"
             }
           }
         ]
@@ -15792,26 +15822,6 @@
       }
     },
     {
-      "name": "SizeDistribution",
-      "docs": [
-        "How to distribute order sizes across scale orders"
-      ],
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Flat"
-          },
-          {
-            "name": "Ascending"
-          },
-          {
-            "name": "Descending"
-          }
-        ]
-      }
-    },
-    {
       "name": "PerpOperation",
       "type": {
         "kind": "enum",
@@ -16013,6 +16023,17 @@
       }
     },
     {
+      "name": "MarketConfigFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DisableFormulaicKUpdate"
+          }
+        ]
+      }
+    },
+    {
       "name": "RevenueShareOrderBitFlag",
       "type": {
         "kind": "enum",
@@ -16028,6 +16049,26 @@
           },
           {
             "name": "Referral"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SizeDistribution",
+      "docs": [
+        "How to distribute order sizes across scale orders"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Flat"
+          },
+          {
+            "name": "Ascending"
+          },
+          {
+            "name": "Descending"
           }
         ]
       }
