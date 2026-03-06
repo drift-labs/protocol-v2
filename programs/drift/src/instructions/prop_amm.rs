@@ -1184,7 +1184,12 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     let position_after = taker_user
         .get_perp_position(market_index)
         .map_or(0_i64, |p| p.base_asset_amount);
-    let position_before = position_after.saturating_sub(taker_base_delta);
+    // Use checked_sub: taker_base_delta is signed, and saturating_sub on i64 silently clamps
+    // on overflow rather than propagating an error, which would produce a wrong position_before
+    // and therefore wrong margin type selection (Maintenance vs Fill).
+    let position_before = position_after
+        .checked_sub(taker_base_delta)
+        .ok_or(ErrorCode::MathError)?;
     let taker_position_decreasing = position_after == 0
         || (position_after.signum() == position_before.signum()
             && position_after.abs() < position_before.abs());
@@ -1233,9 +1238,28 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     taker_stats.update_taker_volume_30d(fuel_boost_taker, total_quote_volume, now)?;
     drop(taker_stats);
 
+    // Precompute oracle price and taker order for fill events.
+    let oracle_id = ctx.accounts.perp_market.load()?.oracle_id();
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(ctx.accounts.state.as_ref().oracle_guard_rails),
+    )?;
+    let oracle_price = oracle_map.get_price_data(&oracle_id)?.price;
+    drop(oracle_map);
+
+    let mut taker_order = Order::default();
+    taker_order.market_type = MarketType::Perp;
+    taker_order.direction = taker_direction;
+    taker_order.base_asset_amount = order_base_asset_amount;
+    taker_order.base_asset_amount_filled = base_filled;
+    taker_order.quote_asset_amount_filled = total_quote_volume;
+    taker_order.market_index = market_index;
+
     // Apply maker deltas: load each maker user + user_stats, update position + market, update maker volume.
     // Maker margin has already been enforced by filter_prop_amm_makers_by_margin; we do not
     // revert the tx here on additional maker margin failures (skip semantics).
+    // Emit a match fill event for each maker with that maker's cumulative amount.
     for (maker_user_key, (base_delta, quote_delta)) in maker_deltas {
         if base_delta == 0 && quote_delta == 0 {
             continue;
@@ -1266,61 +1290,44 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             &mut *market,
             &maker_delta,
         )?;
+
+        let maker_base_filled = base_delta.unsigned_abs() as u64;
+        let maker_quote_filled = quote_delta.unsigned_abs() as u64;
+        let fill_record_id = get_then_update_id!(market, next_fill_record_id);
         drop(maker);
         drop(market);
+
+        let fill_record = get_order_action_record(
+            now,
+            OrderAction::Fill,
+            OrderActionExplanation::OrderFilledWithMatch,
+            market_index,
+            None, // filler
+            Some(fill_record_id),
+            None, // filler_reward
+            Some(maker_base_filled),
+            Some(maker_quote_filled),
+            None, // taker_fee
+            None, // maker_rebate
+            None, // referrer_reward
+            None, // quote_asset_amount_surplus
+            None, // spot_fulfillment_method_fee
+            Some(ctx.accounts.user.key()),
+            Some(taker_order),
+            Some(maker_user_key),
+            None, // maker_order (PropAMM orders live on midprice, not Drift User)
+            oracle_price,
+            0,    // bit_flags
+            None, // taker_existing_quote_entry_amount
+            None, // taker_existing_base_asset_amount
+            None, // maker_existing_quote_entry_amount
+            None, // maker_existing_base_asset_amount
+            None, // trigger_price
+            None, // builder_idx
+            None, // builder_fee
+        )?;
+        emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
     }
-
-    // Emit fill event and increment fill_record_id.
-    let mut market = ctx.accounts.perp_market.load_mut()?;
-    let fill_record_id = get_then_update_id!(market, next_fill_record_id);
-    let oracle_id = market.oracle_id();
-    drop(market);
-    let mut oracle_map = OracleMap::load_one(
-        &ctx.accounts.oracle,
-        clock.slot,
-        Some(ctx.accounts.state.as_ref().oracle_guard_rails),
-    )?;
-    let oracle_price = oracle_map.get_price_data(&oracle_id)?.price;
-    drop(oracle_map);
-
-    let mut taker_order = Order::default();
-    taker_order.market_type = MarketType::Perp;
-    taker_order.direction = taker_direction;
-    taker_order.base_asset_amount = order_base_asset_amount;
-    taker_order.base_asset_amount_filled = base_filled;
-    taker_order.quote_asset_amount_filled = total_quote_volume;
-    taker_order.market_index = market_index;
-
-    let fill_record = get_order_action_record(
-        now,
-        OrderAction::Fill,
-        OrderActionExplanation::OrderFilledWithMatch,
-        market_index,
-        None, // filler
-        Some(fill_record_id),
-        None, // filler_reward
-        Some(base_filled),
-        Some(total_quote_volume),
-        None, // taker_fee
-        None, // maker_rebate
-        None, // referrer_reward
-        None, // quote_asset_amount_surplus
-        None, // spot_fulfillment_method_fee
-        Some(ctx.accounts.user.key()),
-        Some(taker_order),
-        None, // maker
-        None, // maker_order
-        oracle_price,
-        0,    // bit_flags
-        None, // taker_existing_quote_entry_amount
-        None, // taker_existing_base_asset_amount
-        None, // maker_existing_quote_entry_amount
-        None, // maker_existing_base_asset_amount
-        None, // trigger_price
-        None, // builder_idx
-        None, // builder_fee
-    )?;
-    emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
 
     // CPI to midprice_pino to apply fills (consume orders on AMM books).
     flush_external_fill_batches(

@@ -10249,6 +10249,194 @@ pub mod liquidate_isolated_perp {
         assert_eq!(spot_position_two_before, spot_position_two_after);
         assert_eq!(perp_position_one_before, perp_position_one_after);
     }
+
+    // Verifies that large_liq_notional_threshold and large_liq_duration on the perp market
+    // block immediate position seizure at liquidation start and allow partial liquidation
+    // after the ramp has accumulated enough slots.
+    //
+    // Setup: 20 BASE at $100 oracle = $2000 notional. $50 USDC collateral.
+    // Maintenance margin req = 5% * $2000 = $100 + 2% buffer = $40 => shortage ≈ $90.
+    // Threshold = $1000 (below position notional). Duration = 150 slots.
+    // effective_initial_pct = 0, so at slot 1 (liquidation entry slot), 0 slots have elapsed
+    // and pct_freeable = 0 — no position can be transferred.
+    // At slot 76, 75 slots have elapsed: pct_freeable = 75/150 = 50%, allowing partial liq.
+    #[test]
+    pub fn large_liq_throttles_immediate_seizure() {
+        let now = 1_i64;
+        let slot = 1_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 10000000,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+                funding_period: ONE_HOUR,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            number_of_users_with_base: 1,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            // Position notional $2000 exceeds this $1000 threshold, activating large-liq params.
+            large_liq_notional_threshold: 1000 * QUOTE_PRECISION as u64,
+            large_liq_duration: 150,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let perp_market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut user = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: 10 * BASE_PRECISION_U64,
+                slot: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 20 * BASE_PRECISION_I64,
+                quote_asset_amount: -2000 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -2000 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -2000 * QUOTE_PRECISION_I64,
+                open_orders: 1,
+                open_bids: 10 * BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 500 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
+        // State uses standard (non-large-liq) initial pct; the market-level threshold overrides.
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
+            initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
+
+        // First call at liquidation entry slot. large-liq forces effective_initial_pct = 0,
+        // so slots_elapsed = 0, pct_freeable = 0. Position must not be reduced.
+        liquidate_perp(
+            0,
+            20 * BASE_PRECISION_U64,
+            None,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            slot,
+            now,
+            &state,
+        )
+        .unwrap();
+
+        // Open order was cancelled but the perp position itself must be untouched.
+        assert_eq!(user.perp_positions[0].open_orders, 0);
+        assert_eq!(
+            user.perp_positions[0].base_asset_amount,
+            20 * BASE_PRECISION_I64,
+            "position must not be seized at liquidation entry slot"
+        );
+        assert!(user.is_being_liquidated());
+
+        // Second call at slot 76: 75 slots elapsed, pct_freeable = 75/150 = 50%.
+        // Partial liquidation must now occur.
+        let slot = 76_u64;
+        liquidate_perp(
+            0,
+            20 * BASE_PRECISION_U64,
+            None,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            slot,
+            now,
+            &state,
+        )
+        .unwrap();
+
+        assert!(
+            user.perp_positions[0].base_asset_amount < 20 * BASE_PRECISION_I64,
+            "position must be partially liquidated after ramp"
+        );
+        assert!(
+            user.perp_positions[0].base_asset_amount > 0,
+            "position must not be fully seized in a single call mid-ramp"
+        );
+    }
 }
 
 pub mod liquidate_isolated_perp_pnl_for_deposit {

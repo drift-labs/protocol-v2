@@ -1,5 +1,33 @@
 #![no_std]
 
+//! Layout constants and read/write views for midprice accounts.
+//!
+//! ## Account layout
+//!
+//! | Offset | Size | Field |
+//! |--------|------|-------|
+//! | 0 | 4 | Discriminator (`"midp"`) |
+//! | 4 | 8 | Layout version (u64 LE) |
+//! | 12 | 32 | Authority pubkey |
+//! | 44 | 16 | Mid price (u64 LE price + 8 bytes reserved) |
+//! | 60 | 8 | Ref slot (u64 LE, slot of last quote-setting write) |
+//! | 68 | 2 | Market index (u16 LE) |
+//! | 70 | 2 | Subaccount index (u16 LE) |
+//! | 72 | 8 | Order tick size (u64 LE, 0 = any price accepted) |
+//! | 80 | 8 | Min order size (u64 LE) |
+//! | 88 | 2 | Ask length (u16 LE) |
+//! | 90 | 2 | Bid length (u16 LE) |
+//! | 92 | 2 | Ask head (u16 LE, index of first non-empty ask) |
+//! | 94 | 2 | Bid head (u16 LE, index of first non-empty bid relative to ask_len) |
+//! | 96 | 8 | Quote TTL in slots (u64 LE, 0 = no expiry) |
+//! | 104 | 8 | Sequence number (u64 LE, monotonically increasing, wraps) |
+//! | 112+ | 16×N | Order entries: asks \[0, ask_len), then bids \[ask_len, ask_len+bid_len) |
+//!
+//! Each order entry is 16 bytes: `offset: i64 LE` + `size: u64 LE`.
+//! Effective price = `mid_price + offset` (positive offset = ask, negative = bid).
+//! `ACCOUNT_MIN_LEN` = 112 (header only, no orders).
+//! Maximum orders per book: 128 (asks + bids combined).
+
 /// 4-byte account discriminator at the very start (identifies midprice accounts).
 pub const ACCOUNT_DISCRIMINATOR_OFFSET: usize = 0;
 pub const ACCOUNT_DISCRIMINATOR_SIZE: usize = 4;
