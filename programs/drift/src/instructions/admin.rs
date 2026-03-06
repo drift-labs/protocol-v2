@@ -5253,6 +5253,14 @@ pub fn handle_update_perp_market_config(
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
 
+    if *ctx.accounts.admin.key != ctx.accounts.state.admin {
+        validate!(
+            market_config == 0,
+            ErrorCode::DefaultError,
+            "signer must be state admin to enable market config flags",
+        )?;
+    }
+
     msg!(
         "perp_market.market_config: {:?} -> {:?}",
         perp_market.market_config,
