@@ -101,9 +101,9 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
             continue;
         }
 
-        if current_timestamp < next_timestamp.unwrap() {
+        if next_timestamp.unwrap() < current_timestamp {
             msg!(
-                "Skipping lazer price update. current ts {} < next_timestamp {}",
+                "Skipping lazer price update. next_timestamp {} < current_timestamp {}",
                 current_timestamp,
                 next_timestamp.unwrap()
             );
