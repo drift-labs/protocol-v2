@@ -142,15 +142,15 @@ describe('LP Pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
-		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200);
-		spotMarketOracle2 = await mockOracleNoProgram(bankrunContextWrapper, 200);
+		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 80);
+		spotMarketOracle2 = await mockOracleNoProgram(bankrunContextWrapper, 80);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 200);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 80);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -199,7 +199,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(200 * PEG_PRECISION.toNumber())
+			new BN(80 * PEG_PRECISION.toNumber())
 		);
 		await adminClient.addMarketToAmmCache(0);
 		await adminClient.updatePerpMarketLpPoolStatus(0, 1);
@@ -210,7 +210,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(200 * PEG_PRECISION.toNumber())
+			new BN(80 * PEG_PRECISION.toNumber())
 		);
 		await adminClient.addMarketToAmmCache(1);
 		await adminClient.updatePerpMarketLpPoolStatus(1, 1);
@@ -221,7 +221,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(200 * PEG_PRECISION.toNumber())
+			new BN(80 * PEG_PRECISION.toNumber())
 		);
 		await adminClient.addMarketToAmmCache(2);
 		await adminClient.updatePerpMarketLpPoolStatus(2, 1);
@@ -519,7 +519,8 @@ describe('LP Pool', () => {
 		expect(ammCache).to.not.be.null;
 		assert(ammCache.cache.length == 3);
 		assert(ammCache.cache[0].oracle.equals(solUsd));
-		assert(ammCache.cache[0].oraclePrice.eq(new BN(200000000)));
+		console.log('LOGGING', ammCache.cache[0].oraclePrice.toString());
+		assert(ammCache.cache[0].oraclePrice.eq(new BN(80000000)));
 	});
 
 	it('can update constituent properties and correlations', async () => {
@@ -748,6 +749,7 @@ describe('LP Pool', () => {
 				constituentTargetBasePublicKey
 			)) as ConstituentTargetBaseAccount;
 		expect(constituentTargetBase).to.not.be.null;
+		console.log(constituentTargetBase.targets.length);
 		assert(constituentTargetBase.targets.length == 2);
 		assert(
 			constituentTargetBase.targets.filter((x) => x.targetBase.eq(ZERO))
@@ -856,7 +858,7 @@ describe('LP Pool', () => {
 		const derivative = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 2)
 		)) as ConstituentAccount;
-		await setFeedPriceNoProgram(bankrunContextWrapper, 400, spotMarketOracle2);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 160, spotMarketOracle2);
 		await adminClient.updateConstituentOracleInfo(derivative);
 		const tx2 = new Transaction();
 		tx2
@@ -889,7 +891,7 @@ describe('LP Pool', () => {
 
 		// Move the oracle price to be half, so its target base should go to zero
 		const parentBalanceBefore = constituentTargetBase.targets[1].targetBase;
-		await setFeedPriceNoProgram(bankrunContextWrapper, 100, spotMarketOracle2);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 40, spotMarketOracle2);
 		await adminClient.updateConstituentOracleInfo(derivative);
 		const tx3 = new Transaction();
 		tx3
@@ -918,7 +920,7 @@ describe('LP Pool', () => {
 			parentBalanceBefore.toNumber() * 2,
 			10
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, 200, spotMarketOracle2);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 80, spotMarketOracle2);
 		await adminClient.updateConstituentOracleInfo(derivative);
 	});
 
