@@ -1263,6 +1263,14 @@ pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
         insurance_fund_vault_amount_before,
     )?;
 
+    validate!(
+        shares > 0,
+        ErrorCode::InsufficientIFShares,
+        "withdrawal rounds to zero shares: amount={} shares={}",
+        amount,
+        shares
+    )?;
+
     let protocol_shares = spot_market.insurance_fund.get_protocol_shares()?;
 
     validate!(
@@ -1275,6 +1283,8 @@ pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
 
     spot_market.insurance_fund.total_shares =
         spot_market.insurance_fund.total_shares.safe_sub(shares)?;
+
+    let protocol_shares_after = spot_market.insurance_fund.get_protocol_shares()?;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
@@ -1290,6 +1300,20 @@ pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
             None
         },
     )?;
+
+    let now = Clock::get()?.unix_timestamp;
+
+    emit!(crate::state::events::AdminWithdrawFromInsuranceFundRecord {
+        ts: now,
+        market_index,
+        admin: ctx.accounts.authority.key(),
+        amount,
+        shares_burned: shares,
+        insurance_fund_vault_amount_before,
+        protocol_shares_before: protocol_shares,
+        protocol_shares_after,
+        recipient_token_account: ctx.accounts.recipient_token_account.key(),
+    });
 
     Ok(())
 }

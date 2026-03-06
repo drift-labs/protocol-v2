@@ -37,6 +37,7 @@ test_files=(
   fillSpot.ts
   highLeverageMode.ts
   ifRebalance.ts
+  adminWithdrawFromInsuranceFundVault.ts
   insuranceFundStake.ts
   isolatedPositionDriftClient.ts
   isolatedPositionLiquidatePerp.ts
