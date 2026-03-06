@@ -863,6 +863,14 @@ pub mod drift {
         handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
     }
 
+    pub fn admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AdminWithdrawFromInsuranceFundVault<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_admin_withdraw_from_insurance_fund_vault(ctx, market_index, amount)
+    }
+
     pub fn deposit_into_insurance_fund_stake<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DepositIntoInsuranceFundStake<'info>>,
         market_index: u16,

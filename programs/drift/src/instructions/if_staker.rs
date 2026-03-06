@@ -1238,3 +1238,92 @@ pub struct DepositIntoInsuranceFundStake<'info> {
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
 }
+
+pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AdminWithdrawFromInsuranceFundVault<'info>>,
+    market_index: u16,
+    amount: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let insurance_fund_vault_amount_before = ctx.accounts.insurance_fund_vault.amount;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    controller::insurance::apply_rebase_to_insurance_fund(
+        insurance_fund_vault_amount_before,
+        spot_market,
+    )?;
+
+    let shares = math::insurance::vault_amount_to_if_shares(
+        amount,
+        spot_market.insurance_fund.total_shares,
+        insurance_fund_vault_amount_before,
+    )?;
+
+    let protocol_shares = spot_market.insurance_fund.get_protocol_shares()?;
+
+    validate!(
+        shares <= protocol_shares,
+        ErrorCode::InsufficientIFShares,
+        "shares={} > protocol_shares={}",
+        shares,
+        protocol_shares
+    )?;
+
+    spot_market.insurance_fund.total_shares =
+        spot_market.insurance_fund.total_shares.safe_sub(shares)?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.insurance_fund_vault,
+        &ctx.accounts.recipient_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        amount,
+        &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
+    )?;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct AdminWithdrawFromInsuranceFundVault<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = authority.key() == state.admin
+    )]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        token::mint = insurance_fund_vault.mint,
+    )]
+    pub recipient_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+}
