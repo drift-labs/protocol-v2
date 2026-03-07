@@ -172,25 +172,22 @@ describe('settle pnl isolated early return', () => {
 		);
 	});
 
-	it('settlePnl idempotent when isolated already 0', async () => {
-		const settlePnlRecordCountBefore =
-			eventSubscriber.getEventsArray('SettlePnlRecord').length;
-
-		const txSig = await driftClient.settlePNL(
-			userAccountPublicKey,
-			driftClient.getUserAccount(),
-			0
-		);
-
-		await eventSubscriber.awaitTx(txSig);
+	it('settlePnl rejects when isolated already 0 (no position found)', async () => {
+		try {
+			await driftClient.settlePNL(
+				userAccountPublicKey,
+				driftClient.getUserAccount(),
+				0
+			);
+			assert(false, 'should have thrown');
+		} catch (e) {
+			assert(
+				e.message.includes('0x177a'),
+				`expected UserHasNoPositionInMarket (0x177a), got: ${e.message}`
+			);
+		}
 
 		await driftClient.fetchAccounts();
-
-		assert(
-			eventSubscriber.getEventsArray('SettlePnlRecord').length ===
-				settlePnlRecordCountBefore,
-			'no new SettlePnlRecord when isolated already 0'
-		);
 
 		assert(
 			driftClient.getIsolatedPerpPositionTokenAmount(0).eq(ZERO),
