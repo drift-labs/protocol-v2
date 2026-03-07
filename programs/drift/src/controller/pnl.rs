@@ -8,8 +8,10 @@ use crate::controller::position::{
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
 };
+use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
+use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
@@ -276,6 +278,38 @@ pub fn settle_pnl(
     }
 
     if user_unsettled_pnl == 0 {
+        let can_transfer_isolated_position_deposit =
+            user.perp_positions[position_index].can_transfer_isolated_position_deposit();
+        let isolated_token_amount =
+            user.perp_positions[position_index].get_isolated_token_amount(&spot_market)?;
+        if can_transfer_isolated_position_deposit {
+            // Clear isolated balance by transferring to user's quote spot position
+            if isolated_token_amount > 0 {
+                let spot_position_index =
+                    user.force_get_spot_position_index(QUOTE_SPOT_MARKET_INDEX)?;
+                update_spot_balances_and_cumulative_deposits(
+                    isolated_token_amount,
+                    &SpotBalanceType::Deposit,
+                    &mut spot_market,
+                    &mut user.spot_positions[spot_position_index],
+                    false,
+                    None,
+                )?;
+                update_spot_balances(
+                    isolated_token_amount,
+                    &SpotBalanceType::Borrow,
+                    &mut spot_market,
+                    &mut user.perp_positions[position_index],
+                    false,
+                )?;
+            }
+            user.update_last_active_slot(clock.slot);
+            crate::validation::position::validate_perp_position_with_perp_market(
+                &user.perp_positions[position_index],
+                &*perp_market,
+            )?;
+            return Ok(());
+        }
         let msg = format!("User has no unsettled pnl for market {}", market_index);
         return mode.result(ErrorCode::NoUnsettledPnl, market_index, &msg);
     } else if pnl_to_settle_with_user == 0 {
