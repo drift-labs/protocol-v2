@@ -2740,7 +2740,7 @@ pub fn settle_pnl_no_unsettled_pnl_isolated_zero_balance_returns_no_unsettled_pn
             market_index: 0,
             quote_asset_amount: 0,
             base_asset_amount: 0,
-            open_orders: 1,
+            open_orders: 1, // need this to have the position treated as not available, thus reaching relevant parts of setle_pnl code
             isolated_position_scaled_balance: 0,
             position_flag: PositionFlag::IsolatedPosition as u8,
             ..PerpPosition::default()
