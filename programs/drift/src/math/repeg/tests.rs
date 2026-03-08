@@ -403,3 +403,39 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
     assert_eq!(new_peg, 34657283);
     assert_eq!(_amm_update_cost, 304289);
 }
+
+#[test]
+pub fn adjust_amm_with_market_config_flag() {
+    // using ETH mainnet values
+    let scale = 10; // simulate increased liquidity since prod K already low
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 18359376255 * scale,
+            quote_asset_reserve: 18359125451 * scale,
+            sqrt_k: 18359250853 * scale,
+            peg_multiplier: 1937994228,
+            concentration_coef: 1002071,
+            min_base_asset_reserve: 18302471835 * scale,
+            max_base_asset_reserve: 18378359174 * scale,
+            terminal_quote_asset_reserve: 18378144875 * scale,
+            base_asset_amount_with_amm: -19000000,
+            total_fee_minus_distributions: -564605411722,
+            curve_update_intensity: 101,
+            min_order_size: 1000000,
+            ..AMM::default()
+        },
+        ..PerpMarket::default()
+    };
+
+    let optimal_peg = 1000000000_u128; // lower than current so delta_peg is high
+    let budget = 0_u128; // use_optimal_peg = False
+
+    // disabled flag should shrink
+    let (adjusted_market, _cost) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
+    assert!(adjusted_market.amm.sqrt_k < market.amm.sqrt_k);
+
+    // enabled flag should skip
+    market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+    let (adjusted_market, _cost) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
+    assert_eq!(adjusted_market.amm.sqrt_k, market.amm.sqrt_k);
+}
