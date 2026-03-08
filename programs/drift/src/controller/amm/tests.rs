@@ -218,13 +218,13 @@ fn formulaic_k_skip_with_market_config_flag() {
     // positive means amm supossedly paid $500 in funding payments for interval
     let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
 
-    // Set bit flag to skip formulaic update
+    // set bit flag to skip formulaic update
     market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
 
     formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
-    assert!(prev_sqrt_k == market.amm.sqrt_k);
+    assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
 
-    // Disable bit flag
+    // disable bit flag
     market.market_config = 0u8;
 
     formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
