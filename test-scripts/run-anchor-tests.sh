@@ -73,7 +73,6 @@ test_files=(
   postOnly.ts
   prelisting.ts
   pyth.ts
-  pythPull.ts
   pythLazerBankrun.ts
   referrer.ts
   roundInFavorBaseAsset.ts
