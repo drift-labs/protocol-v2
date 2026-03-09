@@ -413,8 +413,6 @@ pub fn adjust_amm_with_market_config_flag() {
     let key = Pubkey::default();
     let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
     let mut lamports = 0;
-    let optimal_peg = 1000000000_u128; // lower than current so delta_peg is large
-    let budget = 0_u128; // ensures use_optimal_peg = false, hitting k shrink branch
 
     // SOL (as of slot 405286944)
     let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hmz8RBQAAAAAAAAAAAAAAAAEAAAAAAAAA+qkRBQAAAABdsRIFAAAAAPXwrmkAAAAAp70SNM7//////////////2sMl0Xy//////////////+UyH9qzikiAAAAAAAAAAAAAAAAAAAAAADHNPWsFz2SAAAAAAAAAAAAhzHLjKM4kgAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAACLPpzseKCRAAAAAAAAAAAA97ORgfHVkgAAAAAAAAAAAIoIiZjdOpIAAAAAAAAAAAAdZxEFAAAAAAAAAAAAAAAAuEAQ2Nc6kgAAAAAAAAAAAICJC3h9gAEAAAAAAAAAAAAATAE0Tn3+////////////gNUMrMv9/////////////wAAAAAAAAAAAAAAAAAAAAAAAI1J/RoHAAAAAAAAAAAAfbeUXMsCAAAAAAAAAAAAALM6d4UT1f////////////9TaN/Uhi4AAAAAAAAAAAAAwJZAVILV/////////////1fY3ejmLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF+7w//////8X7vD//////xfu8P//////iZXt//////8BkLGF4hkAAAAAAAAAAAAA/9rK5xkKAAAAAAAAAAAAAIyTM6vsDwAAAAAAAAAAAAALZ/MIBA0AAAAAAAAAAAAAtl1xa5QHAAAAAAAAAAAAAAbyD4kRBQAAAAAAAAAAAADIlVF0CgAAAAAAAAAAAAAATToHaAoAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAADp2do2nzOSAAAAAAAAAAAAn64XVhxCkgAAAAAAAAAAAF/j6uMubJIAAAAAAAAAAAAow4/pnAmSAAAAAAAAAAAAmz8RBQAAAAAAAAAAAAAAAGcrEAUAAAAATN0RBQAAAABZBBEFAAAAADzvEQUAAAAAAjAoGAAAAAC+AAAAAAAAAJAyDfn/////iO6uaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACAwKBgAAAAA8fLbFL0TAADvZhhOZwAAAFsXAa20AAAA6vCuaQAAAACvZAEAAAAAANR/AQAAAAAA9fCuaQAAAADIAAAAIE4AAIoDAABACAAAILEQBQAAAACoYTIAaGQMAcDIUt4DFGT/IBbypJlMBgCAL3r//////9zgRcTl////cP7//+wAAAAscxEFAAAAAHcZvwS/fRUAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAdlCOnysAAAAy5K5pAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAANY49gAAAAAAKnIAAAAAAAC4EwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAcQ0AAKIJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAALcbg8FAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
@@ -431,6 +429,26 @@ pub fn adjust_amm_with_market_config_flag() {
             .unwrap()
             .load_mut()
             .unwrap();
+
+        // if peg within range
+        let normal_peg = market.amm.peg_multiplier + 1000;
+        let normal_budget = 1000 * QUOTE_PRECISION as u128;
+
+        // no change when flag disabled
+        let (adjusted, _) = adjust_amm(&market, normal_peg, normal_budget, true).unwrap();
+        assert_eq!(adjusted.amm.sqrt_k, market.amm.sqrt_k);
+
+        // no change when flag enabled
+        market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+        let (adjusted, _) = adjust_amm(&market, normal_peg, normal_budget, true).unwrap();
+        assert_eq!(adjusted.amm.sqrt_k, market.amm.sqrt_k);
+
+        // reset
+        market.market_config = 0;
+
+        // large oracle price drop
+        let optimal_peg = 1000000000_u128; // delta_peg is large
+        let budget = 0_u128; // ensures use_optimal_peg = false
 
         // disabled flag should shrink
         let (adjusted, _) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
