@@ -447,7 +447,7 @@ pub fn adjust_amm_with_market_config_flag() {
         market.market_config = 0;
 
         // large oracle price drop
-        let optimal_peg = 1000000000_u128; // delta_peg is large
+        let optimal_peg = market.amm.peg_multiplier / 2; // 50% drop, ensures large negative delta_peg
         let budget = 0_u128; // ensures use_optimal_peg = false
 
         // disabled flag should shrink
