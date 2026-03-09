@@ -6,6 +6,10 @@ use crate::math::constants::{
 use crate::math::repeg::*;
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::state::{PriceDivergenceGuardRails, State, ValidityGuardRails};
+use crate::test_utils::create_account_info;
+use anchor_lang::prelude::AccountLoader;
+use solana_program::pubkey::Pubkey;
+use std::str::FromStr;
 
 #[test]
 fn calc_peg_tests() {
@@ -406,36 +410,35 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
 
 #[test]
 pub fn adjust_amm_with_market_config_flag() {
-    // using ETH mainnet values
-    let scale = 10; // simulate increased liquidity since prod K already low
-    let mut market = PerpMarket {
-        amm: AMM {
-            base_asset_reserve: 18359376255 * scale,
-            quote_asset_reserve: 18359125451 * scale,
-            sqrt_k: 18359250853 * scale,
-            peg_multiplier: 1937994228,
-            concentration_coef: 1002071,
-            min_base_asset_reserve: 18302471835 * scale,
-            max_base_asset_reserve: 18378359174 * scale,
-            terminal_quote_asset_reserve: 18378144875 * scale,
-            base_asset_amount_with_amm: -19000000,
-            total_fee_minus_distributions: -564605411722,
-            curve_update_intensity: 101,
-            min_order_size: 1000000,
-            ..AMM::default()
-        },
-        ..PerpMarket::default()
-    };
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let optimal_peg = 1000000000_u128; // lower than current so delta_peg is large
+    let budget = 0_u128; // ensures use_optimal_peg = false, hitting k shrink branch
 
-    let optimal_peg = 1000000000_u128; // lower than current so delta_peg is high
-    let budget = 0_u128; // use_optimal_peg = False
+    // SOL (as of slot 405286944)
+    let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hmz8RBQAAAAAAAAAAAAAAAAEAAAAAAAAA+qkRBQAAAABdsRIFAAAAAPXwrmkAAAAAp70SNM7//////////////2sMl0Xy//////////////+UyH9qzikiAAAAAAAAAAAAAAAAAAAAAADHNPWsFz2SAAAAAAAAAAAAhzHLjKM4kgAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAACLPpzseKCRAAAAAAAAAAAA97ORgfHVkgAAAAAAAAAAAIoIiZjdOpIAAAAAAAAAAAAdZxEFAAAAAAAAAAAAAAAAuEAQ2Nc6kgAAAAAAAAAAAICJC3h9gAEAAAAAAAAAAAAATAE0Tn3+////////////gNUMrMv9/////////////wAAAAAAAAAAAAAAAAAAAAAAAI1J/RoHAAAAAAAAAAAAfbeUXMsCAAAAAAAAAAAAALM6d4UT1f////////////9TaN/Uhi4AAAAAAAAAAAAAwJZAVILV/////////////1fY3ejmLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF+7w//////8X7vD//////xfu8P//////iZXt//////8BkLGF4hkAAAAAAAAAAAAA/9rK5xkKAAAAAAAAAAAAAIyTM6vsDwAAAAAAAAAAAAALZ/MIBA0AAAAAAAAAAAAAtl1xa5QHAAAAAAAAAAAAAAbyD4kRBQAAAAAAAAAAAADIlVF0CgAAAAAAAAAAAAAATToHaAoAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAADp2do2nzOSAAAAAAAAAAAAn64XVhxCkgAAAAAAAAAAAF/j6uMubJIAAAAAAAAAAAAow4/pnAmSAAAAAAAAAAAAmz8RBQAAAAAAAAAAAAAAAGcrEAUAAAAATN0RBQAAAABZBBEFAAAAADzvEQUAAAAAAjAoGAAAAAC+AAAAAAAAAJAyDfn/////iO6uaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACAwKBgAAAAA8fLbFL0TAADvZhhOZwAAAFsXAa20AAAA6vCuaQAAAACvZAEAAAAAANR/AQAAAAAA9fCuaQAAAADIAAAAIE4AAIoDAABACAAAILEQBQAAAACoYTIAaGQMAcDIUt4DFGT/IBbypJlMBgCAL3r//////9zgRcTl////cP7//+wAAAAscxEFAAAAAHcZvwS/fRUAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAdlCOnysAAAAy5K5pAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAANY49gAAAAAAKnIAAAAAAAC4EwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAcQ0AAKIJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAALcbg8FAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
 
-    // disabled flag should shrink
-    let (adjusted_market, _cost) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
-    assert!(adjusted_market.amm.sqrt_k < market.amm.sqrt_k);
+    // ETH (as of slot 405287065)
+    let eth_perp_market_str = String::from("Ct8MLGv1N/cP8V8Fb1epGNxhYovgt6QslGhUT6HV1zTpfCkrkbwLkndwx9kOHTTRdsq6+h4yZlyZWL2p6k8cVCwzZ4FGbCUqC9queAAAAAAAAAAAAAAAAAEAAAAAAAAA69KGeAAAAADnxs14AAAAADDxrmkAAAAAK2l1AgAAAAAAAAAAAAAAAA9wrAoAAAAAAAAAAAAAAAB1c9e2AjADAAAAAAAAAAAAAAAAAAAAAAC6LBzhfxUAAAAAAAAAAAAAc+TW3n8VAAAAAAAAAAAAAFdKDwAAAAAAAAAAAAAAAAAlZfx/dBUAAAAAAAAAAAAACf3/RYsVAAAAAAAAAAAAAI+I+d9/FQAAAAAAAAAAAAAzYMt4AAAAAAAAAAAAAAAAJM/4338VAAAAAAAAAAAAAAApz9B+AwAAAAAAAAAAAABA7A4ugfz/////////////QBXe/v///////////////wAAAAAAAAAAAAAAAAAAAAAAID2IeS0AAAAAAAAAAAAA8dNzMyoBAAAAAAAAAAAAAB8eSrpw9/////////////+oR/DymgkAAAAAAAAAAAAAIKXbq2n3/////////////y0GotS3CQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA86GD///////zoYP///////Ohg///////3Gp4//////95VwGwvAMAAAAAAAAAAAAAd+LVwbQBAAAAAAAAAAAAANZLJzENAgAAAAAAAAAAAAAHsDasfP//////////////89kg4EsBAAAAAAAAAAAAAJPpFitAAQAAAAAAAAAAAADZE9QXEwEAAAAAAAAAAAAACMDfthIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACp3ewFfRUAAAAAAAAAAAAARxZnuoIVAAAAAAAAAAAAANkITkGgFQAAAAAAAAAAAABQfSCvXxUAAAAAAAAAAAAAKUqweAAAAACNAwAAAAAAAM5MWngAAAAA1k2feAAAAABSzXx4AAAAAAs3v3gAAAAAmTAoGAAAAAAABQAAAAAAAK83AwAAAAAAiO6uaQAAAAAQDgAAAAAAAEBCDwAAAAAAECcAAAAAAABAQg8AAAAAAJkwKBgAAAAALaRyN+oCAABDkJ5NDAAAAEpq/00GAAAAC/GuaQAAAACw8iQAAAAAAJGvKQAAAAAAMPGuaQAAAACvAAAAECcAAA8EAACOLQAA/DWveAAAAAAgTjIAZQAMAcCmjPgAFBv/gPvMp5lMBgBAfkf3AQAAAHq8ojMAAAAAAAAAAAAFAAAUhXh4AAAAANmaVjsbBwMAAAAAAAAAAAAAAAAAAAAAAEVUSC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAA4fUFAAAAAP8PpdToAAAAup58GBIAAACkdwppAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAAtVXAAAAAAAym4AAAAAAABuEAAAAAAAAPoAAAAAAAAAiBMAAEwdAAD0AQAAyAAAAAAAAAAQJwAAwgIAAKoCAAACAAEAAYAAAAAAAAAAAGMAQgAAAAAAAADQ+rF4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
 
-    // enabled flag should skip
-    market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
-    let (adjusted_market, _cost) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
-    assert_eq!(adjusted_market.amm.sqrt_k, market.amm.sqrt_k);
+    for perp_market_str in [sol_perp_market_str, eth_perp_market_str] {
+        let mut decoded = base64::decode(perp_market_str).unwrap();
+        let account_info =
+            create_account_info(&key, true, &mut lamports, decoded.as_mut_slice(), &owner);
+
+        let mut market = *AccountLoader::<PerpMarket>::try_from(&account_info)
+            .unwrap()
+            .load_mut()
+            .unwrap();
+
+        // disabled flag should shrink
+        let (adjusted, _) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
+        assert!(adjusted.amm.sqrt_k < market.amm.sqrt_k);
+
+        // enabled flag should skip
+        market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+        let (adjusted, _) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
+        assert_eq!(adjusted.amm.sqrt_k, market.amm.sqrt_k);
+    }
 }
