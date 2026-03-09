@@ -4426,14 +4426,7 @@ export class DriftClient {
 			);
 		}
 
-		const withdrawIx = await this.getWithdrawFromIsolatedPerpPositionIx(
-			amountToWithdraw,
-			perpMarketIndex,
-			associatedTokenAccount,
-			subAccountId
-		);
-		const ixs = [withdrawIx];
-
+		const ixs: TransactionInstruction[] = [];
 		const needsToSettle =
 			amount.gt(tokenAmountDeposited) && isolatedPositionUnrealizedPnl.gt(ZERO);
 		if (needsToSettle) {
@@ -4445,6 +4438,14 @@ export class DriftClient {
 			);
 			ixs.push(settleIx);
 		}
+
+		const withdrawIx = await this.getWithdrawFromIsolatedPerpPositionIx(
+			amountToWithdraw,
+			perpMarketIndex,
+			associatedTokenAccount,
+			subAccountId
+		);
+		ixs.push(withdrawIx);
 		return ixs;
 	}
 
