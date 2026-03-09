@@ -10,6 +10,7 @@ import {
 	OracleSource,
 	TestClient,
 	PRICE_PRECISION,
+	QUOTE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 	OracleGuardRails,
@@ -38,6 +39,7 @@ import { Transaction } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { UserStatsAccount } from '../sdk/src/types';
 
 describe('max leverage order params', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -211,6 +213,34 @@ describe('max leverage order params', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
+	const getLatestOrderActionRecord = () =>
+		eventSubscriber.getEventsArray('OrderActionRecord').at(-1);
+
+	const overwriteUserStatsStakeAmount = async (ifStakedGovTokenAmount: BN) => {
+		const userStatsKey = driftClient.getUserStatsAccountPublicKey();
+		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			userStatsKey
+		);
+		const userStatsDecoded =
+			driftClient.program.account.userStats.coder.accounts.decode(
+				'UserStats',
+				accountInfo.data
+			) as UserStatsAccount;
+
+		userStatsDecoded.ifStakedGovTokenAmount = ifStakedGovTokenAmount;
+
+		bankrunContextWrapper.context.setAccount(userStatsKey, {
+			executable: accountInfo.executable,
+			owner: accountInfo.owner,
+			lamports: accountInfo.lamports,
+			data: await driftClient.program.account.userStats.coder.accounts.encode(
+				'UserStats',
+				userStatsDecoded
+			),
+			rentEpoch: accountInfo.rentEpoch,
+		});
+	};
+
 	it('max perp leverage', async () => {
 		await driftClient.placePerpOrder(
 			getMarketOrderParams({
@@ -285,5 +315,55 @@ describe('max leverage order params', () => {
 			failed,
 			'enableUserHighLeverageMode should fail with InsufficientCollateral when user does not meet maintenance'
 		);
+	});
+
+	it('applies lower HLM fee for whitelisted authority when staked DRIFT is set', async () => {
+		await driftClient.initializeHlmFeeDiscountConfig([]);
+		await overwriteUserStatsStakeAmount(new BN(800_000).mul(QUOTE_PRECISION));
+
+		await driftClient.placeAndTakePerpOrder(
+			getMarketOrderParams({
+				direction: PositionDirection.LONG,
+				marketIndex: 0,
+				baseAssetAmount: BASE_PRECISION.mul(new BN(2)),
+				bitFlags: OrderParamsBitFlag.UpdateHighLeverageMode,
+			})
+		);
+
+		const nonWhitelistedFill = getLatestOrderActionRecord();
+		assert(nonWhitelistedFill?.quoteAssetAmountFilled);
+		assert(nonWhitelistedFill?.takerFee);
+		const quoteFilled = nonWhitelistedFill!.quoteAssetAmountFilled!;
+		const takerFeeWithoutWhitelist = nonWhitelistedFill!.takerFee!;
+		const expectedWithoutWhitelist = quoteFilled
+			.mul(new BN(100))
+			.div(new BN(100_000))
+			.mul(new BN(2));
+		assert(takerFeeWithoutWhitelist.eq(expectedWithoutWhitelist));
+
+		await driftClient.updateHlmFeeDiscountConfig([
+			bankrunContextWrapper.provider.wallet.publicKey,
+		]);
+
+		await driftClient.placeAndTakePerpOrder(
+			getMarketOrderParams({
+				direction: PositionDirection.LONG,
+				marketIndex: 0,
+				baseAssetAmount: BASE_PRECISION.mul(new BN(2)),
+			})
+		);
+
+		const whitelistedFill = getLatestOrderActionRecord();
+		assert(whitelistedFill?.quoteAssetAmountFilled);
+		assert(whitelistedFill?.takerFee);
+		const quoteFilledWhitelisted = whitelistedFill!.quoteAssetAmountFilled!;
+		const takerFeeWithWhitelist = whitelistedFill!.takerFee!;
+		const expectedWithWhitelist = quoteFilledWhitelisted
+			.mul(new BN(60))
+			.div(new BN(100_000))
+			.mul(new BN(2));
+
+		assert(takerFeeWithWhitelist.eq(expectedWithWhitelist));
+		assert(takerFeeWithWhitelist.lt(takerFeeWithoutWhitelist));
 	});
 });

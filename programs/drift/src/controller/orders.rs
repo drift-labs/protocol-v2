@@ -5,6 +5,7 @@ use std::u64;
 
 use crate::msg;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::hlm_fee_discount_config::HlmFeeDiscountConfig;
 use crate::state::revenue_share::{
     RevenueShareEscrowZeroCopyMut, RevenueShareOrder, RevenueShareOrderBitFlag,
 };
@@ -28,6 +29,7 @@ use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
+use crate::load;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
@@ -1004,6 +1006,7 @@ pub fn fill_perp_order(
     fill_mode: FillMode,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
     builder_referral_feature_enabled: bool,
+    hlm_fee_discount_config: &Option<AccountLoader<HlmFeeDiscountConfig>>,
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1012,6 +1015,8 @@ pub fn fill_perp_order(
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
     let user_stats = &mut load_mut!(user_stats)?;
+    let user_hlm_fee_discount_whitelisted =
+        is_hlm_fee_discount_whitelisted(hlm_fee_discount_config, &user_stats.authority)?;
 
     let order_index = user
         .orders
@@ -1282,7 +1287,7 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
-    let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
+    let (base_asset_amount, quote_asset_amount) = fulfill_perp_order_with_hlm_discount(
         user,
         order_index,
         &user_key,
@@ -1307,6 +1312,7 @@ pub fn fill_perp_order(
         oracle_stale_for_margin,
         rev_share_escrow,
         builder_referral_feature_enabled,
+        user_hlm_fee_discount_whitelisted,
     )?;
 
     if base_asset_amount != 0 {
@@ -1791,6 +1797,62 @@ fn fulfill_perp_order(
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
     builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64)> {
+    fulfill_perp_order_with_hlm_discount(
+        user,
+        user_order_index,
+        user_key,
+        user_stats,
+        makers_and_referrer,
+        makers_and_referrer_stats,
+        maker_orders_info,
+        filler,
+        filler_key,
+        filler_stats,
+        referrer_info,
+        spot_market_map,
+        perp_market_map,
+        oracle_map,
+        fee_structure,
+        reserve_price_before,
+        valid_oracle_price,
+        now,
+        slot,
+        amm_is_available,
+        fill_mode,
+        oracle_stale_for_margin,
+        rev_share_escrow,
+        builder_referral_feature_enabled,
+        false,
+    )
+}
+
+fn fulfill_perp_order_with_hlm_discount(
+    user: &mut User,
+    user_order_index: usize,
+    user_key: &Pubkey,
+    user_stats: &mut UserStats,
+    makers_and_referrer: &UserMap,
+    makers_and_referrer_stats: &UserStatsMap,
+    maker_orders_info: &[(Pubkey, usize, u64)],
+    filler: &mut Option<&mut User>,
+    filler_key: &Pubkey,
+    filler_stats: &mut Option<&mut UserStats>,
+    referrer_info: Option<(Pubkey, Pubkey)>,
+    spot_market_map: &SpotMarketMap,
+    perp_market_map: &PerpMarketMap,
+    oracle_map: &mut OracleMap,
+    fee_structure: &FeeStructure,
+    reserve_price_before: u64,
+    valid_oracle_price: Option<i64>,
+    now: i64,
+    slot: u64,
+    amm_is_available: bool,
+    fill_mode: FillMode,
+    oracle_stale_for_margin: bool,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
+    user_hlm_fee_discount_whitelisted: bool,
+) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
     let user_order_position_decreasing =
@@ -1885,6 +1947,7 @@ fn fulfill_perp_order(
                         fill_mode.is_liquidation(),
                         rev_share_escrow,
                         builder_referral_feature_enabled,
+                        user_hlm_fee_discount_whitelisted,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1931,6 +1994,7 @@ fn fulfill_perp_order(
                         fill_mode.is_liquidation(),
                         rev_share_escrow,
                         builder_referral_feature_enabled,
+                        user_hlm_fee_discount_whitelisted,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2182,6 +2246,16 @@ fn determine_if_user_order_is_position_decreasing(
     )
 }
 
+fn is_hlm_fee_discount_whitelisted(
+    hlm_fee_discount_config: &Option<AccountLoader<HlmFeeDiscountConfig>>,
+    authority: &Pubkey,
+) -> DriftResult<bool> {
+    match hlm_fee_discount_config {
+        Some(config) => Ok(load!(config)?.is_whitelisted(authority)),
+        None => Ok(false),
+    }
+}
+
 pub fn fulfill_perp_order_with_amm(
     user: &mut User,
     user_stats: &mut UserStats,
@@ -2206,6 +2280,7 @@ pub fn fulfill_perp_order_with_amm(
     is_liquidation: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
     builder_referral_feature_enabled: bool,
+    hlm_fee_discount_whitelisted: bool,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2221,6 +2296,7 @@ pub fn fulfill_perp_order_with_amm(
                 fee_structure,
                 &MarketType::Perp,
                 user.is_high_leverage_mode(MarginRequirementType::Initial),
+                hlm_fee_discount_whitelisted,
             )?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
@@ -2355,6 +2431,7 @@ pub fn fulfill_perp_order_with_amm(
         order_post_only,
         market.fee_adjustment,
         user.is_high_leverage_mode(MarginRequirementType::Initial),
+        hlm_fee_discount_whitelisted,
         builder_order_fee_bps,
     )?;
 
@@ -2623,6 +2700,7 @@ pub fn fulfill_perp_order_with_match(
     is_liquidation: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
     builder_referral_feature_enabled: bool,
+    hlm_fee_discount_whitelisted: bool,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2741,6 +2819,7 @@ pub fn fulfill_perp_order_with_match(
                 is_liquidation,
                 rev_share_escrow,
                 builder_referral_feature_enabled,
+                hlm_fee_discount_whitelisted,
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;
@@ -2878,6 +2957,7 @@ pub fn fulfill_perp_order_with_match(
         &MarketType::Perp,
         market.fee_adjustment,
         taker.is_high_leverage_mode(MarginRequirementType::Initial),
+        hlm_fee_discount_whitelisted,
         builder_order_fee_bps,
     )?;
     let builder_fee = builder_fee_option.unwrap_or(0);
@@ -5029,6 +5109,7 @@ pub fn fulfill_spot_order_with_match(
         &None,
         &MarketType::Spot,
         base_market.fee_adjustment,
+        false,
         false,
         None,
     )?;

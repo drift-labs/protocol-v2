@@ -316,6 +316,7 @@ pub mod fill_order_protected_maker {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         )
         .unwrap();
 
@@ -427,6 +428,7 @@ pub mod fill_order_protected_maker {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         )
         .unwrap();
 
@@ -541,6 +543,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -667,6 +670,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -791,6 +795,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -917,6 +922,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -1041,6 +1047,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -1131,6 +1138,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -1224,6 +1232,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -1316,6 +1325,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -1407,6 +1417,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -1519,6 +1530,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -1636,6 +1648,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -1759,6 +1772,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -1881,6 +1895,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -2029,6 +2044,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -2150,6 +2166,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -2284,6 +2301,7 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -2438,6 +2456,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -2588,6 +2607,7 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -2741,6 +2761,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -2874,6 +2895,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             &mut None,
             false,
+            false,
         )
         .unwrap();
 
@@ -3005,6 +3027,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
+            false,
             false,
         )
         .unwrap();
@@ -5205,6 +5228,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         )
         .unwrap();
 
@@ -5232,6 +5256,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         )
         .unwrap();
 
@@ -6308,6 +6333,7 @@ pub mod fill_order {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         )
         .unwrap();
 
@@ -6512,6 +6538,7 @@ pub mod fill_order {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         )
         .unwrap();
 
@@ -6643,6 +6670,7 @@ pub mod fill_order {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         )
         .unwrap();
 
@@ -6807,6 +6835,7 @@ pub mod fill_order {
             FillMode::Fill,
             &mut None,
             false,
+            &None,
         );
 
         assert_eq!(err, Err(ErrorCode::MaxOpenInterest));

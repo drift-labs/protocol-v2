@@ -1092,6 +1092,7 @@ pub fn liquidate_perp_with_fill(
         FillMode::Liquidation,
         &mut None,
         false,
+        &None,
     )?;
 
     let mut user = load_mut!(user_loader)?;

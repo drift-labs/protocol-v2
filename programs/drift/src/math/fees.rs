@@ -46,6 +46,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     is_post_only: bool,
     fee_adjustment: i16,
     user_high_leverage_mode: bool,
+    hlm_fee_discount_whitelisted: bool,
     builder_fee_bps: Option<u16>,
 ) -> DriftResult<FillFees> {
     let fee_tier = determine_user_fee_tier(
@@ -53,6 +54,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         fee_structure,
         &MarketType::Perp,
         user_high_leverage_mode,
+        hlm_fee_discount_whitelisted,
     )?;
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
@@ -300,6 +302,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     market_type: &MarketType,
     fee_adjustment: i16,
     user_high_leverage_mode: bool,
+    hlm_fee_discount_whitelisted: bool,
     builder_fee_bps: Option<u16>,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(
@@ -307,11 +310,12 @@ pub fn calculate_fee_for_fulfillment_with_match(
         fee_structure,
         market_type,
         user_high_leverage_mode,
+        hlm_fee_discount_whitelisted,
     )?;
     let maker_fee_tier = if let Some(maker_stats) = maker_stats {
-        determine_user_fee_tier(maker_stats, fee_structure, market_type, false)?
+        determine_user_fee_tier(maker_stats, fee_structure, market_type, false, false)?
     } else {
-        determine_user_fee_tier(taker_stats, fee_structure, market_type, false)?
+        determine_user_fee_tier(taker_stats, fee_structure, market_type, false, false)?
     };
 
     let mut taker_fee = calculate_taker_fee(quote_asset_amount, &taker_fee_tier, fee_adjustment)?;
@@ -394,7 +398,7 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     fee_adjustment: i16,
 ) -> DriftResult<ExternalFillFees> {
     let taker_fee_tier =
-        determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot, false)?;
+        determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot, false, false)?;
 
     let fee = calculate_taker_fee(quote_asset_amount, &taker_fee_tier, fee_adjustment)?;
 
@@ -446,12 +450,27 @@ pub fn determine_user_fee_tier<'a>(
     fee_structure: &'a FeeStructure,
     market_type: &MarketType,
     user_high_leverage_mode: bool,
+    hlm_fee_discount_whitelisted: bool,
 ) -> DriftResult<FeeTier> {
     match market_type {
-        MarketType::Perp if user_high_leverage_mode => Ok(fee_structure.fee_tiers[0]),
+        MarketType::Perp if user_high_leverage_mode => {
+            if hlm_fee_discount_whitelisted {
+                determine_hlm_discounted_fee_tier(user_stats, fee_structure)
+            } else {
+                Ok(fee_structure.fee_tiers[0])
+            }
+        }
         MarketType::Perp => determine_perp_fee_tier(user_stats, fee_structure),
         MarketType::Spot => Ok(*determine_spot_fee_tier(user_stats, fee_structure)?),
     }
+}
+
+fn determine_hlm_discounted_fee_tier(
+    user_stats: &UserStats,
+    fee_structure: &FeeStructure,
+) -> DriftResult<FeeTier> {
+    let stake_benefit = determine_stake_benefit(user_stats.if_staked_gov_token_amount);
+    apply_stake_benefit_to_tier(fee_structure.fee_tiers[0], stake_benefit)
 }
 
 fn determine_perp_fee_tier(
@@ -459,7 +478,6 @@ fn determine_perp_fee_tier(
     fee_structure: &FeeStructure,
 ) -> DriftResult<FeeTier> {
     let total_30d_volume = user_stats.get_total_30d_volume()?;
-    let staked_gov_token_amount = user_stats.if_staked_gov_token_amount;
 
     const TIER_LENGTH: usize = 5;
 
@@ -471,16 +489,6 @@ fn determine_perp_fee_tier(
         ONE_HUNDRED_MILLION_QUOTE * 2,
     ];
 
-    const STAKE_THRESHOLDS: [u64; TIER_LENGTH] = [
-        ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
-        TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
-        (TWENTY_FIVE_THOUSAND_QUOTE * 2) - QUOTE_PRECISION_U64,
-        ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
-        TWO_HUNDRED_FIFTY_THOUSAND_QUOTE - QUOTE_PRECISION_U64 * 5,
-    ];
-
-    const STAKE_BENEFIT_FRAC: [u32; TIER_LENGTH + 1] = [0, 5, 10, 20, 30, 40];
-
     let mut fee_tier_index = TIER_LENGTH;
     for i in 0..TIER_LENGTH {
         if total_30d_volume < VOLUME_THRESHOLDS[i] {
@@ -488,6 +496,21 @@ fn determine_perp_fee_tier(
             break;
         }
     }
+
+    let stake_benefit = determine_stake_benefit(user_stats.if_staked_gov_token_amount);
+    apply_stake_benefit_to_tier(fee_structure.fee_tiers[fee_tier_index], stake_benefit)
+}
+
+fn determine_stake_benefit(staked_gov_token_amount: u64) -> u32 {
+    const TIER_LENGTH: usize = 5;
+    const STAKE_THRESHOLDS: [u64; TIER_LENGTH] = [
+        ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        (TWENTY_FIVE_THOUSAND_QUOTE * 2) - QUOTE_PRECISION_U64,
+        ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        TWO_HUNDRED_FIFTY_THOUSAND_QUOTE - QUOTE_PRECISION_U64 * 5,
+    ];
+    const STAKE_BENEFIT_FRAC: [u32; TIER_LENGTH + 1] = [0, 5, 10, 20, 30, 40];
 
     let mut stake_benefit_index = TIER_LENGTH;
     for i in 0..TIER_LENGTH {
@@ -497,10 +520,10 @@ fn determine_perp_fee_tier(
         }
     }
 
-    let stake_benefit = STAKE_BENEFIT_FRAC[stake_benefit_index];
+    STAKE_BENEFIT_FRAC[stake_benefit_index]
+}
 
-    let mut tier = fee_structure.fee_tiers[fee_tier_index];
-
+fn apply_stake_benefit_to_tier(mut tier: FeeTier, stake_benefit: u32) -> DriftResult<FeeTier> {
     if stake_benefit > 0 {
         if let Some(div_scalar) = match stake_benefit {
             5 => Some(20),

@@ -384,6 +384,15 @@ export function getProtectedMakerModeConfigPublicKey(
 	)[0];
 }
 
+export function getHlmFeeDiscountConfigPublicKey(
+	programId: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('hlm_fee_discount_config'))],
+		programId
+	)[0];
+}
+
 export function getIfRebalanceConfigPublicKey(
 	programId: PublicKey,
 	inMarketIndex: number,

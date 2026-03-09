@@ -3644,15 +3644,15 @@ export class User {
 		return newLeverage;
 	}
 
-	public getUserFeeTier(marketType: MarketType, now?: BN) {
+	public getUserFeeTier(
+		marketType: MarketType,
+		now?: BN,
+		hlmFeeDiscountWhitelisted = false
+	) {
 		const state = this.driftClient.getStateAccount();
 
 		const feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
-			if (this.isHighLeverageMode('Initial')) {
-				return state.perpFeeStructure.feeTiers[0];
-			}
-
 			const userStatsAccount: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();
@@ -3697,16 +3697,27 @@ export class User {
 
 			const stakeBenefit = stakeBenefitFrac[stakeBenefitIndex];
 
-			const tier = { ...state.perpFeeStructure.feeTiers[feeTierIndex] };
+			const applyStakeBenefit = (baseTierIndex: number) => {
+				const tier = { ...state.perpFeeStructure.feeTiers[baseTierIndex] };
 
-			if (stakeBenefit > 0) {
-				tier.feeNumerator = (tier.feeNumerator * (100 - stakeBenefit)) / 100;
+				if (stakeBenefit > 0) {
+					tier.feeNumerator = (tier.feeNumerator * (100 - stakeBenefit)) / 100;
 
-				tier.makerRebateNumerator =
-					(tier.makerRebateNumerator * (100 + stakeBenefit)) / 100;
+					tier.makerRebateNumerator =
+						(tier.makerRebateNumerator * (100 + stakeBenefit)) / 100;
+				}
+
+				return tier;
+			};
+
+			if (this.isHighLeverageMode('Initial')) {
+				if (hlmFeeDiscountWhitelisted) {
+					return applyStakeBenefit(0);
+				}
+				return state.perpFeeStructure.feeTiers[0];
 			}
 
-			return tier;
+			return applyStakeBenefit(feeTierIndex);
 		}
 
 		return state.spotFeeStructure.feeTiers[feeTierIndex];

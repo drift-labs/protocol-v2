@@ -1879,6 +1879,20 @@ pub mod drift {
         handle_update_high_leverage_mode_config(ctx, max_users, reduce_only, current_users)
     }
 
+    pub fn initialize_hlm_fee_discount_config(
+        ctx: Context<InitializeHlmFeeDiscountConfig>,
+        whitelisted_authorities: [Pubkey; 8],
+    ) -> Result<()> {
+        handle_initialize_hlm_fee_discount_config(ctx, whitelisted_authorities)
+    }
+
+    pub fn update_hlm_fee_discount_config(
+        ctx: Context<UpdateHlmFeeDiscountConfig>,
+        whitelisted_authorities: [Pubkey; 8],
+    ) -> Result<()> {
+        handle_update_hlm_fee_discount_config(ctx, whitelisted_authorities)
+    }
+
     pub fn initialize_protected_maker_mode_config(
         ctx: Context<InitializeProtectedMakerModeConfig>,
         max_users: u32,

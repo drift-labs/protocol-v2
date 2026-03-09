@@ -102,8 +102,8 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::MarginContext;
 
-use super::optional_accounts::get_high_leverage_mode_config;
 use super::optional_accounts::get_token_interface;
+use super::optional_accounts::{get_high_leverage_mode_config, get_hlm_fee_discount_config};
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -163,6 +163,7 @@ fn fill_order<'c: 'info, 'info>(
 
     let (makers_and_referrer, makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
+    let hlm_fee_discount_config = get_hlm_fee_discount_config(remaining_accounts_iter)?;
 
     let builder_codes_enabled = state.builder_codes_enabled();
     let builder_referral_enabled = state.builder_referral_enabled();
@@ -200,6 +201,7 @@ fn fill_order<'c: 'info, 'info>(
         FillMode::Fill,
         &mut escrow.as_mut(),
         builder_referral_enabled,
+        &hlm_fee_discount_config,
     )?;
 
     Ok(())

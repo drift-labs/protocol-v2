@@ -50,6 +50,9 @@ use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::hlm_fee_discount_config::{
+    HlmFeeDiscountConfig, HLM_FEE_DISCOUNT_MAX_AUTHORITIES,
+};
 use crate::state::if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
@@ -4753,6 +4756,24 @@ pub fn handle_update_high_leverage_mode_config(
     Ok(())
 }
 
+pub fn handle_initialize_hlm_fee_discount_config(
+    ctx: Context<InitializeHlmFeeDiscountConfig>,
+    whitelisted_authorities: [Pubkey; HLM_FEE_DISCOUNT_MAX_AUTHORITIES],
+) -> Result<()> {
+    let mut config = ctx.accounts.hlm_fee_discount_config.load_init()?;
+    config.update_whitelisted_authorities(whitelisted_authorities)?;
+    Ok(())
+}
+
+pub fn handle_update_hlm_fee_discount_config(
+    ctx: Context<UpdateHlmFeeDiscountConfig>,
+    whitelisted_authorities: [Pubkey; HLM_FEE_DISCOUNT_MAX_AUTHORITIES],
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.hlm_fee_discount_config)?;
+    config.update_whitelisted_authorities(whitelisted_authorities)?;
+    Ok(())
+}
+
 pub fn handle_initialize_protected_maker_mode_config(
     ctx: Context<InitializeProtectedMakerModeConfig>,
     max_users: u32,
@@ -6062,6 +6083,42 @@ pub struct UpdateHighLeverageModeConfig<'info> {
         bump,
     )]
     pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeHlmFeeDiscountConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"hlm_fee_discount_config".as_ref()],
+        space = HlmFeeDiscountConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub hlm_fee_discount_config: AccountLoader<'info, HlmFeeDiscountConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateHlmFeeDiscountConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"hlm_fee_discount_config".as_ref()],
+        bump,
+    )]
+    pub hlm_fee_discount_config: AccountLoader<'info, HlmFeeDiscountConfig>,
     #[account(
         has_one = admin
     )]

@@ -586,6 +586,8 @@ pub enum ErrorCode {
     PlaceAndTakeOrderSuccessConditionFailed,
     #[msg("Invalid High Leverage Mode Config")]
     InvalidHighLeverageModeConfig,
+    #[msg("Invalid HLM Fee Discount Config")]
+    InvalidHlmFeeDiscountConfig,
     #[msg("Invalid RFQ User Account")]
     InvalidRFQUserAccount,
     #[msg("RFQUserAccount should be mutable")]
@@ -634,6 +636,8 @@ pub enum ErrorCode {
     InvalidSignedMsgUserOrdersResize,
     #[msg("Could not deserialize high leverage mode config")]
     CouldNotDeserializeHighLeverageModeConfig,
+    #[msg("Could not deserialize hlm fee discount config")]
+    CouldNotDeserializeHlmFeeDiscountConfig,
     #[msg("Invalid If Rebalance Config")]
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]

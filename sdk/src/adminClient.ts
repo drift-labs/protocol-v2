@@ -46,6 +46,7 @@ import {
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
+	getHlmFeeDiscountConfigPublicKey,
 	getTokenProgramForSpotMarket,
 	getIfRebalanceConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
@@ -4871,6 +4872,83 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async initializeHlmFeeDiscountConfig(
+		whitelistedAuthorities: PublicKey[]
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeHlmFeeDiscountConfigIx(
+			whitelistedAuthorities
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeHlmFeeDiscountConfigIx(
+		whitelistedAuthorities: PublicKey[]
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeHlmFeeDiscountConfig(
+			this.toFixedSizeHlmWhitelist(whitelistedAuthorities),
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					hlmFeeDiscountConfig: getHlmFeeDiscountConfigPublicKey(
+						this.program.programId
+					),
+				},
+			}
+		);
+	}
+
+	public async updateHlmFeeDiscountConfig(
+		whitelistedAuthorities: PublicKey[]
+	): Promise<TransactionSignature> {
+		const ix = await this.getUpdateHlmFeeDiscountConfigIx(
+			whitelistedAuthorities
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateHlmFeeDiscountConfigIx(
+		whitelistedAuthorities: PublicKey[]
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateHlmFeeDiscountConfig(
+			this.toFixedSizeHlmWhitelist(whitelistedAuthorities),
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					hlmFeeDiscountConfig: getHlmFeeDiscountConfigPublicKey(
+						this.program.programId
+					),
+				},
+			}
+		);
+	}
+
+	private toFixedSizeHlmWhitelist(
+		whitelistedAuthorities: PublicKey[]
+	): PublicKey[] {
+		if (whitelistedAuthorities.length > 8) {
+			throw new Error('hlm fee discount whitelist max length is 8');
+		}
+		return [
+			...whitelistedAuthorities,
+			...Array.from(
+				{ length: 8 - whitelistedAuthorities.length },
+				() => PublicKey.default
+			),
+		];
 	}
 
 	public async initializeProtectedMakerModeConfig(

@@ -5,6 +5,7 @@ pub mod fill_mode;
 pub mod fulfillment;
 pub mod fulfillment_params;
 pub mod high_leverage_mode_config;
+pub mod hlm_fee_discount_config;
 pub mod if_rebalance_config;
 pub mod insurance_fund_stake;
 pub mod liquidation_mode;

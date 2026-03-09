@@ -99,6 +99,7 @@ import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
 	getFuelOverflowAccountPublicKey,
+	getHlmFeeDiscountConfigPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
@@ -5817,6 +5818,8 @@ export class DriftClient {
 			}
 		}
 
+		await this.maybeAddHlmFeeDiscountConfigRemainingAccount(remainingAccounts);
+
 		let withBuilder = false;
 		if (hasBuilderFee) {
 			withBuilder = true;
@@ -6090,6 +6093,24 @@ export class DriftClient {
 			});
 			remainingAccounts.push({
 				pubkey: this.getQuoteSpotMarketAccount().vault,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+	}
+
+	private async maybeAddHlmFeeDiscountConfigRemainingAccount(
+		remainingAccounts: AccountMeta[]
+	): Promise<void> {
+		const hlmFeeDiscountConfig = getHlmFeeDiscountConfigPublicKey(
+			this.program.programId
+		);
+		const accountInfo = await this.connection.getAccountInfo(
+			hlmFeeDiscountConfig
+		);
+		if (accountInfo) {
+			remainingAccounts.push({
+				pubkey: hlmFeeDiscountConfig,
 				isWritable: false,
 				isSigner: false,
 			});
@@ -7729,6 +7750,8 @@ export class DriftClient {
 			});
 		}
 
+		await this.maybeAddHlmFeeDiscountConfigRemainingAccount(remainingAccounts);
+
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -7811,6 +7834,7 @@ export class DriftClient {
 		}
 
 		const takerOrderId = takerInfo.order.orderId;
+		await this.maybeAddHlmFeeDiscountConfigRemainingAccount(remainingAccounts);
 		if (hasBuilder(takerInfo.order)) {
 			remainingAccounts.push({
 				pubkey: getRevenueShareEscrowAccountPublicKey(
@@ -8040,6 +8064,7 @@ export class DriftClient {
 				isSigner: false,
 			});
 		}
+		await this.maybeAddHlmFeeDiscountConfigRemainingAccount(remainingAccounts);
 		if (
 			signedMessage.builderFeeTenthBps !== null &&
 			signedMessage.builderIdx !== null
@@ -8194,6 +8219,7 @@ export class DriftClient {
 			borshBuf,
 			isDelegateSigner
 		);
+		await this.maybeAddHlmFeeDiscountConfigRemainingAccount(remainingAccounts);
 		if (
 			signedMessage.builderFeeTenthBps !== null &&
 			signedMessage.builderIdx !== null
@@ -11070,14 +11096,19 @@ export class DriftClient {
 		marketType: MarketType,
 		marketIndex?: number,
 		user?: User,
-		enteringHighLeverageMode?: boolean
+		enteringHighLeverageMode?: boolean,
+		hlmFeeDiscountWhitelisted = false
 	) {
 		let feeTier;
 		const userHLM =
 			(user?.isHighLeverageMode('Initial') ?? false) ||
 			enteringHighLeverageMode;
-		if (user && !userHLM) {
-			feeTier = user.getUserFeeTier(marketType);
+		if (user) {
+			feeTier = user.getUserFeeTier(
+				marketType,
+				undefined,
+				hlmFeeDiscountWhitelisted
+			);
 		} else {
 			const state = this.getStateAccount();
 			feeTier = isVariant(marketType, 'perp')

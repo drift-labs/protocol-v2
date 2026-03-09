@@ -1,5 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::hlm_fee_discount_config::HlmFeeDiscountConfig;
 use crate::state::revenue_share::{
     RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut,
 };
@@ -275,6 +276,43 @@ pub fn get_high_leverage_mode_config<'a>(
             .or(Err(ErrorCode::CouldNotDeserializeHighLeverageModeConfig))?;
 
     Ok(Some(high_leverage_mode_config))
+}
+
+pub fn get_hlm_fee_discount_config<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Option<AccountLoader<'a, HlmFeeDiscountConfig>>> {
+    let hlm_fee_discount_config_account_info = account_info_iter.peek();
+    if hlm_fee_discount_config_account_info.is_none() {
+        return Ok(None);
+    }
+
+    let hlm_fee_discount_config_account_info =
+        hlm_fee_discount_config_account_info.safe_unwrap()?;
+
+    let data = hlm_fee_discount_config_account_info
+        .try_borrow_data()
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::CouldNotDeserializeHlmFeeDiscountConfig
+        })?;
+
+    if data.len() < HlmFeeDiscountConfig::SIZE {
+        return Ok(None);
+    }
+
+    let hlm_fee_discount_config_discriminator: [u8; 8] = HlmFeeDiscountConfig::discriminator();
+    let account_discriminator = array_ref![data, 0, 8];
+    if account_discriminator != &hlm_fee_discount_config_discriminator {
+        return Ok(None);
+    }
+
+    let hlm_fee_discount_config_account_info = account_info_iter.next().safe_unwrap()?;
+
+    let hlm_fee_discount_config: AccountLoader<HlmFeeDiscountConfig> =
+        AccountLoader::try_from(hlm_fee_discount_config_account_info)
+            .or(Err(ErrorCode::CouldNotDeserializeHlmFeeDiscountConfig))?;
+
+    Ok(Some(hlm_fee_discount_config))
 }
 
 pub fn get_revenue_share_escrow_account<'a>(

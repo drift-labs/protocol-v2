@@ -30,7 +30,8 @@ use crate::ids::{
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{
-    get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
+    get_hlm_fee_discount_config, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
+    AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::load;
@@ -2767,6 +2768,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
 
     let high_leverage_mode_config = get_high_leverage_mode_config(remaining_accounts_iter)?;
+    let hlm_fee_discount_config = get_hlm_fee_discount_config(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.is_immediate_or_cancel();
 
@@ -2831,6 +2833,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         ),
         &mut escrow.as_mut(),
         builder_referral_enabled,
+        &hlm_fee_discount_config,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2934,6 +2937,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
 
     let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
+    let hlm_fee_discount_config = get_hlm_fee_discount_config(remaining_accounts_iter)?;
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
@@ -2960,6 +2964,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
         builder_referral_enabled,
+        &hlm_fee_discount_config,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -3049,6 +3054,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
 
     let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
+    let hlm_fee_discount_config = get_hlm_fee_discount_config(remaining_accounts_iter)?;
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
@@ -3082,6 +3088,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
         builder_referral_enabled,
+        &hlm_fee_discount_config,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
