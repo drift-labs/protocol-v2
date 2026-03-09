@@ -14,7 +14,6 @@ name = "midprice_pino"
 pinocchio = "0.10.2"
 pinocchio-log = "0.5"
 midprice_book_view = { path = "../../crates/midprice_book_view" }
-solana-program = { version = "2", default-features = false }
 solana-pubkey = { version = "4", default-features = false }
 # Enable curve25519 so Address::try_find_program_address is available (on Solana it uses syscall instead).
 # decode enables pubkey!("...") / Address::from_str_const for hardcoded IDs.

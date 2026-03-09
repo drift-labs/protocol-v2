@@ -212,36 +212,38 @@ function getMidpricePDA(
 
 // NOTE: midprice_pino `initialize` is CPI-only; tests must call Drift's `initialize_prop_amm_midprice`.
 
-/** Build midprice_pino update_mid_price ix (opcode 0). Payload: 16 bytes. Accounts: [midprice_account, authority, clock]. */
+/** Write a BN as unsigned 64-bit little-endian into buf at offset. */
+function writeU64LE(buf: Buffer, offset: number, value: BN): void {
+	const lo = value.and(new BN(0xffffffff)).toNumber();
+	const hi = value.shrn(32).and(new BN(0xffffffff)).toNumber();
+	buf.writeUInt32LE(lo, offset);
+	buf.writeUInt32LE(hi, offset + 4);
+}
+
+/** Build midprice_pino update_mid_price ix (opcode 0). Payload: 24 bytes (mid_price u64, 8 reserved, ref_slot u64). Accounts: [midprice_account, authority]. */
 function buildMidpriceUpdateMidPriceInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
 	authority: PublicKey,
 	midPriceU64: BN,
-	clock?: PublicKey
+	refSlot: BN = new BN(0)
 ): TransactionInstruction {
-	const data = Buffer.alloc(1 + 16);
+	const data = Buffer.alloc(1 + 24);
 	data.writeUInt8(MIDPRICE_IX_UPDATE_MID_PRICE, 0);
-	const lo = midPriceU64.and(new BN(0xffffffff)).toNumber();
-	const hi = midPriceU64.shrn(32).and(new BN(0xffffffff)).toNumber();
-	data.writeUInt32LE(lo, 1);
-	data.writeUInt32LE(hi, 5);
+	writeU64LE(data, 1, midPriceU64);
+	// bytes 9..17 are reserved (zeroed)
+	writeU64LE(data, 17, refSlot);
 	return new TransactionInstruction({
 		programId: midpriceProgramId,
 		keys: [
 			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
 			{ pubkey: authority, isSigner: true, isWritable: false },
-			{
-				pubkey: clock ?? SYSVAR_CLOCK_PUBKEY,
-				isSigner: false,
-				isWritable: false,
-			},
 		],
 		data,
 	});
 }
 
-/** Build midprice_pino set_orders ix (opcode 2). Payload: [ask_len, bid_len, ...entries]. Accounts: [midprice_account, authority, clock, drift_perp_market]. */
+/** Build midprice_pino set_orders ix (opcode 2). Payload: ref_slot (u64) + ask_len (u16) + bid_len (u16) + entries. Accounts: [midprice_account, authority]. */
 function buildMidpriceSetOrdersInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
@@ -249,14 +251,15 @@ function buildMidpriceSetOrdersInstruction(
 	askLen: number,
 	bidLen: number,
 	entries: { offset: BN; size: BN }[],
-	clock?: PublicKey
+	refSlot: BN = new BN(0)
 ): TransactionInstruction {
-	const payloadLen = 4 + entries.length * MIDPRICE_ORDER_ENTRY_SIZE;
+	const payloadLen = 12 + entries.length * MIDPRICE_ORDER_ENTRY_SIZE;
 	const data = Buffer.alloc(1 + payloadLen);
 	data.writeUInt8(MIDPRICE_IX_SET_ORDERS, 0);
-	data.writeUInt16LE(askLen, 1);
-	data.writeUInt16LE(bidLen, 3);
-	let off = 1 + 4;
+	writeU64LE(data, 1, refSlot);
+	data.writeUInt16LE(askLen, 9);
+	data.writeUInt16LE(bidLen, 11);
+	let off = 1 + 12;
 	for (const e of entries) {
 		data.writeBigInt64LE(BigInt(e.offset.toString()), off);
 		off += 8;
@@ -268,11 +271,6 @@ function buildMidpriceSetOrdersInstruction(
 		keys: [
 			{ pubkey: midpriceAccount, isSigner: false, isWritable: true },
 			{ pubkey: authority, isSigner: true, isWritable: false },
-			{
-				pubkey: clock ?? SYSVAR_CLOCK_PUBKEY,
-				isSigner: false,
-				isWritable: false,
-			},
 		],
 		data,
 	});

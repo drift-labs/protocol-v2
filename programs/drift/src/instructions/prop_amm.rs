@@ -329,7 +329,6 @@ fn refresh_exhausted_frontiers(
 pub(crate) fn build_canonical_apply_fills_accounts_and_batches<'a>(
     remaining_accounts: &[AccountInfo<'a>],
     external_fills: &[PendingExternalFill],
-    global_matcher_idx: usize,
     matcher_authority: &AccountInfo<'a>,
     clock: &AccountInfo<'a>,
 ) -> DriftResult<(
@@ -434,7 +433,6 @@ fn apply_external_fills_via_cpi<'a>(
         build_canonical_apply_fills_accounts_and_batches(
             remaining_accounts,
             external_fills,
-            global_matcher_idx,
             matcher_authority,
             clock,
         )?;
@@ -3127,7 +3125,6 @@ mod tests {
             build_canonical_apply_fills_accounts_and_batches(
                 &remaining_accounts,
                 &external_fills,
-                0,
                 &remaining_accounts[0],
                 &remaining_accounts[1],
             )

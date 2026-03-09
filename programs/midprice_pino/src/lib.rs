@@ -49,7 +49,6 @@ use pinocchio::{
     program_entrypoint, Address, ProgramResult,
 };
 use pinocchio_log::log;
-use solana_program::log::sol_log_data;
 use solana_pubkey::pubkey;
 
 const IX_UPDATE_MID_PRICE: u8 = 0;
@@ -97,7 +96,15 @@ fn emit_order_filled_event(
     buf[42..44].copy_from_slice(&entry[0..2]); // abs_index
     buf[44] = entry[2]; // is_ask
     buf[45..53].copy_from_slice(&entry[3..11]); // fill_size
-    sol_log_data(&[&buf[..]]);
+    #[cfg(target_os = "solana")]
+    {
+        extern "C" {
+            fn sol_log_data(data: *const u8, data_len: u64);
+        }
+        // SolBytes layout: { *const u8, u64 } — one pair for our single slice.
+        let fields = [buf.as_ptr() as u64, buf.len() as u64];
+        unsafe { sol_log_data(fields.as_ptr() as *const u8, 1) };
+    }
 }
 
 program_entrypoint!(process_instruction);
