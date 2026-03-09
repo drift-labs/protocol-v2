@@ -252,16 +252,7 @@ pub struct PerpMarket {
     pub lp_exchange_fee_excluscion_scalar: u8,
     pub last_fill_price: u64,
     pub lp_pool_id: u8,
-    pub padding_a: [u8; 7], // explicit alignment padding before u64 field
-    /// Notional threshold in QUOTE_PRECISION above which large-liquidation slow parameters apply.
-    /// 0 = feature disabled; standard `State.liquidation_duration` applies to all sizes.
-    /// e.g. 100_000_000_000 = $100,000 threshold for this market.
-    pub large_liq_notional_threshold: u64,
-    /// Liquidation window in slots for positions above `large_liq_notional_threshold`.
-    /// Overrides `State.liquidation_duration` for large positions in this market.
-    /// 0 = use standard global duration even when threshold is exceeded.
-    pub large_liq_duration: u16,
-    pub padding: [u8; 6],
+    pub padding: [u8; 23],
 }
 
 impl Default for PerpMarket {

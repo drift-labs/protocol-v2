@@ -384,35 +384,12 @@ pub fn liquidate_perp(
     drop(market);
     drop(quote_spot_market);
 
-    // For large positions, override the slow-liquidation parameters to enforce a wider window.
-    // Threshold and duration are per-market: a $100K position is large for an illiquid market
-    // but routine for BTC-PERP. Both values are read from the already-loaded market account.
-    let position_notional =
-        calculate_base_asset_value_with_oracle_price(user_base_asset_amount.cast()?, oracle_price)?;
-    let (large_liq_threshold, large_liq_duration) = {
-        let market = perp_market_map.get_ref(&market_index)?;
-        (
-            market.large_liq_notional_threshold,
-            market.large_liq_duration,
-        )
-    };
-    let (effective_initial_pct, effective_duration) = if large_liq_threshold > 0
-        && position_notional >= large_liq_threshold.cast()?
-        && large_liq_duration > 0
-    {
-        // Large position: start at 0% (no initial allowance) and ramp over large_liq_duration.
-        // This prevents immediate seizure regardless of how long the user was inactive.
-        (0u128, large_liq_duration as u128)
-    } else {
-        (initial_pct_to_liquidate, liquidation_duration)
-    };
-
     let max_pct_allowed = liquidation_mode.calculate_max_pct_to_liquidate(
         user,
         margin_shortage,
         slot,
-        effective_initial_pct,
-        effective_duration,
+        initial_pct_to_liquidate,
+        liquidation_duration,
     )?;
     let max_base_asset_amount_allowed_to_be_transferred =
         base_asset_amount_to_cover_margin_shortage
