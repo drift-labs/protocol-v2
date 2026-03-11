@@ -36,6 +36,8 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,     // specified in slots
     pub auction_start_price: Option<i64>, // specified in price or oracle_price_offset
     pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
+    pub builder_idx: Option<u8>,
+    pub builder_fee_tenth_bps: Option<u16>,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -942,6 +944,8 @@ pub struct ModifyOrderParams {
     pub auction_start_price: Option<i64>,
     pub auction_end_price: Option<i64>,
     pub policy: Option<u8>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee_tenth_bps: Option<u16>,
 }
 
 impl ModifyOrderParams {

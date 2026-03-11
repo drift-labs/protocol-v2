@@ -1286,6 +1286,8 @@ export type OrderParams = {
 	maxTs: BN | null;
 	auctionStartPrice: BN | null;
 	auctionEndPrice: BN | null;
+	builderIdx: number | null;
+	builderFeeTenthBps: number | null;
 };
 
 export class PostOnlyParams {
@@ -1329,6 +1331,10 @@ export type ScaleOrderParams = {
 	bitFlags: number;
 	/** Maximum timestamp for orders to be valid */
 	maxTs: BN | null;
+	/** Index of the approved builder in the escrow */
+	builderIdx: number | null;
+	/** Fee in tenth basis points for the builder */
+	builderFeeTenthBps: number | null;
 };
 
 export class OrderParamsBitFlag {
@@ -1380,6 +1386,8 @@ export const DefaultOrderParams: OrderParams = {
 	maxTs: null,
 	auctionStartPrice: null,
 	auctionEndPrice: null,
+	builderIdx: null,
+	builderFeeTenthBps: null,
 };
 
 export type SignedMsgOrderParamsMessage = {

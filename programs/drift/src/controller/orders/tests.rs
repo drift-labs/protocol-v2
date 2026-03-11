@@ -13533,3 +13533,114 @@ mod order_is_low_risk_for_amm {
         assert!(!is_low);
     }
 }
+
+mod merge_modify_order_params_builder_tests {
+    use crate::controller::orders::merge_modify_order_params_with_existing_order;
+    use crate::controller::position::PositionDirection;
+    use crate::state::order_params::ModifyOrderParams;
+    use crate::state::user::{MarketType, Order, OrderType};
+
+    #[test]
+    fn test_builder_params_passed_through() {
+        let existing_order = Order {
+            order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Long,
+            base_asset_amount: 100,
+            price: 50,
+            market_index: 0,
+            ..Order::default()
+        };
+
+        let modify_params = ModifyOrderParams {
+            builder_idx: Some(3),
+            builder_fee_tenth_bps: Some(100),
+            ..ModifyOrderParams::default()
+        };
+
+        let result = merge_modify_order_params_with_existing_order(&existing_order, &modify_params)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(result.builder_idx, Some(3));
+        assert_eq!(result.builder_fee_tenth_bps, Some(100));
+    }
+
+    #[test]
+    fn test_builder_params_none_when_not_provided() {
+        let existing_order = Order {
+            order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Long,
+            base_asset_amount: 100,
+            price: 50,
+            market_index: 0,
+            ..Order::default()
+        };
+
+        let modify_params = ModifyOrderParams::default();
+
+        let result = merge_modify_order_params_with_existing_order(&existing_order, &modify_params)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(result.builder_idx, None);
+        assert_eq!(result.builder_fee_tenth_bps, None);
+    }
+
+    #[test]
+    fn test_builder_idx_without_fee_passes_through() {
+        let existing_order = Order {
+            order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Long,
+            base_asset_amount: 100,
+            price: 50,
+            market_index: 0,
+            ..Order::default()
+        };
+
+        let modify_params = ModifyOrderParams {
+            builder_idx: Some(1),
+            builder_fee_tenth_bps: None,
+            ..ModifyOrderParams::default()
+        };
+
+        let result = merge_modify_order_params_with_existing_order(&existing_order, &modify_params)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(result.builder_idx, Some(1));
+        assert_eq!(result.builder_fee_tenth_bps, None);
+    }
+
+    #[test]
+    fn test_builder_params_with_other_modifications() {
+        let existing_order = Order {
+            order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Long,
+            base_asset_amount: 100,
+            price: 50,
+            market_index: 0,
+            ..Order::default()
+        };
+
+        let modify_params = ModifyOrderParams {
+            price: Some(75),
+            base_asset_amount: Some(200),
+            builder_idx: Some(5),
+            builder_fee_tenth_bps: Some(250),
+            ..ModifyOrderParams::default()
+        };
+
+        let result = merge_modify_order_params_with_existing_order(&existing_order, &modify_params)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(result.price, 75);
+        assert_eq!(result.base_asset_amount, 200);
+        assert_eq!(result.builder_idx, Some(5));
+        assert_eq!(result.builder_fee_tenth_bps, Some(250));
+    }
+}

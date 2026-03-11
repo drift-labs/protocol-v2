@@ -13028,6 +13028,18 @@
             "type": {
               "option": "i64"
             }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFeeTenthBps",
+            "type": {
+              "option": "u16"
+            }
           }
         ]
       }
@@ -13284,6 +13296,18 @@
             "type": {
               "option": "u8"
             }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFeeTenthBps",
+            "type": {
+              "option": "u16"
+            }
           }
         ]
       }
@@ -13379,6 +13403,24 @@
             ],
             "type": {
               "option": "i64"
+            }
+          },
+          {
+            "name": "builderIdx",
+            "docs": [
+              "Index of the approved builder in the escrow"
+            ],
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFeeTenthBps",
+            "docs": [
+              "Fee in tenth basis points for the builder"
+            ],
+            "type": {
+              "option": "u16"
             }
           }
         ]

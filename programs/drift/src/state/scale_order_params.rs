@@ -51,6 +51,10 @@ pub struct ScaleOrderParams {
     pub bit_flags: u8,
     /// Maximum timestamp for orders to be valid
     pub max_ts: Option<i64>,
+    /// Index of the approved builder in the escrow
+    pub builder_idx: Option<u8>,
+    /// Fee in tenth basis points for the builder
+    pub builder_fee_tenth_bps: Option<u16>,
 }
 
 impl ScaleOrderParams {
@@ -262,6 +266,8 @@ impl ScaleOrderParams {
                 auction_duration: None,
                 auction_start_price: None,
                 auction_end_price: None,
+                builder_idx: self.builder_idx,
+                builder_fee_tenth_bps: self.builder_fee_tenth_bps,
             });
         }
 

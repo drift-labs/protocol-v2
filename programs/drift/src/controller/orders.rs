@@ -811,6 +811,8 @@ pub fn modify_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
+    escrow: &mut Option<RevenueShareEscrowZeroCopyMut>,
+    builder_codes_enabled: bool,
 ) -> DriftResult {
     let user_key = user_loader.key();
     let mut user = load_mut!(user_loader)?;
@@ -866,6 +868,42 @@ pub fn modify_order(
 
     if let Some(order_params) = order_params {
         if order_params.market_type == MarketType::Perp {
+            // If modify params don't specify builder fields, try to preserve
+            // existing builder attribution from the escrow
+            let (builder_idx, builder_fee_tenth_bps) = if modify_order_params.builder_idx.is_some()
+                || modify_order_params.builder_fee_tenth_bps.is_some()
+            {
+                (
+                    modify_order_params.builder_idx,
+                    modify_order_params.builder_fee_tenth_bps,
+                )
+            } else if let Some(ref escrow) = escrow {
+                match escrow.find_order_index(user.sub_account_id, existing_order.order_id) {
+                    Some(idx) => match escrow.get_order(idx) {
+                        Ok(existing_rev_order) => (
+                            Some(existing_rev_order.builder_idx),
+                            Some(existing_rev_order.fee_tenth_bps),
+                        ),
+                        Err(_) => (None, None),
+                    },
+                    None => (None, None),
+                }
+            } else {
+                (None, None)
+            };
+
+            let mut builder_order = crate::instructions::create_builder_order(
+                escrow,
+                builder_idx,
+                builder_fee_tenth_bps,
+                builder_codes_enabled,
+                user.authority,
+                user.next_order_id,
+                user.sub_account_id,
+                &user.orders,
+                existing_order.market_index,
+            )?;
+
             place_perp_order(
                 state,
                 &mut user,
@@ -877,7 +915,7 @@ pub fn modify_order(
                 clock,
                 order_params,
                 PlaceOrderOptions::default(),
-                &mut None,
+                &mut builder_order,
             )?;
         } else {
             place_spot_order(
@@ -984,6 +1022,8 @@ fn merge_modify_order_params_with_existing_order(
         auction_duration,
         auction_start_price,
         auction_end_price,
+        builder_idx: modify_order_params.builder_idx,
+        builder_fee_tenth_bps: modify_order_params.builder_fee_tenth_bps,
     }))
 }
 

@@ -1,5 +1,7 @@
 use std::convert::TryFrom;
+use std::iter::Peekable;
 use std::ops::DerefMut;
+use std::slice::Iter;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
@@ -21,7 +23,7 @@ use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
-use crate::error::ErrorCode;
+use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
 use crate::ids::{
@@ -88,7 +90,9 @@ use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::revenue_share::BuilderInfo;
 use crate::state::revenue_share::RevenueShare;
 use crate::state::revenue_share::RevenueShareEscrow;
+use crate::state::revenue_share::RevenueShareEscrowZeroCopyMut;
 use crate::state::revenue_share::RevenueShareOrder;
+use crate::state::revenue_share::RevenueShareOrderBitFlag;
 use crate::state::revenue_share::REVENUE_SHARE_ESCROW_PDA_SEED;
 use crate::state::revenue_share::REVENUE_SHARE_PDA_SEED;
 use crate::state::scale_order_params::ScaleOrderParams;
@@ -2317,6 +2321,80 @@ pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
     Ok(())
 }
 
+fn maybe_load_builder_escrow<'a>(
+    remaining_accounts: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+    user_loader: &AccountLoader<User>,
+    builder_codes_enabled: bool,
+) -> DriftResult<Option<RevenueShareEscrowZeroCopyMut<'a>>> {
+    if builder_codes_enabled {
+        get_revenue_share_escrow_account(remaining_accounts, &load!(user_loader)?.authority)
+    } else {
+        Ok(None)
+    }
+}
+
+pub(crate) fn create_builder_order<'a>(
+    escrow: &'a mut Option<RevenueShareEscrowZeroCopyMut>,
+    builder_idx: Option<u8>,
+    builder_fee_tenth_bps: Option<u16>,
+    builder_codes_enabled: bool,
+    user_authority: Pubkey,
+    user_next_order_id: u32,
+    user_sub_account_id: u16,
+    user_orders: &[Order; 32],
+    market_index: u16,
+) -> DriftResult<Option<&'a mut RevenueShareOrder>> {
+    if !builder_codes_enabled || builder_idx.is_none() || builder_fee_tenth_bps.is_none() {
+        return Ok(None);
+    }
+
+    let builder_idx = builder_idx.unwrap();
+    let builder_fee = builder_fee_tenth_bps.unwrap();
+
+    if let Some(ref mut escrow) = escrow {
+        validate!(
+            escrow.fixed.authority == user_authority,
+            ErrorCode::InvalidUserAccount,
+            "RevenueShareEscrow account must be owned by user",
+        )?;
+
+        let builder = escrow.get_approved_builder_mut(builder_idx)?;
+
+        if builder.is_revoked() {
+            return Err(ErrorCode::BuilderRevoked.into());
+        }
+
+        if builder_fee > builder.max_fee_tenth_bps {
+            return Err(ErrorCode::InvalidBuilderFee.into());
+        }
+
+        let new_order_index = user_orders
+            .iter()
+            .position(|order| order.is_available())
+            .ok_or(ErrorCode::MaxNumberOfOrders)?;
+
+        match escrow.add_order(RevenueShareOrder::new(
+            builder_idx,
+            user_sub_account_id,
+            user_next_order_id,
+            builder_fee,
+            MarketType::Perp,
+            market_index,
+            RevenueShareOrderBitFlag::Open as u8,
+            new_order_index as u8,
+        )) {
+            Ok(order_idx) => Ok(escrow.get_order_mut(order_idx).ok()),
+            Err(_) => {
+                msg!("Failed to add order, escrow is full");
+                Ok(None)
+            }
+        }
+    } else {
+        msg!("Order has builder fee but no escrow account found");
+        Err(ErrorCode::UnableToLoadRevenueShareAccount.into())
+    }
+}
+
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
@@ -2347,8 +2425,33 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled
+        && params.builder_idx.is_some()
+        && params.builder_fee_tenth_bps.is_some()
+    {
+        get_revenue_share_escrow_account(
+            &mut remaining_accounts,
+            &load!(ctx.accounts.user)?.authority,
+        )?
+    } else {
+        None
+    };
+
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    let mut builder_order = create_builder_order(
+        &mut escrow,
+        params.builder_idx,
+        params.builder_fee_tenth_bps,
+        builder_codes_enabled,
+        user.authority,
+        user.next_order_id,
+        user.sub_account_id,
+        &user.orders,
+        params.market_index,
+    )?;
 
     controller::orders::place_perp_order(
         &ctx.accounts.state,
@@ -2361,7 +2464,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
-        &mut None,
+        &mut builder_order,
     )?;
 
     Ok(())
@@ -2533,12 +2636,13 @@ pub fn handle_modify_order<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2550,6 +2654,13 @@ pub fn handle_modify_order<'c: 'info, 'info>(
         None => load!(ctx.accounts.user)?.get_last_order_id(),
     };
 
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = maybe_load_builder_escrow(
+        &mut remaining_accounts,
+        &ctx.accounts.user,
+        builder_codes_enabled,
+    )?;
+
     controller::orders::modify_order(
         ModifyOrderId::OrderId(order_id),
         modify_order_params,
@@ -2559,6 +2670,8 @@ pub fn handle_modify_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        &mut escrow,
+        builder_codes_enabled,
     )?;
 
     Ok(())
@@ -2575,16 +2688,24 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
+    )?;
+
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = maybe_load_builder_escrow(
+        &mut remaining_accounts,
+        &ctx.accounts.user,
+        builder_codes_enabled,
     )?;
 
     controller::orders::modify_order(
@@ -2596,6 +2717,8 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        &mut escrow,
+        builder_codes_enabled,
     )?;
 
     Ok(())
@@ -2651,6 +2774,16 @@ fn place_orders<'c: 'info, 'info>(
 
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled {
+        get_revenue_share_escrow_account(
+            &mut remaining_accounts,
+            &load!(ctx.accounts.user)?.authority,
+        )?
+    } else {
+        None
+    };
+
     // Convert input to order params, expanding scale orders if needed
     let order_params = match input {
         PlaceOrdersInput::Orders(params) => params,
@@ -2703,6 +2836,18 @@ fn place_orders<'c: 'info, 'info>(
         };
 
         if params.market_type == MarketType::Perp {
+            let mut builder_order = create_builder_order(
+                &mut escrow,
+                params.builder_idx,
+                params.builder_fee_tenth_bps,
+                builder_codes_enabled,
+                user.authority,
+                user.next_order_id,
+                user.sub_account_id,
+                &user.orders,
+                params.market_index,
+            )?;
+
             controller::orders::place_perp_order(
                 state,
                 &mut user,
@@ -2714,7 +2859,7 @@ fn place_orders<'c: 'info, 'info>(
                 clock,
                 *params,
                 options,
-                &mut None,
+                &mut builder_order,
             )?;
         } else {
             controller::orders::place_spot_order(
@@ -2768,6 +2913,17 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let high_leverage_mode_config = get_high_leverage_mode_config(remaining_accounts_iter)?;
 
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.user)?.authority,
+        )?
+    } else {
+        None
+    };
+
     let is_immediate_or_cancel = params.is_immediate_or_cancel();
 
     controller::repeg::update_amm(
@@ -2784,6 +2940,18 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let (success_condition, auction_duration_percentage) = parse_optional_params(optional_params);
 
+    let mut builder_order = create_builder_order(
+        &mut escrow,
+        params.builder_idx,
+        params.builder_fee_tenth_bps,
+        builder_codes_enabled,
+        user.authority,
+        user.next_order_id,
+        user.sub_account_id,
+        &user.orders,
+        params.market_index,
+    )?;
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
         &mut user,
@@ -2795,21 +2963,13 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &clock,
         params,
         PlaceOrderOptions::default(),
-        &mut None,
+        &mut builder_order,
     )?;
 
     drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
-
-    let builder_referral_enabled = state.builder_referral_enabled();
-    let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
-        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(user)?.authority)?
-    } else {
-        None
-    };
 
     let (base_asset_amount_filled, _) = controller::orders::fill_perp_order(
         order_id,
@@ -2906,8 +3066,33 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
     )?;
 
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut maker_escrow = if builder_codes_enabled
+        && params.builder_idx.is_some()
+        && params.builder_fee_tenth_bps.is_some()
+    {
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.user)?.authority,
+        )?
+    } else {
+        None
+    };
+
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    let mut builder_order = create_builder_order(
+        &mut maker_escrow,
+        params.builder_idx,
+        params.builder_fee_tenth_bps,
+        builder_codes_enabled,
+        user.authority,
+        user.next_order_id,
+        user.sub_account_id,
+        &user.orders,
+        params.market_index,
+    )?;
 
     controller::orders::place_perp_order(
         state,
@@ -2920,7 +3105,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
-        &mut None,
+        &mut builder_order,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -2933,8 +3118,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
     let builder_referral_enabled = state.builder_referral_enabled();
-    let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut taker_escrow = if builder_codes_enabled || builder_referral_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
             &load!(ctx.accounts.taker)?.authority,
@@ -2958,7 +3142,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
-        &mut escrow.as_mut(),
+        &mut taker_escrow.as_mut(),
         builder_referral_enabled,
     )?;
 
@@ -3021,8 +3205,33 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
     )?;
 
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut maker_escrow = if builder_codes_enabled
+        && params.builder_idx.is_some()
+        && params.builder_fee_tenth_bps.is_some()
+    {
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.user)?.authority,
+        )?
+    } else {
+        None
+    };
+
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    let mut builder_order = create_builder_order(
+        &mut maker_escrow,
+        params.builder_idx,
+        params.builder_fee_tenth_bps,
+        builder_codes_enabled,
+        user.authority,
+        user.next_order_id,
+        user.sub_account_id,
+        &user.orders,
+        params.market_index,
+    )?;
 
     controller::orders::place_perp_order(
         state,
@@ -3035,7 +3244,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
-        &mut None,
+        &mut builder_order,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -3048,8 +3257,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
     let builder_referral_enabled = state.builder_referral_enabled();
-    let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut taker_escrow = if builder_codes_enabled || builder_referral_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
             &load!(ctx.accounts.taker)?.authority,
@@ -3080,7 +3288,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
-        &mut escrow.as_mut(),
+        &mut taker_escrow.as_mut(),
         builder_referral_enabled,
     )?;
 

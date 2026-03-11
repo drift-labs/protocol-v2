@@ -22,6 +22,8 @@ fn test_validate_order_count_bounds() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
     assert!(params.validate(step_size).is_err());
 
@@ -58,6 +60,8 @@ fn test_validate_price_range() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
     assert!(params.validate(step_size).is_err());
 
@@ -105,6 +109,8 @@ fn test_price_distribution_long() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let prices = params.calculate_price_distribution().unwrap();
@@ -132,6 +138,8 @@ fn test_price_distribution_short() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let prices = params.calculate_price_distribution().unwrap();
@@ -161,6 +169,8 @@ fn test_flat_size_distribution() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let sizes = params.calculate_size_distribution(step_size).unwrap();
@@ -204,6 +214,8 @@ fn test_ascending_size_distribution() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let sizes = params.calculate_size_distribution(step_size).unwrap();
@@ -261,6 +273,8 @@ fn test_descending_size_distribution() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let sizes = params.calculate_size_distribution(step_size).unwrap();
@@ -318,6 +332,8 @@ fn test_ascending_size_distribution_3_orders() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let sizes = params.calculate_size_distribution(step_size).unwrap();
@@ -365,6 +381,8 @@ fn test_flat_distribution_with_remainder() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let sizes = params.calculate_size_distribution(step_size).unwrap();
@@ -403,6 +421,8 @@ fn test_expand_to_order_params_perp() {
         post_only: PostOnlyParam::MustPostOnly,
         bit_flags: 2, // High leverage mode
         max_ts: Some(12345),
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let order_params = params.expand_to_order_params(step_size).unwrap();
@@ -452,6 +472,8 @@ fn test_expand_to_order_params_spot() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let order_params = params.expand_to_order_params(step_size).unwrap();
@@ -492,6 +514,8 @@ fn test_spot_short_scale_orders() {
         post_only: PostOnlyParam::MustPostOnly,
         bit_flags: 0,
         max_ts: Some(99999),
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let order_params = params.expand_to_order_params(step_size).unwrap();
@@ -535,12 +559,44 @@ fn test_two_orders_price_distribution() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     let prices = params.calculate_price_distribution().unwrap();
     assert_eq!(prices.len(), 2);
     assert_eq!(prices[0], 110 * PRICE_PRECISION_U64);
     assert_eq!(prices[1], 100 * PRICE_PRECISION_U64);
+}
+
+#[test]
+fn test_expand_propagates_builder_params() {
+    let step_size = BASE_PRECISION_U64 / 1000;
+
+    let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
+        direction: PositionDirection::Long,
+        market_index: 0,
+        total_base_asset_amount: BASE_PRECISION_U64,
+        start_price: 110 * PRICE_PRECISION_U64,
+        end_price: 100 * PRICE_PRECISION_U64,
+        order_count: 3,
+        size_distribution: SizeDistribution::Flat,
+        reduce_only: false,
+        post_only: PostOnlyParam::None,
+        bit_flags: 0,
+        max_ts: None,
+        builder_idx: Some(2),
+        builder_fee_tenth_bps: Some(50),
+    };
+
+    let order_params = params.expand_to_order_params(step_size).unwrap();
+    assert_eq!(order_params.len(), 3);
+
+    for op in &order_params {
+        assert_eq!(op.builder_idx, Some(2));
+        assert_eq!(op.builder_fee_tenth_bps, Some(50));
+    }
 }
 
 #[test]
@@ -562,6 +618,8 @@ fn test_validate_min_total_size() {
         post_only: PostOnlyParam::None,
         bit_flags: 0,
         max_ts: None,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     };
 
     assert!(params.validate(step_size).is_err());
