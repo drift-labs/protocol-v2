@@ -263,10 +263,14 @@ pub struct OrderActionRecord {
     pub builder_idx: Option<u8>,
     /// precision: QUOTE_PRECISION builder fee paid by the taker
     pub builder_fee: Option<u64>,
+    /// the idx of the builder in the maker's [`RevenueShareEscrow`] account
+    pub maker_builder_idx: Option<u8>,
+    /// precision: QUOTE_PRECISION builder fee paid by the maker
+    pub maker_builder_fee: Option<u64>,
 }
 
 impl Size for OrderActionRecord {
-    const SIZE: usize = 480;
+    const SIZE: usize = 496;
 }
 
 pub fn get_order_action_record(
@@ -297,6 +301,8 @@ pub fn get_order_action_record(
     trigger_price: Option<u64>,
     builder_idx: Option<u8>,
     builder_fee: Option<u64>,
+    maker_builder_idx: Option<u8>,
+    maker_builder_fee: Option<u64>,
 ) -> DriftResult<OrderActionRecord> {
     Ok(OrderActionRecord {
         ts,
@@ -352,6 +358,8 @@ pub fn get_order_action_record(
         trigger_price,
         builder_idx,
         builder_fee,
+        maker_builder_idx,
+        maker_builder_fee,
     })
 }
 

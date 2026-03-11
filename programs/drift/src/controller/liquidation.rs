@@ -692,6 +692,8 @@ pub fn liquidate_perp(
         trigger_price: None,
         builder_idx: None,
         builder_fee: None,
+        maker_builder_idx: None,
+        maker_builder_fee: None,
     };
     emit!(fill_record);
 
@@ -1075,6 +1077,7 @@ pub fn liquidate_perp_with_fill(
     drop(user);
     drop(liquidator);
 
+    let mut empty_maker_escrows = Vec::new();
     let (fill_base_asset_amount, fill_quote_asset_amount) = fill_perp_order(
         order_id,
         state,
@@ -1092,6 +1095,7 @@ pub fn liquidate_perp_with_fill(
         FillMode::Liquidation,
         &mut None,
         false,
+        &mut empty_maker_escrows,
     )?;
 
     let mut user = load_mut!(user_loader)?;

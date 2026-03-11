@@ -307,6 +307,7 @@ pub mod fuel_scoring {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 

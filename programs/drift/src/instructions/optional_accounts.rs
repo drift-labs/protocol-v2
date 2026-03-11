@@ -288,7 +288,46 @@ pub fn get_revenue_share_escrow_account<'a>(
 
     let account_info = account_info.safe_unwrap()?;
 
-    // Check size and discriminator without borrowing
+    if account_info.data_len() < 80 {
+        return Ok(None);
+    }
+
+    let borrowed_data = account_info.data.borrow();
+    let discriminator: [u8; 8] = RevenueShareEscrow::discriminator();
+    if array_ref![&borrowed_data, 0, 8] != &discriminator {
+        return Ok(None);
+    }
+
+    // Check authority before consuming — authority is at byte offset 8 (first field after discriminator)
+    let authority_bytes = array_ref![&borrowed_data, 8, 32];
+    if authority_bytes != expected_authority.as_ref() {
+        return Ok(None);
+    }
+
+    drop(borrowed_data);
+    let account_info = account_info_iter.next().safe_unwrap()?;
+    let escrow = account_info.load_zc_mut()?;
+    Ok(Some(escrow))
+}
+
+/// Load a revenue share escrow account checking only the discriminator (no authority validation).
+/// Used for loading maker escrows when the maker authority isn't known yet at load time.
+pub fn get_revenue_share_escrow_account_unchecked<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Option<RevenueShareEscrowZeroCopyMut<'a>>> {
+    load_revenue_share_escrow(account_info_iter)
+}
+
+fn load_revenue_share_escrow<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Option<RevenueShareEscrowZeroCopyMut<'a>>> {
+    let account_info = account_info_iter.peek();
+    if account_info.is_none() {
+        return Ok(None);
+    }
+
+    let account_info = account_info.safe_unwrap()?;
+
     if account_info.data_len() < 80 {
         return Ok(None);
     }
@@ -305,11 +344,24 @@ pub fn get_revenue_share_escrow_account<'a>(
     drop(borrowed_data);
     let escrow: RevenueShareEscrowZeroCopyMut<'a> = account_info.load_zc_mut()?;
 
-    validate!(
-        escrow.fixed.authority == *expected_authority,
-        ErrorCode::RevenueShareEscrowAuthorityMismatch,
-        "invalid RevenueShareEscrow authority"
-    )?;
-
     Ok(Some(escrow))
+}
+
+/// Load all remaining revenue share escrow accounts from the iterator into a Vec.
+/// Each escrow is loaded by discriminator only (no authority check); authority is validated
+/// later inside the fill loop where maker.authority is available.
+pub fn load_maker_escrows<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+    builder_codes_enabled: bool,
+) -> DriftResult<Vec<RevenueShareEscrowZeroCopyMut<'a>>> {
+    let mut escrows = Vec::new();
+    if !builder_codes_enabled {
+        return Ok(escrows);
+    }
+
+    while let Some(escrow) = get_revenue_share_escrow_account_unchecked(account_info_iter)? {
+        escrows.push(escrow);
+    }
+
+    Ok(escrows)
 }

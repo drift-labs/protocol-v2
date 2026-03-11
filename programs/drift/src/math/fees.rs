@@ -31,6 +31,7 @@ pub struct FillFees {
     pub referrer_reward: u64,
     pub referee_discount: u64,
     pub builder_fee: Option<u64>,
+    pub maker_builder_fee: Option<u64>,
 }
 
 pub fn calculate_fee_for_fulfillment_with_amm(
@@ -95,6 +96,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referrer_reward: 0,
             referee_discount: 0,
             builder_fee: None,
+            maker_builder_fee: None,
         })
     } else {
         let mut fee = calculate_taker_fee(quote_asset_amount, &fee_tier, fee_adjustment)?;
@@ -154,6 +156,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referrer_reward,
             referee_discount,
             builder_fee,
+            maker_builder_fee: None,
         })
     }
 }
@@ -287,6 +290,19 @@ fn calculate_filler_reward(
     Ok(fee)
 }
 
+fn calculate_builder_fee(
+    quote_asset_amount: u64,
+    fee_bps: Option<u16>,
+) -> DriftResult<Option<u64>> {
+    fee_bps
+        .map(|bps| {
+            quote_asset_amount
+                .safe_mul(bps.cast()?)?
+                .safe_div(100_000)
+        })
+        .transpose()
+}
+
 pub fn calculate_fee_for_fulfillment_with_match(
     taker_stats: &UserStats,
     maker_stats: &Option<&mut UserStats>,
@@ -301,6 +317,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     fee_adjustment: i16,
     user_high_leverage_mode: bool,
     builder_fee_bps: Option<u16>,
+    maker_builder_fee_bps: Option<u16>,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(
         taker_stats,
@@ -352,15 +369,8 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .safe_sub(maker_rebate)?
         .cast::<i64>()?;
 
-    let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
-        Some(
-            quote_asset_amount
-                .safe_mul(builder_fee_bps.cast()?)?
-                .safe_div(100_000)?,
-        )
-    } else {
-        None
-    };
+    let builder_fee = calculate_builder_fee(quote_asset_amount, builder_fee_bps)?;
+    let maker_builder_fee = calculate_builder_fee(quote_asset_amount, maker_builder_fee_bps)?;
 
     Ok(FillFees {
         user_fee: taker_fee,
@@ -371,6 +381,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         fee_to_market_for_lp: 0,
         referee_discount,
         builder_fee,
+        maker_builder_fee,
     })
 }
 

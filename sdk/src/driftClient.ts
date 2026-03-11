@@ -5026,6 +5026,25 @@ export class DriftClient {
 			});
 		}
 
+		if (
+			orderParams.builderIdx != null &&
+			orderParams.builderFeeTenthBps != null
+		) {
+			const escrowAuthority =
+				depositToTradeArgs?.isMakingNewAccount === true
+					? this.authority // new subaccount: authority known even if account isn’t created yet
+					: this.getUserAccount(subAccountId).authority;
+		
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					escrowAuthority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		return await this.program.instruction.placePerpOrder(orderParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -5524,6 +5543,19 @@ export class DriftClient {
 			}
 		}
 
+		if (
+			params.some((p) => p.builderIdx != null && p.builderFeeTenthBps != null)
+		) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		const formattedParams = params.map((item) => getOrderParams(item));
 		const authority = overrides?.authority ?? this.wallet.publicKey;
 
@@ -5573,6 +5605,19 @@ export class DriftClient {
 					isSigner: false,
 				});
 			}
+		}
+
+		if (
+			params.some((p) => p.builderIdx != null && p.builderFeeTenthBps != null)
+		) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const formattedParams = params.map((item) => getOrderParams(item));
@@ -5668,6 +5713,17 @@ export class DriftClient {
 			});
 		}
 
+		if (params.builderIdx != null && params.builderFeeTenthBps != null) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		const formattedParams = {
 			marketType: params.marketType,
 			direction: params.direction,
@@ -5681,6 +5737,8 @@ export class DriftClient {
 			postOnly: params.postOnly,
 			bitFlags: params.bitFlags,
 			maxTs: params.maxTs,
+			builderIdx: params.builderIdx ?? null,
+			builderFeeTenthBps: params.builderFeeTenthBps ?? null,
 		};
 
 		return await this.program.instruction.placeScaleOrders(formattedParams, {
@@ -5845,6 +5903,21 @@ export class DriftClient {
 				isWritable: true,
 				isSigner: false,
 			});
+		}
+
+		for (const maker of makerInfo) {
+			const makerOrder = maker.order
+				?? maker.makerUserAccount.orders.find((o) => hasBuilder(o));
+			if (makerOrder && hasBuilder(makerOrder)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						maker.makerUserAccount.authority
+					),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
 		}
 
 		const orderId = isSignedMsg ? null : order.orderId;
@@ -7729,6 +7802,35 @@ export class DriftClient {
 			});
 		}
 
+		if (
+			orderParams.builderIdx != null &&
+			orderParams.builderFeeTenthBps != null
+		) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		for (const maker of makerInfo) {
+			const makerOrder = maker.order
+				?? maker.makerUserAccount.orders.find((o) => hasBuilder(o));
+			if (makerOrder && hasBuilder(makerOrder)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						maker.makerUserAccount.authority
+					),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
+
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -7796,6 +7898,20 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
+
+		if (
+			orderParams.builderIdx != null &&
+			orderParams.builderFeeTenthBps != null
+		) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		if (referrerInfo) {
 			remainingAccounts.push({
@@ -8168,6 +8284,20 @@ export class DriftClient {
 			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
+
+		if (
+			orderParams.builderIdx != null &&
+			orderParams.builderFeeTenthBps != null
+		) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		if (referrerInfo) {
 			remainingAccounts.push({
@@ -8562,6 +8692,8 @@ export class DriftClient {
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
+			builderIdx?: number;
+			builderFeeTenthBps?: number;
 		},
 		txParams?: TxParams,
 		subAccountId?: number
@@ -8600,6 +8732,8 @@ export class DriftClient {
 			bitFlags,
 			maxTs,
 			policy,
+			builderIdx,
+			builderFeeTenthBps,
 		}: {
 			orderId: number;
 			newDirection?: PositionDirection;
@@ -8616,6 +8750,8 @@ export class DriftClient {
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
+			builderIdx?: number;
+			builderFeeTenthBps?: number;
 		},
 		subAccountId?: number,
 		overrides?: {
@@ -8634,6 +8770,16 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		// we always push the escrow account, so that the modify order instruction can maintain the builder association if any
+		remainingAccounts.push({
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				userAccount.authority
+			),
+			isWritable: true,
+			isSigner: false,
+		});
+
 		const orderParams: ModifyOrderParams = {
 			baseAssetAmount: newBaseAmount || null,
 			direction: newDirection || null,
@@ -8649,6 +8795,8 @@ export class DriftClient {
 			bitFlags: bitFlags != undefined ? bitFlags : null,
 			policy: policy || null,
 			maxTs: maxTs || null,
+			builderIdx: builderIdx ?? null,
+			builderFeeTenthBps: builderFeeTenthBps ?? null,
 		};
 
 		const authority =
@@ -8701,6 +8849,8 @@ export class DriftClient {
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
+			builderIdx?: number;
+			builderFeeTenthBps?: number;
 		},
 		txParams?: TxParams,
 		subAccountId?: number
@@ -8733,6 +8883,8 @@ export class DriftClient {
 			bitFlags,
 			maxTs,
 			policy,
+			builderIdx,
+			builderFeeTenthBps,
 		}: {
 			userOrderId: number;
 			newDirection?: PositionDirection;
@@ -8749,14 +8901,26 @@ export class DriftClient {
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
+			builderIdx?: number;
+			builderFeeTenthBps?: number;
 		},
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccount = this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
+		});
+
+		remainingAccounts.push({
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				userAccount.authority
+			),
+			isWritable: true,
+			isSigner: false,
 		});
 
 		const orderParams: ModifyOrderParams = {
@@ -8774,6 +8938,8 @@ export class DriftClient {
 			bitFlags: bitFlags || null,
 			policy: policy || null,
 			maxTs: maxTs || null,
+			builderIdx: builderIdx ?? null,
+			builderFeeTenthBps: builderFeeTenthBps ?? null,
 		};
 
 		return await this.program.instruction.modifyOrderByUserId(

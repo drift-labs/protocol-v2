@@ -369,6 +369,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -574,6 +575,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -790,6 +792,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -1002,6 +1005,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -1217,6 +1221,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -1440,6 +1445,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -1647,6 +1653,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -1862,6 +1869,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -2065,6 +2073,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -2280,6 +2289,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
@@ -2533,6 +2543,7 @@ pub mod amm_jit {
                 false,
                 &mut None,
                 false,
+                &mut Vec::new(),
             )
             .unwrap();
 
@@ -2833,6 +2844,7 @@ pub mod amm_jit {
                 false,
                 &mut None,
                 false,
+                &mut Vec::new(),
             )
             .unwrap();
 
@@ -3078,6 +3090,7 @@ pub mod amm_jit {
             false,
             &mut None,
             false,
+            &mut Vec::new(),
         )
         .unwrap();
 
