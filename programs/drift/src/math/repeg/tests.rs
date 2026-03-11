@@ -638,6 +638,8 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
                 adjusted_without_flag.amm.peg_multiplier,
                 adjusted_with_flag.amm.peg_multiplier
             );
+            assert_eq!(adjusted_without_flag.amm.peg_multiplier, optimal_peg);
+            assert_eq!(adjusted_without_flag.amm.sqrt_k, case_market.amm.sqrt_k);
         }
     }
 }
@@ -872,6 +874,8 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
                 adjusted_without_flag.amm.peg_multiplier,
                 adjusted_with_flag.amm.peg_multiplier
             );
+            assert_eq!(adjusted_without_flag.amm.peg_multiplier, optimal_peg);
+            assert_eq!(adjusted_without_flag.amm.sqrt_k, case_market.amm.sqrt_k);
         }
     }
 }
