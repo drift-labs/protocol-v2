@@ -67,6 +67,14 @@ export class PythLazerSubscriber {
 			'exponent',
 		]
 	) {
+		if (
+			!this.feedProperties.includes('price') ||
+			!this.feedProperties.includes('exponent')
+		) {
+			throw new Error(
+				"feedProperties must include both 'price' and 'exponent' for getPriceFromMarketIndex to work"
+			);
+		}
 		const markets = PerpMarkets[env].filter(
 			(market) => market.pythLazerId !== undefined
 		);
