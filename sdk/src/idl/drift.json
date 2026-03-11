@@ -17164,6 +17164,20 @@
             "option": "u64"
           },
           "index": false
+        },
+        {
+          "name": "makerBuilderIdx",
+          "type": {
+            "option": "u8"
+          },
+          "index": false
+        },
+        {
+          "name": "makerBuilderFee",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
         }
       ]
     },

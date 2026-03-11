@@ -30,7 +30,7 @@ use crate::ids::{
     serum_program, titan_mainnet_argos_v1,
 };
 use crate::instructions::constraints::*;
-use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
+use crate::instructions::optional_accounts::{get_revenue_share_escrow_account, load_maker_escrows};
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::load_mut;
 use crate::math::casting::Cast;
@@ -175,6 +175,9 @@ fn fill_order<'c: 'info, 'info>(
         None
     };
 
+    let mut maker_escrows =
+        load_maker_escrows(&mut remaining_accounts_iter, builder_codes_enabled)?;
+
     controller::repeg::update_amm(
         market_index,
         &perp_market_map,
@@ -200,6 +203,7 @@ fn fill_order<'c: 'info, 'info>(
         FillMode::Fill,
         &mut escrow.as_mut(),
         builder_referral_enabled,
+        &mut maker_escrows,
     )?;
 
     Ok(())

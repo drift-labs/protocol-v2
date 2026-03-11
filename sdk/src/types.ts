@@ -657,6 +657,11 @@ export type OrderActionRecord = {
 	takerExistingBaseAssetAmount: BN | null;
 	makerExistingQuoteEntryAmount: BN | null;
 	makerExistingBaseAssetAmount: BN | null;
+	triggerPrice: BN | null;
+	builderIdx: number | null;
+	builderFee: BN | null;
+	makerBuilderIdx: number | null;
+	makerBuilderFee: BN | null;
 };
 
 export type SwapRecord = {

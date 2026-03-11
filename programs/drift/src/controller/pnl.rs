@@ -592,6 +592,8 @@ pub fn settle_expired_position(
             trigger_price: None,
             builder_idx: None,
             builder_fee: None,
+            maker_builder_idx: None,
+            maker_builder_fee: None,
         };
         emit!(fill_record);
     }

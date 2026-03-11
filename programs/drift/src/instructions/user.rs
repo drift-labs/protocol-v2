@@ -32,7 +32,8 @@ use crate::ids::{
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{
-    get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
+    get_referrer_and_referrer_stats, get_whitelist_token, load_maker_escrows, load_maps,
+    AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::load;
@@ -2105,6 +2106,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         trigger_price: None,
         builder_idx: None,
         builder_fee: None,
+        maker_builder_idx: None,
+        maker_builder_fee: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -2971,6 +2974,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
 
+    let mut maker_escrows = load_maker_escrows(remaining_accounts_iter, builder_codes_enabled)?;
+
     let (base_asset_amount_filled, _) = controller::orders::fill_perp_order(
         order_id,
         &ctx.accounts.state,
@@ -2991,6 +2996,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         ),
         &mut escrow.as_mut(),
         builder_referral_enabled,
+        &mut maker_escrows,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -3127,6 +3133,8 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         None
     };
 
+    let mut maker_escrows: Vec<_> = maker_escrow.into_iter().collect();
+
     controller::orders::fill_perp_order(
         taker_order_id,
         state,
@@ -3144,6 +3152,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         FillMode::PlaceAndMake,
         &mut taker_escrow.as_mut(),
         builder_referral_enabled,
+        &mut maker_escrows,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -3266,6 +3275,12 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         None
     };
 
+    let mut maker_escrows = if let Some(escrow) = maker_escrow {
+        vec![escrow]
+    } else {
+        vec![]
+    };
+
     let taker_signed_msg_account = ctx.accounts.taker_signed_msg_user_orders.load()?;
     let taker_order_id = taker_signed_msg_account
         .iter()
@@ -3290,6 +3305,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         FillMode::PlaceAndMake,
         &mut taker_escrow.as_mut(),
         builder_referral_enabled,
+        &mut maker_escrows,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?

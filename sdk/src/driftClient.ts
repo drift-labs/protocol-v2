@@ -5905,6 +5905,21 @@ export class DriftClient {
 			});
 		}
 
+		for (const maker of makerInfo) {
+			const makerOrder = maker.order
+				?? maker.makerUserAccount.orders.find((o) => hasBuilder(o));
+			if (makerOrder && hasBuilder(makerOrder)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						maker.makerUserAccount.authority
+					),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
+
 		const orderId = isSignedMsg ? null : order.orderId;
 		return await this.program.instruction.fillPerpOrder(orderId, null, {
 			accounts: {
@@ -7799,6 +7814,21 @@ export class DriftClient {
 				isWritable: true,
 				isSigner: false,
 			});
+		}
+
+		for (const maker of makerInfo) {
+			const makerOrder = maker.order
+				?? maker.makerUserAccount.orders.find((o) => hasBuilder(o));
+			if (makerOrder && hasBuilder(makerOrder)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						maker.makerUserAccount.authority
+					),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
 		}
 
 		let optionalParams = null;
