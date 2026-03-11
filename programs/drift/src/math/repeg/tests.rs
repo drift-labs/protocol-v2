@@ -411,59 +411,6 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
 }
 
 #[test]
-pub fn adjust_amm_with_market_config_flag() {
-    let key = Pubkey::default();
-    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
-    let mut lamports = 0;
-
-    // SOL (as of slot 405286944)
-    let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hmz8RBQAAAAAAAAAAAAAAAAEAAAAAAAAA+qkRBQAAAABdsRIFAAAAAPXwrmkAAAAAp70SNM7//////////////2sMl0Xy//////////////+UyH9qzikiAAAAAAAAAAAAAAAAAAAAAADHNPWsFz2SAAAAAAAAAAAAhzHLjKM4kgAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAACLPpzseKCRAAAAAAAAAAAA97ORgfHVkgAAAAAAAAAAAIoIiZjdOpIAAAAAAAAAAAAdZxEFAAAAAAAAAAAAAAAAuEAQ2Nc6kgAAAAAAAAAAAICJC3h9gAEAAAAAAAAAAAAATAE0Tn3+////////////gNUMrMv9/////////////wAAAAAAAAAAAAAAAAAAAAAAAI1J/RoHAAAAAAAAAAAAfbeUXMsCAAAAAAAAAAAAALM6d4UT1f////////////9TaN/Uhi4AAAAAAAAAAAAAwJZAVILV/////////////1fY3ejmLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF+7w//////8X7vD//////xfu8P//////iZXt//////8BkLGF4hkAAAAAAAAAAAAA/9rK5xkKAAAAAAAAAAAAAIyTM6vsDwAAAAAAAAAAAAALZ/MIBA0AAAAAAAAAAAAAtl1xa5QHAAAAAAAAAAAAAAbyD4kRBQAAAAAAAAAAAADIlVF0CgAAAAAAAAAAAAAATToHaAoAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAADp2do2nzOSAAAAAAAAAAAAn64XVhxCkgAAAAAAAAAAAF/j6uMubJIAAAAAAAAAAAAow4/pnAmSAAAAAAAAAAAAmz8RBQAAAAAAAAAAAAAAAGcrEAUAAAAATN0RBQAAAABZBBEFAAAAADzvEQUAAAAAAjAoGAAAAAC+AAAAAAAAAJAyDfn/////iO6uaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACAwKBgAAAAA8fLbFL0TAADvZhhOZwAAAFsXAa20AAAA6vCuaQAAAACvZAEAAAAAANR/AQAAAAAA9fCuaQAAAADIAAAAIE4AAIoDAABACAAAILEQBQAAAACoYTIAaGQMAcDIUt4DFGT/IBbypJlMBgCAL3r//////9zgRcTl////cP7//+wAAAAscxEFAAAAAHcZvwS/fRUAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAdlCOnysAAAAy5K5pAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAANY49gAAAAAAKnIAAAAAAAC4EwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAcQ0AAKIJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAALcbg8FAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
-
-    // ETH (as of slot 405287065)
-    let eth_perp_market_str = String::from("Ct8MLGv1N/cP8V8Fb1epGNxhYovgt6QslGhUT6HV1zTpfCkrkbwLkndwx9kOHTTRdsq6+h4yZlyZWL2p6k8cVCwzZ4FGbCUqC9queAAAAAAAAAAAAAAAAAEAAAAAAAAA69KGeAAAAADnxs14AAAAADDxrmkAAAAAK2l1AgAAAAAAAAAAAAAAAA9wrAoAAAAAAAAAAAAAAAB1c9e2AjADAAAAAAAAAAAAAAAAAAAAAAC6LBzhfxUAAAAAAAAAAAAAc+TW3n8VAAAAAAAAAAAAAFdKDwAAAAAAAAAAAAAAAAAlZfx/dBUAAAAAAAAAAAAACf3/RYsVAAAAAAAAAAAAAI+I+d9/FQAAAAAAAAAAAAAzYMt4AAAAAAAAAAAAAAAAJM/4338VAAAAAAAAAAAAAAApz9B+AwAAAAAAAAAAAABA7A4ugfz/////////////QBXe/v///////////////wAAAAAAAAAAAAAAAAAAAAAAID2IeS0AAAAAAAAAAAAA8dNzMyoBAAAAAAAAAAAAAB8eSrpw9/////////////+oR/DymgkAAAAAAAAAAAAAIKXbq2n3/////////////y0GotS3CQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA86GD///////zoYP///////Ohg///////3Gp4//////95VwGwvAMAAAAAAAAAAAAAd+LVwbQBAAAAAAAAAAAAANZLJzENAgAAAAAAAAAAAAAHsDasfP//////////////89kg4EsBAAAAAAAAAAAAAJPpFitAAQAAAAAAAAAAAADZE9QXEwEAAAAAAAAAAAAACMDfthIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACp3ewFfRUAAAAAAAAAAAAARxZnuoIVAAAAAAAAAAAAANkITkGgFQAAAAAAAAAAAABQfSCvXxUAAAAAAAAAAAAAKUqweAAAAACNAwAAAAAAAM5MWngAAAAA1k2feAAAAABSzXx4AAAAAAs3v3gAAAAAmTAoGAAAAAAABQAAAAAAAK83AwAAAAAAiO6uaQAAAAAQDgAAAAAAAEBCDwAAAAAAECcAAAAAAABAQg8AAAAAAJkwKBgAAAAALaRyN+oCAABDkJ5NDAAAAEpq/00GAAAAC/GuaQAAAACw8iQAAAAAAJGvKQAAAAAAMPGuaQAAAACvAAAAECcAAA8EAACOLQAA/DWveAAAAAAgTjIAZQAMAcCmjPgAFBv/gPvMp5lMBgBAfkf3AQAAAHq8ojMAAAAAAAAAAAAFAAAUhXh4AAAAANmaVjsbBwMAAAAAAAAAAAAAAAAAAAAAAEVUSC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAA4fUFAAAAAP8PpdToAAAAup58GBIAAACkdwppAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAAtVXAAAAAAAym4AAAAAAABuEAAAAAAAAPoAAAAAAAAAiBMAAEwdAAD0AQAAyAAAAAAAAAAQJwAAwgIAAKoCAAACAAEAAYAAAAAAAAAAAGMAQgAAAAAAAADQ+rF4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
-
-    for perp_market_str in [sol_perp_market_str, eth_perp_market_str] {
-        let mut decoded = base64::decode(perp_market_str).unwrap();
-        let account_info =
-            create_account_info(&key, true, &mut lamports, decoded.as_mut_slice(), &owner);
-
-        let mut market = *AccountLoader::<PerpMarket>::try_from(&account_info)
-            .unwrap()
-            .load_mut()
-            .unwrap();
-
-        // if peg within range
-        let normal_peg = market.amm.peg_multiplier + 1000;
-        let normal_budget = 1000 * QUOTE_PRECISION as u128;
-
-        // no change when flag disabled
-        let (adjusted, _) = adjust_amm(&market, normal_peg, normal_budget, true).unwrap();
-        assert_eq!(adjusted.amm.sqrt_k, market.amm.sqrt_k);
-
-        // no change when flag enabled
-        market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
-        let (adjusted, _) = adjust_amm(&market, normal_peg, normal_budget, true).unwrap();
-        assert_eq!(adjusted.amm.sqrt_k, market.amm.sqrt_k);
-
-        // reset
-        market.market_config = 0;
-
-        // large oracle price drop
-        let optimal_peg = market.amm.peg_multiplier / 2; // 50% drop, ensures large negative delta_peg
-        let budget = 0_u128; // ensures use_optimal_peg = false
-
-        // disabled flag should shrink
-        let (adjusted, _) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
-        assert!(adjusted.amm.sqrt_k < market.amm.sqrt_k);
-
-        // enabled flag should skip
-        market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
-        let (adjusted, _) = adjust_amm(&market, optimal_peg, budget, true).unwrap();
-        assert_eq!(adjusted.amm.sqrt_k, market.amm.sqrt_k);
-    }
-}
-
-#[test]
 pub fn adjust_amm_with_market_config_flag_sol_perp() {
     let key = Pubkey::default();
     let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
