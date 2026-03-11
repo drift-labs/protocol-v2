@@ -43,6 +43,8 @@ export class PythLazerSubscriber {
 	marketIndextoPriceFeedIdChunk: Map<number, number[]> = new Map();
 	marketIndextoPriceFeedId: Map<number, number> = new Map();
 
+	private readonly feedProperties: PriceFeedProperty[];
+
 	/**
 	 * Creates a new PythLazerSubscriber instance.
 	 * @param endpoints - Array of WebSocket endpoint URLs for Pyth Lazer
@@ -51,7 +53,7 @@ export class PythLazerSubscriber {
 	 * @param env - Drift environment (mainnet-beta, devnet, etc.)
 	 * @param resubTimeoutMs - Milliseconds to wait before resubscribing on data timeout
 	 * @param sdkLogging - Whether to log Pyth SDK logs to the console. This is very noisy but could be useful for debugging.
-	 * @param feedProperties - Price feed properties to request (e.g. price, bestAskPrice, bestBidPrice, exponent). Defaults to ['price', 'bestAskPrice', 'bestBidPrice', 'exponent'].
+	 * @param feedProperties - Price feed properties to request. Must include both 'price' and 'exponent' (required for getPriceFromMarketIndex). Defaults to ['price', 'bestAskPrice', 'bestBidPrice', 'exponent']. Stored by copy so caller mutation does not affect this instance.
 	 */
 	constructor(
 		private endpoints: string[],
@@ -60,13 +62,14 @@ export class PythLazerSubscriber {
 		env: DriftEnv = 'devnet',
 		private resubTimeoutMs: number = 2000,
 		private sdkLogging: boolean = false,
-		private feedProperties: PriceFeedProperty[] = [
+		feedProperties: PriceFeedProperty[] = [
 			'price',
 			'bestAskPrice',
 			'bestBidPrice',
 			'exponent',
 		]
 	) {
+		this.feedProperties = [...feedProperties];
 		if (
 			!this.feedProperties.includes('price') ||
 			!this.feedProperties.includes('exponent')
