@@ -750,8 +750,9 @@ pub mod drift {
 
     pub fn update_perp_bid_ask_twap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdatePerpBidAskTwap<'info>>,
+        update_market_summary_stats: bool,
     ) -> Result<()> {
-        handle_update_perp_bid_ask_twap(ctx)
+        handle_update_perp_bid_ask_twap(ctx, update_market_summary_stats)
     }
 
     pub fn update_spot_market_cumulative_interest(
