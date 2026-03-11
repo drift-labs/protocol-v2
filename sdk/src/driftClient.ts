@@ -9477,6 +9477,7 @@ export class DriftClient {
 				remainingAccounts: remainingAccounts,
 			}
 		);
+	
 	}
 
 	public async getJupiterLiquidateSpotWithSwapIxV6({
