@@ -1,4 +1,8 @@
-import { Channel, PythLazerClient } from '@pythnetwork/pyth-lazer-sdk';
+import {
+	Channel,
+	PriceFeedProperty,
+	PythLazerClient,
+} from '@pythnetwork/pyth-lazer-sdk';
 import { DriftEnv } from '../config';
 import { PerpMarkets } from '../constants/perpMarkets';
 
@@ -47,6 +51,7 @@ export class PythLazerSubscriber {
 	 * @param env - Drift environment (mainnet-beta, devnet, etc.)
 	 * @param resubTimeoutMs - Milliseconds to wait before resubscribing on data timeout
 	 * @param sdkLogging - Whether to log Pyth SDK logs to the console. This is very noisy but could be useful for debugging.
+	 * @param feedProperties - Price feed properties to request (e.g. price, bestAskPrice, bestBidPrice, exponent). Defaults to ['price', 'bestAskPrice', 'bestBidPrice', 'exponent'].
 	 */
 	constructor(
 		private endpoints: string[],
@@ -54,7 +59,13 @@ export class PythLazerSubscriber {
 		private priceFeedArrays: PythLazerPriceFeedArray[],
 		env: DriftEnv = 'devnet',
 		private resubTimeoutMs: number = 2000,
-		private sdkLogging: boolean = false
+		private sdkLogging: boolean = false,
+		private feedProperties: PriceFeedProperty[] = [
+			'price',
+			'bestAskPrice',
+			'bestBidPrice',
+			'exponent',
+		]
 	) {
 		const markets = PerpMarkets[env].filter(
 			(market) => market.pythLazerId !== undefined
@@ -240,7 +251,7 @@ export class PythLazerSubscriber {
 				type: 'subscribe',
 				subscriptionId,
 				priceFeedIds: filteredFeedIds,
-				properties: ['price', 'bestAskPrice', 'bestBidPrice', 'exponent'],
+				properties: this.feedProperties,
 				formats: ['solana'],
 				deliveryFormat: 'json',
 				channel: priceFeedArray.channel ?? ('fixed_rate@200ms' as Channel),
