@@ -15,7 +15,11 @@ use crate::controller::position::{
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::instructions::constraints::valid_oracle_for_perp_market;
+use crate::math::amm::calculate_amm_available_liquidity;
+use crate::math::amm_spread::calculate_base_asset_amount_to_trade_to_price;
 use crate::math::constants::AMM_RESERVE_PRECISION;
+use crate::math::orders::standardize_base_asset_amount;
+use crate::state::perp_market::AMM as DriftAMM;
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
 };
@@ -70,12 +74,22 @@ pub(crate) struct AmmView {
     midprice_remaining_index: usize,
 }
 
+/// Tracks the source of a frontier level for unified matching.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FrontierSource {
+    /// PropAMM book level — settled via CPI to midprice_pino.
+    PropAmm,
+    /// DLOB maker order — settled via position update on both taker and maker.
+    DlobMaker,
+}
+
 #[derive(Clone, Copy)]
 struct TopLevel {
     price: u64,
     size: u64,
     abs_index: usize,
     is_ask: bool,
+    source: FrontierSource,
 }
 
 #[derive(Clone, Copy)]
@@ -94,6 +108,34 @@ pub(crate) struct PendingExternalFill {
     pub fill: ExternalFill,
 }
 
+/// DLOB maker order parsed from remaining accounts.
+#[derive(Clone)]
+pub(crate) struct DlobMakerView {
+    pub maker_key: Pubkey,
+    pub order_index: usize,
+    pub price: u64,
+    pub size: u64,
+    pub remaining_account_index: usize,
+}
+
+/// A pending AMM fill to be settled after the matching loop.
+#[derive(Clone, Copy)]
+pub(crate) struct PendingAmmFill {
+    pub base_asset_amount: u64,
+    /// Cap price from the next-best frontier (None = uncapped final fill).
+    pub limit_price: Option<u64>,
+}
+
+/// A pending DLOB fill to be settled after the matching loop.
+#[derive(Clone)]
+pub(crate) struct PendingDlobFill {
+    pub maker_key: Pubkey,
+    pub order_index: usize,
+    pub remaining_account_index: usize,
+    pub base_asset_amount: u64,
+    pub price: u64,
+}
+
 #[derive(Clone, Copy)]
 struct TiedFrontier {
     idx: usize,
@@ -107,14 +149,18 @@ struct FillAllocation {
     share: u64,
 }
 
-/// Result of the prop AMM matching loop (used by handler and tests).
+/// Result of the unified matching loop (used by handler and tests).
 #[derive(Default)]
-pub(crate) struct PropAmmMatchResult {
+pub(crate) struct UnifiedMatchResult {
     pub taker_base_delta: i64,
     pub taker_quote_delta: i64,
     pub total_quote_volume: u64,
     pub maker_deltas: BTreeMap<Pubkey, (i64, i64)>,
     pub external_fills: Vec<PendingExternalFill>,
+    /// AMM fills to settle via fulfill_perp_order_with_amm.
+    pub amm_fills: Vec<PendingAmmFill>,
+    /// DLOB fills to settle by updating maker/taker positions.
+    pub dlob_fills: Vec<PendingDlobFill>,
 }
 
 /// Global PropAMM matcher PDA: one account can apply fills to all PropAMM books.
@@ -198,16 +244,22 @@ fn find_external_top_level_from(
         size: l.size,
         abs_index: l.abs_index,
         is_ask: l.is_ask,
+        source: FrontierSource::PropAmm,
     }))
 }
 
+/// Initialize frontiers for all discrete sources: PropAMM books first, then DLOB makers.
+/// Returns (frontiers, num_prop_amm_frontiers) so callers know the boundary.
 fn init_frontiers(
     amm_views: &[AmmView],
+    dlob_makers: &[DlobMakerView],
     remaining_accounts: &[AccountInfo],
     side: &PositionDirection,
     taker_limit_price: u64,
-) -> DriftResult<Vec<Option<TopLevel>>> {
-    let mut frontiers = Vec::with_capacity(amm_views.len());
+) -> DriftResult<(Vec<Option<TopLevel>>, usize)> {
+    let mut frontiers = Vec::with_capacity(amm_views.len() + dlob_makers.len());
+
+    // PropAMM book frontiers (multi-level, can advance).
     for amm in amm_views {
         frontiers.push(find_external_top_level_from(
             &remaining_accounts[amm.midprice_remaining_index],
@@ -217,7 +269,30 @@ fn init_frontiers(
             None,
         )?);
     }
-    Ok(frontiers)
+    let num_prop_amm = amm_views.len();
+
+    // DLOB maker frontiers (single-level, no advancement).
+    let crosses = |maker_price: u64| -> bool {
+        match side {
+            PositionDirection::Long => maker_price <= taker_limit_price,
+            PositionDirection::Short => maker_price >= taker_limit_price,
+        }
+    };
+    for dlob in dlob_makers {
+        if crosses(dlob.price) && dlob.size > 0 {
+            frontiers.push(Some(TopLevel {
+                price: dlob.price,
+                size: dlob.size,
+                abs_index: 0,  // not meaningful for DLOB
+                is_ask: false, // not meaningful for DLOB
+                source: FrontierSource::DlobMaker,
+            }));
+        } else {
+            frontiers.push(None);
+        }
+    }
+
+    Ok((frontiers, num_prop_amm))
 }
 
 fn tied_frontiers_at_best_price(
@@ -258,48 +333,87 @@ fn tied_frontiers_at_best_price(
     best_price.map(|price| (price, tied))
 }
 
-fn allocate_fill_pro_rata(
+/// Allocate fill among tied frontiers at the same price level.
+/// PropAMM books get pro-rata allocation; DLOB makers fill sequentially after.
+fn allocate_fill(
     tied_levels: &[TiedFrontier],
     remaining: u64,
 ) -> DriftResult<(u64, Vec<FillAllocation>)> {
-    let total_liquidity = tied_levels
+    // Partition into PropAMM (pro-rata) and DLOB (sequential).
+    let prop_amm: Vec<&TiedFrontier> = tied_levels
         .iter()
-        .try_fold(0u64, |acc, tied| acc.safe_add(tied.level.size))?;
-    let fill = remaining.min(total_liquidity);
+        .filter(|t| t.level.source == FrontierSource::PropAmm)
+        .collect();
+    let dlob: Vec<&TiedFrontier> = tied_levels
+        .iter()
+        .filter(|t| t.level.source == FrontierSource::DlobMaker)
+        .collect();
 
     let mut allocations = Vec::with_capacity(tied_levels.len());
-    let mut distributed = 0u64;
-    for tied in tied_levels {
-        let share_u128 = (fill as u128)
-            .safe_mul(tied.level.size as u128)?
-            .safe_div(total_liquidity as u128)?;
-        let share = u64::try_from(share_u128).map_err(|_| ErrorCode::MathError)?;
-        distributed = distributed.safe_add(share)?;
+    let mut total_fill = 0u64;
+    let mut left = remaining;
+
+    // 1) PropAMM books: pro-rata among them.
+    if !prop_amm.is_empty() && left > 0 {
+        let total_liquidity = prop_amm
+            .iter()
+            .try_fold(0u64, |acc, tied| acc.safe_add(tied.level.size))?;
+        let fill = left.min(total_liquidity);
+
+        let mut distributed = 0u64;
+        for tied in &prop_amm {
+            let share_u128 = (fill as u128)
+                .safe_mul(tied.level.size as u128)?
+                .safe_div(total_liquidity as u128)?;
+            let share = u64::try_from(share_u128).map_err(|_| ErrorCode::MathError)?;
+            distributed = distributed.safe_add(share)?;
+            allocations.push(FillAllocation {
+                idx: tied.idx,
+                level: tied.level,
+                share,
+            });
+        }
+
+        // Distribute remainder 1-unit at a time.
+        let mut rem = fill.safe_sub(distributed)?;
+        for allocation in allocations.iter_mut() {
+            if rem == 0 {
+                break;
+            }
+            if allocation.level.source == FrontierSource::PropAmm
+                && allocation.share < allocation.level.size
+            {
+                allocation.share = allocation.share.safe_add(1)?;
+                rem = rem.saturating_sub(1);
+            }
+        }
+        total_fill = total_fill.safe_add(fill)?;
+        left = left.safe_sub(fill)?;
+    }
+
+    // 2) DLOB makers: fill sequentially.
+    for tied in &dlob {
+        if left == 0 {
+            break;
+        }
+        let fill = left.min(tied.level.size);
         allocations.push(FillAllocation {
             idx: tied.idx,
             level: tied.level,
-            share,
+            share: fill,
         });
+        total_fill = total_fill.safe_add(fill)?;
+        left = left.safe_sub(fill)?;
     }
 
-    let mut remainder = fill.safe_sub(distributed)?;
-    for allocation in &mut allocations {
-        if remainder == 0 {
-            break;
-        }
-        // Cap at level size so we never request more than available (Solana overflow / CPI safety).
-        if allocation.share < allocation.level.size {
-            allocation.share = allocation.share.safe_add(1)?;
-            remainder = remainder.saturating_sub(1);
-        }
-    }
-    Ok((fill, allocations))
+    Ok((total_fill, allocations))
 }
 
 fn refresh_exhausted_frontiers(
     frontiers: &mut [Option<TopLevel>],
     tied_levels: &[TiedFrontier],
     amm_views: &[AmmView],
+    _num_prop_amm: usize,
     remaining_accounts: &[AccountInfo],
     side: &PositionDirection,
     taker_limit_price: u64,
@@ -311,14 +425,23 @@ fn refresh_exhausted_frontiers(
         if current.size != 0 {
             continue;
         }
-        let next_start = current.abs_index.saturating_add(1);
-        frontiers[tied.idx] = find_external_top_level_from(
-            &remaining_accounts[amm_views[tied.idx].midprice_remaining_index],
-            side,
-            taker_limit_price,
-            amm_views[tied.idx].mid_price,
-            Some(next_start),
-        )?;
+        match current.source {
+            FrontierSource::PropAmm => {
+                // PropAMM books advance to next level.
+                let next_start = current.abs_index.saturating_add(1);
+                frontiers[tied.idx] = find_external_top_level_from(
+                    &remaining_accounts[amm_views[tied.idx].midprice_remaining_index],
+                    side,
+                    taker_limit_price,
+                    amm_views[tied.idx].mid_price,
+                    Some(next_start),
+                )?;
+            }
+            FrontierSource::DlobMaker => {
+                // DLOB frontiers are single-level; once exhausted, they're gone.
+                frontiers[tied.idx] = None;
+            }
+        }
     }
     Ok(())
 }
@@ -494,9 +617,24 @@ fn find_amm_start_after_spot_markets(
         .ok_or_else(|| ErrorCode::InvalidSpotMarketAccount.into())
 }
 
-/// Parses remaining_accounts: midprice_program (0), spot markets [1..amm_start], global_matcher (amm_start), then per-AMM pairs (midprice, maker_user).
-/// Returns (midprice_program_account_index, amm_views).
-/// When provided, `order_market_index` and `taker_user_key` are validated in the same pass (each midprice's market_index must match; taker must not be any maker).
+/// Midprice accounts have a 4-byte "midp" discriminator at offset 0 and are owned by the
+/// midprice program. This is used to detect the PropAMM/DLOB boundary in remaining_accounts.
+fn is_midprice_account(info: &AccountInfo, midprice_program_id: &Pubkey) -> bool {
+    *info.owner == *midprice_program_id
+        && info.data_len() >= 4
+        && info
+            .try_borrow_data()
+            .map_or(false, |d| &d[..4] == b"midp")
+}
+
+/// Parses remaining_accounts after the global matcher PDA.
+///
+/// Layout: `(midprice_account, maker_user)* (dlob_maker_user)*`
+///
+/// PropAMM pairs are detected by the "midp" discriminator on the first account of each pair.
+/// Once a non-midprice account is encountered, the rest are treated as DLOB maker User accounts.
+///
+/// Returns `(midprice_program_account_index, amm_views, dlob_start_index)`.
 pub(crate) fn parse_amm_views(
     remaining_accounts: &[AccountInfo],
     amm_start: usize,
@@ -504,14 +642,9 @@ pub(crate) fn parse_amm_views(
     current_slot: u64,
     order_market_index: Option<u16>,
     taker_user_key: Option<&Pubkey>,
-) -> DriftResult<(usize, Vec<AmmView>)> {
+) -> DriftResult<(usize, Vec<AmmView>, usize)> {
     const ACCOUNTS_PER_AMM: usize = 2; // midprice, maker_user (global matcher is separate)
     const GLOBAL_MATCHER_SLOTS: usize = 1;
-    validate!(
-        remaining_accounts.len() >= amm_start + GLOBAL_MATCHER_SLOTS + ACCOUNTS_PER_AMM,
-        ErrorCode::InvalidSpotMarketAccount,
-        "remaining_accounts: need midprice_program + spot_markets + global_matcher + at least one (midprice, maker_user) pair"
-    )?;
 
     // 0: midprice program
     let midprice_program = &remaining_accounts[0];
@@ -536,42 +669,28 @@ pub(crate) fn parse_amm_views(
     )?;
 
     // Build reserved key set: all "global" accounts that must not overlap with any AMM pair.
-    // This includes:
-    // [0] midprice_program
-    // [1..amm_start) spot markets (or whatever you consumed)
-    // [amm_start] global matcher PDA
     let mut reserved: BTreeSet<Pubkey> = BTreeSet::new();
     for i in 0..(amm_start + GLOBAL_MATCHER_SLOTS) {
         reserved.insert(remaining_accounts[i].key());
     }
 
-    // Ensure the remainder after the matcher is exactly (midprice, maker_user)*.
     let tail_start = amm_start + GLOBAL_MATCHER_SLOTS;
-    let tail_len = remaining_accounts.len().saturating_sub(tail_start);
-    validate!(
-        tail_len % ACCOUNTS_PER_AMM == 0,
-        ErrorCode::InvalidSpotMarketAccount,
-        "remaining_accounts after global_matcher must be (midprice, maker_user)*; got tail_len={} not divisible by {}",
-        tail_len,
-        ACCOUNTS_PER_AMM
-    )?;
+    let midprice_program_key = midprice_program.key;
 
-    let num_pairs = tail_len / ACCOUNTS_PER_AMM;
-    validate!(
-        num_pairs > 0,
-        ErrorCode::InvalidSpotMarketAccount,
-        "must provide at least one (midprice, maker_user) pair"
-    )?;
-
-    let mut amm_views: Vec<AmmView> = Vec::with_capacity(num_pairs);
+    let mut amm_views: Vec<AmmView> = Vec::with_capacity(8);
     let mut seen_midprices: BTreeSet<Pubkey> = BTreeSet::new();
     let mut seen_makers: BTreeSet<Pubkey> = BTreeSet::new();
 
-    for pair_idx in 0..num_pairs {
-        let base = tail_start + pair_idx * ACCOUNTS_PER_AMM;
-        let midprice_info = &remaining_accounts[base];
-        let maker_user_info = &remaining_accounts[base + 1];
+    // Scan pairs: PropAMM pairs are detected by the "midp" discriminator.
+    let mut cursor = tail_start;
+    while cursor + 1 < remaining_accounts.len() {
+        let candidate = &remaining_accounts[cursor];
+        if !is_midprice_account(candidate, midprice_program_key) {
+            break; // boundary found — remaining accounts are DLOB makers
+        }
 
+        let midprice_info = candidate;
+        let maker_user_info = &remaining_accounts[cursor + 1];
         let midprice_key = midprice_info.key();
         let maker_user_key = maker_user_info.key();
 
@@ -579,64 +698,53 @@ pub(crate) fn parse_amm_views(
         validate!(
             !reserved.contains(&midprice_key),
             ErrorCode::InvalidSpotMarketAccount,
-            "midprice account must not overlap with global accounts (pair_idx={}, midprice={})",
-            pair_idx,
+            "midprice account must not overlap with global accounts (midprice={})",
             midprice_key
         )?;
         validate!(
             !reserved.contains(&maker_user_key),
             ErrorCode::InvalidSpotMarketAccount,
-            "maker user must not overlap with global accounts (pair_idx={}, maker_user={})",
-            pair_idx,
+            "maker user must not overlap with global accounts (maker_user={})",
             maker_user_key
         )?;
 
-        // Disallow pathological "same pubkey twice in the pair".
         validate!(
             midprice_key != maker_user_key,
             ErrorCode::InvalidSpotMarketAccount,
-            "midprice and maker_user must be different accounts (pair_idx={}, key={})",
-            pair_idx,
+            "midprice and maker_user must be different accounts (key={})",
             midprice_key
         )?;
 
-        // Disallow duplicate midprice or duplicate maker user within the same instruction.
         validate!(
             seen_midprices.insert(midprice_key),
             ErrorCode::InvalidSpotMarketAccount,
-            "duplicate midprice account in remaining_accounts (pair_idx={}, midprice={})",
-            pair_idx,
+            "duplicate midprice account (midprice={})",
             midprice_key
         )?;
         validate!(
             seen_makers.insert(maker_user_key),
             ErrorCode::InvalidSpotMarketAccount,
-            "duplicate maker user account in remaining_accounts (pair_idx={}, maker_user={})",
-            pair_idx,
+            "duplicate maker user (maker_user={})",
             maker_user_key
         )?;
 
-        // Maker user must be owned by Drift and must be writable (we will mutate position / orders / stats).
         validate!(
             *maker_user_info.owner == *program_id,
             ErrorCode::InvalidSpotMarketAccount,
-            "maker user must be owned by Drift program (pair_idx={}, maker_user={}, owner={})",
-            pair_idx,
+            "maker user must be owned by Drift program (maker_user={}, owner={})",
             maker_user_key,
             maker_user_info.owner
         )?;
         validate!(
             maker_user_info.is_writable,
             ErrorCode::InvalidSpotMarketAccount,
-            "maker user must be writable (pair_idx={}, maker_user={})",
-            pair_idx,
+            "maker user must be writable (maker_user={})",
             maker_user_key
         )?;
 
-        // Read mid price (and any other snapshot like sequence number) and validate midprice authority ↔ maker relationship + TTL.
         let (mid_price, sequence_number_snapshot, midprice_market_index) = read_external_mid_price(
             midprice_info,
-            midprice_program.key,
+            midprice_program_key,
             maker_user_info,
             current_slot,
         )?;
@@ -660,13 +768,113 @@ pub(crate) fn parse_amm_views(
             key: midprice_key,
             mid_price,
             sequence_number_snapshot,
-            maker_user_remaining_index: base + 1,
-            midprice_remaining_index: base,
+            maker_user_remaining_index: cursor + 1,
+            midprice_remaining_index: cursor,
         });
+
+        cursor += ACCOUNTS_PER_AMM;
     }
 
-    // Return index of midprice program in remaining_accounts, plus parsed views.
-    Ok((0, amm_views))
+    // Return: midprice_program idx, parsed PropAMM views, start of DLOB accounts.
+    Ok((0, amm_views, cursor))
+}
+
+/// Parse DLOB maker accounts from remaining_accounts starting at `dlob_start`.
+/// Each DLOB maker is a single Drift User account. We scan their open orders to find
+/// crossing limit orders for the given market + direction.
+///
+/// Returns views sorted by price (best for taker first).
+pub(crate) fn parse_dlob_makers<'info>(
+    remaining_accounts: &'info [AccountInfo<'info>],
+    dlob_start: usize,
+    program_id: &Pubkey,
+    taker_user_key: &Pubkey,
+    taker_direction: PositionDirection,
+    market_index: u16,
+    limit_price: u64,
+    oracle_price: i64,
+    slot: u64,
+    order_tick_size: u64,
+    is_prediction_market: bool,
+) -> DriftResult<Vec<DlobMakerView>> {
+    use crate::math::orders::find_maker_orders;
+
+    let maker_direction = taker_direction.opposite();
+    let mut views: Vec<DlobMakerView> = Vec::with_capacity(8);
+
+    for idx in dlob_start..remaining_accounts.len() {
+        let maker_info = &remaining_accounts[idx];
+        let maker_key = maker_info.key();
+
+        validate!(
+            *maker_info.owner == *program_id,
+            ErrorCode::InvalidSpotMarketAccount,
+            "DLOB maker must be owned by Drift program (maker={})",
+            maker_key
+        )?;
+        validate!(
+            maker_info.is_writable,
+            ErrorCode::InvalidSpotMarketAccount,
+            "DLOB maker must be writable (maker={})",
+            maker_key
+        )?;
+        validate!(
+            maker_key != *taker_user_key,
+            ErrorCode::InvalidSpotMarketAccount,
+            "DLOB maker cannot be taker (no self-trade)"
+        )?;
+
+        let maker_loader: AccountLoader<User> =
+            AccountLoader::try_from(maker_info).map_err(|_| ErrorCode::CouldNotLoadUserData)?;
+        let maker = maker_loader.load().map_err(|_| ErrorCode::CouldNotLoadUserData)?;
+
+        if maker.is_being_liquidated() || maker.is_bankrupt() {
+            continue;
+        }
+
+        let maker_order_info = find_maker_orders(
+            &maker,
+            &maker_direction,
+            &MarketType::Perp,
+            market_index,
+            Some(oracle_price),
+            slot,
+            order_tick_size,
+            is_prediction_market,
+            None, // no protected maker params for prop_amm context
+        )?;
+
+        for (order_index, order_price) in maker_order_info {
+            let order = &maker.orders[order_index];
+            let size = order.get_base_asset_amount_unfilled(None)?;
+            if size == 0 {
+                continue;
+            }
+            // Check crossing.
+            let crosses = match taker_direction {
+                PositionDirection::Long => order_price <= limit_price,
+                PositionDirection::Short => order_price >= limit_price,
+            };
+            if !crosses {
+                continue;
+            }
+            views.push(DlobMakerView {
+                maker_key,
+                order_index,
+                price: order_price,
+                size,
+                remaining_account_index: idx,
+            });
+        }
+    }
+
+    // Sort by price: best for taker first.
+    views.sort_by(|a, b| match taker_direction {
+        PositionDirection::Long => a.price.cmp(&b.price),   // ascending (lowest ask first)
+        PositionDirection::Short => b.price.cmp(&a.price),  // descending (highest bid first)
+    });
+
+    Ok(views)
 }
 
 /// Filter out makers that would breach margin after their fill. Returns filtered maker_deltas,
@@ -755,24 +963,148 @@ pub(crate) fn filter_prop_amm_makers_by_margin<'a>(
     ))
 }
 
-/// Runs the prop AMM matching loop; returns deltas and external fills (no account updates).
-pub(crate) fn run_prop_amm_matching(
+/// Compute the vAMM's effective price and available depth for the taker's side.
+fn amm_frontier_price_and_depth(
+    amm: &DriftAMM,
+    side: PositionDirection,
+    limit_price: u64,
+) -> DriftResult<Option<(u64, u64)>> {
+    let reserve_price = amm.reserve_price()?;
+    let price = match side {
+        PositionDirection::Long => amm.ask_price(reserve_price)?,
+        PositionDirection::Short => amm.bid_price(reserve_price)?,
+    };
+    // Check if AMM crosses taker's limit.
+    let crosses = match side {
+        PositionDirection::Long => price <= limit_price,
+        PositionDirection::Short => price >= limit_price,
+    };
+    if !crosses {
+        return Ok(None);
+    }
+    let depth = calculate_amm_available_liquidity(amm, &side)?;
+    if depth == 0 {
+        return Ok(None);
+    }
+    Ok(Some((price, depth)))
+}
+
+/// Compute how much base the vAMM can fill before its price slides to `target_price`.
+/// Returns 0 if the AMM is already past the target or has no liquidity.
+fn amm_fill_up_to_price(
+    amm: &DriftAMM,
+    side: PositionDirection,
+    target_price: u64,
+    remaining: u64,
+) -> DriftResult<u64> {
+    let (trade_amount, trade_direction) =
+        calculate_base_asset_amount_to_trade_to_price(amm, target_price, side)?;
+    if trade_direction != side || trade_amount == 0 {
+        return Ok(0);
+    }
+    let max_available = calculate_amm_available_liquidity(amm, &side)?;
+    let capped = trade_amount.min(max_available).min(remaining);
+    standardize_base_asset_amount(capped, amm.order_step_size)
+}
+
+/// Apply a simulated fill to an AMM copy so its reserves (and therefore prices) move.
+fn simulate_amm_fill(amm: &mut DriftAMM, base_amount: u64, side: PositionDirection) {
+    let k = amm.sqrt_k as u128 * amm.sqrt_k as u128;
+    match side {
+        PositionDirection::Long => {
+            amm.base_asset_reserve =
+                amm.base_asset_reserve.saturating_sub(base_amount as u128);
+        }
+        PositionDirection::Short => {
+            amm.base_asset_reserve =
+                amm.base_asset_reserve.saturating_add(base_amount as u128);
+        }
+    }
+    if amm.base_asset_reserve > 0 {
+        amm.quote_asset_reserve = k / amm.base_asset_reserve;
+    }
+}
+
+/// Unified matching loop: fills from PropAMM books, DLOB makers, and vAMM in price-priority order.
+///
+/// At each step the best discrete frontier (PropAMM + DLOB) is compared against the current vAMM
+/// price. If the vAMM offers a better price, it fills first (capped at the next-best discrete
+/// frontier's price so the curve doesn't overshoot). Discrete frontiers use the existing
+/// pro-rata (PropAMM) / sequential (DLOB) allocation.
+pub(crate) fn run_unified_matching(
     amm_views: &[AmmView],
+    dlob_makers: &[DlobMakerView],
     remaining_accounts: &[AccountInfo],
     side: PositionDirection,
     limit_price: u64,
     size: u64,
-) -> DriftResult<PropAmmMatchResult> {
+    drift_amm: Option<&DriftAMM>,
+) -> DriftResult<UnifiedMatchResult> {
     let mut remaining = size;
-    let mut frontiers = init_frontiers(amm_views, remaining_accounts, &side, limit_price)?;
-    let mut result = PropAmmMatchResult::default();
+    let (mut frontiers, num_prop_amm) =
+        init_frontiers(amm_views, dlob_makers, remaining_accounts, &side, limit_price)?;
+    let mut result = UnifiedMatchResult::default();
+
+    // Clone AMM for simulation (price slides as we fill).
+    let mut sim_amm: Option<DriftAMM> = drift_amm.cloned();
 
     while remaining > 0 {
-        let Some((best_price, tied_levels)) = tied_frontiers_at_best_price(&frontiers, &side)
-        else {
+        // 1) Best discrete frontier (PropAMM books + DLOB makers).
+        let best_discrete = tied_frontiers_at_best_price(&frontiers, &side);
+
+        // 2) Current vAMM price (if available).
+        let amm_offer: Option<(u64, u64)> = match &sim_amm {
+            Some(amm) => amm_frontier_price_and_depth(amm, side, limit_price)?,
+            None => None,
+        };
+
+        // 3) Is vAMM better than the best discrete frontier?
+        let amm_is_better = match (&amm_offer, &best_discrete) {
+            (Some((amm_price, _)), Some((frontier_price, _))) => match side {
+                PositionDirection::Long => *amm_price < *frontier_price,
+                PositionDirection::Short => *amm_price > *frontier_price,
+            },
+            (Some(_), None) => true, // no discrete frontiers left, AMM is only source
+            _ => false,
+        };
+
+        if amm_is_better {
+            let amm = sim_amm.as_mut().unwrap();
+            // Fill from AMM, capped at the best discrete frontier's price (if any).
+            let amm_fill_amount = match &best_discrete {
+                Some((frontier_price, _)) => {
+                    amm_fill_up_to_price(amm, side, *frontier_price, remaining)?
+                }
+                None => {
+                    // No discrete frontiers — fill AMM uncapped up to available.
+                    let avail = calculate_amm_available_liquidity(amm, &side)?;
+                    standardize_base_asset_amount(
+                        avail.min(remaining),
+                        amm.order_step_size,
+                    )?
+                }
+            };
+            if amm_fill_amount == 0 {
+                // AMM can't fill anything; fall through to discrete frontiers.
+                if best_discrete.is_none() {
+                    break;
+                }
+            } else {
+                result.amm_fills.push(PendingAmmFill {
+                    base_asset_amount: amm_fill_amount,
+                    limit_price: best_discrete.as_ref().map(|(p, _)| *p),
+                });
+                simulate_amm_fill(amm, amm_fill_amount, side);
+                remaining = remaining.safe_sub(amm_fill_amount)?;
+                continue;
+            }
+        }
+
+        // 4) Fill from discrete frontiers.
+        let Some((best_price, tied_levels)) = best_discrete else {
             break;
         };
-        let (fill, allocations) = allocate_fill_pro_rata(&tied_levels, remaining)?;
+        let (fill, allocations) = allocate_fill(&tied_levels, remaining)?;
         if fill == 0 {
             break;
         }
@@ -780,40 +1112,60 @@ pub(crate) fn run_prop_amm_matching(
             if allocation.share == 0 {
                 continue;
             }
-            let amm_view = &amm_views[allocation.idx];
-            result.external_fills.push(PendingExternalFill {
-                midprice_remaining_index: amm_view.midprice_remaining_index,
-                maker_user_remaining_index: amm_view.maker_user_remaining_index,
-                sequence_number_snapshot: amm_view.sequence_number_snapshot,
-                fill: ExternalFill {
-                    abs_index: allocation.level.abs_index as u16,
-                    is_ask: allocation.level.is_ask,
-                    fill_size: allocation.share,
-                },
-            });
-            // quote = base * price; base in AMM_RESERVE_PRECISION (1e9), price in PRICE_PRECISION (1e6) => divide by AMM_RESERVE_PRECISION for QUOTE_PRECISION (1e6)
-            let fill_quote_u128 = (allocation.share as u128)
-                .checked_mul(best_price as u128)
-                .ok_or(ErrorCode::MathError)?
-                .checked_div(AMM_RESERVE_PRECISION)
-                .ok_or(ErrorCode::MathError)?;
-            let fill_quote_u64 =
-                u64::try_from(fill_quote_u128).map_err(|_| ErrorCode::MathError)?;
-            result.total_quote_volume = result.total_quote_volume.safe_add(fill_quote_u64)?;
-            let share_i64 = i64::try_from(allocation.share).map_err(|_| ErrorCode::MathError)?;
-            let fill_quote_i64 =
-                i64::try_from(fill_quote_u128).map_err(|_| ErrorCode::MathError)?;
-            let (base_delta, quote_delta) = if matches!(side, PositionDirection::Long) {
-                (share_i64, -fill_quote_i64)
-            } else {
-                (-share_i64, fill_quote_i64)
-            };
-            result.taker_base_delta = result.taker_base_delta.safe_add(base_delta)?;
-            result.taker_quote_delta = result.taker_quote_delta.safe_add(quote_delta)?;
-            let maker_pubkey = remaining_accounts[amm_view.maker_user_remaining_index].key();
-            let entry = result.maker_deltas.entry(maker_pubkey).or_insert((0, 0));
-            entry.0 = entry.0.safe_add(-base_delta)?;
-            entry.1 = entry.1.safe_add(-quote_delta)?;
+            match allocation.level.source {
+                FrontierSource::PropAmm => {
+                    let amm_view = &amm_views[allocation.idx];
+                    result.external_fills.push(PendingExternalFill {
+                        midprice_remaining_index: amm_view.midprice_remaining_index,
+                        maker_user_remaining_index: amm_view.maker_user_remaining_index,
+                        sequence_number_snapshot: amm_view.sequence_number_snapshot,
+                        fill: ExternalFill {
+                            abs_index: allocation.level.abs_index as u16,
+                            is_ask: allocation.level.is_ask,
+                            fill_size: allocation.share,
+                        },
+                    });
+                    // quote = base * price / AMM_RESERVE_PRECISION
+                    let fill_quote_u128 = (allocation.share as u128)
+                        .checked_mul(best_price as u128)
+                        .ok_or(ErrorCode::MathError)?
+                        .checked_div(AMM_RESERVE_PRECISION)
+                        .ok_or(ErrorCode::MathError)?;
+                    let fill_quote_u64 =
+                        u64::try_from(fill_quote_u128).map_err(|_| ErrorCode::MathError)?;
+                    result.total_quote_volume =
+                        result.total_quote_volume.safe_add(fill_quote_u64)?;
+                    let share_i64 =
+                        i64::try_from(allocation.share).map_err(|_| ErrorCode::MathError)?;
+                    let fill_quote_i64 =
+                        i64::try_from(fill_quote_u128).map_err(|_| ErrorCode::MathError)?;
+                    let (base_delta, quote_delta) = if matches!(side, PositionDirection::Long) {
+                        (share_i64, -fill_quote_i64)
+                    } else {
+                        (-share_i64, fill_quote_i64)
+                    };
+                    result.taker_base_delta = result.taker_base_delta.safe_add(base_delta)?;
+                    result.taker_quote_delta = result.taker_quote_delta.safe_add(quote_delta)?;
+                    let maker_pubkey =
+                        remaining_accounts[amm_view.maker_user_remaining_index].key();
+                    let entry = result.maker_deltas.entry(maker_pubkey).or_insert((0, 0));
+                    entry.0 = entry.0.safe_add(-base_delta)?;
+                    entry.1 = entry.1.safe_add(-quote_delta)?;
+                }
+                FrontierSource::DlobMaker => {
+                    // DLOB frontier index maps to dlob_makers[allocation.idx - num_prop_amm].
+                    let dlob_idx = allocation.idx.checked_sub(num_prop_amm)
+                        .ok_or(ErrorCode::MathError)?;
+                    let dlob = &dlob_makers[dlob_idx];
+                    result.dlob_fills.push(PendingDlobFill {
+                        maker_key: dlob.maker_key,
+                        order_index: dlob.order_index,
+                        remaining_account_index: dlob.remaining_account_index,
+                        base_asset_amount: allocation.share,
+                        price: best_price,
+                    });
+                }
+            }
             if let Some(ref mut frontier) = frontiers[allocation.idx] {
                 frontier.size = frontier.size.safe_sub(allocation.share)?;
             }
@@ -822,6 +1174,7 @@ pub(crate) fn run_prop_amm_matching(
             &mut frontiers,
             &tied_levels,
             amm_views,
+            num_prop_amm,
             remaining_accounts,
             &side,
             limit_price,
@@ -829,6 +1182,18 @@ pub(crate) fn run_prop_amm_matching(
         remaining = remaining.safe_sub(fill)?;
     }
     Ok(result)
+}
+
+/// Legacy entry point: PropAMM-only matching (no AMM, no DLOB).
+#[cfg(test)]
+pub(crate) fn run_prop_amm_matching(
+    amm_views: &[AmmView],
+    remaining_accounts: &[AccountInfo],
+    side: PositionDirection,
+    limit_price: u64,
+    size: u64,
+) -> DriftResult<UnifiedMatchResult> {
+    run_unified_matching(amm_views, &[], remaining_accounts, side, limit_price, size, None)
 }
 
 /// Match taker perp order against prop AMM (midprice) liquidity. Permissionless: anyone may call.
@@ -1108,7 +1473,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     // Canonical layout: [midprice_program], [spot_markets...], [matcher PDA], then (midprice, maker_user)*.
     // The client may also pass additional perp market accounts when maker/taker have positions in those markets (e.g. for margin).
     let amm_start = find_amm_start_after_spot_markets(remaining_accounts, program_id)?;
-    let (midprice_program_idx, amm_views) = parse_amm_views(
+    let (midprice_program_idx, amm_views, dlob_start) = parse_amm_views(
         remaining_accounts,
         amm_start,
         program_id,
@@ -1117,21 +1482,62 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         Some(&ctx.accounts.user.key()),
     )?;
 
-    if amm_views.is_empty() {
+    // Parse DLOB makers from remaining accounts after PropAMM pairs.
+    let perp_market_for_parse = ctx.accounts.perp_market.load()?;
+    let oracle_guard_rails = ctx.accounts.state.oracle_guard_rails;
+    let mut oracle_map_for_parse =
+        OracleMap::load_one(&ctx.accounts.oracle, clock.slot, Some(oracle_guard_rails))?;
+    let oracle_price = oracle_map_for_parse
+        .get_price_data(&perp_market_for_parse.oracle_id())?
+        .price;
+    let order_tick_size = perp_market_for_parse.amm.order_tick_size;
+    let is_prediction_market = perp_market_for_parse.is_prediction_market();
+
+    // Get a read-only snapshot of the vAMM for unified matching (if AMM is available).
+    let amm_paused = ctx.accounts.state.amm_paused().unwrap_or(true);
+    let drift_amm: Option<DriftAMM> = if !amm_paused {
+        Some(perp_market_for_parse.amm)
+    } else {
+        None
+    };
+    drop(perp_market_for_parse);
+    drop(oracle_map_for_parse);
+
+    let dlob_makers = parse_dlob_makers(
+        remaining_accounts,
+        dlob_start,
+        program_id,
+        &ctx.accounts.user.key(),
+        taker_direction,
+        market_index,
+        limit_price,
+        oracle_price,
+        clock.slot,
+        order_tick_size,
+        is_prediction_market,
+    )?;
+
+    if amm_views.is_empty() && dlob_makers.is_empty() && drift_amm.is_none() {
         return Ok(());
     }
 
-    let result = run_prop_amm_matching(&amm_views, remaining_accounts, side, limit_price, size)?;
+    let result = run_unified_matching(
+        &amm_views,
+        &dlob_makers,
+        remaining_accounts,
+        side,
+        limit_price,
+        size,
+        drift_amm.as_ref(),
+    )?;
 
     let spot_slice = &remaining_accounts[1..amm_start];
     let mut spot_iter: Peekable<Iter<AccountInfo>> = spot_slice.iter().peekable();
     let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), &mut spot_iter)?;
 
-    // Filter out insolvent makers before applying any state changes. This recomputes taker deltas
-    // and total_quote_volume so they only reflect solvent makers (skip semantics).
+    // Filter out insolvent PropAMM makers before applying any state changes.
     let perp_market_map =
         PerpMarketMap::from_single_loader(&ctx.accounts.perp_market, market_index)?;
-    let oracle_guard_rails = ctx.accounts.state.oracle_guard_rails;
     let mut oracle_map =
         OracleMap::load_one(&ctx.accounts.oracle, clock.slot, Some(oracle_guard_rails))?;
 
@@ -1148,26 +1554,65 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             now,
         )?;
 
-    if external_fills.is_empty() {
+    let has_prop_amm_fills = !external_fills.is_empty();
+    let has_amm_fills = !result.amm_fills.is_empty();
+    let has_dlob_fills = !result.dlob_fills.is_empty();
+
+    if !has_prop_amm_fills && !has_amm_fills && !has_dlob_fills {
         return Ok(());
     }
 
-    let base_filled = taker_base_delta.unsigned_abs() as u64;
+    // PropAMM taker deltas (from filter, only solvent makers).
+    // These are settled via bulk update_position_and_market.
+    // AMM + DLOB fills are settled individually later (they update the taker position themselves).
+    let prop_amm_base_filled = taker_base_delta.unsigned_abs() as u64;
+
+    // Compute total taker delta for margin checking (across all sources).
+    let mut total_taker_base_delta = taker_base_delta;
+    let mut total_quote_volume = total_quote_volume;
+
+    for amm_fill in &result.amm_fills {
+        let fill_base = i64::try_from(amm_fill.base_asset_amount).map_err(|_| ErrorCode::MathError)?;
+        let bd = if matches!(side, PositionDirection::Long) { fill_base } else { -fill_base };
+        total_taker_base_delta = total_taker_base_delta.safe_add(bd)?;
+        // AMM quote volume will be determined at settlement time by the actual curve.
+    }
+    for dlob_fill in &result.dlob_fills {
+        let fill_base = i64::try_from(dlob_fill.base_asset_amount).map_err(|_| ErrorCode::MathError)?;
+        let fill_quote_u128 = (dlob_fill.base_asset_amount as u128)
+            .checked_mul(dlob_fill.price as u128)
+            .ok_or(ErrorCode::MathError)?
+            .checked_div(AMM_RESERVE_PRECISION)
+            .ok_or(ErrorCode::MathError)?;
+        let bd = if matches!(side, PositionDirection::Long) { fill_base } else { -fill_base };
+        total_taker_base_delta = total_taker_base_delta.safe_add(bd)?;
+        total_quote_volume = total_quote_volume.safe_add(
+            u64::try_from(fill_quote_u128).map_err(|_| ErrorCode::MathError)?,
+        )?;
+    }
+
+    let base_filled = total_taker_base_delta.unsigned_abs() as u64;
     let mut user = ctx.accounts.user.load_mut()?;
     let mut perp_market = ctx.accounts.perp_market.load_mut()?;
 
     let taker_position_index = get_position_index(&user.perp_positions, market_index)
         .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
-    let taker_delta = get_position_delta_for_fill(
-        base_filled,
-        taker_quote_delta.unsigned_abs() as u64,
-        taker_direction,
-    )?;
-    update_position_and_market(
-        &mut user.perp_positions[taker_position_index],
-        &mut perp_market,
-        &taker_delta,
-    )?;
+
+    // Only apply PropAMM deltas here. AMM + DLOB fills update the taker position separately.
+    if prop_amm_base_filled > 0 {
+        let taker_delta = get_position_delta_for_fill(
+            prop_amm_base_filled,
+            taker_quote_delta.unsigned_abs() as u64,
+            taker_direction,
+        )?;
+        update_position_and_market(
+            &mut user.perp_positions[taker_position_index],
+            &mut perp_market,
+            &taker_delta,
+        )?;
+    }
+
+    // Update order fill tracking with total across all sources.
     update_order_after_fill(
         &mut user.orders[order_index],
         base_filled,
@@ -1186,7 +1631,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     // on overflow rather than propagating an error, which would produce a wrong position_before
     // and therefore wrong margin type selection (Maintenance vs Fill).
     let position_before = position_after
-        .checked_sub(taker_base_delta)
+        .checked_sub(total_taker_base_delta)
         .ok_or(ErrorCode::MathError)?;
     let taker_position_decreasing = position_after == 0
         || (position_after.signum() == position_before.signum()
@@ -1198,7 +1643,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     };
     {
         let taker_margin_context = MarginContext::standard(taker_margin_type)
-            .fuel_perp_delta(market_index, -taker_base_delta)
+            .fuel_perp_delta(market_index, -total_taker_base_delta)
             .fuel_numerator(&taker_user, now);
         let taker_margin_calc =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -1327,16 +1772,148 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
     }
 
+    // Settle DLOB fills: update taker + maker positions and maker orders.
+    for dlob_fill in &result.dlob_fills {
+        let maker_info = &remaining_accounts[dlob_fill.remaining_account_index];
+        let maker_loader: AccountLoader<User> =
+            AccountLoader::try_from(maker_info).or(Err(ErrorCode::CouldNotLoadUserData))?;
+        let mut maker = maker_loader.load_mut()?;
+        let mut user = ctx.accounts.user.load_mut()?;
+        let mut market = ctx.accounts.perp_market.load_mut()?;
+
+        let maker_direction = taker_direction.opposite();
+
+        let fill_quote_u128 = (dlob_fill.base_asset_amount as u128)
+            .checked_mul(dlob_fill.price as u128)
+            .ok_or(ErrorCode::MathError)?
+            .checked_div(AMM_RESERVE_PRECISION)
+            .ok_or(ErrorCode::MathError)?;
+        let fill_quote = u64::try_from(fill_quote_u128).map_err(|_| ErrorCode::MathError)?;
+
+        // Update taker position.
+        let taker_pos_idx = get_position_index(&user.perp_positions, market_index)
+            .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
+        let taker_pos_delta = get_position_delta_for_fill(
+            dlob_fill.base_asset_amount,
+            fill_quote,
+            taker_direction,
+        )?;
+        update_position_and_market(
+            &mut user.perp_positions[taker_pos_idx],
+            &mut *market,
+            &taker_pos_delta,
+        )?;
+
+        // Update maker position.
+        let maker_position_index = get_position_index(&maker.perp_positions, market_index)
+            .or_else(|_| add_new_position(&mut maker.perp_positions, market_index))?;
+        let maker_pos_delta = get_position_delta_for_fill(
+            dlob_fill.base_asset_amount,
+            fill_quote,
+            maker_direction,
+        )?;
+        update_position_and_market(
+            &mut maker.perp_positions[maker_position_index],
+            &mut *market,
+            &maker_pos_delta,
+        )?;
+
+        // Update the maker's order.
+        update_order_after_fill(
+            &mut maker.orders[dlob_fill.order_index],
+            dlob_fill.base_asset_amount,
+            fill_quote,
+        )?;
+
+        let fill_record_id = get_then_update_id!(market, next_fill_record_id);
+        drop(maker);
+        drop(market);
+
+        let fill_record = get_order_action_record(
+            now,
+            OrderAction::Fill,
+            OrderActionExplanation::OrderFilledWithMatch,
+            market_index,
+            None,                          // filler
+            Some(fill_record_id),
+            None,                          // filler_reward
+            Some(dlob_fill.base_asset_amount),
+            Some(fill_quote),
+            None,                          // taker_fee
+            None,                          // maker_rebate
+            None,                          // referrer_reward
+            None,                          // quote_asset_amount_surplus
+            None,                          // spot_fulfillment_method_fee
+            Some(ctx.accounts.user.key()),
+            Some(taker_order),
+            Some(dlob_fill.maker_key),
+            None,                          // maker_order
+            oracle_price,
+            0,                             // bit_flags
+            None, None, None, None,        // existing amounts
+            None,                          // trigger_price
+            None,                          // builder_idx
+            None,                          // builder_fee
+        )?;
+        emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
+    }
+
+    // Settle AMM fills via position update (simplified: no filler/referrer rewards in this path).
+    for amm_fill in &result.amm_fills {
+        let mut user = ctx.accounts.user.load_mut()?;
+        let mut market = ctx.accounts.perp_market.load_mut()?;
+
+        let position_index = get_position_index(&user.perp_positions, market_index)
+            .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
+
+        let (_quote_asset_amount, _quote_surplus, _) =
+            crate::controller::position::update_position_with_base_asset_amount(
+                amm_fill.base_asset_amount,
+                taker_direction,
+                &mut market,
+                &mut user,
+                position_index,
+                amm_fill.limit_price,
+            )?;
+
+        let fill_record_id = get_then_update_id!(market, next_fill_record_id);
+        drop(user);
+        drop(market);
+
+        let fill_record = get_order_action_record(
+            now,
+            OrderAction::Fill,
+            OrderActionExplanation::OrderFilledWithAMM,
+            market_index,
+            None,
+            Some(fill_record_id),
+            None,
+            Some(amm_fill.base_asset_amount),
+            None,
+            None, None, None, None, None,
+            Some(ctx.accounts.user.key()),
+            Some(taker_order),
+            None, None,
+            oracle_price,
+            0,
+            None, None, None, None,
+            None, None, None,
+        )?;
+        emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
+    }
+
     // CPI to midprice_pino to apply fills (consume orders on AMM books).
-    flush_external_fill_batches(
-        &remaining_accounts[midprice_program_idx],
-        remaining_accounts,
-        &ctx.accounts.clock.to_account_info(),
-        &external_fills,
-        amm_start,
-        market_index,
-        program_id,
-    )?;
+    if has_prop_amm_fills {
+        flush_external_fill_batches(
+            &remaining_accounts[midprice_program_idx],
+            remaining_accounts,
+            &ctx.accounts.clock.to_account_info(),
+            &external_fills,
+            amm_start,
+            market_index,
+            program_id,
+        )?;
+    }
 
     Ok(())
 }
@@ -1550,7 +2127,7 @@ mod tests {
         ];
         let slice = remaining_accounts.as_slice();
 
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
         let taker_size = 30 * BASE_PRECISION_U64;
         let limit_price = 101 * PRICE_PRECISION_U64;
         let result = run_prop_amm_matching(
@@ -2339,10 +2916,14 @@ mod tests {
             midprice_info,
             maker_user_info,
         ];
+        // With discriminator-based detection, a wrong-owner account isn't recognized as a
+        // midprice account, so it won't appear in amm_views. It would be treated as a DLOB maker
+        // (and fail separately if used). This is safe: CPI to midprice_pino also validates owner.
         let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100, None, None);
+        let (_, amm_views, _) = res.unwrap();
         assert!(
-            res.is_err(),
-            "midprice account must be owned by the canonical midprice program"
+            amm_views.is_empty(),
+            "wrong-owner midprice account must not be parsed as PropAMM"
         );
     }
 
@@ -2462,7 +3043,7 @@ mod tests {
             midprice_info,
             maker_user_info,
         ];
-        let (_, amm_views) =
+        let (_, amm_views, _) =
             parse_amm_views(remaining.as_slice(), 1, &program_id, 100, None, None).unwrap();
         let result = run_prop_amm_matching(
             &amm_views,
@@ -2525,7 +3106,7 @@ mod tests {
             maker_user_info,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
         let result = run_prop_amm_matching(
             &amm_views,
             slice,
@@ -2619,7 +3200,7 @@ mod tests {
             maker_user_info_1,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
         let result = run_prop_amm_matching(
             &amm_views,
             slice,
@@ -2715,7 +3296,7 @@ mod tests {
             mu_i3,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
         // Keep taker size modest so total quote fits in i64
         let taker_size = 4 * 5 * BASE_PRECISION_U64;
         let result = run_prop_amm_matching(
@@ -2801,7 +3382,7 @@ mod tests {
             mu_i7,
         ];
         let slice = remaining.as_slice();
-        let (_, amm_views) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
         // Keep taker size modest so total quote fits in i64
         let taker_size = 8 * 5 * BASE_PRECISION_U64;
         let result = run_prop_amm_matching(
@@ -3531,6 +4112,1806 @@ mod tests {
         assert!(
             filtered_deltas.contains_key(&maker_key),
             "maker with existing perp position in same market must remain solvent after fill"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Unified matching: mixed fill type tests
+    // -----------------------------------------------------------------------
+
+    /// Helper: build a test DriftAMM with given reserve price and spread.
+    fn make_test_amm(reserve_price_u64: u64) -> DriftAMM {
+        // constant product: base * quote = k, price = quote * peg / base
+        // Set base = 100e9, peg = reserve_price, quote = 100e9 => price = peg
+        let base_reserve = 100 * AMM_RESERVE_PRECISION;
+        let quote_reserve = 100 * AMM_RESERVE_PRECISION;
+        let sqrt_k = base_reserve; // k = base * quote = base^2 when base == quote
+        DriftAMM {
+            base_asset_reserve: base_reserve,
+            quote_asset_reserve: quote_reserve,
+            sqrt_k: sqrt_k as u128,
+            peg_multiplier: reserve_price_u64 as u128,
+            long_spread: 0,
+            short_spread: 0,
+            base_spread: 0,
+            order_step_size: 1,
+            order_tick_size: 1,
+            max_fill_reserve_fraction: 1, // allow full fill
+            max_base_asset_reserve: u128::MAX,
+            min_base_asset_reserve: 0,
+            ..DriftAMM::default()
+        }
+    }
+
+    /// AMM alone: when no PropAMM books or DLOB makers, the unified matcher fills from vAMM.
+    #[test]
+    fn unified_amm_only_fills() {
+        let amm = make_test_amm(100 * PRICE_PRECISION_U64);
+        let result = run_unified_matching(
+            &[],  // no PropAMM books
+            &[],  // no DLOB makers
+            &[],  // no remaining accounts needed
+            PositionDirection::Long,
+            200 * PRICE_PRECISION_U64, // generous limit
+            10 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        assert!(!result.amm_fills.is_empty(), "should have AMM fills");
+        assert!(result.external_fills.is_empty(), "no PropAMM fills expected");
+        assert!(result.dlob_fills.is_empty(), "no DLOB fills expected");
+        let total_amm: u64 = result.amm_fills.iter().map(|f| f.base_asset_amount).sum();
+        assert!(total_amm > 0, "AMM should fill some base");
+    }
+
+    /// DLOB alone: when no PropAMM and no AMM, DLOB makers fill.
+    #[test]
+    fn unified_dlob_only_fills() {
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            size: 20 * BASE_PRECISION_U64,
+            remaining_account_index: 0,
+        }];
+        let result = run_unified_matching(
+            &[],
+            &dlob,
+            &[],
+            PositionDirection::Long,
+            101 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            None, // no AMM
+        )
+        .unwrap();
+
+        assert!(result.amm_fills.is_empty());
+        assert!(result.external_fills.is_empty());
+        assert_eq!(result.dlob_fills.len(), 1);
+        assert_eq!(
+            result.dlob_fills[0].base_asset_amount,
+            10 * BASE_PRECISION_U64,
+            "DLOB should fill entire taker size"
+        );
+    }
+
+    /// Mixed PropAMM + DLOB: PropAMM book offers a better price than the DLOB maker.
+    /// The matcher should fill PropAMM first, then DLOB for the remainder.
+    #[test]
+    fn unified_prop_amm_better_price_fills_first() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // PropAMM book at mid=100, ask offset=1, size=5 → effective ask = 101
+        let data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            5 * BASE_PRECISION_U64,
+            &maker_authority,
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id,
+            &mut prog_lamps,
+            &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda,
+            true,
+            &mut gm_lamps,
+            &mut gm_data[..],
+            &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // DLOB maker at price 105 (worse than PropAMM ask at ~101)
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 105 * PRICE_PRECISION_U64,
+            size: 20 * BASE_PRECISION_U64,
+            remaining_account_index: 99, // not actually loaded
+        }];
+
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            110 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            None, // no vAMM
+        )
+        .unwrap();
+
+        // PropAMM has 5 at a better price; DLOB gets the remaining 5.
+        let prop_filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+        assert_eq!(prop_filled, 5 * BASE_PRECISION_U64, "PropAMM fills 5");
+        assert_eq!(dlob_filled, 5 * BASE_PRECISION_U64, "DLOB fills remaining 5");
+    }
+
+    /// Mixed PropAMM + DLOB: DLOB maker offers a better price than the PropAMM book.
+    /// The matcher should fill DLOB first, then PropAMM.
+    #[test]
+    fn unified_dlob_better_price_fills_first() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // PropAMM book: mid=110, ask offset=1, effective ask ~111
+        let data = make_midprice_account_data(
+            110 * PRICE_PRECISION_U64,
+            20 * BASE_PRECISION_U64,
+            &maker_authority,
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id,
+            &mut prog_lamps,
+            &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda,
+            true,
+            &mut gm_lamps,
+            &mut gm_data[..],
+            &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // DLOB maker at price 100 (better than PropAMM ask at ~111)
+        let dlob_key = Pubkey::new_unique();
+        let dlob = vec![DlobMakerView {
+            maker_key: dlob_key,
+            order_index: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            size: 3 * BASE_PRECISION_U64,
+            remaining_account_index: 99,
+        }];
+
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            120 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            None,
+        )
+        .unwrap();
+
+        // DLOB has 3 at a better price → filled first, then PropAMM gets 7.
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+        let prop_filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        assert_eq!(dlob_filled, 3 * BASE_PRECISION_U64, "DLOB fills 3 at better price");
+        assert_eq!(prop_filled, 7 * BASE_PRECISION_U64, "PropAMM fills remaining 7");
+    }
+
+    /// Mixed AMM + PropAMM: AMM offers a better price than the PropAMM book.
+    /// The matcher should fill AMM first (capped at PropAMM's price), then PropAMM.
+    #[test]
+    fn unified_amm_better_than_prop_amm() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // PropAMM book at mid=120, ask offset=1, effective ask ~121
+        let data = make_midprice_account_data(
+            120 * PRICE_PRECISION_U64,
+            50 * BASE_PRECISION_U64,
+            &maker_authority,
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id,
+            &mut prog_lamps,
+            &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda,
+            true,
+            &mut gm_lamps,
+            &mut gm_data[..],
+            &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // AMM at ~100 (cheaper than PropAMM ask at ~121)
+        let amm = make_test_amm(100 * PRICE_PRECISION_U64);
+
+        let result = run_unified_matching(
+            &amm_views,
+            &[],
+            slice,
+            PositionDirection::Long,
+            130 * PRICE_PRECISION_U64,
+            5 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        // AMM should fill first since its price (~100) is better than PropAMM (~121).
+        assert!(!result.amm_fills.is_empty(), "AMM should have fills");
+        let amm_filled: u64 = result.amm_fills.iter().map(|f| f.base_asset_amount).sum();
+        assert!(amm_filled > 0, "AMM fills some base at better price");
+    }
+
+    /// All three sources: AMM, PropAMM, and DLOB fill in price order.
+    #[test]
+    fn unified_all_three_sources_price_priority() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // PropAMM book: mid=105, ask offset=1 → effective ask ~106
+        let data = make_midprice_account_data(
+            105 * PRICE_PRECISION_U64,
+            3 * BASE_PRECISION_U64,
+            &maker_authority,
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key,
+            true,
+            &mut midprice_lamports,
+            &mut midprice_data[..],
+            &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id,
+            &mut prog_lamps,
+            &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda,
+            true,
+            &mut gm_lamps,
+            &mut gm_data[..],
+            &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // AMM at ~100 (best price)
+        let amm = make_test_amm(100 * PRICE_PRECISION_U64);
+
+        // DLOB maker at 110 (worst price)
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 110 * PRICE_PRECISION_U64,
+            size: 20 * BASE_PRECISION_U64,
+            remaining_account_index: 99,
+        }];
+
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            115 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        // Expected priority: AMM (100) → PropAMM (~106) → DLOB (110)
+        let amm_filled: u64 = result.amm_fills.iter().map(|f| f.base_asset_amount).sum();
+        let prop_filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+        let total = amm_filled + prop_filled + dlob_filled;
+
+        assert!(amm_filled > 0, "AMM should fill (best price at ~100)");
+        assert_eq!(prop_filled, 3 * BASE_PRECISION_U64, "PropAMM fills its 3 (~106)");
+        assert_eq!(total, 10 * BASE_PRECISION_U64, "total should equal taker size");
+        // DLOB fills the remainder
+        assert!(dlob_filled > 0, "DLOB fills remainder at worst price (110)");
+    }
+
+    /// PropAMM pro-rata + DLOB sequential at the same price level.
+    /// Two PropAMM books and one DLOB maker all at the same effective price.
+    /// PropAMM should share pro-rata; DLOB fills sequentially after.
+    #[test]
+    fn unified_tied_price_prop_amm_pro_rata_dlob_sequential() {
+        let program_id = drift_program_id();
+        let midprice_prog_id = midprice_program_id();
+
+        // Book A: mid=100, ask offset=1, size=10 → effective ask 101
+        let (auth_a, key_a) = derive_maker_user_pda();
+        let mut user_a = User::default();
+        user_a.authority = auth_a;
+        user_a.sub_account_id = 0;
+        crate::create_anchor_account_info!(user_a, &key_a, User, user_a_info);
+        let data_a = make_midprice_account_data(100 * PRICE_PRECISION_U64, 10 * BASE_PRECISION_U64, &auth_a);
+        let mid_a_key = Pubkey::new_unique();
+        let mut mid_a_lamps = 0u64;
+        let mut mid_a_data = data_a;
+        let mid_a_info = create_account_info(&mid_a_key, true, &mut mid_a_lamps, &mut mid_a_data[..], &midprice_prog_id);
+
+        // Book B: same price level, size=10
+        let (auth_b, key_b) = derive_maker_user_pda();
+        let mut user_b = User::default();
+        user_b.authority = auth_b;
+        user_b.sub_account_id = 0;
+        crate::create_anchor_account_info!(user_b, &key_b, User, user_b_info);
+        let data_b = make_midprice_account_data(100 * PRICE_PRECISION_U64, 10 * BASE_PRECISION_U64, &auth_b);
+        let mid_b_key = Pubkey::new_unique();
+        let mut mid_b_lamps = 0u64;
+        let mut mid_b_data = data_b;
+        let mid_b_info = create_account_info(&mid_b_key, true, &mut mid_b_lamps, &mut mid_b_data[..], &midprice_prog_id);
+
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(&midprice_prog_id, &mut prog_lamps, &mut prog_data[..]);
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(&global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id);
+
+        let remaining: Vec<AccountInfo> = vec![
+            program_info, gm_info,
+            mid_a_info, user_a_info,
+            mid_b_info, user_b_info,
+        ];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+        assert_eq!(amm_views.len(), 2);
+
+        // DLOB maker at same price: 101 (same as PropAMM effective ask)
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 100 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64, // 101
+            size: 10 * BASE_PRECISION_U64,
+            remaining_account_index: 99,
+        }];
+
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            110 * PRICE_PRECISION_U64,
+            12 * BASE_PRECISION_U64,
+            None,
+        )
+        .unwrap();
+
+        // PropAMM A and B share 12 pro-rata (6 each if equal), then DLOB gets remainder.
+        let prop_filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+
+        // All tied at price 101. PropAMM fills pro-rata first (total 20 available, 12 requested),
+        // so PropAMM fills 12 and DLOB fills 0.
+        assert_eq!(prop_filled, 12 * BASE_PRECISION_U64, "PropAMM fills all 12 pro-rata");
+        assert_eq!(dlob_filled, 0, "DLOB not needed when PropAMM covers full size");
+    }
+
+    /// When PropAMM books are exhausted at a price level, DLOB at the same price fills remainder.
+    #[test]
+    fn unified_tied_price_prop_amm_exhausted_dlob_remainder() {
+        let program_id = drift_program_id();
+        let midprice_prog_id = midprice_program_id();
+
+        // Single PropAMM book: mid=100, ask offset=1, size=4
+        let (auth, maker_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = auth;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_key, User, maker_user_info);
+        let data = make_midprice_account_data(100 * PRICE_PRECISION_U64, 4 * BASE_PRECISION_U64, &auth);
+        let mid_key = Pubkey::new_unique();
+        let mut mid_lamps = 0u64;
+        let mut mid_data = data;
+        let mid_info = create_account_info(&mid_key, true, &mut mid_lamps, &mut mid_data[..], &midprice_prog_id);
+
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(&midprice_prog_id, &mut prog_lamps, &mut prog_data[..]);
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(&global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id);
+
+        let remaining: Vec<AccountInfo> = vec![program_info, gm_info, mid_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // DLOB at the same price (101) with plenty of depth
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 100 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64,
+            size: 20 * BASE_PRECISION_U64,
+            remaining_account_index: 99,
+        }];
+
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            110 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            None,
+        )
+        .unwrap();
+
+        let prop_filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+
+        assert_eq!(prop_filled, 4 * BASE_PRECISION_U64, "PropAMM exhausts its 4");
+        assert_eq!(dlob_filled, 6 * BASE_PRECISION_U64, "DLOB fills remaining 6");
+    }
+
+    /// No sources at all: zero fill, no error.
+    #[test]
+    fn unified_no_sources_returns_empty() {
+        let result = run_unified_matching(
+            &[],
+            &[],
+            &[],
+            PositionDirection::Long,
+            100 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(result.taker_base_delta, 0);
+        assert!(result.external_fills.is_empty());
+        assert!(result.amm_fills.is_empty());
+        assert!(result.dlob_fills.is_empty());
+    }
+
+    /// Taker limit price too low: no source crosses, zero fill.
+    #[test]
+    fn unified_limit_price_prevents_fills() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (auth, maker_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = auth;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_key, User, maker_user_info);
+
+        let data = make_midprice_account_data(100 * PRICE_PRECISION_U64, 50 * BASE_PRECISION_U64, &auth);
+        let midprice_prog_id = midprice_program_id();
+        let mut mid_lamps = 0u64;
+        let mut mid_data = data;
+        let mid_info = create_account_info(&midprice_key, true, &mut mid_lamps, &mut mid_data[..], &midprice_prog_id);
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(&midprice_prog_id, &mut prog_lamps, &mut prog_data[..]);
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(&global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id);
+
+        let remaining: Vec<AccountInfo> = vec![program_info, gm_info, mid_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 110 * PRICE_PRECISION_U64,
+            size: 20 * BASE_PRECISION_U64,
+            remaining_account_index: 99,
+        }];
+
+        // AMM at 100 (ask), PropAMM at ~101, DLOB at 110
+        let amm = make_test_amm(100 * PRICE_PRECISION_U64);
+
+        // Limit price = 50 — nothing crosses for a Long taker.
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            50 * PRICE_PRECISION_U64, // too low
+            10 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        assert!(result.amm_fills.is_empty(), "AMM ask > limit price");
+        assert!(result.external_fills.is_empty(), "PropAMM ask > limit price");
+        assert!(result.dlob_fills.is_empty(), "DLOB price > limit price");
+    }
+
+    // -----------------------------------------------------------------------
+    // Security tests for unified matching
+    // -----------------------------------------------------------------------
+
+    /// DLOB frontiers that don't cross the taker's limit price must be excluded.
+    #[test]
+    fn security_dlob_non_crossing_excluded() {
+        let dlob = vec![
+            DlobMakerView {
+                maker_key: Pubkey::new_unique(),
+                order_index: 0,
+                price: 110 * PRICE_PRECISION_U64, // crosses (limit=115)
+                size: 5 * BASE_PRECISION_U64,
+                remaining_account_index: 0,
+            },
+            DlobMakerView {
+                maker_key: Pubkey::new_unique(),
+                order_index: 0,
+                price: 120 * PRICE_PRECISION_U64, // doesn't cross
+                size: 5 * BASE_PRECISION_U64,
+                remaining_account_index: 1,
+            },
+        ];
+
+        let result = run_unified_matching(
+            &[],
+            &dlob,
+            &[],
+            PositionDirection::Long,
+            115 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            None,
+        )
+        .unwrap();
+
+        // Only 5 can be filled (from maker at 110); maker at 120 doesn't cross.
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+        assert_eq!(dlob_filled, 5 * BASE_PRECISION_U64, "only crossing DLOB fills");
+    }
+
+    /// DLOB fill must not exceed the maker's available size.
+    #[test]
+    fn security_dlob_fill_bounded_by_maker_size() {
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            size: 3 * BASE_PRECISION_U64, // only 3 available
+            remaining_account_index: 0,
+        }];
+
+        let result = run_unified_matching(
+            &[],
+            &dlob,
+            &[],
+            PositionDirection::Long,
+            110 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64, // wants 10
+            None,
+        )
+        .unwrap();
+
+        let filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+        assert_eq!(filled, 3 * BASE_PRECISION_U64, "capped at maker's size");
+    }
+
+    /// AMM fill respects the taker's limit price — AMM price above limit yields no fill.
+    #[test]
+    fn security_amm_respects_limit_price() {
+        // AMM at ~200 (ask)
+        let amm = make_test_amm(200 * PRICE_PRECISION_U64);
+
+        let result = run_unified_matching(
+            &[],
+            &[],
+            &[],
+            PositionDirection::Long,
+            100 * PRICE_PRECISION_U64, // limit below AMM ask
+            10 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        assert!(result.amm_fills.is_empty(), "AMM must not fill above taker limit");
+    }
+
+    /// AMM fill is capped at the next discrete frontier's price.
+    /// This prevents the curve from sliding past better discrete liquidity.
+    #[test]
+    fn security_amm_fill_capped_at_frontier_price() {
+        let amm = make_test_amm(90 * PRICE_PRECISION_U64);
+
+        // DLOB at 95 — AMM should fill up to the point where its price reaches 95,
+        // then the DLOB fills at 95.
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 95 * PRICE_PRECISION_U64,
+            size: 100 * BASE_PRECISION_U64,
+            remaining_account_index: 0,
+        }];
+
+        let result = run_unified_matching(
+            &[],
+            &dlob,
+            &[],
+            PositionDirection::Long,
+            200 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        // AMM should fill some, then DLOB fills the remainder.
+        let amm_filled: u64 = result.amm_fills.iter().map(|f| f.base_asset_amount).sum();
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+        assert!(amm_filled > 0, "AMM should fill at better price");
+        assert!(dlob_filled > 0, "DLOB should fill remainder");
+
+        // The AMM fill's limit_price should be set to the frontier price.
+        for fill in &result.amm_fills {
+            assert_eq!(
+                fill.limit_price,
+                Some(95 * PRICE_PRECISION_U64),
+                "AMM fill must be capped at the DLOB frontier price"
+            );
+        }
+    }
+
+    /// Discriminator boundary: accounts with "midp" discriminator + midprice program owner
+    /// are PropAMM; others are DLOB. Verify clean boundary detection.
+    #[test]
+    fn security_discriminator_boundary_detection() {
+        let program_id = drift_program_id();
+        let midprice_prog_id = midprice_program_id();
+
+        // One valid PropAMM pair
+        let (auth, maker_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = auth;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_key, User, maker_user_info);
+
+        let data = make_midprice_account_data(100 * PRICE_PRECISION_U64, 10 * BASE_PRECISION_U64, &auth);
+        let mid_key = Pubkey::new_unique();
+        let mut mid_lamps = 0u64;
+        let mut mid_data = data;
+        let mid_info = create_account_info(&mid_key, true, &mut mid_lamps, &mut mid_data[..], &midprice_prog_id);
+
+        // One Drift User account (DLOB maker) — owned by drift, NOT midprice program
+        let dlob_key = Pubkey::new_unique();
+        let mut dlob_user = User::default();
+        crate::create_anchor_account_info!(dlob_user, &dlob_key, User, dlob_user_info);
+
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(&midprice_prog_id, &mut prog_lamps, &mut prog_data[..]);
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(&global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id);
+
+        // Layout: [midprice_program, matcher, midprice_acct, maker_user, dlob_user]
+        let remaining: Vec<AccountInfo> = vec![
+            program_info, gm_info,
+            mid_info, maker_user_info,
+            dlob_user_info,
+        ];
+        let slice = remaining.as_slice();
+
+        let (_, amm_views, dlob_start) =
+            parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        assert_eq!(amm_views.len(), 1, "exactly one PropAMM pair");
+        assert_eq!(dlob_start, 4, "DLOB starts at index 4 (after PropAMM pair)");
+        assert_eq!(
+            remaining.len() - dlob_start,
+            1,
+            "one DLOB maker account after boundary"
+        );
+    }
+
+    /// A Drift User account with bytes that happen to start with "midp" should NOT be
+    /// detected as a midprice account because its owner is the Drift program, not midprice.
+    #[test]
+    fn security_drift_user_with_midp_bytes_not_confused() {
+        let midprice_prog_id = midprice_program_id();
+        let drift_prog_id = drift_program_id();
+
+        // Create a Drift User account whose data starts with "midp" (adversarial)
+        let fake_key = Pubkey::new_unique();
+        let mut fake_lamps = 100u64;
+        let mut fake_data = vec![0u8; 128];
+        fake_data[..4].copy_from_slice(b"midp"); // plant the discriminator
+        let fake_info = create_account_info(
+            &fake_key,
+            true,
+            &mut fake_lamps,
+            &mut fake_data[..],
+            &drift_prog_id, // owned by Drift, NOT midprice
+        );
+
+        assert!(
+            !is_midprice_account(&fake_info, &midprice_prog_id),
+            "Drift-owned account must not pass midprice discriminator check even with 'midp' bytes"
+        );
+    }
+
+    /// An account owned by the midprice program but with wrong discriminator (not "midp")
+    /// should not be detected as a midprice account.
+    #[test]
+    fn security_wrong_discriminator_not_detected() {
+        let midprice_prog_id = midprice_program_id();
+        let key = Pubkey::new_unique();
+        let mut lamps = 100u64;
+        let mut data = vec![0u8; 128];
+        data[..4].copy_from_slice(b"fake"); // wrong discriminator
+        let info = create_account_info(&key, true, &mut lamps, &mut data[..], &midprice_prog_id);
+
+        assert!(
+            !is_midprice_account(&info, &midprice_prog_id),
+            "wrong discriminator must not be detected as midprice"
+        );
+    }
+
+    /// Interleaving PropAMM and DLOB accounts is not allowed: once the first non-midprice
+    /// account is hit, all subsequent accounts are DLOB. A midprice account after a DLOB
+    /// account would be silently ignored (not parsed as PropAMM). This test documents that.
+    #[test]
+    fn security_no_interleaving_prop_amm_after_dlob() {
+        let program_id = drift_program_id();
+        let midprice_prog_id = midprice_program_id();
+
+        // DLOB user (non-midprice) — will be encountered first after matcher
+        let dlob_key = Pubkey::new_unique();
+        let mut dlob_user = User::default();
+        crate::create_anchor_account_info!(dlob_user, &dlob_key, User, dlob_user_info);
+
+        // PropAMM pair — placed after the DLOB user (should NOT be parsed as PropAMM)
+        let (auth, maker_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = auth;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_key, User, maker_user_info);
+        let data = make_midprice_account_data(100 * PRICE_PRECISION_U64, 10 * BASE_PRECISION_U64, &auth);
+        let mid_key = Pubkey::new_unique();
+        let mut mid_lamps = 0u64;
+        let mut mid_data = data;
+        let mid_info = create_account_info(&mid_key, true, &mut mid_lamps, &mut mid_data[..], &midprice_prog_id);
+
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(&midprice_prog_id, &mut prog_lamps, &mut prog_data[..]);
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(&global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id);
+
+        // Layout: [prog, matcher, dlob_user, midprice, maker_user]
+        // The DLOB user at index 2 breaks the PropAMM scan.
+        let remaining: Vec<AccountInfo> = vec![
+            program_info, gm_info,
+            dlob_user_info,       // not midprice → boundary
+            mid_info,             // this midprice is after boundary
+            maker_user_info,
+        ];
+        let slice = remaining.as_slice();
+
+        let (_, amm_views, dlob_start) =
+            parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        assert_eq!(amm_views.len(), 0, "no PropAMM pairs parsed (boundary hit immediately)");
+        assert_eq!(dlob_start, 2, "DLOB starts at index 2");
+        // The midprice account at index 3 is in the DLOB tail — it won't be used for PropAMM
+        // matching. If someone tries to use it as a DLOB maker, it would fail validation
+        // (not owned by Drift program).
+    }
+
+    // -----------------------------------------------------------------------
+    // Margin: taker margin type selection (Maintenance vs Fill)
+    // -----------------------------------------------------------------------
+
+    /// Helper: set up standard oracle, perp market (10% initial / 5% maintenance), and quote spot market.
+    /// Returns (oracle_map, perp_market_map, spot_market_map) tuple.
+    /// `margin_ratio_initial` = 1000 (10%), `margin_ratio_maintenance` = 500 (5%).
+    macro_rules! margin_test_setup {
+        ($slot:expr, $oracle_key:expr, $pyth_program:expr,
+         $oracle_price:ident, $oracle_account_info:ident, $oracle_map:ident,
+         $perp_market:ident, $perp_market_info:ident, $perp_market_map:ident,
+         $spot_market:ident, $spot_market_info:ident, $spot_market_map:ident) => {
+            let mut $oracle_price = get_pyth_price(100, 6);
+            crate::create_account_info!(
+                $oracle_price, &$oracle_key, &$pyth_program, $oracle_account_info
+            );
+            let mut $oracle_map =
+                crate::state::oracle_map::OracleMap::load_one(&$oracle_account_info, $slot, None)
+                    .unwrap();
+
+            let mut $perp_market = PerpMarket {
+                market_index: 0,
+                amm: AMM {
+                    base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    oracle: $oracle_key,
+                    order_tick_size: 1,
+                    historical_oracle_data: HistoricalOracleData {
+                        last_oracle_price: 100 * crate::math::constants::PRICE_PRECISION_I64,
+                        last_oracle_price_twap: 100 * crate::math::constants::PRICE_PRECISION_I64,
+                        ..HistoricalOracleData::default()
+                    },
+                    ..AMM::default()
+                },
+                margin_ratio_initial: 1000,  // 10%
+                margin_ratio_maintenance: 500, // 5%
+                status: MarketStatus::Active,
+                ..PerpMarket::default_test()
+            };
+            $perp_market.amm.max_base_asset_reserve = u64::MAX as u128;
+            $perp_market.amm.min_base_asset_reserve = 0;
+            crate::create_anchor_account_info!($perp_market, PerpMarket, $perp_market_info);
+            let $perp_market_map = PerpMarketMap::load_one(&$perp_market_info, true).unwrap();
+
+            let mut $spot_market = SpotMarket {
+                market_index: 0,
+                oracle_source: OracleSource::QuoteAsset,
+                cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+                decimals: 6,
+                initial_asset_weight: SPOT_WEIGHT_PRECISION,
+                maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+                historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+                ..SpotMarket::default()
+            };
+            crate::create_anchor_account_info!($spot_market, SpotMarket, $spot_market_info);
+            let $spot_market_map = SpotMarketMap::load_one(&$spot_market_info, true).unwrap();
+        };
+    }
+
+    /// Helper: build a User with given USDC collateral and perp position.
+    fn make_margin_user(usdc_balance: u64, perp_base: i64) -> User {
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: usdc_balance * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let mut perp_positions = [PerpPosition::default(); 8];
+        if perp_base != 0 {
+            let quote = (perp_base as i128 * 100 * crate::math::constants::PRICE_PRECISION_I64 as i128
+                / BASE_PRECISION_U64 as i128) as i64;
+            perp_positions[0] = PerpPosition {
+                market_index: 0,
+                base_asset_amount: perp_base,
+                quote_asset_amount: -quote,
+                quote_entry_amount: -quote,
+                quote_break_even_amount: -quote,
+                ..PerpPosition::default()
+            };
+        }
+        User {
+            spot_positions,
+            perp_positions,
+            ..User::default()
+        }
+    }
+
+    /// Helper: apply a simulated fill delta to a user and return the new User.
+    fn apply_fill_to_user(user: &User, fill_base: i64) -> User {
+        let fill_quote = (fill_base as i128 * 100 * crate::math::constants::PRICE_PRECISION_I64 as i128
+            / BASE_PRECISION_U64 as i128) as i64;
+        let mut pp = user.perp_positions;
+        pp[0].market_index = 0;
+        pp[0].base_asset_amount += fill_base;
+        pp[0].quote_asset_amount -= fill_quote;
+        pp[0].quote_entry_amount -= fill_quote;
+        pp[0].quote_break_even_amount -= fill_quote;
+        User {
+            perp_positions: pp,
+            ..*user
+        }
+    }
+
+    /// Taker closes an existing long position entirely (long → flat).
+    /// Uses Maintenance margin (relaxed) since position is decreasing.
+    #[test]
+    fn margin_taker_close_long_to_flat_uses_maintenance() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Taker: long 10 base @ $100, $10k collateral
+        let base = 10 * BASE_PRECISION_U64 as i64;
+        let user = make_margin_user(10_000, base);
+
+        // Sell 10 base → flat (position_after = 0)
+        let fill_delta = -base;
+        let position_after = base + fill_delta; // 0
+        let position_before = base; // 10 BASE
+
+        // position_after == 0 → taker_position_decreasing = true → Maintenance
+        assert_eq!(position_after, 0);
+        let taker_position_decreasing = position_after == 0
+            || (position_after.signum() == position_before.signum()
+                && position_after.abs() < position_before.abs());
+        assert!(taker_position_decreasing, "closing to flat must be position-decreasing");
+
+        let user_after = apply_fill_to_user(&user, fill_delta);
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
+        assert!(margin_calc.meets_margin_requirement(), "flat position must pass maintenance");
+    }
+
+    /// Taker reduces an existing long (long 10 → long 3).
+    /// Uses Maintenance margin since position magnitude is shrinking.
+    #[test]
+    fn margin_taker_reduce_long_uses_maintenance() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        let base = 10 * BASE_PRECISION_U64 as i64;
+        let user = make_margin_user(10_000, base);
+
+        // Sell 7 base → long 3
+        let fill_delta = -7 * BASE_PRECISION_U64 as i64;
+        let position_after = base + fill_delta;
+        let position_before = base;
+
+        assert!(position_after > 0 && position_after < position_before);
+        let taker_position_decreasing = position_after == 0
+            || (position_after.signum() == position_before.signum()
+                && position_after.abs() < position_before.abs());
+        assert!(taker_position_decreasing, "reducing long magnitude must be position-decreasing");
+
+        let user_after = apply_fill_to_user(&user, fill_delta);
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
+        assert!(margin_calc.meets_margin_requirement(), "reduced long must pass maintenance");
+    }
+
+    /// Taker opens a new long from flat (flat → long 10).
+    /// Uses Fill margin (stricter) since position is risk-increasing.
+    #[test]
+    fn margin_taker_open_long_from_flat_uses_fill() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Taker starts flat, $20k USDC collateral
+        let user = make_margin_user(20_000, 0);
+
+        // Buy 10 base → long 10 @ $100 = $1000 notional, 10% margin = $100 requirement
+        let fill_delta = 10 * BASE_PRECISION_U64 as i64;
+        let position_after = fill_delta; // 10 BASE
+        let position_before = 0_i64;
+
+        // position_after != 0 and position_before == 0 → signum check fails → Fill
+        let taker_position_decreasing = position_after == 0
+            || (position_after.signum() == position_before.signum()
+                && position_after.abs() < position_before.abs());
+        assert!(!taker_position_decreasing, "opening from flat must be risk-increasing");
+
+        let user_after = apply_fill_to_user(&user, fill_delta);
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Fill),
+        )
+        .unwrap();
+        assert!(margin_calc.meets_margin_requirement(), "well-collateralized open must pass fill margin");
+    }
+
+    /// Taker increases an existing long (long 5 → long 15).
+    /// Uses Fill margin since position magnitude is growing.
+    #[test]
+    fn margin_taker_increase_long_uses_fill() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        let base = 5 * BASE_PRECISION_U64 as i64;
+        let user = make_margin_user(20_000, base);
+
+        // Buy 10 more → long 15
+        let fill_delta = 10 * BASE_PRECISION_U64 as i64;
+        let position_after = base + fill_delta;
+        let position_before = base;
+
+        // Same sign but magnitude increased → risk-increasing → Fill
+        let taker_position_decreasing = position_after == 0
+            || (position_after.signum() == position_before.signum()
+                && position_after.abs() < position_before.abs());
+        assert!(!taker_position_decreasing, "increasing long must be risk-increasing");
+
+        let user_after = apply_fill_to_user(&user, fill_delta);
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Fill),
+        )
+        .unwrap();
+        assert!(margin_calc.meets_margin_requirement(), "well-collateralized increase must pass fill margin");
+    }
+
+    /// Taker flips direction (long 5 → short 5).
+    /// Uses Fill margin since position_after.signum() != position_before.signum().
+    #[test]
+    fn margin_taker_flip_long_to_short_uses_fill() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        let base = 5 * BASE_PRECISION_U64 as i64;
+        let user = make_margin_user(20_000, base);
+
+        // Sell 10 base → short 5
+        let fill_delta = -10 * BASE_PRECISION_U64 as i64;
+        let position_after = base + fill_delta; // -5 BASE
+        let position_before = base; // 5 BASE
+
+        assert!(position_after < 0 && position_before > 0, "must flip sign");
+        let taker_position_decreasing = position_after == 0
+            || (position_after.signum() == position_before.signum()
+                && position_after.abs() < position_before.abs());
+        assert!(!taker_position_decreasing, "flipping direction must be risk-increasing");
+
+        let user_after = apply_fill_to_user(&user, fill_delta);
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Fill),
+        )
+        .unwrap();
+        assert!(margin_calc.meets_margin_requirement(), "well-collateralized flip must pass fill margin");
+    }
+
+    /// Taker with barely-enough collateral can close a position (maintenance margin is relaxed),
+    /// but the same collateral level would fail if opening a new position (fill margin is stricter).
+    #[test]
+    fn margin_taker_close_passes_maintenance_but_open_would_fail_fill() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Oracle price = $100. For a 100 BASE long, notional = $10,000.
+        // maintenance (5%) = $500, fill/initial (10%) = $1,000.
+        // Give user exactly $600 collateral.
+        // Also need to account for the quote_asset_amount on the perp position.
+        let base_amount = 100 * BASE_PRECISION_U64 as i64;
+        let user_with_long = make_margin_user(600, base_amount);
+
+        // Closing the long (sell 100) → flat: Maintenance margin on a flat position = 0.
+        // $600 collateral > 0 requirement → passes.
+        let user_after_close = apply_fill_to_user(&user_with_long, -base_amount);
+        assert_eq!(
+            user_after_close.perp_positions[0].base_asset_amount, 0,
+            "must be flat after close"
+        );
+        let margin_close = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after_close,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
+        assert!(
+            margin_close.meets_margin_requirement(),
+            "closing to flat with $600 must pass maintenance"
+        );
+
+        // Now test: opening a new long (flat → long 100) with the same $600.
+        // Fill margin (10%) on $10,000 notional = $1,000 requirement.
+        // $600 < $1,000 → should fail.
+        let flat_user = make_margin_user(600, 0);
+        let user_after_open = apply_fill_to_user(&flat_user, base_amount);
+        let margin_open = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after_open,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Fill),
+        )
+        .unwrap();
+        assert!(
+            !margin_open.meets_margin_requirement(),
+            "opening long 100 with $600 collateral must fail fill margin"
+        );
+    }
+
+    /// Taker with insufficient collateral fails margin when opening a risk-increasing position.
+    #[test]
+    fn margin_taker_open_insufficient_collateral_fails() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // $50 collateral, try to open long 100 BASE @ $100 = $10,000 notional.
+        // Fill margin (10%) = $1,000 >> $50.
+        let user = make_margin_user(50, 0);
+        let fill_delta = 100 * BASE_PRECISION_U64 as i64;
+        let user_after = apply_fill_to_user(&user, fill_delta);
+
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Fill),
+        )
+        .unwrap();
+        assert!(
+            !margin_calc.meets_margin_requirement(),
+            "opening huge position with $50 collateral must fail fill margin"
+        );
+    }
+
+    /// Taker reduces a short (short 10 → short 3): Maintenance margin type.
+    #[test]
+    fn margin_taker_reduce_short_uses_maintenance() {
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        let base = -10 * BASE_PRECISION_U64 as i64; // short 10
+        let user = make_margin_user(10_000, base);
+
+        // Buy 7 base → short 3
+        let fill_delta = 7 * BASE_PRECISION_U64 as i64;
+        let position_after = base + fill_delta;
+        let position_before = base;
+
+        assert!(position_after < 0 && position_after.abs() < position_before.abs());
+        let taker_position_decreasing = position_after == 0
+            || (position_after.signum() == position_before.signum()
+                && position_after.abs() < position_before.abs());
+        assert!(taker_position_decreasing, "reducing short magnitude must be position-decreasing");
+
+        let user_after = apply_fill_to_user(&user, fill_delta);
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
+        assert!(margin_calc.meets_margin_requirement(), "reduced short must pass maintenance");
+    }
+
+    // -----------------------------------------------------------------------
+    // Margin: maker margin filter (skip semantics)
+    // -----------------------------------------------------------------------
+
+    /// Maker margin filter: maker whose fill would close their position to flat
+    /// gets Maintenance margin type via select_margin_type_for_perp_maker and passes.
+    #[test]
+    fn margin_maker_close_to_flat_passes_filter() {
+        use crate::math::orders::select_margin_type_for_perp_maker;
+
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Maker: long 10, $500 collateral (thin but above 5% maintenance for $1000 notional).
+        // After fill (sell 10), position = 0 → Maintenance type.
+        let base = 10 * BASE_PRECISION_U64 as i64;
+        let mut maker = make_margin_user(500, base);
+        // select_margin_type_for_perp_maker reads the user's current position.
+        // In the filter, the user hasn't been mutated yet, so the "position_after_fill"
+        // the function reads is actually the current position.
+        // Simulate: the User data reflects *after* the fill has been applied (the way
+        // fill_perp_order calls it). So we give it the post-fill state.
+        let fill_delta = -base; // sell all 10
+        let maker_after = apply_fill_to_user(&maker, fill_delta);
+
+        let (margin_type, _) =
+            select_margin_type_for_perp_maker(&maker_after, fill_delta, 0).unwrap();
+        // position_after_fill = 0 → Maintenance
+        assert_eq!(
+            margin_type,
+            MarginRequirementType::Maintenance,
+            "closing to flat must use Maintenance"
+        );
+
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &maker_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(margin_type),
+        )
+        .unwrap();
+        assert!(
+            margin_calc.meets_margin_requirement(),
+            "maker closing to flat with adequate collateral must pass"
+        );
+    }
+
+    /// Maker margin filter: maker whose fill would increase risk (flat → long)
+    /// gets Fill margin type via select_margin_type_for_perp_maker.
+    /// With insufficient collateral, maker is filtered out (skip semantics).
+    #[test]
+    fn margin_maker_risk_increasing_fill_gets_fill_margin() {
+        use crate::math::orders::select_margin_type_for_perp_maker;
+
+        let slot = 0_u64;
+        let oracle_key = Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Maker starts flat, gets filled into long 100 @ $100 = $10,000 notional.
+        // Fill margin (10%) = $1,000.  Give them only $50 → must fail.
+        let fill_delta = 100 * BASE_PRECISION_U64 as i64;
+        let maker = make_margin_user(50, 0);
+        let maker_after = apply_fill_to_user(&maker, fill_delta);
+
+        let (margin_type, _) =
+            select_margin_type_for_perp_maker(&maker_after, fill_delta, 0).unwrap();
+        assert_eq!(
+            margin_type,
+            MarginRequirementType::Fill,
+            "opening from flat must use Fill margin"
+        );
+
+        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &maker_after,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(margin_type),
+        )
+        .unwrap();
+        assert!(
+            !margin_calc.meets_margin_requirement(),
+            "under-collateralized risk-increasing maker must fail margin"
+        );
+    }
+
+    /// Two prop-AMM makers: one solvent, one insolvent. filter_prop_amm_makers_by_margin
+    /// must skip the insolvent maker and produce correct taker deltas from the solvent one only.
+    /// Verify the taker's cumulative delta is recalculated excluding the skipped maker.
+    #[test]
+    fn margin_maker_skip_adjusts_taker_deltas() {
+        use crate::state::oracle_map::OracleMap;
+        let slot = 0_u64;
+        let program_id = drift_program_id();
+        let oracle_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Solvent maker: $100k collateral, no position
+        let maker_a_key = Pubkey::new_unique();
+        let mut maker_a = User {
+            authority: maker_a_key,
+            ..make_margin_user(100_000, 0)
+        };
+        crate::create_anchor_account_info!(maker_a, &maker_a_key, User, maker_a_info);
+
+        // Insolvent maker: $10 collateral with massive short already
+        let maker_b_key = Pubkey::new_unique();
+        let mut insolvent_perp_positions = [PerpPosition::default(); 8];
+        insolvent_perp_positions[0] = PerpPosition {
+            market_index: 0,
+            base_asset_amount: -500 * (BASE_PRECISION_U64 as i64),
+            quote_asset_amount: 50000 * crate::math::constants::PRICE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+        let mut insolvent_spot = [SpotPosition::default(); 8];
+        insolvent_spot[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 10 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let mut maker_b = User {
+            authority: maker_b_key,
+            spot_positions: insolvent_spot,
+            perp_positions: insolvent_perp_positions,
+            ..User::default()
+        };
+        crate::create_anchor_account_info!(maker_b, &maker_b_key, User, maker_b_info);
+
+        let midprice_prog_id = midprice_program_id();
+        let mid_a_key = Pubkey::new_unique();
+        let mid_b_key = Pubkey::new_unique();
+        let mut mid_a_data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            50 * BASE_PRECISION_U64,
+            &maker_a_key,
+        );
+        let mut mid_b_data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            50 * BASE_PRECISION_U64,
+            &maker_b_key,
+        );
+        let mut mid_a_lamps = 0u64;
+        let mut mid_b_lamps = 0u64;
+        let mid_a_info = create_account_info(
+            &mid_a_key, true, &mut mid_a_lamps, &mut mid_a_data[..], &midprice_prog_id,
+        );
+        let mid_b_info = create_account_info(
+            &mid_b_key, true, &mut mid_b_lamps, &mut mid_b_data[..], &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id, &mut prog_lamps, &mut prog_data[..],
+        );
+        let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut matcher_lamps = 0u64;
+        let mut matcher_data = [0u8; 0];
+        let matcher_info = create_account_info(
+            &matcher_pda, true, &mut matcher_lamps, &mut matcher_data[..], &program_id,
+        );
+
+        let remaining_accounts: Vec<AccountInfo> = vec![
+            program_info, matcher_info,
+            mid_a_info, maker_a_info,
+            mid_b_info, maker_b_info,
+        ];
+        let amm_views = vec![
+            AmmView {
+                key: mid_a_key,
+                mid_price: 100 * PRICE_PRECISION_U64,
+                sequence_number_snapshot: 0,
+                maker_user_remaining_index: 3,
+                midprice_remaining_index: 2,
+            },
+            AmmView {
+                key: mid_b_key,
+                mid_price: 100 * PRICE_PRECISION_U64,
+                sequence_number_snapshot: 0,
+                maker_user_remaining_index: 5,
+                midprice_remaining_index: 4,
+            },
+        ];
+
+        // Both makers sell 20 base each
+        let base_delta = -20_i64 * (BASE_PRECISION_U64 as i64);
+        let quote_delta = 20 * 100 * crate::math::constants::PRICE_PRECISION_I64;
+        let mut maker_deltas = BTreeMap::new();
+        maker_deltas.insert(maker_a_key, (base_delta, quote_delta));
+        maker_deltas.insert(maker_b_key, (base_delta, quote_delta));
+
+        let (filtered, _, taker_base, taker_quote, total_quote) =
+            filter_prop_amm_makers_by_margin(
+                &maker_deltas,
+                &[],
+                &amm_views,
+                &remaining_accounts,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                0,
+                0,
+            )
+            .unwrap();
+
+        // Only maker A survives
+        assert_eq!(filtered.len(), 1);
+        assert!(filtered.contains_key(&maker_a_key));
+        assert!(!filtered.contains_key(&maker_b_key));
+
+        // Taker deltas reflect only maker A's contribution (mirror of maker A's delta)
+        assert_eq!(taker_base, -base_delta, "taker base = negative of solvent maker's base");
+        assert_eq!(taker_quote, -quote_delta, "taker quote = negative of solvent maker's quote");
+        assert_eq!(total_quote, quote_delta.unsigned_abs());
+    }
+
+    /// Both makers are insolvent → filter removes both → taker deltas are zero.
+    /// Transaction should still succeed (no fills applied, no margin breach).
+    #[test]
+    fn margin_all_makers_insolvent_zero_taker_delta() {
+        use crate::state::oracle_map::OracleMap;
+        let slot = 0_u64;
+        let program_id = drift_program_id();
+        let oracle_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Both makers: $5 collateral, massive existing short
+        let make_insolvent_maker = |key: Pubkey| -> User {
+            let mut perp_positions = [PerpPosition::default(); 8];
+            perp_positions[0] = PerpPosition {
+                market_index: 0,
+                base_asset_amount: -500 * (BASE_PRECISION_U64 as i64),
+                quote_asset_amount: 50000 * crate::math::constants::PRICE_PRECISION_I64,
+                ..PerpPosition::default()
+            };
+            let mut spot_positions = [SpotPosition::default(); 8];
+            spot_positions[0] = SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 5 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            };
+            User {
+                authority: key,
+                spot_positions,
+                perp_positions,
+                ..User::default()
+            }
+        };
+
+        let maker_a_key = Pubkey::new_unique();
+        let maker_b_key = Pubkey::new_unique();
+        let mut maker_a = make_insolvent_maker(maker_a_key);
+        let mut maker_b = make_insolvent_maker(maker_b_key);
+        crate::create_anchor_account_info!(maker_a, &maker_a_key, User, maker_a_info);
+        crate::create_anchor_account_info!(maker_b, &maker_b_key, User, maker_b_info);
+
+        let midprice_prog_id = midprice_program_id();
+        let mid_a_key = Pubkey::new_unique();
+        let mid_b_key = Pubkey::new_unique();
+        let mut mid_a_data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64, 50 * BASE_PRECISION_U64, &maker_a_key,
+        );
+        let mut mid_b_data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64, 50 * BASE_PRECISION_U64, &maker_b_key,
+        );
+        let mut mid_a_lamps = 0u64;
+        let mut mid_b_lamps = 0u64;
+        let mid_a_info = create_account_info(
+            &mid_a_key, true, &mut mid_a_lamps, &mut mid_a_data[..], &midprice_prog_id,
+        );
+        let mid_b_info = create_account_info(
+            &mid_b_key, true, &mut mid_b_lamps, &mut mid_b_data[..], &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id, &mut prog_lamps, &mut prog_data[..],
+        );
+        let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut matcher_lamps = 0u64;
+        let mut matcher_data = [0u8; 0];
+        let matcher_info = create_account_info(
+            &matcher_pda, true, &mut matcher_lamps, &mut matcher_data[..], &program_id,
+        );
+
+        let remaining_accounts: Vec<AccountInfo> = vec![
+            program_info, matcher_info,
+            mid_a_info, maker_a_info,
+            mid_b_info, maker_b_info,
+        ];
+        let amm_views = vec![
+            AmmView {
+                key: mid_a_key, mid_price: 100 * PRICE_PRECISION_U64,
+                sequence_number_snapshot: 0, maker_user_remaining_index: 3, midprice_remaining_index: 2,
+            },
+            AmmView {
+                key: mid_b_key, mid_price: 100 * PRICE_PRECISION_U64,
+                sequence_number_snapshot: 0, maker_user_remaining_index: 5, midprice_remaining_index: 4,
+            },
+        ];
+
+        let base_delta = -30_i64 * (BASE_PRECISION_U64 as i64);
+        let quote_delta = 30 * 100 * crate::math::constants::PRICE_PRECISION_I64;
+        let mut maker_deltas = BTreeMap::new();
+        maker_deltas.insert(maker_a_key, (base_delta, quote_delta));
+        maker_deltas.insert(maker_b_key, (base_delta, quote_delta));
+
+        let (filtered, _, taker_base, taker_quote, total_quote) =
+            filter_prop_amm_makers_by_margin(
+                &maker_deltas, &[], &amm_views, &remaining_accounts,
+                &perp_market_map, &spot_market_map, &mut oracle_map, 0, 0,
+            )
+            .unwrap();
+
+        assert_eq!(filtered.len(), 0, "both insolvent makers must be filtered");
+        assert_eq!(taker_base, 0, "taker base delta must be zero when all makers skipped");
+        assert_eq!(taker_quote, 0, "taker quote delta must be zero when all makers skipped");
+        assert_eq!(total_quote, 0, "total quote volume must be zero");
+    }
+
+    /// Maker's fill reduces their existing position (long 30 → long 15 via selling 15).
+    /// select_margin_type_for_perp_maker should return Maintenance.
+    #[test]
+    fn margin_maker_position_reducing_uses_maintenance() {
+        use crate::math::orders::select_margin_type_for_perp_maker;
+
+        // Maker starts long 30, fill sells 15 → long 15 (same sign, smaller magnitude).
+        let base = 30 * BASE_PRECISION_U64 as i64;
+        let fill_delta = -15 * BASE_PRECISION_U64 as i64;
+        let maker = make_margin_user(10_000, base);
+        let maker_after = apply_fill_to_user(&maker, fill_delta);
+
+        let (margin_type, _) =
+            select_margin_type_for_perp_maker(&maker_after, fill_delta, 0).unwrap();
+        assert_eq!(
+            margin_type,
+            MarginRequirementType::Maintenance,
+            "position-reducing maker fill must use Maintenance"
+        );
+    }
+
+    /// Maker's fill increases their existing position (long 10 → long 25 via buying 15).
+    /// select_margin_type_for_perp_maker should return Fill.
+    #[test]
+    fn margin_maker_position_increasing_uses_fill() {
+        use crate::math::orders::select_margin_type_for_perp_maker;
+
+        // Maker starts long 10, fill buys 15 → long 25 (same sign, larger magnitude).
+        let base = 10 * BASE_PRECISION_U64 as i64;
+        let fill_delta = 15 * BASE_PRECISION_U64 as i64;
+        let maker = make_margin_user(10_000, base);
+        let maker_after = apply_fill_to_user(&maker, fill_delta);
+
+        let (margin_type, risk_increasing) =
+            select_margin_type_for_perp_maker(&maker_after, fill_delta, 0).unwrap();
+        assert_eq!(
+            margin_type,
+            MarginRequirementType::Fill,
+            "position-increasing maker fill must use Fill"
+        );
+        assert!(risk_increasing, "increasing position must flag risk_increasing");
+    }
+
+    /// Maker with zero-delta fill (no actual fill) is kept by the margin filter regardless of balance.
+    #[test]
+    fn margin_maker_zero_delta_always_passes() {
+        use crate::state::oracle_map::OracleMap;
+        let slot = 0_u64;
+        let program_id = drift_program_id();
+        let oracle_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        margin_test_setup!(
+            slot, oracle_key, pyth_program,
+            oracle_price, oracle_account_info, oracle_map,
+            perp_market, perp_market_info, perp_market_map,
+            spot_market, spot_market_info, spot_market_map
+        );
+
+        // Maker: insolvent (huge short, tiny collateral) but delta = 0 → passes.
+        let maker_key = Pubkey::new_unique();
+        let mut perp_positions = [PerpPosition::default(); 8];
+        perp_positions[0] = PerpPosition {
+            market_index: 0,
+            base_asset_amount: -500 * (BASE_PRECISION_U64 as i64),
+            quote_asset_amount: 50000 * crate::math::constants::PRICE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 1 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            authority: maker_key,
+            spot_positions,
+            perp_positions,
+            ..User::default()
+        };
+        crate::create_anchor_account_info!(maker, &maker_key, User, maker_info);
+
+        let midprice_prog_id = midprice_program_id();
+        let mid_key = Pubkey::new_unique();
+        let mut mid_data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64, 50 * BASE_PRECISION_U64, &maker_key,
+        );
+        let mut mid_lamps = 0u64;
+        let mid_info = create_account_info(
+            &mid_key, true, &mut mid_lamps, &mut mid_data[..], &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data_buf = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id, &mut prog_lamps, &mut prog_data_buf[..],
+        );
+        let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut matcher_lamps = 0u64;
+        let mut matcher_data = [0u8; 0];
+        let matcher_info = create_account_info(
+            &matcher_pda, true, &mut matcher_lamps, &mut matcher_data[..], &program_id,
+        );
+
+        let remaining_accounts: Vec<AccountInfo> = vec![
+            program_info, matcher_info, mid_info, maker_info,
+        ];
+        let amm_views = vec![AmmView {
+            key: mid_key, mid_price: 100 * PRICE_PRECISION_U64,
+            sequence_number_snapshot: 0, maker_user_remaining_index: 3, midprice_remaining_index: 2,
+        }];
+
+        // Delta = 0 for this maker
+        let mut maker_deltas = BTreeMap::new();
+        maker_deltas.insert(maker_key, (0i64, 0i64));
+
+        let (filtered, _, _, _, _) = filter_prop_amm_makers_by_margin(
+            &maker_deltas, &[], &amm_views, &remaining_accounts,
+            &perp_market_map, &spot_market_map, &mut oracle_map, 0, 0,
+        )
+        .unwrap();
+
+        assert!(
+            filtered.contains_key(&maker_key),
+            "maker with zero delta must always pass margin filter"
         );
     }
 }
