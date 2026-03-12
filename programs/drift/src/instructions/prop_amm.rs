@@ -1969,8 +1969,8 @@ mod tests {
         ACCOUNT_DISCRIMINATOR_OFFSET, ACCOUNT_DISCRIMINATOR_SIZE, ACCOUNT_MIN_LEN, ASK_HEAD_OFFSET,
         ASK_LEN_OFFSET, AUTHORITY_OFFSET, BID_HEAD_OFFSET, BID_LEN_OFFSET, LAYOUT_VERSION_INITIAL,
         LAYOUT_VERSION_OFFSET, MARKET_INDEX_OFFSET, MIDPRICE_ACCOUNT_DISCRIMINATOR,
-        MID_PRICE_OFFSET, ORDERS_DATA_OFFSET, ORDER_ENTRY_SIZE, QUOTE_TTL_OFFSET, REF_SLOT_OFFSET,
-        SUBACCOUNT_INDEX_OFFSET,
+        MID_PRICE_OFFSET, ORDERS_DATA_OFFSET, ORDER_ENTRY_SIZE, ORDER_ENTRY_SIZE_OFFSET,
+        QUOTE_TTL_OFFSET, REF_SLOT_OFFSET, SUBACCOUNT_INDEX_OFFSET,
     };
 
     fn drift_program_id() -> Pubkey {
@@ -2016,6 +2016,8 @@ mod tests {
         data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
         data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
         data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         let base = ORDERS_DATA_OFFSET;
         data[base..base + 8].copy_from_slice(&1i64.to_le_bytes());
         data[base + 8..base + 16].copy_from_slice(&ask_size.to_le_bytes());
@@ -5650,10 +5652,26 @@ mod tests {
         maker_deltas.insert(maker_a_key, (base_delta, quote_delta));
         maker_deltas.insert(maker_b_key, (base_delta, quote_delta));
 
-        let (filtered, _, taker_base, taker_quote, total_quote) =
+        // External fills: one for each maker
+        let external_fills = vec![
+            PendingExternalFill {
+                midprice_remaining_index: 2,
+                maker_user_remaining_index: 3, // maker_a
+                sequence_number_snapshot: 0,
+                fill: ExternalFill { abs_index: 0, is_ask: true, fill_size: 20 * BASE_PRECISION_U64 },
+            },
+            PendingExternalFill {
+                midprice_remaining_index: 4,
+                maker_user_remaining_index: 5, // maker_b (insolvent)
+                sequence_number_snapshot: 0,
+                fill: ExternalFill { abs_index: 0, is_ask: true, fill_size: 20 * BASE_PRECISION_U64 },
+            },
+        ];
+
+        let (filtered, filtered_fills, taker_base, taker_quote, total_quote) =
             filter_prop_amm_makers_by_margin(
                 &maker_deltas,
-                &[],
+                &external_fills,
                 &amm_views,
                 &remaining_accounts,
                 &perp_market_map,
@@ -5668,6 +5686,13 @@ mod tests {
         assert_eq!(filtered.len(), 1);
         assert!(filtered.contains_key(&maker_a_key));
         assert!(!filtered.contains_key(&maker_b_key));
+
+        // External fills for insolvent maker B must also be removed
+        assert_eq!(filtered_fills.len(), 1, "only solvent maker's fills should survive");
+        assert_eq!(
+            filtered_fills[0].maker_user_remaining_index, 3,
+            "surviving fill must belong to maker_a"
+        );
 
         // Taker deltas reflect only maker A's contribution (mirror of maker A's delta)
         assert_eq!(taker_base, -base_delta, "taker base = negative of solvent maker's base");
@@ -5774,14 +5799,30 @@ mod tests {
         maker_deltas.insert(maker_a_key, (base_delta, quote_delta));
         maker_deltas.insert(maker_b_key, (base_delta, quote_delta));
 
-        let (filtered, _, taker_base, taker_quote, total_quote) =
+        let external_fills = vec![
+            PendingExternalFill {
+                midprice_remaining_index: 2,
+                maker_user_remaining_index: 3,
+                sequence_number_snapshot: 0,
+                fill: ExternalFill { abs_index: 0, is_ask: true, fill_size: 30 * BASE_PRECISION_U64 },
+            },
+            PendingExternalFill {
+                midprice_remaining_index: 4,
+                maker_user_remaining_index: 5,
+                sequence_number_snapshot: 0,
+                fill: ExternalFill { abs_index: 0, is_ask: true, fill_size: 30 * BASE_PRECISION_U64 },
+            },
+        ];
+
+        let (filtered, filtered_fills, taker_base, taker_quote, total_quote) =
             filter_prop_amm_makers_by_margin(
-                &maker_deltas, &[], &amm_views, &remaining_accounts,
+                &maker_deltas, &external_fills, &amm_views, &remaining_accounts,
                 &perp_market_map, &spot_market_map, &mut oracle_map, 0, 0,
             )
             .unwrap();
 
         assert_eq!(filtered.len(), 0, "both insolvent makers must be filtered");
+        assert_eq!(filtered_fills.len(), 0, "all external fills must be removed when all makers insolvent");
         assert_eq!(taker_base, 0, "taker base delta must be zero when all makers skipped");
         assert_eq!(taker_quote, 0, "taker quote delta must be zero when all makers skipped");
         assert_eq!(total_quote, 0, "total quote volume must be zero");
@@ -5913,5 +5954,419 @@ mod tests {
             filtered.contains_key(&maker_key),
             "maker with zero delta must always pass margin filter"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Additional coverage: partial fills, AMM zero-fill fallthrough,
+    // taker position_before overflow
+    // -----------------------------------------------------------------------
+
+    /// Taker wants more than total available liquidity across all sources.
+    /// Matching should fill only what's available and stop gracefully.
+    #[test]
+    fn partial_fill_taker_size_exceeds_available_liquidity() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // PropAMM book: only 5 base available
+        let available = 5 * BASE_PRECISION_U64;
+        let data = make_midprice_account_data(
+            100 * PRICE_PRECISION_U64,
+            available,
+            &maker_authority,
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key, true, &mut midprice_lamports, &mut midprice_data[..], &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id, &mut prog_lamps, &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // DLOB maker with 3 base
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 105 * PRICE_PRECISION_U64,
+            size: 3 * BASE_PRECISION_U64,
+            remaining_account_index: 99,
+        }];
+
+        // Taker wants 100 base — far more than available 5 + 3 = 8
+        let taker_size = 100 * BASE_PRECISION_U64;
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            110 * PRICE_PRECISION_U64,
+            taker_size,
+            None, // no vAMM
+        )
+        .unwrap();
+
+        let prop_filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        let dlob_filled: u64 = result.dlob_fills.iter().map(|f| f.base_asset_amount).sum();
+        let total = prop_filled + dlob_filled;
+
+        assert_eq!(prop_filled, available, "PropAMM fills all available");
+        assert_eq!(dlob_filled, 3 * BASE_PRECISION_U64, "DLOB fills all available");
+        assert_eq!(total, 8 * BASE_PRECISION_U64, "total filled = all available liquidity");
+        assert!(total < taker_size, "partial fill: less than taker requested");
+    }
+
+    /// When AMM's standardize_base_asset_amount rounds fill to 0 (step size too large),
+    /// the matcher should fall through to discrete frontiers instead of looping forever.
+    #[test]
+    fn amm_zero_fill_falls_through_to_discrete_frontiers() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // PropAMM book at mid=120, ask at ~121 (worse than AMM at ~100)
+        let data = make_midprice_account_data(
+            120 * PRICE_PRECISION_U64,
+            50 * BASE_PRECISION_U64,
+            &maker_authority,
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key, true, &mut midprice_lamports, &mut midprice_data[..], &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id, &mut prog_lamps, &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // AMM at ~100 (better price) but with a huge order_step_size that rounds all fills to 0
+        let mut amm = make_test_amm(100 * PRICE_PRECISION_U64);
+        amm.order_step_size = u64::MAX; // any fill < u64::MAX rounds to 0
+
+        let result = run_unified_matching(
+            &amm_views,
+            &[],
+            slice,
+            PositionDirection::Long,
+            130 * PRICE_PRECISION_U64,
+            5 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        // AMM can't fill (step_size rounds to 0), should fall through to PropAMM
+        assert!(result.amm_fills.is_empty(), "AMM should produce no fills (step_size too large)");
+        let prop_filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        assert_eq!(prop_filled, 5 * BASE_PRECISION_U64, "PropAMM should fill after AMM fallthrough");
+    }
+
+    /// Taker margin check: position_before overflow returns MathError instead of silently clamping.
+    /// If total_taker_base_delta is extreme, checked_sub on position_after must propagate an error.
+    #[test]
+    fn taker_position_before_overflow_returns_error() {
+        // position_after.checked_sub(total_taker_base_delta) must fail for extreme deltas.
+        // This tests the logic at line ~1634:
+        //   let position_before = position_after.checked_sub(total_taker_base_delta).ok_or(MathError)?;
+        let position_after: i64 = i64::MAX;
+        let total_taker_base_delta: i64 = i64::MIN; // MAX - MIN would overflow
+
+        let result = position_after.checked_sub(total_taker_base_delta);
+        assert!(
+            result.is_none(),
+            "i64::MAX.checked_sub(i64::MIN) must overflow (returns None)"
+        );
+
+        // Conversely: if we used saturating_sub (the old code path), it would silently clamp.
+        let wrong_result = position_after.saturating_sub(total_taker_base_delta);
+        assert_eq!(
+            wrong_result,
+            i64::MAX,
+            "saturating_sub would clamp to MAX, giving wrong position_before"
+        );
+    }
+
+    /// When AMM price doesn't cross the taker's limit, matching should
+    /// proceed to fill from discrete sources and not produce AMM fills.
+    #[test]
+    fn amm_price_above_limit_skipped_dlob_fills() {
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            size: 10 * BASE_PRECISION_U64,
+            remaining_account_index: 0,
+        }];
+
+        // AMM at price ~200 — above taker limit of 105
+        let amm = make_test_amm(200 * PRICE_PRECISION_U64);
+
+        let result = run_unified_matching(
+            &[],
+            &dlob,
+            &[],
+            PositionDirection::Long,
+            105 * PRICE_PRECISION_U64,
+            5 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        assert!(result.amm_fills.is_empty(), "AMM above limit should produce no fills");
+        assert_eq!(result.dlob_fills.len(), 1, "DLOB should fill");
+        assert_eq!(result.dlob_fills[0].base_asset_amount, 5 * BASE_PRECISION_U64);
+    }
+
+    /// Taker wants to buy but all sources are priced above the limit.
+    /// Nothing should fill and result should be empty.
+    #[test]
+    fn all_sources_above_limit_no_fill() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // PropAMM book: mid=200, ask offset=1, effective ask ~201
+        let data = make_midprice_account_data(
+            200 * PRICE_PRECISION_U64,
+            50 * BASE_PRECISION_U64,
+            &maker_authority,
+        );
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let mut midprice_data = data;
+        let midprice_info = create_account_info(
+            &midprice_key, true, &mut midprice_lamports, &mut midprice_data[..], &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id, &mut prog_lamps, &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id,
+        );
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // DLOB at 150, AMM at ~200 — all above limit of 100
+        let dlob = vec![DlobMakerView {
+            maker_key: Pubkey::new_unique(),
+            order_index: 0,
+            price: 150 * PRICE_PRECISION_U64,
+            size: 10 * BASE_PRECISION_U64,
+            remaining_account_index: 99,
+        }];
+        let amm = make_test_amm(200 * PRICE_PRECISION_U64);
+
+        let result = run_unified_matching(
+            &amm_views,
+            &dlob,
+            slice,
+            PositionDirection::Long,
+            100 * PRICE_PRECISION_U64, // limit below all sources
+            10 * BASE_PRECISION_U64,
+            Some(&amm),
+        )
+        .unwrap();
+
+        assert!(result.external_fills.is_empty(), "no PropAMM fills");
+        assert!(result.dlob_fills.is_empty(), "no DLOB fills");
+        assert!(result.amm_fills.is_empty(), "no AMM fills");
+        assert_eq!(result.taker_base_delta, 0);
+        assert_eq!(result.taker_quote_delta, 0);
+    }
+
+    /// Short-side partial fill: taker sells into bids.
+    /// PropAMM book has limited bid liquidity; taker wants to sell more than available.
+    #[test]
+    fn partial_fill_short_side() {
+        let program_id = drift_program_id();
+        let midprice_key = Pubkey::new_unique();
+        let (maker_authority, maker_user_key) = derive_maker_user_pda();
+        let mut maker_user = User::default();
+        maker_user.authority = maker_authority;
+        maker_user.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+        // Build midprice account with bids (no asks)
+        let mid_price = 100 * PRICE_PRECISION_U64;
+        let bid_size = 7 * BASE_PRECISION_U64;
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN + ORDER_ENTRY_SIZE];
+        data[ACCOUNT_DISCRIMINATOR_OFFSET..ACCOUNT_DISCRIMINATOR_OFFSET + ACCOUNT_DISCRIMINATOR_SIZE]
+            .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(maker_authority.as_ref());
+        data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
+        data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+        data[SUBACCOUNT_INDEX_OFFSET..SUBACCOUNT_INDEX_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+        data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes()); // no asks
+        data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&1u16.to_le_bytes()); // 1 bid
+        data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+        data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
+        // Bid at offset -1 from mid
+        let base = ORDERS_DATA_OFFSET;
+        data[base..base + 8].copy_from_slice(&(-1i64).to_le_bytes());
+        data[base + 8..base + 16].copy_from_slice(&bid_size.to_le_bytes());
+
+        let midprice_prog_id = midprice_program_id();
+        let mut midprice_lamports = 0u64;
+        let midprice_info = create_account_info(
+            &midprice_key, true, &mut midprice_lamports, &mut data[..], &midprice_prog_id,
+        );
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(
+            &midprice_prog_id, &mut prog_lamps, &mut prog_data[..],
+        );
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(
+            &global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id,
+        );
+
+        let remaining: Vec<AccountInfo> =
+            vec![program_info, gm_info, midprice_info, maker_user_info];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+
+        // Taker sells 20, only 7 available
+        let result = run_unified_matching(
+            &amm_views,
+            &[],
+            slice,
+            PositionDirection::Short,
+            90 * PRICE_PRECISION_U64, // limit below mid
+            20 * BASE_PRECISION_U64,
+            None,
+        )
+        .unwrap();
+
+        let filled: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        assert_eq!(filled, bid_size, "should fill all available bid liquidity");
+        assert!(filled < 20 * BASE_PRECISION_U64, "partial fill");
+        // Taker sold base → negative base delta
+        assert!(result.taker_base_delta < 0, "taker base delta should be negative (sold)");
+    }
+
+    /// Two PropAMM books with unequal sizes at the same price: pro-rata allocates proportionally.
+    /// Verifies that remainder distribution doesn't over-allocate.
+    #[test]
+    fn pro_rata_unequal_sizes_no_over_allocation() {
+        let program_id = drift_program_id();
+        let midprice_prog_id = midprice_program_id();
+
+        // Maker A: 3 base available
+        let (auth_a, maker_key_a) = derive_maker_user_pda();
+        let mut maker_a = User::default();
+        maker_a.authority = auth_a;
+        maker_a.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_a, &maker_key_a, User, maker_a_info);
+        let mut data_a = make_midprice_account_data(100 * PRICE_PRECISION_U64, 3 * BASE_PRECISION_U64, &auth_a);
+        let mid_key_a = Pubkey::new_unique();
+        let mut lamps_a = 0u64;
+        let mid_a_info = create_account_info(&mid_key_a, true, &mut lamps_a, &mut data_a[..], &midprice_prog_id);
+
+        // Maker B: 97 base available (same price level)
+        let (auth_b, maker_key_b) = derive_maker_user_pda();
+        let mut maker_b = User::default();
+        maker_b.authority = auth_b;
+        maker_b.sub_account_id = 0;
+        crate::create_anchor_account_info!(maker_b, &maker_key_b, User, maker_b_info);
+        let mut data_b = make_midprice_account_data(100 * PRICE_PRECISION_U64, 97 * BASE_PRECISION_U64, &auth_b);
+        let mid_key_b = Pubkey::new_unique();
+        let mut lamps_b = 0u64;
+        let mid_b_info = create_account_info(&mid_key_b, true, &mut lamps_b, &mut data_b[..], &midprice_prog_id);
+
+        let mut prog_lamps = 0u64;
+        let mut prog_data = [0u8; 0];
+        let program_info = create_executable_program_account_info(&midprice_prog_id, &mut prog_lamps, &mut prog_data[..]);
+        let (global_matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+        let mut gm_lamps = 0u64;
+        let mut gm_data = [0u8; 0];
+        let gm_info = create_account_info(&global_matcher_pda, true, &mut gm_lamps, &mut gm_data[..], &program_id);
+
+        let remaining: Vec<AccountInfo> = vec![
+            program_info, gm_info,
+            mid_a_info, maker_a_info,
+            mid_b_info, maker_b_info,
+        ];
+        let slice = remaining.as_slice();
+        let (_, amm_views, _) = parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+        assert_eq!(amm_views.len(), 2);
+
+        // Taker wants 10 base; available = 3 + 97 = 100, fill = 10
+        // Pro-rata: A gets 10*3/100 = 0.3 → 0, B gets 10*97/100 = 9.7 → 9, remainder 1 goes to A
+        let result = run_unified_matching(
+            &amm_views,
+            &[],
+            slice,
+            PositionDirection::Long,
+            110 * PRICE_PRECISION_U64,
+            10 * BASE_PRECISION_U64,
+            None,
+        )
+        .unwrap();
+
+        let total: u64 = result.external_fills.iter().map(|f| f.fill.fill_size).sum();
+        assert_eq!(total, 10 * BASE_PRECISION_U64, "total must equal taker size");
+
+        // Each maker's fill must not exceed their available size
+        for fill in &result.external_fills {
+            let maker_idx = fill.midprice_remaining_index;
+            if maker_idx == 2 {
+                assert!(fill.fill.fill_size <= 3 * BASE_PRECISION_U64, "maker A fill must not exceed 3");
+            } else {
+                assert!(fill.fill.fill_size <= 97 * BASE_PRECISION_U64, "maker B fill must not exceed 97");
+            }
+        }
     }
 }

@@ -38,11 +38,12 @@
 use midprice_book_view::{
     MidpriceBookViewMut, ACCOUNT_DISCRIMINATOR_OFFSET, ACCOUNT_DISCRIMINATOR_SIZE, ACCOUNT_MIN_LEN,
     APPLY_FILLS_MARKET_INDEX_SIZE, APPLY_FILLS_NUM_FILLS_SIZE, APPLY_FILLS_OPCODE,
-    APPLY_FILLS_SEQ_NUM_SIZE, APPLY_FILL_ENTRY_SIZE, AUTHORITY_OFFSET, LAYOUT_VERSION_INITIAL,
+    APPLY_FILLS_SEQ_NUM_SIZE, APPLY_FILL_ENTRY_SIZE, ASK_HEAD_OFFSET, ASK_LEN_OFFSET,
+    AUTHORITY_OFFSET, BID_HEAD_OFFSET, BID_LEN_OFFSET, LAYOUT_VERSION_INITIAL,
     LAYOUT_VERSION_OFFSET, MARKET_INDEX_OFFSET, MAX_ORDERS, MIDPRICE_ACCOUNT_DISCRIMINATOR,
     MID_PRICE_OFFSET, MIN_ORDER_SIZE_OFFSET, ORDERS_DATA_OFFSET, ORDER_ENTRY_SIZE,
-    ORDER_TICK_SIZE_OFFSET, QUOTE_TTL_OFFSET, REF_SLOT_OFFSET, SEQUENCE_NUMBER_OFFSET,
-    SUBACCOUNT_INDEX_OFFSET,
+    ORDER_ENTRY_SIZE_OFFSET, ORDER_TICK_SIZE_OFFSET, QUOTE_TTL_OFFSET, REF_SLOT_OFFSET,
+    RESERVED_OFFSET, SEQUENCE_NUMBER_OFFSET, SUBACCOUNT_INDEX_OFFSET,
 };
 use pinocchio::{
     account::AccountView, error::ProgramError, no_allocator, nostd_panic_handler,
@@ -123,13 +124,6 @@ pub fn process_instruction(
             return Err(ProgramError::InvalidInstructionData);
         }
     };
-    log!(
-        128,
-        "midprice: ix_len={} opcode={} payload_len={}",
-        instruction_data.len(),
-        *opcode,
-        payload.len()
-    );
     match *opcode {
         IX_INITIALIZE_MID_PRICE_ACCOUNT => {
             process_initialize_mid_price_account(program_id, accounts, payload)
@@ -193,7 +187,12 @@ fn validate_authority_and_borrow_mut<'a>(
     let data = unsafe { midprice_account.borrow_unchecked_mut() };
     check_layout_version(data)?;
 
-    if data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32] != *authority.address().as_ref() {
+    if !unsafe {
+        authority_matches_32(
+            data.as_ptr().add(AUTHORITY_OFFSET),
+            authority.address().as_ref().as_ptr(),
+        )
+    } {
         log!(64, "midprice: stored authority mismatch");
         return Err(ProgramError::Custom(AUTH_ERR_INVALID_AUTHORITY as u32));
     }
@@ -339,6 +338,9 @@ fn process_initialize_mid_price_account(
         .copy_from_slice(&min_order_size.to_le_bytes());
     data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8].fill(0);
     data[SEQUENCE_NUMBER_OFFSET..SEQUENCE_NUMBER_OFFSET + 8].fill(0);
+    data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+        .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
+    data[RESERVED_OFFSET..RESERVED_OFFSET + 6].fill(0);
 
     let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
     book.set_lengths_and_reset_heads(0, 0)
@@ -445,14 +447,11 @@ fn process_set_orders(
     }
 
     data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].copy_from_slice(&ref_slot.to_le_bytes());
-
-    {
-        let mut book =
-            MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
-        book.set_lengths_and_reset_heads(ask_len as u16, bid_len as u16)
-            .map_err(|_| ProgramError::InvalidInstructionData)?;
-        book.increment_sequence_number();
-    }
+    data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&(ask_len as u16).to_le_bytes());
+    data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&(bid_len as u16).to_le_bytes());
+    data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+    data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
+    increment_sequence_number(data);
     data[ORDERS_DATA_OFFSET..ORDERS_DATA_OFFSET + payload_orders_bytes]
         .copy_from_slice(&payload[12..]);
 
@@ -478,9 +477,7 @@ fn process_update_mid_price(
 
     data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 16].copy_from_slice(&payload[..16]);
     data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].copy_from_slice(&ref_slot.to_le_bytes());
-
-    let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
-    book.increment_sequence_number();
+    increment_sequence_number(data);
 
     Ok(())
 }
@@ -991,6 +988,18 @@ fn read_slot_from_clock_at(accounts: &[AccountView], index: usize) -> Option<u64
 }
 
 
+/// Increment sequence number in-place without constructing a MidpriceBookViewMut.
+#[inline(always)]
+fn increment_sequence_number(data: &mut [u8]) {
+    let seq = u64::from_le_bytes(
+        data[SEQUENCE_NUMBER_OFFSET..SEQUENCE_NUMBER_OFFSET + 8]
+            .try_into()
+            .unwrap(),
+    );
+    data[SEQUENCE_NUMBER_OFFSET..SEQUENCE_NUMBER_OFFSET + 8]
+        .copy_from_slice(&seq.wrapping_add(1).to_le_bytes());
+}
+
 fn check_layout_version(data: &[u8]) -> ProgramResult {
     if data.len() < LAYOUT_VERSION_OFFSET + 8 {
         return Err(ProgramError::Custom(
@@ -1050,7 +1059,7 @@ mod tests {
     use midprice_book_view::{
         ACCOUNT_DISCRIMINATOR_OFFSET, ACCOUNT_DISCRIMINATOR_SIZE, ASK_HEAD_OFFSET, ASK_LEN_OFFSET,
         BID_HEAD_OFFSET, BID_LEN_OFFSET, LAYOUT_VERSION_INITIAL, MIDPRICE_ACCOUNT_DISCRIMINATOR,
-        SUBACCOUNT_INDEX_OFFSET,
+        ORDER_ENTRY_SIZE_OFFSET, SUBACCOUNT_INDEX_OFFSET,
     };
     use solana_account_view::{RuntimeAccount, NOT_BORROWED};
 
@@ -1191,6 +1200,8 @@ mod tests {
             .copy_from_slice(&quote_ttl_slots.to_le_bytes());
         data[SEQUENCE_NUMBER_OFFSET..SEQUENCE_NUMBER_OFFSET + 8]
             .copy_from_slice(&0u64.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         let mut off = ORDERS_DATA_OFFSET;
         for &sz in ask_sizes {
             data[off..off + 8].copy_from_slice(&0i64.to_le_bytes());
@@ -1302,6 +1313,10 @@ mod tests {
         assert_eq!(
             data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8],
             LAYOUT_VERSION_INITIAL.to_le_bytes()
+        );
+        assert_eq!(
+            data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2],
+            (ORDER_ENTRY_SIZE as u16).to_le_bytes()
         );
         assert_eq!(
             data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32],
@@ -1463,6 +1478,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             pda,
@@ -1559,6 +1576,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -1590,6 +1609,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -1622,6 +1643,67 @@ mod tests {
     }
 
     #[test]
+    fn update_mid_price_reserved_bytes_are_passthrough() {
+        // The 8 bytes at MID_PRICE_OFFSET+8 are currently reserved. The handler
+        // copies all 16 payload bytes verbatim. This test documents that behavior
+        // so any change to reserved-byte handling (e.g. zeroing them) is caught.
+        let program_id = test_program_id();
+        let authority = test_authority();
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN];
+        data[ACCOUNT_DISCRIMINATOR_OFFSET
+            ..ACCOUNT_DISCRIMINATOR_OFFSET + ACCOUNT_DISCRIMINATOR_SIZE]
+            .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
+        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
+            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
+        let mut midprice_backing = mock_account_backing(
+            test_midprice_account(),
+            program_id,
+            ACCOUNT_MIN_LEN,
+            false,
+            true,
+            1000,
+            Some(&data),
+        );
+        let mut auth_backing =
+            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
+        let accounts = [
+            account_view_from_backing(&mut midprice_backing),
+            account_view_from_backing(&mut auth_backing),
+        ];
+
+        let mid_price: u64 = 100_000;
+        let reserved_garbage: [u8; 8] = [0xAB; 8]; // non-zero reserved bytes
+        let ref_slot: u64 = 99;
+        let mut ix = vec![IX_UPDATE_MID_PRICE];
+        ix.extend_from_slice(&mid_price.to_le_bytes());
+        ix.extend_from_slice(&reserved_garbage);
+        ix.extend_from_slice(&ref_slot.to_le_bytes());
+
+        let result = process_instruction(&program_id, &accounts, &ix);
+        assert!(result.is_ok());
+
+        let data = unsafe { accounts[0].borrow_unchecked() };
+        // mid_price written correctly
+        assert_eq!(
+            data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 8],
+            mid_price.to_le_bytes()
+        );
+        // reserved bytes are passed through, NOT zeroed
+        assert_eq!(
+            data[MID_PRICE_OFFSET + 8..MID_PRICE_OFFSET + 16],
+            reserved_garbage,
+            "reserved bytes should be written verbatim from payload"
+        );
+        assert_eq!(
+            data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8],
+            ref_slot.to_le_bytes()
+        );
+    }
+
+    #[test]
     fn process_set_orders_invalid_payload_too_short() {
         let program_id = test_program_id();
         let authority = test_authority();
@@ -1631,6 +1713,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -1663,6 +1747,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
@@ -1712,6 +1798,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
@@ -1761,6 +1849,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
@@ -1813,6 +1903,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
@@ -1862,6 +1954,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -1893,6 +1987,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -1931,6 +2027,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -1964,6 +2062,8 @@ mod tests {
             .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
         data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
             .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
+        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
