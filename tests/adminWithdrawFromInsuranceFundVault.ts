@@ -26,6 +26,9 @@ import {
 	asBN,
 } from '../sdk/src/bankrun/bankrunConnection';
 
+// Prod-like insurance fund scale (Total ~$22.5M, Protocol ~$7.05M / 31.3%, Community ~$15.5M / 68.7%)
+const TOTAL_IF_PROD_SCALE = new BN(22_500_000).mul(new BN(10 ** 6));
+
 describe('admin withdraw from insurance fund vault', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
@@ -37,7 +40,8 @@ describe('admin withdraw from insurance fund vault', () => {
 	let userUSDCAccount: Keypair;
 	let solOracle: PublicKey;
 
-	const usdcAmount = new BN(1_000_000 * 10 ** 6);
+	/** Initial deposit sized to prod-like total IF (~$22.5M). */
+	const usdcAmount = TOTAL_IF_PROD_SCALE;
 
 	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;

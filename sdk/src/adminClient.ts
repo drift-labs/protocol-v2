@@ -4221,7 +4221,9 @@ export class AdminClient extends DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					authority: this.wallet.publicKey,
+					authority: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					spotMarket: spotMarket.pubkey,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
 					recipientTokenAccount,
