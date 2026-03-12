@@ -1342,6 +1342,7 @@ pub struct AdminWithdrawFromInsuranceFundVault<'info> {
     #[account(
         mut,
         token::mint = insurance_fund_vault.mint,
+        constraint = recipient_token_account.owner == crate::ids::insurance_fund_withdrawal_recipient::id() @ ErrorCode::InvalidInsuranceFundWithdrawalRecipient,
     )]
     pub recipient_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,

@@ -49,7 +49,7 @@ describe('admin withdraw from insurance fund vault', () => {
 
 	const solAmount = new BN(10_000 * 10 ** 9);
 
-	let recipientKeypair: Keypair;
+	/** Recipient must be the program-designated treasury (in tests, provider wallet). */
 	let recipientUSDCAccount: Keypair;
 
 	before(async () => {
@@ -105,12 +105,12 @@ describe('admin withdraw from insurance fund vault', () => {
 			userUSDCAccount.publicKey
 		);
 
-		recipientKeypair = Keypair.generate();
+		// Recipient must be the program-designated treasury (anchor-test: provider wallet)
 		recipientUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			ZERO,
 			bankrunContextWrapper,
-			recipientKeypair.publicKey
+			bankrunContextWrapper.provider.wallet.publicKey
 		);
 	});
 
