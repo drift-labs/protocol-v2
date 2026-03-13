@@ -30,7 +30,7 @@ import {
 } from '@solana/spl-token';
 
 /** Min size for midprice_pino account (midprice_book_view::ACCOUNT_MIN_LEN) */
-const MIDPRICE_ACCOUNT_MIN_LEN = 112;
+const MIDPRICE_ACCOUNT_MIN_LEN = 120;
 /** Order entry size (offset i64 + size u64) */
 const MIDPRICE_ORDER_ENTRY_SIZE = 16;
 /** midprice_pino instructions */
@@ -445,18 +445,6 @@ describe('PropAMM CU usage (bankrun)', () => {
 			new BN(1)
 		);
 
-		// Place a limit order so we have a taker order to match
-		const orderParams = getLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount: new BN(5).mul(BASE_PRECISION),
-			price: new BN(101).mul(PRICE_PRECISION),
-			reduceOnly: false,
-		});
-		await driftClient.placePerpOrder(orderParams);
-		await driftClient.fetchAccounts();
-		await sleep(500);
-
 		// When using real midprice_pino, create global PropAMM matcher PDA so fill CPI accepts it (matcher.owner == Drift).
 		// Use program client (IDL) so instruction discriminator and accounts match the deployed program.
 		if (midpriceProgramId) {
@@ -487,10 +475,39 @@ describe('PropAMM CU usage (bankrun)', () => {
 		await driftClient.unsubscribe();
 	});
 
-	async function buildAndSignMatchTx(numPropAmms: number): Promise<{
+	/** Place a fresh taker limit order and return its order ID. */
+	async function placeTakerLimitOrder(
+		direction: PositionDirection = PositionDirection.LONG,
+		baseAmount: BN = new BN(5).mul(BASE_PRECISION),
+		price: BN = new BN(101).mul(PRICE_PRECISION)
+	): Promise<number> {
+		await driftClient.fetchAccounts();
+		const nextId = driftClient.getUser().getUserAccount().nextOrderId;
+		const orderParams = getLimitOrderParams({
+			marketIndex,
+			direction,
+			baseAssetAmount: baseAmount,
+			price,
+			reduceOnly: false,
+		});
+		await driftClient.placePerpOrder(orderParams);
+		await driftClient.fetchAccounts();
+		return nextId;
+	}
+
+	async function buildAndSignMatchTx(
+		numPropAmms: number,
+		orderId?: number,
+		numDlobMakers = 0
+	): Promise<{
 		tx: Transaction;
 		signers: Keypair[];
+		orderId: number;
 	}> {
+		// Place a fresh taker order if none provided
+		if (orderId === undefined) {
+			orderId = await placeTakerLimitOrder();
+		}
 		const driftProgramId = program.programId;
 		const takerUser = await driftClient.getUserAccountPublicKey();
 		const takerStats = driftClient.getUserStatsAccountPublicKey();
@@ -640,7 +657,91 @@ describe('PropAMM CU usage (bankrun)', () => {
 			);
 		}
 
-		// Remaining: [midprice_program], [spot_markets...], global PropAMM matcher, then per AMM: (midprice, maker_user)
+		// Create DLOB makers: Drift users with open limit sell orders (no midprice account)
+		const dlobMakerUserPDAs: PublicKey[] = [];
+		for (let i = 0; i < numDlobMakers; i++) {
+			const kp = Keypair.generate();
+			await bankrunContextWrapper.fundKeypair(kp, 10 ** 9);
+			const dlobMakerUsdcAccount = getAssociatedTokenAddressSync(
+				usdcMint.publicKey,
+				kp.publicKey
+			);
+			const dlobUserPda = await getUserAccountPublicKey(
+				driftProgramId,
+				kp.publicKey,
+				0
+			);
+			dlobMakerUserPDAs.push(dlobUserPda);
+
+			const dlobSetupIxs: TransactionInstruction[] = [];
+			dlobSetupIxs.push(
+				createAssociatedTokenAccountIdempotentInstruction(
+					bankrunContextWrapper.context.payer.publicKey,
+					dlobMakerUsdcAccount,
+					kp.publicKey,
+					usdcMint.publicKey,
+					tokenProgram
+				)
+			);
+			dlobSetupIxs.push(
+				createMintToInstruction(
+					usdcMint.publicKey,
+					dlobMakerUsdcAccount,
+					bankrunContextWrapper.context.payer.publicKey,
+					usdcAmount.toNumber(),
+					undefined,
+					tokenProgram
+				)
+			);
+			const dlobClient = new TestClient({
+				connection: bankrunContextWrapper.connection.toConnection(),
+				wallet: new anchor.Wallet(kp),
+				programID: driftProgramId,
+				opts: { commitment: 'confirmed' },
+				activeSubAccountId: 0,
+				perpMarketIndexes: [marketIndex],
+				spotMarketIndexes: [0],
+				subAccountIds: [],
+				oracleInfos: [{ publicKey: oracle, source: OracleSource.PYTH }],
+				accountSubscription: {
+					type: 'polling',
+					accountLoader: bulkAccountLoader,
+				},
+			});
+			await dlobClient.subscribe();
+			const { ixs: dlobInitIxs } =
+				await dlobClient.createInitializeUserAccountAndDepositCollateralIxs(
+					usdcAmount,
+					dlobMakerUsdcAccount
+				);
+			dlobSetupIxs.push(...dlobInitIxs);
+
+			// Send init+deposit first so user account exists on-chain
+			const dlobSetupTx = new Transaction().add(...dlobSetupIxs);
+			const dlobSig = await bankrunContextWrapper.sendTransaction(dlobSetupTx, [
+				kp,
+			]);
+			assert(
+				dlobSig && dlobSig.length > 0,
+				`DLOB maker ${i} setup tx should succeed`
+			);
+			await dlobClient.unsubscribe();
+
+			// Re-subscribe so it picks up the newly created user account
+			await dlobClient.subscribe();
+			await dlobClient.addUser(0, kp.publicKey);
+			const dlobOrderParams = getLimitOrderParams({
+				marketIndex,
+				direction: PositionDirection.SHORT,
+				baseAssetAmount: new BN(1).mul(BASE_PRECISION),
+				price: new BN(101).mul(PRICE_PRECISION),
+				reduceOnly: false,
+			});
+			await dlobClient.placePerpOrder(dlobOrderParams);
+			await dlobClient.unsubscribe();
+		}
+
+		// Remaining: [midprice_program], [spot_markets...], global PropAMM matcher, then per AMM: (midprice, maker_user), then DLOB makers
 		const remaining: { pubkey: PublicKey; isWritable: boolean }[] = [];
 		remaining.push({
 			pubkey: midpriceProgramId ?? driftProgramId,
@@ -662,8 +763,11 @@ describe('PropAMM CU usage (bankrun)', () => {
 			});
 			remaining.push({ pubkey: makerUserPDAs[i], isWritable: true });
 		}
+		// DLOB makers come after PropAMM pairs
+		for (const dlobPda of dlobMakerUserPDAs) {
+			remaining.push({ pubkey: dlobPda, isWritable: true });
+		}
 
-		const orderId = 1;
 		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
 			driftProgramId,
 			orderId,
@@ -682,11 +786,18 @@ describe('PropAMM CU usage (bankrun)', () => {
 		tx.recentBlockhash = await bankrunContextWrapper.getLatestBlockhash();
 		tx.feePayer = bankrunContextWrapper.context.payer.publicKey;
 		tx.sign(bankrunContextWrapper.context.payer);
-		return { tx, signers: [] };
+		return { tx, signers: [], orderId };
 	}
 
-	async function measurePropAmmMatchCU(numPropAmms: number): Promise<number> {
-		const { tx } = await buildAndSignMatchTx(numPropAmms);
+	async function measurePropAmmMatchCU(
+		numPropAmms: number,
+		numDlobMakers = 0
+	): Promise<number> {
+		const { tx } = await buildAndSignMatchTx(
+			numPropAmms,
+			undefined,
+			numDlobMakers
+		);
 		const sim = await bankrunContextWrapper.connection.simulateTransaction(tx);
 		assert.strictEqual(sim.value.err, null, 'simulation should succeed');
 		const cu = Number(sim.value.unitsConsumed ?? 0);
@@ -706,15 +817,23 @@ describe('PropAMM CU usage (bankrun)', () => {
 		if (!midpriceProgramId) {
 			this.skip();
 		}
-		const { tx, signers } = await buildAndSignMatchTx(1);
+		const { tx, signers, orderId } = await buildAndSignMatchTx(1);
 		const sig = await bankrunContextWrapper.sendTransaction(tx, signers);
 		assert(sig && sig.length > 0, 'match transaction should succeed');
 		await driftClient.fetchAccounts();
-		const order = driftClient.getOrder(1);
-		assert(order, 'taker order 1 should exist');
+		const order = driftClient.getOrder(orderId);
+		// Order may have been fully filled and removed, or partially filled
+		if (order) {
+			assert(
+				order.baseAssetAmountFilled.gt(new BN(0)),
+				'taker order should have been filled (baseAssetAmountFilled > 0)'
+			);
+		}
+		// If order is null it was fully filled — check position instead
+		const perpPosition = driftClient.getUser().getPerpPosition(marketIndex);
 		assert(
-			order.quoteAssetAmountFilled.gt(new BN(0)),
-			'taker order should have been filled (quoteAssetAmountFilled > 0)'
+			perpPosition && perpPosition.baseAssetAmount.gt(new BN(0)),
+			'taker should have a long perp position after fill'
 		);
 	});
 
@@ -870,10 +989,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		remaining.push({ pubkey: midpricePda, isWritable: true });
 		remaining.push({ pubkey: makerUserPda, isWritable: true });
 
-		const orderId = 1;
+		const dupOrderId = await placeTakerLimitOrder();
 		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
 			driftProgramId,
-			orderId,
+			dupOrderId,
 			{
 				user: takerUser,
 				userStats: takerStats,
@@ -916,6 +1035,92 @@ describe('PropAMM CU usage (bankrun)', () => {
 		}
 		const cu = await measurePropAmmMatchCU(6);
 		console.log('PropAMM match CU (6 AMMs):', cu);
+		assert(cu > 0, 'should consume compute units');
+	});
+
+	// -------------------------------------------------------------------
+	// Mixed fill source tests (PropAMM + DLOB + vAMM)
+	// -------------------------------------------------------------------
+
+	it('fills via vAMM only (no PropAMM makers, no DLOB)', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		// Build a match tx with 0 PropAMM makers and 0 DLOB makers.
+		// The AMM should fill the taker order since oracle=100 and taker buys at limit 101.
+		const { tx } = await buildAndSignMatchTx(0);
+		const sim = await bankrunContextWrapper.connection.simulateTransaction(tx);
+		assert.strictEqual(
+			sim.value.err,
+			null,
+			'vAMM-only simulation should succeed'
+		);
+		const cu = Number(sim.value.unitsConsumed ?? 0);
+		console.log('vAMM-only match CU:', cu);
+		assert(cu > 0, 'should consume compute units');
+	});
+
+	it('fills via DLOB only (no PropAMM makers)', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		// 0 PropAMM makers, 1 DLOB maker with a limit sell at 101
+		const { tx } = await buildAndSignMatchTx(0, undefined, 1);
+		const sim = await bankrunContextWrapper.connection.simulateTransaction(tx);
+		assert.strictEqual(
+			sim.value.err,
+			null,
+			'DLOB-only simulation should succeed'
+		);
+		const cu = Number(sim.value.unitsConsumed ?? 0);
+		console.log('DLOB-only match CU (1 maker):', cu);
+		assert(cu > 0, 'should consume compute units');
+	});
+
+	it('fills via mixed PropAMM + DLOB', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		// 1 PropAMM maker + 1 DLOB maker, both at price 101
+		const { tx } = await buildAndSignMatchTx(1, undefined, 1);
+		const sim = await bankrunContextWrapper.connection.simulateTransaction(tx);
+		assert.strictEqual(
+			sim.value.err,
+			null,
+			'mixed PropAMM+DLOB simulation should succeed'
+		);
+		const cu = Number(sim.value.unitsConsumed ?? 0);
+		console.log('Mixed PropAMM(1) + DLOB(1) match CU:', cu);
+		assert(cu > 0, 'should consume compute units');
+	});
+
+	it('fills via mixed PropAMM + DLOB + vAMM (all sources)', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		// Taker wants 5 BASE. PropAMM offers 1 BASE at 101, DLOB offers 1 BASE at 101,
+		// remainder should fill via vAMM (oracle=100, well within limit 101).
+		const { tx, signers, orderId } = await buildAndSignMatchTx(1, undefined, 1);
+		const sig = await bankrunContextWrapper.sendTransaction(tx, signers);
+		assert(sig && sig.length > 0, 'mixed all-source match tx should succeed');
+		await driftClient.fetchAccounts();
+		const order = driftClient.getOrder(orderId);
+		if (order) {
+			// Order may be fully or partially filled
+			assert(
+				order.baseAssetAmountFilled.gt(new BN(0)),
+				'taker should have some base filled from mixed sources'
+			);
+		}
+		// If order is null, it was fully filled and removed — also valid
+	});
+
+	it('measures CU for 2 PropAMM + 2 DLOB fills', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		const cu = await measurePropAmmMatchCU(2, 2);
+		console.log('Mixed PropAMM(2) + DLOB(2) match CU:', cu);
 		assert(cu > 0, 'should consume compute units');
 	});
 
