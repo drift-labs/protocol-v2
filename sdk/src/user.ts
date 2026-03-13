@@ -3953,15 +3953,13 @@ export class User {
 	): { canDelete: boolean; reason?: string } {
 		const userAccount = this.getUserAccount();
 		const userStatsAccountToUse =
-			userStatsAccount ||
-			this.driftClient.getUserStats().getAccount();
+			userStatsAccount || this.driftClient.getUserStats().getAccount();
 		const nowInSeconds = now || new BN(Math.floor(Date.now() / 1000));
 		const stateAccount = this.driftClient.getStateAccount();
 
 		// Referrer cannot delete sub_account_id 0
 		const isReferrer =
-			(userStatsAccountToUse.referrerStatus & ReferrerStatus.IsReferrer) >
-			0;
+			(userStatsAccountToUse.referrerStatus & ReferrerStatus.IsReferrer) > 0;
 		if (isReferrer && userAccount.subAccountId === 0) {
 			return { canDelete: false, reason: 'is-subaccount-0-referrer' };
 		}
