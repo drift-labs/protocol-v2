@@ -92,7 +92,13 @@ pub fn get_perp_liquidation_mode(
     user: &User,
     market_index: u16,
 ) -> DriftResult<Box<dyn LiquidatePerpMode>> {
-    let perp_position = user.get_perp_position(market_index)?;
+    // When user has no position in the market, use cross-margin mode so liquidate_perp
+    // can still clear BEING_LIQUIDATED via the early-exit path (user_is_being_liquidated &&
+    // can_exit_liquidation). Isolated positions require having a position.
+    let perp_position = match user.get_perp_position(market_index) {
+        Ok(pos) => pos,
+        Err(_) => return Ok(Box::new(CrossMarginLiquidatePerpMode::new(market_index))),
+    };
     let mode: Box<dyn LiquidatePerpMode> = if perp_position.is_isolated() {
         Box::new(IsolatedMarginLiquidatePerpMode::new(market_index))
     } else {
