@@ -3788,6 +3788,11 @@ export class DriftClient {
 		txParams?: TxParams,
 		updateFuel = false
 	): Promise<TransactionSignature> {
+		// Ensure the destination account is not the vault itself to prevent state inconsistency
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		if (spotMarket.vault.equals(associatedTokenAddress)) {
+			throw Error('Destination associatedTokenAddress cannot be the same as the spot market vault');
+		}
 		const additionalSigners: Array<Signer> = [];
 
 		const withdrawIxs = await this.getWithdrawalIxs(
@@ -4371,6 +4376,12 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		// Ensure the destination account is not the vault itself to prevent state inconsistency
+		const spotMarket = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
+		if (spotMarket.vault.equals(userTokenAccount)) {
+			throw Error('Destination userTokenAccount cannot be the same as the spot market vault');
+		}
+
 		const instructions =
 			await this.getWithdrawFromIsolatedPerpPositionIxsBundle(
 				amount,
@@ -9466,6 +9477,7 @@ export class DriftClient {
 				remainingAccounts: remainingAccounts,
 			}
 		);
+	
 	}
 
 	public async getJupiterLiquidateSpotWithSwapIxV6({
