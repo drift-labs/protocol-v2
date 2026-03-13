@@ -59,13 +59,22 @@ import {
 	getSpotMarketPublicKeySync,
 	OracleSource,
 } from '../sdk';
+import {
+	getMarketOrderParams,
+	SignedMsgOrderParamsMessage,
+	MarketType,
+	PostOnlyParams,
+	OrderParams,
+	OrderType,
+	OrderTriggerCondition,
+} from '../sdk/src';
+import { nanoid } from 'nanoid';
 import { getPropAmmMatcherPDA } from '../sdk/src/addresses/pda';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -1122,6 +1131,811 @@ describe('PropAMM CU usage (bankrun)', () => {
 		const cu = await measurePropAmmMatchCU(2, 2);
 		console.log('Mixed PropAMM(2) + DLOB(2) match CU:', cu);
 		assert(cu > 0, 'should consume compute units');
+	});
+
+	// -------------------------------------------------------------------
+	// Atomic signed msg taker order place + PropAMM fill
+	// -------------------------------------------------------------------
+
+	it('atomic signed msg taker place + PropAMM fill in same tx', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+
+		const driftProgramId = program.programId;
+		const state = await getDriftStateAccountPublicKey(driftProgramId);
+		const perpMarket = getPerpMarketPublicKeySync(driftProgramId, marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const oracleKey = new PublicKey(market.amm.oracle);
+		const connection = bankrunContextWrapper.connection;
+		const tokenProgram = (await connection.getAccountInfo(usdcMint.publicKey))
+			.owner;
+
+		// --- Taker setup ---
+		const takerKp = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(takerKp, 10 ** 9);
+		const takerUsdcAta = getAssociatedTokenAddressSync(
+			usdcMint.publicKey,
+			takerKp.publicKey
+		);
+
+		const takerClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new anchor.Wallet(takerKp),
+			programID: driftProgramId,
+			opts: { commitment: 'confirmed' },
+			activeSubAccountId: 0,
+			perpMarketIndexes: [marketIndex],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [{ publicKey: oracle, source: OracleSource.PYTH }],
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerClient.subscribe();
+
+		const { ixs: takerInitIxs } =
+			await takerClient.createInitializeUserAccountAndDepositCollateralIxs(
+				usdcAmount,
+				takerUsdcAta
+			);
+
+		const takerSetupTx = new Transaction().add(
+			createAssociatedTokenAccountIdempotentInstruction(
+				bankrunContextWrapper.context.payer.publicKey,
+				takerUsdcAta,
+				takerKp.publicKey,
+				usdcMint.publicKey,
+				tokenProgram
+			),
+			createMintToInstruction(
+				usdcMint.publicKey,
+				takerUsdcAta,
+				bankrunContextWrapper.context.payer.publicKey,
+				usdcAmount.toNumber(),
+				undefined,
+				tokenProgram
+			),
+			...takerInitIxs
+		);
+		await bankrunContextWrapper.sendTransaction(takerSetupTx, [takerKp]);
+
+		// Re-subscribe so client picks up the newly created user account
+		await takerClient.unsubscribe();
+		await takerClient.subscribe();
+		await takerClient.addUser(0, takerKp.publicKey);
+		await takerClient.fetchAccounts();
+
+		// --- PropAMM maker setup (1 maker) ---
+		const makerKp = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(makerKp, 10 ** 9);
+		const makerUserPda = await getUserAccountPublicKey(
+			driftProgramId,
+			makerKp.publicKey,
+			0
+		);
+		const [midpricePda] = getMidpricePDA(
+			midpriceProgramId,
+			makerKp.publicKey,
+			marketIndex,
+			0
+		);
+
+		const makerUsdcAta = getAssociatedTokenAddressSync(
+			usdcMint.publicKey,
+			makerKp.publicKey
+		);
+		const midpriceAccountSpace =
+			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2;
+		const rentExempt = await connection.getMinimumBalanceForRentExemption(
+			midpriceAccountSpace
+		);
+
+		const makerClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new anchor.Wallet(makerKp),
+			programID: driftProgramId,
+			opts: { commitment: 'confirmed' },
+			activeSubAccountId: 0,
+			perpMarketIndexes: [marketIndex],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [{ publicKey: oracle, source: OracleSource.PYTH }],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerClient.subscribe();
+		const { ixs: makerInitIxs } =
+			await makerClient.createInitializeUserAccountAndDepositCollateralIxs(
+				usdcAmount,
+				makerUsdcAta
+			);
+		await makerClient.unsubscribe();
+
+		const makerSetupIxs: TransactionInstruction[] = [
+			createAssociatedTokenAccountIdempotentInstruction(
+				bankrunContextWrapper.context.payer.publicKey,
+				makerUsdcAta,
+				makerKp.publicKey,
+				usdcMint.publicKey,
+				tokenProgram
+			),
+			createMintToInstruction(
+				usdcMint.publicKey,
+				makerUsdcAta,
+				bankrunContextWrapper.context.payer.publicKey,
+				usdcAmount.toNumber(),
+				undefined,
+				tokenProgram
+			),
+			...makerInitIxs,
+			SystemProgram.createAccount({
+				fromPubkey: bankrunContextWrapper.context.payer.publicKey,
+				newAccountPubkey: midpricePda,
+				lamports: rentExempt,
+				space: midpriceAccountSpace,
+				programId: midpriceProgramId,
+			}),
+			await buildInitializePropAmmMidpriceInstruction({
+				program,
+				authority: makerKp.publicKey,
+				midpriceAccount: midpricePda,
+				perpMarket,
+				midpriceProgram: midpriceProgramId,
+				driftProgramId,
+				subaccountIndex: 0,
+			}),
+			buildMidpriceUpdateMidPriceInstruction(
+				midpriceProgramId,
+				midpricePda,
+				makerKp.publicKey,
+				new BN(100).mul(PRICE_PRECISION)
+			),
+			buildMidpriceSetOrdersInstruction(
+				midpriceProgramId,
+				midpricePda,
+				makerKp.publicKey,
+				1,
+				0,
+				[{ offset: PRICE_PRECISION, size: new BN(1).mul(BASE_PRECISION) }]
+			),
+		];
+
+		const makerSetupTx = new Transaction().add(...makerSetupIxs);
+		const makerSig = await bankrunContextWrapper.sendTransaction(makerSetupTx, [
+			makerKp,
+		]);
+		assert(makerSig && makerSig.length > 0, 'maker setup tx should succeed');
+
+		// --- Build atomic signed msg place + PropAMM match tx ---
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: new BN(1).mul(BASE_PRECISION),
+			price: new BN(101).mul(PRICE_PRECISION),
+			userOrderId: 1,
+			reduceOnly: false,
+		}) as OrderParams;
+
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		// Build placeSignedMsgTakerOrder ixs (Ed25519 verify + place)
+		const takerUser = await takerClient.getUserAccountPublicKey();
+		const takerStats = takerClient.getUserStatsAccountPublicKey();
+		const takerUserAccount = takerClient.getUserAccount();
+
+		const placeIxs = await driftClient.getPlaceSignedMsgTakerPerpOrderIxs(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: takerUser,
+				takerStats,
+				takerUserAccount,
+				signingAuthority: takerClient.wallet.publicKey,
+			}
+		);
+
+		// Build matchPerpOrderViaPropAmm ix (taker orderId = 1 for fresh user)
+		const remaining: { pubkey: PublicKey; isWritable: boolean }[] = [
+			{ pubkey: midpriceProgramId, isWritable: false },
+			{
+				pubkey: getSpotMarketPublicKeySync(driftProgramId, 0),
+				isWritable: false,
+			},
+			{ pubkey: getPropAmmMatcherPDA(driftProgramId), isWritable: true },
+			{ pubkey: midpricePda, isWritable: true },
+			{ pubkey: makerUserPda, isWritable: true },
+		];
+
+		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+			driftProgramId,
+			1,
+			{
+				user: takerUser,
+				userStats: takerStats,
+				state,
+				perpMarket,
+				oracle: oracleKey,
+			},
+			remaining
+		);
+
+		// Combine: Ed25519 verify + placeSignedMsgTakerOrder + matchPerpOrderViaPropAmm
+		const tx = new Transaction().add(...placeIxs, matchIx);
+		const sig = await bankrunContextWrapper.sendTransaction(tx, []);
+		assert(sig && sig.length > 0, 'atomic place+fill tx should succeed');
+
+		// Verify taker has a position
+		await takerClient.fetchAccounts();
+		const perpPosition = takerClient.getUser().getPerpPosition(marketIndex);
+		assert(
+			perpPosition && perpPosition.baseAssetAmount.gt(new BN(0)),
+			'taker should have a long perp position after atomic place+fill'
+		);
+
+		await takerClient.unsubscribe();
+	});
+
+	it('atomic signed msg market order taker + PropAMM fill in same tx', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+
+		const driftProgramId = program.programId;
+		const state = await getDriftStateAccountPublicKey(driftProgramId);
+		const perpMarket = getPerpMarketPublicKeySync(driftProgramId, marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const oracleKey = new PublicKey(market.amm.oracle);
+		const connection = bankrunContextWrapper.connection;
+		const tokenProgram = (await connection.getAccountInfo(usdcMint.publicKey))
+			.owner;
+
+		// --- Taker setup ---
+		const takerKp = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(takerKp, 10 ** 9);
+		const takerUsdcAta = getAssociatedTokenAddressSync(
+			usdcMint.publicKey,
+			takerKp.publicKey
+		);
+
+		const takerClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new anchor.Wallet(takerKp),
+			programID: driftProgramId,
+			opts: { commitment: 'confirmed' },
+			activeSubAccountId: 0,
+			perpMarketIndexes: [marketIndex],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [{ publicKey: oracle, source: OracleSource.PYTH }],
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerClient.subscribe();
+
+		const { ixs: takerInitIxs } =
+			await takerClient.createInitializeUserAccountAndDepositCollateralIxs(
+				usdcAmount,
+				takerUsdcAta
+			);
+
+		const takerSetupTx = new Transaction().add(
+			createAssociatedTokenAccountIdempotentInstruction(
+				bankrunContextWrapper.context.payer.publicKey,
+				takerUsdcAta,
+				takerKp.publicKey,
+				usdcMint.publicKey,
+				tokenProgram
+			),
+			createMintToInstruction(
+				usdcMint.publicKey,
+				takerUsdcAta,
+				bankrunContextWrapper.context.payer.publicKey,
+				usdcAmount.toNumber(),
+				undefined,
+				tokenProgram
+			),
+			...takerInitIxs
+		);
+		await bankrunContextWrapper.sendTransaction(takerSetupTx, [takerKp]);
+
+		await takerClient.unsubscribe();
+		await takerClient.subscribe();
+		await takerClient.addUser(0, takerKp.publicKey);
+		await takerClient.fetchAccounts();
+
+		// --- PropAMM maker setup (1 maker) ---
+		const makerKp = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(makerKp, 10 ** 9);
+		const makerUserPda = await getUserAccountPublicKey(
+			driftProgramId,
+			makerKp.publicKey,
+			0
+		);
+		const [midpricePda] = getMidpricePDA(
+			midpriceProgramId,
+			makerKp.publicKey,
+			marketIndex,
+			0
+		);
+
+		const makerUsdcAta = getAssociatedTokenAddressSync(
+			usdcMint.publicKey,
+			makerKp.publicKey
+		);
+		const midpriceAccountSpace =
+			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2;
+		const rentExempt = await connection.getMinimumBalanceForRentExemption(
+			midpriceAccountSpace
+		);
+
+		const makerClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new anchor.Wallet(makerKp),
+			programID: driftProgramId,
+			opts: { commitment: 'confirmed' },
+			activeSubAccountId: 0,
+			perpMarketIndexes: [marketIndex],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [{ publicKey: oracle, source: OracleSource.PYTH }],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerClient.subscribe();
+		const { ixs: makerInitIxs } =
+			await makerClient.createInitializeUserAccountAndDepositCollateralIxs(
+				usdcAmount,
+				makerUsdcAta
+			);
+		await makerClient.unsubscribe();
+
+		const makerSetupIxs: TransactionInstruction[] = [
+			createAssociatedTokenAccountIdempotentInstruction(
+				bankrunContextWrapper.context.payer.publicKey,
+				makerUsdcAta,
+				makerKp.publicKey,
+				usdcMint.publicKey,
+				tokenProgram
+			),
+			createMintToInstruction(
+				usdcMint.publicKey,
+				makerUsdcAta,
+				bankrunContextWrapper.context.payer.publicKey,
+				usdcAmount.toNumber(),
+				undefined,
+				tokenProgram
+			),
+			...makerInitIxs,
+			SystemProgram.createAccount({
+				fromPubkey: bankrunContextWrapper.context.payer.publicKey,
+				newAccountPubkey: midpricePda,
+				lamports: rentExempt,
+				space: midpriceAccountSpace,
+				programId: midpriceProgramId,
+			}),
+			await buildInitializePropAmmMidpriceInstruction({
+				program,
+				authority: makerKp.publicKey,
+				midpriceAccount: midpricePda,
+				perpMarket,
+				midpriceProgram: midpriceProgramId,
+				driftProgramId,
+				subaccountIndex: 0,
+			}),
+			buildMidpriceUpdateMidPriceInstruction(
+				midpriceProgramId,
+				midpricePda,
+				makerKp.publicKey,
+				new BN(100).mul(PRICE_PRECISION)
+			),
+			buildMidpriceSetOrdersInstruction(
+				midpriceProgramId,
+				midpricePda,
+				makerKp.publicKey,
+				1,
+				0,
+				[{ offset: PRICE_PRECISION, size: new BN(1).mul(BASE_PRECISION) }]
+			),
+		];
+
+		const makerSetupTx = new Transaction().add(...makerSetupIxs);
+		const makerSig = await bankrunContextWrapper.sendTransaction(makerSetupTx, [
+			makerKp,
+		]);
+		assert(makerSig && makerSig.length > 0, 'maker setup tx should succeed');
+
+		// --- Build atomic signed msg market order + PropAMM match tx ---
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		// Market order (not limit) — PropAMM should accept this.
+		// Auction start >= ask price (101) so crossing happens at slot 0.
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: new BN(1).mul(BASE_PRECISION),
+			price: new BN(102).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(101).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(102).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		}) as OrderParams;
+
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const takerUser = await takerClient.getUserAccountPublicKey();
+		const takerStats = takerClient.getUserStatsAccountPublicKey();
+		const takerUserAccount = takerClient.getUserAccount();
+
+		const placeIxs = await driftClient.getPlaceSignedMsgTakerPerpOrderIxs(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: takerUser,
+				takerStats,
+				takerUserAccount,
+				signingAuthority: takerClient.wallet.publicKey,
+			}
+		);
+
+		const remaining: { pubkey: PublicKey; isWritable: boolean }[] = [
+			{ pubkey: midpriceProgramId, isWritable: false },
+			{
+				pubkey: getSpotMarketPublicKeySync(driftProgramId, 0),
+				isWritable: false,
+			},
+			{ pubkey: getPropAmmMatcherPDA(driftProgramId), isWritable: true },
+			{ pubkey: midpricePda, isWritable: true },
+			{ pubkey: makerUserPda, isWritable: true },
+		];
+
+		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+			driftProgramId,
+			1,
+			{
+				user: takerUser,
+				userStats: takerStats,
+				state,
+				perpMarket,
+				oracle: oracleKey,
+			},
+			remaining
+		);
+
+		const tx = new Transaction().add(...placeIxs, matchIx);
+		const sig = await bankrunContextWrapper.sendTransaction(tx, []);
+		assert(
+			sig && sig.length > 0,
+			'atomic market order place+fill tx should succeed'
+		);
+
+		// Verify taker has a position
+		await takerClient.fetchAccounts();
+		const perpPosition = takerClient.getUser().getPerpPosition(marketIndex);
+		assert(
+			perpPosition && perpPosition.baseAssetAmount.gt(new BN(0)),
+			'taker should have a long perp position after market order fill'
+		);
+
+		await takerClient.unsubscribe();
+	});
+
+	it('atomic signed msg oracle order taker + PropAMM fill in same tx', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+
+		const driftProgramId = program.programId;
+		const state = await getDriftStateAccountPublicKey(driftProgramId);
+		const perpMarket = getPerpMarketPublicKeySync(driftProgramId, marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const oracleKey = new PublicKey(market.amm.oracle);
+		const connection = bankrunContextWrapper.connection;
+		const tokenProgram = (await connection.getAccountInfo(usdcMint.publicKey))
+			.owner;
+
+		// --- Taker setup ---
+		const takerKp = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(takerKp, 10 ** 9);
+		const takerUsdcAta = getAssociatedTokenAddressSync(
+			usdcMint.publicKey,
+			takerKp.publicKey
+		);
+
+		const takerClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new anchor.Wallet(takerKp),
+			programID: driftProgramId,
+			opts: { commitment: 'confirmed' },
+			activeSubAccountId: 0,
+			perpMarketIndexes: [marketIndex],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [{ publicKey: oracle, source: OracleSource.PYTH }],
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerClient.subscribe();
+
+		const { ixs: takerInitIxs } =
+			await takerClient.createInitializeUserAccountAndDepositCollateralIxs(
+				usdcAmount,
+				takerUsdcAta
+			);
+
+		const takerSetupTx = new Transaction().add(
+			createAssociatedTokenAccountIdempotentInstruction(
+				bankrunContextWrapper.context.payer.publicKey,
+				takerUsdcAta,
+				takerKp.publicKey,
+				usdcMint.publicKey,
+				tokenProgram
+			),
+			createMintToInstruction(
+				usdcMint.publicKey,
+				takerUsdcAta,
+				bankrunContextWrapper.context.payer.publicKey,
+				usdcAmount.toNumber(),
+				undefined,
+				tokenProgram
+			),
+			...takerInitIxs
+		);
+		await bankrunContextWrapper.sendTransaction(takerSetupTx, [takerKp]);
+
+		await takerClient.unsubscribe();
+		await takerClient.subscribe();
+		await takerClient.addUser(0, takerKp.publicKey);
+		await takerClient.fetchAccounts();
+
+		// --- PropAMM maker setup (1 maker) ---
+		const makerKp = Keypair.generate();
+		await bankrunContextWrapper.fundKeypair(makerKp, 10 ** 9);
+		const makerUserPda = await getUserAccountPublicKey(
+			driftProgramId,
+			makerKp.publicKey,
+			0
+		);
+		const [midpricePda] = getMidpricePDA(
+			midpriceProgramId,
+			makerKp.publicKey,
+			marketIndex,
+			0
+		);
+
+		const makerUsdcAta = getAssociatedTokenAddressSync(
+			usdcMint.publicKey,
+			makerKp.publicKey
+		);
+		const midpriceAccountSpace =
+			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2;
+		const rentExempt = await connection.getMinimumBalanceForRentExemption(
+			midpriceAccountSpace
+		);
+
+		const makerClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new anchor.Wallet(makerKp),
+			programID: driftProgramId,
+			opts: { commitment: 'confirmed' },
+			activeSubAccountId: 0,
+			perpMarketIndexes: [marketIndex],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [{ publicKey: oracle, source: OracleSource.PYTH }],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerClient.subscribe();
+		const { ixs: makerInitIxs } =
+			await makerClient.createInitializeUserAccountAndDepositCollateralIxs(
+				usdcAmount,
+				makerUsdcAta
+			);
+		await makerClient.unsubscribe();
+
+		// Maker mid_price=100, ask offset=+1 => ask at 101
+		const makerSetupIxs: TransactionInstruction[] = [
+			createAssociatedTokenAccountIdempotentInstruction(
+				bankrunContextWrapper.context.payer.publicKey,
+				makerUsdcAta,
+				makerKp.publicKey,
+				usdcMint.publicKey,
+				tokenProgram
+			),
+			createMintToInstruction(
+				usdcMint.publicKey,
+				makerUsdcAta,
+				bankrunContextWrapper.context.payer.publicKey,
+				usdcAmount.toNumber(),
+				undefined,
+				tokenProgram
+			),
+			...makerInitIxs,
+			SystemProgram.createAccount({
+				fromPubkey: bankrunContextWrapper.context.payer.publicKey,
+				newAccountPubkey: midpricePda,
+				lamports: rentExempt,
+				space: midpriceAccountSpace,
+				programId: midpriceProgramId,
+			}),
+			await buildInitializePropAmmMidpriceInstruction({
+				program,
+				authority: makerKp.publicKey,
+				midpriceAccount: midpricePda,
+				perpMarket,
+				midpriceProgram: midpriceProgramId,
+				driftProgramId,
+				subaccountIndex: 0,
+			}),
+			buildMidpriceUpdateMidPriceInstruction(
+				midpriceProgramId,
+				midpricePda,
+				makerKp.publicKey,
+				new BN(100).mul(PRICE_PRECISION)
+			),
+			buildMidpriceSetOrdersInstruction(
+				midpriceProgramId,
+				midpricePda,
+				makerKp.publicKey,
+				1,
+				0,
+				[{ offset: PRICE_PRECISION, size: new BN(1).mul(BASE_PRECISION) }]
+			),
+		];
+
+		const makerSetupTx = new Transaction().add(...makerSetupIxs);
+		const makerSig = await bankrunContextWrapper.sendTransaction(makerSetupTx, [
+			makerKp,
+		]);
+		assert(makerSig && makerSig.length > 0, 'maker setup tx should succeed');
+
+		// --- Build atomic signed msg oracle order + PropAMM match tx ---
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		// Oracle order: price=0, oraclePriceOffset=+1 PRICE_PRECISION
+		// Oracle is at 100, so effective limit = 100 + 1 = 101, which crosses
+		// the maker ask at 101.
+		// Signed msg taker orders require valid auction params, so we set
+		// auction start/end as oracle offsets too (+1 PRICE_PRECISION each).
+		const takerOrderParams: OrderParams = {
+			orderType: OrderType.ORACLE,
+			marketType: MarketType.PERP,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: new BN(1).mul(BASE_PRECISION),
+			price: new BN(0),
+			marketIndex,
+			reduceOnly: false,
+			postOnly: PostOnlyParams.NONE,
+			bitFlags: 0,
+			triggerPrice: null,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			oraclePriceOffset: PRICE_PRECISION.toNumber(),
+			auctionDuration: 10,
+			maxTs: null,
+			auctionStartPrice: PRICE_PRECISION,
+			auctionEndPrice: PRICE_PRECISION,
+			userOrderId: 1,
+		};
+
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const takerUser = await takerClient.getUserAccountPublicKey();
+		const takerStats = takerClient.getUserStatsAccountPublicKey();
+		const takerUserAccount = takerClient.getUserAccount();
+
+		const placeIxs = await driftClient.getPlaceSignedMsgTakerPerpOrderIxs(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: takerUser,
+				takerStats,
+				takerUserAccount,
+				signingAuthority: takerClient.wallet.publicKey,
+			}
+		);
+
+		const remaining: { pubkey: PublicKey; isWritable: boolean }[] = [
+			{ pubkey: midpriceProgramId, isWritable: false },
+			{
+				pubkey: getSpotMarketPublicKeySync(driftProgramId, 0),
+				isWritable: false,
+			},
+			{ pubkey: getPropAmmMatcherPDA(driftProgramId), isWritable: true },
+			{ pubkey: midpricePda, isWritable: true },
+			{ pubkey: makerUserPda, isWritable: true },
+		];
+
+		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+			driftProgramId,
+			1,
+			{
+				user: takerUser,
+				userStats: takerStats,
+				state,
+				perpMarket,
+				oracle: oracleKey,
+			},
+			remaining
+		);
+
+		const tx = new Transaction().add(...placeIxs, matchIx);
+		const sig = await bankrunContextWrapper.sendTransaction(tx, []);
+		assert(
+			sig && sig.length > 0,
+			'atomic oracle order place+fill tx should succeed'
+		);
+
+		// Verify taker has a position
+		await takerClient.fetchAccounts();
+		const perpPosition = takerClient.getUser().getPerpPosition(marketIndex);
+		assert(
+			perpPosition && perpPosition.baseAssetAmount.gt(new BN(0)),
+			'taker should have a long perp position after oracle order fill'
+		);
+
+		await takerClient.unsubscribe();
 	});
 
 	// -------------------------------------------------------------------

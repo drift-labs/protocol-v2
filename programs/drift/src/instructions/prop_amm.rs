@@ -1395,7 +1395,6 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     let (
         market_index,
         side,
-        limit_price,
         size,
         taker_direction,
         order_index,
@@ -1411,9 +1410,12 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             "must be perp order"
         )?;
         validate!(
-            order.order_type == OrderType::Limit,
+            matches!(
+                order.order_type,
+                OrderType::Limit | OrderType::Market | OrderType::Oracle
+            ),
             ErrorCode::InvalidOrder,
-            "prop AMM match requires limit order"
+            "prop AMM match requires limit, market, or oracle order"
         )?;
         validate!(
             !order.post_only,
@@ -1430,7 +1432,6 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         (
             order.market_index,
             side,
-            order.price,
             size,
             order.direction,
             order_index,
@@ -1502,6 +1503,26 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     };
     drop(perp_market_for_parse);
     drop(oracle_map_for_parse);
+
+    // Compute effective limit price using auction/oracle mechanics.
+    // Must happen after oracle_price and tick_size are available.
+    let limit_price = {
+        let user = ctx.accounts.user.load()?;
+        let order = &user.orders[order_index];
+        let fallback = match taker_direction {
+            PositionDirection::Long => Some(u64::MAX),
+            PositionDirection::Short => Some(0u64),
+        };
+        order.get_limit_price(
+            Some(oracle_price),
+            fallback,
+            clock.slot,
+            order_tick_size,
+            is_prediction_market,
+            None,
+        )?
+        .unwrap_or(order.price)
+    };
 
     let dlob_makers = parse_dlob_makers(
         remaining_accounts,

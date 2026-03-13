@@ -477,7 +477,9 @@ export class BankrunConnection {
 		const returnData: TransactionReturnData = {
 			programId: returnDataProgramId ?? '',
 			data:
-				returnDataNormalized != null ? [returnDataNormalized, 'base64'] : ['', 'base64'],
+				returnDataNormalized != null
+					? [returnDataNormalized, 'base64']
+					: ['', 'base64'],
 		};
 		return {
 			context: { slot: Number(await this._banksClient.getSlot()) },

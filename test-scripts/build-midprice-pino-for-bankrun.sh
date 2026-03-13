@@ -52,5 +52,5 @@ if $RUN_TESTS; then
   echo """
   echo "Running PropAMM bankrun tests"
   echo """
-  ANCHOR_WALLET=~/.config/solana/id.json ts-mocha -t 120000 ./tests/propAmmCUs.ts
+  ANCHOR_WALLET=~/.config/solana/id.json ts-mocha --exit -t 120000 ./tests/propAmmCUs.ts
 fi
