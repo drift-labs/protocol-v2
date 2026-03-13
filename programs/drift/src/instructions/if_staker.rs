@@ -1257,6 +1257,11 @@ pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
         spot_market,
     )?;
 
+    let share_price_before = math::insurance::calculate_share_price(
+        spot_market.insurance_fund.total_shares,
+        insurance_fund_vault_amount_before,
+    )?;
+
     let shares = math::insurance::vault_amount_to_if_shares(
         amount,
         spot_market.insurance_fund.total_shares,
@@ -1274,7 +1279,7 @@ pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
     let protocol_shares = spot_market.insurance_fund.get_protocol_shares()?;
 
     validate!(
-        shares <= protocol_shares,
+        shares < protocol_shares, // ensure at least 1 protocol share
         ErrorCode::InsufficientIFShares,
         "shares={} > protocol_shares={}",
         shares,
@@ -1300,6 +1305,23 @@ pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
             None
         },
     )?;
+
+    let insurance_fund_vault_amount_after =
+        insurance_fund_vault_amount_before.safe_sub(amount)?;
+    let share_price_after = math::insurance::calculate_share_price(
+        spot_market.insurance_fund.total_shares,
+        insurance_fund_vault_amount_after,
+    )?;
+
+    if share_price_before > 0 && share_price_after > 0 {
+        validate!(
+            share_price_before - share_price_after <= 1,
+            ErrorCode::InvalidIfRebalanceSwap,
+            "share_price_before={} - share_price_after={} > 1",
+            share_price_before,
+            share_price_after
+        )?;
+    }
 
     let now = Clock::get()?.unix_timestamp;
 

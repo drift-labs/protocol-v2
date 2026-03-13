@@ -8,16 +8,17 @@ import {
 	OracleSource,
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
-	getTokenAmount,
-	SpotBalanceType,
+	getInsuranceFundVaultPublicKey,
+	getSpotMarketPublicKey,
 } from '../sdk/src';
 import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
 	mockOracleNoProgram,
+	overWriteSpotMarket,
+	overWriteTokenAccountBalance,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -26,8 +27,20 @@ import {
 	asBN,
 } from '../sdk/src/bankrun/bankrunConnection';
 
-// Prod-like insurance fund scale (Total ~$22.5M, Protocol ~$7.05M / 31.3%, Community ~$15.5M / 68.7%)
-const TOTAL_IF_PROD_SCALE = new BN(22_500_000).mul(new BN(10 ** 6));
+// Snapshot of mainnet USDC spot market + IF vault accounts.
+const prodUsdcIfAccounts = {
+	spotMarket: {
+		data: 'ZLEIa6hBQSdUX6MOo7w/PClm2otsPf7406t9pXygIypU5KAmT//Dwn4XAskDe6KnOB2fuc5t8V0PxU10u3MRn4rxLxkMDhW+xvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWHmsHZFgFFAI49uEcLfeyYJqqXqJL+++g9w+I4yK2cfD1VTREMgICAgICAgICAgICAgICAgICAgICAgICAgICAgBkIPAAAAAAAkAAAAAAAAABcAAAAAAAAAOEIPAAAAAAANQg8AAAAAAMJ4tGkAAAAAQEIPAAAAAABAQg8AAAAAAEBCDwAAAAAAQEIPAAAAAAAAAAAAAAAAANQYq6auAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABHkMifZGT+FrLhfKfHFav7xo95PrVMA7wMfE+znV7oD4/jrxfADAAAAAAAAAAAAAE5Se7KYAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAABOb7RpAAAAABAOAAAAAAAAoIYBAFzBAAAAAAAAAAAAAAAAAAAAAAAAQgeVHE8AiQEAAAAAAAAAACOHVHTMGqsAAAAAAAAAAACWpPvLAgAAAAAAAAAAAAAAQQhSQAMAAAAAAAAAAAAAAKHgZsUAAAAAAAAAAAAAAABBQWfFAAAAAAAAAAAAAAAAAJAexLwWAAAAQGNSv8YBABWYUggDegAAB64CKYY9AACcyQcAAAAAAPd4tGkAAAAA93i0aQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAADLWMIAAAAAABAnAAAQJwAAECcAABAnAAAAAAAAAAAAAIgTAAAANQwAFM0AAKC7DQAGAAAAAAAADwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKMFwEAAAAAAADpQcxrAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+	},
+	insuranceFundVault: {
+		data: 'xvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWEEZ7mGBc7ZyTAt/Oa1N07PLdI1dDDYngPgNxsKbazaMEioNMXxDwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+	},
+};
+
+/** The designated recipient pubkey enforced by the program (anchor-test feature). */
+const IF_WITHDRAWAL_RECIPIENT = new PublicKey(
+	'1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N'
+);
 
 describe('admin withdraw from insurance fund vault', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -37,19 +50,9 @@ describe('admin withdraw from insurance fund vault', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint: Keypair;
-	let userUSDCAccount: Keypair;
 	let solOracle: PublicKey;
 
-	/** Initial deposit sized to prod-like total IF (~$22.5M). */
-	const usdcAmount = TOTAL_IF_PROD_SCALE;
-
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
-	let secondUserDriftClientUSDCAccount: PublicKey;
-
-	const solAmount = new BN(10_000 * 10 ** 9);
-
-	/** Recipient must be the program-designated treasury (in tests, provider wallet). */
+	/** Recipient token account owned by the program-designated treasury. */
 	let recipientUSDCAccount: Keypair;
 
 	before(async () => {
@@ -63,12 +66,6 @@ describe('admin withdraw from insurance fund vault', () => {
 		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount.mul(new BN(2)),
-			bankrunContextWrapper
-		);
-
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 22500);
 
 		driftClient = new TestClient({
@@ -80,10 +77,7 @@ describe('admin withdraw from insurance fund vault', () => {
 			perpMarketIndexes: [],
 			spotMarketIndexes: [0, 1],
 			subAccountIds: [],
-			oracleInfos: [
-				{ publicKey: solOracle, source: OracleSource.PYTH },
-			],
-			userStats: true,
+			oracleInfos: [{ publicKey: solOracle, source: OracleSource.PYTH }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -96,120 +90,69 @@ describe('admin withdraw from insurance fund vault', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
 
-		const subAccountId = 0;
-		const name = 'ADMIN';
-		await driftClient.initializeUserAccount(subAccountId, name);
-		await driftClient.deposit(
-			usdcAmount,
-			QUOTE_SPOT_MARKET_INDEX,
-			userUSDCAccount.publicKey
+		// --- Clone production IF vault state into the test-derived accounts ---
+
+		const spotMarketPk = await getSpotMarketPublicKey(
+			chProgram.programId,
+			QUOTE_SPOT_MARKET_INDEX
+		);
+		const ifVaultPk = await getInsuranceFundVaultPublicKey(
+			chProgram.programId,
+			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		// Recipient must be the program-designated treasury (anchor-test: provider wallet)
+		// Decode production spot market and graft its insuranceFund onto the test spot market,
+		// replacing the vault pubkey with the test-derived address so SDK lookups stay consistent.
+		const prodSpotMarketData = Buffer.from(
+			prodUsdcIfAccounts.spotMarket.data,
+			'base64'
+		);
+		const prodSpotMarket = chProgram.coder.accounts.decode(
+			'SpotMarket',
+			prodSpotMarketData
+		);
+
+		await driftClient.fetchAccounts();
+		const testSpotMarket = driftClient.getSpotMarketAccount(
+			QUOTE_SPOT_MARKET_INDEX
+		);
+
+		testSpotMarket.insuranceFund = {
+			...prodSpotMarket.insuranceFund,
+			vault: ifVaultPk,
+		};
+		await overWriteSpotMarket(
+			driftClient,
+			bankrunContextWrapper,
+			spotMarketPk,
+			testSpotMarket
+		);
+
+		// Set the IF vault token balance to the production amount.
+		const prodIfVaultData = Buffer.from(
+			prodUsdcIfAccounts.insuranceFundVault.data,
+			'base64'
+		);
+		const prodIfVaultAmount = prodIfVaultData.readBigUInt64LE(64);
+		await overWriteTokenAccountBalance(
+			bankrunContextWrapper,
+			ifVaultPk,
+			prodIfVaultAmount
+		);
+
+		await driftClient.fetchAccounts();
+
+		// Recipient must be owned by the program-designated treasury pubkey.
 		recipientUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			ZERO,
 			bankrunContextWrapper,
-			bankrunContextWrapper.provider.wallet.publicKey
+			IF_WITHDRAWAL_RECIPIENT
 		);
 	});
 
 	after(async () => {
 		await driftClient.unsubscribe();
-		if (secondUserDriftClient) {
-			await secondUserDriftClient.unsubscribe();
-		}
-	});
-
-	it('set up borrow to generate revenue', async () => {
-		await driftClient.updateSpotMarketIfFactor(
-			QUOTE_SPOT_MARKET_INDEX,
-			new BN(90_000),
-			new BN(100_000)
-		);
-
-		[
-			secondUserDriftClient,
-			secondUserDriftClientWSOLAccount,
-			secondUserDriftClientUSDCAccount,
-		] = await createUserWithUSDCAndWSOLAccount(
-			bankrunContextWrapper,
-			usdcMint,
-			chProgram,
-			solAmount,
-			ZERO,
-			[],
-			[0, 1],
-			[{ publicKey: solOracle, source: OracleSource.PYTH }],
-			bulkAccountLoader
-		);
-
-		await secondUserDriftClient.deposit(
-			solAmount,
-			1,
-			secondUserDriftClientWSOLAccount
-		);
-
-		const withdrawAmount = usdcAmount.div(new BN(2));
-		await secondUserDriftClient.withdraw(
-			withdrawAmount,
-			QUOTE_SPOT_MARKET_INDEX,
-			secondUserDriftClientUSDCAccount
-		);
-
-		await driftClient.fetchAccounts();
-		const spotMarket = driftClient.getSpotMarketAccount(
-			QUOTE_SPOT_MARKET_INDEX
-		);
-		assert(spotMarket.borrowBalance.gt(ZERO));
-	});
-
-	it('accrue interest and settle revenue to insurance fund', async () => {
-		await bankrunContextWrapper.moveTimeForward(3600);
-
-		await driftClient.updateSpotMarketCumulativeInterest(
-			QUOTE_SPOT_MARKET_INDEX
-		);
-
-		await driftClient.fetchAccounts();
-		let spotMarket = driftClient.getSpotMarketAccount(
-			QUOTE_SPOT_MARKET_INDEX
-		);
-
-		const revenuePoolBalance = getTokenAmount(
-			spotMarket.revenuePool.scaledBalance,
-			spotMarket,
-			SpotBalanceType.DEPOSIT
-		);
-		console.log('revenue pool balance:', revenuePoolBalance.toString());
-		assert(revenuePoolBalance.gt(ZERO), 'revenue pool must have balance after interest accrual');
-
-		await driftClient.updateSpotMarketRevenueSettlePeriod(
-			QUOTE_SPOT_MARKET_INDEX,
-			new BN(1)
-		);
-
-		const txSig = await driftClient.settleRevenueToInsuranceFund(
-			QUOTE_SPOT_MARKET_INDEX
-		);
-		bankrunContextWrapper.printTxLogs(txSig);
-
-		await driftClient.fetchAccounts();
-		spotMarket = driftClient.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
-
-		const protocolShares = spotMarket.insuranceFund.totalShares.sub(
-			spotMarket.insuranceFund.userShares
-		);
-		console.log('protocol IF shares:', protocolShares.toString());
-		console.log(
-			'total IF shares:',
-			spotMarket.insuranceFund.totalShares.toString()
-		);
-		console.log(
-			'user IF shares:',
-			spotMarket.insuranceFund.userShares.toString()
-		);
-		assert(protocolShares.gt(ZERO), 'protocol must own IF shares');
 	});
 
 	it('admin withdraws from insurance fund vault to recipient', async () => {
@@ -243,16 +186,18 @@ describe('admin withdraw from insurance fund vault', () => {
 				)
 			).amount
 		);
-		assert(
-			recipientBalanceBefore.eq(ZERO),
-			'recipient should start with 0'
-		);
+		assert(recipientBalanceBefore.eq(ZERO), 'recipient should start with 0');
 
 		const totalSharesBefore = spotMarket.insuranceFund.totalShares;
 		const userSharesBefore = spotMarket.insuranceFund.userShares;
 		const protocolSharesBefore = totalSharesBefore.sub(userSharesBefore);
 
-		const withdrawAmount = insuranceVaultAmountBefore.div(new BN(2));
+		// Withdraw half of the protocol-owned portion of the vault (well within the
+		// protocol_shares limit enforced by the program).
+		const withdrawAmount = insuranceVaultAmountBefore
+			.mul(protocolSharesBefore)
+			.div(totalSharesBefore)
+			.div(new BN(2));
 		console.log('withdraw amount:', withdrawAmount.toString());
 		assert(withdrawAmount.gt(ZERO), 'withdraw amount must be > 0');
 
@@ -270,10 +215,7 @@ describe('admin withdraw from insurance fund vault', () => {
 				)
 			).amount
 		);
-		console.log(
-			'insurance vault after:',
-			insuranceVaultAmountAfter.toString()
-		);
+		console.log('insurance vault after:', insuranceVaultAmountAfter.toString());
 
 		const recipientBalanceAfter = asBN(
 			(
@@ -288,14 +230,16 @@ describe('admin withdraw from insurance fund vault', () => {
 			insuranceVaultAmountAfter.eq(
 				insuranceVaultAmountBefore.sub(withdrawAmount)
 			),
-			`insurance vault should decrease by withdraw amount: expected ${insuranceVaultAmountBefore.sub(withdrawAmount).toString()}, got ${insuranceVaultAmountAfter.toString()}`
+			`insurance vault should decrease by withdraw amount: expected ${insuranceVaultAmountBefore
+				.sub(withdrawAmount)
+				.toString()}, got ${insuranceVaultAmountAfter.toString()}`
 		);
 
 		assert(
-			recipientBalanceAfter.eq(
-				recipientBalanceBefore.add(withdrawAmount)
-			),
-			`recipient should receive the withdrawn amount: expected ${recipientBalanceBefore.add(withdrawAmount).toString()}, got ${recipientBalanceAfter.toString()}`
+			recipientBalanceAfter.eq(recipientBalanceBefore.add(withdrawAmount)),
+			`recipient should receive the withdrawn amount: expected ${recipientBalanceBefore
+				.add(withdrawAmount)
+				.toString()}, got ${recipientBalanceAfter.toString()}`
 		);
 
 		await driftClient.fetchAccounts();
@@ -306,10 +250,7 @@ describe('admin withdraw from insurance fund vault', () => {
 		const protocolSharesAfter = spotMarketAfter.insuranceFund.totalShares.sub(
 			spotMarketAfter.insuranceFund.userShares
 		);
-		console.log(
-			'protocol shares before:',
-			protocolSharesBefore.toString()
-		);
+		console.log('protocol shares before:', protocolSharesBefore.toString());
 		console.log('protocol shares after:', protocolSharesAfter.toString());
 		assert(
 			protocolSharesAfter.lt(protocolSharesBefore),
