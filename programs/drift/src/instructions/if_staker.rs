@@ -1306,8 +1306,7 @@ pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
         },
     )?;
 
-    let insurance_fund_vault_amount_after =
-        insurance_fund_vault_amount_before.safe_sub(amount)?;
+    let insurance_fund_vault_amount_after = insurance_fund_vault_amount_before.safe_sub(amount)?;
     let share_price_after = math::insurance::calculate_share_price(
         spot_market.insurance_fund.total_shares,
         insurance_fund_vault_amount_after,
