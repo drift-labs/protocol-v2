@@ -233,39 +233,52 @@ export class JupiterClient {
 	connection: Connection;
 	lookupTableCahce = new Map<string, AddressLookupTableAccount>();
 	private apiKey?: string;
+	private proxyUrl?: string;
 
 	/**
 	 * Create a Jupiter client
 	 * @param connection - Solana connection
 	 * @param url - Optional custom API URL. Defaults to https://api.jup.ag/swap
 	 * @param apiKey - API key for Jupiter API. Required for api.jup.ag (free tier available at https://portal.jup.ag)
+	 * @param proxyUrl - Optional proxy URL to route requests through (hides API key from client)
 	 */
 	constructor({
 		connection,
 		url,
 		apiKey,
+		proxyUrl,
 	}: {
 		connection: Connection;
 		url?: string;
 		apiKey?: string;
+		proxyUrl?: string;
 	}) {
 		this.connection = connection;
 		this.url = url ?? RECOMMENDED_JUPITER_API;
 		this.apiKey = apiKey;
+		this.proxyUrl = proxyUrl;
 	}
 
 	/**
-	 * Get the headers for API requests, including API key if configured
+	 * Get the headers for API requests, including API key if configured and not using proxy
 	 */
 	private getHeaders(contentType?: string): Record<string, string> {
 		const headers: Record<string, string> = {};
 		if (contentType) {
 			headers['Content-Type'] = contentType;
 		}
-		if (this.apiKey) {
+		// Only include API key if not using proxy (proxy handles auth)
+		if (this.apiKey && !this.proxyUrl) {
 			headers['x-api-key'] = this.apiKey;
 		}
 		return headers;
+	}
+
+	/**
+	 * Get the base URL for API requests, using proxy if configured
+	 */
+	private getBaseUrl(): string {
+		return this.proxyUrl || this.url;
 	}
 
 	/**
@@ -320,16 +333,17 @@ export class JupiterClient {
 		if (swapMode === 'ExactOut') {
 			params.delete('maxAccounts');
 		}
+		const baseUrl = this.getBaseUrl();
 		const apiVersionParam =
-			this.url === RECOMMENDED_JUPITER_API || this.url === LEGACY_JUPITER_API
+			!this.proxyUrl && (this.url === RECOMMENDED_JUPITER_API || this.url === LEGACY_JUPITER_API)
 				? RECOMMENDED_JUPITER_API_VERSION
 				: '';
 		const headers = this.getHeaders();
-		const fetchOptions: RequestInit =
+		const fetchOptions =
 			Object.keys(headers).length > 0 ? { headers } : {};
 		const quote = await (
 			await fetch(
-				`${this.url}${apiVersionParam}/quote?${params.toString()}`,
+				`${baseUrl}${apiVersionParam}/quote?${params.toString()}`,
 				fetchOptions
 			)
 		).json();
@@ -355,12 +369,13 @@ export class JupiterClient {
 			throw new Error('Jupiter swap quote not provided. Please try again.');
 		}
 
+		const baseUrl = this.getBaseUrl();
 		const apiVersionParam =
-			this.url === RECOMMENDED_JUPITER_API || this.url === LEGACY_JUPITER_API
+			!this.proxyUrl && (this.url === RECOMMENDED_JUPITER_API || this.url === LEGACY_JUPITER_API)
 				? RECOMMENDED_JUPITER_API_VERSION
 				: '';
 		const resp = await (
-			await fetch(`${this.url}${apiVersionParam}/swap`, {
+			await fetch(`${baseUrl}${apiVersionParam}/swap`, {
 				method: 'POST',
 				headers: this.getHeaders('application/json'),
 				body: JSON.stringify({
