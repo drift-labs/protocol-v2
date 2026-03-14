@@ -9,6 +9,8 @@ use serum_dex::state::ToAlignedBytes;
 use std::convert::{identity, TryInto};
 use std::mem::size_of;
 
+use anchor_lang::solana_program::program_error::ProgramError;
+
 use crate::controller;
 use crate::controller::token::{close_vault, initialize_immutable_owner, initialize_token_account};
 use crate::error::ErrorCode;
@@ -4988,10 +4990,48 @@ pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> R
     Ok(())
 }
 
+/// Validates that the given account is owned by the Drift program.
+fn require_owner_is_drift(account: &AccountInfo) -> Result<()> {
+    if account.owner != &crate::id() {
+        return Err(ProgramError::IncorrectProgramId.into());
+    }
+    Ok(())
+}
+
+/// Validates that the given account key matches the Clock sysvar address.
+fn require_key_is_clock_sysvar(account: &AccountInfo) -> Result<()> {
+    if account.key != &anchor_lang::solana_program::sysvar::clock::id() {
+        return Err(ProgramError::InvalidAccountData.into());
+    }
+    Ok(())
+}
+
+/// Validates that the account data is at least `min` bytes long.
+fn require_min_data_len(account: &AccountInfo, min: usize) -> Result<()> {
+    if account.data_len() < min {
+        return Err(ProgramError::InvalidAccountData.into());
+    }
+    Ok(())
+}
+
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
+    // Validate accounts array length
+    if accounts.len() < 4 {
+        return Err(ProgramError::NotEnoughAccountKeys.into());
+    }
+
+    // Validate account owners, sysvar key, and data lengths
+    require_owner_is_drift(&accounts[0])?;
+    require_owner_is_drift(&accounts[3])?;
+    require_key_is_clock_sysvar(&accounts[2])?;
+    require_min_data_len(&accounts[3], 983)?;
+    require_min_data_len(&accounts[0], 944)?;
+
     // Verify this ix is allowed
     let state = &accounts[3].data.borrow();
-    assert!(state[982] & 1 > 0, "ix disabled by admin state");
+    if (state[982] & 1) == 0 {
+        return Err(ProgramError::InvalidInstructionData.into());
+    }
 
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
@@ -5001,6 +5041,11 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
         signer_account.key,
         mm_oracle_crank_wallet::id()
     );
+
+    // Validate data length before reading
+    if data.len() < 16 {
+        return Err(ProgramError::InvalidInstructionData.into());
+    }
 
     let mut perp_market = accounts[0].data.borrow_mut();
     let perp_market_sequence_id = u64::from_le_bytes(perp_market[936..944].try_into().unwrap());
@@ -5027,6 +5072,20 @@ pub fn handle_update_amm_spread_adjustment_native(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> Result<()> {
+    // Validate accounts array length
+    if accounts.len() < 2 {
+        return Err(ProgramError::NotEnoughAccountKeys.into());
+    }
+
+    // Validate account owner and data length
+    require_owner_is_drift(&accounts[0])?;
+    require_min_data_len(&accounts[0], 935)?;
+
+    // Validate data length
+    if data.is_empty() {
+        return Err(ProgramError::InvalidInstructionData.into());
+    }
+
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
     assert!(
@@ -6188,4 +6247,188 @@ pub struct UpdateDelegateUserGovTokenInsuranceStake<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[cfg(test)]
+mod native_handler_tests {
+    use super::*;
+    use anchor_lang::solana_program::account_info::AccountInfo;
+    use anchor_lang::solana_program::program_error::ProgramError;
+    use anchor_lang::solana_program::pubkey::Pubkey;
+    use anchor_lang::solana_program::sysvar::clock as clock_sysvar;
+
+    /// Helper to build a minimal AccountInfo for testing.
+    fn make_account_info<'a>(
+        key: &'a Pubkey,
+        is_signer: bool,
+        is_writable: bool,
+        lamports: &'a mut u64,
+        data: &'a mut [u8],
+        owner: &'a Pubkey,
+    ) -> AccountInfo<'a> {
+        AccountInfo::new(key, is_signer, is_writable, lamports, data, owner, false, 0)
+    }
+
+    #[test]
+    fn native_mm_oracle_rejects_non_drift_owner() {
+        let wrong_owner = Pubkey::new_unique();
+        let drift_id = crate::id();
+        let clock_key = clock_sysvar::id();
+
+        let key0 = Pubkey::new_unique();
+        let key1 = Pubkey::new_unique();
+        let key3 = Pubkey::new_unique();
+
+        let mut lam0 = 0u64;
+        let mut lam1 = 0u64;
+        let mut lam2 = 0u64;
+        let mut lam3 = 0u64;
+
+        let mut data0 = vec![0u8; 944];
+        let mut data1 = vec![0u8; 0];
+        let mut data2 = vec![0u8; 64];
+        let mut data3 = vec![0u8; 983];
+        // Enable the feature-bit flag so it doesn't trip that check first
+        data3[982] = 1;
+
+        let accounts = vec![
+            make_account_info(&key0, false, true, &mut lam0, &mut data0, &wrong_owner),
+            make_account_info(&key1, true, false, &mut lam1, &mut data1, &drift_id),
+            make_account_info(&clock_key, false, false, &mut lam2, &mut data2, &drift_id),
+            make_account_info(&key3, false, false, &mut lam3, &mut data3, &drift_id),
+        ];
+
+        let payload = vec![1u8; 16];
+        let result = handle_update_mm_oracle_native(&accounts, &payload);
+        assert!(result.is_err());
+        let pe: ProgramError = result.unwrap_err().into();
+        assert_eq!(pe, ProgramError::IncorrectProgramId);
+    }
+
+    #[test]
+    fn native_mm_oracle_rejects_short_market_data() {
+        let drift_id = crate::id();
+        let clock_key = clock_sysvar::id();
+
+        let key0 = Pubkey::new_unique();
+        let key1 = Pubkey::new_unique();
+        let key3 = Pubkey::new_unique();
+
+        let mut lam0 = 0u64;
+        let mut lam1 = 0u64;
+        let mut lam2 = 0u64;
+        let mut lam3 = 0u64;
+
+        // accounts[0] data too short (< 944)
+        let mut data0 = vec![0u8; 100];
+        let mut data1 = vec![0u8; 0];
+        let mut data2 = vec![0u8; 64];
+        let mut data3 = vec![0u8; 983];
+        data3[982] = 1;
+
+        let accounts = vec![
+            make_account_info(&key0, false, true, &mut lam0, &mut data0, &drift_id),
+            make_account_info(&key1, true, false, &mut lam1, &mut data1, &drift_id),
+            make_account_info(&clock_key, false, false, &mut lam2, &mut data2, &drift_id),
+            make_account_info(&key3, false, false, &mut lam3, &mut data3, &drift_id),
+        ];
+
+        let payload = vec![1u8; 16];
+        let result = handle_update_mm_oracle_native(&accounts, &payload);
+        assert!(result.is_err());
+        let pe: ProgramError = result.unwrap_err().into();
+        assert_eq!(pe, ProgramError::InvalidAccountData);
+    }
+
+    #[test]
+    fn native_mm_oracle_rejects_non_clock_sysvar() {
+        let drift_id = crate::id();
+        let wrong_clock_key = Pubkey::new_unique(); // not the real clock sysvar
+
+        let key0 = Pubkey::new_unique();
+        let key1 = Pubkey::new_unique();
+        let key3 = Pubkey::new_unique();
+
+        let mut lam0 = 0u64;
+        let mut lam1 = 0u64;
+        let mut lam2 = 0u64;
+        let mut lam3 = 0u64;
+
+        let mut data0 = vec![0u8; 944];
+        let mut data1 = vec![0u8; 0];
+        let mut data2 = vec![0u8; 64];
+        let mut data3 = vec![0u8; 983];
+        data3[982] = 1;
+
+        let accounts = vec![
+            make_account_info(&key0, false, true, &mut lam0, &mut data0, &drift_id),
+            make_account_info(&key1, true, false, &mut lam1, &mut data1, &drift_id),
+            make_account_info(
+                &wrong_clock_key,
+                false,
+                false,
+                &mut lam2,
+                &mut data2,
+                &drift_id,
+            ),
+            make_account_info(&key3, false, false, &mut lam3, &mut data3, &drift_id),
+        ];
+
+        let payload = vec![1u8; 16];
+        let result = handle_update_mm_oracle_native(&accounts, &payload);
+        assert!(result.is_err());
+        let pe: ProgramError = result.unwrap_err().into();
+        assert_eq!(pe, ProgramError::InvalidAccountData);
+    }
+
+    #[test]
+    fn native_spread_adjust_rejects_short_market_data() {
+        let drift_id = crate::id();
+
+        let key0 = Pubkey::new_unique();
+        let key1 = Pubkey::new_unique();
+
+        let mut lam0 = 0u64;
+        let mut lam1 = 0u64;
+
+        // accounts[0] data too short (< 935)
+        let mut data0 = vec![0u8; 100];
+        let mut data1 = vec![0u8; 0];
+
+        let accounts = vec![
+            make_account_info(&key0, false, true, &mut lam0, &mut data0, &drift_id),
+            make_account_info(&key1, true, false, &mut lam1, &mut data1, &drift_id),
+        ];
+
+        let payload = vec![42u8];
+        let result = handle_update_amm_spread_adjustment_native(&accounts, &payload);
+        assert!(result.is_err());
+        let pe: ProgramError = result.unwrap_err().into();
+        assert_eq!(pe, ProgramError::InvalidAccountData);
+    }
+
+    #[test]
+    fn native_spread_adjust_rejects_short_payload() {
+        let drift_id = crate::id();
+
+        let key0 = Pubkey::new_unique();
+        let key1 = Pubkey::new_unique();
+
+        let mut lam0 = 0u64;
+        let mut lam1 = 0u64;
+
+        let mut data0 = vec![0u8; 935];
+        let mut data1 = vec![0u8; 0];
+
+        let accounts = vec![
+            make_account_info(&key0, false, true, &mut lam0, &mut data0, &drift_id),
+            make_account_info(&key1, true, false, &mut lam1, &mut data1, &drift_id),
+        ];
+
+        let payload: &[u8] = &[];
+        let result = handle_update_amm_spread_adjustment_native(&accounts, payload);
+        assert!(result.is_err());
+        let pe: ProgramError = result.unwrap_err().into();
+        assert_eq!(pe, ProgramError::InvalidInstructionData);
+    }
 }
