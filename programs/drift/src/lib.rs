@@ -354,7 +354,7 @@ pub mod drift {
     /// Remaining accounts: [midprice_program], [spot_markets...] (canonical: consume while SpotMarket discriminator), then (matcher, midprice, maker_user, maker_stats)* per AMM.
     pub fn match_perp_order_via_prop_amm<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, MatchPerpOrderViaPropAmm<'info>>,
-        taker_order_id: u32,
+        taker_order_id: Option<u32>,
     ) -> Result<()> {
         handle_match_perp_order_via_prop_amm(ctx, taker_order_id)
     }

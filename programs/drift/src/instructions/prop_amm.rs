@@ -10,8 +10,11 @@
 use crate::controller::orders::update_order_after_fill;
 use crate::controller::pda;
 use crate::controller::position::{
-    add_new_position, get_position_index, update_position_and_market, PositionDirection,
+    add_new_position, get_position_index, update_position_and_market,
+    update_quote_asset_and_break_even_amount, PositionDirection,
 };
+use crate::math::casting::Cast;
+use crate::math::fees;
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::instructions::constraints::valid_oracle_for_perp_market;
@@ -794,6 +797,7 @@ pub(crate) fn parse_dlob_makers<'info>(
     limit_price: u64,
     oracle_price: i64,
     slot: u64,
+    now: i64,
     order_tick_size: u64,
     is_prediction_market: bool,
 ) -> DriftResult<Vec<DlobMakerView>> {
@@ -846,7 +850,21 @@ pub(crate) fn parse_dlob_makers<'info>(
 
         for (order_index, order_price) in maker_order_info {
             let order = &maker.orders[order_index];
-            let size = order.get_base_asset_amount_unfilled(None)?;
+
+            // DLOB maker must be a resting limit order (post_only or auction complete).
+            if !order.is_resting_limit_order(slot)? {
+                continue;
+            }
+
+            // Skip expired maker orders.
+            if order.max_ts > 0 && order.max_ts < now {
+                continue;
+            }
+
+            let existing_position = maker
+                .get_perp_position(market_index)
+                .map_or(0_i64, |p| p.base_asset_amount);
+            let size = order.get_base_asset_amount_unfilled(Some(existing_position))?;
             if size == 0 {
                 continue;
             }
@@ -1390,8 +1408,11 @@ pub struct UpdatePropAmmTickSizes<'info> {
 
 pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, MatchPerpOrderViaPropAmm<'info>>,
-    taker_order_id: u32,
+    taker_order_id: Option<u32>,
 ) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
     let (
         market_index,
         side,
@@ -1399,9 +1420,12 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         taker_direction,
         order_index,
         order_base_asset_amount,
+        order_slot,
+        taker_high_leverage,
     ) = {
         let user = ctx.accounts.user.load()?;
-        let order_index = user.get_order_index(taker_order_id)?;
+        let resolved_order_id = taker_order_id.unwrap_or_else(|| user.get_last_order_id());
+        let order_index = user.get_order_index(resolved_order_id)?;
         let order = &user.orders[order_index];
 
         validate!(
@@ -1422,13 +1446,29 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             ErrorCode::InvalidOrder,
             "post_only orders cannot be filled as taker via prop AMM"
         )?;
-        let size = order.get_base_asset_amount_unfilled(None)?;
+
+        // Check order expiration (max_ts).
+        validate!(
+            order.max_ts == 0 || order.max_ts >= now,
+            ErrorCode::InvalidOrder,
+            "order has expired (max_ts {} < now {})",
+            order.max_ts,
+            now
+        )?;
+
+        // Respect reduce_only: pass existing position so unfilled amount is
+        // capped to position size (or zero if no position / same direction).
+        let existing_position = user
+            .get_perp_position(order.market_index)
+            .map_or(0_i64, |p| p.base_asset_amount);
+        let size = order.get_base_asset_amount_unfilled(Some(existing_position))?;
         validate!(
             size > 0,
             ErrorCode::InvalidOrder,
             "prop AMM match requires unfilled size > 0"
         )?;
         let side = order.direction;
+        let high_leverage = user.is_high_leverage_mode(MarginRequirementType::Initial);
         (
             order.market_index,
             side,
@@ -1436,11 +1476,10 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             order.direction,
             order_index,
             order.base_asset_amount,
+            order.slot,
+            high_leverage,
         )
     };
-
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
 
     let perp_market = ctx.accounts.perp_market.load()?;
     validate!(
@@ -1456,6 +1495,23 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         ErrorCode::MarketFillOrderPaused,
         "Market not active"
     )?;
+
+    // When market is reduce-only, only position-reducing fills are allowed.
+    if perp_market.is_reduce_only()? {
+        let user = ctx.accounts.user.load()?;
+        let existing_position = user
+            .get_perp_position(market_index)
+            .map_or(0_i64, |p| p.base_asset_amount);
+        let is_position_reducing = match taker_direction {
+            PositionDirection::Long => existing_position < 0,
+            PositionDirection::Short => existing_position > 0,
+        };
+        validate!(
+            is_position_reducing,
+            ErrorCode::InvalidOrder,
+            "market is reduce-only; fill must reduce existing position"
+        )?;
+    }
     validate!(
         !perp_market.is_operation_paused(PerpOperation::Fill),
         ErrorCode::MarketFillOrderPaused,
@@ -1534,6 +1590,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         limit_price,
         oracle_price,
         clock.slot,
+        now,
         order_tick_size,
         is_prediction_market,
     )?;
@@ -1724,6 +1781,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
     // Maker margin has already been enforced by filter_prop_amm_makers_by_margin; we do not
     // revert the tx here on additional maker margin failures (skip semantics).
     // Emit a match fill event for each maker with that maker's cumulative amount.
+    let fee_structure = &ctx.accounts.state.perp_fee_structure;
     for (maker_user_key, (base_delta, quote_delta)) in maker_deltas {
         if base_delta == 0 && quote_delta == 0 {
             continue;
@@ -1757,6 +1815,57 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
 
         let maker_base_filled = base_delta.unsigned_abs() as u64;
         let maker_quote_filled = quote_delta.unsigned_abs() as u64;
+
+        // Calculate taker fee for this PropAMM fill (no maker rebate — PropAMM makers earn spread).
+        let fill_fees = {
+            let taker_stats_ref = ctx.accounts.user_stats.load()?;
+            fees::calculate_fee_for_fulfillment_with_match(
+                &*taker_stats_ref,
+                &None, // no maker_stats for PropAMM makers
+                maker_quote_filled,
+                fee_structure,
+                order_slot,
+                clock.slot,
+                0, // no filler reward
+                false, // no referrer
+                &None, // no referrer_stats
+                &MarketType::Perp,
+                market.fee_adjustment,
+                taker_high_leverage,
+                None, // no builder fee
+            )?
+        };
+        let taker_fee = fill_fees.user_fee;
+        let fee_to_market = fill_fees.fee_to_market;
+
+        // Deduct taker fee from taker quote position.
+        if taker_fee > 0 {
+            let mut taker = ctx.accounts.user.load_mut()?;
+            let taker_pos_idx = get_position_index(&taker.perp_positions, market_index)?;
+            update_quote_asset_and_break_even_amount(
+                &mut taker.perp_positions[taker_pos_idx],
+                &mut *market,
+                -(taker_fee as i64),
+            )?;
+        }
+
+        // Update market fee totals.
+        market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
+        market.amm.total_exchange_fee = market.amm.total_exchange_fee.safe_add(fee_to_market.cast()?)?;
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .safe_add(fee_to_market.cast()?)?;
+        market.amm.net_revenue_since_last_funding = market
+            .amm
+            .net_revenue_since_last_funding
+            .safe_add(fee_to_market)?;
+
+        // Update taker stats.
+        let mut taker_stats = ctx.accounts.user_stats.load_mut()?;
+        taker_stats.increment_total_fees(taker_fee)?;
+        drop(taker_stats);
+
         let fill_record_id = get_then_update_id!(market, next_fill_record_id);
         drop(maker);
         drop(market);
@@ -1771,8 +1880,8 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             None, // filler_reward
             Some(maker_base_filled),
             Some(maker_quote_filled),
-            None, // taker_fee
-            None, // maker_rebate
+            Some(taker_fee), // taker_fee
+            None, // maker_rebate (PropAMM makers earn from spread)
             None, // referrer_reward
             None, // quote_asset_amount_surplus
             None, // spot_fulfillment_method_fee
@@ -1793,7 +1902,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
     }
 
-    // Settle DLOB fills: update taker + maker positions and maker orders.
+    // Settle DLOB fills: update taker + maker positions, apply fees, update maker orders.
     for dlob_fill in &result.dlob_fills {
         let maker_info = &remaining_accounts[dlob_fill.remaining_account_index];
         let maker_loader: AccountLoader<User> =
@@ -1839,6 +1948,65 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             &maker_pos_delta,
         )?;
 
+        // Calculate fees for this DLOB match (taker fee + maker rebate).
+        let fill_fees = {
+            let taker_stats_ref = ctx.accounts.user_stats.load()?;
+            fees::calculate_fee_for_fulfillment_with_match(
+                &*taker_stats_ref,
+                &None, // TODO: pass maker_stats when available via remaining_accounts
+                fill_quote,
+                fee_structure,
+                order_slot,
+                clock.slot,
+                0, // no filler reward
+                false, // no referrer
+                &None, // no referrer_stats
+                &MarketType::Perp,
+                market.fee_adjustment,
+                taker_high_leverage,
+                None, // no builder fee
+            )?
+        };
+        let taker_fee = fill_fees.user_fee;
+        let maker_rebate = fill_fees.maker_rebate;
+        let fee_to_market = fill_fees.fee_to_market;
+
+        // Deduct taker fee.
+        if taker_fee > 0 {
+            update_quote_asset_and_break_even_amount(
+                &mut user.perp_positions[taker_pos_idx],
+                &mut *market,
+                -(taker_fee as i64),
+            )?;
+        }
+
+        // Credit maker rebate.
+        if maker_rebate > 0 {
+            update_quote_asset_and_break_even_amount(
+                &mut maker.perp_positions[maker_position_index],
+                &mut *market,
+                maker_rebate.cast()?,
+            )?;
+        }
+
+        // Update market fee totals.
+        market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
+        market.amm.total_exchange_fee = market.amm.total_exchange_fee.safe_add(fee_to_market.cast()?)?;
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .safe_add(fee_to_market.cast()?)?;
+        market.amm.net_revenue_since_last_funding = market
+            .amm
+            .net_revenue_since_last_funding
+            .safe_add(fee_to_market)?;
+
+        // Update taker stats.
+        {
+            let mut taker_stats = ctx.accounts.user_stats.load_mut()?;
+            taker_stats.increment_total_fees(taker_fee)?;
+        }
+
         // Update the maker's order.
         update_order_after_fill(
             &mut maker.orders[dlob_fill.order_index],
@@ -1849,6 +2017,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         let fill_record_id = get_then_update_id!(market, next_fill_record_id);
         drop(maker);
         drop(market);
+        drop(user);
 
         let fill_record = get_order_action_record(
             now,
@@ -1860,8 +2029,8 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             None,                          // filler_reward
             Some(dlob_fill.base_asset_amount),
             Some(fill_quote),
-            None,                          // taker_fee
-            None,                          // maker_rebate
+            Some(taker_fee),               // taker_fee
+            Some(maker_rebate),            // maker_rebate
             None,                          // referrer_reward
             None,                          // quote_asset_amount_surplus
             None,                          // spot_fulfillment_method_fee
@@ -1879,7 +2048,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
     }
 
-    // Settle AMM fills via position update (simplified: no filler/referrer rewards in this path).
+    // Settle AMM fills via position update + fee calculation.
     for amm_fill in &result.amm_fills {
         let mut user = ctx.accounts.user.load_mut()?;
         let mut market = ctx.accounts.perp_market.load_mut()?;
@@ -1887,7 +2056,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
         let position_index = get_position_index(&user.perp_positions, market_index)
             .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
 
-        let (_quote_asset_amount, _quote_surplus, _) =
+        let (quote_asset_amount, quote_asset_amount_surplus, _) =
             crate::controller::position::update_position_with_base_asset_amount(
                 amm_fill.base_asset_amount,
                 taker_direction,
@@ -1896,6 +2065,59 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
                 position_index,
                 amm_fill.limit_price,
             )?;
+
+        // Calculate taker fee for AMM fill.
+        let fill_fees = {
+            let taker_stats_ref = ctx.accounts.user_stats.load()?;
+            fees::calculate_fee_for_fulfillment_with_amm(
+                &*taker_stats_ref,
+                quote_asset_amount,
+                fee_structure,
+                order_slot,
+                clock.slot,
+                false, // no filler reward
+                false, // no referrer
+                &None, // no referrer_stats
+                quote_asset_amount_surplus,
+                false, // not post_only (taker)
+                market.fee_adjustment,
+                taker_high_leverage,
+                None,  // no builder fee
+            )?
+        };
+        let taker_fee = fill_fees.user_fee;
+        let fee_to_market = fill_fees.fee_to_market;
+
+        // Deduct taker fee.
+        if taker_fee > 0 {
+            update_quote_asset_and_break_even_amount(
+                &mut user.perp_positions[position_index],
+                &mut *market,
+                -(taker_fee as i64),
+            )?;
+        }
+
+        // Update market fee totals.
+        market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
+        market.amm.total_exchange_fee = market.amm.total_exchange_fee.safe_add(taker_fee.cast()?)?;
+        market.amm.total_mm_fee = market
+            .amm
+            .total_mm_fee
+            .safe_add(quote_asset_amount_surplus.cast()?)?;
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .safe_add(fee_to_market.cast()?)?;
+        market.amm.net_revenue_since_last_funding = market
+            .amm
+            .net_revenue_since_last_funding
+            .safe_add(fee_to_market)?;
+
+        // Update taker stats.
+        {
+            let mut taker_stats = ctx.accounts.user_stats.load_mut()?;
+            taker_stats.increment_total_fees(taker_fee)?;
+        }
 
         let fill_record_id = get_then_update_id!(market, next_fill_record_id);
         drop(user);
@@ -1908,10 +2130,14 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
             market_index,
             None,
             Some(fill_record_id),
-            None,
+            None,                          // filler_reward
             Some(amm_fill.base_asset_amount),
-            None,
-            None, None, None, None, None,
+            Some(quote_asset_amount),
+            Some(taker_fee),               // taker_fee
+            None,                          // maker_rebate
+            None,                          // referrer_reward
+            Some(quote_asset_amount_surplus), // quote_asset_amount_surplus
+            None,                          // spot_fulfillment_method_fee
             Some(ctx.accounts.user.key()),
             Some(taker_order),
             None, None,
