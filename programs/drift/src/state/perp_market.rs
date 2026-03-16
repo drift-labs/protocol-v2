@@ -957,6 +957,11 @@ impl PerpMarket {
         let can_fill_order = if can_fill_low_risk {
             true
         } else {
+            if !user_can_skip_auction_duration {
+                msg!("AMM cannot fill order: user has paused operations");
+                return Ok(false);
+            }
+
             let oracle_valid_for_can_fill_immediately = is_oracle_valid_for_action(
                 safe_oracle_validity,
                 Some(DriftAction::FillOrderAmmImmediate),

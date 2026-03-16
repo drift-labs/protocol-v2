@@ -97,15 +97,13 @@ async function initializeSingleGrpcClient() {
 	);
 	console.log(`🔮 Oracles: ${oracleInfos.length}`);
 
-
 	const grpcConfigs = {
 		endpoint: GRPC_ENDPOINT,
 		token: TOKEN,
 		commitmentLevel: CommitmentLevel.PROCESSED,
 		channelOptions: {
-			'grpc.keepalive_time_ms': 10_000,
-			'grpc.keepalive_timeout_ms': 1_000,
-			'grpc.keepalive_permit_without_calls': 1,
+			grpcKeepAliveTimeout: 1_000,
+			grpcTcpKeepalive: 10_000,
 		},
 	};
 

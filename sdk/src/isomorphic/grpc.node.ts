@@ -121,5 +121,7 @@ export async function createClient(
 	...args: ConstructorParameters<typeof Client>
 ): Promise<Client> {
 	const { default: Client_ } = await import('@triton-one/yellowstone-grpc');
-	return new Client_(...args);
+	const client = new Client_(...args);
+	await client.connect();
+	return client;
 }

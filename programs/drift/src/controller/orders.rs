@@ -1239,7 +1239,7 @@ pub fn fill_perp_order(
         }
     }
 
-    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
@@ -1374,6 +1374,23 @@ pub fn fill_perp_order(
             filler_reward,
             false,
         )?
+    }
+
+    if base_asset_amount_after == 0
+        && user.perp_positions[position_index].open_asks == 0
+        && user.perp_positions[position_index].open_bids == 0
+    {
+        cancel_reduce_only_trigger_orders(
+            user,
+            &user_key,
+            Some(&filler_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            market_index,
+        )?;
     }
 
     if base_asset_amount == 0 {
@@ -2390,7 +2407,11 @@ pub fn fulfill_perp_order_with_amm(
             let order = escrow.get_order_mut(idx)?;
             order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
         } else {
-            msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
         }
     }
 
@@ -2912,7 +2933,11 @@ pub fn fulfill_perp_order_with_match(
             let order = escrow.get_order_mut(idx)?;
             order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
         } else {
-            msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
         }
     }
 
@@ -3138,6 +3163,57 @@ fn get_taker_and_maker_for_order_record(
     } else {
         (Some(*user_key), Some(*user_order), None, None)
     }
+}
+
+fn cancel_reduce_only_trigger_orders(
+    user: &mut User,
+    user_key: &Pubkey,
+    filler_key: Option<&Pubkey>,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+    perp_market_index: u16,
+) -> DriftResult {
+    for order_index in 0..user.orders.len() {
+        if user.orders[order_index].status != OrderStatus::Open {
+            continue;
+        }
+
+        if user.orders[order_index].market_type != MarketType::Perp {
+            continue;
+        }
+
+        if user.orders[order_index].market_index != perp_market_index {
+            continue;
+        }
+
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
+            continue;
+        }
+
+        if !user.orders[order_index].reduce_only {
+            continue;
+        }
+
+        cancel_order(
+            order_index,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition,
+            filler_key,
+            0,
+            false,
+        )?;
+    }
+
+    Ok(())
 }
 
 pub fn trigger_order(
@@ -4112,7 +4188,7 @@ pub fn fill_spot_order(
         }
     }
 
-    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;

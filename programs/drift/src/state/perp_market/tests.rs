@@ -406,7 +406,7 @@ mod amm_can_fill_order_tests {
     use crate::state::paused_operations::PerpOperation;
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::state::{State, ValidityGuardRails};
-    use crate::state::user::{Order, OrderStatus};
+    use crate::state::user::{Order, OrderStatus, User, UserStats};
     use crate::PRICE_PRECISION_I64;
 
     fn base_state() -> State {
@@ -635,5 +635,99 @@ mod amm_can_fill_order_tests {
             )
             .unwrap();
         assert!(!can);
+    }
+
+    #[test]
+    fn paused_blocks_low_risk_path() {
+        let slot = 15;
+        let market = base_market();
+        let state = base_state();
+
+        let taker_stats = UserStats {
+            paused_operations: 4,
+            ..UserStats::default()
+        };
+
+        let user_can_skip = User::default()
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
+
+        let oracle_data = OraclePriceData {
+            price: PRICE_PRECISION_I64,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+            sequence_id: Some(100),
+        };
+
+        let mm = MMOraclePriceData::new(
+            PRICE_PRECISION_I64,
+            0,
+            100,
+            OracleValidity::Valid,
+            oracle_data,
+        )
+        .unwrap();
+
+        let order = Order {
+            status: OrderStatus::Open,
+            slot,
+            base_asset_amount: 1,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        };
+
+        let can_fill = market
+            .amm_can_fill_order(
+                &order,
+                slot,
+                FillMode::Fill,
+                &state,
+                OracleValidity::Valid,
+                user_can_skip,
+                &mm,
+            )
+            .unwrap();
+
+        assert!(!can_fill);
+    }
+
+    #[test]
+    fn paused_blocks_high_risk_path() {
+        let slot = 15;
+        let market = base_market();
+        let state = base_state();
+        let (mm, _) = mm_oracle_ok_and_as_recent();
+
+        let taker_stats = UserStats {
+            paused_operations: 4,
+            ..UserStats::default()
+        };
+
+        let user_can_skip = User::default()
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
+
+        let order = Order {
+            status: OrderStatus::Open,
+            slot: slot - 1,
+            base_asset_amount: 1,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        };
+
+        let can_fill = market
+            .amm_can_fill_order(
+                &order,
+                slot,
+                FillMode::Fill,
+                &state,
+                OracleValidity::Valid,
+                user_can_skip,
+                &mm,
+            )
+            .unwrap();
+
+        assert!(!can_fill);
     }
 }

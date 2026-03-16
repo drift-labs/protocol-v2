@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow for swap-involved ATA closures [#2118](https://github.com/drift-labs/protocol-v2/pull/2118)
+
+### Fixes
+
+- program: prevent user from enabling HLM when they are failing maintenance margin check [#2116](https://github.com/drift-labs/protocol-v2/pull/2116)
+
+### Breaking
+
+## [2.157.0] - 2026-02-11
+
+### Features
+
+- program: block amm fills when paused_operations set [#2108](https://github.com/drift-labs/protocol-v2/pull/2108)
+- program: remove same slot matching restriction [#2104](https://github.com/drift-labs/protocol-v2/pull/2104)
+
 ### Fixes
 
 ### Breaking
@@ -42,10 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: isolated positions [#1757](https://github.com/drift-labs/protocol-v2/pull/1757)
 - program: delete serum/openbook configs [#2066](https://github.com/drift-labs/protocol-v2/pull/2066)
+- sdk: update yellowstone-grpc to rust client [#2070](https://github.com/drift-labs/protocol-v2/pull/2070)
 
 ### Fixes
 
 ### Breaking
+
+- sdk: `channelOptions` in the GrpcConfigs type has been updated to work with new grpc lib
 
 ## [2.153.0] - 2025-12-30
 
@@ -102,11 +120,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 ### Breaking
+
 - program: add DepositRecord::spot_balance_after [#2034](https://github.com/drift-labs/protocol-v2/pull/2034)
 
 ## [2.149.0] - 2025-11-19
 
 ### Features
+
 - sdk: allow deposit from external authority directly to drift account
 
 ### Fixes
@@ -169,7 +189,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: use-5min-for-target-expiry-price  ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
+- program: use-5min-for-target-expiry-price ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
 
 ### Fixes
 

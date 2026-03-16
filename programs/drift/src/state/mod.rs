@@ -21,6 +21,7 @@ pub mod protected_maker_mode_config;
 pub mod pyth_lazer_oracle;
 pub mod revenue_share;
 pub mod revenue_share_map;
+pub mod scale_order_params;
 pub mod settle_pnl_mode;
 pub mod signed_msg_user;
 pub mod spot_fulfillment_params;

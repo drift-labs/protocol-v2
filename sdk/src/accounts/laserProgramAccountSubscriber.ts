@@ -1,4 +1,4 @@
-import { GrpcConfigs, ResubOpts } from './types';
+import { LaserGrpcConfigs, ResubOpts } from './types';
 import { Program } from '@coral-xyz/anchor';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
@@ -60,7 +60,7 @@ export class LaserstreamProgramAccountSubscriber<
 	}
 
 	public static async create<U>(
-		grpcConfigs: GrpcConfigs,
+		grpcConfigs: LaserGrpcConfigs,
 		subscriptionName: string,
 		accountDiscriminator: string,
 		program: Program,

@@ -1,12 +1,10 @@
 import { ResubOpts, GrpcConfigs } from './types';
 import { Program } from '@coral-xyz/anchor';
-import bs58 from 'bs58';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
 import {
 	Client,
-	ClientDuplexStream,
 	CommitmentLevel,
 	createClient,
 	SubscribeRequest,
@@ -17,7 +15,7 @@ export class grpcProgramAccountSubscriber<
 	T,
 > extends WebSocketProgramAccountSubscriber<T> {
 	private client: Client;
-	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
+	private stream: Awaited<ReturnType<Client['subscribe']>>;
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
 
@@ -56,10 +54,15 @@ export class grpcProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<grpcProgramAccountSubscriber<U>> {
+		const channelOptions: GrpcConfigs['channelOptions'] = {
+			...(grpcConfigs.channelOptions ?? {}),
+			grpcDefaultCompressionAlgorithm: 1, // always use zstd compression
+			grpcHttp2AdaptiveWindow: true, // enable adaptive window size management
+		};
 		const client = await createClient(
 			grpcConfigs.endpoint,
 			grpcConfigs.token,
-			grpcConfigs.channelOptions ?? {}
+			channelOptions
 		);
 		const commitmentLevel =
 			// @ts-ignore :: isomorphic exported enum fails typescript but will work at runtime
@@ -92,17 +95,18 @@ export class grpcProgramAccountSubscriber<
 		this.onChange = onChange;
 
 		// Subscribe with grpc
-		this.stream =
-			(await this.client.subscribe()) as unknown as typeof this.stream;
+		this.stream = await this.client.subscribe();
+
 		const filters = this.options.filters.map((filter) => {
 			return {
 				memcmp: {
-					offset: filter.memcmp.offset.toString(),
-					bytes: bs58.decode(filter.memcmp.bytes),
+					offset: filter.memcmp.offset,
+					base58: filter.memcmp.bytes,
 				},
 			};
 		});
-		const request: SubscribeRequest = {
+
+		const request = {
 			slots: {},
 			accounts: {
 				drift: {
@@ -119,6 +123,7 @@ export class grpcProgramAccountSubscriber<
 			entry: {},
 			transactionsStatus: {},
 		};
+
 		this.stream.on('data', (chunk: SubscribeUpdate) => {
 			if (!chunk.account) {
 				return;

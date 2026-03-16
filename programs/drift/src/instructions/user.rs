@@ -41,7 +41,8 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
-    validate_spot_margin_trading, MarginRequirementType,
+    validate_spot_margin_trading, validate_user_can_enable_high_leverage_mode,
+    MarginRequirementType,
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
@@ -90,6 +91,7 @@ use crate::state::revenue_share::RevenueShareEscrow;
 use crate::state::revenue_share::RevenueShareOrder;
 use crate::state::revenue_share::REVENUE_SHARE_ESCROW_PDA_SEED;
 use crate::state::revenue_share::REVENUE_SHARE_PDA_SEED;
+use crate::state::scale_order_params::ScaleOrderParams;
 use crate::state::signed_msg_user::SignedMsgOrderId;
 use crate::state::signed_msg_user::SignedMsgUserOrdersLoader;
 use crate::state::signed_msg_user::SignedMsgWsDelegates;
@@ -107,8 +109,7 @@ use crate::state::user::Order;
 use crate::state::user::OrderStatus;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{
-    FuelOverflow, FuelOverflowProvider, MarginMode, MarketType, OrderType, ReferrerName, User,
-    UserStats,
+    FuelOverflow, FuelOverflowProvider, MarketType, OrderType, ReferrerName, User, UserStats,
 };
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
@@ -2607,6 +2608,31 @@ pub fn handle_place_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
     params: Vec<OrderParams>,
 ) -> Result<()> {
+    place_orders(&ctx, PlaceOrdersInput::Orders(params))
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_scale_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
+    params: ScaleOrderParams,
+) -> Result<()> {
+    place_orders(&ctx, PlaceOrdersInput::ScaleOrders(params))
+}
+
+/// Input for place_orders - either direct OrderParams or ScaleOrderParams to expand
+enum PlaceOrdersInput {
+    Orders(Vec<OrderParams>),
+    ScaleOrders(ScaleOrderParams),
+}
+
+/// Internal implementation for placing multiple orders.
+/// Used by both handle_place_orders and handle_place_scale_orders.
+fn place_orders<'c: 'info, 'info>(
+    ctx: &Context<'_, '_, 'c, 'info, PlaceOrder>,
+    input: PlaceOrdersInput,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -2625,8 +2651,32 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
+    // Convert input to order params, expanding scale orders if needed
+    let order_params = match input {
+        PlaceOrdersInput::Orders(params) => params,
+        PlaceOrdersInput::ScaleOrders(scale_params) => {
+            let order_step_size = match scale_params.market_type {
+                MarketType::Perp => {
+                    let market = perp_market_map.get_ref(&scale_params.market_index)?;
+                    market.amm.order_step_size
+                }
+                MarketType::Spot => {
+                    let market = spot_market_map.get_ref(&scale_params.market_index)?;
+                    market.order_step_size
+                }
+            };
+
+            scale_params
+                .expand_to_order_params(order_step_size)
+                .map_err(|e| {
+                    msg!("Failed to expand scale order params: {:?}", e);
+                    ErrorCode::InvalidOrder
+                })?
+        }
+    };
+
     validate!(
-        params.len() <= 32,
+        order_params.len() <= 32,
         ErrorCode::DefaultError,
         "max 32 order params"
     )?;
@@ -2634,8 +2684,8 @@ pub fn handle_place_orders<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    let num_orders = params.len();
-    for (i, params) in params.iter().enumerate() {
+    let num_orders = order_params.len();
+    for (i, params) in order_params.iter().enumerate() {
         validate!(
             !params.is_immediate_or_cancel(),
             ErrorCode::InvalidOrderIOC,
@@ -2654,7 +2704,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 
         if params.market_type == MarketType::Perp {
             controller::orders::place_perp_order(
-                &ctx.accounts.state,
+                state,
                 &mut user,
                 user_key,
                 &perp_market_map,
@@ -2668,7 +2718,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
             )?;
         } else {
             controller::orders::place_spot_order(
-                &ctx.accounts.state,
+                state,
                 &mut user,
                 user_key,
                 &perp_market_map,
@@ -3690,13 +3740,7 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    validate!(
-        user.margin_mode != MarginMode::HighLeverage,
-        ErrorCode::DefaultError,
-        "user already in high leverage mode"
-    )?;
-
-    meets_maintenance_margin_requirement(
+    validate_user_can_enable_high_leverage_mode(
         &user,
         &perp_market_map,
         &spot_market_map,
@@ -3708,6 +3752,34 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
     config.enable_high_leverage(&mut user)?;
 
     Ok(())
+}
+
+/// Checks if an instruction is a SPL Token CloseAccount targeting
+/// one of the swap's token accounts.
+fn is_token_close_account_for_swap_ix(
+    ix: &solana_program::instruction::Instruction,
+    in_token_account: &Pubkey,
+    out_token_account: &Pubkey,
+) -> bool {
+    let is_token_program = ix.program_id == Token::id() || ix.program_id == Token2022::id();
+    if !is_token_program {
+        return false;
+    }
+
+    // SPL Token CloseAccount discriminator is byte 9
+    // (TokenInstruction enum variant index)
+    const CLOSE_ACCOUNT_DISCRIMINATOR: u8 = 9;
+    if ix.data.is_empty() || ix.data[0] != CLOSE_ACCOUNT_DISCRIMINATOR {
+        return false;
+    }
+
+    // The first account in CloseAccount is the account being closed
+    if ix.accounts.is_empty() {
+        return false;
+    }
+
+    let account_to_close = &ix.accounts[0].pubkey;
+    account_to_close == in_token_account || account_to_close == out_token_account
 }
 
 #[access_control(
@@ -3939,6 +4011,15 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         } else {
             if found_end {
                 if ix.program_id == lighthouse::ID {
+                    continue;
+                }
+
+                // Allow closing the swap's token accounts after end_swap
+                if is_token_close_account_for_swap_ix(
+                    &ix,
+                    &ctx.accounts.in_token_account.key(),
+                    &ctx.accounts.out_token_account.key(),
+                ) {
                     continue;
                 }
 
