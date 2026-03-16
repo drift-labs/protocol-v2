@@ -1,5 +1,5 @@
 /**
- * Bankrun tests to measure compute unit usage for match_perp_order_via_prop_amm
+ * Bankrun tests to measure compute unit usage for fill_perp_order2
  * with 1, 2, and 4 PropAMM (midprice) accounts.
  *
  * Run: npx mocha -r ts-node/register tests/propAmmCUs.ts
@@ -88,7 +88,7 @@ function instructionDiscriminator(name: string): Buffer {
 }
 
 function matchPerpOrderViaPropAmmInstructionDiscriminator(): Buffer {
-	return instructionDiscriminator('match_perp_order_via_prop_amm');
+	return instructionDiscriminator('fill_perp_order2');
 }
 
 const SYSVAR_RENT_PUBKEY = new PublicKey(
@@ -160,7 +160,7 @@ async function buildInitializePropAmmMidpriceInstruction(args: {
 		.instruction();
 }
 
-function buildMatchPerpOrderViaPropAmmInstruction(
+function buildFillPerpOrder2Instruction(
 	driftProgramId: PublicKey,
 	takerOrderId: number | null,
 	accounts: {
@@ -783,7 +783,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 			remaining.push({ pubkey: dlobPda, isWritable: true });
 		}
 
-		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			orderId,
 			{
@@ -1005,7 +1005,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 		remaining.push({ pubkey: makerUserPda, isWritable: true });
 
 		const dupOrderId = await placeTakerLimitOrder();
-		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			dupOrderId,
 			{
@@ -1374,7 +1374,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 			{ pubkey: makerUserPda, isWritable: true },
 		];
 
-		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			null,
 			{
@@ -1637,7 +1637,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 			{ pubkey: makerUserPda, isWritable: true },
 		];
 
-		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			null,
 			{
@@ -1913,7 +1913,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 			{ pubkey: makerUserPda, isWritable: true },
 		];
 
-		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			null,
 			{
@@ -2174,7 +2174,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 			{ pubkey: makerUserPda, isWritable: true },
 		];
 
-		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			null,
 			{
@@ -2439,7 +2439,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				{ pubkey: makerUserPda, isWritable: true },
 			];
 
-			const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+			const matchIx = buildFillPerpOrder2Instruction(
 				driftProgramId,
 				null,
 				{
@@ -2525,7 +2525,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				{ pubkey: makerUserPda, isWritable: true },
 			];
 
-			const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+			const matchIx = buildFillPerpOrder2Instruction(
 				driftProgramId,
 				null, // use last placed order (orderId=2, second on this user)
 				{
@@ -2788,7 +2788,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 			{ pubkey: makerUserPda, isWritable: true },
 		];
 
-		const matchIx = buildMatchPerpOrderViaPropAmmInstruction(
+		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			null,
 			{

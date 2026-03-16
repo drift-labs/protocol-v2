@@ -1406,8 +1406,8 @@ pub struct UpdatePropAmmTickSizes<'info> {
     pub prop_amm_matcher: AccountInfo<'info>,
 }
 
-pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, MatchPerpOrderViaPropAmm<'info>>,
+pub fn handle_fill_perp_order2<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, FillPerpOrder2<'info>>,
     taker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
@@ -2166,7 +2166,7 @@ pub fn handle_match_perp_order_via_prop_amm<'c: 'info, 'info>(
 }
 
 #[derive(Accounts)]
-pub struct MatchPerpOrderViaPropAmm<'info> {
+pub struct FillPerpOrder2<'info> {
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
 

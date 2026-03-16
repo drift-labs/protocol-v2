@@ -5,7 +5,7 @@ Midprice-based orderbook program integrated with **Drift** as the exchange.
 - **Initialize** a midprice account (no exchange ID stored; only Drift's matcher PDA can apply fills, enforced in-program).
 - **Authority** on the midprice account = Drift **User** account pubkey (the maker providing liquidity).
 - Each PropAMM account must be associated with a Drift **User** and **UserStats** account (the maker). When matching, Drift updates maker/taker positions and updates both UserStats (maker_volume_30d, taker_volume_30d).
-- Drift matches taker orders against these books via `match_perp_order_via_prop_amm` and CPIs to `apply_fills` with the matcher PDA: `PDA(drift_program_id, ["matcher", maker_user_pubkey])`.
+- Drift matches taker orders against these books via `fill_perp_order2` and CPIs to `apply_fills` with the matcher PDA: `PDA(drift_program_id, ["matcher", maker_user_pubkey])`.
 - **Remaining accounts** for the match instruction: `[midprice_program]`, then per AMM: `(matcher_authority, midprice_account, maker_user, maker_user_stats)`.
 
 ## Account layout (v2)
