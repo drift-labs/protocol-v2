@@ -275,7 +275,13 @@ impl<'a> MidpriceBookView<'a> {
     }
 
     pub fn order_offset_i64(&self, index: usize) -> Result<i64, BookError> {
-        let base = entry_base(self.data, index, self.total_orders(), self.orders_data_offset, self.entry_size)?;
+        let base = entry_base(
+            self.data,
+            index,
+            self.total_orders(),
+            self.orders_data_offset,
+            self.entry_size,
+        )?;
         Ok(i64::from_le_bytes(
             self.data[base..base + 8]
                 .try_into()
@@ -284,7 +290,13 @@ impl<'a> MidpriceBookView<'a> {
     }
 
     pub fn order_size_u64(&self, index: usize) -> Result<u64, BookError> {
-        let base = entry_base(self.data, index, self.total_orders(), self.orders_data_offset, self.entry_size)?;
+        let base = entry_base(
+            self.data,
+            index,
+            self.total_orders(),
+            self.orders_data_offset,
+            self.entry_size,
+        )?;
         Ok(u64::from_le_bytes(
             self.data[base + 8..base + 16]
                 .try_into()
@@ -412,13 +424,25 @@ impl<'a> MidpriceBookViewMut<'a> {
     }
 
     pub fn set_order_size_u64(&mut self, index: usize, size: u64) -> Result<(), BookError> {
-        let base = entry_base(self.data, index, self.total_orders(), self.orders_data_offset, self.entry_size)?;
+        let base = entry_base(
+            self.data,
+            index,
+            self.total_orders(),
+            self.orders_data_offset,
+            self.entry_size,
+        )?;
         self.data[base + 8..base + 16].copy_from_slice(&size.to_le_bytes());
         Ok(())
     }
 
     pub fn order_size_u64(&self, index: usize) -> Result<u64, BookError> {
-        let base = entry_base(self.data, index, self.total_orders(), self.orders_data_offset, self.entry_size)?;
+        let base = entry_base(
+            self.data,
+            index,
+            self.total_orders(),
+            self.orders_data_offset,
+            self.entry_size,
+        )?;
         Ok(u64::from_le_bytes(
             self.data[base + 8..base + 16]
                 .try_into()
@@ -700,8 +724,7 @@ mod tests {
         // Write first entry at ORDERS_DATA_OFFSET
         let offset_val: i64 = 100;
         let size_val: u64 = 200;
-        buf[ORDERS_DATA_OFFSET..ORDERS_DATA_OFFSET + 8]
-            .copy_from_slice(&offset_val.to_le_bytes());
+        buf[ORDERS_DATA_OFFSET..ORDERS_DATA_OFFSET + 8].copy_from_slice(&offset_val.to_le_bytes());
         buf[ORDERS_DATA_OFFSET + 8..ORDERS_DATA_OFFSET + 16]
             .copy_from_slice(&size_val.to_le_bytes());
 
@@ -737,8 +760,7 @@ mod tests {
         let mut buf = make_buffer(0);
         init_header(&mut buf);
         // Set version to 1 (only 0 is valid)
-        buf[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
-            .copy_from_slice(&1u64.to_le_bytes());
+        buf[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8].copy_from_slice(&1u64.to_le_bytes());
 
         assert!(MidpriceBookView::new(&buf).is_err());
     }
@@ -793,10 +815,8 @@ mod tests {
         let mut size_sum: u64 = 0;
         for i in 0..n {
             let base = ORDERS_DATA_OFFSET + i * 8;
-            let offset_ticks =
-                i32::from_le_bytes(buf[base..base + 4].try_into().unwrap()) as i64;
-            let size_ticks =
-                u32::from_le_bytes(buf[base + 4..base + 8].try_into().unwrap()) as u64;
+            let offset_ticks = i32::from_le_bytes(buf[base..base + 4].try_into().unwrap()) as i64;
+            let size_ticks = u32::from_le_bytes(buf[base + 4..base + 8].try_into().unwrap()) as u64;
             let offset = offset_ticks.wrapping_mul(tick_size as i64); // +1 mul
             let size = size_ticks.wrapping_mul(min_order_size); // +1 mul
             let price = if offset > 0 {
@@ -816,8 +836,7 @@ mod tests {
         let mut size_sum: u64 = 0;
         for i in 0..n {
             let base = ORDERS_DATA_OFFSET + i * 10;
-            let offset_bps =
-                i16::from_le_bytes(buf[base..base + 2].try_into().unwrap()) as i64;
+            let offset_bps = i16::from_le_bytes(buf[base..base + 2].try_into().unwrap()) as i64;
             let size = u64::from_le_bytes(buf[base + 2..base + 10].try_into().unwrap());
             // Reconstruct: offset = offset_bps * mid_price / 10_000
             let offset = offset_bps
@@ -835,18 +854,12 @@ mod tests {
     }
 
     // D) i32 offset_ticks + u64 size = 12 bytes
-    fn scan_tick_offset_only(
-        buf: &[u8],
-        mid_price: u64,
-        tick_size: u64,
-        n: usize,
-    ) -> (u64, u64) {
+    fn scan_tick_offset_only(buf: &[u8], mid_price: u64, tick_size: u64, n: usize) -> (u64, u64) {
         let mut price_sum: u64 = 0;
         let mut size_sum: u64 = 0;
         for i in 0..n {
             let base = ORDERS_DATA_OFFSET + i * 12;
-            let offset_ticks =
-                i32::from_le_bytes(buf[base..base + 4].try_into().unwrap()) as i64;
+            let offset_ticks = i32::from_le_bytes(buf[base..base + 4].try_into().unwrap()) as i64;
             let size = u64::from_le_bytes(buf[base + 4..base + 12].try_into().unwrap());
             let offset = offset_ticks.wrapping_mul(tick_size as i64); // +1 mul
             let price = if offset > 0 {
@@ -897,8 +910,8 @@ mod tests {
         for i in 0..n {
             // offset_bps = offset * 10_000 / mid_price = (i+1)*1000 * 10000 / 100_000_000 = (i+1)/10
             // This loses precision for small ticks — that's the point of the test.
-            let offset_bps: i16 = ((i as i64 + 1) * tick_size as i64 * 10_000
-                / mid_price as i64) as i16;
+            let offset_bps: i16 =
+                ((i as i64 + 1) * tick_size as i64 * 10_000 / mid_price as i64) as i16;
             let size: u64 = (i as u64 + 1) * min_order_size;
             let base = ORDERS_DATA_OFFSET + i * 10;
             buf_c[base..base + 2].copy_from_slice(&offset_bps.to_le_bytes());
@@ -974,12 +987,20 @@ mod tests {
         // BTC: tick = $0.10
         let btc_tick = 100_000u64;
         let btc_max_offset_usd = max_ticks * btc_tick / 1_000_000;
-        assert!(btc_max_offset_usd > 200_000, "BTC: i32 ticks covers ±${}", btc_max_offset_usd);
+        assert!(
+            btc_max_offset_usd > 200_000,
+            "BTC: i32 ticks covers ±${}",
+            btc_max_offset_usd
+        );
 
         // SOL: tick = $0.001
         let sol_tick = 1_000u64;
         let sol_max_offset_usd = max_ticks * sol_tick / 1_000_000;
-        assert!(sol_max_offset_usd > 2_000, "SOL: i32 ticks covers ±${}", sol_max_offset_usd);
+        assert!(
+            sol_max_offset_usd > 2_000,
+            "SOL: i32 ticks covers ±${}",
+            sol_max_offset_usd
+        );
     }
 
     /// i32 offset in RAW UNITS (no tick division) breaks for BTC.
@@ -1002,7 +1023,11 @@ mod tests {
     fn test_u32_size_in_ticks_breaks_when_min_is_1() {
         let max_u32: u64 = u32::MAX as u64;
         // With min=1, max expressible = 4.29B base units = 4.29 tokens at 9 decimals.
-        assert!(max_u32 < 10_000_000_000u64, "u32 with min=1 caps at {}", max_u32);
+        assert!(
+            max_u32 < 10_000_000_000u64,
+            "u32 with min=1 caps at {}",
+            max_u32
+        );
     }
 
     /// Wall-clock micro-benchmark of all four schemes.
@@ -1035,8 +1060,7 @@ mod tests {
         for i in 0..n {
             let off: i64 = (i as i64 + 1) * tick_size as i64;
             let sz: u64 = (i as u64 + 1) * min_order_size;
-            let bps: i16 = ((i as i64 + 1) * tick_size as i64 * 10_000
-                / mid_price as i64) as i16;
+            let bps: i16 = ((i as i64 + 1) * tick_size as i64 * 10_000 / mid_price as i64) as i16;
 
             let ba = ORDERS_DATA_OFFSET + i * 16;
             buf_a[ba..ba + 8].copy_from_slice(&off.to_le_bytes());
@@ -1059,12 +1083,18 @@ mod tests {
         for _ in 0..1000 {
             black_box(scan_current(black_box(&buf_a), black_box(mid_price), n));
             black_box(scan_tick_compressed(
-                black_box(&buf_b), black_box(mid_price),
-                black_box(tick_size), black_box(min_order_size), n,
+                black_box(&buf_b),
+                black_box(mid_price),
+                black_box(tick_size),
+                black_box(min_order_size),
+                n,
             ));
             black_box(scan_bps_offset(black_box(&buf_c), black_box(mid_price), n));
             black_box(scan_tick_offset_only(
-                black_box(&buf_d), black_box(mid_price), black_box(tick_size), n,
+                black_box(&buf_d),
+                black_box(mid_price),
+                black_box(tick_size),
+                n,
             ));
         }
 
@@ -1082,8 +1112,11 @@ mod tests {
         });
         let ns_b = bench("B", &|| {
             black_box(scan_tick_compressed(
-                black_box(&buf_b), black_box(mid_price),
-                black_box(tick_size), black_box(min_order_size), n,
+                black_box(&buf_b),
+                black_box(mid_price),
+                black_box(tick_size),
+                black_box(min_order_size),
+                n,
             ));
         });
         let ns_c = bench("C", &|| {
@@ -1091,36 +1124,49 @@ mod tests {
         });
         let ns_d = bench("D", &|| {
             black_box(scan_tick_offset_only(
-                black_box(&buf_d), black_box(mid_price), black_box(tick_size), n,
+                black_box(&buf_d),
+                black_box(mid_price),
+                black_box(tick_size),
+                n,
             ));
         });
 
         let pct = |v: u128| -> i64 {
-            if ns_a == 0 { return 0; }
+            if ns_a == 0 {
+                return 0;
+            }
             ((v as i128 - ns_a as i128) * 100 / ns_a as i128) as i64
         };
 
         std::println!(
-            "\n--- Order scan benchmark ({} iters × {} orders) ---", iters, n
+            "\n--- Order scan benchmark ({} iters × {} orders) ---",
+            iters,
+            n
         );
         std::println!(
-            "  A) Current      i64+u64  16B/entry : {:>12} ns (baseline)", ns_a
+            "  A) Current      i64+u64  16B/entry : {:>12} ns (baseline)",
+            ns_a
         );
         std::println!(
             "  B) Tick-both    i32+u32   8B/entry : {:>12} ns ({:+}%  +2 mul/order)",
-            ns_b, pct(ns_b)
+            ns_b,
+            pct(ns_b)
         );
         std::println!(
             "  C) BPS offset   i16+u64  10B/entry : {:>12} ns ({:+}%  +1 mul +1 div/order)",
-            ns_c, pct(ns_c)
+            ns_c,
+            pct(ns_c)
         );
         std::println!(
             "  D) Tick-offset  i32+u64  12B/entry : {:>12} ns ({:+}%  +1 mul/order)",
-            ns_d, pct(ns_d)
+            ns_d,
+            pct(ns_d)
         );
         std::println!();
         std::println!("  BPF note: load32 and load64 cost 1 CU each (no savings on reads).");
         std::println!("  Every compressed scheme pays MORE arithmetic with ZERO load savings.");
-        std::println!("  BPS also loses sub-bps precision (first ~10 tick levels collapse to 0).\n");
+        std::println!(
+            "  BPS also loses sub-bps precision (first ~10 tick levels collapse to 0).\n"
+        );
     }
 }

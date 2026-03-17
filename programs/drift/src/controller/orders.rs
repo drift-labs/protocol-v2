@@ -1735,7 +1735,7 @@ fn get_referrer_info(
 }
 
 #[inline(always)]
-fn get_builder_escrow_info(
+pub(crate) fn get_builder_escrow_info(
     escrow_opt: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
     sub_account_id: u16,
     order_id: u32,

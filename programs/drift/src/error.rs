@@ -702,6 +702,14 @@ pub enum ErrorCode {
     InvalidOrderScalePriceRange,
     #[msg("Midprice quote expired")]
     MidpriceQuoteExpired,
+    /// Used when the global PropAMM matcher PDA is missing, misordered in
+    /// remaining accounts, or does not match the PDA derived from the Drift program id.
+    #[msg("Invalid PropAMM matcher account")]
+    InvalidPropAmmMatcherAccount,
+    /// Used when the PropAMM remaining-account layout is malformed, such as
+    /// overlapping reserved accounts or duplicate `(midprice, maker_user)` pairs.
+    #[msg("Invalid PropAMM account layout")]
+    InvalidPropAmmAccountLayout,
     #[msg("Invalid midprice account (wrong program, bad data, or orders overflow)")]
     InvalidMidpriceAccount,
     #[msg("Midprice account authority and subaccount do not derive to the given maker User PDA")]
