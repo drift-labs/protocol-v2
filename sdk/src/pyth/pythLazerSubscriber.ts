@@ -67,6 +67,7 @@ export class PythLazerSubscriber {
 			'bestAskPrice',
 			'bestBidPrice',
 			'exponent',
+			'feedUpdateTimestamp',
 		]
 	) {
 		this.feedProperties = [...feedProperties];
