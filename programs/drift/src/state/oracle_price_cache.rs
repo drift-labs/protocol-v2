@@ -76,7 +76,6 @@ pub struct CachedOracleEntry {
     pub max_age_slots_override: u8,
     pub _padding: [u8; 29],
 }
-// 32 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 29 = 96 bytes per entry
 
 impl Default for CachedOracleEntry {
     fn default() -> Self {

@@ -652,7 +652,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		if (typeof initCacheMethod === 'function') {
 			const cacheState = await getDriftStateAccountPublicKey(program.programId);
 			const initCacheIx = await (
-				initCacheMethod as (cacheId: number, numOracles: number) => {
+				initCacheMethod as (
+					cacheId: number,
+					numOracles: number
+				) => {
 					accounts: (a: Record<string, PublicKey>) => {
 						instruction: () => Promise<TransactionInstruction>;
 					};
@@ -1054,7 +1057,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 			})
 		);
 		const sig = await bankrunContextWrapper.sendTransaction(tx, []);
-		assert(sig && sig.length > 0, 'oracle cache configuration tx should succeed');
+		assert(
+			sig && sig.length > 0,
+			'oracle cache configuration tx should succeed'
+		);
 	}
 
 	async function initializeExtraSpotMarkets(
@@ -1090,14 +1096,17 @@ describe('PropAMM CU usage (bankrun)', () => {
 		extraMarketDepositAmount: BN = new BN(5_000 * 10 ** DRIFT_DECIMALS)
 	): Promise<PropAmmMakerFixture[]> {
 		if (!midpriceProgramId) {
-			throw new Error('midprice program must be available for PropAMM maker setup');
+			throw new Error(
+				'midprice program must be available for PropAMM maker setup'
+			);
 		}
 
 		const driftProgramId = program.programId;
 		const perpMarket = getPerpMarketPublicKeySync(driftProgramId, marketIndex);
 		const connection = bankrunContextWrapper.connection;
-		const quoteTokenProgram = (await connection.getAccountInfo(usdcMint.publicKey))
-			.owner;
+		const quoteTokenProgram = (
+			await connection.getAccountInfo(usdcMint.publicKey)
+		).owner;
 		const midpriceAccountSpace =
 			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2;
 		const rentExempt = await connection.getMinimumBalanceForRentExemption(
@@ -1340,15 +1349,25 @@ describe('PropAMM CU usage (bankrun)', () => {
 		// Minimal remaining: midprice_program, spot_market_0, matcher PDA — no AMMs
 		const remaining = [
 			{ pubkey: midpriceProgramId, isWritable: false },
-			{ pubkey: getSpotMarketPublicKeySync(driftProgramId, 0), isWritable: false },
+			{
+				pubkey: getSpotMarketPublicKeySync(driftProgramId, 0),
+				isWritable: false,
+			},
 			{ pubkey: getPropAmmMatcherPDA(driftProgramId), isWritable: true },
 		];
 
 		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			orderId,
-			{ user: takerUser, userStats: takerStats, state, perpMarket, oracle: oracleKey, oraclePriceCache: oraclePriceCachePda },
-			remaining,
+			{
+				user: takerUser,
+				userStats: takerStats,
+				state,
+				perpMarket,
+				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
+			},
+			remaining
 		);
 
 		const tx = new Transaction().add(matchIx);
@@ -1362,7 +1381,11 @@ describe('PropAMM CU usage (bankrun)', () => {
 			console.log('Minimal sim logs:', sim.value.logs);
 		}
 		// With 0 AMMs it should return Ok(()) early
-		assert.strictEqual(sim.value.err, null, 'minimal 0-AMM fill should succeed (returns Ok early)');
+		assert.strictEqual(
+			sim.value.err,
+			null,
+			'minimal 0-AMM fill should succeed (returns Ok early)'
+		);
 		console.log('Minimal 0-AMM CU:', sim.value.unitsConsumed);
 	});
 
@@ -1379,7 +1402,12 @@ describe('PropAMM CU usage (bankrun)', () => {
 		if (!midpriceProgramId) {
 			this.skip();
 		}
-		const { tx, signers, orderId } = await buildAndSignMatchTx(1, undefined, 0, true);
+		const { tx, signers, orderId } = await buildAndSignMatchTx(
+			1,
+			undefined,
+			0,
+			true
+		);
 		const sig = await bankrunContextWrapper.sendTransaction(tx, signers);
 		assert(sig && sig.length > 0, 'match transaction should succeed');
 		await driftClient.fetchAccounts();
@@ -1663,7 +1691,12 @@ describe('PropAMM CU usage (bankrun)', () => {
 		}
 		// Taker wants 5 BASE. PropAMM offers 1 BASE at 101, DLOB offers 1 BASE at 101,
 		// remainder should fill via vAMM (oracle=100, well within limit 101).
-		const { tx, signers, orderId } = await buildAndSignMatchTx(1, undefined, 1, true);
+		const { tx, signers, orderId } = await buildAndSignMatchTx(
+			1,
+			undefined,
+			1,
+			true
+		);
 		const sig = await bankrunContextWrapper.sendTransaction(tx, signers);
 		assert(sig && sig.length > 0, 'mixed all-source match tx should succeed');
 		await driftClient.fetchAccounts();
@@ -1939,7 +1972,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		// Place signed msg order first
 		const placeTx = new Transaction().add(...placeIxs);
 		const placeSig = await bankrunContextWrapper.sendTransaction(placeTx, []);
-		assert(placeSig && placeSig.length > 0, 'place signed msg tx should succeed');
+		assert(
+			placeSig && placeSig.length > 0,
+			'place signed msg tx should succeed'
+		);
 
 		// Advance past auction duration (on-chain sanitization assigns ~180 slot auctions)
 		await bankrunContextWrapper.moveTimeForward(80);
@@ -2214,7 +2250,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		// Place signed msg order first
 		const placeTx = new Transaction().add(...placeIxs);
 		const placeSig = await bankrunContextWrapper.sendTransaction(placeTx, []);
-		assert(placeSig && placeSig.length > 0, 'place market order tx should succeed');
+		assert(
+			placeSig && placeSig.length > 0,
+			'place market order tx should succeed'
+		);
 
 		// Advance past 10-slot auction (~4s) but stay within max_ts (~30s)
 		await bankrunContextWrapper.moveTimeForward(5);
@@ -2500,7 +2539,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		// Place signed msg order first
 		const placeTx = new Transaction().add(...placeIxs);
 		const placeSig = await bankrunContextWrapper.sendTransaction(placeTx, []);
-		assert(placeSig && placeSig.length > 0, 'place oracle order tx should succeed');
+		assert(
+			placeSig && placeSig.length > 0,
+			'place oracle order tx should succeed'
+		);
 
 		// Advance past 10-slot auction (~4s) but stay within max_ts (~30s)
 		await bankrunContextWrapper.moveTimeForward(5);
@@ -3037,7 +3079,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 			// Place signed msg order first
 			const placeTx = new Transaction().add(...placeIxs);
 			const placeSig = await bankrunContextWrapper.sendTransaction(placeTx, []);
-			assert(placeSig && placeSig.length > 0, 'place short order tx should succeed');
+			assert(
+				placeSig && placeSig.length > 0,
+				'place short order tx should succeed'
+			);
 
 			// Advance past auction duration
 			await bankrunContextWrapper.moveTimeForward(80);
@@ -3136,7 +3181,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 			// Place signed msg order first
 			const placeTx = new Transaction().add(...placeIxs);
 			const placeSig = await bankrunContextWrapper.sendTransaction(placeTx, []);
-			assert(placeSig && placeSig.length > 0, 'place reduce-only long tx should succeed');
+			assert(
+				placeSig && placeSig.length > 0,
+				'place reduce-only long tx should succeed'
+			);
 
 			// Advance past 10-slot auction (~4s) but stay within max_ts (~30s)
 			await bankrunContextWrapper.moveTimeForward(5);
@@ -3412,7 +3460,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		// Place signed msg order first
 		const placeTx = new Transaction().add(...placeIxs);
 		const placeSig = await bankrunContextWrapper.sendTransaction(placeTx, []);
-		assert(placeSig && placeSig.length > 0, 'place short order tx should succeed');
+		assert(
+			placeSig && placeSig.length > 0,
+			'place short order tx should succeed'
+		);
 
 		// Advance past auction duration
 		await bankrunContextWrapper.moveTimeForward(80);
@@ -3423,7 +3474,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		fillTx.feePayer = bankrunContextWrapper.context.payer.publicKey;
 		fillTx.sign(bankrunContextWrapper.context.payer);
 		const sig = await bankrunContextWrapper.sendTransaction(fillTx, []);
-		assert(sig && sig.length > 0, 'short taker fill against bid should succeed');
+		assert(
+			sig && sig.length > 0,
+			'short taker fill against bid should succeed'
+		);
 
 		// Verify taker has a short position
 		await takerClient.fetchAccounts();
@@ -3692,7 +3746,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 		// price at slot 0 (~100) is above the maker ask at 99 — fill during auction.
 		const tx = new Transaction().add(...placeIxs, matchIx);
 		const sig = await bankrunContextWrapper.sendTransaction(tx, []);
-		assert(sig && sig.length > 0, 'atomic place+fill during auction should succeed');
+		assert(
+			sig && sig.length > 0,
+			'atomic place+fill during auction should succeed'
+		);
 
 		// Verify taker has a position
 		await takerClient.fetchAccounts();
@@ -4178,7 +4235,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 			'max direct-oracle makers at 7 extra oracles:',
 			maxDirectOracleMakers
 		);
-		console.log('direct-oracle count at 21 makers:', directOracleCountAt21Makers);
+		console.log(
+			'direct-oracle count at 21 makers:',
+			directOracleCountAt21Makers
+		);
 		console.log(
 			'note: bankrun legacy tx serialization becomes the next limiter before the 64-account ceiling in this large scenario'
 		);

@@ -77,7 +77,7 @@ impl ApplyFillsSink for VecSink<'_> {
 pub(crate) struct AmmView {
     #[allow(dead_code)]
     key: Pubkey,
-    mid_price: u64,
+    reference_price: u64,
     /// sequence_number snapshot taken when reading the midprice book for matching.
     sequence_number_snapshot: u64,
     maker_user_remaining_index: usize,
@@ -280,7 +280,7 @@ fn load_fill_perp_order2_market_maps<'a>(
     Ok((spot_market_map, perp_market_map))
 }
 
-/// Returns (mid_price, sequence_number, market_index).
+/// Returns (reference_price, sequence_number, market_index).
 fn read_external_mid_price(
     midprice_info: &AccountInfo,
     midprice_program_id: &Pubkey,
@@ -297,32 +297,29 @@ fn read_external_mid_price(
         .map_err(|_| ErrorCode::InvalidMidpriceAccount)?;
     let view = MidpriceBookView::new(&data).map_err(|_| ErrorCode::InvalidMidpriceAccount)?;
 
-    let stored_authority = Pubkey::new_from_array(
-        view.authority()
+    let stored_maker_subaccount = Pubkey::new_from_array(
+        view.maker_subaccount()
             .map_err(|_| ErrorCode::InvalidMidpriceAccount)?,
     );
-    let subaccount_index = view.subaccount_index();
-    let expected_maker_user_pda =
-        crate::state::user::derive_user_account(&stored_authority, subaccount_index);
     validate!(
-        expected_maker_user_pda == maker_user_info.key(),
+        stored_maker_subaccount == maker_user_info.key(),
         ErrorCode::MidpriceMakerUserMismatch,
-        "midprice (authority, subaccount_id) must derive to maker User PDA"
+        "midprice maker_subaccount must match maker User PDA"
     )?;
 
-    let quote_ttl_slots = view.quote_ttl_slots();
-    if quote_ttl_slots > 0 {
+    let valid_until_slot = view.valid_until_slot();
+    if valid_until_slot > 0 {
         validate!(
-            current_slot.saturating_sub(view.ref_slot()) <= quote_ttl_slots,
+            current_slot <= valid_until_slot,
             ErrorCode::MidpriceQuoteExpired,
-            "midprice quote expired (slot age {} > ttl {})",
-            current_slot.saturating_sub(view.ref_slot()),
-            quote_ttl_slots
+            "midprice quote expired (current_slot {} > valid_until_slot {})",
+            current_slot,
+            valid_until_slot
         )?;
     }
 
     Ok((
-        view.mid_price_u64(),
+        view.reference_price(),
         view.sequence_number(),
         view.market_index(),
     ))
@@ -377,7 +374,7 @@ fn init_frontiers(
             &remaining_accounts[amm.midprice_remaining_index],
             side,
             taker_limit_price,
-            amm.mid_price,
+            amm.reference_price,
             None,
         )?);
     }
@@ -545,7 +542,7 @@ fn refresh_exhausted_frontiers(
                     &remaining_accounts[amm_views[tied.idx].midprice_remaining_index],
                     side,
                     taker_limit_price,
-                    amm_views[tied.idx].mid_price,
+                    amm_views[tied.idx].reference_price,
                     Some(next_start),
                 )?;
             }
@@ -732,19 +729,21 @@ fn find_amm_start_after_spot_markets(
         .ok_or_else(|| ErrorCode::InvalidPropAmmMatcherAccount.into())
 }
 
-/// Midprice accounts have a 4-byte "midp" discriminator at offset 0 and are owned by the
+/// Midprice accounts have an 8-byte "prammacc" discriminator at offset 0 and are owned by the
 /// midprice program. This is used to detect the PropAMM/DLOB boundary in remaining_accounts.
 fn is_midprice_account(info: &AccountInfo, midprice_program_id: &Pubkey) -> bool {
     *info.owner == *midprice_program_id
-        && info.data_len() >= 4
-        && info.try_borrow_data().map_or(false, |d| &d[..4] == b"midp")
+        && info.data_len() >= 8
+        && info
+            .try_borrow_data()
+            .map_or(false, |d| &d[..8] == b"prammacc")
 }
 
 /// Parses remaining_accounts after the global matcher PDA.
 ///
 /// Layout: `(midprice_account, maker_user)* (dlob_maker_user)*`
 ///
-/// PropAMM pairs are detected by the "midp" discriminator on the first account of each pair.
+/// PropAMM pairs are detected by the "prammacc" discriminator on the first account of each pair.
 /// Once a non-midprice account is encountered, the rest are treated as DLOB maker User accounts.
 ///
 /// Returns `(midprice_program_account_index, amm_views, dlob_start_index)`.
@@ -794,7 +793,7 @@ pub(crate) fn parse_amm_views<'info>(
     let mut seen_midprices: BTreeSet<Pubkey> = BTreeSet::new();
     let mut seen_makers: BTreeSet<Pubkey> = BTreeSet::new();
 
-    // Scan pairs: PropAMM pairs are detected by the "midp" discriminator.
+    // Scan pairs: PropAMM pairs are detected by the "prammacc" discriminator.
     let mut cursor = tail_start;
     while cursor + 1 < remaining_accounts.len() {
         let candidate = &remaining_accounts[cursor];
@@ -855,7 +854,7 @@ pub(crate) fn parse_amm_views<'info>(
             maker_user_key
         )?;
 
-        let (mid_price, sequence_number_snapshot, midprice_market_index) =
+        let (reference_price, sequence_number_snapshot, midprice_market_index) =
             match read_external_mid_price(
                 midprice_info,
                 midprice_program_key,
@@ -899,7 +898,7 @@ pub(crate) fn parse_amm_views<'info>(
 
         amm_views.push(AmmView {
             key: midprice_key,
-            mid_price,
+            reference_price,
             sequence_number_snapshot,
             maker_user_remaining_index: cursor + 1,
             midprice_remaining_index: cursor,
@@ -3012,11 +3011,12 @@ mod tests {
         get_anchor_account_bytes, get_pyth_price,
     };
     use midprice_book_view::{
-        ACCOUNT_DISCRIMINATOR_OFFSET, ACCOUNT_DISCRIMINATOR_SIZE, ACCOUNT_MIN_LEN, ASK_HEAD_OFFSET,
-        ASK_LEN_OFFSET, AUTHORITY_OFFSET, BID_HEAD_OFFSET, BID_LEN_OFFSET, LAYOUT_VERSION_INITIAL,
-        LAYOUT_VERSION_OFFSET, MARKET_INDEX_OFFSET, MIDPRICE_ACCOUNT_DISCRIMINATOR,
-        MID_PRICE_OFFSET, ORDERS_DATA_OFFSET, ORDER_ENTRY_SIZE, ORDER_ENTRY_SIZE_OFFSET,
-        QUOTE_TTL_OFFSET, REF_SLOT_OFFSET, SUBACCOUNT_INDEX_OFFSET,
+        ACCOUNT_MIN_LEN, ASK_HEAD_OFFSET, ASK_LEN_OFFSET, BID_HEAD_OFFSET, BID_LEN_OFFSET,
+        DISCRIMINATOR_OFFSET, DISCRIMINATOR_SIZE, FLAGS_OFFSET, HEADER_LEN_OFFSET,
+        LEVEL_ENTRY_SIZE, LEVEL_ENTRY_SIZE_OFFSET, MAKER_SUBACCOUNT_OFFSET, MARKET_INDEX_OFFSET,
+        PROPAMM_ACCOUNT_DISCRIMINATOR, QUOTE_DATA_LEN_FIELD, QUOTE_DATA_OFFSET_FIELD,
+        REFERENCE_PRICE_OFFSET, SEQUENCE_NUMBER_OFFSET, STANDARDIZED_HEADER_SIZE,
+        VALID_UNTIL_SLOT_OFFSET, VERSION_OFFSET, VERSION_V1,
     };
 
     fn drift_program_id() -> Pubkey {
@@ -3034,83 +3034,90 @@ mod tests {
         (authority, pda)
     }
 
-    /// Build a minimal midprice account buffer: 1 ask at (offset=1, size=size), mid_price=mid.
-    fn make_midprice_account_data(mid_price: u64, ask_size: u64, authority: &Pubkey) -> Vec<u8> {
-        make_midprice_account_data_with_market(mid_price, ask_size, authority, 0)
+    /// Initialise the standardised V1 header fields that every test buffer needs.
+    fn init_test_header(data: &mut [u8], num_levels: usize) {
+        data[DISCRIMINATOR_OFFSET..DISCRIMINATOR_OFFSET + DISCRIMINATOR_SIZE]
+            .copy_from_slice(&PROPAMM_ACCOUNT_DISCRIMINATOR);
+        data[VERSION_OFFSET] = VERSION_V1;
+        data[FLAGS_OFFSET] = 0;
+        data[HEADER_LEN_OFFSET..HEADER_LEN_OFFSET + 2]
+            .copy_from_slice(&(STANDARDIZED_HEADER_SIZE as u16).to_le_bytes());
+        // Quote data starts right after the header.
+        data[QUOTE_DATA_OFFSET_FIELD..QUOTE_DATA_OFFSET_FIELD + 4]
+            .copy_from_slice(&(STANDARDIZED_HEADER_SIZE as u32).to_le_bytes());
+        data[QUOTE_DATA_LEN_FIELD..QUOTE_DATA_LEN_FIELD + 4]
+            .copy_from_slice(&((num_levels * LEVEL_ENTRY_SIZE) as u32).to_le_bytes());
+        data[LEVEL_ENTRY_SIZE_OFFSET..LEVEL_ENTRY_SIZE_OFFSET + 2]
+            .copy_from_slice(&(LEVEL_ENTRY_SIZE as u16).to_le_bytes());
+    }
+
+    /// Build a minimal midprice account buffer: 1 ask at (offset=1, size=size), reference_price=ref_price.
+    fn make_midprice_account_data(
+        ref_price: u64,
+        ask_size: u64,
+        maker_user_pda: &Pubkey,
+    ) -> Vec<u8> {
+        make_midprice_account_data_with_market(ref_price, ask_size, maker_user_pda, 0)
     }
 
     /// Same as above but with explicit market_index (for security tests).
     fn make_midprice_account_data_with_market(
-        mid_price: u64,
+        ref_price: u64,
         ask_size: u64,
-        authority: &Pubkey,
+        maker_user_pda: &Pubkey,
         market_index: u16,
     ) -> Vec<u8> {
-        let mut data = vec![0u8; ACCOUNT_MIN_LEN + ORDER_ENTRY_SIZE];
-        data[ACCOUNT_DISCRIMINATOR_OFFSET
-            ..ACCOUNT_DISCRIMINATOR_OFFSET + ACCOUNT_DISCRIMINATOR_SIZE]
-            .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
-        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
-            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
-        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
-        data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN + LEVEL_ENTRY_SIZE];
+        init_test_header(&mut data, 1);
+        data[MAKER_SUBACCOUNT_OFFSET..MAKER_SUBACCOUNT_OFFSET + 32]
+            .copy_from_slice(maker_user_pda.as_ref());
+        data[REFERENCE_PRICE_OFFSET..REFERENCE_PRICE_OFFSET + 8]
+            .copy_from_slice(&ref_price.to_le_bytes());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
-        data[SUBACCOUNT_INDEX_OFFSET..SUBACCOUNT_INDEX_OFFSET + 2]
-            .copy_from_slice(&0u16.to_le_bytes());
         data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&1u16.to_le_bytes());
         data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
         data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
         data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
-            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
-        let base = ORDERS_DATA_OFFSET;
+        let base = STANDARDIZED_HEADER_SIZE;
         data[base..base + 8].copy_from_slice(&1i64.to_le_bytes());
         data[base + 8..base + 16].copy_from_slice(&ask_size.to_le_bytes());
         data
     }
 
     fn make_bid_midprice_account_data(
-        mid_price: u64,
+        ref_price: u64,
         bid_size: u64,
-        authority: &Pubkey,
+        maker_user_pda: &Pubkey,
         market_index: u16,
     ) -> Vec<u8> {
-        let mut data = vec![0u8; ACCOUNT_MIN_LEN + ORDER_ENTRY_SIZE];
-        data[ACCOUNT_DISCRIMINATOR_OFFSET
-            ..ACCOUNT_DISCRIMINATOR_OFFSET + ACCOUNT_DISCRIMINATOR_SIZE]
-            .copy_from_slice(&MIDPRICE_ACCOUNT_DISCRIMINATOR);
-        data[LAYOUT_VERSION_OFFSET..LAYOUT_VERSION_OFFSET + 8]
-            .copy_from_slice(&LAYOUT_VERSION_INITIAL.to_le_bytes());
-        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + 32].copy_from_slice(authority.as_ref());
-        data[MID_PRICE_OFFSET..MID_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
+        let mut data = vec![0u8; ACCOUNT_MIN_LEN + LEVEL_ENTRY_SIZE];
+        init_test_header(&mut data, 1);
+        data[MAKER_SUBACCOUNT_OFFSET..MAKER_SUBACCOUNT_OFFSET + 32]
+            .copy_from_slice(maker_user_pda.as_ref());
+        data[REFERENCE_PRICE_OFFSET..REFERENCE_PRICE_OFFSET + 8]
+            .copy_from_slice(&ref_price.to_le_bytes());
         data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
             .copy_from_slice(&market_index.to_le_bytes());
-        data[SUBACCOUNT_INDEX_OFFSET..SUBACCOUNT_INDEX_OFFSET + 2]
-            .copy_from_slice(&0u16.to_le_bytes());
         data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
         data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&1u16.to_le_bytes());
         data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
         data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        data[ORDER_ENTRY_SIZE_OFFSET..ORDER_ENTRY_SIZE_OFFSET + 2]
-            .copy_from_slice(&(ORDER_ENTRY_SIZE as u16).to_le_bytes());
-        let base = ORDERS_DATA_OFFSET;
+        let base = STANDARDIZED_HEADER_SIZE;
         data[base..base + 8].copy_from_slice(&(-1i64).to_le_bytes());
         data[base + 8..base + 16].copy_from_slice(&bid_size.to_le_bytes());
         data
     }
 
     fn make_midprice_data_with_ttl(
-        mid_price: u64,
+        ref_price: u64,
         ask_size: u64,
-        authority: &Pubkey,
-        ref_slot: u64,
-        quote_ttl_slots: u64,
+        maker_user_pda: &Pubkey,
+        valid_until_slot: u64,
     ) -> Vec<u8> {
-        let mut data = make_midprice_account_data(mid_price, ask_size, authority);
-        data[REF_SLOT_OFFSET..REF_SLOT_OFFSET + 8].copy_from_slice(&ref_slot.to_le_bytes());
-        data[QUOTE_TTL_OFFSET..QUOTE_TTL_OFFSET + 8]
-            .copy_from_slice(&quote_ttl_slots.to_le_bytes());
+        let mut data = make_midprice_account_data(ref_price, ask_size, maker_user_pda);
+        data[VALID_UNTIL_SLOT_OFFSET..VALID_UNTIL_SLOT_OFFSET + 8]
+            .copy_from_slice(&valid_until_slot.to_le_bytes());
         data
     }
 
@@ -3440,7 +3447,7 @@ mod tests {
             let mut healthy_mid_data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 5 * BASE_PRECISION_U64,
-                &healthy_authority,
+                &healthy_key,
             );
             let healthy_mid_key = Pubkey::new_unique();
             let healthy_mid_info = create_account_info(
@@ -3455,7 +3462,7 @@ mod tests {
             let mut bankrupt_mid_data = make_midprice_account_data(
                 101 * PRICE_PRECISION_U64,
                 5 * BASE_PRECISION_U64,
-                &bankrupt_authority,
+                &bankrupt_key,
             );
             let bankrupt_mid_key = Pubkey::new_unique();
             let bankrupt_mid_info = create_account_info(
@@ -3821,7 +3828,7 @@ mod tests {
 
             let mid_price = 100 * PRICE_PRECISION_U64;
             let data =
-                make_midprice_account_data(mid_price, 100 * BASE_PRECISION_U64, &maker_authority);
+                make_midprice_account_data(mid_price, 100 * BASE_PRECISION_U64, &maker_user_key);
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
             let mut midprice_data = data.clone();
@@ -3875,7 +3882,7 @@ mod tests {
 
             let mid_price = 100 * PRICE_PRECISION_U64;
             let ask_size = 50 * BASE_PRECISION_U64;
-            let data = make_midprice_account_data(mid_price, ask_size, &maker_authority);
+            let data = make_midprice_account_data(mid_price, ask_size, &maker_user_key);
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
             let mut midprice_data = data;
@@ -4491,7 +4498,7 @@ mod tests {
             let data = make_midprice_account_data_with_market(
                 100 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
                 1, // wrong market_index
             );
             let midprice_key = Pubkey::new_unique();
@@ -4550,7 +4557,7 @@ mod tests {
             let data = make_midprice_account_data_with_market(
                 100 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
                 0,
             );
             let midprice_key = Pubkey::new_unique();
@@ -4610,7 +4617,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
             );
             let midprice_key = Pubkey::new_unique();
             let mut midprice_lamports = 0u64;
@@ -4669,7 +4676,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
             );
             let midprice_key = Pubkey::new_unique();
             let mut midprice_lamports = 0u64;
@@ -4730,7 +4737,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
             );
             let midprice_key = Pubkey::new_unique();
             let midprice_prog_id = midprice_program_id();
@@ -4795,7 +4802,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
             );
             let midprice_key = Pubkey::new_unique();
             let midprice_prog_id = midprice_program_id();
@@ -4856,7 +4863,7 @@ mod tests {
         // TTL enforcement tests
         // -----------------------------------------------------------------------
 
-        /// TTL=0 means no expiry; quote is accepted regardless of slot age.
+        /// valid_until_slot=0 means no expiry; quote is accepted regardless of slot.
         #[test]
         fn ttl_disabled_quote_accepted() {
             let midprice_key = Pubkey::new_unique();
@@ -4870,9 +4877,8 @@ mod tests {
             let data = make_midprice_data_with_ttl(
                 mid_price,
                 100 * BASE_PRECISION_U64,
-                &maker_authority,
-                50, // ref_slot=50, old
-                0,  // ttl=0 => disabled
+                &maker_user_key,
+                0, // valid_until_slot=0 => disabled
             );
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -4892,8 +4898,8 @@ mod tests {
                 999_999,
             );
             assert!(result.is_ok());
-            let (returned_mid_price, _sequence_number, _market_index) = result.unwrap();
-            assert_eq!(returned_mid_price, mid_price);
+            let (returned_ref_price, _sequence_number, _market_index) = result.unwrap();
+            assert_eq!(returned_ref_price, mid_price);
         }
 
         /// Quote within TTL window is accepted.
@@ -4910,9 +4916,8 @@ mod tests {
             let data = make_midprice_data_with_ttl(
                 mid_price,
                 100 * BASE_PRECISION_U64,
-                &maker_authority,
-                100, // ref_slot
-                50,  // ttl=50 slots
+                &maker_user_key,
+                150, // valid_until_slot=150
             );
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -4925,13 +4930,13 @@ mod tests {
                 &midprice_prog_id,
             );
 
-            // current_slot=140, age=40 <= ttl=50 => accepted
+            // current_slot=140 <= valid_until_slot=150 => accepted
             let result =
                 read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 140);
             assert!(result.is_ok());
         }
 
-        /// Quote at exactly the TTL boundary is still accepted (<=).
+        /// Quote at exactly the valid_until_slot boundary is still accepted (<=).
         #[test]
         fn ttl_at_boundary_accepted() {
             let midprice_key = Pubkey::new_unique();
@@ -4945,9 +4950,8 @@ mod tests {
             let data = make_midprice_data_with_ttl(
                 mid_price,
                 100 * BASE_PRECISION_U64,
-                &maker_authority,
-                100, // ref_slot
-                50,  // ttl=50
+                &maker_user_key,
+                150, // valid_until_slot=150
             );
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -4960,13 +4964,13 @@ mod tests {
                 &midprice_prog_id,
             );
 
-            // current_slot=150, age=50 == ttl=50 => accepted
+            // current_slot=150 == valid_until_slot=150 => accepted
             let result =
                 read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 150);
             assert!(result.is_ok());
         }
 
-        /// Quote past TTL is rejected with MidpriceQuoteExpired.
+        /// Quote past valid_until_slot is rejected with MidpriceQuoteExpired.
         #[test]
         fn ttl_expired_rejected() {
             let midprice_key = Pubkey::new_unique();
@@ -4980,9 +4984,8 @@ mod tests {
             let data = make_midprice_data_with_ttl(
                 mid_price,
                 100 * BASE_PRECISION_U64,
-                &maker_authority,
-                100, // ref_slot
-                50,  // ttl=50
+                &maker_user_key,
+                150, // valid_until_slot=150
             );
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -4995,7 +4998,7 @@ mod tests {
                 &midprice_prog_id,
             );
 
-            // current_slot=151, age=51 > ttl=50 => expired
+            // current_slot=151 > valid_until_slot=150 => expired
             let result =
                 read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 151);
             assert!(result.is_err());
@@ -5343,14 +5346,14 @@ mod tests {
             let amm_views = vec![
                 AmmView {
                     key: mid1_key,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 3,
                     midprice_remaining_index: 2,
                 },
                 AmmView {
                     key: mid2_key,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 5,
                     midprice_remaining_index: 4,
@@ -5531,7 +5534,7 @@ mod tests {
                 vec![program_info, matcher_info, mid_info, maker_info];
             let amm_views = vec![AmmView {
                 key: mid_key,
-                mid_price: 100 * PRICE_PRECISION_U64,
+                reference_price: 100 * PRICE_PRECISION_U64,
                 sequence_number_snapshot: 0,
                 maker_user_remaining_index: 3,
                 midprice_remaining_index: 2,
@@ -5558,6 +5561,185 @@ mod tests {
             assert!(
                 filtered_deltas.contains_key(&maker_key),
                 "maker with existing perp position in same market must remain solvent after fill"
+            );
+        }
+
+        #[test]
+        fn filter_prop_amm_makers_by_margin_uses_cache_for_secondary_oracle() {
+            use crate::state::oracle_map::OracleMap;
+            use crate::state::oracle_price_cache::CachedOracleEntry;
+
+            let slot = 950_u64;
+            let program_id = drift_program_id();
+            let oracle_key =
+                Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+            let secondary_oracle_key = Pubkey::new_unique();
+            let pyth_program = crate::ids::pyth_program::id();
+            let mut oracle_price = get_pyth_price(100, 6);
+            crate::create_account_info!(
+                oracle_price,
+                &oracle_key,
+                &pyth_program,
+                oracle_account_info
+            );
+            let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+            oracle_map.set_cache_for_test(
+                60,
+                vec![CachedOracleEntry {
+                    oracle: secondary_oracle_key,
+                    price: 50 * crate::math::constants::PRICE_PRECISION_I64,
+                    confidence: 100,
+                    delay: 2,
+                    cached_slot: 900,
+                    oracle_source: OracleSource::Pyth as u8,
+                    has_sufficient_data_points: 1,
+                    max_age_slots_override: 0,
+                    _padding: [0u8; 29],
+                }],
+            );
+
+            let mut perp_market = PerpMarket {
+                market_index: 0,
+                amm: AMM {
+                    base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    oracle: oracle_key,
+                    order_tick_size: 1,
+                    historical_oracle_data: HistoricalOracleData {
+                        last_oracle_price: 100 * crate::math::constants::PRICE_PRECISION_I64,
+                        last_oracle_price_twap: 100 * crate::math::constants::PRICE_PRECISION_I64,
+                        ..HistoricalOracleData::default()
+                    },
+                    ..AMM::default()
+                },
+                margin_ratio_initial: 2000,
+                margin_ratio_maintenance: 1000,
+                status: MarketStatus::Active,
+                ..PerpMarket::default_test()
+            };
+            perp_market.amm.max_base_asset_reserve = u64::MAX as u128;
+            perp_market.amm.min_base_asset_reserve = 0;
+            crate::create_anchor_account_info!(perp_market, PerpMarket, perp_market_info);
+            let perp_market_map = PerpMarketMap::load_one(&perp_market_info, true).unwrap();
+
+            let mut spot_market_0 = SpotMarket {
+                market_index: 0,
+                oracle_source: OracleSource::QuoteAsset,
+                cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+                decimals: 6,
+                initial_asset_weight: SPOT_WEIGHT_PRECISION,
+                maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+                historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+                ..SpotMarket::default()
+            };
+            crate::create_anchor_account_info!(spot_market_0, SpotMarket, spot_market_info_0);
+
+            let mut spot_market_1 = SpotMarket {
+                market_index: 1,
+                oracle: secondary_oracle_key,
+                oracle_source: OracleSource::Pyth,
+                cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+                decimals: 6,
+                initial_asset_weight: SPOT_WEIGHT_PRECISION,
+                maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: 50 * crate::math::constants::PRICE_PRECISION_I64,
+                    last_oracle_price_twap: 50 * crate::math::constants::PRICE_PRECISION_I64,
+                    last_oracle_price_twap_5min: 50 * crate::math::constants::PRICE_PRECISION_I64,
+                    ..HistoricalOracleData::default()
+                },
+                ..SpotMarket::default()
+            };
+            crate::create_anchor_account_info!(spot_market_1, SpotMarket, spot_market_info_1);
+            let spot_market_map =
+                SpotMarketMap::load_multiple(vec![&spot_market_info_0, &spot_market_info_1], true)
+                    .unwrap();
+
+            let maker_key = Pubkey::new_unique();
+            let mut spot_positions = [SpotPosition::default(); 8];
+            spot_positions[0] = SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100_000 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            };
+            spot_positions[1] = SpotPosition {
+                market_index: 1,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 10_000 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            };
+            let mut maker_user = User {
+                authority: maker_key,
+                spot_positions,
+                ..User::default()
+            };
+            crate::create_anchor_account_info!(maker_user, &maker_key, User, maker_info);
+
+            let midprice_prog_id = midprice_program_id();
+            let mid_key = Pubkey::new_unique();
+            let mut mid_data = make_midprice_account_data(
+                100 * PRICE_PRECISION_U64,
+                50 * BASE_PRECISION_U64,
+                &maker_key,
+            );
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data[..],
+                &midprice_prog_id,
+            );
+            let mut prog_lamps = 0u64;
+            let mut prog_data = [0u8; 0];
+            let program_info = create_executable_program_account_info(
+                &midprice_prog_id,
+                &mut prog_lamps,
+                &mut prog_data[..],
+            );
+            let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+            let mut matcher_lamports = 0u64;
+            let mut matcher_data = [0u8; 0];
+            let matcher_info = create_account_info(
+                &matcher_pda,
+                true,
+                &mut matcher_lamports,
+                &mut matcher_data[..],
+                &program_id,
+            );
+
+            let remaining_accounts: Vec<AccountInfo> =
+                vec![program_info, matcher_info, mid_info, maker_info];
+            let amm_views = vec![AmmView {
+                key: mid_key,
+                reference_price: 100 * PRICE_PRECISION_U64,
+                sequence_number_snapshot: 0,
+                maker_user_remaining_index: 3,
+                midprice_remaining_index: 2,
+            }];
+
+            let base_delta = 10_i64 * (BASE_PRECISION_U64 as i64);
+            let quote_delta = -(10 * 100 * crate::math::constants::PRICE_PRECISION_I64);
+            let mut maker_deltas = BTreeMap::new();
+            maker_deltas.insert(maker_key, (base_delta, quote_delta));
+
+            let (filtered_deltas, _, _, _, _) = filter_prop_amm_makers_by_margin(
+                &maker_deltas,
+                &[],
+                &amm_views,
+                &remaining_accounts,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                0,
+                0,
+            )
+            .unwrap();
+
+            assert!(
+                filtered_deltas.contains_key(&maker_key),
+                "maker should pass when the secondary oracle is available from cache"
             );
         }
     }
@@ -5615,7 +5797,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 5 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
             );
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -5698,7 +5880,7 @@ mod tests {
             let data = make_midprice_account_data(
                 110 * PRICE_PRECISION_U64,
                 20 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
             );
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -5784,7 +5966,7 @@ mod tests {
             let mut data = make_bid_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 5 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
                 0,
             );
             let midprice_prog_id = midprice_program_id();
@@ -5867,7 +6049,7 @@ mod tests {
             let mut data = make_bid_midprice_account_data(
                 90 * PRICE_PRECISION_U64,
                 20 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
                 0,
             );
             let midprice_prog_id = midprice_program_id();
@@ -5953,7 +6135,7 @@ mod tests {
             let data_a = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
-                &auth_a,
+                &key_a,
             );
             let mid_a_key = Pubkey::new_unique();
             let mut mid_a_lamps = 0u64;
@@ -5975,7 +6157,7 @@ mod tests {
             let data_b = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
-                &auth_b,
+                &key_b,
             );
             let mid_b_key = Pubkey::new_unique();
             let mut mid_b_lamps = 0u64;
@@ -6071,7 +6253,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 4 * BASE_PRECISION_U64,
-                &auth,
+                &maker_key,
             );
             let mid_key = Pubkey::new_unique();
             let mut mid_lamps = 0u64;
@@ -6207,9 +6389,8 @@ mod tests {
             let mut midprice_data = make_midprice_data_with_ttl(
                 100 * PRICE_PRECISION_U64,
                 5 * BASE_PRECISION_U64,
-                &maker_authority,
-                100,
-                10,
+                &maker_user_key,
+                110, // valid_until_slot=110; current_slot=200 > 110 => expired
             );
             let midprice_info = create_account_info(
                 &midprice_key,
@@ -6361,7 +6542,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &auth,
+                &maker_key,
             );
             let midprice_prog_id = midprice_program_id();
             let mut mid_lamps = 0u64;
@@ -6496,7 +6677,7 @@ mod tests {
             assert_eq!(filled, 3 * BASE_PRECISION_U64, "capped at maker's size");
         }
 
-        /// Discriminator boundary: accounts with "midp" discriminator + midprice program owner
+        /// Discriminator boundary: accounts with "prammacc" discriminator + midprice program owner
         /// are PropAMM; others are DLOB. Verify clean boundary detection.
         #[test]
         fn security_discriminator_boundary_detection() {
@@ -6513,7 +6694,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
-                &auth,
+                &maker_key,
             );
             let mid_key = Pubkey::new_unique();
             let mut mid_lamps = 0u64;
@@ -6571,18 +6752,18 @@ mod tests {
             );
         }
 
-        /// A Drift User account with bytes that happen to start with "midp" should NOT be
+        /// A Drift User account with bytes that happen to start with "prammacc" should NOT be
         /// detected as a midprice account because its owner is the Drift program, not midprice.
         #[test]
-        fn security_drift_user_with_midp_bytes_not_confused() {
+        fn security_drift_user_with_prammacc_bytes_not_confused() {
             let midprice_prog_id = midprice_program_id();
             let drift_prog_id = drift_program_id();
 
-            // Create a Drift User account whose data starts with "midp" (adversarial)
+            // Create a Drift User account whose data starts with "prammacc" (adversarial)
             let fake_key = Pubkey::new_unique();
             let mut fake_lamps = 100u64;
             let mut fake_data = vec![0u8; 128];
-            fake_data[..4].copy_from_slice(b"midp"); // plant the discriminator
+            fake_data[..8].copy_from_slice(b"prammacc"); // plant the discriminator
             let fake_info = create_account_info(
                 &fake_key,
                 true,
@@ -6593,11 +6774,11 @@ mod tests {
 
             assert!(
             !is_midprice_account(&fake_info, &midprice_prog_id),
-            "Drift-owned account must not pass midprice discriminator check even with 'midp' bytes"
+            "Drift-owned account must not pass midprice discriminator check even with 'prammacc' bytes"
         );
         }
 
-        /// An account owned by the midprice program but with wrong discriminator (not "midp")
+        /// An account owned by the midprice program but with wrong discriminator (not "prammacc")
         /// should not be detected as a midprice account.
         #[test]
         fn security_wrong_discriminator_not_detected() {
@@ -6605,7 +6786,7 @@ mod tests {
             let key = Pubkey::new_unique();
             let mut lamps = 100u64;
             let mut data = vec![0u8; 128];
-            data[..4].copy_from_slice(b"fake"); // wrong discriminator
+            data[..8].copy_from_slice(b"fakedisc"); // wrong discriminator
             let info =
                 create_account_info(&key, true, &mut lamps, &mut data[..], &midprice_prog_id);
 
@@ -6637,7 +6818,7 @@ mod tests {
             let data = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
-                &auth,
+                &maker_key,
             );
             let mid_key = Pubkey::new_unique();
             let mut mid_lamps = 0u64;
@@ -7487,14 +7668,14 @@ mod tests {
             let amm_views = vec![
                 AmmView {
                     key: mid_a_key,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 3,
                     midprice_remaining_index: 2,
                 },
                 AmmView {
                     key: mid_b_key,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 5,
                     midprice_remaining_index: 4,
@@ -7688,14 +7869,14 @@ mod tests {
             let amm_views = vec![
                 AmmView {
                     key: mid_a_key,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 3,
                     midprice_remaining_index: 2,
                 },
                 AmmView {
                     key: mid_b_key,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 5,
                     midprice_remaining_index: 4,
@@ -7893,7 +8074,7 @@ mod tests {
                 vec![program_info, matcher_info, mid_info, maker_info];
             let amm_views = vec![AmmView {
                 key: mid_key,
-                mid_price: 100 * PRICE_PRECISION_U64,
+                reference_price: 100 * PRICE_PRECISION_U64,
                 sequence_number_snapshot: 0,
                 maker_user_remaining_index: 3,
                 midprice_remaining_index: 2,
@@ -7942,7 +8123,7 @@ mod tests {
             // PropAMM book: only 5 base available
             let available = 5 * BASE_PRECISION_U64;
             let data =
-                make_midprice_account_data(100 * PRICE_PRECISION_U64, available, &maker_authority);
+                make_midprice_account_data(100 * PRICE_PRECISION_U64, available, &maker_user_key);
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
             let mut midprice_data = data;
@@ -8061,7 +8242,7 @@ mod tests {
             let data = make_midprice_account_data(
                 200 * PRICE_PRECISION_U64,
                 50 * BASE_PRECISION_U64,
-                &maker_authority,
+                &maker_user_key,
             );
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -8136,7 +8317,7 @@ mod tests {
 
             let mid_price = 100 * PRICE_PRECISION_U64;
             let bid_size = 7 * BASE_PRECISION_U64;
-            let mut data = make_bid_midprice_account_data(mid_price, bid_size, &maker_authority, 0);
+            let mut data = make_bid_midprice_account_data(mid_price, bid_size, &maker_user_key, 0);
 
             let midprice_prog_id = midprice_program_id();
             let mut midprice_lamports = 0u64;
@@ -8208,7 +8389,7 @@ mod tests {
             let mut data_a = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 3 * BASE_PRECISION_U64,
-                &auth_a,
+                &maker_key_a,
             );
             let mid_key_a = Pubkey::new_unique();
             let mut lamps_a = 0u64;
@@ -8229,7 +8410,7 @@ mod tests {
             let mut data_b = make_midprice_account_data(
                 100 * PRICE_PRECISION_U64,
                 97 * BASE_PRECISION_U64,
-                &auth_b,
+                &maker_key_b,
             );
             let mid_key_b = Pubkey::new_unique();
             let mut lamps_b = 0u64;
@@ -8459,14 +8640,14 @@ mod tests {
             let amm_views = vec![
                 AmmView {
                     key: mid_key_a,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 3,
                     midprice_remaining_index: 2,
                 },
                 AmmView {
                     key: mid_key_b,
-                    mid_price: 100 * PRICE_PRECISION_U64,
+                    reference_price: 100 * PRICE_PRECISION_U64,
                     sequence_number_snapshot: 0,
                     maker_user_remaining_index: 5,
                     midprice_remaining_index: 4,
@@ -8613,7 +8794,7 @@ mod tests {
                 vec![program_info, matcher_info, mid_info, maker_info];
             let amm_views = vec![AmmView {
                 key: mid_key,
-                mid_price: 100 * PRICE_PRECISION_U64,
+                reference_price: 100 * PRICE_PRECISION_U64,
                 sequence_number_snapshot: 0,
                 maker_user_remaining_index: 3,
                 midprice_remaining_index: 2,

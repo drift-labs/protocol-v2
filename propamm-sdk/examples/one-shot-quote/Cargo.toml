@@ -1,0 +1,10 @@
+[package]
+name = "one-shot-quote"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+propamm-sdk = { path = "../../crates/propamm-sdk" }
+solana-keypair = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+env_logger = "0.11"
