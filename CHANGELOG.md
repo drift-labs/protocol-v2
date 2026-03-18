@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.160.0] - 2026-03-18
+
+### Features
+- program: admin withdrawal from IF [#2120](https://github.com/drift-labs/protocol-v2/pull/2120)
+
+### Fixes
+
+### Breaking
+
 ## [2.159.0] - 2026-03-16
 ### Features
 
