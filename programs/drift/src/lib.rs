@@ -55,6 +55,9 @@ pub fn program_entry<'info>(
             1 => Ok(handle_update_amm_spread_adjustment_native(
                 accounts, payload,
             )?),
+            2 => Ok(handle_set_oracle_cache_entries_native(accounts, payload)?),
+            3 => Ok(handle_update_oracle_price_cache_native(accounts, payload)?),
+            4 => Ok(handle_update_oracle_cache_config_native(accounts, payload)?),
             _ => Err(
                 anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData
                     .into(),
@@ -2260,6 +2263,16 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, SettleAmmPnlToLp<'info>>,
     ) -> Result<()> {
         handle_settle_perp_to_lp_pool(ctx)
+    }
+
+    // ── Oracle Price Cache ───────────────────────────────────────────────
+
+    pub fn initialize_oracle_price_cache(
+        ctx: Context<InitializeOraclePriceCache>,
+        cache_id: u8,
+        num_oracles: u16,
+    ) -> Result<()> {
+        handle_initialize_oracle_price_cache(ctx, cache_id, num_oracles)
     }
 }
 

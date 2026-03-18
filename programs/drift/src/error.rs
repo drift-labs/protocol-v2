@@ -714,6 +714,10 @@ pub enum ErrorCode {
     InvalidMidpriceAccount,
     #[msg("Midprice account authority and subaccount do not derive to the given maker User PDA")]
     MidpriceMakerUserMismatch,
+    #[msg("Oracle price cache entry is stale")]
+    OraclePriceCacheStale,
+    #[msg("Oracle price cache is full")]
+    OraclePriceCacheFull,
 }
 
 #[macro_export]

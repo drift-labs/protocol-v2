@@ -37,7 +37,7 @@ use crate::state::events::{
     emit_stack, get_order_action_record, OrderAction, OrderActionExplanation, OrderActionRecord,
 };
 use crate::state::margin_calculation::MarginContext;
-use crate::state::oracle_map::OracleMap;
+use crate::state::oracle_map::{is_oracle_account, OracleMap};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{MarketSet as PerpMarketSet, PerpMarketMap};
@@ -166,6 +166,19 @@ pub(crate) struct UnifiedMatchResult {
     pub dlob_fills: Vec<PendingDlobFill>,
 }
 
+/// Heap-allocated context holding the heavy long-lived state for fill_perp_order2.
+/// Boxing this keeps ~440 bytes off the handler's stack frame (SBF stack limit is 4KB).
+struct FillContext<'a> {
+    oracle_map: OracleMap<'a>,
+    spot_market_map: SpotMarketMap<'a>,
+    perp_market_map: PerpMarketMap<'a>,
+    mctx: MarketContext,
+    taker: TakerOrder,
+    reserve_price_before: u64,
+    limit_price: u64,
+    amm_start: usize,
+}
+
 /// Resolved taker order fields extracted during the setup phase of fill_perp_order2.
 struct TakerOrder {
     market_index: u16,
@@ -235,11 +248,12 @@ fn validate_fill_perp_order2_globals(
 
 fn load_fill_perp_order2_market_maps<'a>(
     remaining_accounts: &'a [AccountInfo<'a>],
+    market_start: usize,
     amm_start: usize,
     current_perp_market: &AccountLoader<'a, PerpMarket>,
     current_market_index: u16,
 ) -> DriftResult<(SpotMarketMap<'a>, PerpMarketMap<'a>)> {
-    let market_slice = &remaining_accounts[1..amm_start];
+    let market_slice = &remaining_accounts[market_start..amm_start];
     let mut market_iter: Peekable<Iter<AccountInfo>> = market_slice.iter().peekable();
 
     let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), &mut market_iter)?;
@@ -702,16 +716,19 @@ fn flush_external_fill_batches<'a>(
 }
 
 /// Finds the index of the global PropAMM matcher PDA in remaining_accounts.
-/// Layout: remaining_accounts[0] = midprice program, [1..amm_start] = spot markets, [amm_start] = matcher PDA.
+/// Layout: remaining_accounts[0] = midprice program, [1..search_start] = live oracles (optional),
+/// [search_start..amm_start] = spot markets, [amm_start] = matcher PDA.
+/// `search_start` is the index to begin scanning for the matcher PDA (skipping live oracles).
 fn find_amm_start_after_spot_markets(
     remaining_accounts: &[AccountInfo],
     program_id: &Pubkey,
+    search_start: usize,
 ) -> DriftResult<usize> {
     let (expected_matcher, _bump) = prop_amm_matcher_pda(program_id);
-    remaining_accounts[1..]
+    remaining_accounts[search_start..]
         .iter()
         .position(|a| a.key() == expected_matcher)
-        .map(|pos| 1 + pos)
+        .map(|pos| search_start + pos)
         .ok_or_else(|| ErrorCode::InvalidPropAmmMatcherAccount.into())
 }
 
@@ -1271,13 +1288,29 @@ pub(crate) fn filter_prop_amm_makers_by_margin<'a>(
             .fuel_perp_delta(market_index, -base_delta)
             .fuel_numerator(&maker_for_margin, now);
         let maker_margin_calc =
-            calculate_margin_requirement_and_total_collateral_and_liability_info(
+            match calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &maker_for_margin,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
                 maker_margin_context,
-            )?;
+            ) {
+                Ok(calc) => calc,
+                Err(e) if e == ErrorCode::OracleNotFound => {
+                    // Missing oracle for a maker position — skip this maker.
+                    maker_for_margin.perp_positions[pos_idx].base_asset_amount = orig_base;
+                    maker_for_margin.perp_positions[pos_idx].quote_asset_amount = orig_quote;
+                    maker_for_margin.perp_positions[pos_idx].quote_entry_amount = orig_entry;
+                    maker_for_margin.perp_positions[pos_idx].quote_break_even_amount =
+                        orig_breakeven;
+                    msg!(
+                        "Skipping PropAMM maker {} due to missing oracle",
+                        maker_user_key
+                    );
+                    continue;
+                }
+                Err(e) => return Err(e),
+            };
 
         // Restore original position fields.
         maker_for_margin.perp_positions[pos_idx].base_asset_amount = orig_base;
@@ -1880,18 +1913,51 @@ fn resolve_taker_order(
     })
 }
 
+#[inline(never)]
 pub fn handle_fill_perp_order2<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, FillPerpOrder2<'info>>,
     taker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
     let taker = resolve_taker_order(&ctx.accounts, taker_order_id, &clock)?;
 
-    // --- Market prefill ---
+    let program_id = ctx.program_id;
+    let remaining_accounts = ctx.remaining_accounts;
+
+    // Keep the exported instruction wrapper tiny so the large matching/fill pipeline
+    // does not share the same top-level Solana stack frame as the Anchor `Context`.
+    let Some(fctx) =
+        build_fill_context(&ctx.accounts, remaining_accounts, &clock, taker, program_id)?
+    else {
+        return Ok(());
+    };
+    let mut fctx = Box::new(fctx);
+
+    execute_fill(
+        &ctx.accounts,
+        remaining_accounts,
+        &clock,
+        &mut fctx,
+        program_id,
+    )
+}
+
+/// Build the heap-allocated FillContext: oracle map, market maps, market context, taker preflight.
+/// Returns `Ok(None)` for soft-bail conditions (invalid oracle, bankrupt/liquidating taker, etc.).
+#[inline(never)]
+fn build_fill_context<'c: 'info, 'info>(
+    accounts: &FillPerpOrder2<'info>,
+    remaining_accounts: &'c [AccountInfo<'info>],
+    clock: &Clock,
+    taker: TakerOrder,
+    program_id: &Pubkey,
+) -> Result<Option<FillContext<'info>>> {
+    let now = clock.unix_timestamp;
+
+    // Market prefill lives here instead of the exported instruction wrapper to keep
+    // the top-level Solana frame small while preserving the audit-friendly phase order.
     {
-        let perp_market = ctx.accounts.perp_market.load()?;
+        let perp_market = accounts.perp_market.load()?;
         validate!(
             perp_market.market_index == taker.market_index,
             ErrorCode::InvalidMarketAccount,
@@ -1906,7 +1972,7 @@ pub fn handle_fill_perp_order2<'c: 'info, 'info>(
             "Market not active"
         )?;
         if perp_market.is_reduce_only()? {
-            let user = ctx.accounts.user.load()?;
+            let user = accounts.user.load()?;
             let existing_position = user
                 .get_perp_position(taker.market_index)
                 .map_or(0_i64, |p| p.base_asset_amount);
@@ -1930,22 +1996,37 @@ pub fn handle_fill_perp_order2<'c: 'info, 'info>(
             ErrorCode::MarketFillOrderPaused,
             "Market is in settlement mode"
         )?;
-        valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)?;
+        valid_oracle_for_perp_market(&accounts.oracle, &accounts.perp_market)?;
     }
 
-    let program_id = ctx.program_id;
-    let remaining_accounts = ctx.remaining_accounts;
-    let amm_start = find_amm_start_after_spot_markets(remaining_accounts, program_id)?;
+    let oracle_guard_rails = accounts.state.oracle_guard_rails;
+    let mut oracle_map = OracleMap::load_one_with_cache(
+        &accounts.oracle,
+        &accounts.oracle_price_cache,
+        clock.slot,
+        Some(oracle_guard_rails),
+    )?;
+
+    // Load live fallback oracles from remaining_accounts[1..] before spot markets.
+    let mut oracles_end = 1;
+    while oracles_end < remaining_accounts.len() {
+        if is_oracle_account(&remaining_accounts[oracles_end]) {
+            oracle_map.insert_live_oracle(&remaining_accounts[oracles_end])?;
+            oracles_end += 1;
+        } else {
+            break;
+        }
+    }
+
+    let amm_start = find_amm_start_after_spot_markets(remaining_accounts, program_id, oracles_end)?;
 
     let (spot_market_map, perp_market_map) = load_fill_perp_order2_market_maps(
         remaining_accounts,
+        oracles_end,
         amm_start,
-        &ctx.accounts.perp_market,
+        &accounts.perp_market,
         taker.market_index,
     )?;
-    let oracle_guard_rails = ctx.accounts.state.oracle_guard_rails;
-    let mut oracle_map =
-        OracleMap::load_one(&ctx.accounts.oracle, clock.slot, Some(oracle_guard_rails))?;
 
     let mctx = {
         let market = perp_market_map.get_ref(&taker.market_index)?;
@@ -1974,7 +2055,7 @@ pub fn handle_fill_perp_order2<'c: 'info, 'info>(
                 "Perp market = {} oracle deemed invalid for prop AMM fill",
                 taker.market_index
             );
-            return Ok(());
+            return Ok(None);
         }
 
         MarketContext {
@@ -1994,57 +2075,55 @@ pub fn handle_fill_perp_order2<'c: 'info, 'info>(
     let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
         mctx.oracle_price,
         mctx.oracle_twap_5min,
-        ctx.accounts
+        accounts
             .state
             .oracle_guard_rails
             .max_oracle_twap_5min_percent_divergence()
             .cast()?,
     )?;
     if oracle_too_divergent_with_twap_5min && !mctx.is_prediction_market {
-        return Ok(());
+        return Ok(None);
     }
 
-    // Capture reserve_price_before for post-fill funding rate update.
-    let reserve_price_before = ctx.accounts.perp_market.load()?.amm.reserve_price()?;
+    let reserve_price_before = accounts.perp_market.load()?.amm.reserve_price()?;
 
-    // --- Taker preflight ---
-    // Settle taker funding before bankruptcy / liquidation gates.
+    // Taker preflight: settle funding before bankruptcy / liquidation gates.
     {
-        let mut user = ctx.accounts.user.load_mut()?;
-        let mut market = ctx.accounts.perp_market.load_mut()?;
+        let mut user = accounts.user.load_mut()?;
+        let mut market = accounts.perp_market.load_mut()?;
         controller::funding::settle_funding_payment(
             &mut user,
-            &ctx.accounts.user.key(),
+            &accounts.user.key(),
             &mut market,
             now,
         )?;
     }
     {
-        let user = ctx.accounts.user.load()?;
+        let user = accounts.user.load()?;
         if user.is_bankrupt() {
             msg!("user is bankrupt");
-            return Ok(());
+            return Ok(None);
         }
     }
     {
-        let mut user = ctx.accounts.user.load_mut()?;
+        let mut user = accounts.user.load_mut()?;
         match validate_user_not_being_liquidated(
             &mut user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            ctx.accounts.state.liquidation_margin_buffer_ratio,
+            accounts.state.liquidation_margin_buffer_ratio,
         ) {
             Ok(_) => {}
             Err(_) => {
                 msg!("user is being liquidated");
-                return Ok(());
+                return Ok(None);
             }
         }
     }
 
     let limit_price = {
-        let user = ctx.accounts.user.load()?;
+        let user = accounts.user.load()?;
         let order = &user.orders[taker.order_index];
         let fallback = match taker.direction {
             PositionDirection::Long => Some(u64::MAX),
@@ -2062,50 +2141,71 @@ pub fn handle_fill_perp_order2<'c: 'info, 'info>(
             .unwrap_or(order.price)
     };
 
+    Ok(Some(FillContext {
+        oracle_map,
+        spot_market_map,
+        perp_market_map,
+        mctx,
+        taker,
+        reserve_price_before,
+        limit_price,
+        amm_start,
+    }))
+}
+
+/// Execute the fill phases using the heap-allocated FillContext.
+#[inline(never)]
+fn execute_fill<'c: 'info, 'info>(
+    accounts: &FillPerpOrder2<'info>,
+    remaining_accounts: &'c [AccountInfo<'info>],
+    clock: &Clock,
+    fctx: &mut Box<FillContext<'info>>,
+    program_id: &Pubkey,
+) -> Result<()> {
     // --- Parse and match ---
     let m = parse_and_match(
-        &ctx.accounts,
+        accounts,
         remaining_accounts,
         program_id,
-        &clock,
-        &taker,
-        &mctx,
-        amm_start,
-        limit_price,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
+        clock,
+        &fctx.taker,
+        &fctx.mctx,
+        fctx.amm_start,
+        fctx.limit_price,
+        &fctx.perp_market_map,
+        &fctx.spot_market_map,
+        &mut fctx.oracle_map,
     )?;
     let Some(m) = m else { return Ok(()) };
 
     // --- Settle fills ---
     let dlob_maker_fills = settle_fills(
-        &ctx.accounts,
+        accounts,
         remaining_accounts,
-        &clock,
-        &taker,
-        &mctx,
+        clock,
+        &fctx.taker,
+        &fctx.mctx,
         &m,
-        limit_price,
-        reserve_price_before,
-        &mut oracle_map,
+        fctx.limit_price,
+        fctx.reserve_price_before,
+        &mut fctx.oracle_map,
     )?;
 
     // --- Postfill ---
     postfill_finalization(
-        &ctx.accounts,
+        accounts,
         remaining_accounts,
-        &clock,
-        &taker,
-        &mctx,
+        clock,
+        &fctx.taker,
+        &fctx.mctx,
         &m,
         &dlob_maker_fills,
-        reserve_price_before,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
+        fctx.reserve_price_before,
+        &fctx.perp_market_map,
+        &fctx.spot_market_map,
+        &mut fctx.oracle_map,
         program_id,
-        amm_start,
+        fctx.amm_start,
     )?;
 
     Ok(())
@@ -2672,13 +2772,16 @@ fn postfill_finalization<'c: 'info, 'info>(
                 .fuel_numerator(&maker, now);
 
             let maker_margin_calc =
-                calculate_margin_requirement_and_total_collateral_and_liability_info(
+                match calculate_margin_requirement_and_total_collateral_and_liability_info(
                     &maker,
                     perp_market_map,
                     spot_market_map,
                     oracle_map,
                     context,
-                )?;
+                ) {
+                    Ok(calc) => calc,
+                    Err(e) => return Err(e.into()),
+                };
 
             if !maker_margin_calc.meets_margin_requirement() {
                 let (margin_requirement, total_collateral) =
@@ -2862,6 +2965,15 @@ pub struct FillPerpOrder2<'info> {
     /// CHECK:
     /// Caller must pass the account specified by `perp_market.amm.oracle`; validation enforces correct oracle type and ownership before the account is used.
     pub oracle: AccountInfo<'info>,
+
+    /// Oracle price cache (read-only). Provides cached oracle prices for maker margin checks
+    /// without requiring live oracle accounts for every position. Validated as an
+    /// `OraclePriceCache` PDA owned by the drift program.
+    ///
+    /// CHECK:
+    /// Validated by `OracleMap::load_one_with_cache` which checks discriminator, owner,
+    /// and parses entries from the zero-copy account.
+    pub oracle_price_cache: AccountInfo<'info>,
 
     pub clock: Sysvar<'info, Clock>,
 }
@@ -3599,7 +3711,7 @@ mod tests {
                 AccountLoader::<PerpMarket>::try_from(&current_perp_market_info).unwrap();
 
             let (spot_market_map, perp_market_map) =
-                load_fill_perp_order2_market_maps(remaining.as_slice(), 3, &current_loader, 0)
+                load_fill_perp_order2_market_maps(remaining.as_slice(), 1, 3, &current_loader, 0)
                     .unwrap();
 
             assert!(
@@ -3613,6 +3725,86 @@ mod tests {
             assert!(
                 perp_market_map.get_ref(&7).is_ok(),
                 "extra perp market must be available for margin checks"
+            );
+        }
+
+        #[test]
+        fn load_fill_perp_order2_market_maps_skips_live_oracle_prefix() {
+            let program_id = drift_program_id();
+            let midprice_program_id = midprice_program_id();
+            let mut program_lamports = 0u64;
+            let mut program_data = [0u8; 0];
+            let program_info = create_executable_program_account_info(
+                &midprice_program_id,
+                &mut program_lamports,
+                &mut program_data[..],
+            );
+
+            let oracle_key = Pubkey::new_unique();
+            let oracle_owner = crate::ids::pyth_program::id();
+            let mut oracle_lamports = 0u64;
+            let mut oracle_price = get_pyth_price(100, 6);
+            let mut oracle_data = get_account_bytes(&mut oracle_price);
+            let oracle_info = create_account_info(
+                &oracle_key,
+                false,
+                &mut oracle_lamports,
+                &mut oracle_data[..],
+                &oracle_owner,
+            );
+
+            let mut spot_market = SpotMarket::default();
+            spot_market.market_index = 0;
+            crate::create_anchor_account_info!(spot_market, SpotMarket, spot_market_info);
+
+            let mut extra_perp_market = PerpMarket::default();
+            extra_perp_market.market_index = 7;
+            crate::create_anchor_account_info!(
+                extra_perp_market,
+                PerpMarket,
+                extra_perp_market_info
+            );
+
+            let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+            let mut matcher_lamports = 0u64;
+            let mut matcher_data = [0u8; 0];
+            let matcher_info = create_account_info(
+                &matcher_pda,
+                true,
+                &mut matcher_lamports,
+                &mut matcher_data[..],
+                &program_id,
+            );
+
+            let remaining: Vec<AccountInfo> = vec![
+                program_info,
+                oracle_info,
+                spot_market_info,
+                extra_perp_market_info,
+                matcher_info,
+            ];
+
+            let mut current_perp_market = PerpMarket::default();
+            current_perp_market.market_index = 0;
+            crate::create_anchor_account_info!(
+                current_perp_market,
+                PerpMarket,
+                current_perp_market_info
+            );
+            let current_loader =
+                AccountLoader::<PerpMarket>::try_from(&current_perp_market_info).unwrap();
+
+            let (spot_market_map, perp_market_map) =
+                load_fill_perp_order2_market_maps(remaining.as_slice(), 2, 4, &current_loader, 0)
+                    .unwrap();
+
+            assert!(
+                spot_market_map.get_ref(&0).is_ok(),
+                "quote spot market must load after live oracle prefix"
+            );
+            assert!(
+                perp_market_map.get_ref(&7).is_ok(),
+                "extra perp market must still load after live oracle prefix"
             );
         }
 

@@ -7,8 +7,12 @@ use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, LogMode, OracleValidity};
 use crate::msg;
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource, PrelaunchOracle};
+use crate::state::oracle_price_cache::{
+    CachedOracleEntry, OraclePriceCacheFixed, DEFAULT_CACHE_MAX_AGE_SLOTS,
+};
 use crate::state::state::OracleGuardRails;
 use crate::state::user::MarketType;
+use crate::state::zero_copy::{AccountZeroCopy, ZeroCopyLoader};
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Discriminator;
 use anchor_lang::Key;
@@ -25,7 +29,7 @@ use crate::validate;
 
 pub(crate) type OracleIdentifier = (Pubkey, OracleSource);
 
-const EXTERNAL_ORACLE_PROGRAM_IDS: [Pubkey; 4] = [
+pub const EXTERNAL_ORACLE_PROGRAM_IDS: [Pubkey; 4] = [
     pyth_program::id(),
     drift_oracle_receiver_program::id(),
     switchboard_program::id(),
@@ -39,6 +43,27 @@ pub struct OracleMap<'a> {
     pub slot: u64,
     pub oracle_guard_rails: OracleGuardRails,
     pub quote_asset_price_data: OraclePriceData,
+    /// Cached oracle entries parsed from on-chain oracle price cache (keyed for O(log N) lookup).
+    cache_prices: BTreeMap<OracleIdentifier, CachedOracleEntry>,
+    /// Max age in slots for cache freshness. 0 means cache disabled.
+    cache_max_age: u64,
+}
+
+/// Returns true if `account_info` is an oracle account (external oracle program or drift-owned oracle).
+pub fn is_oracle_account(account_info: &AccountInfo) -> bool {
+    if EXTERNAL_ORACLE_PROGRAM_IDS.contains(account_info.owner) {
+        return true;
+    }
+    if account_info.owner == &crate::id() {
+        if let Ok(data) = account_info.try_borrow_data() {
+            if data.len() >= 8 {
+                let disc = array_ref![data, 0, 8];
+                return *disc == PrelaunchOracle::discriminator()
+                    || *disc == PythLazerOracle::discriminator();
+            }
+        }
+    }
+    false
 }
 
 impl<'a> OracleMap<'a> {
@@ -67,18 +92,24 @@ impl<'a> OracleMap<'a> {
             return self.price_data.get(id).safe_unwrap();
         }
 
-        let account_info = match self.oracles.get(&id.0) {
-            Some(account_info) => account_info,
-            None => {
-                msg!("oracle pubkey not found in oracle_map: {}", id.0);
-                return Err(ErrorCode::OracleNotFound);
+        // Step 3: try live oracle
+        if let Some(account_info) = self.oracles.get(&id.0) {
+            let price_data = get_oracle_price(&id.1, account_info, self.slot)?;
+            self.price_data.insert(*id, price_data);
+            return self.price_data.get(id).safe_unwrap();
+        }
+
+        // Step 4: try cache fallback
+        if let Some(entry) = self.cache_prices.get(id) {
+            if entry.is_fresh(self.slot, self.cache_max_age) {
+                let price_data = entry.to_oracle_price_data(self.slot);
+                self.price_data.insert(*id, price_data);
+                return self.price_data.get(id).safe_unwrap();
             }
-        };
+        }
 
-        let price_data = get_oracle_price(&id.1, account_info, self.slot)?;
-
-        self.price_data.insert(*id, price_data);
-        self.price_data.get(id).safe_unwrap()
+        msg!("oracle pubkey not found in oracle_map: {}", id.0);
+        Err(ErrorCode::OracleNotFound)
     }
 
     pub fn get_price_data_and_validity(
@@ -126,34 +157,57 @@ impl<'a> OracleMap<'a> {
             return Ok((oracle_price_data, oracle_validity));
         }
 
-        let account_info = match self.oracles.get(&oracle_id.0) {
-            Some(account_info) => account_info,
-            None => {
-                msg!("oracle pubkey not found in oracle_map: {}", oracle_id.0);
-                return Err(ErrorCode::OracleNotFound);
+        // Step 3: try live oracle
+        if let Some(account_info) = self.oracles.get(&oracle_id.0) {
+            let price_data = get_oracle_price(&oracle_id.1, account_info, self.slot)?;
+
+            self.price_data.insert(*oracle_id, price_data);
+
+            let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
+            let oracle_validity = oracle_validity(
+                market_type,
+                market_index,
+                last_oracle_price_twap,
+                oracle_price_data,
+                &self.oracle_guard_rails.validity,
+                max_confidence_interval_multiplier,
+                &oracle_id.1,
+                log_mode,
+                slots_before_stale_for_amm_override,
+                oracle_low_risk_slot_delay_override_override,
+            )?;
+            self.validity.insert(*oracle_id, oracle_validity);
+
+            return Ok((oracle_price_data, oracle_validity));
+        }
+
+        // Step 4: try cache fallback
+        if let Some(entry) = self.cache_prices.get(oracle_id) {
+            if entry.is_fresh(self.slot, self.cache_max_age) {
+                let price_data = entry.to_oracle_price_data(self.slot);
+                self.price_data.insert(*oracle_id, price_data);
+
+                let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
+                let oracle_validity = oracle_validity(
+                    market_type,
+                    market_index,
+                    last_oracle_price_twap,
+                    oracle_price_data,
+                    &self.oracle_guard_rails.validity,
+                    max_confidence_interval_multiplier,
+                    &oracle_id.1,
+                    log_mode,
+                    slots_before_stale_for_amm_override,
+                    oracle_low_risk_slot_delay_override_override,
+                )?;
+                self.validity.insert(*oracle_id, oracle_validity);
+
+                return Ok((oracle_price_data, oracle_validity));
             }
-        };
+        }
 
-        let price_data = get_oracle_price(&oracle_id.1, account_info, self.slot)?;
-
-        self.price_data.insert(*oracle_id, price_data);
-
-        let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
-        let oracle_validity = oracle_validity(
-            market_type,
-            market_index,
-            last_oracle_price_twap,
-            oracle_price_data,
-            &self.oracle_guard_rails.validity,
-            max_confidence_interval_multiplier,
-            &oracle_id.1,
-            log_mode,
-            slots_before_stale_for_amm_override,
-            oracle_low_risk_slot_delay_override_override,
-        )?;
-        self.validity.insert(*oracle_id, oracle_validity);
-
-        Ok((oracle_price_data, oracle_validity))
+        msg!("oracle pubkey not found in oracle_map: {}", oracle_id.0);
+        Err(ErrorCode::OracleNotFound)
     }
 
     pub fn get_price_data_and_guard_rails(
@@ -172,22 +226,28 @@ impl<'a> OracleMap<'a> {
             return Ok((oracle_price_data, validity_guard_rails));
         }
 
-        let account_info = match self.oracles.get(&oracle_id.0) {
-            Some(account_info) => account_info,
-            None => {
-                msg!("oracle pubkey not found in oracle_map: {}", oracle_id.0);
-                return Err(ErrorCode::OracleNotFound);
+        // Step 3: try live oracle
+        if let Some(account_info) = self.oracles.get(&oracle_id.0) {
+            let price_data = get_oracle_price(&oracle_id.1, account_info, self.slot)?;
+            self.price_data.insert(*oracle_id, price_data);
+            let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
+            let validity_guard_rails = &self.oracle_guard_rails.validity;
+            return Ok((oracle_price_data, validity_guard_rails));
+        }
+
+        // Step 4: try cache fallback
+        if let Some(entry) = self.cache_prices.get(oracle_id) {
+            if entry.is_fresh(self.slot, self.cache_max_age) {
+                let price_data = entry.to_oracle_price_data(self.slot);
+                self.price_data.insert(*oracle_id, price_data);
+                let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
+                let validity_guard_rails = &self.oracle_guard_rails.validity;
+                return Ok((oracle_price_data, validity_guard_rails));
             }
-        };
+        }
 
-        let price_data = get_oracle_price(&oracle_id.1, account_info, self.slot)?;
-
-        self.price_data.insert(*oracle_id, price_data);
-
-        let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
-        let validity_guard_rails = &self.oracle_guard_rails.validity;
-
-        Ok((oracle_price_data, validity_guard_rails))
+        msg!("oracle pubkey not found in oracle_map: {}", oracle_id.0);
+        Err(ErrorCode::OracleNotFound)
     }
 
     pub fn load<'c>(
@@ -257,6 +317,8 @@ impl<'a> OracleMap<'a> {
                 has_sufficient_number_of_data_points: true,
                 sequence_id: None,
             },
+            cache_prices: BTreeMap::new(),
+            cache_max_age: 0,
         })
     }
 
@@ -321,7 +383,85 @@ impl<'a> OracleMap<'a> {
                 has_sufficient_number_of_data_points: true,
                 sequence_id: None,
             },
+            cache_prices: BTreeMap::new(),
+            cache_max_age: 0,
         })
+    }
+
+    /// Like `load_one`, but also parses an oracle price cache account for fallback lookups.
+    pub fn load_one_with_cache<'c>(
+        account_info: &'c AccountInfo<'a>,
+        cache_account_info: &'c AccountInfo<'a>,
+        slot: u64,
+        oracle_guard_rails: Option<OracleGuardRails>,
+    ) -> DriftResult<OracleMap<'a>> {
+        let mut oracle_map = Self::load_one(account_info, slot, oracle_guard_rails)?;
+
+        // Parse cache entries into BTreeMap for O(log N) lookup
+        if *cache_account_info.owner == crate::id() && cache_account_info.data_len() > 8 {
+            let zc: AccountZeroCopy<CachedOracleEntry, OraclePriceCacheFixed> =
+                cache_account_info.load_zc()?;
+
+            let max_age_raw = zc.fixed.max_age_slots;
+            oracle_map.cache_max_age = if max_age_raw == 0 {
+                DEFAULT_CACHE_MAX_AGE_SLOTS
+            } else {
+                max_age_raw as u64
+            };
+
+            for entry in zc.iter() {
+                if entry.oracle == Pubkey::default() {
+                    continue;
+                }
+                if let Ok(oracle_id) = entry.oracle_id() {
+                    oracle_map.cache_prices.insert(oracle_id, *entry);
+                }
+            }
+        }
+
+        Ok(oracle_map)
+    }
+
+    /// Insert a live oracle account into the map. Used for live oracle fallback
+    /// from remaining_accounts. Same owner validation as `load_one`.
+    pub fn insert_live_oracle(&mut self, account_info: &AccountInfo<'a>) -> DriftResult<()> {
+        let pubkey = account_info.key();
+
+        if EXTERNAL_ORACLE_PROGRAM_IDS.contains(account_info.owner) {
+            self.oracles.insert(pubkey, account_info.clone());
+            return Ok(());
+        }
+
+        if account_info.owner == &crate::id() {
+            let data = account_info.try_borrow_data().map_err(|e| {
+                msg!("Failed to borrow data while inserting live oracle {:?}", e);
+                UnableToLoadOracle
+            })?;
+
+            if data.len() < 8 {
+                return Err(UnableToLoadOracle);
+            }
+
+            let account_discriminator = array_ref![data, 0, 8];
+
+            if account_discriminator == &PrelaunchOracle::discriminator() {
+                if data.len() < PrelaunchOracle::SIZE {
+                    return Err(UnableToLoadOracle);
+                }
+            } else if account_discriminator == &PythLazerOracle::discriminator() {
+                if data.len() < PythLazerOracle::SIZE {
+                    return Err(UnableToLoadOracle);
+                }
+            } else {
+                return Err(UnableToLoadOracle);
+            }
+
+            drop(data);
+            self.oracles.insert(pubkey, account_info.clone());
+            return Ok(());
+        }
+
+        Err(ErrorCode::InvalidOracle)
     }
 
     pub fn validate_oracle_account_info<'c>(account_info: &'c AccountInfo<'a>) -> DriftResult {
@@ -353,6 +493,105 @@ impl<'a> OracleMap<'a> {
                 has_sufficient_number_of_data_points: true,
                 sequence_id: None,
             },
+            cache_prices: BTreeMap::new(),
+            cache_max_age: 0,
         }
+    }
+
+    /// Test helper: create an OracleMap with pre-populated cache entries.
+    pub fn with_cache(
+        slot: u64,
+        cache_max_age: u64,
+        entries: Vec<CachedOracleEntry>,
+    ) -> OracleMap<'a> {
+        let mut cache_prices = BTreeMap::new();
+        for entry in entries {
+            if let Ok(id) = entry.oracle_id() {
+                cache_prices.insert(id, entry);
+            }
+        }
+        OracleMap {
+            oracles: BTreeMap::new(),
+            validity: BTreeMap::new(),
+            price_data: BTreeMap::new(),
+            slot,
+            oracle_guard_rails: OracleGuardRails::default(),
+            quote_asset_price_data: OraclePriceData {
+                price: PRICE_PRECISION_I64,
+                confidence: 1,
+                delay: 0,
+                has_sufficient_number_of_data_points: true,
+                sequence_id: None,
+            },
+            cache_prices,
+            cache_max_age,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::oracle_price_cache::CachedOracleEntry;
+
+    fn make_cached_entry(
+        oracle: Pubkey,
+        price: i64,
+        delay: i64,
+        cached_slot: u64,
+    ) -> CachedOracleEntry {
+        CachedOracleEntry {
+            oracle,
+            price,
+            confidence: 100,
+            delay,
+            cached_slot,
+            oracle_source: OracleSource::Pyth as u8,
+            has_sufficient_data_points: 1,
+            max_age_slots_override: 0,
+            _padding: [0u8; 29],
+        }
+    }
+
+    #[test]
+    fn fallback_to_cache_when_no_live() {
+        let oracle = Pubkey::new_unique();
+        let entry = make_cached_entry(oracle, 42_000_000, 2, 900);
+        let mut map = OracleMap::with_cache(950, 60, vec![entry]);
+
+        let id = (oracle, OracleSource::Pyth);
+        let pd = map.get_price_data(&id).unwrap();
+        assert_eq!(pd.price, 42_000_000);
+        // effective delay = 2 + (950 - 900) = 52
+        assert_eq!(pd.delay, 52);
+    }
+
+    #[test]
+    fn stale_cache_returns_oracle_not_found() {
+        let oracle = Pubkey::new_unique();
+        let entry = make_cached_entry(oracle, 42_000_000, 2, 800);
+        let mut map = OracleMap::with_cache(900, 60, vec![entry]);
+
+        let id = (oracle, OracleSource::Pyth);
+        let result = map.get_price_data(&id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn cache_lookup_is_keyed() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+        let entry_a = make_cached_entry(oracle_a, 100_000_000, 1, 950);
+        let entry_b = make_cached_entry(oracle_b, 200_000_000, 1, 950);
+        let mut map = OracleMap::with_cache(960, 60, vec![entry_a, entry_b]);
+
+        let id_a = (oracle_a, OracleSource::Pyth);
+        let id_b = (oracle_b, OracleSource::Pyth);
+
+        let pd_a = map.get_price_data(&id_a).unwrap();
+        assert_eq!(pd_a.price, 100_000_000);
+
+        let pd_b = map.get_price_data(&id_b).unwrap();
+        assert_eq!(pd_b.price, 200_000_000);
     }
 }

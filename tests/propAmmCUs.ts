@@ -73,9 +73,11 @@ import { nanoid } from 'nanoid';
 import { getPropAmmMatcherPDA } from '../sdk/src/addresses/pda';
 import {
 	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	mockUserUSDCAccountWithAuthority,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -95,6 +97,10 @@ function matchPerpOrderViaPropAmmInstructionDiscriminator(): Buffer {
 const SYSVAR_RENT_PUBKEY = new PublicKey(
 	'SysvarRent111111111111111111111111111111111'
 );
+const NATIVE_ADMIN_IX_PREFIX = Buffer.from([0xff, 0xff, 0xff, 0xff]);
+const NATIVE_IX_SET_ORACLE_CACHE_ENTRIES = 2;
+const NATIVE_IX_UPDATE_ORACLE_PRICE_CACHE = 3;
+const NATIVE_IX_UPDATE_ORACLE_CACHE_CONFIG = 4;
 
 /** Build Drift initialize_prop_amm_matcher ix via program client (IDL) so discriminator/accounts match deployed program. */
 async function buildInitializePropAmmMatcherInstruction(
@@ -161,6 +167,148 @@ async function buildInitializePropAmmMidpriceInstruction(args: {
 		.instruction();
 }
 
+/** Derive the oracle price cache PDA for a given cache_id and buffer_index. */
+function getOraclePriceCachePDA(
+	driftProgramId: PublicKey,
+	cacheId: number,
+	bufferIndex: number
+): PublicKey {
+	const [pda] = PublicKey.findProgramAddressSync(
+		[
+			Buffer.from('oracle_price_cache'),
+			Buffer.from([cacheId]),
+			Buffer.from([bufferIndex]),
+		],
+		driftProgramId
+	);
+	return pda;
+}
+
+type OracleCacheEntryParam = {
+	oracle: PublicKey;
+	oracleSource: number;
+	maxAgeSlotsOverride: number;
+};
+
+type ExtraSpotMarketFixture = {
+	marketIndex: number;
+	mint: Keypair;
+	oracle: PublicKey;
+};
+
+type PropAmmMakerFixture = {
+	authority: Keypair;
+	user: PublicKey;
+	midprice: PublicKey;
+};
+
+function buildNativeInstruction(
+	programId: PublicKey,
+	opcode: number,
+	keys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[],
+	payload?: Buffer
+): TransactionInstruction {
+	return new TransactionInstruction({
+		programId,
+		keys,
+		data: Buffer.concat([
+			NATIVE_ADMIN_IX_PREFIX,
+			Buffer.from([opcode]),
+			payload ?? Buffer.alloc(0),
+		]),
+	});
+}
+
+function serializeOracleCacheEntries(entries: OracleCacheEntryParam[]): Buffer {
+	const buf = Buffer.alloc(4 + entries.length * 34);
+	buf.writeUInt32LE(entries.length, 0);
+	let offset = 4;
+	for (const entry of entries) {
+		entry.oracle.toBuffer().copy(buf, offset);
+		offset += 32;
+		buf.writeUInt8(entry.oracleSource, offset);
+		offset += 1;
+		buf.writeUInt8(entry.maxAgeSlotsOverride, offset);
+		offset += 1;
+	}
+	return buf;
+}
+
+function buildSetOracleCacheEntriesInstruction(args: {
+	programId: PublicKey;
+	admin: PublicKey;
+	state: PublicKey;
+	cache0: PublicKey;
+	cache1: PublicKey;
+	entries: OracleCacheEntryParam[];
+}): TransactionInstruction {
+	return buildNativeInstruction(
+		args.programId,
+		NATIVE_IX_SET_ORACLE_CACHE_ENTRIES,
+		[
+			{ pubkey: args.admin, isSigner: true, isWritable: false },
+			{ pubkey: args.state, isSigner: false, isWritable: false },
+			{ pubkey: args.cache0, isSigner: false, isWritable: true },
+			{ pubkey: args.cache1, isSigner: false, isWritable: true },
+		],
+		serializeOracleCacheEntries(args.entries)
+	);
+}
+
+function buildUpdateOraclePriceCacheInstruction(args: {
+	programId: PublicKey;
+	cache: PublicKey;
+	oracles: PublicKey[];
+}): TransactionInstruction {
+	return buildNativeInstruction(
+		args.programId,
+		NATIVE_IX_UPDATE_ORACLE_PRICE_CACHE,
+		[
+			{ pubkey: args.cache, isSigner: false, isWritable: true },
+			...args.oracles.map((oracle) => ({
+				pubkey: oracle,
+				isSigner: false,
+				isWritable: false,
+			})),
+		]
+	);
+}
+
+function buildUpdateOracleCacheConfigInstruction(args: {
+	programId: PublicKey;
+	admin: PublicKey;
+	state: PublicKey;
+	cache0: PublicKey;
+	cache1: PublicKey;
+	maxAgeSlots: number;
+}): TransactionInstruction {
+	return buildNativeInstruction(
+		args.programId,
+		NATIVE_IX_UPDATE_ORACLE_CACHE_CONFIG,
+		[
+			{ pubkey: args.admin, isSigner: true, isWritable: false },
+			{ pubkey: args.state, isSigner: false, isWritable: false },
+			{ pubkey: args.cache0, isSigner: false, isWritable: true },
+			{ pubkey: args.cache1, isSigner: false, isWritable: true },
+		],
+		Buffer.from([args.maxAgeSlots])
+	);
+}
+
+function countUniqueInstructionAccounts(
+	ixs: TransactionInstruction[],
+	feePayer: PublicKey
+): number {
+	const keys = new Set<string>([feePayer.toBase58()]);
+	for (const ix of ixs) {
+		keys.add(ix.programId.toBase58());
+		for (const key of ix.keys) {
+			keys.add(key.pubkey.toBase58());
+		}
+	}
+	return keys.size;
+}
+
 function buildFillPerpOrder2Instruction(
 	driftProgramId: PublicKey,
 	takerOrderId: number | null,
@@ -170,6 +318,7 @@ function buildFillPerpOrder2Instruction(
 		state: PublicKey;
 		perpMarket: PublicKey;
 		oracle: PublicKey;
+		oraclePriceCache: PublicKey;
 		clock?: PublicKey;
 	},
 	remainingAccounts: { pubkey: PublicKey; isWritable: boolean }[]
@@ -190,6 +339,11 @@ function buildFillPerpOrder2Instruction(
 		{ pubkey: accounts.state, isSigner: false, isWritable: false },
 		{ pubkey: accounts.perpMarket, isSigner: false, isWritable: true },
 		{ pubkey: accounts.oracle, isSigner: false, isWritable: false },
+		{
+			pubkey: accounts.oraclePriceCache,
+			isSigner: false,
+			isWritable: false,
+		},
 		{
 			pubkey: accounts.clock ?? SYSVAR_CLOCK_PUBKEY,
 			isSigner: false,
@@ -391,6 +545,9 @@ describe('PropAMM CU usage (bankrun)', () => {
 	let oracle: PublicKey;
 	/** Set when tests/fixtures has midprice_pino.so + keypair (from build-midprice-pino-for-bankrun.sh) */
 	let midpriceProgramId: PublicKey | null = null;
+	/** Oracle price cache PDA (buffer 0) — read-only account for fill_perp_order2. */
+	let oraclePriceCachePda: PublicKey;
+	let oraclePriceCachePda1: PublicKey;
 	const marketIndex = 0;
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuote = new BN(10 * 10 ** 13).mul(mantissaSqrtScale);
@@ -484,6 +641,34 @@ describe('PropAMM CU usage (bankrun)', () => {
 				}
 				throw err;
 			}
+		}
+
+		// Initialize oracle price cache (both buffers) for fill_perp_order2.
+		// Pre-allocate enough slots for the oracle-heavy cache tests below.
+		oraclePriceCachePda = getOraclePriceCachePDA(program.programId, 0, 0);
+		oraclePriceCachePda1 = getOraclePriceCachePDA(program.programId, 0, 1);
+		const initCacheMethod = (program.methods as Record<string, unknown>)
+			.initializeOraclePriceCache;
+		if (typeof initCacheMethod === 'function') {
+			const cacheState = await getDriftStateAccountPublicKey(program.programId);
+			const initCacheIx = await (
+				initCacheMethod as (cacheId: number, numOracles: number) => {
+					accounts: (a: Record<string, PublicKey>) => {
+						instruction: () => Promise<TransactionInstruction>;
+					};
+				}
+			)(0, 64)
+				.accounts({
+					admin: bankrunContextWrapper.context.payer.publicKey,
+					state: cacheState,
+					oraclePriceCache0: oraclePriceCachePda,
+					oraclePriceCache1: oraclePriceCachePda1,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: SystemProgram.programId,
+				})
+				.instruction();
+			const initCacheTx = new Transaction().add(initCacheIx);
+			await bankrunContextWrapper.sendTransaction(initCacheTx, []);
 		}
 	});
 
@@ -799,6 +984,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -832,6 +1018,310 @@ describe('PropAMM CU usage (bankrun)', () => {
 		return cu;
 	}
 
+	async function configureOracleCache(
+		oracles: PublicKey[],
+		maxAgeSlots: number,
+		maxAgeSlotsOverride = 0
+	): Promise<void> {
+		const state = await getDriftStateAccountPublicKey(program.programId);
+		const payer = bankrunContextWrapper.context.payer.publicKey;
+		const entries = oracles.map((oracle) => ({
+			oracle,
+			oracleSource: OracleSource.PYTH,
+			maxAgeSlotsOverride,
+		}));
+		const tx = new Transaction().add(
+			buildSetOracleCacheEntriesInstruction({
+				programId: program.programId,
+				admin: payer,
+				state,
+				cache0: oraclePriceCachePda,
+				cache1: oraclePriceCachePda1,
+				entries,
+			}),
+			buildUpdateOracleCacheConfigInstruction({
+				programId: program.programId,
+				admin: payer,
+				state,
+				cache0: oraclePriceCachePda,
+				cache1: oraclePriceCachePda1,
+				maxAgeSlots,
+			}),
+			buildUpdateOraclePriceCacheInstruction({
+				programId: program.programId,
+				cache: oraclePriceCachePda,
+				oracles,
+			})
+		);
+		const sig = await bankrunContextWrapper.sendTransaction(tx, []);
+		assert(sig && sig.length > 0, 'oracle cache configuration tx should succeed');
+	}
+
+	async function initializeExtraSpotMarkets(
+		count: number
+	): Promise<ExtraSpotMarketFixture[]> {
+		const extraMarkets: ExtraSpotMarketFixture[] = [];
+		for (let i = 0; i < count; i++) {
+			await driftClient.fetchAccounts();
+			const nextMarketIndex = driftClient.getStateAccount().numberOfSpotMarkets;
+			const mint = await mockUSDCMint(bankrunContextWrapper);
+			const oracleKey = await mockOracleNoProgram(
+				bankrunContextWrapper,
+				25 + i
+			);
+			await initializeSolSpotMarket(
+				driftClient,
+				oracleKey,
+				mint.publicKey,
+				OracleSource.PYTH
+			);
+			extraMarkets.push({
+				marketIndex: nextMarketIndex,
+				mint,
+				oracle: oracleKey,
+			});
+		}
+		return extraMarkets;
+	}
+
+	async function createCrossMarginedPropAmmMakers(
+		numMakers: number,
+		extraMarkets: ExtraSpotMarketFixture[],
+		extraMarketDepositAmount: BN = new BN(5_000 * 10 ** DRIFT_DECIMALS)
+	): Promise<PropAmmMakerFixture[]> {
+		if (!midpriceProgramId) {
+			throw new Error('midprice program must be available for PropAMM maker setup');
+		}
+
+		const driftProgramId = program.programId;
+		const perpMarket = getPerpMarketPublicKeySync(driftProgramId, marketIndex);
+		const connection = bankrunContextWrapper.connection;
+		const quoteTokenProgram = (await connection.getAccountInfo(usdcMint.publicKey))
+			.owner;
+		const midpriceAccountSpace =
+			MIDPRICE_ACCOUNT_MIN_LEN + MIDPRICE_ORDER_ENTRY_SIZE * 2;
+		const rentExempt = await connection.getMinimumBalanceForRentExemption(
+			midpriceAccountSpace
+		);
+		const allSpotMarketIndexes = [0, ...extraMarkets.map((m) => m.marketIndex)];
+		const allOracleInfos = [
+			{ publicKey: oracle, source: OracleSource.PYTH },
+			...extraMarkets.map((m) => ({
+				publicKey: m.oracle,
+				source: OracleSource.PYTH,
+			})),
+		];
+		const makers: PropAmmMakerFixture[] = [];
+
+		for (let i = 0; i < numMakers; i++) {
+			const maker = Keypair.generate();
+			await bankrunContextWrapper.fundKeypair(maker, 10 ** 9);
+
+			const makerUsdcAccount = getAssociatedTokenAddressSync(
+				usdcMint.publicKey,
+				maker.publicKey
+			);
+			const makerUser = await getUserAccountPublicKey(
+				driftProgramId,
+				maker.publicKey,
+				0
+			);
+			const [midpricePda] = getMidpricePDA(
+				midpriceProgramId,
+				maker.publicKey,
+				marketIndex,
+				0
+			);
+
+			const makerClient = new TestClient({
+				connection: bankrunContextWrapper.connection.toConnection(),
+				wallet: new anchor.Wallet(maker),
+				programID: driftProgramId,
+				opts: { commitment: 'confirmed' },
+				activeSubAccountId: 0,
+				perpMarketIndexes: [marketIndex],
+				spotMarketIndexes: allSpotMarketIndexes,
+				subAccountIds: [],
+				oracleInfos: allOracleInfos,
+				accountSubscription: {
+					type: 'polling',
+					accountLoader: bulkAccountLoader,
+				},
+			});
+			await makerClient.subscribe();
+			const { ixs: initUserIxs } =
+				await makerClient.createInitializeUserAccountAndDepositCollateralIxs(
+					usdcAmount,
+					makerUsdcAccount
+				);
+
+			const setupTx = new Transaction().add(
+				createAssociatedTokenAccountIdempotentInstruction(
+					bankrunContextWrapper.context.payer.publicKey,
+					makerUsdcAccount,
+					maker.publicKey,
+					usdcMint.publicKey,
+					quoteTokenProgram
+				),
+				createMintToInstruction(
+					usdcMint.publicKey,
+					makerUsdcAccount,
+					bankrunContextWrapper.context.payer.publicKey,
+					usdcAmount.toNumber(),
+					undefined,
+					quoteTokenProgram
+				),
+				...initUserIxs,
+				SystemProgram.createAccount({
+					fromPubkey: bankrunContextWrapper.context.payer.publicKey,
+					newAccountPubkey: midpricePda,
+					lamports: rentExempt,
+					space: midpriceAccountSpace,
+					programId: midpriceProgramId,
+				}),
+				await buildInitializePropAmmMidpriceInstruction({
+					program,
+					authority: maker.publicKey,
+					midpriceAccount: midpricePda,
+					perpMarket,
+					midpriceProgram: midpriceProgramId,
+					driftProgramId,
+					subaccountIndex: 0,
+				}),
+				buildMidpriceUpdateMidPriceInstruction(
+					midpriceProgramId,
+					midpricePda,
+					maker.publicKey,
+					new BN(100).mul(PRICE_PRECISION)
+				),
+				buildMidpriceSetOrdersInstruction(
+					midpriceProgramId,
+					midpricePda,
+					maker.publicKey,
+					1,
+					0,
+					[
+						{
+							offset: PRICE_PRECISION,
+							size: new BN(1).mul(BASE_PRECISION),
+						},
+					]
+				)
+			);
+			await bankrunContextWrapper.sendTransaction(setupTx, [maker]);
+			await makerClient.unsubscribe();
+			await makerClient.subscribe();
+			await makerClient.addUser(0, maker.publicKey);
+
+			const depositIxs: TransactionInstruction[] = [];
+			for (const extraMarket of extraMarkets) {
+				const tokenAccount = await mockUserUSDCAccountWithAuthority(
+					extraMarket.mint,
+					extraMarketDepositAmount,
+					bankrunContextWrapper,
+					maker
+				);
+				depositIxs.push(
+					await makerClient.getDepositInstruction(
+						extraMarketDepositAmount,
+						extraMarket.marketIndex,
+						tokenAccount
+					)
+				);
+			}
+
+			for (let start = 0; start < depositIxs.length; start += 4) {
+				const depositTx = new Transaction().add(
+					...depositIxs.slice(start, start + 4)
+				);
+				await bankrunContextWrapper.sendTransaction(depositTx, [maker]);
+			}
+
+			await makerClient.unsubscribe();
+			makers.push({ authority: maker, user: makerUser, midprice: midpricePda });
+		}
+
+		return makers;
+	}
+
+	async function buildCrossMarginedPropAmmFillTx(args: {
+		makers: PropAmmMakerFixture[];
+		extraMarkets: ExtraSpotMarketFixture[];
+		liveFallbackOracles?: PublicKey[];
+		baseAssetAmount?: BN;
+		price?: BN;
+	}): Promise<{
+		tx: Transaction;
+		orderId: number;
+		accountCount: number;
+	}> {
+		const orderId = await placeTakerLimitOrder(
+			PositionDirection.LONG,
+			args.baseAssetAmount ??
+				new BN(Math.max(args.makers.length, 1)).mul(BASE_PRECISION),
+			args.price ?? new BN(101).mul(PRICE_PRECISION)
+		);
+		const driftProgramId = program.programId;
+		const takerUser = await driftClient.getUserAccountPublicKey();
+		const takerStats = driftClient.getUserStatsAccountPublicKey();
+		const state = await getDriftStateAccountPublicKey(driftProgramId);
+		const perpMarket = getPerpMarketPublicKeySync(driftProgramId, marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const oracleKey = new PublicKey(market.amm.oracle);
+
+		const remaining = [
+			{ pubkey: midpriceProgramId!, isWritable: false },
+			...(args.liveFallbackOracles ?? []).map((oracle) => ({
+				pubkey: oracle,
+				isWritable: false,
+			})),
+			{
+				pubkey: getSpotMarketPublicKeySync(driftProgramId, 0),
+				isWritable: false,
+			},
+			...args.extraMarkets.map((marketFixture) => ({
+				pubkey: getSpotMarketPublicKeySync(
+					driftProgramId,
+					marketFixture.marketIndex
+				),
+				isWritable: false,
+			})),
+			{ pubkey: getPropAmmMatcherPDA(driftProgramId), isWritable: true },
+			...args.makers.flatMap((maker) => [
+				{ pubkey: maker.midprice, isWritable: true },
+				{ pubkey: maker.user, isWritable: true },
+			]),
+		];
+
+		const matchIx = buildFillPerpOrder2Instruction(
+			driftProgramId,
+			orderId,
+			{
+				user: takerUser,
+				userStats: takerStats,
+				state,
+				perpMarket,
+				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
+			},
+			remaining
+		);
+		await bankrunContextWrapper.moveTimeForward(80);
+		const tx = new Transaction().add(matchIx);
+		tx.recentBlockhash = await bankrunContextWrapper.getLatestBlockhash();
+		tx.feePayer = bankrunContextWrapper.context.payer.publicKey;
+		tx.sign(bankrunContextWrapper.context.payer);
+
+		return {
+			tx,
+			orderId,
+			accountCount: countUniqueInstructionAccounts(
+				[matchIx],
+				bankrunContextWrapper.context.payer.publicKey
+			),
+		};
+	}
+
 	it('minimal fill_perp_order2 with 0 PropAMMs returns Ok', async function () {
 		if (!midpriceProgramId) {
 			this.skip();
@@ -857,7 +1347,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 		const matchIx = buildFillPerpOrder2Instruction(
 			driftProgramId,
 			orderId,
-			{ user: takerUser, userStats: takerStats, state, perpMarket, oracle: oracleKey },
+			{ user: takerUser, userStats: takerStats, state, perpMarket, oracle: oracleKey, oraclePriceCache: oraclePriceCachePda },
 			remaining,
 		);
 
@@ -1071,6 +1561,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -1440,6 +1931,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -1714,6 +2206,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -1999,6 +2492,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -2269,6 +2763,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -2534,6 +3029,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 					state,
 					perpMarket,
 					oracle: oracleKey,
+					oraclePriceCache: oraclePriceCachePda,
 				},
 				remaining
 			);
@@ -2632,6 +3128,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 					state,
 					perpMarket,
 					oracle: oracleKey,
+					oraclePriceCache: oraclePriceCachePda,
 				},
 				remaining
 			);
@@ -2907,6 +3404,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -3184,6 +3682,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				perpMarket,
 				oracle: oracleKey,
+				oraclePriceCache: oraclePriceCachePda,
 			},
 			remaining
 		);
@@ -3542,6 +4041,146 @@ describe('PropAMM CU usage (bankrun)', () => {
 			Buffer.from(authorityBytes),
 			newAuthority.publicKey.toBuffer(),
 			'authority field should be updated to new authority'
+		);
+	});
+
+	it('fills a cross-margined PropAMM maker using cached non-market spot oracles', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+
+		const extraMarkets = await initializeExtraSpotMarkets(3);
+		const makers = await createCrossMarginedPropAmmMakers(1, extraMarkets);
+		await configureOracleCache(
+			extraMarkets.map((market) => market.oracle),
+			60
+		);
+		const { tx, accountCount } = await buildCrossMarginedPropAmmFillTx({
+			makers,
+			extraMarkets,
+		});
+
+		const sim = await bankrunContextWrapper.connection.simulateTransaction(tx);
+		if (sim.value.err) {
+			console.log('cached cross-margin fill logs:', sim.value.logs);
+		}
+		assert.strictEqual(
+			sim.value.err,
+			null,
+			'fresh cache should satisfy non-market oracle dependencies'
+		);
+		assert.isBelow(
+			accountCount,
+			64,
+			'cached fill should fit comfortably under Solana account limits'
+		);
+	});
+
+	it('fills with live oracle fallback when cached non-market spot oracles are stale', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+
+		const extraMarkets = await initializeExtraSpotMarkets(2);
+		await configureOracleCache(
+			extraMarkets.map((market) => market.oracle),
+			1,
+			1
+		);
+		await bankrunContextWrapper.moveTimeForward(5);
+		const makers = await createCrossMarginedPropAmmMakers(1, extraMarkets);
+		const withoutFallback = await buildCrossMarginedPropAmmFillTx({
+			makers,
+			extraMarkets,
+		});
+		const withFallback = await buildCrossMarginedPropAmmFillTx({
+			makers,
+			extraMarkets,
+			liveFallbackOracles: extraMarkets.map((market) => market.oracle),
+		});
+
+		const sim = await bankrunContextWrapper.connection.simulateTransaction(
+			withFallback.tx
+		);
+		if (sim.value.err) {
+			console.log('stale-cache fallback logs:', sim.value.logs);
+		}
+		assert.strictEqual(
+			sim.value.err,
+			null,
+			'live fallback oracles should rescue a stale cache entry'
+		);
+		assert.strictEqual(
+			withFallback.accountCount,
+			withoutFallback.accountCount + extraMarkets.length,
+			'live fallback should only add the stale oracle prefix, not duplicate market accounts'
+		);
+	});
+
+	it('oracle cache scales a worst-case cross-margined PropAMM portfolio to 10+ makers', async function () {
+		if (!midpriceProgramId) {
+			this.skip();
+		}
+		this.timeout(180000);
+
+		// User accounts only have 8 spot slots total (quote + 7 extras), so the
+		// worst realistic spot-heavy cross-margin case is "max oracle fanout per maker"
+		// times a large maker set.
+		const extraMarkets = await initializeExtraSpotMarkets(7);
+		const makers = await createCrossMarginedPropAmmMakers(11, extraMarkets);
+		await configureOracleCache(
+			extraMarkets.map((market) => market.oracle),
+			60
+		);
+		const cachedScenario = await buildCrossMarginedPropAmmFillTx({
+			makers,
+			extraMarkets,
+			baseAssetAmount: new BN(makers.length).mul(BASE_PRECISION),
+		});
+		assert.isAtLeast(
+			makers.length,
+			10,
+			'scaling scenario should exercise double-digit PropAMM makers'
+		);
+		assert.isBelow(
+			cachedScenario.accountCount,
+			64,
+			'cached oracle design should fit within the account budget'
+		);
+		const sharedAccountFootprint =
+			cachedScenario.accountCount - makers.length * 2;
+		const maxCachedMakers = Math.floor((64 - sharedAccountFootprint) / 2);
+		const maxDirectOracleMakers = Math.floor(
+			(64 - (sharedAccountFootprint + extraMarkets.length)) / 2
+		);
+		const directOracleCountAt21Makers =
+			sharedAccountFootprint + extraMarkets.length + 21 * 2;
+
+		assert.isAtLeast(
+			maxCachedMakers,
+			21,
+			'cached design should leave headroom for twenty-plus makers at this oracle fanout'
+		);
+		assert.isBelow(
+			maxDirectOracleMakers,
+			maxCachedMakers,
+			'live non-market oracle inclusion should lower the maker ceiling materially'
+		);
+		assert.isAbove(
+			directOracleCountAt21Makers,
+			64,
+			'without cache, the same 7-oracle portfolio would overflow the account budget by 21 makers'
+		);
+		console.log('cached account count:', cachedScenario.accountCount);
+		console.log('shared account footprint:', sharedAccountFootprint);
+		console.log('max cached makers at 7 extra oracles:', maxCachedMakers);
+		console.log(
+			'max direct-oracle makers at 7 extra oracles:',
+			maxDirectOracleMakers
+		);
+		console.log('direct-oracle count at 21 makers:', directOracleCountAt21Makers);
+		console.log(
+			'note: bankrun legacy tx serialization becomes the next limiter before the 64-account ceiling in this large scenario'
 		);
 	});
 });

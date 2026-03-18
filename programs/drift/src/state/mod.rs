@@ -13,6 +13,7 @@ pub mod lp_pool;
 pub mod margin_calculation;
 pub mod oracle;
 pub mod oracle_map;
+pub mod oracle_price_cache;
 pub mod order_params;
 pub mod paused_operations;
 pub mod perp_market;
