@@ -275,6 +275,9 @@ export class OrderActionExplanation {
 	static readonly TRANSFER_PERP_POSITION = {
 		transferPerpPosition: {},
 	};
+	static readonly ORDER_FILLED_WITH_PROP_AMM = {
+		orderFilledWithPropAMM: {},
+	};
 }
 
 export class OrderTriggerCondition {

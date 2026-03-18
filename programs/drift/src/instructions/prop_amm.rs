@@ -2563,7 +2563,7 @@ fn settle_fills<'c: 'info, 'info>(
             let fill_record = get_order_action_record(
                 now,
                 OrderAction::Fill,
-                OrderActionExplanation::OrderFilledWithMatch,
+                OrderActionExplanation::OrderFilledWithPropAMM,
                 taker.market_index,
                 None,
                 Some(fill_record_id),
