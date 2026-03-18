@@ -863,35 +863,20 @@ pub mod drift {
         handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
     }
 
+    pub fn admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AdminWithdrawFromInsuranceFundVault<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_admin_withdraw_from_insurance_fund_vault(ctx, market_index, amount)
+    }
+
     pub fn deposit_into_insurance_fund_stake<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DepositIntoInsuranceFundStake<'info>>,
         market_index: u16,
         amount: u64,
     ) -> Result<()> {
         handle_deposit_into_insurance_fund_stake(ctx, market_index, amount)
-    }
-
-    pub fn update_pyth_pull_oracle(
-        ctx: Context<UpdatePythPullOraclePriceFeed>,
-        feed_id: [u8; 32],
-        params: Vec<u8>,
-    ) -> Result<()> {
-        handle_update_pyth_pull_oracle(ctx, feed_id, params)
-    }
-
-    pub fn post_pyth_pull_oracle_update_atomic(
-        ctx: Context<PostPythPullOracleUpdateAtomic>,
-        feed_id: [u8; 32],
-        params: Vec<u8>,
-    ) -> Result<()> {
-        handle_post_pyth_pull_oracle_update_atomic(ctx, feed_id, params)
-    }
-
-    pub fn post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, PostPythPullMultiOracleUpdatesAtomic<'info>>,
-        params: Vec<u8>,
-    ) -> Result<()> {
-        handle_post_multi_pyth_pull_oracle_updates_atomic(ctx, params)
     }
 
     pub fn pause_spot_market_deposit_withdraw(
@@ -1840,13 +1825,6 @@ pub mod drift {
         perp_market_index: u16,
     ) -> Result<()> {
         handle_delete_prelaunch_oracle(ctx, perp_market_index)
-    }
-
-    pub fn initialize_pyth_pull_oracle(
-        ctx: Context<InitPythPullPriceFeed>,
-        feed_id: [u8; 32],
-    ) -> Result<()> {
-        handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
 
     pub fn initialize_pyth_lazer_oracle(
