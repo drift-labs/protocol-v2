@@ -100,13 +100,13 @@ export class grpcProgramAccountSubscriber<
 		const filters = this.options.filters.map((filter) => {
 			return {
 				memcmp: {
-					offset: filter.memcmp.offset,
+					offset: filter.memcmp.offset.toString(),
 					base58: filter.memcmp.bytes,
 				},
 			};
 		});
 
-		const request = {
+		const request: SubscribeRequest = {
 			slots: {},
 			accounts: {
 				drift: {

@@ -299,24 +299,6 @@
   resolved "https://registry.yarnpkg.com/@eslint/js/-/js-8.57.0.tgz#a5417ae8427873f1dd08b70b3574b453e67b5f7f"
   integrity sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==
 
-"@grpc/grpc-js@1.14.0":
-  version "1.14.0"
-  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.14.0.tgz#a3c47e7816ca2b4d5490cba9e06a3cf324e675ad"
-  integrity sha512-N8Jx6PaYzcTRNzirReJCtADVoq4z7+1KQ4E70jTg/koQiMoUSN1kbNjPOqpPbhMFhfU1/l7ixspPl8dNY+FoUg==
-  dependencies:
-    "@grpc/proto-loader" "^0.8.0"
-    "@js-sdsl/ordered-map" "^4.4.2"
-
-"@grpc/proto-loader@^0.8.0":
-  version "0.8.0"
-  resolved "https://registry.yarnpkg.com/@grpc/proto-loader/-/proto-loader-0.8.0.tgz#b6c324dd909c458a0e4aa9bfd3d69cf78a4b9bd8"
-  integrity sha512-rc1hOQtjIWGxcxpb9aHAfLpIctjEnsDehj0DAiVfBlmT84uvR0uUtN2hEi/ecvWVjXUGf5qPF4qEgiLOx1YIMQ==
-  dependencies:
-    lodash.camelcase "^4.3.0"
-    long "^5.0.0"
-    protobufjs "^7.5.3"
-    yargs "^17.7.2"
-
 "@humanwhocodes/config-array@^0.11.14":
   version "0.11.14"
   resolved "https://registry.yarnpkg.com/@humanwhocodes/config-array/-/config-array-0.11.14.tgz#d78e481a039f7566ecc9660b4ea7fe6b1fec442b"
@@ -384,11 +366,6 @@
   dependencies:
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
-
-"@js-sdsl/ordered-map@^4.4.2":
-  version "4.4.2"
-  resolved "https://registry.yarnpkg.com/@js-sdsl/ordered-map/-/ordered-map-4.4.2.tgz#9299f82874bab9e4c7f9c48d865becbfe8d6907c"
-  integrity sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==
 
 "@metaplex-foundation/beet-solana@^0.3.0":
   version "0.3.1"
@@ -1413,40 +1390,40 @@
     buffer "^6.0.3"
     js-yaml "^4.1.0"
 
-"@triton-one/yellowstone-grpc-napi-darwin-arm64@0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-arm64/-/yellowstone-grpc-napi-darwin-arm64-0.0.6.tgz#14711575f1d5b76d5a3463fb202dcd6525ae4133"
-  integrity sha512-sQ+0wPnDX4vBbqWotgs+T7eJas64CRMhGL3mCYqk35zaU5k+1C9XKTghYao9sp+/8635oo3r1K2of1ZPI0m4tg==
+"@triton-one/yellowstone-grpc-napi-darwin-arm64@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-arm64/-/yellowstone-grpc-napi-darwin-arm64-0.0.8.tgz#fe0f0f3c483aa69e340ae1f6569887817653e4ee"
+  integrity sha512-XzCfrxlbGptmvkNSoqEoRjLjPOSNPWEw1RnvGwytfAdghePon6890IOrSqqspMkuSXHlGyscLui6RdMcfkPyPw==
 
-"@triton-one/yellowstone-grpc-napi-darwin-x64@0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-x64/-/yellowstone-grpc-napi-darwin-x64-0.0.6.tgz#290deed342c319acfc38ecc101fa66a59864e3bc"
-  integrity sha512-hWP6TDtX8kG01l7Y3bSmuH95ESgB7ZsNMB9Kr57qTWgRWgcj2tyy7QjxZNZC8f9n0iGxjCgCZB78rsAkIVjrag==
+"@triton-one/yellowstone-grpc-napi-darwin-x64@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-x64/-/yellowstone-grpc-napi-darwin-x64-0.0.8.tgz#4d491975b222f4a516b61bb1e10c73ee7a288ad2"
+  integrity sha512-yqCEll/hy5NcMppwzgmQG44zoPUsOkt3KrL9pqKHrPkqVVs6JX2JpDLrL+EmgKE6N4G3wrSwceDw17k10qspGg==
 
-"@triton-one/yellowstone-grpc-napi-linux-x64-gnu@0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-gnu/-/yellowstone-grpc-napi-linux-x64-gnu-0.0.6.tgz#e5d7d7c97c60202e9375a6cdaaaec16708d84353"
-  integrity sha512-ZMbSNp1I4dvVIdY50zlKO7iiiBNsDdbmGl5cDSOwGG39bxPx+N8Vk1B2ZIQShc5ja7V7pmdYA3maplgkp/Fjjw==
+"@triton-one/yellowstone-grpc-napi-linux-x64-gnu@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-gnu/-/yellowstone-grpc-napi-linux-x64-gnu-0.0.8.tgz#0c2ff6362f04732ecd247a5f6b88f526f8ad2a98"
+  integrity sha512-lhQAotN1vRc8mM45+L9CtnY1/mMpTQPeGnaBxsDY4Uf13IjSGawUi+5Gx+gKNPxXScRCBB+nhyHFwQw1HyjpxQ==
 
-"@triton-one/yellowstone-grpc-napi-linux-x64-musl@0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-musl/-/yellowstone-grpc-napi-linux-x64-musl-0.0.6.tgz#32f7d0197e5cb8ab0c8ff0532690a511d4ae9ab1"
-  integrity sha512-kORs4rX1aTzReidLLbFhrK8oGj4R3hVP3aDhR8tKFm8modbhaEZPyqY2MPyTS3VNYyFeMQrKTLllOJ5wsUeVkQ==
+"@triton-one/yellowstone-grpc-napi-linux-x64-musl@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-musl/-/yellowstone-grpc-napi-linux-x64-musl-0.0.8.tgz#757a60f6236f153977a1b9d1049eea19fa282069"
+  integrity sha512-M2/XRc6o/sCj0lFQl01uajpar4JzJaTZA65s85b9xLYINPn2LCRPBdSJGzANKI8InARJ83ZXsHJzOpkGsj07NA==
 
-"@triton-one/yellowstone-grpc@5.0.2":
-  version "5.0.2"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-5.0.2.tgz#9cb1adb3291c2e4198352b9b9839eed86bbef7ea"
-  integrity sha512-RR4X+W6GcvtcSCi+vtUm+6EC1rU9irLmu6bfhNl2MEh8nZakd+y79RLKU815OPZTosXWnbZMu6cQExKy6ixKPQ==
+"@triton-one/yellowstone-grpc@5.0.4":
+  version "5.0.4"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-5.0.4.tgz#37b2140aa9dd084c24170390fcd3d1a7f4326c84"
+  integrity sha512-kbMDyC7PaJ/ZNF/OtbvVXCQ3dsep1OEGXJOKnOXn9TSdvSTegormxHItTJ6+wD2Nlt4rvfKAphipoR2xKkRMwA==
   dependencies:
     "@bufbuild/protobuf" "=2.10.2"
     "@solana/addresses" "=5.1.0"
     "@solana/rpc-api" "=5.1.0"
     "@solana/rpc-types" "=5.1.0"
   optionalDependencies:
-    "@triton-one/yellowstone-grpc-napi-darwin-arm64" "0.0.6"
-    "@triton-one/yellowstone-grpc-napi-darwin-x64" "0.0.6"
-    "@triton-one/yellowstone-grpc-napi-linux-x64-gnu" "0.0.6"
-    "@triton-one/yellowstone-grpc-napi-linux-x64-musl" "0.0.6"
+    "@triton-one/yellowstone-grpc-napi-darwin-arm64" "0.0.8"
+    "@triton-one/yellowstone-grpc-napi-darwin-x64" "0.0.8"
+    "@triton-one/yellowstone-grpc-napi-linux-x64-gnu" "0.0.8"
+    "@triton-one/yellowstone-grpc-napi-linux-x64-musl" "0.0.8"
 
 "@ts-graphviz/adapter@^2.0.6":
   version "2.0.6"
@@ -3118,9 +3095,9 @@ flat@^5.0.2:
   integrity sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==
 
 flatted@^3.2.9:
-  version "3.4.1"
-  resolved "https://registry.yarnpkg.com/flatted/-/flatted-3.4.1.tgz#84ccd9579e76e9cc0d246c11d8be0beb019143e6"
-  integrity sha512-IxfVbRFVlV8V/yRaGzk0UVIcsKKHMSfYw66T/u4nTwlWteQePsxe//LjudR1AMX4tZW3WFCh3Zqa/sjlqpbURQ==
+  version "3.4.2"
+  resolved "https://registry.yarnpkg.com/flatted/-/flatted-3.4.2.tgz#f5c23c107f0f37de8dbdf24f13722b3b98d52726"
+  integrity sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==
 
 follow-redirects@^1.15.11:
   version "1.15.11"
@@ -3785,11 +3762,6 @@ locate-path@^6.0.0:
   integrity sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==
   dependencies:
     p-locate "^5.0.0"
-
-lodash.camelcase@^4.3.0:
-  version "4.3.0"
-  resolved "https://registry.yarnpkg.com/lodash.camelcase/-/lodash.camelcase-4.3.0.tgz#b28aa6288a2b9fc651035c7711f65ab6190331a6"
-  integrity sha512-TwuEnCnxbc3rAvhf/LbG7tJUDzhqXyFnv3dtzLOPgCG/hODL7WFnsbwktkD7yUV0RrreP/l1PALq/YSg6VvjlA==
 
 lodash.merge@^4.6.2:
   version "4.6.2"
@@ -4548,9 +4520,9 @@ ripemd160@^2.0.0, ripemd160@^2.0.1, ripemd160@^2.0.3:
     inherits "^2.0.4"
 
 rpc-websockets@^9.0.2:
-  version "9.3.5"
-  resolved "https://registry.yarnpkg.com/rpc-websockets/-/rpc-websockets-9.3.5.tgz#9adb87514cb219434d67b7d3f455e5c132aff956"
-  integrity sha512-4mAmr+AEhPYJ9TmDtxF3r3ZcbWy7W8kvZ4PoZYw/Xgp2J7WixjwTgiQZsoTDvch5nimmg3Ay6/0Kuh9oIvVs9A==
+  version "9.3.6"
+  resolved "https://registry.yarnpkg.com/rpc-websockets/-/rpc-websockets-9.3.6.tgz#04409d5535cd44c7b429413f25298696eee3dc8c"
+  integrity sha512-RzuOQDGd+EtR/cBYQAH/0jjaBzhyvXXGROhxigGJPf+q3XKyvtelZCucylzxiq5MaGlfBx1075djTsxFsFDgrA==
   dependencies:
     "@swc/helpers" "^0.5.11"
     "@types/uuid" "^10.0.0"
@@ -4940,9 +4912,9 @@ ts-api-utils@^1.0.1:
   integrity sha512-i3eMG77UTMD0hZhgRS562pv83RC6ukSAC2GMNWc+9dieh/+jDM5u5YG+NHX6VNDRHQcHwmsTHctP9LhbC3WxVw==
 
 ts-api-utils@^2.4.0:
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/ts-api-utils/-/ts-api-utils-2.4.0.tgz#2690579f96d2790253bdcf1ca35d569ad78f9ad8"
-  integrity sha512-3TaVTaAv2gTiMB35i3FiGJaRfwb3Pyn/j3m/bfAvGe8FB7CF6u+LMYqYlDh7reQf7UNvoTvdfAqHGmPGOSsPmA==
+  version "2.5.0"
+  resolved "https://registry.yarnpkg.com/ts-api-utils/-/ts-api-utils-2.5.0.tgz#4acd4a155e22734990a5ed1fe9e97f113bcb37c1"
+  integrity sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==
 
 ts-graphviz@^2.1.2:
   version "2.1.6"
@@ -5217,7 +5189,7 @@ yargs-unparser@^2.0.0:
     flat "^5.0.2"
     is-plain-obj "^2.1.0"
 
-yargs@17.7.2, yargs@^17.7.2:
+yargs@17.7.2:
   version "17.7.2"
   resolved "https://registry.yarnpkg.com/yargs/-/yargs-17.7.2.tgz#991df39aca675a192b816e1e0363f9d75d2aa269"
   integrity sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==

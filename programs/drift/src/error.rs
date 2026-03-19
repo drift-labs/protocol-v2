@@ -702,6 +702,8 @@ pub enum ErrorCode {
     InvalidOrderScaleOrderCount,
     #[msg("Invalid scale order price range")]
     InvalidOrderScalePriceRange,
+    #[msg("Invalid perp market config")]
+    InvalidPerpMarketConfig,
 }
 
 #[macro_export]

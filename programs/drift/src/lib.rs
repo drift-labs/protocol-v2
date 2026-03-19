@@ -2236,6 +2236,13 @@ pub mod drift {
     ) -> Result<()> {
         handle_settle_perp_to_lp_pool(ctx)
     }
+
+    pub fn update_perp_market_config(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        market_config: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_config(ctx, market_config)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

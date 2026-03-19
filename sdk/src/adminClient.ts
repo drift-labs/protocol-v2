@@ -6605,4 +6605,32 @@ export class AdminClient extends DriftClient {
 		ixs.push(mintToInstruction);
 		return ixs;
 	}
+
+	public async updatePerpMarketConfig(
+		marketIndex: number,
+		marketConfig: number
+	) {
+		const ix = await this.getUpdatePerpMarketConfigIx(
+			marketIndex,
+			marketConfig
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketConfigIx(
+		marketIndex: number,
+		marketConfig: number
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updatePerpMarketConfig(marketConfig, {
+			accounts: {
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				state: await this.getStatePublicKey(),
+				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+			},
+		});
+	}
 }
