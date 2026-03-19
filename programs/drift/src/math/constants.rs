@@ -193,6 +193,10 @@ pub const HIGH_LEVERAGE_MIN_MARGIN_RATIO: u32 = MARGIN_PRECISION / 200; // 200x 
 
 pub const MAX_BID_ASK_INVENTORY_SKEW_FACTOR: u64 = 10 * BID_ASK_SPREAD_PRECISION;
 
+/// Maximum percent divergence from oracle price for bids/asks to be included in mark TWAP calculation.
+/// Bids more than this % below oracle and asks more than this % above oracle are filtered out.
+pub const BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT: u64 = 15;
+
 pub const MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN: i128 = 100 * QUOTE_PRECISION_I128; // max upnl for initial margin calc
 pub const DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR: i64 = 3; // '3' here means clamp new data point to 33% (1/3) divergence from current twap (if twap > 0)
 

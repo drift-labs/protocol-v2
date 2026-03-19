@@ -86,6 +86,10 @@ export enum UserStatsPausedOperation {
 	AMM_ATOMIC_RISK_INCREASING_FILL = 4,
 }
 
+export enum MarketConfigFlag {
+	DISABLE_FORMULAIC_K_UPDATE = 1,
+}
+
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };
@@ -911,6 +915,7 @@ export type PerpMarketAccount = {
 	lpExchangeFeeExcluscionScalar: number;
 	lpStatus: number;
 	lpPausedOperations: number;
+	marketConfig: number;
 };
 
 export type HistoricalOracleData = {

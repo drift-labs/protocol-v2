@@ -39,6 +39,7 @@ import {
 } from './testHelpers';
 import {
 	NATIVE_MINT,
+	TOKEN_PROGRAM_ID,
 	createCloseAccountInstruction,
 	createTransferInstruction,
 } from '@solana/spl-token';
@@ -776,7 +777,9 @@ describe('spot swap', () => {
 		const closeIx = createCloseAccountInstruction(
 			takerUSDC,
 			takerDriftClient.wallet.publicKey,
-			takerDriftClient.wallet.publicKey
+			takerDriftClient.wallet.publicKey,
+			undefined,
+			TOKEN_PROGRAM_ID
 		);
 
 		const tx = new Transaction()

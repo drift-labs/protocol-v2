@@ -296,6 +296,8 @@ pub enum ErrorCode {
     InvalidFeeStructure,
     #[msg("Insufficient IF shares")]
     InsufficientIFShares,
+    #[msg("Insurance fund withdrawal recipient must be the designated treasury address")]
+    InvalidInsuranceFundWithdrawalRecipient,
     #[msg("the Market has paused this action")]
     MarketActionPaused,
     #[msg("the Market status doesnt allow placing orders")]
@@ -700,6 +702,8 @@ pub enum ErrorCode {
     InvalidOrderScaleOrderCount,
     #[msg("Invalid scale order price range")]
     InvalidOrderScalePriceRange,
+    #[msg("Invalid perp market config")]
+    InvalidPerpMarketConfig,
 }
 
 #[macro_export]

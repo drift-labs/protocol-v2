@@ -40,7 +40,6 @@ import {
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
-	getPythPullOraclePublicKey,
 	getUserStatsAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getPythLazerOraclePublicKey,
@@ -81,8 +80,6 @@ import {
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
-import { DRIFT_ORACLE_RECEIVER_ID } from './config';
-import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
 import { JupiterClient, QuoteResponse } from './jupiter/jupiterClient';
 import { SwapMode } from './swap/UnifiedSwapClient';
@@ -4178,6 +4175,63 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async adminWithdrawFromInsuranceFundVault(
+		marketIndex: number,
+		amount: BN,
+		recipientTokenAccount: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getAdminWithdrawFromInsuranceFundVaultIx(
+			marketIndex,
+			amount,
+			recipientTokenAccount
+		);
+		const tx = await this.buildTransaction(ix, txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getAdminWithdrawFromInsuranceFundVaultIx(
+		marketIndex: number,
+		amount: BN,
+		recipientTokenAccount: PublicKey
+	): Promise<TransactionInstruction> {
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarket);
+
+		const remainingAccounts: {
+			pubkey: PublicKey;
+			isSigner: boolean;
+			isWritable: boolean;
+		}[] = [];
+		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
+
+		return await this.program.instruction.adminWithdrawFromInsuranceFundVault(
+			marketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					spotMarket: spotMarket.pubkey,
+					insuranceFundVault: spotMarket.insuranceFund.vault,
+					recipientTokenAccount,
+					tokenProgram: tokenProgramId,
+					driftSigner: this.getSignerPublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async initializePrelaunchOracle(
 		perpMarketIndex: number,
 		price?: BN,
@@ -4732,47 +4786,12 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async initializePythPullOracle(
-		feedId: string
-	): Promise<TransactionSignature> {
-		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
-			feedId
-		);
-		const tx = await this.buildTransaction(initializePythPullOracleIx);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getInitializePythPullOracleIx(
-		feedId: string
-	): Promise<TransactionInstruction> {
-		const feedIdBuffer = getFeedIdUint8Array(feedId);
-		return await this.program.instruction.initializePythPullOracle(
-			feedIdBuffer,
-			{
-				accounts: {
-					admin: this.useHotWalletAdmin
-						? this.wallet.publicKey
-						: this.getStateAccount().admin,
-					state: await this.getStatePublicKey(),
-					systemProgram: SystemProgram.programId,
-					priceFeed: getPythPullOraclePublicKey(
-						this.program.programId,
-						feedIdBuffer
-					),
-					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
-				},
-			}
-		);
-	}
-
 	public async initializePythLazerOracle(
 		feedId: number
 	): Promise<TransactionSignature> {
-		const initializePythPullOracleIx =
+		const initializePythLazerOracleIx =
 			await this.getInitializePythLazerOracleIx(feedId);
-		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const tx = await this.buildTransaction(initializePythLazerOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
@@ -6585,5 +6604,33 @@ export class AdminClient extends DriftClient {
 		);
 		ixs.push(mintToInstruction);
 		return ixs;
+	}
+
+	public async updatePerpMarketConfig(
+		marketIndex: number,
+		marketConfig: number
+	) {
+		const ix = await this.getUpdatePerpMarketConfigIx(
+			marketIndex,
+			marketConfig
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketConfigIx(
+		marketIndex: number,
+		marketConfig: number
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updatePerpMarketConfig(marketConfig, {
+			accounts: {
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				state: await this.getStatePublicKey(),
+				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+			},
+		});
 	}
 }

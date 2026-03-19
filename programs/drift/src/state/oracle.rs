@@ -12,7 +12,7 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
+use crate::math::oracle::{self, is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;

@@ -10,6 +10,7 @@ import {
 	Order,
 	PerpMarketAccount,
 	PerpPosition,
+	ReferrerStatus,
 	SpotPosition,
 	UserAccount,
 	UserStatus,
@@ -39,6 +40,7 @@ import {
 	TWO,
 	ZERO,
 	FUEL_START_TS,
+	ACCOUNT_AGE_DELETION_CUTOFF_SECONDS,
 } from './constants/numericConstants';
 import {
 	DataAndSlot,
@@ -3943,6 +3945,75 @@ export class User {
 		}
 
 		return true;
+	}
+
+	public canBeDeleted(
+		userStatsAccount?: UserStatsAccount,
+		now?: BN
+	): { canDelete: boolean; reason?: string } {
+		const userAccount = this.getUserAccount();
+		const userStatsAccountToUse =
+			userStatsAccount || this.driftClient.getUserStats().getAccount();
+		const nowInSeconds = now || new BN(Math.floor(Date.now() / 1000));
+		const stateAccount = this.driftClient.getStateAccount();
+
+		// Referrer cannot delete sub_account_id 0
+		const isReferrer =
+			(userStatsAccountToUse.referrerStatus & ReferrerStatus.IsReferrer) > 0;
+		if (isReferrer && userAccount.subAccountId === 0) {
+			return { canDelete: false, reason: 'is-subaccount-0-referrer' };
+		}
+
+		if (this.isBankrupt()) {
+			return { canDelete: false, reason: 'is-bankrupt' };
+		}
+
+		if (this.isBeingLiquidated()) {
+			return { canDelete: false, reason: 'is-being-liquidated' };
+		}
+
+		// Any perp positions available
+		for (const perpPosition of userAccount.perpPositions) {
+			if (!positionIsAvailable(perpPosition)) {
+				return { canDelete: false, reason: 'has-perp-position' };
+			}
+		}
+
+		// Any spot positions available
+		for (const spotPosition of userAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				return { canDelete: false, reason: 'has-spot-position' };
+			}
+		}
+
+		// No open orders
+		for (const order of userAccount.orders) {
+			if (isVariant(order.status, 'open')) {
+				return { canDelete: false, reason: 'has-open-order' };
+			}
+		}
+
+		// Fresh account (< 13 days) with init fee must be idle
+		if (stateAccount.maxInitializeUserFee > 0) {
+			const minActionTs = BN.min(
+				userStatsAccountToUse.lastFillerVolume30DTs,
+				BN.min(
+					userStatsAccountToUse.lastMakerVolume30DTs,
+					userStatsAccountToUse.lastTakerVolume30DTs
+				)
+			);
+			const estimatedAge = BN.max(nowInSeconds.sub(minActionTs), ZERO);
+			if (estimatedAge.lt(new BN(ACCOUNT_AGE_DELETION_CUTOFF_SECONDS))) {
+				if (!userAccount.idle) {
+					return {
+						canDelete: false,
+						reason: 'is-not-idle-fresh-account',
+					};
+				}
+			}
+		}
+
+		return { canDelete: true };
 	}
 
 	public getSafestTiers(): { perpTier: number; spotTier: number } {
