@@ -3,7 +3,11 @@ import type {
 	SubscribeRequest,
 	SubscribeUpdate,
 } from '@triton-one/yellowstone-grpc';
-import { CommitmentLevel, ClientDuplexStream, ChannelOptions } from '@triton-one/yellowstone-grpc';
+import {
+	CommitmentLevel,
+	ClientDuplexStream,
+	ChannelOptions,
+} from '@triton-one/yellowstone-grpc';
 
 // Re-export types for helius-laserstream (these are type-only imports so they don't cause runtime errors)
 export type {
