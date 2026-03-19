@@ -38,7 +38,7 @@ function commitmentLevelToCommitment(
 
 export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
-	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
+	private stream: ClientDuplexStream;
 	private commitmentLevel: CommitmentLevel;
 	private program: Program;
 	private accountName: string;
