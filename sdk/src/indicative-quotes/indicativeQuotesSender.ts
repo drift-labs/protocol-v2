@@ -8,12 +8,18 @@ const SEND_INTERVAL = 500;
 const MAX_BUFFERED_AMOUNT = 20 * 1024; // 20 KB as worst case scenario
 
 type Quote = {
-	bidPrice: BN;
-	askPrice: BN;
-	bidBaseAssetAmount: BN;
-	askBaseAssetAmount: BN;
+	bidPrice: BN | null;
+	askPrice: BN | null;
+	bidBaseAssetAmount: BN | null;
+	askBaseAssetAmount: BN | null;
 	marketIndex: number;
 	isOracleOffset?: boolean;
+};
+
+type WsMessage = {
+	channel: string;
+	nonce?: string;
+	message?: string;
 };
 
 export class IndicativeQuotesSender {
@@ -39,7 +45,7 @@ export class IndicativeQuotesSender {
 		return signatureBase64;
 	}
 
-	handleAuthMessage(message: any): void {
+	handleAuthMessage(message: WsMessage): void {
 		if (message['channel'] === 'auth' && message['nonce'] != null) {
 			const signatureBase64 = this.generateChallengeResponse(message['nonce']);
 			this.ws?.send(
@@ -68,7 +74,7 @@ export class IndicativeQuotesSender {
 			this.reconnectDelay = 1000;
 
 			ws.on('message', async (data: WebSocket.Data) => {
-				let message: string;
+				let message: WsMessage;
 				try {
 					message = JSON.parse(data.toString());
 				} catch (e) {
@@ -93,10 +99,10 @@ export class IndicativeQuotesSender {
 									market_type: 'perp',
 									quotes: quotes.map((quote) => {
 										return {
-											bid_price: quote.bidPrice.toString(),
-											ask_price: quote.askPrice.toString(),
-											bid_size: quote.bidBaseAssetAmount.toString(),
-											ask_size: quote.askBaseAssetAmount.toString(),
+											bid_price: quote.bidPrice ? quote.bidPrice.toString() : null,
+											ask_price: quote.askPrice ? quote.askPrice.toString() : null,
+											bid_size: quote.bidBaseAssetAmount ? quote.bidBaseAssetAmount.toString() : null,
+											ask_size: quote.askBaseAssetAmount ? quote.askBaseAssetAmount.toString() : null,
 											is_oracle_offset: quote.isOracleOffset,
 										};
 									}),
@@ -140,8 +146,8 @@ export class IndicativeQuotesSender {
 			}, 5000);
 		});
 
-		ws.on('error', async (request, response) => {
-			console.error('WS closed from error, reconnecting in 1s:', response);
+		ws.on('error', async (error: Error) => {
+			console.error('WS closed from error, reconnecting in 1s:', error);
 			setTimeout(() => {
 				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
 				if (this.sendQuotesInterval) clearInterval(this.sendQuotesInterval);
@@ -188,9 +194,9 @@ export class IndicativeQuotesSender {
 			}
 			newQuoteMap.get(quote.marketIndex)?.push(quote);
 		}
-		for (const marketIndex of newQuoteMap.keys()) {
-			this.quotes.set(marketIndex, newQuoteMap.get(marketIndex));
-		}
+		newQuoteMap.forEach((quotes, marketIndex) => {
+			this.quotes.set(marketIndex, quotes);
+		});
 	}
 
 	private reconnect() {
