@@ -325,4 +325,260 @@ mod tests {
         assert_eq!(zc.fixed.buffer_index, 1);
         assert_eq!(zc.len(), 2);
     }
+
+    /// Simulates what set_oracle_cache_entries does: resize + overwrite indices.
+    /// Returns the mutated cache for assertions.
+    fn simulate_set_entries(
+        cache: &mut OraclePriceCache,
+        new_entries: Vec<CachedOracleEntry>,
+    ) {
+        cache
+            .entries
+            .resize(new_entries.len(), CachedOracleEntry::default());
+        for (i, e) in new_entries.iter().enumerate() {
+            cache.entries[i] = *e;
+        }
+    }
+
+    #[test]
+    fn grow_preserves_existing_entries_that_are_kept() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+        let oracle_c = Pubkey::new_unique();
+
+        // Start with 2 entries that have live cached prices.
+        let mut cache = OraclePriceCache {
+            bump: 1,
+            max_age_slots: 60,
+            cache_id: 0,
+            buffer_index: 0,
+            entries: vec![
+                make_entry(oracle_a, 100 * PRICE_PRECISION_I64, 2, 900, 0),
+                make_entry(oracle_b, 200 * PRICE_PRECISION_I64, 3, 910, 0),
+            ],
+        };
+
+        // Admin adds oracle_c, keeping a and b in place.
+        let new_entries = vec![
+            make_entry(oracle_a, 0, 0, 0, 0), // fresh set_entries resets price/slot
+            make_entry(oracle_b, 0, 0, 0, 0),
+            make_entry(oracle_c, 0, 0, 0, 0),
+        ];
+        simulate_set_entries(&mut cache, new_entries);
+
+        assert_eq!(cache.entries.len(), 3);
+        // All entries have the correct oracle pubkeys.
+        assert_eq!(cache.entries[0].oracle, oracle_a);
+        assert_eq!(cache.entries[1].oracle, oracle_b);
+        assert_eq!(cache.entries[2].oracle, oracle_c);
+        // Prices reset to 0 (stale until keeper refreshes) — this is expected.
+        assert_eq!(cache.entries[2].cached_slot, 0);
+        assert!(!cache.entries[2].is_fresh(1000, 60));
+    }
+
+    #[test]
+    fn shrink_removes_trailing_entries_cleanly() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+        let oracle_c = Pubkey::new_unique();
+
+        let mut cache = OraclePriceCache {
+            bump: 1,
+            max_age_slots: 60,
+            cache_id: 0,
+            buffer_index: 0,
+            entries: vec![
+                make_entry(oracle_a, 100 * PRICE_PRECISION_I64, 2, 900, 0),
+                make_entry(oracle_b, 200 * PRICE_PRECISION_I64, 3, 910, 0),
+                make_entry(oracle_c, 300 * PRICE_PRECISION_I64, 1, 920, 0),
+            ],
+        };
+
+        // Remove oracle_c by shrinking to 2 entries.
+        let new_entries = vec![
+            make_entry(oracle_a, 0, 0, 0, 0),
+            make_entry(oracle_b, 0, 0, 0, 0),
+        ];
+        simulate_set_entries(&mut cache, new_entries);
+
+        assert_eq!(cache.entries.len(), 2);
+        assert_eq!(cache.entries[0].oracle, oracle_a);
+        assert_eq!(cache.entries[1].oracle, oracle_b);
+    }
+
+    #[test]
+    fn shrink_no_ghost_entries_after_resize() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+        let oracle_removed = Pubkey::new_unique();
+
+        let mut cache = OraclePriceCache {
+            bump: 1,
+            max_age_slots: 60,
+            cache_id: 0,
+            buffer_index: 0,
+            entries: vec![
+                make_entry(oracle_a, 100 * PRICE_PRECISION_I64, 2, 900, 0),
+                make_entry(oracle_removed, 999 * PRICE_PRECISION_I64, 1, 950, 0),
+                make_entry(oracle_b, 200 * PRICE_PRECISION_I64, 3, 910, 0),
+            ],
+        };
+
+        // Shrink to just oracle_a — oracle_removed and oracle_b are gone.
+        simulate_set_entries(&mut cache, vec![make_entry(oracle_a, 0, 0, 0, 0)]);
+
+        assert_eq!(cache.entries.len(), 1);
+        assert_eq!(cache.entries[0].oracle, oracle_a);
+        // The removed oracle's data is not accessible.
+    }
+
+    #[test]
+    fn replace_in_place_does_not_corrupt_neighbors() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+        let oracle_new = Pubkey::new_unique();
+
+        let mut cache = OraclePriceCache {
+            bump: 1,
+            max_age_slots: 60,
+            cache_id: 0,
+            buffer_index: 0,
+            entries: vec![
+                make_entry(oracle_a, 100 * PRICE_PRECISION_I64, 2, 900, 0),
+                make_entry(oracle_b, 200 * PRICE_PRECISION_I64, 3, 910, 0),
+            ],
+        };
+
+        // Replace oracle_b with oracle_new at index 1, keeping same size.
+        let new_entries = vec![
+            make_entry(oracle_a, 0, 0, 0, 0),
+            make_entry(oracle_new, 0, 0, 0, 10),
+        ];
+        simulate_set_entries(&mut cache, new_entries);
+
+        assert_eq!(cache.entries.len(), 2);
+        assert_eq!(cache.entries[0].oracle, oracle_a);
+        assert_eq!(cache.entries[1].oracle, oracle_new);
+        assert_eq!(cache.entries[1].max_age_slots_override, 10);
+    }
+
+    #[test]
+    fn grow_then_shrink_roundtrip() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+        let oracle_c = Pubkey::new_unique();
+
+        let mut cache = OraclePriceCache {
+            bump: 1,
+            max_age_slots: 60,
+            cache_id: 0,
+            buffer_index: 0,
+            entries: vec![make_entry(oracle_a, 100 * PRICE_PRECISION_I64, 2, 900, 0)],
+        };
+
+        // Grow to 3.
+        simulate_set_entries(
+            &mut cache,
+            vec![
+                make_entry(oracle_a, 0, 0, 0, 0),
+                make_entry(oracle_b, 0, 0, 0, 0),
+                make_entry(oracle_c, 0, 0, 0, 0),
+            ],
+        );
+        assert_eq!(cache.entries.len(), 3);
+
+        // Shrink back to 1.
+        simulate_set_entries(&mut cache, vec![make_entry(oracle_a, 0, 0, 0, 0)]);
+        assert_eq!(cache.entries.len(), 1);
+        assert_eq!(cache.entries[0].oracle, oracle_a);
+
+        // Grow again to 2 with different oracle.
+        simulate_set_entries(
+            &mut cache,
+            vec![
+                make_entry(oracle_a, 0, 0, 0, 0),
+                make_entry(oracle_c, 0, 0, 0, 0),
+            ],
+        );
+        assert_eq!(cache.entries.len(), 2);
+        assert_eq!(cache.entries[0].oracle, oracle_a);
+        assert_eq!(cache.entries[1].oracle, oracle_c);
+    }
+
+    #[test]
+    fn grow_serialization_roundtrip_via_zero_copy() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+        let oracle_c = Pubkey::new_unique();
+
+        let mut cache = OraclePriceCache {
+            bump: 1,
+            max_age_slots: 60,
+            cache_id: 0,
+            buffer_index: 0,
+            entries: vec![
+                make_entry(oracle_a, 100 * PRICE_PRECISION_I64, 2, 900, 0),
+                make_entry(oracle_b, 200 * PRICE_PRECISION_I64, 3, 910, 0),
+            ],
+        };
+
+        // Grow.
+        simulate_set_entries(
+            &mut cache,
+            vec![
+                make_entry(oracle_a, 0, 0, 0, 0),
+                make_entry(oracle_b, 0, 0, 0, 0),
+                make_entry(oracle_c, 0, 0, 0, 0),
+            ],
+        );
+
+        // Serialize and reload via zero-copy to verify on-chain representation.
+        let mut data = Vec::new();
+        cache.try_serialize(&mut data).unwrap();
+
+        let key = Pubkey::new_unique();
+        let owner = crate::id();
+        let mut lamports = 0u64;
+        let account_info = create_account_info(&key, false, &mut lamports, &mut data[..], &owner);
+
+        let zc: AccountZeroCopy<'_, CachedOracleEntry, OraclePriceCacheFixed> =
+            account_info.load_zc().unwrap();
+        assert_eq!(zc.len(), 3);
+        assert_eq!(zc.get(0).oracle, oracle_a);
+        assert_eq!(zc.get(1).oracle, oracle_b);
+        assert_eq!(zc.get(2).oracle, oracle_c);
+    }
+
+    #[test]
+    fn shrink_serialization_roundtrip_via_zero_copy() {
+        let oracle_a = Pubkey::new_unique();
+        let oracle_b = Pubkey::new_unique();
+
+        let mut cache = OraclePriceCache {
+            bump: 1,
+            max_age_slots: 60,
+            cache_id: 0,
+            buffer_index: 0,
+            entries: vec![
+                make_entry(oracle_a, 100 * PRICE_PRECISION_I64, 2, 900, 0),
+                make_entry(oracle_b, 200 * PRICE_PRECISION_I64, 3, 910, 0),
+            ],
+        };
+
+        // Shrink to 1.
+        simulate_set_entries(&mut cache, vec![make_entry(oracle_a, 0, 0, 0, 0)]);
+
+        let mut data = Vec::new();
+        cache.try_serialize(&mut data).unwrap();
+
+        let key = Pubkey::new_unique();
+        let owner = crate::id();
+        let mut lamports = 0u64;
+        let account_info = create_account_info(&key, false, &mut lamports, &mut data[..], &owner);
+
+        let zc: AccountZeroCopy<'_, CachedOracleEntry, OraclePriceCacheFixed> =
+            account_info.load_zc().unwrap();
+        assert_eq!(zc.len(), 1);
+        assert_eq!(zc.get(0).oracle, oracle_a);
+    }
 }

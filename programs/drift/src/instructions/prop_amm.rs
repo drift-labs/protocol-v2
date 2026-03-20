@@ -2965,13 +2965,14 @@ pub struct FillPerpOrder2<'info> {
     /// Caller must pass the account specified by `perp_market.amm.oracle`; validation enforces correct oracle type and ownership before the account is used.
     pub oracle: AccountInfo<'info>,
 
-    /// Oracle price cache (read-only). Provides cached oracle prices for maker margin checks
-    /// without requiring live oracle accounts for every position. Validated as an
-    /// `OraclePriceCache` PDA owned by the drift program.
+    /// Oracle price cache (read-only, optional). Provides cached oracle prices for maker
+    /// margin checks without requiring live oracle accounts for every position.
+    /// Pass the drift program ID to omit the cache.
     ///
     /// CHECK:
-    /// Validated by `OracleMap::load_one_with_cache` which checks discriminator, owner,
-    /// and parses entries from the zero-copy account.
+    /// When present (key != program ID), validated by `OracleMap::load_one_with_cache`
+    /// which checks discriminator, owner, and parses entries via zero-copy.
+    /// When absent (key == program ID), cache loading is skipped.
     pub oracle_price_cache: AccountInfo<'info>,
 
     pub clock: Sysvar<'info, Clock>,

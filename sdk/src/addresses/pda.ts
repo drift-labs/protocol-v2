@@ -534,6 +534,23 @@ export function getAmmCachePublicKey(programId: PublicKey): PublicKey {
 	)[0];
 }
 
+export function getOraclePriceCachePublicKey(
+	programId: PublicKey,
+	cacheId: number,
+	bufferIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(
+				anchor.utils.bytes.utf8.encode('oracle_price_cache')
+			),
+			Buffer.from([cacheId]),
+			Buffer.from([bufferIndex]),
+		],
+		programId
+	)[0];
+}
+
 export function getConstituentCorrelationsPublicKey(
 	programId: PublicKey,
 	lpPoolPublicKey: PublicKey

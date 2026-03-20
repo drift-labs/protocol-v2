@@ -58,6 +58,7 @@ import {
 	getLpPoolTokenVaultPublicKey,
 	getDriftSignerPublicKey,
 	getConstituentCorrelationsPublicKey,
+	getOraclePriceCachePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -6585,5 +6586,174 @@ export class AdminClient extends DriftClient {
 		);
 		ixs.push(mintToInstruction);
 		return ixs;
+	}
+
+	// ── Oracle Price Cache ─────────────────────────────────────────────
+
+	public async initializeOraclePriceCache(
+		cacheId: number,
+		numOracles: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeOraclePriceCacheIx(
+			cacheId,
+			numOracles
+		);
+		const tx = await this.buildTransaction(ix, txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeOraclePriceCacheIx(
+		cacheId: number,
+		numOracles: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeOraclePriceCache(
+			cacheId,
+			numOracles,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					oraclePriceCache0: getOraclePriceCachePublicKey(
+						this.program.programId,
+						cacheId,
+						0
+					),
+					oraclePriceCache1: getOraclePriceCachePublicKey(
+						this.program.programId,
+						cacheId,
+						1
+					),
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: SystemProgram.programId,
+				},
+			}
+		);
+	}
+
+	public async setOracleCacheEntries(
+		cacheId: number,
+		entries: { oracle: PublicKey; oracleSource: OracleSource; maxAgeSlotsOverride: number }[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getSetOracleCacheEntriesIx(cacheId, entries);
+		const tx = await this.buildTransaction(ix, txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getSetOracleCacheEntriesIx(
+		cacheId: number,
+		entries: { oracle: PublicKey; oracleSource: OracleSource; maxAgeSlotsOverride: number }[]
+	): Promise<TransactionInstruction> {
+		const anchorEntries = entries.map((e) => ({
+			oracle: e.oracle,
+			oracleSource: e.oracleSource,
+			maxAgeSlotsOverride: e.maxAgeSlotsOverride,
+		}));
+		return await this.program.instruction.setOracleCacheEntries(
+			anchorEntries,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					oraclePriceCache0: getOraclePriceCachePublicKey(
+						this.program.programId,
+						cacheId,
+						0
+					),
+					oraclePriceCache1: getOraclePriceCachePublicKey(
+						this.program.programId,
+						cacheId,
+						1
+					),
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: SystemProgram.programId,
+				},
+			}
+		);
+	}
+
+	public async updateOracleCacheConfig(
+		cacheId: number,
+		maxAgeSlots: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getUpdateOracleCacheConfigIx(
+			cacheId,
+			maxAgeSlots
+		);
+		const tx = await this.buildTransaction(ix, txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateOracleCacheConfigIx(
+		cacheId: number,
+		maxAgeSlots: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateOracleCacheConfig(
+			maxAgeSlots,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					oraclePriceCache0: getOraclePriceCachePublicKey(
+						this.program.programId,
+						cacheId,
+						0
+					),
+					oraclePriceCache1: getOraclePriceCachePublicKey(
+						this.program.programId,
+						cacheId,
+						1
+					),
+				},
+			}
+		);
+	}
+
+	public async updateOraclePriceCache(
+		cacheId: number,
+		bufferIndex: number,
+		oracles: PublicKey[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getUpdateOraclePriceCacheIx(
+			cacheId,
+			bufferIndex,
+			oracles
+		);
+		const tx = await this.buildTransaction(ix, txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateOraclePriceCacheIx(
+		cacheId: number,
+		bufferIndex: number,
+		oracles: PublicKey[]
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateOraclePriceCache({
+			accounts: {
+				oraclePriceCache: getOraclePriceCachePublicKey(
+					this.program.programId,
+					cacheId,
+					bufferIndex
+				),
+			},
+			remainingAccounts: oracles.map((oracle) => ({
+				pubkey: oracle,
+				isSigner: false,
+				isWritable: false,
+			})),
+		});
 	}
 }

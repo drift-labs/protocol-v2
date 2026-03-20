@@ -6188,6 +6188,7 @@ pub struct OracleCacheEntryParams {
 }
 
 /// Populates both buffers with oracle pubkeys + source + per-entry max_age override.
+/// Account realloc handles grow/shrink automatically via Anchor constraints.
 /// Prices start at 0 / cached_slot=0 (stale until keeper refreshes).
 pub fn handle_set_oracle_cache_entries(
     ctx: Context<SetOracleCacheEntries>,
@@ -6196,15 +6197,11 @@ pub fn handle_set_oracle_cache_entries(
     let buf0 = &mut ctx.accounts.oracle_price_cache_0;
     let buf1 = &mut ctx.accounts.oracle_price_cache_1;
 
-    // Resize if needed
-    if entries.len() > buf0.entries.len() {
-        buf0.entries
-            .resize(entries.len(), CachedOracleEntry::default());
-    }
-    if entries.len() > buf1.entries.len() {
-        buf1.entries
-            .resize(entries.len(), CachedOracleEntry::default());
-    }
+    // Resize to exactly match new entries (realloc handled by Anchor constraints).
+    buf0.entries
+        .resize(entries.len(), CachedOracleEntry::default());
+    buf1.entries
+        .resize(entries.len(), CachedOracleEntry::default());
 
     for (i, e) in entries.iter().enumerate() {
         let entry = CachedOracleEntry {
@@ -6297,9 +6294,9 @@ pub fn handle_set_oracle_cache_entries_native<'info>(
     data: &[u8],
 ) -> Result<()> {
     validate!(
-        accounts.len() >= 4,
+        accounts.len() >= 6,
         ErrorCode::DefaultError,
-        "expected admin, state, cache0, cache1"
+        "expected admin, state, cache0, cache1, system_program, rent"
     )?;
     let admin_account = &accounts[0];
     let state_account = &accounts[1];
@@ -6309,16 +6306,41 @@ pub fn handle_set_oracle_cache_entries_native<'info>(
     validate_oracle_cache_admin_accounts(admin_account, state_account)?;
 
     let entries = Vec::<OracleCacheEntryParams>::try_from_slice(data)?;
+    let required_space = OraclePriceCache::space(entries.len());
+
+    // Realloc both buffers if needed.
+    for cache_account in [cache0_account, cache1_account] {
+        let current_len = cache_account.data_len();
+        if required_space != current_len {
+            cache_account.realloc(required_space, false)?;
+
+            // Transfer lamports for rent if growing.
+            if required_space > current_len {
+                let rent = Rent::get()?;
+                let new_min_balance = rent.minimum_balance(required_space);
+                let current_balance = cache_account.lamports();
+                if new_min_balance > current_balance {
+                    let diff = new_min_balance.saturating_sub(current_balance);
+                    let admin_lamports = admin_account.lamports();
+                    validate!(
+                        admin_lamports >= diff,
+                        ErrorCode::DefaultError,
+                        "admin has insufficient lamports for realloc"
+                    )?;
+                    **admin_account.try_borrow_mut_lamports()? -= diff;
+                    **cache_account.try_borrow_mut_lamports()? += diff;
+                }
+            }
+        }
+    }
 
     let mut buf0 = Account::<OraclePriceCache>::try_from(cache0_account)?;
     let mut buf1 = Account::<OraclePriceCache>::try_from(cache1_account)?;
 
-    if entries.len() > buf0.entries.len() {
-        return Err(ErrorCode::OraclePriceCacheFull.into());
-    }
-    if entries.len() > buf1.entries.len() {
-        return Err(ErrorCode::OraclePriceCacheFull.into());
-    }
+    buf0.entries
+        .resize(entries.len(), CachedOracleEntry::default());
+    buf1.entries
+        .resize(entries.len(), CachedOracleEntry::default());
 
     for (i, e) in entries.iter().enumerate() {
         let entry = CachedOracleEntry {
@@ -6433,6 +6455,7 @@ pub struct InitializeOraclePriceCache<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(entries: Vec<OracleCacheEntryParams>)]
 pub struct SetOracleCacheEntries<'info> {
     #[account(
         mut,
@@ -6440,10 +6463,26 @@ pub struct SetOracleCacheEntries<'info> {
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_0.cache_id], &[0u8]],
+        bump,
+        realloc = OraclePriceCache::space(entries.len()),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
     pub oracle_price_cache_0: Box<Account<'info, OraclePriceCache>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_1.cache_id], &[1u8]],
+        bump,
+        realloc = OraclePriceCache::space(entries.len()),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
     pub oracle_price_cache_1: Box<Account<'info, OraclePriceCache>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -6461,8 +6500,16 @@ pub struct UpdateOracleCacheConfig<'info> {
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_0.cache_id], &[0u8]],
+        bump,
+    )]
     pub oracle_price_cache_0: Box<Account<'info, OraclePriceCache>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_1.cache_id], &[1u8]],
+        bump,
+    )]
     pub oracle_price_cache_1: Box<Account<'info, OraclePriceCache>>,
 }

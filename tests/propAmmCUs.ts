@@ -246,10 +246,12 @@ function buildSetOracleCacheEntriesInstruction(args: {
 		args.programId,
 		NATIVE_IX_SET_ORACLE_CACHE_ENTRIES,
 		[
-			{ pubkey: args.admin, isSigner: true, isWritable: false },
+			{ pubkey: args.admin, isSigner: true, isWritable: true },
 			{ pubkey: args.state, isSigner: false, isWritable: false },
 			{ pubkey: args.cache0, isSigner: false, isWritable: true },
 			{ pubkey: args.cache1, isSigner: false, isWritable: true },
+			{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+			{ pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
 		],
 		serializeOracleCacheEntries(args.entries)
 	);

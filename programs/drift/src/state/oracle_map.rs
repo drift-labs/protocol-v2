@@ -360,6 +360,7 @@ impl<'a> OracleMap<'a> {
     }
 
     /// Like `load_one`, but also materializes fresh oracle price cache entries into `price_data`.
+    /// Pass the drift program ID as `cache_account_info` to skip cache loading.
     pub fn load_one_with_cache<'c>(
         account_info: &'c AccountInfo<'a>,
         cache_account_info: &'c AccountInfo<'a>,
@@ -368,7 +369,11 @@ impl<'a> OracleMap<'a> {
     ) -> DriftResult<OracleMap<'a>> {
         let mut oracle_map = Self::load_one(account_info, slot, oracle_guard_rails)?;
 
-        if *cache_account_info.owner == crate::id() && cache_account_info.data_len() > 8 {
+        // Skip cache when caller passes the program ID as sentinel (cache omitted).
+        if cache_account_info.key() != crate::id()
+            && *cache_account_info.owner == crate::id()
+            && cache_account_info.data_len() > 8
+        {
             let zc: AccountZeroCopy<CachedOracleEntry, OraclePriceCacheFixed> =
                 cache_account_info.load_zc()?;
 
