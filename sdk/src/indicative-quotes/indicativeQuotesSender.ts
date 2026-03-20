@@ -99,10 +99,18 @@ export class IndicativeQuotesSender {
 									market_type: 'perp',
 									quotes: quotes.map((quote) => {
 										return {
-											bid_price: quote.bidPrice ? quote.bidPrice.toString() : null,
-											ask_price: quote.askPrice ? quote.askPrice.toString() : null,
-											bid_size: quote.bidBaseAssetAmount ? quote.bidBaseAssetAmount.toString() : null,
-											ask_size: quote.askBaseAssetAmount ? quote.askBaseAssetAmount.toString() : null,
+											bid_price: quote.bidPrice
+												? quote.bidPrice.toString()
+												: null,
+											ask_price: quote.askPrice
+												? quote.askPrice.toString()
+												: null,
+											bid_size: quote.bidBaseAssetAmount
+												? quote.bidBaseAssetAmount.toString()
+												: null,
+											ask_size: quote.askBaseAssetAmount
+												? quote.askBaseAssetAmount.toString()
+												: null,
 											is_oracle_offset: quote.isOracleOffset,
 										};
 									}),
