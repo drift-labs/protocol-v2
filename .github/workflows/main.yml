@@ -143,7 +143,7 @@ jobs:
 
       - name: install mocha
         run: |
-          npm install ts-mocha -g
+          npm install ts-mocha@10.0.0 -g
           npm install --global mocha
 
       - name: build sdk

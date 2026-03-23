@@ -37,6 +37,7 @@ test_files=(
   fillSpot.ts
   highLeverageMode.ts
   ifRebalance.ts
+  adminWithdrawFromInsuranceFundVault.ts
   insuranceFundStake.ts
   isolatedPositionDriftClient.ts
   isolatedPositionLiquidatePerp.ts
@@ -61,6 +62,8 @@ test_files=(
   oracleFillPriceGuardrails.ts
   oracleOffsetOrders.ts
   order.ts
+  orderMarginChecks.ts
+  isolatedTransferMarginChecks.ts
   ordersWithSpread.ts
   pauseExchange.ts
   pauseDepositWithdraw.ts
@@ -71,12 +74,12 @@ test_files=(
   postOnly.ts
   prelisting.ts
   pyth.ts
-  pythPull.ts
   pythLazerBankrun.ts
   referrer.ts
   roundInFavorBaseAsset.ts
   serumTest.ts
   settlePNLInvariant.ts
+  settlePnlIsolatedEarlyReturn.ts
   spotDepositWithdraw.ts
   spotDepositWithdraw22.ts
   spotDepositWithdraw22TransferHooks.ts
@@ -94,6 +97,7 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
+  perpMarketConfig.ts
   # whitelist.ts
 )
 

@@ -549,9 +549,7 @@ export function getOraclePriceCachePublicKey(
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(
-				anchor.utils.bytes.utf8.encode('oracle_price_cache')
-			),
+			Buffer.from(anchor.utils.bytes.utf8.encode('oracle_price_cache')),
 			Buffer.from([cacheId]),
 			Buffer.from([bufferIndex]),
 		],

@@ -70,7 +70,10 @@ import {
 	OrderTriggerCondition,
 } from '../sdk/src';
 import { nanoid } from 'nanoid';
-import { getPropAmmMatcherPDA, getPropAmmRegistryPDA } from '../sdk/src/addresses/pda';
+import {
+	getPropAmmMatcherPDA,
+	getPropAmmRegistryPDA,
+} from '../sdk/src/addresses/pda';
 import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
@@ -211,9 +214,9 @@ async function buildApprovePropAmmsInstruction(
 	return (
 		m as (entries: typeof entriesParam) => {
 			accounts: (a: typeof accounts) => {
-				remainingAccounts: (
-					r: typeof remainingAccounts
-				) => { instruction: () => Promise<TransactionInstruction> };
+				remainingAccounts: (r: typeof remainingAccounts) => {
+					instruction: () => Promise<TransactionInstruction>;
+				};
 			};
 		}
 	)(entriesParam)
@@ -239,7 +242,10 @@ function buildNativeInstruction(
 	});
 }
 
-function serializeOracleCacheEntries(cacheId: number, entries: OracleCacheEntryParam[]): Buffer {
+function serializeOracleCacheEntries(
+	cacheId: number,
+	entries: OracleCacheEntryParam[]
+): Buffer {
 	const buf = Buffer.alloc(1 + 4 + entries.length * 34);
 	buf.writeUInt8(cacheId, 0);
 	buf.writeUInt32LE(entries.length, 1);
@@ -1249,7 +1255,11 @@ describe('PropAMM CU usage (bankrun)', () => {
 			propammProgram: midpriceProgramId!,
 			propammAccount: m.midprice,
 		}));
-		for (let start = 0; start < allEntries.length; start += APPROVE_BATCH_SIZE) {
+		for (
+			let start = 0;
+			start < allEntries.length;
+			start += APPROVE_BATCH_SIZE
+		) {
 			const batch = allEntries.slice(start, start + APPROVE_BATCH_SIZE);
 			const approveIx = await buildApprovePropAmmsInstruction(
 				program,

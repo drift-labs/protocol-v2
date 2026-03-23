@@ -637,6 +637,19 @@ pub struct TransferProtocolIfSharesToRevenuePoolRecord {
     pub transfer_amount: u64,
 }
 
+#[event]
+pub struct AdminWithdrawFromInsuranceFundRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    pub admin: Pubkey,
+    pub amount: u64,
+    pub shares_burned: u128,
+    pub insurance_fund_vault_amount_before: u64,
+    pub protocol_shares_before: u128,
+    pub protocol_shares_after: u128,
+    pub recipient_token_account: Pubkey,
+}
+
 impl Size for InsuranceFundSwapRecord {
     const SIZE: usize = 256;
 }
