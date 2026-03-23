@@ -21,7 +21,10 @@ import {
 } from '../../src';
 import { MockUserMap, mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
-import { mockUserAccount, makeMockUser as makeMockUserFromHelpers } from './helpers';
+import {
+	mockUserAccount,
+	makeMockUser as makeMockUserFromHelpers,
+} from './helpers';
 import * as _ from 'lodash';
 
 async function makeMockUser(
@@ -525,14 +528,16 @@ describe('User Tests', () => {
 		// so scaledBalance of 100 * SPOT_MARKET_BALANCE_PRECISION = 100 USDC token amount
 		myMockUserAccount.perpPositions[0].marketIndex = 0;
 		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(1); // make position active
-		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
-			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(
+			100
+		).mul(SPOT_MARKET_BALANCE_PRECISION);
 
 		// Give perp position 1 an isolated deposit of 50 USDC
 		myMockUserAccount.perpPositions[1].marketIndex = 1;
 		myMockUserAccount.perpPositions[1].baseAssetAmount = new BN(1);
-		myMockUserAccount.perpPositions[1].isolatedPositionScaledBalance =
-			new BN(50).mul(SPOT_MARKET_BALANCE_PRECISION);
+		myMockUserAccount.perpPositions[1].isolatedPositionScaledBalance = new BN(
+			50
+		).mul(SPOT_MARKET_BALANCE_PRECISION);
 
 		const mockUser = await makeMockUserFromHelpers(
 			myMockPerpMarkets,
@@ -564,9 +569,11 @@ describe('User Tests', () => {
 		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION; // 1 unit long
 		myMockUserAccount.perpPositions[0].quoteAssetAmount = QUOTE_PRECISION.neg(); // entered at $1, PnL=0
 		myMockUserAccount.perpPositions[0].quoteEntryAmount = QUOTE_PRECISION.neg(); // entered at $1
-		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = QUOTE_PRECISION.neg();
-		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
-			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount =
+			QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(
+			100
+		).mul(SPOT_MARKET_BALANCE_PRECISION);
 
 		const mockUser = await makeMockUserFromHelpers(
 			myMockPerpMarkets,
@@ -598,9 +605,11 @@ describe('User Tests', () => {
 		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION;
 		myMockUserAccount.perpPositions[0].quoteAssetAmount = QUOTE_PRECISION.neg(); // PnL=0 at oracle $1
 		myMockUserAccount.perpPositions[0].quoteEntryAmount = QUOTE_PRECISION.neg();
-		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = QUOTE_PRECISION.neg();
-		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
-			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount =
+			QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(
+			100
+		).mul(SPOT_MARKET_BALANCE_PRECISION);
 
 		const mockUser = await makeMockUserFromHelpers(
 			myMockPerpMarkets,
@@ -631,9 +640,11 @@ describe('User Tests', () => {
 		myMockUserAccount.perpPositions[0].marketIndex = 0;
 		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION;
 		myMockUserAccount.perpPositions[0].quoteEntryAmount = QUOTE_PRECISION.neg();
-		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = QUOTE_PRECISION.neg();
-		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
-			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount =
+			QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(
+			100
+		).mul(SPOT_MARKET_BALANCE_PRECISION);
 
 		const mockUser = await makeMockUserFromHelpers(
 			myMockPerpMarkets,
