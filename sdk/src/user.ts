@@ -405,11 +405,7 @@ export class User {
 			);
 
 			return total.add(
-				getStrictTokenValue(
-					tokenAmount,
-					quoteSpotMarket.decimals,
-					strictOracle
-				)
+				getStrictTokenValue(tokenAmount, quoteSpotMarket.decimals, strictOracle)
 			);
 		}, ZERO);
 	}
