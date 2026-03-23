@@ -335,11 +335,6 @@ pub mod drift {
         )
     }
 
-    /// Creates the global PropAMM matcher PDA (idempotent). Call once before using fill_perp_order2.
-    pub fn initialize_prop_amm_matcher(ctx: Context<InitializePropAmmMatcher>) -> Result<()> {
-        handle_initialize_prop_amm_matcher(ctx)
-    }
-
     pub fn approve_prop_amms(
         ctx: Context<ApprovePropAmms>,
         entries: Vec<PropAmmApprovalParams>,
@@ -992,26 +987,6 @@ pub mod drift {
         market_index: u16,
     ) -> Result<()> {
         handle_delete_initialized_spot_market(ctx, market_index)
-    }
-
-    pub fn initialize_serum_fulfillment_config(
-        ctx: Context<InitializeSerumFulfillmentConfig>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_initialize_serum_fulfillment_config(ctx, market_index)
-    }
-
-    pub fn update_serum_fulfillment_config_status(
-        ctx: Context<UpdateSerumFulfillmentConfig>,
-        status: SpotFulfillmentConfigStatus,
-    ) -> Result<()> {
-        handle_update_serum_fulfillment_config_status(ctx, status)
-    }
-
-    pub fn delete_serum_fulfillment_config(
-        ctx: Context<DeleteSerumFulfillmentConfig>,
-    ) -> Result<()> {
-        handle_delete_serum_fulfillment_config(ctx)
     }
 
     pub fn initialize_openbook_v2_fulfillment_config(
@@ -2285,16 +2260,6 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, SettleAmmPnlToLp<'info>>,
     ) -> Result<()> {
         handle_settle_perp_to_lp_pool(ctx)
-    }
-
-    // ── Oracle Price Cache ───────────────────────────────────────────────
-
-    pub fn initialize_oracle_price_cache(
-        ctx: Context<InitializeOraclePriceCache>,
-        cache_id: u8,
-        num_oracles: u16,
-    ) -> Result<()> {
-        handle_initialize_oracle_price_cache(ctx, cache_id, num_oracles)
     }
 }
 

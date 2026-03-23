@@ -30,7 +30,7 @@ import {
 } from '@solana/spl-token';
 
 /** Min size for midprice_pino account (midprice_book_view::ACCOUNT_MIN_LEN) */
-const MIDPRICE_ACCOUNT_MIN_LEN = 120;
+const MIDPRICE_ACCOUNT_MIN_LEN = 152;
 /** Order entry size (offset i64 + size u64) */
 const MIDPRICE_ORDER_ENTRY_SIZE = 16;
 /** midprice_pino instructions */
@@ -40,9 +40,9 @@ const MIDPRICE_IX_SET_QUOTE_TTL = 5;
 const MIDPRICE_IX_CLOSE_ACCOUNT = 6;
 const MIDPRICE_IX_TRANSFER_AUTHORITY = 7;
 /** Layout offsets for reading fields back from account data (midprice_book_view) */
-const MIDPRICE_AUTHORITY_OFFSET = 12;
-const MIDPRICE_QUOTE_TTL_OFFSET = 96;
-const MIDPRICE_SEQUENCE_NUMBER_OFFSET = 104;
+const MIDPRICE_AUTHORITY_OFFSET = 96;
+const MIDPRICE_QUOTE_TTL_OFFSET = 144;
+const MIDPRICE_SEQUENCE_NUMBER_OFFSET = 46;
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -70,7 +70,7 @@ import {
 	OrderTriggerCondition,
 } from '../sdk/src';
 import { nanoid } from 'nanoid';
-import { getPropAmmMatcherPDA } from '../sdk/src/addresses/pda';
+import { getPropAmmMatcherPDA, getPropAmmRegistryPDA } from '../sdk/src/addresses/pda';
 import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
@@ -101,36 +101,6 @@ const NATIVE_ADMIN_IX_PREFIX = Buffer.from([0xff, 0xff, 0xff, 0xff]);
 const NATIVE_IX_SET_ORACLE_CACHE_ENTRIES = 2;
 const NATIVE_IX_UPDATE_ORACLE_PRICE_CACHE = 3;
 const NATIVE_IX_UPDATE_ORACLE_CACHE_CONFIG = 4;
-
-/** Build Drift initialize_prop_amm_matcher ix via program client (IDL) so discriminator/accounts match deployed program. */
-async function buildInitializePropAmmMatcherInstruction(
-	program: Program,
-	provider: { publicKey: PublicKey },
-	driftProgramId: PublicKey
-): Promise<TransactionInstruction> {
-	const m = (program.methods as Record<string, unknown>)
-		.initializePropAmmMatcher;
-	if (typeof m !== 'function') {
-		throw new Error(
-			'IDL missing initializePropAmmMatcher. Run: anchor build, then re-run this test.'
-		);
-	}
-	const accounts = {
-		payer: provider.publicKey,
-		propAmmMatcher: getPropAmmMatcherPDA(driftProgramId),
-		rent: SYSVAR_RENT_PUBKEY,
-		systemProgram: SystemProgram.programId,
-	};
-	return (
-		m as () => {
-			accounts: (a: typeof accounts) => {
-				instruction: () => Promise<TransactionInstruction>;
-			};
-		}
-	)()
-		.accounts(accounts)
-		.instruction();
-}
 
 /** Build Drift initialize_prop_amm_midprice ix (CPI into midprice_pino initialize). */
 async function buildInitializePropAmmMidpriceInstruction(args: {
@@ -202,6 +172,56 @@ type PropAmmMakerFixture = {
 	midprice: PublicKey;
 };
 
+/** Build approve_prop_amms ix via IDL. Lazily creates matcher + registry PDAs. */
+async function buildApprovePropAmmsInstruction(
+	program: Program,
+	admin: PublicKey,
+	driftProgramId: PublicKey,
+	entries: {
+		marketIndex: number;
+		makerSubaccount: PublicKey;
+		propammProgram: PublicKey;
+		propammAccount: PublicKey;
+	}[]
+): Promise<TransactionInstruction> {
+	const m = (program.methods as Record<string, unknown>).approvePropAmms;
+	if (typeof m !== 'function') {
+		throw new Error('IDL missing approvePropAmms');
+	}
+	const state = await getDriftStateAccountPublicKey(driftProgramId);
+	const accounts = {
+		admin,
+		state,
+		propAmmMatcher: getPropAmmMatcherPDA(driftProgramId),
+		propAmmRegistry: getPropAmmRegistryPDA(driftProgramId),
+		rent: SYSVAR_RENT_PUBKEY,
+		systemProgram: SystemProgram.programId,
+	};
+	const entriesParam = entries.map((e) => ({
+		marketIndex: e.marketIndex,
+		makerSubaccount: e.makerSubaccount,
+		propammProgram: e.propammProgram,
+		propammAccount: e.propammAccount,
+	}));
+	const remainingAccounts = entries.map((e) => ({
+		pubkey: e.propammAccount,
+		isSigner: false,
+		isWritable: false,
+	}));
+	return (
+		m as (entries: typeof entriesParam) => {
+			accounts: (a: typeof accounts) => {
+				remainingAccounts: (
+					r: typeof remainingAccounts
+				) => { instruction: () => Promise<TransactionInstruction> };
+			};
+		}
+	)(entriesParam)
+		.accounts(accounts)
+		.remainingAccounts(remainingAccounts)
+		.instruction();
+}
+
 function buildNativeInstruction(
 	programId: PublicKey,
 	opcode: number,
@@ -219,10 +239,11 @@ function buildNativeInstruction(
 	});
 }
 
-function serializeOracleCacheEntries(entries: OracleCacheEntryParam[]): Buffer {
-	const buf = Buffer.alloc(4 + entries.length * 34);
-	buf.writeUInt32LE(entries.length, 0);
-	let offset = 4;
+function serializeOracleCacheEntries(cacheId: number, entries: OracleCacheEntryParam[]): Buffer {
+	const buf = Buffer.alloc(1 + 4 + entries.length * 34);
+	buf.writeUInt8(cacheId, 0);
+	buf.writeUInt32LE(entries.length, 1);
+	let offset = 5;
 	for (const entry of entries) {
 		entry.oracle.toBuffer().copy(buf, offset);
 		offset += 32;
@@ -240,6 +261,7 @@ function buildSetOracleCacheEntriesInstruction(args: {
 	state: PublicKey;
 	cache0: PublicKey;
 	cache1: PublicKey;
+	cacheId: number;
 	entries: OracleCacheEntryParam[];
 }): TransactionInstruction {
 	return buildNativeInstruction(
@@ -253,7 +275,7 @@ function buildSetOracleCacheEntriesInstruction(args: {
 			{ pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
 			{ pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
 		],
-		serializeOracleCacheEntries(args.entries)
+		serializeOracleCacheEntries(args.cacheId, args.entries)
 	);
 }
 
@@ -392,19 +414,18 @@ function writeU64LE(buf: Buffer, offset: number, value: BN): void {
 	buf.writeUInt32LE(hi, offset + 4);
 }
 
-/** Build midprice_pino update_mid_price ix (opcode 0). Payload: 24 bytes (mid_price u64, 8 reserved, ref_slot u64). Accounts: [midprice_account, authority]. */
+/** Build midprice_pino update_mid_price ix (opcode 0). V1 payload: 16 bytes (reference_price u64, valid_until_slot u64). */
 function buildMidpriceUpdateMidPriceInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
 	authority: PublicKey,
-	midPriceU64: BN,
-	refSlot: BN = new BN(0)
+	referencePrice: BN,
+	validUntilSlot: BN = new BN(0)
 ): TransactionInstruction {
-	const data = Buffer.alloc(1 + 24);
+	const data = Buffer.alloc(1 + 16);
 	data.writeUInt8(MIDPRICE_IX_UPDATE_MID_PRICE, 0);
-	writeU64LE(data, 1, midPriceU64);
-	// bytes 9..17 are reserved (zeroed)
-	writeU64LE(data, 17, refSlot);
+	writeU64LE(data, 1, referencePrice);
+	writeU64LE(data, 9, validUntilSlot);
 	return new TransactionInstruction({
 		programId: midpriceProgramId,
 		keys: [
@@ -415,7 +436,7 @@ function buildMidpriceUpdateMidPriceInstruction(
 	});
 }
 
-/** Build midprice_pino set_orders ix (opcode 2). Payload: ref_slot (u64) + ask_len (u16) + bid_len (u16) + entries. Accounts: [midprice_account, authority]. */
+/** Build midprice_pino set_orders ix (opcode 2). V1 payload: valid_until_slot (u64) + ask_len (u16) + bid_len (u16) + entries. */
 function buildMidpriceSetOrdersInstruction(
 	midpriceProgramId: PublicKey,
 	midpriceAccount: PublicKey,
@@ -423,12 +444,12 @@ function buildMidpriceSetOrdersInstruction(
 	askLen: number,
 	bidLen: number,
 	entries: { offset: BN; size: BN }[],
-	refSlot: BN = new BN(0)
+	validUntilSlot: BN = new BN(0)
 ): TransactionInstruction {
 	const payloadLen = 12 + entries.length * MIDPRICE_ORDER_ENTRY_SIZE;
 	const data = Buffer.alloc(1 + payloadLen);
 	data.writeUInt8(MIDPRICE_IX_SET_ORDERS, 0);
-	writeU64LE(data, 1, refSlot);
+	writeU64LE(data, 1, validUntilSlot);
 	data.writeUInt16LE(askLen, 9);
 	data.writeUInt16LE(bidLen, 11);
 	let off = 1 + 12;
@@ -620,61 +641,10 @@ describe('PropAMM CU usage (bankrun)', () => {
 			new BN(1)
 		);
 
-		// When using real midprice_pino, create global PropAMM matcher PDA so fill CPI accepts it (matcher.owner == Drift).
-		// Use program client (IDL) so instruction discriminator and accounts match the deployed program.
-		if (midpriceProgramId) {
-			const initMatcherIx = await buildInitializePropAmmMatcherInstruction(
-				program,
-				{ publicKey: bankrunContextWrapper.context.payer.publicKey },
-				program.programId
-			);
-			const initMatcherTx = new Transaction().add(initMatcherIx);
-			try {
-				await bankrunContextWrapper.sendTransaction(initMatcherTx, []);
-			} catch (err: unknown) {
-				const msg = err instanceof Error ? err.message : String(err);
-				if (
-					msg.includes('0x65') ||
-					msg.includes('InstructionFallbackNotFound')
-				) {
-					throw new Error(
-						'Drift program missing initialize_prop_amm_matcher. Run: anchor build (or your full build), then re-run this test.'
-					);
-				}
-				throw err;
-			}
-		}
-
-		// Initialize oracle price cache (both buffers) for fill_perp_order2.
-		// Pre-allocate enough slots for the oracle-heavy cache tests below.
+		// Oracle price cache PDAs — lazily created + populated by set_oracle_cache_entries (native path).
 		oraclePriceCachePda = getOraclePriceCachePDA(program.programId, 0, 0);
 		oraclePriceCachePda1 = getOraclePriceCachePDA(program.programId, 0, 1);
-		const initCacheMethod = (program.methods as Record<string, unknown>)
-			.initializeOraclePriceCache;
-		if (typeof initCacheMethod === 'function') {
-			const cacheState = await getDriftStateAccountPublicKey(program.programId);
-			const initCacheIx = await (
-				initCacheMethod as (
-					cacheId: number,
-					numOracles: number
-				) => {
-					accounts: (a: Record<string, PublicKey>) => {
-						instruction: () => Promise<TransactionInstruction>;
-					};
-				}
-			)(0, 64)
-				.accounts({
-					admin: bankrunContextWrapper.context.payer.publicKey,
-					state: cacheState,
-					oraclePriceCache0: oraclePriceCachePda,
-					oraclePriceCache1: oraclePriceCachePda1,
-					rent: SYSVAR_RENT_PUBKEY,
-					systemProgram: SystemProgram.programId,
-				})
-				.instruction();
-			const initCacheTx = new Transaction().add(initCacheIx);
-			await bankrunContextWrapper.sendTransaction(initCacheTx, []);
-		}
+		await configureOracleCache([], 60);
 	});
 
 	after(async () => {
@@ -864,6 +834,23 @@ describe('PropAMM CU usage (bankrun)', () => {
 			);
 		}
 
+		// Approve all PropAMM makers in registry (lazily creates matcher + registry PDAs on first call).
+		if (midpriceProgramId && numPropAmms > 0) {
+			const approveIx = await buildApprovePropAmmsInstruction(
+				program,
+				bankrunContextWrapper.context.payer.publicKey,
+				driftProgramId,
+				makerUserPDAs.map((user, i) => ({
+					marketIndex,
+					makerSubaccount: user,
+					propammProgram: midpriceProgramId,
+					propammAccount: midpricePDAs[i],
+				}))
+			);
+			const approveTx = new Transaction().add(approveIx);
+			await bankrunContextWrapper.sendTransaction(approveTx, []);
+		}
+
 		// Create DLOB makers: Drift users with open limit sell orders (no midprice account)
 		const dlobMakerUserPDAs: PublicKey[] = [];
 		const dlobMakerStatsPDAs: PublicKey[] = [];
@@ -1042,6 +1029,7 @@ describe('PropAMM CU usage (bankrun)', () => {
 				state,
 				cache0: oraclePriceCachePda,
 				cache1: oraclePriceCachePda1,
+				cacheId: 0,
 				entries,
 			}),
 			buildUpdateOracleCacheConfigInstruction({
@@ -1250,6 +1238,27 @@ describe('PropAMM CU usage (bankrun)', () => {
 
 			await makerClient.unsubscribe();
 			makers.push({ authority: maker, user: makerUser, midprice: midpricePda });
+		}
+
+		// Approve all makers in registry (lazily creates matcher + registry PDAs).
+		// Batch in groups of 5 to avoid Anchor buffer overflow with many entries.
+		const APPROVE_BATCH_SIZE = 5;
+		const allEntries = makers.map((m) => ({
+			marketIndex,
+			makerSubaccount: m.user,
+			propammProgram: midpriceProgramId!,
+			propammAccount: m.midprice,
+		}));
+		for (let start = 0; start < allEntries.length; start += APPROVE_BATCH_SIZE) {
+			const batch = allEntries.slice(start, start + APPROVE_BATCH_SIZE);
+			const approveIx = await buildApprovePropAmmsInstruction(
+				program,
+				bankrunContextWrapper.context.payer.publicKey,
+				program.programId,
+				batch
+			);
+			const approveTx = new Transaction().add(approveIx);
+			await bankrunContextWrapper.sendTransaction(approveTx, []);
 		}
 
 		return makers;

@@ -6290,6 +6290,12 @@ fn validate_oracle_cache_admin_accounts<'info>(
     Ok(())
 }
 
+/// Native fast-path for set_oracle_cache_entries with lazy PDA initialization.
+///
+/// Wire format: `[cache_id: u8, ...borsh(Vec<OracleCacheEntryParams>)]`
+///
+/// If the cache buffer PDAs do not exist yet, they are created via `invoke_signed`.
+/// This replaces the separate `initialize_oracle_price_cache` Anchor instruction.
 pub fn handle_set_oracle_cache_entries_native<'info>(
     accounts: &'info [AccountInfo<'info>],
     data: &[u8],
@@ -6303,33 +6309,85 @@ pub fn handle_set_oracle_cache_entries_native<'info>(
     let state_account = &accounts[1];
     let cache0_account = &accounts[2];
     let cache1_account = &accounts[3];
+    let system_program = &accounts[4];
+    let _rent_account = &accounts[5];
 
     validate_oracle_cache_admin_accounts(admin_account, state_account)?;
 
-    let entries = Vec::<OracleCacheEntryParams>::try_from_slice(data)?;
+    validate!(
+        !data.is_empty(),
+        ErrorCode::DefaultError,
+        "missing cache_id + entries"
+    )?;
+    let cache_id = data[0];
+    let entries = Vec::<OracleCacheEntryParams>::try_from_slice(&data[1..])?;
     let required_space = OraclePriceCache::space(entries.len());
+    let rent = Rent::get()?;
 
-    // Realloc both buffers if needed.
-    for cache_account in [cache0_account, cache1_account] {
-        let current_len = cache_account.data_len();
-        if required_space != current_len {
-            cache_account.realloc(required_space, false)?;
+    // Lazy-init or realloc both buffers.
+    for (buffer_index, cache_account) in [cache0_account, cache1_account].iter().enumerate() {
+        let needs_init = cache_account.lamports() == 0
+            || cache_account.owner == &solana_program::system_program::ID;
 
-            // Transfer lamports for rent if growing.
-            if required_space > current_len {
-                let rent = Rent::get()?;
-                let new_min_balance = rent.minimum_balance(required_space);
-                let current_balance = cache_account.lamports();
-                if new_min_balance > current_balance {
-                    let diff = new_min_balance.saturating_sub(current_balance);
-                    let admin_lamports = admin_account.lamports();
-                    validate!(
-                        admin_lamports >= diff,
-                        ErrorCode::DefaultError,
-                        "admin has insufficient lamports for realloc"
-                    )?;
-                    **admin_account.try_borrow_mut_lamports()? -= diff;
-                    **cache_account.try_borrow_mut_lamports()? += diff;
+        if needs_init {
+            // Create PDA via invoke_signed.
+            let bi = buffer_index as u8;
+            let seeds: &[&[u8]] = &[ORACLE_PRICE_CACHE_SEED, &[cache_id], &[bi]];
+            let (expected_key, bump) = Pubkey::find_program_address(seeds, &crate::ID);
+            validate!(
+                cache_account.key() == expected_key,
+                ErrorCode::DefaultError,
+                "cache account key does not match PDA"
+            )?;
+            let signer_seeds: &[&[u8]] = &[ORACLE_PRICE_CACHE_SEED, &[cache_id], &[bi], &[bump]];
+            let lamports = rent.minimum_balance(required_space);
+            let create_ix = solana_program::system_instruction::create_account(
+                admin_account.key,
+                cache_account.key,
+                lamports,
+                required_space as u64,
+                &crate::ID,
+            );
+            solana_program::program::invoke_signed(
+                &create_ix,
+                &[
+                    (*admin_account).clone(),
+                    (*cache_account).clone(),
+                    (*system_program).clone(),
+                ],
+                &[signer_seeds],
+            )?;
+
+            // Write Anchor discriminator so try_from succeeds below.
+            let disc = <OraclePriceCache as anchor_lang::Discriminator>::discriminator();
+            let mut account_data = cache_account
+                .try_borrow_mut_data()
+                .map_err(|_| ErrorCode::DefaultError)?;
+            account_data[..8].copy_from_slice(&disc);
+        } else {
+            // Realloc existing account if size changed.
+            let current_len = cache_account.data_len();
+            if required_space != current_len {
+                cache_account.realloc(required_space, false)?;
+
+                if required_space > current_len {
+                    let new_min_balance = rent.minimum_balance(required_space);
+                    let current_balance = cache_account.lamports();
+                    if new_min_balance > current_balance {
+                        let diff = new_min_balance.saturating_sub(current_balance);
+                        solana_program::program::invoke(
+                            &solana_program::system_instruction::transfer(
+                                admin_account.key,
+                                cache_account.key,
+                                diff,
+                            ),
+                            &[
+                                (*admin_account).clone(),
+                                (*cache_account).clone(),
+                                (*system_program).clone(),
+                            ],
+                        )?;
+                    }
                 }
             }
         }
@@ -6337,6 +6395,12 @@ pub fn handle_set_oracle_cache_entries_native<'info>(
 
     let mut buf0 = Account::<OraclePriceCache>::try_from(cache0_account)?;
     let mut buf1 = Account::<OraclePriceCache>::try_from(cache1_account)?;
+
+    // Set cache metadata (idempotent on subsequent calls).
+    buf0.cache_id = cache_id;
+    buf0.buffer_index = 0;
+    buf1.cache_id = cache_id;
+    buf1.buffer_index = 1;
 
     buf0.entries
         .resize(entries.len(), CachedOracleEntry::default());

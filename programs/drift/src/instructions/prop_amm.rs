@@ -235,8 +235,7 @@ pub fn prop_amm_registry_pda(program_id: &Pubkey) -> (Pubkey, u8) {
 
 fn validate_prop_amm_registry_authority(admin: &Signer, state: &Account<State>) -> DriftResult<()> {
     validate!(
-        admin.key() == state.admin
-            || admin.key() == crate::ids::admin_hot_wallet::id(),
+        admin.key() == state.admin || admin.key() == crate::ids::admin_hot_wallet::id(),
         ErrorCode::DefaultError,
         "admin must be state admin or hot wallet"
     )?;
@@ -1837,9 +1836,20 @@ pub fn handle_initialize_prop_amm_midprice(
         "prop_amm_matcher must be the global PropAMM matcher PDA"
     )?;
 
+    // Derive maker_subaccount (Drift User PDA) for the V1 initialize payload.
+    let (maker_subaccount, _) = Pubkey::find_program_address(
+        &[
+            b"user",
+            ctx.accounts.authority.key.as_ref(),
+            &subaccount_index.to_le_bytes(),
+        ],
+        ctx.program_id,
+    );
+
     let mut data = vec![MIDPRICE_IX_INITIALIZE];
     data.extend_from_slice(&market_index.to_le_bytes());
     data.extend_from_slice(&subaccount_index.to_le_bytes());
+    data.extend_from_slice(maker_subaccount.as_ref());
     data.extend_from_slice(&order_tick_size.to_le_bytes());
     data.extend_from_slice(&min_order_size.to_le_bytes());
 
