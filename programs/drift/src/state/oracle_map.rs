@@ -529,10 +529,11 @@ mod tests {
             confidence: 100,
             delay,
             cached_slot,
+            publish_ts: 0,
             oracle_source: OracleSource::Pyth as u8,
             has_sufficient_data_points: 1,
             max_age_slots_override: 0,
-            _padding: [0u8; 29],
+            _padding: [0u8; 21],
         }
     }
 

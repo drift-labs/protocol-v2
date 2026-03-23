@@ -41,15 +41,20 @@ use crate::state::oracle_map::{is_oracle_account, OracleMap};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{MarketSet as PerpMarketSet, PerpMarketMap};
+use crate::state::prop_amm_registry::{
+    PropAmmApprovalParams, PropAmmKey, PropAmmRegistry, PROP_AMM_REGISTRY_SEED,
+    PROP_AMM_REGISTRY_VERSION,
+};
 use crate::state::revenue_share::RevenueShareOrderBitFlag;
 use crate::state::spot_market_map::{SpotMarketMap, SpotMarketSet};
-use crate::state::state::ExchangeStatus;
+use crate::state::state::{ExchangeStatus, State};
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::validate;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
-use anchor_lang::solana_program::program::invoke_signed;
+use anchor_lang::solana_program::program::{invoke, invoke_signed};
+use anchor_lang::solana_program::system_instruction;
 use midprice_book_view::{
     write_apply_fills_instruction_data, ApplyFillsSink, MidpriceBookView, TakingSide,
 };
@@ -222,6 +227,141 @@ struct MatchOutput {
 /// Global PropAMM matcher PDA: one account can apply fills to all PropAMM books.
 pub fn prop_amm_matcher_pda(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[PROP_AMM_MATCHER_SEED], program_id)
+}
+
+pub fn prop_amm_registry_pda(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[PROP_AMM_REGISTRY_SEED], program_id)
+}
+
+fn validate_prop_amm_registry_authority(admin: &Signer, state: &Account<State>) -> DriftResult<()> {
+    validate!(
+        admin.key() == state.admin
+            || admin.key() == crate::ids::admin_hot_wallet::id(),
+        ErrorCode::DefaultError,
+        "admin must be state admin or hot wallet"
+    )?;
+
+    Ok(())
+}
+
+fn ensure_prop_amm_matcher_initialized<'info>(
+    program_id: &Pubkey,
+    payer: &AccountInfo<'info>,
+    prop_amm_matcher: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+) -> DriftResult<()> {
+    if prop_amm_matcher.owner == program_id && prop_amm_matcher.lamports() > 0 {
+        return Ok(());
+    }
+
+    let seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED];
+    pda::seed_and_create_pda(
+        program_id,
+        payer,
+        &Rent::get().map_err(|_| ErrorCode::DefaultError)?,
+        1_usize,
+        program_id,
+        system_program,
+        prop_amm_matcher,
+        seeds,
+    )?;
+
+    Ok(())
+}
+
+fn ensure_prop_amm_registry_initialized<'info>(
+    program_id: &Pubkey,
+    payer: &AccountInfo<'info>,
+    registry_info: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+) -> DriftResult<()> {
+    if registry_info.owner == program_id && registry_info.lamports() > 0 {
+        return Ok(());
+    }
+
+    pda::seed_and_create_pda(
+        program_id,
+        payer,
+        &Rent::get().map_err(|_| ErrorCode::DefaultError)?,
+        PropAmmRegistry::space(0),
+        program_id,
+        system_program,
+        registry_info,
+        &[PROP_AMM_REGISTRY_SEED],
+    )?;
+
+    let registry = PropAmmRegistry::new();
+    let mut data = registry_info
+        .try_borrow_mut_data()
+        .map_err(|_| ErrorCode::DefaultError)?;
+    data.fill(0);
+    let mut dst = &mut data[..];
+    registry
+        .try_serialize(&mut dst)
+        .map_err(|_| ErrorCode::DefaultError)?;
+
+    Ok(())
+}
+
+fn load_prop_amm_registry<'info>(
+    registry_info: &AccountInfo<'info>,
+) -> DriftResult<PropAmmRegistry> {
+    validate!(
+        registry_info.owner == &crate::ID,
+        ErrorCode::DefaultError,
+        "prop amm registry must be owned by Drift"
+    )?;
+
+    let data = registry_info
+        .try_borrow_data()
+        .map_err(|_| ErrorCode::DefaultError)?;
+    let mut src: &[u8] = &data;
+    let registry =
+        PropAmmRegistry::try_deserialize(&mut src).map_err(|_| ErrorCode::DefaultError)?;
+    validate!(
+        registry.version == PROP_AMM_REGISTRY_VERSION,
+        ErrorCode::DefaultError,
+        "unsupported prop amm registry version"
+    )?;
+
+    Ok(registry)
+}
+
+fn save_prop_amm_registry<'info>(
+    payer: &AccountInfo<'info>,
+    registry_info: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+    registry: &PropAmmRegistry,
+) -> DriftResult<()> {
+    let new_space = PropAmmRegistry::space(registry.entries.len());
+    let rent = Rent::get().map_err(|_| ErrorCode::DefaultError)?;
+    let required_lamports = rent
+        .minimum_balance(new_space)
+        .max(1)
+        .saturating_sub(registry_info.lamports());
+
+    if required_lamports > 0 {
+        invoke(
+            &system_instruction::transfer(payer.key, registry_info.key, required_lamports),
+            &[payer.clone(), registry_info.clone(), system_program.clone()],
+        )
+        .map_err(|_| ErrorCode::DefaultError)?;
+    }
+
+    registry_info
+        .realloc(new_space, false)
+        .map_err(|_| ErrorCode::DefaultError)?;
+
+    let mut data = registry_info
+        .try_borrow_mut_data()
+        .map_err(|_| ErrorCode::DefaultError)?;
+    data.fill(0);
+    let mut dst = &mut data[..];
+    registry
+        .try_serialize(&mut dst)
+        .map_err(|_| ErrorCode::DefaultError)?;
+
+    Ok(())
 }
 
 fn validate_fill_perp_order2_globals(
@@ -1492,21 +1632,11 @@ pub(crate) fn run_prop_amm_matching(
 /// Creates the global PropAMM matcher PDA so that midprice_pino's fill CPI can verify matcher.owner() == Drift.
 /// Idempotent: safe to call if the account already exists (skips creation when already owned by program).
 pub fn handle_initialize_prop_amm_matcher(ctx: Context<InitializePropAmmMatcher>) -> Result<()> {
-    if ctx.accounts.prop_amm_matcher.owner == ctx.program_id
-        && ctx.accounts.prop_amm_matcher.lamports() > 0
-    {
-        return Ok(());
-    }
-    let seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED];
-    pda::seed_and_create_pda(
+    ensure_prop_amm_matcher_initialized(
         ctx.program_id,
         &ctx.accounts.payer.to_account_info(),
-        &Rent::get()?,
-        1_usize, // minimum space so account is owned by program
-        ctx.program_id,
-        &ctx.accounts.system_program.to_account_info(),
         &ctx.accounts.prop_amm_matcher,
-        seeds,
+        &ctx.accounts.system_program.to_account_info(),
     )?;
     Ok(())
 }
@@ -1523,6 +1653,157 @@ pub struct InitializePropAmmMatcher<'info> {
     /// CHECK: Created by seed_and_create_pda; owner set to program_id so midprice_pino accepts it as matcher.
     pub prop_amm_matcher: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+pub fn handle_approve_prop_amms(
+    ctx: Context<ApprovePropAmms>,
+    entries: Vec<PropAmmApprovalParams>,
+) -> Result<()> {
+    validate_prop_amm_registry_authority(&ctx.accounts.admin, ctx.accounts.state.as_ref())?;
+
+    ensure_prop_amm_matcher_initialized(
+        ctx.program_id,
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.prop_amm_matcher,
+        &ctx.accounts.system_program.to_account_info(),
+    )?;
+
+    let mut seen = BTreeSet::new();
+    for (index, entry) in entries.iter().enumerate() {
+        validate!(
+            seen.insert(entry.key()),
+            ErrorCode::DefaultError,
+            "duplicate prop amm approval in request"
+        )?;
+
+        let propamm_account_info = ctx
+            .remaining_accounts
+            .get(index)
+            .ok_or(ErrorCode::DefaultError)?;
+        validate!(
+            propamm_account_info.key() == entry.propamm_account,
+            ErrorCode::DefaultError,
+            "remaining account must match propamm_account"
+        )?;
+        validate!(
+            *propamm_account_info.owner == entry.propamm_program,
+            ErrorCode::DefaultError,
+            "propamm_account owner must match propamm_program"
+        )?;
+    }
+
+    ensure_prop_amm_registry_initialized(
+        ctx.program_id,
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.prop_amm_registry,
+        &ctx.accounts.system_program.to_account_info(),
+    )?;
+
+    let mut registry = load_prop_amm_registry(&ctx.accounts.prop_amm_registry)?;
+    for entry in &entries {
+        registry.upsert(entry);
+    }
+
+    save_prop_amm_registry(
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.prop_amm_registry,
+        &ctx.accounts.system_program.to_account_info(),
+        &registry,
+    )?;
+
+    Ok(())
+}
+
+pub fn handle_disable_prop_amms(
+    ctx: Context<MutatePropAmmRegistry>,
+    keys: Vec<PropAmmKey>,
+) -> Result<()> {
+    validate_prop_amm_registry_authority(&ctx.accounts.admin, ctx.accounts.state.as_ref())?;
+
+    if ctx.accounts.prop_amm_registry.owner != ctx.program_id
+        || ctx.accounts.prop_amm_registry.lamports() == 0
+    {
+        return Ok(());
+    }
+
+    let mut registry = load_prop_amm_registry(&ctx.accounts.prop_amm_registry)?;
+    for key in &keys {
+        registry.disable(key);
+    }
+
+    save_prop_amm_registry(
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.prop_amm_registry,
+        &ctx.accounts.system_program.to_account_info(),
+        &registry,
+    )?;
+
+    Ok(())
+}
+
+pub fn handle_remove_prop_amms(
+    ctx: Context<MutatePropAmmRegistry>,
+    keys: Vec<PropAmmKey>,
+) -> Result<()> {
+    validate_prop_amm_registry_authority(&ctx.accounts.admin, ctx.accounts.state.as_ref())?;
+
+    if ctx.accounts.prop_amm_registry.owner != ctx.program_id
+        || ctx.accounts.prop_amm_registry.lamports() == 0
+    {
+        return Ok(());
+    }
+
+    let mut registry = load_prop_amm_registry(&ctx.accounts.prop_amm_registry)?;
+    for key in &keys {
+        registry.remove(key);
+    }
+
+    save_prop_amm_registry(
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.prop_amm_registry,
+        &ctx.accounts.system_program.to_account_info(),
+        &registry,
+    )?;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct ApprovePropAmms<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [PROP_AMM_MATCHER_SEED],
+        bump,
+    )]
+    /// CHECK: Lazily created and owned by Drift; used by midprice_pino CPI flow.
+    pub prop_amm_matcher: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [PROP_AMM_REGISTRY_SEED],
+        bump,
+    )]
+    /// CHECK: Lazily created and serialized by handler.
+    pub prop_amm_registry: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct MutatePropAmmRegistry<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [PROP_AMM_REGISTRY_SEED],
+        bump,
+    )]
+    /// CHECK: Lazily created by approve_prop_amms and manually deserialized by handler.
+    pub prop_amm_registry: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -5592,10 +5873,11 @@ mod tests {
                     confidence: 100,
                     delay: 2,
                     cached_slot: 900,
+                    publish_ts: 0,
                     oracle_source: OracleSource::Pyth as u8,
                     has_sufficient_data_points: 1,
                     max_age_slots_override: 0,
-                    _padding: [0u8; 29],
+                    _padding: [0u8; 21],
                 }],
             );
 

@@ -68,13 +68,16 @@ pub struct CachedOracleEntry {
     pub delay: i64,
     /// Clock.slot when entry was written.
     pub cached_slot: u64,
+    /// Source-native oracle publish timestamp, if the oracle type exposes one.
+    /// `0` means no publish timestamp was available for this cached observation.
+    pub publish_ts: u64,
     /// `OracleSource` discriminant.
     pub oracle_source: u8,
     /// 1 if oracle had sufficient data points when cached, 0 otherwise.
     pub has_sufficient_data_points: u8,
     /// Per-entry freshness override (0 = use cache-level default).
     pub max_age_slots_override: u8,
-    pub _padding: [u8; 29],
+    pub _padding: [u8; 21],
 }
 
 impl Default for CachedOracleEntry {
@@ -85,10 +88,11 @@ impl Default for CachedOracleEntry {
             confidence: 0,
             delay: 0,
             cached_slot: 0,
+            publish_ts: 0,
             oracle_source: 0,
             has_sufficient_data_points: 0,
             max_age_slots_override: 0,
-            _padding: [0u8; 29],
+            _padding: [0u8; 21],
         }
     }
 }
@@ -138,17 +142,30 @@ impl CachedOracleEntry {
         price_data: &OraclePriceData,
         oracle_source: &OracleSource,
         current_slot: u64,
+        publish_ts: Option<u64>,
     ) {
         self.price = price_data.price;
         self.confidence = price_data.confidence;
         self.delay = price_data.delay;
         self.cached_slot = current_slot;
+        self.publish_ts = publish_ts.unwrap_or(0);
         self.oracle_source = *oracle_source as u8;
         self.has_sufficient_data_points = if price_data.has_sufficient_number_of_data_points {
             1
         } else {
             0
         };
+    }
+
+    /// Returns true if an incoming oracle observation should replace this cached entry.
+    /// If the oracle source exposes a publish timestamp, prefer strict timestamp ordering.
+    /// Otherwise, fall back to allowing at most one cache write per slot.
+    pub fn should_update_from(&self, incoming_publish_ts: Option<u64>, current_slot: u64) -> bool {
+        if let Some(incoming_publish_ts) = incoming_publish_ts {
+            incoming_publish_ts > self.publish_ts
+        } else {
+            self.cached_slot < current_slot
+        }
     }
 }
 
@@ -215,10 +232,11 @@ mod tests {
             confidence: 100,
             delay,
             cached_slot,
+            publish_ts: 0,
             oracle_source: OracleSource::Pyth as u8,
             has_sufficient_data_points: 1,
             max_age_slots_override: max_age_override,
-            _padding: [0u8; 29],
+            _padding: [0u8; 21],
         }
     }
 
@@ -274,10 +292,11 @@ mod tests {
             confidence: 500,
             delay: 3,
             cached_slot: 1000,
+            publish_ts: 1_234_567,
             oracle_source: OracleSource::PythPull as u8,
             has_sufficient_data_points: 1,
             max_age_slots_override: 0,
-            _padding: [0u8; 29],
+            _padding: [0u8; 21],
         };
         let pd = entry.to_oracle_price_data(1000); // same slot → delay=3
         assert_eq!(pd.price, 42_000_000);
@@ -285,6 +304,28 @@ mod tests {
         assert_eq!(pd.delay, 3);
         assert!(pd.has_sufficient_number_of_data_points);
         assert!(pd.sequence_id.is_none());
+    }
+
+    #[test]
+    fn should_update_from_newer_ts() {
+        let mut entry = make_entry(Pubkey::new_unique(), PRICE_PRECISION_I64, 2, 100, 0);
+        entry.publish_ts = 100;
+        assert!(entry.should_update_from(Some(101), 105));
+    }
+
+    #[test]
+    fn should_not_update_from_older_or_equal_ts() {
+        let mut entry = make_entry(Pubkey::new_unique(), PRICE_PRECISION_I64, 2, 100, 0);
+        entry.publish_ts = 100;
+        assert!(!entry.should_update_from(Some(99), 105));
+        assert!(!entry.should_update_from(Some(100), 105));
+    }
+
+    #[test]
+    fn should_update_without_publish_time_once_per_slot() {
+        let entry = make_entry(Pubkey::new_unique(), PRICE_PRECISION_I64, 2, 100, 0);
+        assert!(!entry.should_update_from(None, 100));
+        assert!(entry.should_update_from(None, 101));
     }
 
     #[test]
@@ -328,10 +369,7 @@ mod tests {
 
     /// Simulates what set_oracle_cache_entries does: resize + overwrite indices.
     /// Returns the mutated cache for assertions.
-    fn simulate_set_entries(
-        cache: &mut OraclePriceCache,
-        new_entries: Vec<CachedOracleEntry>,
-    ) {
+    fn simulate_set_entries(cache: &mut OraclePriceCache, new_entries: Vec<CachedOracleEntry>) {
         cache
             .entries
             .resize(new_entries.len(), CachedOracleEntry::default());

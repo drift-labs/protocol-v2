@@ -398,6 +398,45 @@ pub fn get_oracle_price(
     }
 }
 
+pub fn get_oracle_ts(
+    oracle_source: &OracleSource,
+    price_oracle: &AccountInfo,
+) -> DriftResult<Option<u64>> {
+    match oracle_source {
+        OracleSource::PythPull
+        | OracleSource::Pyth1KPull
+        | OracleSource::Pyth1MPull
+        | OracleSource::PythStableCoinPull => {
+            let mut pyth_price_data: &[u8] = &price_oracle
+                .try_borrow_data()
+                .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+            let price_message =
+                pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
+                    &mut pyth_price_data,
+                )
+                .unwrap();
+            Ok(Some(
+                price_message
+                    .price_message
+                    .publish_time
+                    .max(0)
+                    .cast::<u64>()?,
+            ))
+        }
+        OracleSource::PythLazer
+        | OracleSource::PythLazer1K
+        | OracleSource::PythLazer1M
+        | OracleSource::PythLazerStableCoin => {
+            let mut pyth_price_data: &[u8] = &price_oracle
+                .try_borrow_data()
+                .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+            let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
+            Ok(Some(price_data.publish_time.max(0).cast::<u64>()?))
+        }
+        _ => Ok(None),
+    }
+}
+
 pub fn get_pyth_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,

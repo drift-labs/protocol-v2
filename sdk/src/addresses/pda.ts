@@ -162,6 +162,14 @@ export function getPropAmmMatcherPDA(driftProgramId: PublicKey): PublicKey {
 	)[0];
 }
 
+/** Global PropAMM registry PDA: canonical onchain registry for offchain PropAMM discovery/filtering. */
+export function getPropAmmRegistryPDA(driftProgramId: PublicKey): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from('prop_amm_registry')],
+		driftProgramId
+	)[0];
+}
+
 export async function getSpotMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number

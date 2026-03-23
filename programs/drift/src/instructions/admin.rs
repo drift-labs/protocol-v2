@@ -54,7 +54,7 @@ use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
-    get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
+    get_oracle_price, get_oracle_ts, get_prelaunch_price, get_pyth_price, get_switchboard_price,
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
     PrelaunchOracleParams,
 };
@@ -6218,7 +6218,8 @@ pub fn handle_set_oracle_cache_entries(
 }
 
 /// Permissionless keeper instruction. Reads live oracle AccountInfos from remaining_accounts
-/// and updates matching entries in the target buffer. Only writes if data is newer.
+/// and updates matching entries in the target buffer. For sources that expose publish
+/// timestamps, only writes if the incoming observation is newer.
 pub fn handle_update_oracle_price_cache<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateOraclePriceCache<'info>>,
 ) -> Result<()> {
@@ -6238,17 +6239,17 @@ pub fn handle_update_oracle_price_cache<'c: 'info, 'info>(
         for i in 0..zc.len() {
             let entry = zc.get(i);
             if entry.oracle == oracle_key {
-                // Only write if data is newer
-                if entry.cached_slot >= current_slot {
-                    break;
-                }
-
                 let source = OracleSource::try_from(entry.oracle_source)
                     .map_err(|_| ErrorCode::InvalidOracle)?;
                 let price_data = get_oracle_price(&source, oracle_account, current_slot)?;
+                let publish_ts = get_oracle_ts(&source, oracle_account)?;
+
+                if !entry.should_update_from(publish_ts, current_slot) {
+                    break;
+                }
 
                 let entry_mut = zc.get_mut(i);
-                entry_mut.update(&price_data, &source, current_slot);
+                entry_mut.update(&price_data, &source, current_slot, publish_ts);
                 break;
             }
         }
@@ -6376,16 +6377,17 @@ pub fn handle_update_oracle_price_cache_native<'info>(
         for i in 0..zc.len() {
             let entry = zc.get(i);
             if entry.oracle == oracle_key {
-                if entry.cached_slot >= current_slot {
-                    break;
-                }
-
                 let source = OracleSource::try_from(entry.oracle_source)
                     .map_err(|_| ErrorCode::InvalidOracle)?;
                 let price_data = get_oracle_price(&source, oracle_account, current_slot)?;
+                let publish_ts = get_oracle_ts(&source, oracle_account)?;
+
+                if !entry.should_update_from(publish_ts, current_slot) {
+                    break;
+                }
 
                 let entry_mut = zc.get_mut(i);
-                entry_mut.update(&price_data, &source, current_slot);
+                entry_mut.update(&price_data, &source, current_slot, publish_ts);
                 break;
             }
         }

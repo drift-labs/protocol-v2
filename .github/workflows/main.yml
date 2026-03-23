@@ -188,6 +188,63 @@ jobs:
           DEVNET_RPC_ENDPOINT: ${{ secrets.DEVNET_RPC_ENDPOINT }}
         run: ts-mocha ./sdk/tests/ci/*
 
+      - name: Run oracle cache SDK tests
+        run: ts-mocha ./sdk/tests/oracles/*
+
+  propamm-tests:
+    name: PropAMM tests
+    runs-on: ubicloud
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v2
+
+      # midprice_pino needs newer Rust than drift (solana-sdk 2.0, mollusk 0.10)
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache build artefacts
+        uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: "true"
+
+      - uses: ./.github/actions/setup-solana/
+
+      - name: Cache Anchor CLI
+        id: cache-anchor
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/anchor
+          key: ${{ runner.os }}-anchor-cli-0.29.0
+
+      - name: Install Anchor CLI
+        if: steps.cache-anchor.outputs.cache-hit != 'true'
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --locked
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: "24.x.x"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: |
+          npm install -g yarn ts-mocha typescript mocha
+          yarn
+
+      - name: Build SDK
+        run: cd sdk/ && yarn && yarn build && cd ..
+
+      - name: Run midprice_pino unit tests
+        run: cd programs/midprice_pino && cargo test --lib && cd ../..
+
+      - name: Build midprice_pino + drift and run PropAMM bankrun tests
+        run: |
+          ./test-scripts/build-midprice-pino-for-bankrun.sh --no-test
+          ANCHOR_WALLET=~/.config/solana/id.json ts-mocha --exit -t 120000 ./tests/propAmmCUs.ts
 
   check-for-sdk-changes:
     runs-on: ubicloud

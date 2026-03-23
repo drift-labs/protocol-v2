@@ -14,6 +14,7 @@ use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
+use crate::state::prop_amm_registry::{PropAmmApprovalParams, PropAmmKey};
 use crate::state::scale_order_params::ScaleOrderParams;
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -337,6 +338,27 @@ pub mod drift {
     /// Creates the global PropAMM matcher PDA (idempotent). Call once before using fill_perp_order2.
     pub fn initialize_prop_amm_matcher(ctx: Context<InitializePropAmmMatcher>) -> Result<()> {
         handle_initialize_prop_amm_matcher(ctx)
+    }
+
+    pub fn approve_prop_amms(
+        ctx: Context<ApprovePropAmms>,
+        entries: Vec<PropAmmApprovalParams>,
+    ) -> Result<()> {
+        handle_approve_prop_amms(ctx, entries)
+    }
+
+    pub fn disable_prop_amms(
+        ctx: Context<MutatePropAmmRegistry>,
+        keys: Vec<PropAmmKey>,
+    ) -> Result<()> {
+        handle_disable_prop_amms(ctx, keys)
+    }
+
+    pub fn remove_prop_amms(
+        ctx: Context<MutatePropAmmRegistry>,
+        keys: Vec<PropAmmKey>,
+    ) -> Result<()> {
+        handle_remove_prop_amms(ctx, keys)
     }
 
     /// Initializes a midprice (Prop AMM) account via CPI to the midprice program. Drift supplies the perp_market so the client does not load it; tick sizes are stored on the midprice account.

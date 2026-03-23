@@ -49,8 +49,6 @@ echo "Done. Bankrun tests will load midprice_pino from $FIXTURES."
 
 if $RUN_TESTS; then
   anchor test
-  echo """
   echo "Running PropAMM bankrun tests"
-  echo """
   ANCHOR_WALLET=~/.config/solana/id.json ts-mocha --exit -t 120000 ./tests/propAmmCUs.ts
 fi
