@@ -21,7 +21,7 @@ import {
 } from '../../src';
 import { MockUserMap, mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
-import { mockUserAccount } from './helpers';
+import { mockUserAccount, makeMockUser as makeMockUserFromHelpers } from './helpers';
 import * as _ from 'lodash';
 
 async function makeMockUser(
@@ -513,5 +513,37 @@ describe('User Tests', () => {
 
 		assert(iLev == 2000);
 		assert(mLev == 10000);
+	});
+
+	it('getTotalIsolatedPositionDeposits sums isolated USDC deposits', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(mockUserAccount);
+
+		// Give perp position 0 an isolated deposit of 100 USDC
+		// mockSpotMarkets[0] is USDC with cumulativeDepositInterest = SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+		// so scaledBalance of 100 * SPOT_MARKET_BALANCE_PRECISION = 100 USDC token amount
+		myMockUserAccount.perpPositions[0].marketIndex = 0;
+		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(1); // make position active
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
+			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+
+		// Give perp position 1 an isolated deposit of 50 USDC
+		myMockUserAccount.perpPositions[1].marketIndex = 1;
+		myMockUserAccount.perpPositions[1].baseAssetAmount = new BN(1);
+		myMockUserAccount.perpPositions[1].isolatedPositionScaledBalance =
+			new BN(50).mul(SPOT_MARKET_BALANCE_PRECISION);
+
+		const mockUser = await makeMockUserFromHelpers(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const totalIsolatedDeposits = mockUser.getTotalIsolatedPositionDeposits();
+		// 150 USDC = 150 * QUOTE_PRECISION
+		assert(totalIsolatedDeposits.eq(new BN(150).mul(QUOTE_PRECISION)));
 	});
 });

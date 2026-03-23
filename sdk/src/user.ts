@@ -375,6 +375,17 @@ export class User {
 		);
 	}
 
+	/**
+	 * Returns the total USDC deposit value across all isolated perp positions.
+	 */
+	public getTotalIsolatedPositionDeposits(): BN {
+		return this.getActivePerpPositions().reduce((total, perpPosition) => {
+			return total.add(
+				this.getIsolatePerpPositionTokenAmount(perpPosition.marketIndex)
+			);
+		}, ZERO);
+	}
+
 	public getClonedPosition(position: PerpPosition): PerpPosition {
 		const clonedPosition = Object.assign({}, position);
 		return clonedPosition;
