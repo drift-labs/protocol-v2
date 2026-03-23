@@ -3839,112 +3839,6 @@
       ]
     },
     {
-      "name": "updatePythPullOracle",
-      "accounts": [
-        {
-          "name": "keeper",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "encodedVaa",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "priceFeed",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feedId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "params",
-          "type": "bytes"
-        }
-      ]
-    },
-    {
-      "name": "postPythPullOracleUpdateAtomic",
-      "accounts": [
-        {
-          "name": "keeper",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "guardianSet",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "priceFeed",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feedId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "params",
-          "type": "bytes"
-        }
-      ]
-    },
-    {
-      "name": "postMultiPythPullOracleUpdatesAtomic",
-      "accounts": [
-        {
-          "name": "keeper",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "guardianSet",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "params",
-          "type": "bytes"
-        }
-      ]
-    },
-    {
       "name": "pauseSpotMarketDepositWithdraw",
       "accounts": [
         {
@@ -7280,47 +7174,6 @@
         {
           "name": "perpMarketIndex",
           "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "initializePythPullOracle",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "priceFeed",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feedId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
         }
       ]
     },
@@ -17689,6 +17542,56 @@
       ]
     },
     {
+      "name": "AdminWithdrawFromInsuranceFundRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "admin",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "sharesBurned",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "insuranceFundVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "protocolSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "protocolSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "recipientTokenAccount",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
       "name": "SwapRecord",
       "fields": [
         {
@@ -19062,1016 +18965,1021 @@
     },
     {
       "code": 6146,
+      "name": "InvalidInsuranceFundWithdrawalRecipient",
+      "msg": "Insurance fund withdrawal recipient must be the designated treasury address"
+    },
+    {
+      "code": 6147,
       "name": "MarketActionPaused",
       "msg": "the Market has paused this action"
     },
     {
-      "code": 6147,
+      "code": 6148,
       "name": "MarketPlaceOrderPaused",
       "msg": "the Market status doesnt allow placing orders"
     },
     {
-      "code": 6148,
+      "code": 6149,
       "name": "MarketFillOrderPaused",
       "msg": "the Market status doesnt allow filling orders"
     },
     {
-      "code": 6149,
+      "code": 6150,
       "name": "MarketWithdrawPaused",
       "msg": "the Market status doesnt allow withdraws"
     },
     {
-      "code": 6150,
+      "code": 6151,
       "name": "ProtectedAssetTierViolation",
       "msg": "Action violates the Protected Asset Tier rules"
     },
     {
-      "code": 6151,
+      "code": 6152,
       "name": "IsolatedAssetTierViolation",
       "msg": "Action violates the Isolated Asset Tier rules"
     },
     {
-      "code": 6152,
+      "code": 6153,
       "name": "UserCantBeDeleted",
       "msg": "User Cant Be Deleted"
     },
     {
-      "code": 6153,
+      "code": 6154,
       "name": "ReduceOnlyWithdrawIncreasedRisk",
       "msg": "Reduce Only Withdraw Increased Risk"
     },
     {
-      "code": 6154,
+      "code": 6155,
       "name": "MaxOpenInterest",
       "msg": "Max Open Interest"
     },
     {
-      "code": 6155,
+      "code": 6156,
       "name": "CantResolvePerpBankruptcy",
       "msg": "Cant Resolve Perp Bankruptcy"
     },
     {
-      "code": 6156,
+      "code": 6157,
       "name": "LiquidationDoesntSatisfyLimitPrice",
       "msg": "Liquidation Doesnt Satisfy Limit Price"
     },
     {
-      "code": 6157,
+      "code": 6158,
       "name": "MarginTradingDisabled",
       "msg": "Margin Trading Disabled"
     },
     {
-      "code": 6158,
+      "code": 6159,
       "name": "InvalidMarketStatusToSettlePnl",
       "msg": "Invalid Market Status to Settle Perp Pnl"
     },
     {
-      "code": 6159,
+      "code": 6160,
       "name": "PerpMarketNotInSettlement",
       "msg": "PerpMarketNotInSettlement"
     },
     {
-      "code": 6160,
+      "code": 6161,
       "name": "PerpMarketNotInReduceOnly",
       "msg": "PerpMarketNotInReduceOnly"
     },
     {
-      "code": 6161,
+      "code": 6162,
       "name": "PerpMarketSettlementBufferNotReached",
       "msg": "PerpMarketSettlementBufferNotReached"
     },
     {
-      "code": 6162,
+      "code": 6163,
       "name": "PerpMarketSettlementUserHasOpenOrders",
       "msg": "PerpMarketSettlementUserHasOpenOrders"
     },
     {
-      "code": 6163,
+      "code": 6164,
       "name": "PerpMarketSettlementUserHasActiveLP",
       "msg": "PerpMarketSettlementUserHasActiveLP"
     },
     {
-      "code": 6164,
+      "code": 6165,
       "name": "UnableToSettleExpiredUserPosition",
       "msg": "UnableToSettleExpiredUserPosition"
     },
     {
-      "code": 6165,
+      "code": 6166,
       "name": "UnequalMarketIndexForSpotTransfer",
       "msg": "UnequalMarketIndexForSpotTransfer"
     },
     {
-      "code": 6166,
+      "code": 6167,
       "name": "InvalidPerpPositionDetected",
       "msg": "InvalidPerpPositionDetected"
     },
     {
-      "code": 6167,
+      "code": 6168,
       "name": "InvalidSpotPositionDetected",
       "msg": "InvalidSpotPositionDetected"
     },
     {
-      "code": 6168,
+      "code": 6169,
       "name": "InvalidAmmDetected",
       "msg": "InvalidAmmDetected"
     },
     {
-      "code": 6169,
+      "code": 6170,
       "name": "InvalidAmmForFillDetected",
       "msg": "InvalidAmmForFillDetected"
     },
     {
-      "code": 6170,
+      "code": 6171,
       "name": "InvalidAmmLimitPriceOverride",
       "msg": "InvalidAmmLimitPriceOverride"
     },
     {
-      "code": 6171,
+      "code": 6172,
       "name": "InvalidOrderFillPrice",
       "msg": "InvalidOrderFillPrice"
     },
     {
-      "code": 6172,
+      "code": 6173,
       "name": "SpotMarketBalanceInvariantViolated",
       "msg": "SpotMarketBalanceInvariantViolated"
     },
     {
-      "code": 6173,
+      "code": 6174,
       "name": "SpotMarketVaultInvariantViolated",
       "msg": "SpotMarketVaultInvariantViolated"
     },
     {
-      "code": 6174,
+      "code": 6175,
       "name": "InvalidPDA",
       "msg": "InvalidPDA"
     },
     {
-      "code": 6175,
+      "code": 6176,
       "name": "InvalidPDASigner",
       "msg": "InvalidPDASigner"
     },
     {
-      "code": 6176,
+      "code": 6177,
       "name": "RevenueSettingsCannotSettleToIF",
       "msg": "RevenueSettingsCannotSettleToIF"
     },
     {
-      "code": 6177,
+      "code": 6178,
       "name": "NoRevenueToSettleToIF",
       "msg": "NoRevenueToSettleToIF"
     },
     {
-      "code": 6178,
+      "code": 6179,
       "name": "NoAmmPerpPnlDeficit",
       "msg": "NoAmmPerpPnlDeficit"
     },
     {
-      "code": 6179,
+      "code": 6180,
       "name": "SufficientPerpPnlPool",
       "msg": "SufficientPerpPnlPool"
     },
     {
-      "code": 6180,
+      "code": 6181,
       "name": "InsufficientPerpPnlPool",
       "msg": "InsufficientPerpPnlPool"
     },
     {
-      "code": 6181,
+      "code": 6182,
       "name": "PerpPnlDeficitBelowThreshold",
       "msg": "PerpPnlDeficitBelowThreshold"
     },
     {
-      "code": 6182,
+      "code": 6183,
       "name": "MaxRevenueWithdrawPerPeriodReached",
       "msg": "MaxRevenueWithdrawPerPeriodReached"
     },
     {
-      "code": 6183,
+      "code": 6184,
       "name": "MaxIFWithdrawReached",
       "msg": "InvalidSpotPositionDetected"
     },
     {
-      "code": 6184,
+      "code": 6185,
       "name": "NoIFWithdrawAvailable",
       "msg": "NoIFWithdrawAvailable"
     },
     {
-      "code": 6185,
+      "code": 6186,
       "name": "InvalidIFUnstake",
       "msg": "InvalidIFUnstake"
     },
     {
-      "code": 6186,
+      "code": 6187,
       "name": "InvalidIFUnstakeSize",
       "msg": "InvalidIFUnstakeSize"
     },
     {
-      "code": 6187,
+      "code": 6188,
       "name": "InvalidIFUnstakeCancel",
       "msg": "InvalidIFUnstakeCancel"
     },
     {
-      "code": 6188,
+      "code": 6189,
       "name": "InvalidIFForNewStakes",
       "msg": "InvalidIFForNewStakes"
     },
     {
-      "code": 6189,
+      "code": 6190,
       "name": "InvalidIFRebase",
       "msg": "InvalidIFRebase"
     },
     {
-      "code": 6190,
+      "code": 6191,
       "name": "InvalidInsuranceUnstakeSize",
       "msg": "InvalidInsuranceUnstakeSize"
     },
     {
-      "code": 6191,
+      "code": 6192,
       "name": "InvalidOrderLimitPrice",
       "msg": "InvalidOrderLimitPrice"
     },
     {
-      "code": 6192,
+      "code": 6193,
       "name": "InvalidIFDetected",
       "msg": "InvalidIFDetected"
     },
     {
-      "code": 6193,
+      "code": 6194,
       "name": "InvalidAmmMaxSpreadDetected",
       "msg": "InvalidAmmMaxSpreadDetected"
     },
     {
-      "code": 6194,
+      "code": 6195,
       "name": "InvalidConcentrationCoef",
       "msg": "InvalidConcentrationCoef"
     },
     {
-      "code": 6195,
+      "code": 6196,
       "name": "InvalidSrmVault",
       "msg": "InvalidSrmVault"
     },
     {
-      "code": 6196,
+      "code": 6197,
       "name": "InvalidVaultOwner",
       "msg": "InvalidVaultOwner"
     },
     {
-      "code": 6197,
+      "code": 6198,
       "name": "InvalidMarketStatusForFills",
       "msg": "InvalidMarketStatusForFills"
     },
     {
-      "code": 6198,
+      "code": 6199,
       "name": "IFWithdrawRequestInProgress",
       "msg": "IFWithdrawRequestInProgress"
     },
     {
-      "code": 6199,
+      "code": 6200,
       "name": "NoIFWithdrawRequestInProgress",
       "msg": "NoIFWithdrawRequestInProgress"
     },
     {
-      "code": 6200,
+      "code": 6201,
       "name": "IFWithdrawRequestTooSmall",
       "msg": "IFWithdrawRequestTooSmall"
     },
     {
-      "code": 6201,
+      "code": 6202,
       "name": "IncorrectSpotMarketAccountPassed",
       "msg": "IncorrectSpotMarketAccountPassed"
     },
     {
-      "code": 6202,
+      "code": 6203,
       "name": "BlockchainClockInconsistency",
       "msg": "BlockchainClockInconsistency"
     },
     {
-      "code": 6203,
+      "code": 6204,
       "name": "InvalidIFSharesDetected",
       "msg": "InvalidIFSharesDetected"
     },
     {
-      "code": 6204,
+      "code": 6205,
       "name": "NewLPSizeTooSmall",
       "msg": "NewLPSizeTooSmall"
     },
     {
-      "code": 6205,
+      "code": 6206,
       "name": "MarketStatusInvalidForNewLP",
       "msg": "MarketStatusInvalidForNewLP"
     },
     {
-      "code": 6206,
+      "code": 6207,
       "name": "InvalidMarkTwapUpdateDetected",
       "msg": "InvalidMarkTwapUpdateDetected"
     },
     {
-      "code": 6207,
+      "code": 6208,
       "name": "MarketSettlementAttemptOnActiveMarket",
       "msg": "MarketSettlementAttemptOnActiveMarket"
     },
     {
-      "code": 6208,
+      "code": 6209,
       "name": "MarketSettlementRequiresSettledLP",
       "msg": "MarketSettlementRequiresSettledLP"
     },
     {
-      "code": 6209,
+      "code": 6210,
       "name": "MarketSettlementAttemptTooEarly",
       "msg": "MarketSettlementAttemptTooEarly"
     },
     {
-      "code": 6210,
+      "code": 6211,
       "name": "MarketSettlementTargetPriceInvalid",
       "msg": "MarketSettlementTargetPriceInvalid"
     },
     {
-      "code": 6211,
+      "code": 6212,
       "name": "UnsupportedSpotMarket",
       "msg": "UnsupportedSpotMarket"
     },
     {
-      "code": 6212,
+      "code": 6213,
       "name": "SpotOrdersDisabled",
       "msg": "SpotOrdersDisabled"
     },
     {
-      "code": 6213,
+      "code": 6214,
       "name": "MarketBeingInitialized",
       "msg": "Market Being Initialized"
     },
     {
-      "code": 6214,
+      "code": 6215,
       "name": "InvalidUserSubAccountId",
       "msg": "Invalid Sub Account Id"
     },
     {
-      "code": 6215,
+      "code": 6216,
       "name": "InvalidTriggerOrderCondition",
       "msg": "Invalid Trigger Order Condition"
     },
     {
-      "code": 6216,
+      "code": 6217,
       "name": "InvalidSpotPosition",
       "msg": "Invalid Spot Position"
     },
     {
-      "code": 6217,
+      "code": 6218,
       "name": "CantTransferBetweenSameUserAccount",
       "msg": "Cant transfer between same user account"
     },
     {
-      "code": 6218,
+      "code": 6219,
       "name": "InvalidPerpPosition",
       "msg": "Invalid Perp Position"
     },
     {
-      "code": 6219,
+      "code": 6220,
       "name": "UnableToGetLimitPrice",
       "msg": "Unable To Get Limit Price"
     },
     {
-      "code": 6220,
+      "code": 6221,
       "name": "InvalidLiquidation",
       "msg": "Invalid Liquidation"
     },
     {
-      "code": 6221,
+      "code": 6222,
       "name": "SpotFulfillmentConfigDisabled",
       "msg": "Spot Fulfillment Config Disabled"
     },
     {
-      "code": 6222,
+      "code": 6223,
       "name": "InvalidMaker",
       "msg": "Invalid Maker"
     },
     {
-      "code": 6223,
+      "code": 6224,
       "name": "FailedUnwrap",
       "msg": "Failed Unwrap"
     },
     {
-      "code": 6224,
+      "code": 6225,
       "name": "MaxNumberOfUsers",
       "msg": "Max Number Of Users"
     },
     {
-      "code": 6225,
+      "code": 6226,
       "name": "InvalidOracleForSettlePnl",
       "msg": "InvalidOracleForSettlePnl"
     },
     {
-      "code": 6226,
+      "code": 6227,
       "name": "MarginOrdersOpen",
       "msg": "MarginOrdersOpen"
     },
     {
-      "code": 6227,
+      "code": 6228,
       "name": "TierViolationLiquidatingPerpPnl",
       "msg": "TierViolationLiquidatingPerpPnl"
     },
     {
-      "code": 6228,
+      "code": 6229,
       "name": "CouldNotLoadUserData",
       "msg": "CouldNotLoadUserData"
     },
     {
-      "code": 6229,
+      "code": 6230,
       "name": "UserWrongMutability",
       "msg": "UserWrongMutability"
     },
     {
-      "code": 6230,
+      "code": 6231,
       "name": "InvalidUserAccount",
       "msg": "InvalidUserAccount"
     },
     {
-      "code": 6231,
+      "code": 6232,
       "name": "CouldNotLoadUserStatsData",
       "msg": "CouldNotLoadUserData"
     },
     {
-      "code": 6232,
+      "code": 6233,
       "name": "UserStatsWrongMutability",
       "msg": "UserWrongMutability"
     },
     {
-      "code": 6233,
+      "code": 6234,
       "name": "InvalidUserStatsAccount",
       "msg": "InvalidUserAccount"
     },
     {
-      "code": 6234,
+      "code": 6235,
       "name": "UserNotFound",
       "msg": "UserNotFound"
     },
     {
-      "code": 6235,
+      "code": 6236,
       "name": "UnableToLoadUserAccount",
       "msg": "UnableToLoadUserAccount"
     },
     {
-      "code": 6236,
+      "code": 6237,
       "name": "UserStatsNotFound",
       "msg": "UserStatsNotFound"
     },
     {
-      "code": 6237,
+      "code": 6238,
       "name": "UnableToLoadUserStatsAccount",
       "msg": "UnableToLoadUserStatsAccount"
     },
     {
-      "code": 6238,
+      "code": 6239,
       "name": "UserNotInactive",
       "msg": "User Not Inactive"
     },
     {
-      "code": 6239,
+      "code": 6240,
       "name": "RevertFill",
       "msg": "RevertFill"
     },
     {
-      "code": 6240,
+      "code": 6241,
       "name": "InvalidMarketAccountforDeletion",
       "msg": "Invalid MarketAccount for Deletion"
     },
     {
-      "code": 6241,
+      "code": 6242,
       "name": "InvalidSpotFulfillmentParams",
       "msg": "Invalid Spot Fulfillment Params"
     },
     {
-      "code": 6242,
+      "code": 6243,
       "name": "FailedToGetMint",
       "msg": "Failed to Get Mint"
     },
     {
-      "code": 6243,
+      "code": 6244,
       "name": "FailedPhoenixCPI",
       "msg": "FailedPhoenixCPI"
     },
     {
-      "code": 6244,
+      "code": 6245,
       "name": "FailedToDeserializePhoenixMarket",
       "msg": "FailedToDeserializePhoenixMarket"
     },
     {
-      "code": 6245,
+      "code": 6246,
       "name": "InvalidPricePrecision",
       "msg": "InvalidPricePrecision"
     },
     {
-      "code": 6246,
+      "code": 6247,
       "name": "InvalidPhoenixProgram",
       "msg": "InvalidPhoenixProgram"
     },
     {
-      "code": 6247,
+      "code": 6248,
       "name": "InvalidPhoenixMarket",
       "msg": "InvalidPhoenixMarket"
     },
     {
-      "code": 6248,
+      "code": 6249,
       "name": "InvalidSwap",
       "msg": "InvalidSwap"
     },
     {
-      "code": 6249,
+      "code": 6250,
       "name": "SwapLimitPriceBreached",
       "msg": "SwapLimitPriceBreached"
     },
     {
-      "code": 6250,
+      "code": 6251,
       "name": "SpotMarketReduceOnly",
       "msg": "SpotMarketReduceOnly"
     },
     {
-      "code": 6251,
+      "code": 6252,
       "name": "FundingWasNotUpdated",
       "msg": "FundingWasNotUpdated"
     },
     {
-      "code": 6252,
+      "code": 6253,
       "name": "ImpossibleFill",
       "msg": "ImpossibleFill"
     },
     {
-      "code": 6253,
+      "code": 6254,
       "name": "CantUpdatePerpBidAskTwap",
       "msg": "CantUpdatePerpBidAskTwap"
     },
     {
-      "code": 6254,
+      "code": 6255,
       "name": "UserReduceOnly",
       "msg": "UserReduceOnly"
     },
     {
-      "code": 6255,
+      "code": 6256,
       "name": "InvalidMarginCalculation",
       "msg": "InvalidMarginCalculation"
     },
     {
-      "code": 6256,
+      "code": 6257,
       "name": "CantPayUserInitFee",
       "msg": "CantPayUserInitFee"
     },
     {
-      "code": 6257,
+      "code": 6258,
       "name": "CantReclaimRent",
       "msg": "CantReclaimRent"
     },
     {
-      "code": 6258,
+      "code": 6259,
       "name": "InsuranceFundOperationPaused",
       "msg": "InsuranceFundOperationPaused"
     },
     {
-      "code": 6259,
+      "code": 6260,
       "name": "NoUnsettledPnl",
       "msg": "NoUnsettledPnl"
     },
     {
-      "code": 6260,
+      "code": 6261,
       "name": "PnlPoolCantSettleUser",
       "msg": "PnlPoolCantSettleUser"
     },
     {
-      "code": 6261,
+      "code": 6262,
       "name": "OracleNonPositive",
       "msg": "OracleInvalid"
     },
     {
-      "code": 6262,
+      "code": 6263,
       "name": "OracleTooVolatile",
       "msg": "OracleTooVolatile"
     },
     {
-      "code": 6263,
+      "code": 6264,
       "name": "OracleTooUncertain",
       "msg": "OracleTooUncertain"
     },
     {
-      "code": 6264,
+      "code": 6265,
       "name": "OracleStaleForMargin",
       "msg": "OracleStaleForMargin"
     },
     {
-      "code": 6265,
+      "code": 6266,
       "name": "OracleInsufficientDataPoints",
       "msg": "OracleInsufficientDataPoints"
     },
     {
-      "code": 6266,
+      "code": 6267,
       "name": "OracleStaleForAMM",
       "msg": "OracleStaleForAMM"
     },
     {
-      "code": 6267,
+      "code": 6268,
       "name": "UnableToParsePullOracleMessage",
       "msg": "Unable to parse pull oracle message"
     },
     {
-      "code": 6268,
+      "code": 6269,
       "name": "MaxBorrows",
       "msg": "Can not borow more than max borrows"
     },
     {
-      "code": 6269,
+      "code": 6270,
       "name": "OracleUpdatesNotMonotonic",
       "msg": "Updates must be monotonically increasing"
     },
     {
-      "code": 6270,
+      "code": 6271,
       "name": "OraclePriceFeedMessageMismatch",
       "msg": "Trying to update price feed with the wrong feed id"
     },
     {
-      "code": 6271,
+      "code": 6272,
       "name": "OracleUnsupportedMessageType",
       "msg": "The message in the update must be a PriceFeedMessage"
     },
     {
-      "code": 6272,
+      "code": 6273,
       "name": "OracleDeserializeMessageFailed",
       "msg": "Could not deserialize the message in the update"
     },
     {
-      "code": 6273,
+      "code": 6274,
       "name": "OracleWrongGuardianSetOwner",
       "msg": "Wrong guardian set owner in update price atomic"
     },
     {
-      "code": 6274,
+      "code": 6275,
       "name": "OracleWrongWriteAuthority",
       "msg": "Oracle post update atomic price feed account must be drift program"
     },
     {
-      "code": 6275,
+      "code": 6276,
       "name": "OracleWrongVaaOwner",
       "msg": "Oracle vaa owner must be wormhole program"
     },
     {
-      "code": 6276,
+      "code": 6277,
       "name": "OracleTooManyPriceAccountUpdates",
       "msg": "Multi updates must have 2 or fewer accounts passed in remaining accounts"
     },
     {
-      "code": 6277,
+      "code": 6278,
       "name": "OracleMismatchedVaaAndPriceUpdates",
       "msg": "Don't have the same remaining accounts number and pyth updates left"
     },
     {
-      "code": 6278,
+      "code": 6279,
       "name": "OracleBadRemainingAccountPublicKey",
       "msg": "Remaining account passed does not match oracle update derived pda"
     },
     {
-      "code": 6279,
+      "code": 6280,
       "name": "FailedOpenbookV2CPI",
       "msg": "FailedOpenbookV2CPI"
     },
     {
-      "code": 6280,
+      "code": 6281,
       "name": "InvalidOpenbookV2Program",
       "msg": "InvalidOpenbookV2Program"
     },
     {
-      "code": 6281,
+      "code": 6282,
       "name": "InvalidOpenbookV2Market",
       "msg": "InvalidOpenbookV2Market"
     },
     {
-      "code": 6282,
+      "code": 6283,
       "name": "NonZeroTransferFee",
       "msg": "Non zero transfer fee"
     },
     {
-      "code": 6283,
+      "code": 6284,
       "name": "LiquidationOrderFailedToFill",
       "msg": "Liquidation order failed to fill"
     },
     {
-      "code": 6284,
+      "code": 6285,
       "name": "InvalidPredictionMarketOrder",
       "msg": "Invalid prediction market order"
     },
     {
-      "code": 6285,
+      "code": 6286,
       "name": "InvalidVerificationIxIndex",
       "msg": "Ed25519 Ix must be before place and make SignedMsg order ix"
     },
     {
-      "code": 6286,
+      "code": 6287,
       "name": "SigVerificationFailed",
       "msg": "SignedMsg message verificaiton failed"
     },
     {
-      "code": 6287,
+      "code": 6288,
       "name": "MismatchedSignedMsgOrderParamsMarketIndex",
       "msg": "Market index mismatched b/w taker and maker SignedMsg order params"
     },
     {
-      "code": 6288,
+      "code": 6289,
       "name": "InvalidSignedMsgOrderParam",
       "msg": "Invalid SignedMsg order param"
     },
     {
-      "code": 6289,
+      "code": 6290,
       "name": "PlaceAndTakeOrderSuccessConditionFailed",
       "msg": "Place and take order success condition failed"
     },
     {
-      "code": 6290,
+      "code": 6291,
       "name": "InvalidHighLeverageModeConfig",
       "msg": "Invalid High Leverage Mode Config"
     },
     {
-      "code": 6291,
+      "code": 6292,
       "name": "InvalidRFQUserAccount",
       "msg": "Invalid RFQ User Account"
     },
     {
-      "code": 6292,
+      "code": 6293,
       "name": "RFQUserAccountWrongMutability",
       "msg": "RFQUserAccount should be mutable"
     },
     {
-      "code": 6293,
+      "code": 6294,
       "name": "RFQUserAccountFull",
       "msg": "RFQUserAccount has too many active RFQs"
     },
     {
-      "code": 6294,
+      "code": 6295,
       "name": "RFQOrderNotFilled",
       "msg": "RFQ order not filled as expected"
     },
     {
-      "code": 6295,
+      "code": 6296,
       "name": "InvalidRFQOrder",
       "msg": "RFQ orders must be jit makers"
     },
     {
-      "code": 6296,
+      "code": 6297,
       "name": "InvalidRFQMatch",
       "msg": "RFQ matches must be valid"
     },
     {
-      "code": 6297,
+      "code": 6298,
       "name": "InvalidSignedMsgUserAccount",
       "msg": "Invalid SignedMsg user account"
     },
     {
-      "code": 6298,
+      "code": 6299,
       "name": "SignedMsgUserAccountWrongMutability",
       "msg": "SignedMsg account wrong mutability"
     },
     {
-      "code": 6299,
+      "code": 6300,
       "name": "SignedMsgUserOrdersAccountFull",
       "msg": "SignedMsgUserAccount has too many active orders"
     },
     {
-      "code": 6300,
+      "code": 6301,
       "name": "SignedMsgOrderDoesNotExist",
       "msg": "Order with SignedMsg uuid does not exist"
     },
     {
-      "code": 6301,
+      "code": 6302,
       "name": "InvalidSignedMsgOrderId",
       "msg": "SignedMsg order id cannot be 0s"
     },
     {
-      "code": 6302,
+      "code": 6303,
       "name": "InvalidPoolId",
       "msg": "Invalid pool id"
     },
     {
-      "code": 6303,
+      "code": 6304,
       "name": "InvalidProtectedMakerModeConfig",
       "msg": "Invalid Protected Maker Mode Config"
     },
     {
-      "code": 6304,
+      "code": 6305,
       "name": "InvalidPythLazerStorageOwner",
       "msg": "Invalid pyth lazer storage owner"
     },
     {
-      "code": 6305,
+      "code": 6306,
       "name": "UnverifiedPythLazerMessage",
       "msg": "Verification of pyth lazer message failed"
     },
     {
-      "code": 6306,
+      "code": 6307,
       "name": "InvalidPythLazerMessage",
       "msg": "Invalid pyth lazer message"
     },
     {
-      "code": 6307,
+      "code": 6308,
       "name": "PythLazerMessagePriceFeedMismatch",
       "msg": "Pyth lazer message does not correspond to correct fed id"
     },
     {
-      "code": 6308,
+      "code": 6309,
       "name": "InvalidLiquidateSpotWithSwap",
       "msg": "InvalidLiquidateSpotWithSwap"
     },
     {
-      "code": 6309,
+      "code": 6310,
       "name": "SignedMsgUserContextUserMismatch",
       "msg": "User in SignedMsg message does not match user in ix context"
     },
     {
-      "code": 6310,
+      "code": 6311,
       "name": "UserFuelOverflowThresholdNotMet",
       "msg": "User fuel overflow threshold not met"
     },
     {
-      "code": 6311,
+      "code": 6312,
       "name": "FuelOverflowAccountNotFound",
       "msg": "FuelOverflow account not found"
     },
     {
-      "code": 6312,
+      "code": 6313,
       "name": "InvalidTransferPerpPosition",
       "msg": "Invalid Transfer Perp Position"
     },
     {
-      "code": 6313,
+      "code": 6314,
       "name": "InvalidSignedMsgUserOrdersResize",
       "msg": "Invalid SignedMsgUserOrders resize"
     },
     {
-      "code": 6314,
+      "code": 6315,
       "name": "CouldNotDeserializeHighLeverageModeConfig",
       "msg": "Could not deserialize high leverage mode config"
     },
     {
-      "code": 6315,
+      "code": 6316,
       "name": "InvalidIfRebalanceConfig",
       "msg": "Invalid If Rebalance Config"
     },
     {
-      "code": 6316,
+      "code": 6317,
       "name": "InvalidIfRebalanceSwap",
       "msg": "Invalid If Rebalance Swap"
     },
     {
-      "code": 6317,
+      "code": 6318,
       "name": "InvalidRevenueShareResize",
       "msg": "Invalid RevenueShare resize"
     },
     {
-      "code": 6318,
+      "code": 6319,
       "name": "BuilderRevoked",
       "msg": "Builder has been revoked"
     },
     {
-      "code": 6319,
+      "code": 6320,
       "name": "InvalidBuilderFee",
       "msg": "Builder fee is greater than max fee bps"
     },
     {
-      "code": 6320,
+      "code": 6321,
       "name": "RevenueShareEscrowAuthorityMismatch",
       "msg": "RevenueShareEscrow authority mismatch"
     },
     {
-      "code": 6321,
+      "code": 6322,
       "name": "RevenueShareEscrowOrdersAccountFull",
       "msg": "RevenueShareEscrow has too many active orders"
     },
     {
-      "code": 6322,
+      "code": 6323,
       "name": "InvalidRevenueShareAccount",
       "msg": "Invalid RevenueShareAccount"
     },
     {
-      "code": 6323,
+      "code": 6324,
       "name": "CannotRevokeBuilderWithOpenOrders",
       "msg": "Cannot revoke builder with open orders"
     },
     {
-      "code": 6324,
+      "code": 6325,
       "name": "UnableToLoadRevenueShareAccount",
       "msg": "Unable to load builder account"
     },
     {
-      "code": 6325,
+      "code": 6326,
       "name": "InvalidConstituent",
       "msg": "Invalid Constituent"
     },
     {
-      "code": 6326,
+      "code": 6327,
       "name": "InvalidAmmConstituentMappingArgument",
       "msg": "Invalid Amm Constituent Mapping argument"
     },
     {
-      "code": 6327,
+      "code": 6328,
       "name": "ConstituentNotFound",
       "msg": "Constituent not found"
     },
     {
-      "code": 6328,
+      "code": 6329,
       "name": "ConstituentCouldNotLoad",
       "msg": "Constituent could not load"
     },
     {
-      "code": 6329,
+      "code": 6330,
       "name": "ConstituentWrongMutability",
       "msg": "Constituent wrong mutability"
     },
     {
-      "code": 6330,
+      "code": 6331,
       "name": "WrongNumberOfConstituents",
       "msg": "Wrong number of constituents passed to instruction"
     },
     {
-      "code": 6331,
+      "code": 6332,
       "name": "InsufficientConstituentTokenBalance",
       "msg": "Insufficient constituent token balance"
     },
     {
-      "code": 6332,
+      "code": 6333,
       "name": "AMMCacheStale",
       "msg": "Amm Cache data too stale"
     },
     {
-      "code": 6333,
+      "code": 6334,
       "name": "LpPoolAumDelayed",
       "msg": "LP Pool AUM not updated recently"
     },
     {
-      "code": 6334,
+      "code": 6335,
       "name": "ConstituentOracleStale",
       "msg": "Constituent oracle is stale"
     },
     {
-      "code": 6335,
+      "code": 6336,
       "name": "LpInvariantFailed",
       "msg": "LP Invariant failed"
     },
     {
-      "code": 6336,
+      "code": 6337,
       "name": "InvalidConstituentDerivativeWeights",
       "msg": "Invalid constituent derivative weights"
     },
     {
-      "code": 6337,
+      "code": 6338,
       "name": "MaxDlpAumBreached",
       "msg": "Max DLP AUM Breached"
     },
     {
-      "code": 6338,
+      "code": 6339,
       "name": "SettleLpPoolDisabled",
       "msg": "Settle Lp Pool Disabled"
     },
     {
-      "code": 6339,
+      "code": 6340,
       "name": "MintRedeemLpPoolDisabled",
       "msg": "Mint/Redeem Lp Pool Disabled"
     },
     {
-      "code": 6340,
+      "code": 6341,
       "name": "LpPoolSettleInvariantBreached",
       "msg": "Settlement amount exceeded"
     },
     {
-      "code": 6341,
+      "code": 6342,
       "name": "InvalidConstituentOperation",
       "msg": "Invalid constituent operation"
     },
     {
-      "code": 6342,
+      "code": 6343,
       "name": "Unauthorized",
       "msg": "Unauthorized for operation"
     },
     {
-      "code": 6343,
+      "code": 6344,
       "name": "InvalidLpPoolId",
       "msg": "Invalid Lp Pool Id for Operation"
     },
     {
-      "code": 6344,
+      "code": 6345,
       "name": "MarketIndexNotFoundAmmCache",
       "msg": "MarketIndexNotFoundAmmCache"
     },
     {
-      "code": 6345,
+      "code": 6346,
       "name": "InvalidIsolatedPerpMarket",
       "msg": "Invalid Isolated Perp Market"
     },
     {
-      "code": 6346,
+      "code": 6347,
       "name": "InvalidOrderScaleOrderCount",
       "msg": "Invalid scale order count - must be between 2 and 10"
     },
     {
-      "code": 6347,
+      "code": 6348,
       "name": "InvalidOrderScalePriceRange",
       "msg": "Invalid scale order price range"
     },
     {
-      "code": 6348,
+      "code": 6349,
       "name": "InvalidPerpMarketConfig",
       "msg": "Invalid perp market config"
     }
