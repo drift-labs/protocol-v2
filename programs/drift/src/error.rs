@@ -296,8 +296,6 @@ pub enum ErrorCode {
     InvalidFeeStructure,
     #[msg("Insufficient IF shares")]
     InsufficientIFShares,
-    #[msg("Insurance fund withdrawal recipient must be the designated treasury address")]
-    InvalidInsuranceFundWithdrawalRecipient,
     #[msg("the Market has paused this action")]
     MarketActionPaused,
     #[msg("the Market status doesnt allow placing orders")]
@@ -722,6 +720,8 @@ pub enum ErrorCode {
     OraclePriceCacheFull,
     #[msg("Invalid perp market config")]
     InvalidPerpMarketConfig,
+    #[msg("Insurance fund withdrawal recipient must be the designated treasury address")]
+    InvalidInsuranceFundWithdrawalRecipient,
 }
 
 #[macro_export]
