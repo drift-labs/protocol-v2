@@ -2433,10 +2433,9 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
     use crate::error::ErrorCode;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION,
-        PEG_PRECISION,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::MarginRequirementType;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -2446,8 +2445,7 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
-        Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User,
-        UserStats,
+        Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User, UserStats,
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};

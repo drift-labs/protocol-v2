@@ -23,8 +23,7 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User, UserStats};
 use crate::test_utils::{
-    get_account_bytes, get_anchor_account_bytes, get_positions,
-    get_pyth_price, get_spot_positions,
+    get_account_bytes, get_anchor_account_bytes, get_positions, get_pyth_price, get_spot_positions,
 };
 use crate::{create_account_info, create_anchor_account_info, PRICE_PRECISION_I64};
 
