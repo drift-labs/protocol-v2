@@ -376,12 +376,40 @@ export class User {
 	}
 
 	/**
-	 * Returns the total USDC deposit value across all isolated perp positions.
+	 * Returns the total USD value of deposits across all isolated perp positions.
 	 */
 	public getTotalIsolatedPositionDeposits(): BN {
 		return this.getActivePerpPositions().reduce((total, perpPosition) => {
+			if (!perpPosition.isolatedPositionScaledBalance?.gt(ZERO)) {
+				return total;
+			}
+
+			const perpMarket = this.driftClient.getPerpMarketAccount(
+				perpPosition.marketIndex
+			);
+			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+				perpMarket.quoteSpotMarketIndex
+			);
+			const quoteOraclePriceData = this.getOracleDataForSpotMarket(
+				perpMarket.quoteSpotMarketIndex
+			);
+			const strictOracle = new StrictOraclePrice(
+				quoteOraclePriceData.price,
+				quoteOraclePriceData.twap
+			);
+
+			const tokenAmount = getTokenAmount(
+				perpPosition.isolatedPositionScaledBalance,
+				quoteSpotMarket,
+				SpotBalanceType.DEPOSIT
+			);
+
 			return total.add(
-				this.getIsolatePerpPositionTokenAmount(perpPosition.marketIndex)
+				getStrictTokenValue(
+					tokenAmount,
+					quoteSpotMarket.decimals,
+					strictOracle
+				)
 			);
 		}, ZERO);
 	}
@@ -1868,9 +1896,15 @@ export class User {
 	}
 
 	getTotalAssetValue(marginCategory?: MarginCategory): BN {
-		return this.getSpotMarketAssetValue(undefined, marginCategory, true)
-			.add(this.getUnrealizedPNL(true, undefined, marginCategory))
-			.add(this.getTotalIsolatedPositionDeposits());
+		const value = this.getSpotMarketAssetValue(
+			undefined,
+			marginCategory,
+			true
+		).add(this.getUnrealizedPNL(true, undefined, marginCategory));
+		if (marginCategory === undefined) {
+			return value.add(this.getTotalIsolatedPositionDeposits());
+		}
+		return value;
 	}
 
 	getNetUsdValue(): BN {
