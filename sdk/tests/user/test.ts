@@ -546,4 +546,105 @@ describe('User Tests', () => {
 		// 150 USDC = 150 * QUOTE_PRECISION
 		assert(totalIsolatedDeposits.eq(new BN(150).mul(QUOTE_PRECISION)));
 	});
+
+	it('getNetUsdValue includes isolated position deposits', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(mockUserAccount);
+
+		// 200 USDC cross-margin deposit in spot position 0 (USDC market)
+		myMockUserAccount.spotPositions[0].marketIndex = 0;
+		myMockUserAccount.spotPositions[0].scaledBalance = new BN(200).mul(
+			SPOT_MARKET_BALANCE_PRECISION
+		);
+		myMockUserAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
+
+		// 100 USDC isolated deposit on perp position 0
+		myMockUserAccount.perpPositions[0].marketIndex = 0;
+		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION; // 1 unit long
+		myMockUserAccount.perpPositions[0].quoteAssetAmount = QUOTE_PRECISION.neg(); // entered at $1, PnL=0
+		myMockUserAccount.perpPositions[0].quoteEntryAmount = QUOTE_PRECISION.neg(); // entered at $1
+		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
+			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+
+		const mockUser = await makeMockUserFromHelpers(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const netUsdValue = mockUser.getNetUsdValue();
+		// Cross spot: 200 USDC + Isolated deposit: 100 USDC + PnL: 0 = 300 USDC
+		assert(netUsdValue.eq(new BN(300).mul(QUOTE_PRECISION)));
+	});
+
+	it('getTotalAssetValue includes isolated position deposits', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(mockUserAccount);
+
+		// 200 USDC cross-margin deposit
+		myMockUserAccount.spotPositions[0].marketIndex = 0;
+		myMockUserAccount.spotPositions[0].scaledBalance = new BN(200).mul(
+			SPOT_MARKET_BALANCE_PRECISION
+		);
+		myMockUserAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
+
+		// 100 USDC isolated deposit on perp position 0
+		myMockUserAccount.perpPositions[0].marketIndex = 0;
+		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION;
+		myMockUserAccount.perpPositions[0].quoteAssetAmount = QUOTE_PRECISION.neg(); // PnL=0 at oracle $1
+		myMockUserAccount.perpPositions[0].quoteEntryAmount = QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
+			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+
+		const mockUser = await makeMockUserFromHelpers(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const totalAssetValue = mockUser.getTotalAssetValue();
+		// Cross spot asset: 200 USDC + Isolated: 100 USDC + PnL: 0 = 300 USDC
+		assert(totalAssetValue.eq(new BN(300).mul(QUOTE_PRECISION)));
+	});
+
+	it('getLeverageComponents aggregate path includes isolated deposits in spotAssetValue', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(mockUserAccount);
+
+		// 200 USDC cross-margin deposit
+		myMockUserAccount.spotPositions[0].marketIndex = 0;
+		myMockUserAccount.spotPositions[0].scaledBalance = new BN(200).mul(
+			SPOT_MARKET_BALANCE_PRECISION
+		);
+		myMockUserAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
+
+		// 100 USDC isolated deposit on perp position 0 with 1 unit long at $1
+		myMockUserAccount.perpPositions[0].marketIndex = 0;
+		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION;
+		myMockUserAccount.perpPositions[0].quoteEntryAmount = QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance =
+			new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION);
+
+		const mockUser = await makeMockUserFromHelpers(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const { spotAssetValue } = mockUser.getLeverageComponents();
+		// Cross spot: 200 USDC + Isolated: 100 USDC = 300 USDC
+		assert(spotAssetValue.eq(new BN(300).mul(QUOTE_PRECISION)));
+	});
 });

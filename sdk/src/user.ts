@@ -1792,10 +1792,12 @@ export class User {
 			includeOpenOrders
 		);
 
+		const isolatedDeposits = this.getTotalIsolatedPositionDeposits();
+
 		return {
 			perpLiabilityValue: perpLiability,
 			perpPnl,
-			spotAssetValue,
+			spotAssetValue: spotAssetValue.add(isolatedDeposits),
 			spotLiabilityValue,
 		};
 	}
@@ -1866,15 +1868,16 @@ export class User {
 	}
 
 	getTotalAssetValue(marginCategory?: MarginCategory): BN {
-		return this.getSpotMarketAssetValue(undefined, marginCategory, true).add(
-			this.getUnrealizedPNL(true, undefined, marginCategory)
-		);
+		return this.getSpotMarketAssetValue(undefined, marginCategory, true)
+			.add(this.getUnrealizedPNL(true, undefined, marginCategory))
+			.add(this.getTotalIsolatedPositionDeposits());
 	}
 
 	getNetUsdValue(): BN {
 		const netSpotValue = this.getNetSpotMarketValue();
 		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
-		return netSpotValue.add(unrealizedPnl);
+		const isolatedDeposits = this.getTotalIsolatedPositionDeposits();
+		return netSpotValue.add(unrealizedPnl).add(isolatedDeposits);
 	}
 
 	/**
