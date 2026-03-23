@@ -1816,7 +1816,10 @@ export class User {
 			includeOpenOrders
 		);
 
-		const isolatedDeposits = this.getTotalIsolatedPositionDeposits();
+		const isolatedDeposits =
+			marginCategory === undefined
+				? this.getTotalIsolatedPositionDeposits()
+				: ZERO;
 
 		return {
 			perpLiabilityValue: perpLiability,
