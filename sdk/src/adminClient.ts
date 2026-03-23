@@ -24,6 +24,7 @@ import {
 	InitializeConstituentParams,
 	ConstituentStatus,
 	LPPoolAccount,
+	TransferFeeAndPnlPoolDirection,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -6632,5 +6633,52 @@ export class AdminClient extends DriftClient {
 				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
 			},
 		});
+	}
+
+	public async transferFeeAndPnlPool(
+		perpMarketIndexWithFeePool: number,
+		perpMarketIndexWithPnlPool: number,
+		amount: BN,
+		direction: TransferFeeAndPnlPoolDirection
+	): Promise<TransactionSignature> {
+		const transferFeeAndPnlPoolIx = await this.getTransferFeeAndPnlPoolIx(
+			perpMarketIndexWithFeePool,
+			perpMarketIndexWithPnlPool,
+			amount,
+			direction
+		);
+		const tx = await this.buildTransaction(transferFeeAndPnlPoolIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getTransferFeeAndPnlPoolIx(
+		perpMarketIndexWithFeePool: number,
+		perpMarketIndexWithPnlPool: number,
+		amount: BN,
+		direction: TransferFeeAndPnlPoolDirection
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.transferFeeAndPnlPool(
+			amount,
+			direction,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarketWithFeePool: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndexWithFeePool
+					),
+					perpMarketWithPnlPool: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndexWithPnlPool
+					),
+					spotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+				},
+			}
+		);
 	}
 }

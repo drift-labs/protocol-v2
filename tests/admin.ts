@@ -12,6 +12,7 @@ import {
 	OracleSource,
 	SpotBalanceType,
 	TestClient,
+	TransferFeeAndPnlPoolDirection,
 	Wallet,
 } from '../sdk/src';
 
@@ -514,6 +515,86 @@ describe('admin', () => {
 		);
 
 		assert(tokenAmount.eq(usdcAmount));
+	});
+
+	it('transfer fee and pnl pool', async () => {
+		const quoteVault = driftClient.getSpotMarketAccount(0).vault;
+
+		const splTransferIx = createTransferCheckedInstruction(
+			userUSDCAccount.publicKey,
+			usdcMint.publicKey,
+			quoteVault,
+			driftClient.wallet.publicKey,
+			usdcAmount.muln(2).toNumber(),
+			6
+		);
+		const tx = await driftClient.buildTransaction(splTransferIx);
+		//@ts-ignore
+		await driftClient.sendTransaction(tx);
+
+		// seed fee pool on market 0
+		await driftClient.depositIntoPerpMarketFeePool(
+			0,
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
+		// seed pnl pool on market 0
+		await driftClient.updatePerpMarketPnlPool(0, usdcAmount);
+
+		await driftClient.fetchAccounts();
+
+		const spotMarket = driftClient.getSpotMarketAccount(0);
+
+		// Case 1: Same market, fee -> pnl pool transfer
+		const feePoolBefore = getTokenAmount(
+			driftClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,
+			spotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+
+		const pnlPoolBefore = getTokenAmount(
+			driftClient.getPerpMarketAccount(0).pnlPool.scaledBalance,
+			spotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+
+		const transferAmount = usdcAmount.divn(2);
+
+		await driftClient.transferFeeAndPnlPool(
+			0,
+			0,
+			transferAmount,
+			TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL
+		);
+
+		await driftClient.fetchAccounts();
+
+		const feePoolAfterFeeToPnl = getTokenAmount(
+			driftClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,
+			driftClient.getSpotMarketAccount(0),
+			SpotBalanceType.DEPOSIT
+		);
+
+		const pnlPoolAfterFeeToPnl = getTokenAmount(
+			driftClient.getPerpMarketAccount(0).pnlPool.scaledBalance,
+			driftClient.getSpotMarketAccount(0),
+			SpotBalanceType.DEPOSIT
+		);
+
+		assert(
+			feePoolAfterFeeToPnl.eq(feePoolBefore.sub(transferAmount)),
+			`fee pool after fee -> pnl: expected ${feePoolBefore.sub(
+				transferAmount
+			)} got ${feePoolAfterFeeToPnl}`
+		);
+
+		assert(
+			pnlPoolAfterFeeToPnl.eq(pnlPoolBefore.add(transferAmount)),
+			`pnl pool after fee -> pnl: expected ${pnlPoolBefore.add(
+				transferAmount
+			)} got ${pnlPoolAfterFeeToPnl}`
+		);
 	});
 
 	it('Update admin', async () => {

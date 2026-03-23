@@ -40,6 +40,7 @@ use crate::optional_accounts::get_token_mint;
 use crate::state::amm_cache::{AmmCache, CacheInfo, AMM_POSITIONS_CACHE};
 use crate::state::events::{
     CurveRecord, DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
+    TransferFeeAndPnlPoolDirection,
 };
 use crate::state::fulfillment_params::openbook_v2::{
     OpenbookV2Context, OpenbookV2FulfillmentConfig,
@@ -5245,6 +5246,88 @@ pub fn handle_update_perp_market_config(
     Ok(())
 }
 
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market_with_fee_pool)
+    perp_market_valid(&ctx.accounts.perp_market_with_pnl_pool)
+)]
+pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferFeeAndPnlPool<'info>>,
+    amount: u64,
+    direction: TransferFeeAndPnlPoolDirection,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let perp_market_with_fee_pool = &mut load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
+    let perp_market_with_pnl_pool = &mut load_mut!(ctx.accounts.perp_market_with_pnl_pool)?;
+
+    let fee_pool_market_index = perp_market_with_fee_pool.market_index;
+    let pnl_pool_market_index = perp_market_with_pnl_pool.market_index;
+
+    let (
+        source_pool,
+        dest_pool,
+        source_market_index,
+        dest_market_index,
+        source_pool_name,
+        dest_pool_name,
+    ) = match direction {
+        TransferFeeAndPnlPoolDirection::FeeToPnlPool => (
+            &mut perp_market_with_fee_pool.amm.fee_pool,
+            &mut perp_market_with_pnl_pool.pnl_pool,
+            fee_pool_market_index,
+            pnl_pool_market_index,
+            "fee",
+            "pnl",
+        ),
+        TransferFeeAndPnlPoolDirection::PnlToFeePool => (
+            &mut perp_market_with_pnl_pool.pnl_pool,
+            &mut perp_market_with_fee_pool.amm.fee_pool,
+            pnl_pool_market_index,
+            fee_pool_market_index,
+            "pnl",
+            "fee",
+        ),
+    };
+
+    msg!(
+        "transferring {} from perp market {} {} pool -> perp market {} {} pool",
+        amount,
+        source_market_index,
+        source_pool_name,
+        dest_market_index,
+        dest_pool_name,
+    );
+
+    // Op 1: Decrement source pool
+    controller::spot_balance::update_spot_balances(
+        amount.cast::<u128>()?,
+        &SpotBalanceType::Borrow,
+        spot_market,
+        source_pool,
+        false,
+    )?;
+
+    // Op 2: Increment destination pool
+    controller::spot_balance::update_spot_balances(
+        amount.cast::<u128>()?,
+        &SpotBalanceType::Deposit,
+        spot_market,
+        dest_pool,
+        false,
+    )?;
+
+    msg!(
+        "after fee_pool(market {}) scaled_balance: {} pnl_pool(market {}) scaled_balance: {}",
+        perp_market_with_fee_pool.market_index,
+        perp_market_with_fee_pool.amm.fee_pool.scaled_balance,
+        perp_market_with_pnl_pool.market_index,
+        perp_market_with_pnl_pool.pnl_pool.scaled_balance,
+    );
+
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -6185,4 +6268,29 @@ pub struct UpdateDelegateUserGovTokenInsuranceStake<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct TransferFeeAndPnlPool<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub perp_market_with_fee_pool: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    pub perp_market_with_pnl_pool: AccountLoader<'info, PerpMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
