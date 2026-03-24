@@ -23,8 +23,8 @@
 //! );
 //!
 //! let slot = client.get_slot().await?;
-//! let asks = vec![OrderEntry { offset: 1000, size: 1_000_000_000 }];
-//! let bids = vec![OrderEntry { offset: -1000, size: 1_000_000_000 }];
+//! let asks = vec![OrderEntry { tick_count: 10, size: 1_000_000_000 }];
+//! let bids = vec![OrderEntry { tick_count: 10, size: 1_000_000_000 }];
 //! let sig = client.quote(50_000_000_000, slot, &asks, &bids).await?;
 //! # Ok(())
 //! # }

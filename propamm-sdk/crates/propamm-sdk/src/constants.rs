@@ -25,6 +25,8 @@ pub const IX_SET_QUOTE_TTL: u8 = 5;
 pub const IX_CLOSE_ACCOUNT: u8 = 6;
 /// Opcode for [`instructions::transfer_authority`](crate::instructions::transfer_authority).
 pub const IX_TRANSFER_AUTHORITY: u8 = 7;
+/// Opcode for [`instructions::initialize_midprice_pino`](crate::instructions::initialize_midprice_pino).
+pub const IX_INITIALIZE: u8 = 1;
 
 pub use midprice_book_view::{
     ACCOUNT_MIN_LEN, LEVEL_ENTRY_SIZE, SEQUENCE_NUMBER_OFFSET, STANDARDIZED_HEADER_SIZE,

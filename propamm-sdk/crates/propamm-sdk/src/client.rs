@@ -284,17 +284,21 @@ impl PropAmmClient {
 
     // -- Initialization --
 
-    /// Initialize the midprice account via Drift CPI.
+    /// Initialize the midprice account by calling midprice_pino directly.
     /// The midprice PDA must be pre-allocated (create_account) before calling.
     pub async fn initialize_midprice(&self) -> Result<Signature> {
-        let ix = instructions::initialize_prop_amm_midprice(
+        let (maker_subaccount, _) = pda::user_pda(
             &self.drift_program_id,
             &self.payer.pubkey(),
-            &self.midprice_address,
-            &self.perp_market_address,
-            &self.midprice_program_id,
-            &self.matcher_address,
             self.subaccount_index,
+        );
+        let ix = instructions::initialize_midprice_pino(
+            &self.midprice_program_id,
+            &self.payer.pubkey(),
+            &self.midprice_address,
+            self.market_index,
+            self.subaccount_index,
+            &maker_subaccount,
         );
         self.send_tx(&[ix]).await
     }

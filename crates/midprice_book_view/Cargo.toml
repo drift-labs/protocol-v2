@@ -3,6 +3,9 @@ name = "midprice_book_view"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+test-utils = []
+
 [lib]
 name = "midprice_book_view"
 path = "src/lib.rs"

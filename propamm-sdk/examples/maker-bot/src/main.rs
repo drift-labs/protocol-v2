@@ -58,6 +58,7 @@ struct Args {
     /// Subaccount index for the midprice PDA.
     #[arg(long, env = "SUBACCOUNT_INDEX", default_value_t = 0)]
     subaccount_index: u16,
+
 }
 
 #[tokio::main]
@@ -106,7 +107,7 @@ async fn main() {
     match client.fetch_midprice_account().await {
         Ok(_) => info!("midprice account exists"),
         Err(_) => {
-            info!("midprice account not found, initializing via Drift CPI...");
+            info!("midprice account not found, initializing directly via midprice_pino...");
             match client.initialize_midprice().await {
                 Ok(sig) => info!("initialized midprice account: {sig}"),
                 Err(e) => {
@@ -165,20 +166,19 @@ async fn main() {
                 // mid price in PRICE_PRECISION. Real bots should apply the exponent properly.
                 let mid_price = oracle_price.price.unsigned_abs();
 
-                // Compute spread offset per level.
-                let base_offset = (args.spread_bps * mid_price) / 10_000;
-
+                // Compute spread in ticks per level.
+                // spread_bps maps directly to tick count when tick_size ≈ 1 bps.
                 let mut asks = Vec::with_capacity(args.num_levels);
                 let mut bids = Vec::with_capacity(args.num_levels);
 
                 for i in 0..args.num_levels {
-                    let level_offset = base_offset * (i as u64 + 1);
+                    let tick_count = (args.spread_bps * (i as u64 + 1)) as u16;
                     asks.push(OrderEntry {
-                        offset: level_offset as i64,
+                        tick_count,
                         size: args.size_base,
                     });
                     bids.push(OrderEntry {
-                        offset: -(level_offset as i64),
+                        tick_count,
                         size: args.size_base,
                     });
                 }

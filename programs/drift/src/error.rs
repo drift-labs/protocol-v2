@@ -700,8 +700,12 @@ pub enum ErrorCode {
     InvalidOrderScaleOrderCount,
     #[msg("Invalid scale order price range")]
     InvalidOrderScalePriceRange,
-    #[msg("Midprice quote expired")]
-    MidpriceQuoteExpired,
+    #[msg("Invalid perp market config")]
+    InvalidPerpMarketConfig,
+    #[msg("Insurance fund withdrawal recipient must be the designated treasury address")]
+    InvalidInsuranceFundWithdrawalRecipient,
+    #[msg("PropAMM quote expired")]
+    PropAMMQuoteExpired,
     /// Used when the global PropAMM matcher PDA is missing, misordered in
     /// remaining accounts, or does not match the PDA derived from the Drift program id.
     #[msg("Invalid PropAMM matcher account")]
@@ -710,18 +714,14 @@ pub enum ErrorCode {
     /// overlapping reserved accounts or duplicate `(midprice, maker_user)` pairs.
     #[msg("Invalid PropAMM account layout")]
     InvalidPropAmmAccountLayout,
-    #[msg("Invalid midprice account (wrong program, bad data, or orders overflow)")]
-    InvalidMidpriceAccount,
-    #[msg("Midprice account authority and subaccount do not derive to the given maker User PDA")]
-    MidpriceMakerUserMismatch,
+    #[msg("Invalid PropAMM account (wrong program, bad data, or orders overflow)")]
+    InvalidPropAMMAccount,
+    #[msg("PropAMM account authority and subaccount do not derive to the given maker User PDA")]
+    PropAMMMakerUserMismatch,
     #[msg("Oracle price cache entry is stale")]
     OraclePriceCacheStale,
     #[msg("Oracle price cache is full")]
     OraclePriceCacheFull,
-    #[msg("Invalid perp market config")]
-    InvalidPerpMarketConfig,
-    #[msg("Insurance fund withdrawal recipient must be the designated treasury address")]
-    InvalidInsuranceFundWithdrawalRecipient,
 }
 
 #[macro_export]

@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@drift-labs/sdk",
@@ -14,7 +13,7 @@
         "@project-serum/serum": "0.13.65",
         "@pythnetwork/client": "2.5.3",
         "@pythnetwork/price-service-sdk": "1.7.1",
-        "@pythnetwork/pyth-lazer-sdk": "5.2.1",
+        "@pythnetwork/pyth-lazer-sdk": "6.0.0",
         "@solana/spl-token": "0.4.13",
         "@solana/web3.js": "1.98.0",
         "@switchboard-xyz/common": "3.0.14",
@@ -246,7 +245,7 @@
 
     "@pythnetwork/price-service-sdk": ["@pythnetwork/price-service-sdk@1.7.1", "", { "dependencies": { "bn.js": "^5.2.1" } }, "sha512-xr2boVXTyv1KUt/c6llUTfbv2jpud99pWlMJbFaHGUBoygQsByuy7WbjIJKZ+0Blg1itLZl0Lp/pJGGg8SdJoQ=="],
 
-    "@pythnetwork/pyth-lazer-sdk": ["@pythnetwork/pyth-lazer-sdk@5.2.1", "", { "dependencies": { "@isaacs/ttlcache": "^1.4.1", "buffer": "^6.0.3", "isomorphic-ws": "^5.0.0", "ts-log": "^2.2.7", "ws": "^8.18.0" } }, "sha512-/0rrPi6sZdVH+cWtW+X/hmQzw+nP2fIF6BlrJRTrqwK2IXWZWW+40sHoj839HrbyUXOJyG9zKyco37eFuTE/nA=="],
+    "@pythnetwork/pyth-lazer-sdk": ["@pythnetwork/pyth-lazer-sdk@6.0.0", "", { "dependencies": { "@isaacs/ttlcache": "^1.4.1", "buffer": "^6.0.3", "isomorphic-ws": "^5.0.0", "ts-log": "^2.2.7", "ws": "^8.18.0" } }, "sha512-cty4/M4zQOUtFnm1ZsCfMs9x3sLk4ZmEwW0CPqMtDZFai94QGsXHkKvi5LkBPRL4aQg96EuVzOa37H0lHqANeQ=="],
 
     "@sinclair/typebox": ["@sinclair/typebox@0.24.51", "", {}, "sha512-1P1OROm/rdubP5aFDSZQILU0vrLCJ4fvHt6EoqHEM+2D/G5MK3bIaymUKLit8Js9gbns5UyJnkP/TZROLw4tUA=="],
 

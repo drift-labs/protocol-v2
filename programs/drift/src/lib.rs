@@ -356,22 +356,8 @@ pub mod drift {
         handle_remove_prop_amms(ctx, keys)
     }
 
-    /// Initializes a midprice (Prop AMM) account via CPI to the midprice program. Drift supplies the perp_market so the client does not load it; tick sizes are stored on the midprice account.
-    /// The midprice account must already exist at the PDA derived by the midprice program.
-    pub fn initialize_prop_amm_midprice(
-        ctx: Context<InitializePropAmmMidprice>,
-        subaccount_index: u16,
-    ) -> Result<()> {
-        handle_initialize_prop_amm_midprice(ctx, subaccount_index)
-    }
-
-    /// Updates order_tick_size and min_order_size on a midprice account via CPI. Drift reads current values from perp_market.
-    pub fn update_prop_amm_tick_sizes(ctx: Context<UpdatePropAmmTickSizes>) -> Result<()> {
-        handle_update_prop_amm_tick_sizes(ctx)
-    }
-
-    /// Match a perp order against prop AMM (midprice_pino) liquidity. Permissionless: anyone may call.
-    /// Remaining accounts: [midprice_program], [spot_markets...] (canonical: consume while SpotMarket discriminator), then (matcher, midprice, maker_user, maker_stats)* per AMM.
+    /// Match a perp order against prop AMM liquidity. Permissionless: anyone may call.
+    /// Remaining accounts: [propamm_program], [spot_markets...] (canonical: consume while SpotMarket discriminator), then (matcher, propamm_account, maker_user)* per AMM.
     pub fn fill_perp_order2<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, FillPerpOrder2<'info>>,
         taker_order_id: Option<u32>,
@@ -1015,6 +1001,26 @@ pub mod drift {
         ctx: Context<DeleteOpenbookV2FulfillmentConfig>,
     ) -> Result<()> {
         handle_delete_openbook_v2_fulfillment_config(ctx)
+    }
+
+    pub fn initialize_serum_fulfillment_config(
+        ctx: Context<InitializeSerumFulfillmentConfig>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_serum_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn update_serum_fulfillment_config_status(
+        ctx: Context<UpdateSerumFulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_serum_fulfillment_config_status(ctx, status)
+    }
+
+    pub fn delete_serum_fulfillment_config(
+        ctx: Context<DeleteSerumFulfillmentConfig>,
+    ) -> Result<()> {
+        handle_delete_serum_fulfillment_config(ctx)
     }
 
     pub fn initialize_phoenix_fulfillment_config(

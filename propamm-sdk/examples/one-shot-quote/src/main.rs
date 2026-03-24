@@ -41,16 +41,15 @@ async fn main() {
     // Get current slot for ref_slot.
     let slot = client.get_slot().await.expect("failed to get slot");
 
-    // Quote at $50,000 with 10bps spread, 1 level each side, 1 SOL size.
+    // Quote at $50,000 with 10 ticks spread, 1 level each side, 1 SOL size.
     let mid_price = 50_000 * PRICE_PRECISION; // $50,000 in PRICE_PRECISION
-    let spread = mid_price / 1000; // 10bps = 0.1%
 
     let asks = vec![OrderEntry {
-        offset: spread as i64,
+        tick_count: 10,
         size: 1_000_000_000, // 1 unit in BASE_PRECISION
     }];
     let bids = vec![OrderEntry {
-        offset: -(spread as i64),
+        tick_count: 10,
         size: 1_000_000_000,
     }];
 

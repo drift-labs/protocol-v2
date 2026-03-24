@@ -1,10 +1,10 @@
-//! Match perp orders against prop AMM (midprice_pino) liquidity. Uses Drift as the exchange:
+//! Match perp orders against prop AMM liquidity. Uses Drift as the exchange:
 //! taker and makers are Drift users; matcher authority is a PDA of this program.
 //!
 //! Each PropAMM account must be associated with a Drift User account (the maker).
-//! Remaining accounts: [midprice_program], [spot_market_0, spot_market_1, ...] (num_spot_markets collateral spot markets),
-//! then for each AMM: (midprice_account, maker_user).
-//! Midprice accounts have authority = maker's wallet (User.authority); only Drift's matcher PDA can apply_fills (hardcoded in midprice_pino).
+//! Remaining accounts: [propamm_program], [spot_market_0, spot_market_1, ...] (num_spot_markets collateral spot markets),
+//! then for each AMM: (propamm_account, maker_user).
+//! PropAMM programs and accounts are validated against the on-chain PropAMM registry.
 //! Matcher_authority = PDA(drift_program_id, ["matcher", maker_user.key()]).
 
 use crate::controller;
@@ -65,11 +65,6 @@ use std::slice::Iter;
 
 /// One matcher PDA can apply fills to all PropAMM books (saves tx size vs per-maker matcher).
 const PROP_AMM_MATCHER_SEED: &[u8] = b"prop_amm_matcher";
-
-/// Midprice_pino instruction opcode for initialize (accounts: midprice w, authority s, drift_matcher s). Payload: market_index, subaccount_index, order_tick_size, min_order_size.
-const MIDPRICE_IX_INITIALIZE: u8 = 1;
-/// Midprice_pino instruction opcode for update_tick_sizes (accounts: midprice w, authority s, drift_matcher s). Payload: order_tick_size, min_order_size.
-const MIDPRICE_IX_UPDATE_TICK_SIZES: u8 = 8;
 
 struct VecSink<'a>(&'a mut Vec<u8>);
 impl ApplyFillsSink for VecSink<'_> {
@@ -211,7 +206,7 @@ struct MarketContext {
 
 /// Output of the matching phase: filtered fills and metadata for settlement.
 struct MatchOutput {
-    midprice_program_idx: usize,
+    propamm_program_idx: usize,
     amm_views: Vec<AmmView>,
     amm_view_by_maker: BTreeMap<Pubkey, usize>,
     external_fills: Vec<PendingExternalFill>,
@@ -422,27 +417,27 @@ fn load_fill_perp_order2_market_maps<'a>(
 /// Returns (reference_price, sequence_number, market_index).
 fn read_external_mid_price(
     midprice_info: &AccountInfo,
-    midprice_program_id: &Pubkey,
+    propamm_program_id: &Pubkey,
     maker_user_info: &AccountInfo,
     current_slot: u64,
 ) -> DriftResult<(u64, u64, u16)> {
     validate!(
-        *midprice_info.owner == *midprice_program_id,
-        ErrorCode::InvalidMidpriceAccount,
+        *midprice_info.owner == *propamm_program_id,
+        ErrorCode::InvalidPropAMMAccount,
         "midprice account must be owned by midprice program (create/init via midprice program)"
     )?;
     let data = midprice_info
         .try_borrow_data()
-        .map_err(|_| ErrorCode::InvalidMidpriceAccount)?;
-    let view = MidpriceBookView::new(&data).map_err(|_| ErrorCode::InvalidMidpriceAccount)?;
+        .map_err(|_| ErrorCode::InvalidPropAMMAccount)?;
+    let view = MidpriceBookView::new(&data).map_err(|_| ErrorCode::InvalidPropAMMAccount)?;
 
     let stored_maker_subaccount = Pubkey::new_from_array(
         view.maker_subaccount()
-            .map_err(|_| ErrorCode::InvalidMidpriceAccount)?,
+            .map_err(|_| ErrorCode::InvalidPropAMMAccount)?,
     );
     validate!(
         stored_maker_subaccount == maker_user_info.key(),
-        ErrorCode::MidpriceMakerUserMismatch,
+        ErrorCode::PropAMMMakerUserMismatch,
         "midprice maker_subaccount must match maker User PDA"
     )?;
 
@@ -450,7 +445,7 @@ fn read_external_mid_price(
     if valid_until_slot > 0 {
         validate!(
             current_slot <= valid_until_slot,
-            ErrorCode::MidpriceQuoteExpired,
+            ErrorCode::PropAMMQuoteExpired,
             "midprice quote expired (current_slot {} > valid_until_slot {})",
             current_slot,
             valid_until_slot
@@ -470,11 +465,13 @@ fn find_external_top_level_from(
     taker_limit_price: u64,
     mid_price: u64,
     start_from_abs_index: Option<usize>,
+    tick_size: u64,
+    step_size: u64,
 ) -> DriftResult<Option<TopLevel>> {
     let data = midprice_info
         .try_borrow_data()
-        .map_err(|_| ErrorCode::InvalidMidpriceAccount)?;
-    let book = MidpriceBookView::new(&data).map_err(|_| ErrorCode::InvalidMidpriceAccount)?;
+        .map_err(|_| ErrorCode::InvalidPropAMMAccount)?;
+    let book = MidpriceBookView::new(&data).map_err(|_| ErrorCode::InvalidPropAMMAccount)?;
     let taking_side = match side {
         PositionDirection::Long => TakingSide::TakingAsks,
         PositionDirection::Short => TakingSide::TakingBids,
@@ -485,11 +482,42 @@ fn find_external_top_level_from(
             mid_price,
             taker_limit_price,
             start_from_abs_index,
+            tick_size,
         )
-        .map_err(|_| ErrorCode::InvalidMidpriceAccount)?;
-    Ok(level.map(|l| TopLevel {
-        price: l.price,
-        size: l.size,
+        .map_err(|_| ErrorCode::InvalidPropAMMAccount)?;
+    let Some(l) = level else {
+        return Ok(None);
+    };
+
+    // Tick alignment: round passive-favorable using standardize_price with
+    // the maker's direction. Asks round UP, bids round DOWN — same convention
+    // used by Drift's order placement for limit orders.
+    let maker_direction = if l.is_ask {
+        PositionDirection::Short
+    } else {
+        PositionDirection::Long
+    };
+    let price = crate::math::orders::standardize_price(l.price, tick_size, maker_direction)?;
+
+    // Re-check crossing after rounding (rounding may push the price outside
+    // the taker's limit).
+    let still_crosses = match side {
+        PositionDirection::Long => price <= taker_limit_price,
+        PositionDirection::Short => price >= taker_limit_price,
+    };
+    if !still_crosses || price == 0 {
+        return Ok(None);
+    }
+
+    // Step-size alignment: truncate to nearest step (can't fill more than available).
+    let size = l.size / step_size * step_size;
+    if size == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(TopLevel {
+        price,
+        size,
         abs_index: l.abs_index,
         is_ask: l.is_ask,
         source: FrontierSource::PropAmm,
@@ -504,6 +532,8 @@ fn init_frontiers(
     remaining_accounts: &[AccountInfo],
     side: &PositionDirection,
     taker_limit_price: u64,
+    tick_size: u64,
+    step_size: u64,
 ) -> DriftResult<(Vec<Option<TopLevel>>, usize)> {
     let mut frontiers = Vec::with_capacity(amm_views.len() + dlob_makers.len());
 
@@ -515,6 +545,8 @@ fn init_frontiers(
             taker_limit_price,
             amm.reference_price,
             None,
+            tick_size,
+            step_size,
         )?);
     }
     let num_prop_amm = amm_views.len();
@@ -665,6 +697,8 @@ fn refresh_exhausted_frontiers(
     remaining_accounts: &[AccountInfo],
     side: &PositionDirection,
     taker_limit_price: u64,
+    tick_size: u64,
+    step_size: u64,
 ) -> DriftResult<()> {
     for tied in tied_levels {
         let Some(current) = frontiers[tied.idx] else {
@@ -683,6 +717,8 @@ fn refresh_exhausted_frontiers(
                     taker_limit_price,
                     amm_views[tied.idx].reference_price,
                     Some(next_start),
+                    tick_size,
+                    step_size,
                 )?;
             }
             FrontierSource::DlobMaker => {
@@ -781,7 +817,7 @@ pub(crate) fn build_canonical_apply_fills_accounts_and_batches<'a>(
 /// `u64 expected_sequence_number` (snapshot when matching), and 11*num_fills bytes of entries.
 /// No authority accounts; filling is permissionless.
 fn apply_external_fills_via_cpi<'a>(
-    midprice_program: &AccountInfo<'a>,
+    propamm_program: &AccountInfo<'a>,
     remaining_accounts: &[AccountInfo<'a>],
     clock: &AccountInfo<'a>,
     external_fills: &[PendingExternalFill],
@@ -820,19 +856,19 @@ fn apply_external_fills_via_cpi<'a>(
         cpi_accounts.push(remaining_accounts[idx].clone());
     }
     let ix = Instruction {
-        program_id: midprice_program.key(),
+        program_id: propamm_program.key(),
         accounts,
         data: payload,
     };
     let signer_seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED, &[bump]];
     invoke_signed(&ix, &cpi_accounts, &[signer_seeds]).map_err(|e| {
         msg!("midprice apply_fills CPI: {:?}", e);
-        ErrorCode::InvalidMidpriceAccount
+        ErrorCode::InvalidPropAMMAccount
     })
 }
 
 fn flush_external_fill_batches<'a>(
-    midprice_program: &AccountInfo<'a>,
+    propamm_program: &AccountInfo<'a>,
     remaining_accounts: &[AccountInfo<'a>],
     clock: &AccountInfo<'a>,
     external_fills: &[PendingExternalFill],
@@ -841,7 +877,7 @@ fn flush_external_fill_batches<'a>(
     program_id: &Pubkey,
 ) -> DriftResult<()> {
     apply_external_fills_via_cpi(
-        midprice_program,
+        propamm_program,
         remaining_accounts,
         clock,
         external_fills,
@@ -852,7 +888,7 @@ fn flush_external_fill_batches<'a>(
 }
 
 /// Finds the index of the global PropAMM matcher PDA in remaining_accounts.
-/// Layout: remaining_accounts[0] = midprice program, [1..search_start] = live oracles (optional),
+/// Layout: remaining_accounts[0] = propamm program, [1..search_start] = live oracles (optional),
 /// [search_start..amm_start] = spot markets, [amm_start] = matcher PDA.
 /// `search_start` is the index to begin scanning for the matcher PDA (skipping live oracles).
 fn find_amm_start_after_spot_markets(
@@ -870,8 +906,8 @@ fn find_amm_start_after_spot_markets(
 
 /// Midprice accounts have an 8-byte "prammacc" discriminator at offset 0 and are owned by the
 /// midprice program. This is used to detect the PropAMM/DLOB boundary in remaining_accounts.
-fn is_midprice_account(info: &AccountInfo, midprice_program_id: &Pubkey) -> bool {
-    *info.owner == *midprice_program_id
+fn is_midprice_account(info: &AccountInfo, propamm_program_id: &Pubkey) -> bool {
+    *info.owner == *propamm_program_id
         && info.data_len() >= 8
         && info
             .try_borrow_data()
@@ -885,7 +921,7 @@ fn is_midprice_account(info: &AccountInfo, midprice_program_id: &Pubkey) -> bool
 /// PropAMM pairs are detected by the "prammacc" discriminator on the first account of each pair.
 /// Once a non-midprice account is encountered, the rest are treated as DLOB maker User accounts.
 ///
-/// Returns `(midprice_program_account_index, amm_views, dlob_start_index)`.
+/// Returns `(propamm_program_account_index, amm_views, dlob_start_index)`.
 pub(crate) fn parse_amm_views<'info>(
     remaining_accounts: &'info [AccountInfo<'info>],
     amm_start: usize,
@@ -893,22 +929,23 @@ pub(crate) fn parse_amm_views<'info>(
     current_slot: u64,
     order_market_index: Option<u16>,
     taker_user_key: Option<&Pubkey>,
+    registry: &PropAmmRegistry,
 ) -> DriftResult<(usize, Vec<AmmView>, usize)> {
     const ACCOUNTS_PER_AMM: usize = 2; // midprice, maker_user (global matcher is separate)
     const GLOBAL_MATCHER_SLOTS: usize = 1;
 
-    // 0: midprice program
-    let midprice_program = &remaining_accounts[0];
+    // 0: propamm program — must be executable and registered in the PropAMM registry
+    let propamm_program = &remaining_accounts[0];
     validate!(
-        midprice_program.executable,
-        ErrorCode::InvalidMidpriceAccount,
-        "remaining_accounts[0] must be an executable program (midprice program)"
+        propamm_program.executable,
+        ErrorCode::InvalidPropAMMAccount,
+        "remaining_accounts[0] must be an executable program (propamm program)"
     )?;
-    let expected_midprice_program_id = crate::ids::midprice_program::id();
     validate!(
-        midprice_program.key() == expected_midprice_program_id,
-        ErrorCode::InvalidMidpriceAccount,
-        "remaining_accounts[0] must be the canonical midprice program (prevent CPI to arbitrary program)"
+        registry.has_active_program(&propamm_program.key()),
+        ErrorCode::InvalidPropAMMAccount,
+        "remaining_accounts[0] must be a registered propamm program (key={})",
+        propamm_program.key()
     )?;
 
     // amm_start: global matcher PDA
@@ -926,7 +963,7 @@ pub(crate) fn parse_amm_views<'info>(
     }
 
     let tail_start = amm_start + GLOBAL_MATCHER_SLOTS;
-    let midprice_program_key = midprice_program.key;
+    let propamm_program_key = propamm_program.key;
 
     let mut amm_views: Vec<AmmView> = Vec::with_capacity(8);
     let mut seen_midprices: BTreeSet<Pubkey> = BTreeSet::new();
@@ -936,7 +973,7 @@ pub(crate) fn parse_amm_views<'info>(
     let mut cursor = tail_start;
     while cursor + 1 < remaining_accounts.len() {
         let candidate = &remaining_accounts[cursor];
-        if !is_midprice_account(candidate, midprice_program_key) {
+        if !is_midprice_account(candidate, propamm_program_key) {
             break; // boundary found — remaining accounts are DLOB makers
         }
 
@@ -993,25 +1030,56 @@ pub(crate) fn parse_amm_views<'info>(
             maker_user_key
         )?;
 
+        // Registry lookup: the (propamm_account, propamm_program, maker_subaccount)
+        // tuple must be registered and active.
+        let registry_entry = registry.find_active_entry(&midprice_key).ok_or_else(|| {
+            msg!(
+                "propamm account {} not found in registry or disabled",
+                midprice_key
+            );
+            ErrorCode::InvalidPropAMMAccount
+        })?;
+        validate!(
+            registry_entry.propamm_program == *propamm_program_key,
+            ErrorCode::InvalidPropAMMAccount,
+            "propamm account owner ({}) does not match registry program ({})",
+            midprice_info.owner,
+            registry_entry.propamm_program
+        )?;
+        validate!(
+            registry_entry.maker_subaccount == maker_user_key,
+            ErrorCode::PropAMMMakerUserMismatch,
+            "registry maker_subaccount ({}) does not match paired maker ({})",
+            registry_entry.maker_subaccount,
+            maker_user_key
+        )?;
+
         let (reference_price, sequence_number_snapshot, midprice_market_index) =
             match read_external_mid_price(
                 midprice_info,
-                midprice_program_key,
+                propamm_program_key,
                 maker_user_info,
                 current_slot,
             ) {
                 Ok(result) => result,
-                Err(err) if err == ErrorCode::MidpriceQuoteExpired.into() => {
+                Err(err) if err == ErrorCode::PropAMMQuoteExpired.into() => {
                     cursor += ACCOUNTS_PER_AMM;
                     continue;
                 }
                 Err(err) => return Err(err),
             };
 
+        validate!(
+            registry_entry.market_index == midprice_market_index,
+            ErrorCode::InvalidPropAMMAccount,
+            "registry market_index ({}) does not match midprice account ({})",
+            registry_entry.market_index,
+            midprice_market_index
+        )?;
         if let Some(order_mi) = order_market_index {
             validate!(
                 midprice_market_index == order_mi,
-                ErrorCode::InvalidMidpriceAccount,
+                ErrorCode::InvalidPropAMMAccount,
                 "midprice market_index must match order market"
             )?;
         }
@@ -1046,7 +1114,7 @@ pub(crate) fn parse_amm_views<'info>(
         cursor += ACCOUNTS_PER_AMM;
     }
 
-    // Return: midprice_program idx, parsed PropAMM views, start of DLOB accounts.
+    // Return: propamm_program idx, parsed PropAMM views, start of DLOB accounts.
     Ok((0, amm_views, cursor))
 }
 
@@ -1504,6 +1572,8 @@ pub(crate) fn run_unified_matching(
     side: PositionDirection,
     limit_price: u64,
     size: u64,
+    tick_size: u64,
+    step_size: u64,
 ) -> DriftResult<UnifiedMatchResult> {
     let mut remaining = size;
     let (mut frontiers, num_prop_amm) = init_frontiers(
@@ -1512,6 +1582,8 @@ pub(crate) fn run_unified_matching(
         remaining_accounts,
         &side,
         limit_price,
+        tick_size,
+        step_size,
     )?;
     let mut result = UnifiedMatchResult::default();
 
@@ -1598,6 +1670,8 @@ pub(crate) fn run_unified_matching(
             remaining_accounts,
             &side,
             limit_price,
+            tick_size,
+            step_size,
         )?;
         remaining = remaining.safe_sub(fill)?;
     }
@@ -1605,6 +1679,7 @@ pub(crate) fn run_unified_matching(
 }
 
 /// Legacy entry point: PropAMM-only matching (no AMM, no DLOB).
+/// Uses tick_size=1, step_size=1 (no rounding) for backward compatibility with existing tests.
 #[cfg(test)]
 pub(crate) fn run_prop_amm_matching(
     amm_views: &[AmmView],
@@ -1613,7 +1688,16 @@ pub(crate) fn run_prop_amm_matching(
     limit_price: u64,
     size: u64,
 ) -> DriftResult<UnifiedMatchResult> {
-    run_unified_matching(amm_views, &[], remaining_accounts, side, limit_price, size)
+    run_unified_matching(
+        amm_views,
+        &[],
+        remaining_accounts,
+        side,
+        limit_price,
+        size,
+        1,
+        1,
+    )
 }
 
 /// Match taker perp order against prop AMM (midprice) liquidity. Permissionless: anyone may call.
@@ -1807,159 +1891,6 @@ pub struct MutatePropAmmRegistry<'info> {
 }
 
 /// Initializes a midprice (Prop AMM) account via CPI to the midprice program.
-/// Caller must have created the midprice account at the PDA derived by the midprice program
-/// (seeds: ["midprice", market_index, authority, subaccount_index]) with sufficient space.
-/// Drift supplies the perp_market account so the client does not need to load it.
-pub fn handle_initialize_prop_amm_midprice(
-    ctx: Context<InitializePropAmmMidprice>,
-    subaccount_index: u16,
-) -> Result<()> {
-    validate!(
-        ctx.accounts.midprice_program.key() == crate::ids::midprice_program::id(),
-        ErrorCode::InvalidMidpriceAccount,
-        "midprice_program must be the canonical midprice program"
-    )?;
-    validate!(
-        ctx.accounts.midprice_program.executable,
-        ErrorCode::InvalidMidpriceAccount,
-        "midprice_program must be executable"
-    )?;
-    let perp_market = ctx.accounts.perp_market.load()?;
-    let market_index = perp_market.market_index;
-    let order_tick_size = perp_market.amm.order_tick_size;
-    let min_order_size = perp_market.amm.min_order_size;
-
-    let (expected_matcher, bump) = prop_amm_matcher_pda(ctx.program_id);
-    validate!(
-        ctx.accounts.prop_amm_matcher.key() == expected_matcher,
-        ErrorCode::InvalidPropAmmMatcherAccount,
-        "prop_amm_matcher must be the global PropAMM matcher PDA"
-    )?;
-
-    // Derive maker_subaccount (Drift User PDA) for the V1 initialize payload.
-    let (maker_subaccount, _) = Pubkey::find_program_address(
-        &[
-            b"user",
-            ctx.accounts.authority.key.as_ref(),
-            &subaccount_index.to_le_bytes(),
-        ],
-        ctx.program_id,
-    );
-
-    let mut data = vec![MIDPRICE_IX_INITIALIZE];
-    data.extend_from_slice(&market_index.to_le_bytes());
-    data.extend_from_slice(&subaccount_index.to_le_bytes());
-    data.extend_from_slice(maker_subaccount.as_ref());
-    data.extend_from_slice(&order_tick_size.to_le_bytes());
-    data.extend_from_slice(&min_order_size.to_le_bytes());
-
-    let accounts = vec![
-        AccountMeta::new(ctx.accounts.midprice_account.key(), false),
-        AccountMeta::new_readonly(ctx.accounts.authority.key(), true),
-        AccountMeta::new_readonly(ctx.accounts.prop_amm_matcher.key(), true),
-    ];
-    let ix = Instruction {
-        program_id: ctx.accounts.midprice_program.key(),
-        accounts,
-        data,
-    };
-    let cpi_accounts = [
-        ctx.accounts.midprice_account.to_account_info(),
-        ctx.accounts.authority.to_account_info(),
-        ctx.accounts.prop_amm_matcher.to_account_info(),
-    ];
-    let signer_seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED, &[bump]];
-    invoke_signed(&ix, &cpi_accounts, &[signer_seeds]).map_err(|e| {
-        msg!("midprice initialize CPI: {:?}", e);
-        anchor_lang::error::Error::from(ErrorCode::InvalidMidpriceAccount)
-    })?;
-    Ok(())
-}
-
-/// Updates order_tick_size and min_order_size on a midprice account via CPI. Drift reads current values from perp_market and forwards them.
-pub fn handle_update_prop_amm_tick_sizes(ctx: Context<UpdatePropAmmTickSizes>) -> Result<()> {
-    validate!(
-        ctx.accounts.midprice_program.key() == crate::ids::midprice_program::id(),
-        ErrorCode::InvalidMidpriceAccount,
-        "midprice_program must be the canonical midprice program"
-    )?;
-    validate!(
-        ctx.accounts.midprice_program.executable,
-        ErrorCode::InvalidMidpriceAccount,
-        "midprice_program must be executable"
-    )?;
-    let perp_market = ctx.accounts.perp_market.load()?;
-    let order_tick_size = perp_market.amm.order_tick_size;
-    let min_order_size = perp_market.amm.min_order_size;
-
-    let (expected_matcher, bump) = prop_amm_matcher_pda(ctx.program_id);
-    validate!(
-        ctx.accounts.prop_amm_matcher.key() == expected_matcher,
-        ErrorCode::InvalidPropAmmMatcherAccount,
-        "prop_amm_matcher must be the global PropAMM matcher PDA"
-    )?;
-
-    let mut data = vec![MIDPRICE_IX_UPDATE_TICK_SIZES];
-    data.extend_from_slice(&order_tick_size.to_le_bytes());
-    data.extend_from_slice(&min_order_size.to_le_bytes());
-
-    let accounts = vec![
-        AccountMeta::new(ctx.accounts.midprice_account.key(), false),
-        AccountMeta::new_readonly(ctx.accounts.authority.key(), true),
-        AccountMeta::new_readonly(ctx.accounts.prop_amm_matcher.key(), true),
-    ];
-    let ix = Instruction {
-        program_id: ctx.accounts.midprice_program.key(),
-        accounts,
-        data,
-    };
-    let cpi_accounts = [
-        ctx.accounts.midprice_account.to_account_info(),
-        ctx.accounts.authority.to_account_info(),
-        ctx.accounts.prop_amm_matcher.to_account_info(),
-    ];
-    let signer_seeds: &[&[u8]] = &[PROP_AMM_MATCHER_SEED, &[bump]];
-    invoke_signed(&ix, &cpi_accounts, &[signer_seeds]).map_err(|e| {
-        msg!("midprice update_tick_sizes CPI: {:?}", e);
-        anchor_lang::error::Error::from(ErrorCode::InvalidMidpriceAccount)
-    })?;
-    Ok(())
-}
-
-#[derive(Accounts)]
-pub struct InitializePropAmmMidprice<'info> {
-    pub authority: Signer<'info>,
-    /// CHECK: Midprice account at the PDA derived by midprice program (seeds: midprice, market_index, authority, subaccount_index). Must be allocated before calling.
-    #[account(mut)]
-    pub midprice_account: AccountInfo<'info>,
-    pub perp_market: AccountLoader<'info, PerpMarket>,
-    /// CHECK: Executable midprice program; validated to be crate::ids::midprice_program::id().
-    pub midprice_program: AccountInfo<'info>,
-    #[account(
-        seeds = [PROP_AMM_MATCHER_SEED],
-        bump,
-    )]
-    /// CHECK: Global PropAMM matcher PDA; required by midprice init (CPI-only). Passed as signer via invoke_signed.
-    pub prop_amm_matcher: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct UpdatePropAmmTickSizes<'info> {
-    pub authority: Signer<'info>,
-    /// CHECK: Midprice account to update; must be initialized and authority must match.
-    #[account(mut)]
-    pub midprice_account: AccountInfo<'info>,
-    pub perp_market: AccountLoader<'info, PerpMarket>,
-    /// CHECK: Executable midprice program; validated to be crate::ids::midprice_program::id().
-    pub midprice_program: AccountInfo<'info>,
-    #[account(
-        seeds = [PROP_AMM_MATCHER_SEED],
-        bump,
-    )]
-    /// CHECK: Global PropAMM matcher PDA; required by midprice update_tick_sizes (CPI-only).
-    pub prop_amm_matcher: AccountInfo<'info>,
-}
-
 /// Consolidate PropAMM fee application: taker fee deduction, referrer reward credit,
 /// market fee totals, taker stats, referrer stats.
 fn apply_prop_amm_fill_fees<'a, 'info: 'a>(
@@ -2517,13 +2448,16 @@ fn parse_and_match<'c: 'info, 'info>(
 ) -> Result<Option<MatchOutput>> {
     let now = clock.unix_timestamp;
 
-    let (midprice_program_idx, amm_views, dlob_start) = parse_amm_views(
+    let registry = load_prop_amm_registry(&accounts.prop_amm_registry)?;
+
+    let (propamm_program_idx, amm_views, dlob_start) = parse_amm_views(
         remaining_accounts,
         amm_start,
         program_id,
         clock.slot,
         Some(taker.market_index),
         Some(&accounts.user.key()),
+        &registry,
     )?;
 
     let amm_view_by_maker: BTreeMap<Pubkey, usize> = amm_views
@@ -2589,6 +2523,8 @@ fn parse_and_match<'c: 'info, 'info>(
         taker.direction,
         limit_price,
         taker.size,
+        mctx.order_tick_size,
+        mctx.order_step_size,
     )?;
 
     let (maker_deltas, external_fills, taker_base_delta, taker_quote_delta, total_quote_volume) =
@@ -2609,7 +2545,7 @@ fn parse_and_match<'c: 'info, 'info>(
     }
 
     Ok(Some(MatchOutput {
-        midprice_program_idx,
+        propamm_program_idx,
         amm_views,
         amm_view_by_maker,
         external_fills,
@@ -3223,7 +3159,7 @@ fn postfill_finalization<'c: 'info, 'info>(
     // CPI to midprice_pino to apply fills (consume orders on AMM books).
     if has_prop_amm_fills {
         flush_external_fill_batches(
-            &remaining_accounts[m.midprice_program_idx],
+            &remaining_accounts[m.propamm_program_idx],
             remaining_accounts,
             &accounts.clock.to_account_info(),
             &m.external_fills,
@@ -3265,6 +3201,14 @@ pub struct FillPerpOrder2<'info> {
     /// which checks discriminator, owner, and parses entries via zero-copy.
     /// When absent (key == program ID), cache loading is skipped.
     pub oracle_price_cache: AccountInfo<'info>,
+
+    /// PropAMM registry (read-only). Validates that propamm programs and accounts
+    /// are approved before matching or CPI.
+    ///
+    /// CHECK:
+    /// Validated by `load_prop_amm_registry` which checks owner == Drift, discriminator,
+    /// and version before deserialising.
+    pub prop_amm_registry: AccountInfo<'info>,
 
     pub clock: Sysvar<'info, Clock>,
 }
@@ -3319,6 +3263,24 @@ mod tests {
         crate::ids::midprice_program::id()
     }
 
+    use crate::state::prop_amm_registry::{PropAmmApprovalParams, PropAmmRegistry};
+
+    /// Build a test registry with one active entry per (midprice_key, maker_key) pair.
+    fn make_test_registry(
+        entries: &[(Pubkey, Pubkey, Pubkey, u16)], // (propamm_account, propamm_program, maker_subaccount, market_index)
+    ) -> PropAmmRegistry {
+        let mut registry = PropAmmRegistry::new();
+        for (propamm_account, propamm_program, maker_subaccount, market_index) in entries {
+            registry.upsert(&PropAmmApprovalParams {
+                market_index: *market_index,
+                maker_subaccount: *maker_subaccount,
+                propamm_program: *propamm_program,
+                propamm_account: *propamm_account,
+            });
+        }
+        registry
+    }
+
     /// Returns (authority, maker_user_pda) so that midprice (authority, 0) derives to maker_user_pda.
     fn derive_maker_user_pda() -> (Pubkey, Pubkey) {
         let authority = Pubkey::new_unique();
@@ -3326,24 +3288,8 @@ mod tests {
         (authority, pda)
     }
 
-    /// Initialise the standardised V1 header fields that every test buffer needs.
-    fn init_test_header(data: &mut [u8], num_levels: usize) {
-        data[DISCRIMINATOR_OFFSET..DISCRIMINATOR_OFFSET + DISCRIMINATOR_SIZE]
-            .copy_from_slice(&PROPAMM_ACCOUNT_DISCRIMINATOR);
-        data[VERSION_OFFSET] = VERSION_V1;
-        data[FLAGS_OFFSET] = 0;
-        data[HEADER_LEN_OFFSET..HEADER_LEN_OFFSET + 2]
-            .copy_from_slice(&(STANDARDIZED_HEADER_SIZE as u16).to_le_bytes());
-        // Quote data starts right after the header.
-        data[QUOTE_DATA_OFFSET_FIELD..QUOTE_DATA_OFFSET_FIELD + 4]
-            .copy_from_slice(&(STANDARDIZED_HEADER_SIZE as u32).to_le_bytes());
-        data[QUOTE_DATA_LEN_FIELD..QUOTE_DATA_LEN_FIELD + 4]
-            .copy_from_slice(&((num_levels * LEVEL_ENTRY_SIZE) as u32).to_le_bytes());
-        data[LEVEL_ENTRY_SIZE_OFFSET..LEVEL_ENTRY_SIZE_OFFSET + 2]
-            .copy_from_slice(&(LEVEL_ENTRY_SIZE as u16).to_le_bytes());
-    }
+    use midprice_book_view::test_utils::{build_midprice_account, Level};
 
-    /// Build a minimal midprice account buffer: 1 ask at (offset=1, size=size), reference_price=ref_price.
     fn make_midprice_account_data(
         ref_price: u64,
         ask_size: u64,
@@ -3352,29 +3298,23 @@ mod tests {
         make_midprice_account_data_with_market(ref_price, ask_size, maker_user_pda, 0)
     }
 
-    /// Same as above but with explicit market_index (for security tests).
     fn make_midprice_account_data_with_market(
         ref_price: u64,
         ask_size: u64,
         maker_user_pda: &Pubkey,
         market_index: u16,
     ) -> Vec<u8> {
-        let mut data = vec![0u8; ACCOUNT_MIN_LEN + LEVEL_ENTRY_SIZE];
-        init_test_header(&mut data, 1);
-        data[MAKER_SUBACCOUNT_OFFSET..MAKER_SUBACCOUNT_OFFSET + 32]
-            .copy_from_slice(maker_user_pda.as_ref());
-        data[REFERENCE_PRICE_OFFSET..REFERENCE_PRICE_OFFSET + 8]
-            .copy_from_slice(&ref_price.to_le_bytes());
-        data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
-            .copy_from_slice(&market_index.to_le_bytes());
-        data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&1u16.to_le_bytes());
-        data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        let base = STANDARDIZED_HEADER_SIZE;
-        data[base..base + 8].copy_from_slice(&1i64.to_le_bytes());
-        data[base + 8..base + 16].copy_from_slice(&ask_size.to_le_bytes());
-        data
+        build_midprice_account(
+            ref_price,
+            &maker_user_pda.to_bytes(),
+            market_index,
+            0,
+            &[Level {
+                tick_count: 1,
+                size: ask_size,
+            }],
+            &[],
+        )
     }
 
     fn make_bid_midprice_account_data(
@@ -3383,22 +3323,55 @@ mod tests {
         maker_user_pda: &Pubkey,
         market_index: u16,
     ) -> Vec<u8> {
-        let mut data = vec![0u8; ACCOUNT_MIN_LEN + LEVEL_ENTRY_SIZE];
-        init_test_header(&mut data, 1);
-        data[MAKER_SUBACCOUNT_OFFSET..MAKER_SUBACCOUNT_OFFSET + 32]
-            .copy_from_slice(maker_user_pda.as_ref());
-        data[REFERENCE_PRICE_OFFSET..REFERENCE_PRICE_OFFSET + 8]
-            .copy_from_slice(&ref_price.to_le_bytes());
-        data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
-            .copy_from_slice(&market_index.to_le_bytes());
-        data[ASK_LEN_OFFSET..ASK_LEN_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        data[BID_LEN_OFFSET..BID_LEN_OFFSET + 2].copy_from_slice(&1u16.to_le_bytes());
-        data[ASK_HEAD_OFFSET..ASK_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        data[BID_HEAD_OFFSET..BID_HEAD_OFFSET + 2].copy_from_slice(&0u16.to_le_bytes());
-        let base = STANDARDIZED_HEADER_SIZE;
-        data[base..base + 8].copy_from_slice(&(-1i64).to_le_bytes());
-        data[base + 8..base + 16].copy_from_slice(&bid_size.to_le_bytes());
-        data
+        build_midprice_account(
+            ref_price,
+            &maker_user_pda.to_bytes(),
+            market_index,
+            0,
+            &[],
+            &[Level {
+                tick_count: 1,
+                size: bid_size,
+            }],
+        )
+    }
+
+    fn make_ask_midprice_data_with_ticks(
+        ref_price: u64,
+        ask_size: u64,
+        maker_user_pda: &Pubkey,
+        tick_count: u16,
+    ) -> Vec<u8> {
+        build_midprice_account(
+            ref_price,
+            &maker_user_pda.to_bytes(),
+            0,
+            0,
+            &[Level {
+                tick_count,
+                size: ask_size,
+            }],
+            &[],
+        )
+    }
+
+    fn make_bid_midprice_data_with_ticks(
+        ref_price: u64,
+        bid_size: u64,
+        maker_user_pda: &Pubkey,
+        tick_count: u16,
+    ) -> Vec<u8> {
+        build_midprice_account(
+            ref_price,
+            &maker_user_pda.to_bytes(),
+            0,
+            0,
+            &[],
+            &[Level {
+                tick_count,
+                size: bid_size,
+            }],
+        )
     }
 
     fn make_midprice_data_with_ttl(
@@ -3407,10 +3380,17 @@ mod tests {
         maker_user_pda: &Pubkey,
         valid_until_slot: u64,
     ) -> Vec<u8> {
-        let mut data = make_midprice_account_data(ref_price, ask_size, maker_user_pda);
-        data[VALID_UNTIL_SLOT_OFFSET..VALID_UNTIL_SLOT_OFFSET + 8]
-            .copy_from_slice(&valid_until_slot.to_le_bytes());
-        data
+        build_midprice_account(
+            ref_price,
+            &maker_user_pda.to_bytes(),
+            0,
+            valid_until_slot,
+            &[Level {
+                tick_count: 1,
+                size: ask_size,
+            }],
+            &[],
+        )
     }
 
     fn make_open_perp_order(
@@ -3792,8 +3772,20 @@ mod tests {
                 bankrupt_user_info,
             ];
 
-            let (_, amm_views, _) =
-                parse_amm_views(remaining.as_slice(), 1, &program_id, 100, Some(0), None).unwrap();
+            let registry = make_test_registry(&[
+                (healthy_mid_key, midprice_prog_id, healthy_key, 0),
+                (bankrupt_mid_key, midprice_prog_id, bankrupt_key, 0),
+            ]);
+            let (_, amm_views, _) = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                Some(0),
+                None,
+                &registry,
+            )
+            .unwrap();
             assert_eq!(amm_views.len(), 1, "bankrupt PropAMM maker must be skipped");
             assert_eq!(
                 remaining[amm_views[0].maker_user_remaining_index].key(),
@@ -4154,7 +4146,17 @@ mod tests {
             remaining.push(midprice_info);
             remaining.push(maker_user_info);
 
-            let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100, None, None);
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                None,
+                None,
+                &registry,
+            );
             match res {
                 Err(e) => assert_eq!(e, ErrorCode::InvalidPropAmmAccountLayout),
                 Ok(_) => panic!("duplicate (midprice, maker_user) must be rejected"),
@@ -4212,8 +4214,10 @@ mod tests {
             ];
             let slice = remaining_accounts.as_slice();
 
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
             let taker_size = 30 * BASE_PRECISION_U64;
             let limit_price = 101 * PRICE_PRECISION_U64;
             let result = run_prop_amm_matching(
@@ -4829,7 +4833,17 @@ mod tests {
                 maker_user_info,
             ];
             // Parse with order_market_index=0; midprice has market_index=1 so must be rejected in same pass.
-            let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100, Some(0), None);
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 1)]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                Some(0),
+                None,
+                &registry,
+            );
             assert!(
                 res.is_err(),
                 "midprice account with market_index=1 must be rejected for order market_index=0"
@@ -4887,7 +4901,17 @@ mod tests {
                 midprice_info,
                 maker_user_info,
             ];
-            let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100, None, None);
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                None,
+                None,
+                &registry,
+            );
             match res {
                 Err(err) => assert_eq!(err, ErrorCode::InvalidPropAmmMatcherAccount),
                 Ok(_) => panic!("wrong matcher PDA must be rejected"),
@@ -4945,7 +4969,16 @@ mod tests {
                 midprice_info,
                 maker_user_info,
             ];
-            let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100, None, None);
+            let registry = make_test_registry(&[]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                None,
+                None,
+                &registry,
+            );
             assert!(
             res.is_err(),
             "remaining_accounts[0] must be the canonical midprice program, not an arbitrary executable"
@@ -5007,11 +5040,351 @@ mod tests {
             // With discriminator-based detection, a wrong-owner account isn't recognized as a
             // midprice account, so it won't appear in amm_views. It would be treated as a DLOB maker
             // (and fail separately if used). This is safe: CPI to midprice_pino also validates owner.
-            let res = parse_amm_views(remaining.as_slice(), 1, &program_id, 100, None, None);
+            let registry = make_test_registry(&[(
+                midprice_key,
+                canonical_midprice_prog_id,
+                maker_user_key,
+                0,
+            )]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                None,
+                None,
+                &registry,
+            );
             let (_, amm_views, _) = res.unwrap();
             assert!(
                 amm_views.is_empty(),
                 "wrong-owner midprice account must not be parsed as PropAMM"
+            );
+        }
+
+        /// SECURITY: A registered program is accepted even if it is not the
+        /// hardcoded midprice_pino program. This ensures the registry is the
+        /// source of truth, not the hardcoded ID.
+        #[test]
+        fn registry_allows_non_canonical_program() {
+            let program_id = drift_program_id();
+            let custom_program_id = Pubkey::new_unique(); // not midprice_pino
+            let (maker_authority, maker_user_key) = derive_maker_user_pda();
+            let mut maker_user = User::default();
+            maker_user.authority = maker_authority;
+            maker_user.sub_account_id = 0;
+            crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+            let midprice_key = Pubkey::new_unique();
+            let mut midprice_data = make_midprice_account_data(
+                100 * PRICE_PRECISION_U64,
+                5 * BASE_PRECISION_U64,
+                &maker_user_key,
+            );
+            let mut midprice_lamports = 0u64;
+            let midprice_info = create_account_info(
+                &midprice_key,
+                true,
+                &mut midprice_lamports,
+                &mut midprice_data[..],
+                &custom_program_id, // owned by the custom program
+            );
+            let mut prog_lamps = 0u64;
+            let mut prog_data = [0u8; 0];
+            let program_info = create_executable_program_account_info(
+                &custom_program_id,
+                &mut prog_lamps,
+                &mut prog_data[..],
+            );
+            let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+            let mut matcher_lamports = 0u64;
+            let mut matcher_data = [0u8; 0];
+            let matcher_info = create_account_info(
+                &matcher_pda,
+                true,
+                &mut matcher_lamports,
+                &mut matcher_data[..],
+                &program_id,
+            );
+
+            let remaining: Vec<AccountInfo> =
+                vec![program_info, matcher_info, midprice_info, maker_user_info];
+            let registry =
+                make_test_registry(&[(midprice_key, custom_program_id, maker_user_key, 0)]);
+            let (_, amm_views, _) = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                Some(0),
+                None,
+                &registry,
+            )
+            .unwrap();
+            assert_eq!(
+                amm_views.len(),
+                1,
+                "registry-approved custom program must be accepted"
+            );
+        }
+
+        /// SECURITY: A disabled registry entry must be rejected even if the
+        /// program and account are otherwise valid.
+        #[test]
+        fn registry_disabled_entry_rejected() {
+            use crate::state::prop_amm_registry::PropAmmKey;
+
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (maker_authority, maker_user_key) = derive_maker_user_pda();
+            let mut maker_user = User::default();
+            maker_user.authority = maker_authority;
+            maker_user.sub_account_id = 0;
+            crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+            let midprice_key = Pubkey::new_unique();
+            let mut midprice_data = make_midprice_account_data(
+                100 * PRICE_PRECISION_U64,
+                5 * BASE_PRECISION_U64,
+                &maker_user_key,
+            );
+            let mut midprice_lamports = 0u64;
+            let midprice_info = create_account_info(
+                &midprice_key,
+                true,
+                &mut midprice_lamports,
+                &mut midprice_data[..],
+                &midprice_prog_id,
+            );
+            let mut prog_lamps = 0u64;
+            let mut prog_data = [0u8; 0];
+            let program_info = create_executable_program_account_info(
+                &midprice_prog_id,
+                &mut prog_lamps,
+                &mut prog_data[..],
+            );
+            let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+            let mut matcher_lamports = 0u64;
+            let mut matcher_data = [0u8; 0];
+            let matcher_info = create_account_info(
+                &matcher_pda,
+                true,
+                &mut matcher_lamports,
+                &mut matcher_data[..],
+                &program_id,
+            );
+
+            let remaining: Vec<AccountInfo> =
+                vec![program_info, matcher_info, midprice_info, maker_user_info];
+            // Create registry with entry then disable it.
+            let mut registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
+            registry.disable(&PropAmmKey {
+                market_index: 0,
+                maker_subaccount: maker_user_key,
+                propamm_program: midprice_prog_id,
+                propamm_account: midprice_key,
+            });
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                Some(0),
+                None,
+                &registry,
+            );
+            assert!(res.is_err(), "disabled registry entry must be rejected");
+        }
+
+        /// SECURITY: A propamm account not in the registry at all must be rejected.
+        #[test]
+        fn registry_missing_entry_rejected() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (maker_authority, maker_user_key) = derive_maker_user_pda();
+            let mut maker_user = User::default();
+            maker_user.authority = maker_authority;
+            maker_user.sub_account_id = 0;
+            crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+            let midprice_key = Pubkey::new_unique();
+            let mut midprice_data = make_midprice_account_data(
+                100 * PRICE_PRECISION_U64,
+                5 * BASE_PRECISION_U64,
+                &maker_user_key,
+            );
+            let mut midprice_lamports = 0u64;
+            let midprice_info = create_account_info(
+                &midprice_key,
+                true,
+                &mut midprice_lamports,
+                &mut midprice_data[..],
+                &midprice_prog_id,
+            );
+            let mut prog_lamps = 0u64;
+            let mut prog_data = [0u8; 0];
+            let program_info = create_executable_program_account_info(
+                &midprice_prog_id,
+                &mut prog_lamps,
+                &mut prog_data[..],
+            );
+            let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+            let mut matcher_lamports = 0u64;
+            let mut matcher_data = [0u8; 0];
+            let matcher_info = create_account_info(
+                &matcher_pda,
+                true,
+                &mut matcher_lamports,
+                &mut matcher_data[..],
+                &program_id,
+            );
+
+            let remaining: Vec<AccountInfo> =
+                vec![program_info, matcher_info, midprice_info, maker_user_info];
+            // Registry has the program but NOT this specific account.
+            let other_account = Pubkey::new_unique();
+            let registry =
+                make_test_registry(&[(other_account, midprice_prog_id, maker_user_key, 0)]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                Some(0),
+                None,
+                &registry,
+            );
+            assert!(
+                res.is_err(),
+                "unregistered propamm account must be rejected"
+            );
+        }
+
+        /// SECURITY: Registry entry with wrong maker_subaccount must be rejected.
+        #[test]
+        fn registry_maker_mismatch_rejected() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (maker_authority, maker_user_key) = derive_maker_user_pda();
+            let mut maker_user = User::default();
+            maker_user.authority = maker_authority;
+            maker_user.sub_account_id = 0;
+            crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+            let midprice_key = Pubkey::new_unique();
+            let mut midprice_data = make_midprice_account_data(
+                100 * PRICE_PRECISION_U64,
+                5 * BASE_PRECISION_U64,
+                &maker_user_key,
+            );
+            let mut midprice_lamports = 0u64;
+            let midprice_info = create_account_info(
+                &midprice_key,
+                true,
+                &mut midprice_lamports,
+                &mut midprice_data[..],
+                &midprice_prog_id,
+            );
+            let mut prog_lamps = 0u64;
+            let mut prog_data = [0u8; 0];
+            let program_info = create_executable_program_account_info(
+                &midprice_prog_id,
+                &mut prog_lamps,
+                &mut prog_data[..],
+            );
+            let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+            let mut matcher_lamports = 0u64;
+            let mut matcher_data = [0u8; 0];
+            let matcher_info = create_account_info(
+                &matcher_pda,
+                true,
+                &mut matcher_lamports,
+                &mut matcher_data[..],
+                &program_id,
+            );
+
+            let remaining: Vec<AccountInfo> =
+                vec![program_info, matcher_info, midprice_info, maker_user_info];
+            // Registry entry has a DIFFERENT maker_subaccount than the one paired in remaining_accounts.
+            let wrong_maker = Pubkey::new_unique();
+            let registry = make_test_registry(&[(midprice_key, midprice_prog_id, wrong_maker, 0)]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                Some(0),
+                None,
+                &registry,
+            );
+            assert!(
+                res.is_err(),
+                "registry maker_subaccount mismatch must be rejected"
+            );
+        }
+
+        /// SECURITY: Registry entry with wrong market_index must be rejected.
+        #[test]
+        fn registry_market_index_mismatch_rejected() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (maker_authority, maker_user_key) = derive_maker_user_pda();
+            let mut maker_user = User::default();
+            maker_user.authority = maker_authority;
+            maker_user.sub_account_id = 0;
+            crate::create_anchor_account_info!(maker_user, &maker_user_key, User, maker_user_info);
+
+            let midprice_key = Pubkey::new_unique();
+            // midprice account data says market_index=0
+            let mut midprice_data = make_midprice_account_data(
+                100 * PRICE_PRECISION_U64,
+                5 * BASE_PRECISION_U64,
+                &maker_user_key,
+            );
+            let mut midprice_lamports = 0u64;
+            let midprice_info = create_account_info(
+                &midprice_key,
+                true,
+                &mut midprice_lamports,
+                &mut midprice_data[..],
+                &midprice_prog_id,
+            );
+            let mut prog_lamps = 0u64;
+            let mut prog_data = [0u8; 0];
+            let program_info = create_executable_program_account_info(
+                &midprice_prog_id,
+                &mut prog_lamps,
+                &mut prog_data[..],
+            );
+            let (matcher_pda, _) = prop_amm_matcher_pda(&program_id);
+            let mut matcher_lamports = 0u64;
+            let mut matcher_data = [0u8; 0];
+            let matcher_info = create_account_info(
+                &matcher_pda,
+                true,
+                &mut matcher_lamports,
+                &mut matcher_data[..],
+                &program_id,
+            );
+
+            let remaining: Vec<AccountInfo> =
+                vec![program_info, matcher_info, midprice_info, maker_user_info];
+            // Registry says market_index=5 but midprice account data says market_index=0.
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 5)]);
+            let res = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                Some(0),
+                None,
+                &registry,
+            );
+            assert!(
+                res.is_err(),
+                "registry market_index mismatch must be rejected"
             );
         }
 
@@ -5067,6 +5440,8 @@ mod tests {
                 maker_user_info,
             ];
             // Parse with taker = maker (self-trade); must be rejected in same pass.
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let res = parse_amm_views(
                 remaining.as_slice(),
                 1,
@@ -5074,6 +5449,7 @@ mod tests {
                 100,
                 None,
                 Some(&maker_user_key),
+                &registry,
             );
             assert!(
                 res.is_err(),
@@ -5131,8 +5507,18 @@ mod tests {
                 midprice_info,
                 maker_user_info,
             ];
-            let (_, amm_views, _) =
-                parse_amm_views(remaining.as_slice(), 1, &program_id, 100, None, None).unwrap();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
+            let (_, amm_views, _) = parse_amm_views(
+                remaining.as_slice(),
+                1,
+                &program_id,
+                100,
+                None,
+                None,
+                &registry,
+            )
+            .unwrap();
             let result = run_prop_amm_matching(
                 &amm_views,
                 remaining.as_slice(),
@@ -5294,7 +5680,7 @@ mod tests {
             let result =
                 read_external_mid_price(&midprice_info, &midprice_prog_id, &maker_user_info, 151);
             assert!(result.is_err());
-            assert_eq!(result.unwrap_err(), ErrorCode::MidpriceQuoteExpired);
+            assert_eq!(result.unwrap_err(), ErrorCode::PropAMMQuoteExpired);
         }
 
         /// apply_fills CPI: matcher and clock once, then one midprice per maker (no authority accounts).
@@ -6062,6 +6448,8 @@ mod tests {
                 PositionDirection::Long,
                 101 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6123,8 +6511,10 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, midprice_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             // DLOB maker at price 105 (worse than PropAMM ask at ~101)
             let dlob = vec![DlobMakerView {
@@ -6143,6 +6533,8 @@ mod tests {
                 PositionDirection::Long,
                 110 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6206,8 +6598,10 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, midprice_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             // DLOB maker at price 100 (better than PropAMM ask at ~111)
             let dlob_key = Pubkey::new_unique();
@@ -6227,6 +6621,8 @@ mod tests {
                 PositionDirection::Long,
                 120 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6292,8 +6688,10 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, midprice_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             let dlob = vec![DlobMakerView {
                 maker_key: Pubkey::new_unique(),
@@ -6311,6 +6709,8 @@ mod tests {
                 PositionDirection::Short,
                 90 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6375,8 +6775,10 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, midprice_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             let dlob = vec![DlobMakerView {
                 maker_key: Pubkey::new_unique(),
@@ -6394,6 +6796,8 @@ mod tests {
                 PositionDirection::Short,
                 80 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6490,8 +6894,12 @@ mod tests {
                 user_b_info,
             ];
             let slice = remaining.as_slice();
+            let registry = make_test_registry(&[
+                (mid_a_key, midprice_prog_id, key_a, 0),
+                (mid_b_key, midprice_prog_id, key_b, 0),
+            ]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
             assert_eq!(amm_views.len(), 2);
 
             // DLOB maker at same price: 101 (same as PropAMM effective ask)
@@ -6511,6 +6919,8 @@ mod tests {
                 PositionDirection::Long,
                 110 * PRICE_PRECISION_U64,
                 12 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6580,8 +6990,9 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, mid_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry = make_test_registry(&[(mid_key, midprice_prog_id, maker_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             // DLOB at the same price (101) with plenty of depth
             let dlob = vec![DlobMakerView {
@@ -6600,6 +7011,8 @@ mod tests {
                 PositionDirection::Long,
                 110 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6649,6 +7062,8 @@ mod tests {
                 PositionDirection::Long,
                 101 * PRICE_PRECISION_U64,
                 7 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6746,8 +7161,10 @@ mod tests {
             ];
             let slice = remaining.as_slice();
 
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, dlob_start) =
-                parse_amm_views(slice, 1, &program_id, 200, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 200, None, None, &registry).unwrap();
             assert!(
                 amm_views.is_empty(),
                 "expired PropAMM quote should be skipped"
@@ -6785,6 +7202,8 @@ mod tests {
                 PositionDirection::Long,
                 101 * PRICE_PRECISION_U64,
                 5 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6813,6 +7232,8 @@ mod tests {
                 PositionDirection::Long,
                 100 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6868,8 +7289,9 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, mid_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry = make_test_registry(&[(midprice_key, midprice_prog_id, maker_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             let dlob = vec![DlobMakerView {
                 maker_key: Pubkey::new_unique(),
@@ -6889,6 +7311,8 @@ mod tests {
                 PositionDirection::Long,
                 50 * PRICE_PRECISION_U64, // too low
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6932,6 +7356,8 @@ mod tests {
                 PositionDirection::Long,
                 115 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -6962,7 +7388,9 @@ mod tests {
                 &[],
                 PositionDirection::Long,
                 110 * PRICE_PRECISION_U64,
-                10 * BASE_PRECISION_U64, // wants 10
+                10 * BASE_PRECISION_U64, // wants 10,
+                1,
+                1,
             )
             .unwrap();
 
@@ -7033,8 +7461,9 @@ mod tests {
             ];
             let slice = remaining.as_slice();
 
+            let registry = make_test_registry(&[(mid_key, midprice_prog_id, maker_key, 0)]);
             let (_, amm_views, dlob_start) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             assert_eq!(amm_views.len(), 1, "exactly one PropAMM pair");
             assert_eq!(dlob_start, 4, "DLOB starts at index 4 (after PropAMM pair)");
@@ -7153,8 +7582,9 @@ mod tests {
             ];
             let slice = remaining.as_slice();
 
+            let registry = make_test_registry(&[(mid_key, midprice_prog_id, maker_key, 0)]);
             let (_, amm_views, dlob_start) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             assert_eq!(
                 amm_views.len(),
@@ -8448,8 +8878,10 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, midprice_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             // DLOB maker with 3 base
             let dlob = vec![DlobMakerView {
@@ -8470,6 +8902,8 @@ mod tests {
                 PositionDirection::Long,
                 110 * PRICE_PRECISION_U64,
                 taker_size,
+                1,
+                1,
             )
             .unwrap();
 
@@ -8567,8 +9001,10 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, midprice_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             // DLOB at 150 — all above limit of 100
             let dlob = vec![DlobMakerView {
@@ -8587,6 +9023,8 @@ mod tests {
                 PositionDirection::Long,
                 100 * PRICE_PRECISION_U64, // limit below all sources
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -8642,8 +9080,10 @@ mod tests {
             let remaining: Vec<AccountInfo> =
                 vec![program_info, gm_info, midprice_info, maker_user_info];
             let slice = remaining.as_slice();
+            let registry =
+                make_test_registry(&[(midprice_key, midprice_prog_id, maker_user_key, 0)]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
 
             // Taker sells 20, only 7 available
             let result = run_unified_matching(
@@ -8653,6 +9093,8 @@ mod tests {
                 PositionDirection::Short,
                 90 * PRICE_PRECISION_U64, // limit below mid
                 20 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -8742,8 +9184,12 @@ mod tests {
                 maker_b_info,
             ];
             let slice = remaining.as_slice();
+            let registry = make_test_registry(&[
+                (mid_key_a, midprice_prog_id, maker_key_a, 0),
+                (mid_key_b, midprice_prog_id, maker_key_b, 0),
+            ]);
             let (_, amm_views, _) =
-                parse_amm_views(slice, 1, &program_id, 100, None, None).unwrap();
+                parse_amm_views(slice, 1, &program_id, 100, None, None, &registry).unwrap();
             assert_eq!(amm_views.len(), 2);
 
             // Taker wants 10 base; available = 3 + 97 = 100, fill = 10
@@ -8755,6 +9201,8 @@ mod tests {
                 PositionDirection::Long,
                 110 * PRICE_PRECISION_U64,
                 10 * BASE_PRECISION_U64,
+                1,
+                1,
             )
             .unwrap();
 
@@ -9115,6 +9563,373 @@ mod tests {
                 filtered_deltas.contains_key(&maker_key),
                 "solvent maker ($100k collateral, $200 margin req) should pass"
             );
+        }
+
+        /// Tick rounding: an off-tick ask (due to off-tick reference_price) is
+        /// rounded UP (passive-favorable) and still fills if it crosses the
+        /// taker's limit after rounding.
+        #[test]
+        fn tick_rounding_ask_rounds_up() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // Ask at reference_price 1003 with tick_count=1, tick_size=10 → effective = 1013.
+            // Drift tick_size = 10 → rounds UP to 1020.
+            // Taker limit = 1020 (Long) → 1020 ≤ 1020, still crosses.
+            let mut mid_data = make_midprice_account_data(1003, 500, &maker_user_key);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                1020, // taker limit
+                1003, // reference_price
+                None,
+                10, // tick_size
+                1,  // step_size
+            )
+            .unwrap();
+            let level = level.expect("level should exist after rounding");
+            assert_eq!(level.price, 1020, "ask 1013 should round UP to 1020");
+        }
+
+        /// Tick rounding: an off-tick bid is rounded DOWN (passive-favorable).
+        #[test]
+        fn tick_rounding_bid_rounds_down() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // Bid at reference_price 1007 with tick_count=1, tick_size=10 → effective = 997.
+            // Drift tick_size = 10 → rounds DOWN to 990.
+            // Taker limit = 990 (Short) → 990 ≥ 990, still crosses.
+            let mut mid_data = make_bid_midprice_account_data(1007, 500, &maker_user_key, 0);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Short,
+                990,  // taker limit
+                1007, // reference_price
+                None,
+                10, // tick_size
+                1,  // step_size
+            )
+            .unwrap();
+            let level = level.expect("level should exist after rounding");
+            assert_eq!(level.price, 990, "bid 997 should round DOWN to 990");
+        }
+
+        /// Tick rounding: level skipped when rounding pushes price outside taker limit.
+        #[test]
+        fn tick_rounding_skips_when_outside_limit_after_round() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // Ask at effective = 1013 (ref 1003 + 1*10). tick_size = 10 → rounds to 1020.
+            // Taker limit = 1015 (Long) → 1020 > 1015, no longer crosses.
+            let mut mid_data = make_midprice_account_data(1003, 500, &maker_user_key);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                1015, // taker limit — too tight for rounded price
+                1003,
+                None,
+                10,
+                1,
+            )
+            .unwrap();
+            assert!(
+                level.is_none(),
+                "rounded ask 1020 > taker limit 1015, should skip"
+            );
+        }
+
+        /// Step-size truncation: level size truncated to step_size grid.
+        #[test]
+        fn step_size_truncates_level_size() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // Ask with size 15, step_size = 10 → truncates to 10.
+            let mut mid_data = make_midprice_account_data(100, 15, &maker_user_key);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                u64::MAX,
+                100,
+                None,
+                1,  // tick_size (no rounding)
+                10, // step_size
+            )
+            .unwrap();
+            let level = level.expect("level should exist");
+            assert_eq!(level.size, 10, "size 15 truncated to 10 by step_size");
+        }
+
+        /// Step-size truncation: level skipped when size rounds to zero.
+        #[test]
+        fn step_size_skips_when_truncated_to_zero() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // Ask with size 9, step_size = 10 → truncates to 0 → skip.
+            let mut mid_data = make_midprice_account_data(100, 9, &maker_user_key);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                u64::MAX,
+                100,
+                None,
+                1,
+                10,
+            )
+            .unwrap();
+            assert!(level.is_none(), "size 9 < step_size 10 should be skipped");
+        }
+
+        /// On-tick prices pass through unchanged.
+        #[test]
+        fn on_tick_price_unchanged() {
+            let program_id = drift_program_id();
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // Ask at reference_price 100 with offset +1 → effective = 101.
+            // tick_size = 1 → already on tick.
+            let mut mid_data = make_midprice_account_data(100, 500, &maker_user_key);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                u64::MAX,
+                100,
+                None,
+                1,
+                1,
+            )
+            .unwrap();
+            let level = level.expect("on-tick level should exist");
+            assert_eq!(level.price, 101, "on-tick price should be unchanged");
+        }
+
+        // ---------------------------------------------------------------
+        // Tick count overflow / underflow edge cases
+        // ---------------------------------------------------------------
+
+        /// tick_count=u16::MAX with a huge tick_size overflows checked_mul → level skipped.
+        #[test]
+        fn tick_count_max_with_large_tick_size_overflows() {
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            let mut mid_data =
+                make_ask_midprice_data_with_ticks(1000, 500, &maker_user_key, u16::MAX);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                u64::MAX,
+                1000,
+                None,
+                u64::MAX / 2, // tick_size so large that 65535 * tick_size overflows u64
+                1,
+            )
+            .unwrap();
+            assert!(level.is_none(), "checked_mul overflow should skip level");
+        }
+
+        /// tick_count=u16::MAX with tick_size=1 is valid — produces a real price.
+        #[test]
+        fn tick_count_max_with_tick_size_one_valid() {
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            let mut mid_data =
+                make_ask_midprice_data_with_ticks(1000, 500, &maker_user_key, u16::MAX);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                u64::MAX,
+                1000,
+                None,
+                1, // tick_size=1, so price = 1000 + 65535 = 66535
+                1,
+            )
+            .unwrap();
+            let level = level.expect("should produce valid level");
+            assert_eq!(level.price, 1000 + u16::MAX as u64);
+        }
+
+        /// Ask price overflows u64 via checked_add → level skipped.
+        #[test]
+        fn ask_price_overflow_skipped() {
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // ref_price near u64::MAX, tick_count=1, tick_size=100 → overflows
+            let mut mid_data =
+                make_ask_midprice_data_with_ticks(u64::MAX - 10, 500, &maker_user_key, 1);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                u64::MAX,
+                u64::MAX - 10,
+                None,
+                100,
+                1,
+            )
+            .unwrap();
+            assert!(level.is_none(), "ask price overflow should skip level");
+        }
+
+        /// Bid price underflows u64 via checked_sub → level skipped.
+        #[test]
+        fn bid_price_underflow_skipped() {
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            // ref_price=5, tick_count=1, tick_size=100 → 5 - 100 underflows
+            let mut mid_data = make_bid_midprice_data_with_ticks(5, 500, &maker_user_key, 1);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Short,
+                0,
+                5,
+                None,
+                100,
+                1,
+            )
+            .unwrap();
+            assert!(level.is_none(), "bid price underflow should skip level");
+        }
+
+        /// tick_count=0 in raw book data is skipped (maker_price_from_ticks returns None).
+        #[test]
+        fn tick_count_zero_in_book_skipped() {
+            let midprice_prog_id = midprice_program_id();
+            let (_, maker_user_key) = derive_maker_user_pda();
+
+            let mut mid_data = make_ask_midprice_data_with_ticks(1000, 500, &maker_user_key, 0);
+            let mid_key = Pubkey::new_unique();
+            let mut mid_lamports = 0u64;
+            let mid_info = create_account_info(
+                &mid_key,
+                true,
+                &mut mid_lamports,
+                &mut mid_data,
+                &midprice_prog_id,
+            );
+
+            let level = find_external_top_level_from(
+                &mid_info,
+                &PositionDirection::Long,
+                u64::MAX,
+                1000,
+                None,
+                1,
+                1,
+            )
+            .unwrap();
+            assert!(level.is_none(), "tick_count=0 should be skipped");
         }
     }
 }

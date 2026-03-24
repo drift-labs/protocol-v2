@@ -143,17 +143,6 @@ export function getPerpMarketPublicKeySync(
 	)[0];
 }
 
-/** PDA for PropAMM matcher authority: PDA(drift_program_id, ["matcher", maker_authority]) */
-export function getMatcherAuthorityPDA(
-	driftProgramId: PublicKey,
-	makerAuthority: PublicKey
-): PublicKey {
-	return PublicKey.findProgramAddressSync(
-		[Buffer.from('matcher'), makerAuthority.toBuffer()],
-		driftProgramId
-	)[0];
-}
-
 /** Global PropAMM matcher PDA: one account can apply fills to all PropAMM books. PDA(drift_program_id, ["prop_amm_matcher"]) */
 export function getPropAmmMatcherPDA(driftProgramId: PublicKey): PublicKey {
 	return PublicKey.findProgramAddressSync(

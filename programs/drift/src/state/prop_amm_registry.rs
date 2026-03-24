@@ -118,6 +118,20 @@ impl PropAmmRegistry {
             self.entries.swap_remove(index);
         }
     }
+
+    /// Returns true if any active entry lists the given program as its `propamm_program`.
+    pub fn has_active_program(&self, program_id: &Pubkey) -> bool {
+        self.entries
+            .iter()
+            .any(|e| e.is_active() && e.propamm_program == *program_id)
+    }
+
+    /// Look up an active entry by its `propamm_account` key.
+    pub fn find_active_entry(&self, propamm_account: &Pubkey) -> Option<&PropAmmRegistryEntry> {
+        self.entries
+            .iter()
+            .find(|e| e.is_active() && e.propamm_account == *propamm_account)
+    }
 }
 
 #[cfg(test)]

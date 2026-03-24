@@ -45,6 +45,10 @@ switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-ent
 byteorder = "1.4.3"
 midprice_book_view = { path = "../../crates/midprice_book_view" }
 
+[dev-dependencies.midprice_book_view]
+path = "../../crates/midprice_book_view"
+features = ["test-utils"]
+
 [dev-dependencies]
 bytes = "1.2.0"
 pyth = { path = "../pyth", features = ["no-entrypoint"]}

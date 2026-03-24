@@ -4,11 +4,13 @@ use solana_pubkey::Pubkey;
 
 use crate::constants::*;
 
-/// A single order level: offset from mid price (signed) and size in base units.
+/// A single order level: tick count from reference price (unsigned) and size in base units.
+/// Effective price: asks = reference_price + tick_count * tick_size,
+///                  bids = reference_price - tick_count * tick_size.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OrderEntry {
-    /// Price offset from mid_price. Positive for asks, negative for bids.
-    pub offset: i64,
+    /// Number of ticks from reference_price. Must be > 0.
+    pub tick_count: u16,
     /// Order size in base precision (10^9).
     pub size: u64,
 }
@@ -52,8 +54,8 @@ pub fn update_mid_price(
 /// * `midprice_account` - Writable midprice account PDA.
 /// * `authority` - Signer authority for the midprice account.
 /// * `valid_until_slot` - Slot after which these orders are considered stale.
-/// * `asks` - Ask-side levels (positive offsets from reference price).
-/// * `bids` - Bid-side levels (negative offsets from reference price).
+/// * `asks` - Ask-side levels (tick counts above reference price).
+/// * `bids` - Bid-side levels (tick counts below reference price).
 pub fn set_orders(
     program_id: &Pubkey,
     midprice_account: &Pubkey,
@@ -72,9 +74,9 @@ pub fn set_orders(
 
     let mut off = 13;
     for entry in asks.iter().chain(bids.iter()) {
-        data[off..off + 8].copy_from_slice(&entry.offset.to_le_bytes());
-        data[off + 8..off + 16].copy_from_slice(&entry.size.to_le_bytes());
-        off += 16;
+        data[off..off + 2].copy_from_slice(&entry.tick_count.to_le_bytes());
+        data[off + 2..off + 10].copy_from_slice(&entry.size.to_le_bytes());
+        off += LEVEL_ENTRY_SIZE;
     }
 
     Instruction::new_with_bytes(
@@ -178,40 +180,34 @@ fn anchor_discriminator(name: &str) -> [u8; 8] {
     disc
 }
 
-/// Build an `initialize_prop_amm_midprice` Drift Anchor instruction.
+/// Build a midprice_pino `initialize` instruction (opcode 1).
+/// Called directly by the maker — no Drift CPI needed.
 ///
-/// Initializes a PropAMM midprice account via Drift CPI into `midprice_pino::initialize`.
-/// The midprice PDA must be pre-allocated (`create_account`) before calling.
-///
-/// * `drift_program_id` - Deployed Drift program ID.
+/// * `midprice_pino_program_id` - Deployed midprice-pino program ID.
 /// * `authority` - Signer who owns the midprice account.
 /// * `midprice_account` - Writable midprice PDA (must already exist on-chain).
-/// * `perp_market` - Drift perp market account for this market index.
-/// * `midprice_program` - Midprice-pino program ID (passed for CPI).
-/// * `prop_amm_matcher` - PropAMM matcher PDA.
+/// * `market_index` - Drift perp market index.
 /// * `subaccount_index` - Subaccount index for PDA derivation.
-pub fn initialize_prop_amm_midprice(
-    drift_program_id: &Pubkey,
+/// * `maker_subaccount` - The maker's Drift User PDA.
+pub fn initialize_midprice_pino(
+    midprice_pino_program_id: &Pubkey,
     authority: &Pubkey,
     midprice_account: &Pubkey,
-    perp_market: &Pubkey,
-    midprice_program: &Pubkey,
-    prop_amm_matcher: &Pubkey,
+    market_index: u16,
     subaccount_index: u16,
+    maker_subaccount: &Pubkey,
 ) -> Instruction {
-    let mut data = Vec::with_capacity(8 + 2);
-    data.extend_from_slice(&anchor_discriminator("initialize_prop_amm_midprice"));
+    let mut data = vec![IX_INITIALIZE];
+    data.extend_from_slice(&market_index.to_le_bytes());
     data.extend_from_slice(&subaccount_index.to_le_bytes());
+    data.extend_from_slice(maker_subaccount.as_ref());
 
     Instruction::new_with_bytes(
-        *drift_program_id,
+        *midprice_pino_program_id,
         &data,
         vec![
-            AccountMeta::new_readonly(*authority, true),
             AccountMeta::new(*midprice_account, false),
-            AccountMeta::new_readonly(*perp_market, false),
-            AccountMeta::new_readonly(*midprice_program, false),
-            AccountMeta::new_readonly(*prop_amm_matcher, false),
+            AccountMeta::new_readonly(*authority, true),
         ],
     )
 }
@@ -270,11 +266,11 @@ mod tests {
         let authority = Pubkey::new_unique();
 
         let asks = vec![OrderEntry {
-            offset: 1000,
+            tick_count: 10,
             size: 5_000_000_000,
         }];
         let bids = vec![OrderEntry {
-            offset: -1000,
+            tick_count: 10,
             size: 5_000_000_000,
         }];
         let ix = set_orders(&program_id, &midprice, &authority, 50, &asks, &bids);
@@ -283,17 +279,17 @@ mod tests {
         assert_eq!(u64::from_le_bytes(ix.data[1..9].try_into().unwrap()), 50); // valid_until_slot
         assert_eq!(u16::from_le_bytes(ix.data[9..11].try_into().unwrap()), 1); // ask_len
         assert_eq!(u16::from_le_bytes(ix.data[11..13].try_into().unwrap()), 1); // bid_len
-                                                                                // First entry (ask): offset=1000
+        // First entry (ask): tick_count=10
         assert_eq!(
-            i64::from_le_bytes(ix.data[13..21].try_into().unwrap()),
-            1000
+            u16::from_le_bytes(ix.data[13..15].try_into().unwrap()),
+            10
         );
-        // Second entry (bid): offset=-1000
+        // Second entry (bid): tick_count=10
         assert_eq!(
-            i64::from_le_bytes(ix.data[29..37].try_into().unwrap()),
-            -1000
+            u16::from_le_bytes(ix.data[23..25].try_into().unwrap()),
+            10
         );
-        assert_eq!(ix.data.len(), 1 + 12 + 2 * 16);
+        assert_eq!(ix.data.len(), 1 + 12 + 2 * LEVEL_ENTRY_SIZE);
     }
 
     #[test]
@@ -337,26 +333,40 @@ mod tests {
 
     #[test]
     fn anchor_discriminator_is_stable() {
-        let disc = anchor_discriminator("initialize_prop_amm_midprice");
+        let disc = anchor_discriminator("initialize_prop_amm_matcher");
         // Should be deterministic across runs.
-        let disc2 = anchor_discriminator("initialize_prop_amm_midprice");
+        let disc2 = anchor_discriminator("initialize_prop_amm_matcher");
         assert_eq!(disc, disc2);
         // And 8 bytes.
         assert_eq!(disc.len(), 8);
     }
 
     #[test]
-    fn initialize_prop_amm_midprice_accounts() {
-        let drift = Pubkey::new_unique();
+    fn initialize_midprice_pino_serialization() {
+        let program_id = Pubkey::new_unique();
         let auth = Pubkey::new_unique();
         let mid = Pubkey::new_unique();
-        let pm = Pubkey::new_unique();
-        let mp = Pubkey::new_unique();
-        let matcher = Pubkey::new_unique();
+        let maker_sub = Pubkey::new_unique();
 
-        let ix = initialize_prop_amm_midprice(&drift, &auth, &mid, &pm, &mp, &matcher, 0);
-        assert_eq!(ix.accounts.len(), 5);
-        assert!(ix.accounts[0].is_signer); // authority
-        assert!(ix.accounts[1].is_writable); // midprice_account
+        let ix = initialize_midprice_pino(
+            &program_id,
+            &auth,
+            &mid,
+            7, // market_index
+            3, // subaccount_index
+            &maker_sub,
+        );
+
+        // opcode(1) + market_index(2) + subaccount_index(2) + maker_subaccount(32) = 37
+        assert_eq!(ix.data.len(), 37);
+        assert_eq!(ix.data[0], IX_INITIALIZE);
+        assert_eq!(u16::from_le_bytes(ix.data[1..3].try_into().unwrap()), 7);
+        assert_eq!(u16::from_le_bytes(ix.data[3..5].try_into().unwrap()), 3);
+        assert_eq!(&ix.data[5..37], maker_sub.as_ref());
+        assert_eq!(ix.program_id, program_id);
+        assert_eq!(ix.accounts.len(), 2);
+        assert!(ix.accounts[0].is_writable); // midprice_account
+        assert!(ix.accounts[1].is_signer); // authority
     }
+
 }

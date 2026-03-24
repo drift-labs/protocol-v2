@@ -7,13 +7,12 @@
 //! | Opcode | Name | Accounts | Payload |
 //! |--------|------|----------|---------|
 //! | 0 | update_mid_price | [midprice (w), authority (s)] | 16 bytes: reference_price (u64) + valid_until_slot (u64) |
-//! | 1 | initialize | [midprice (w), authority (s), drift_matcher (s)] | 52 bytes: market_index (u16), subaccount_index (u16), maker_subaccount ([u8;32]), order_tick_size (u64), min_order_size (u64). CPI-only from Drift. |
-//! | 2 | set_orders | [midprice (w), authority (s)] | valid_until_slot (u64), ask_len (u16), bid_len (u16), then 16×N order entries (offset i64 LE, size u64 LE). Tick/size validated against values stored on account. |
+//! | 1 | initialize | [midprice (w), authority (s)] | 36 bytes: market_index (u16), subaccount_index (u16), maker_subaccount ([u8;32]). |
+//! | 2 | set_orders | [midprice (w), authority (s)] | valid_until_slot (u64), ask_len (u16), bid_len (u16), then 10×N order entries (tick_count u16 LE, size u64 LE). Tick count != 0; on-tick by construction. |
 //! | 3 | apply_fills | [matcher (s), clock, midprice_0 (w), …] | market_index (u16); then per maker: num_fills (u16), expected_sequence (u64), then num_fills × (abs_index u16, is_ask u8, fill_size u64) |
 //! | 5 | set_quote_ttl | [midprice (w), authority (s)] | 8 bytes: ttl_slots (u64) |
 //! | 6 | close_account | [midprice (w), authority (s), dest (w)] | 0 bytes |
 //! | 7 | transfer_authority | [midprice (w), authority (s)] | 32 bytes: new authority pubkey |
-//! | 8 | update_tick_sizes | [midprice (w), authority (s), drift_matcher (s)] | 16 bytes: order_tick_size (u64), min_order_size (u64). CPI-only from Drift. |
 //!
 //! ## Error codes
 //!
@@ -32,7 +31,7 @@
 //! | 8 | 0x100 | CPI market_index does not match midprice account |
 //! | 9 | 0x200 | accounts[1] is not the Clock sysvar (apply_fills) |
 //! | 12 | 0x1000 | Order not on tick or below min_order_size |
-//! | 13 | 0x2000 | Init/update_tick_sizes invoked directly; must be CPI from Drift (drift_matcher must be signer) |
+//! | 13 | 0x2000 | (reserved) |
 #![cfg_attr(target_os = "solana", no_std)]
 
 use midprice_book_view::{
@@ -57,7 +56,6 @@ const IX_SET_ORDERS: u8 = 2;
 const IX_SET_QUOTE_TTL: u8 = 5;
 const IX_CLOSE_ACCOUNT: u8 = 6;
 const IX_TRANSFER_AUTHORITY: u8 = 7;
-const IX_UPDATE_TICK_SIZES: u8 = 8;
 /// Authorized exchange program ID (for matcher PDA derivation).
 const DRIFT_PROGRAM_ID: Address = pubkey!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 /// Seed for the matcher PDA (must match the exchange's PROP_AMM_MATCHER_SEED).
@@ -74,12 +72,9 @@ const AUTH_ERR_ALREADY_INITIALIZED: u8 = 1 << 5; // 0x20
 const AUTH_ERR_UNSUPPORTED_LAYOUT_VERSION: u8 = 1 << 6; // 0x40
 const AUTH_ERR_INVALID_CLOCK: u32 = 1 << 7; // apply_fills: accounts[1] not Clock
 const AUTH_ERR_ORDER_TICK_OR_SIZE: u32 = 1 << 12; // 0x1000
-const AUTH_ERR_INIT_REQUIRES_DRIFT_CPI: u32 = 1 << 13; // 0x2000
 
 // -- midprice_pino opaque-region constants (offsets 96-151) --
 const OPAQUE_AUTHORITY_OFFSET: usize = 96;
-const OPAQUE_ORDER_TICK_SIZE_OFFSET: usize = 128;
-const OPAQUE_MIN_ORDER_SIZE_OFFSET: usize = 136;
 const OPAQUE_QUOTE_TTL_OFFSET: usize = 144;
 const MIDPRICE_QUOTE_DATA_START: usize = 152;
 const MIDPRICE_ACCOUNT_MIN_LEN: usize = 152;
@@ -141,7 +136,6 @@ pub fn process_instruction(
         IX_SET_QUOTE_TTL => process_set_quote_ttl(program_id, accounts, payload),
         IX_CLOSE_ACCOUNT => process_close_account(program_id, accounts, payload),
         IX_TRANSFER_AUTHORITY => process_transfer_authority(program_id, accounts, payload),
-        IX_UPDATE_TICK_SIZES => process_update_tick_sizes(program_id, accounts, payload),
         _ => {
             log!(64, "midprice: unknown opcode={}", *opcode);
             Err(ProgramError::InvalidInstructionData)
@@ -259,7 +253,7 @@ fn process_initialize_mid_price_account(
     accounts: &[AccountView],
     payload: &[u8],
 ) -> ProgramResult {
-    const INIT_PAYLOAD_LEN: usize = 2 + 2 + 32 + 8 + 8; // market_index, subaccount_index, maker_subaccount, order_tick_size, min_order_size
+    const INIT_PAYLOAD_LEN: usize = 2 + 2 + 32; // market_index, subaccount_index, maker_subaccount
     if payload.len() != INIT_PAYLOAD_LEN {
         log!(
             64,
@@ -272,33 +266,8 @@ fn process_initialize_mid_price_account(
     let market_index = u16::from_le_bytes([payload[0], payload[1]]);
     let subaccount_index = u16::from_le_bytes([payload[2], payload[3]]);
     let maker_subaccount: [u8; 32] = payload[4..36].try_into().unwrap();
-    let order_tick_size = u64::from_le_bytes(payload[36..44].try_into().unwrap());
-    let min_order_size = u64::from_le_bytes(payload[44..52].try_into().unwrap());
 
     validate_init_preconditions(program_id, accounts)?;
-    if accounts.len() < 3 {
-        log!(
-            64,
-            "midprice init: accounts_len={} want >= 3 (need drift_matcher signer); init is CPI-only from Drift",
-            accounts.len()
-        );
-        return Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI));
-    }
-    let drift_matcher = &accounts[2];
-    if !drift_matcher.is_signer() {
-        log!(64, "midprice init: drift_matcher must be signer (init is CPI-only from Drift)");
-        return Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI));
-    }
-    let (expected_matcher_pda, _bump) =
-        Address::try_find_program_address(&[PROP_AMM_MATCHER_SEED], &DRIFT_PROGRAM_ID)
-            .ok_or(ProgramError::InvalidInstructionData)?;
-    if drift_matcher.address().as_ref() != expected_matcher_pda.as_ref() {
-        log!(
-            64,
-            "midprice init: drift_matcher must be Drift prop_amm_matcher PDA (init is CPI-only)"
-        );
-        return Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI));
-    }
 
     let mid_price_account = &accounts[0];
     let authority = &accounts[1];
@@ -355,10 +324,6 @@ fn process_initialize_mid_price_account(
 
     // Opaque region (offsets 96-151)
     data[OPAQUE_AUTHORITY_OFFSET..OPAQUE_AUTHORITY_OFFSET + 32].copy_from_slice(authority_src);
-    data[OPAQUE_ORDER_TICK_SIZE_OFFSET..OPAQUE_ORDER_TICK_SIZE_OFFSET + 8]
-        .copy_from_slice(&order_tick_size.to_le_bytes());
-    data[OPAQUE_MIN_ORDER_SIZE_OFFSET..OPAQUE_MIN_ORDER_SIZE_OFFSET + 8]
-        .copy_from_slice(&min_order_size.to_le_bytes());
     data[OPAQUE_QUOTE_TTL_OFFSET..OPAQUE_QUOTE_TTL_OFFSET + 8].fill(0);
 
     let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
@@ -405,55 +370,14 @@ fn process_set_orders(
 
     let data = validate_authority_and_borrow_mut(program_id, accounts)?;
 
-    let order_tick_size = u64::from_le_bytes(data[OPAQUE_ORDER_TICK_SIZE_OFFSET..][..8].try_into().unwrap());
-    let min_order_size = u64::from_le_bytes(data[OPAQUE_MIN_ORDER_SIZE_OFFSET..][..8].try_into().unwrap());
-    let mid_price_u64 = u64::from_le_bytes(data[REFERENCE_PRICE_OFFSET..][..8].try_into().unwrap());
-
-    // Validate each order: price on tick and size >= min_order_size.
+    // Validate each order: tick_count != 0.
+    // Tick alignment and price overflow are handled by the exchange at match time.
     let orders_start = 12;
     for i in 0..orders_len {
         let base = orders_start + i * LEVEL_ENTRY_SIZE;
-        let offset = i64::from_le_bytes(payload[base..][..8].try_into().unwrap());
-        let size = u64::from_le_bytes(payload[base + 8..][..8].try_into().unwrap());
-        let effective_price = if offset > 0 {
-            match mid_price_u64.checked_add(offset as u64) {
-                Some(p) => p,
-                None => {
-                    log!(64, "midprice set_orders: ask price overflow");
-                    return Err(ProgramError::Custom(AUTH_ERR_ORDER_TICK_OR_SIZE));
-                }
-            }
-        } else if offset < 0 {
-            let abs_offset = offset.unsigned_abs();
-            match mid_price_u64.checked_sub(abs_offset) {
-                Some(p) => p,
-                None => {
-                    log!(64, "midprice set_orders: bid price underflow");
-                    return Err(ProgramError::Custom(AUTH_ERR_ORDER_TICK_OR_SIZE));
-                }
-            }
-        } else {
-            log!(64, "midprice set_orders: order {} offset 0 invalid", i);
-            return Err(ProgramError::Custom(AUTH_ERR_ORDER_TICK_OR_SIZE));
-        };
-        if order_tick_size > 0 && effective_price % order_tick_size != 0 {
-            log!(
-                64,
-                "midprice set_orders: order {} price {} not on tick {}",
-                i,
-                effective_price,
-                order_tick_size
-            );
-            return Err(ProgramError::Custom(AUTH_ERR_ORDER_TICK_OR_SIZE));
-        }
-        if size < min_order_size {
-            log!(
-                64,
-                "midprice set_orders: order {} size {} < min_order_size {}",
-                i,
-                size,
-                min_order_size
-            );
+        let tick_count = u16::from_le_bytes(payload[base..][..2].try_into().unwrap());
+        if tick_count == 0 {
+            log!(64, "midprice set_orders: order {} tick_count 0 invalid", i);
             return Err(ProgramError::Custom(AUTH_ERR_ORDER_TICK_OR_SIZE));
         }
     }
@@ -736,58 +660,6 @@ fn process_set_quote_ttl(
     Ok(())
 }
 
-/// Update order_tick_size and min_order_size stored on the midprice account. CPI-only from Drift.
-/// Accounts: [midprice (w), authority (s), drift_matcher (s)]. Payload: order_tick_size (u64), min_order_size (u64).
-fn process_update_tick_sizes(
-    program_id: &Address,
-    accounts: &[AccountView],
-    payload: &[u8],
-) -> ProgramResult {
-    if payload.len() != 16 {
-        log!(
-            64,
-            "midprice update_tick_sizes: bad payload_len={} want 16",
-            payload.len()
-        );
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    if accounts.len() < 3 {
-        log!(
-            64,
-            "midprice update_tick_sizes: accounts_len={} want >= 3 (need drift_matcher signer); CPI-only from Drift",
-            accounts.len()
-        );
-        return Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI));
-    }
-    let drift_matcher = &accounts[2];
-    if !drift_matcher.is_signer() {
-        log!(64, "midprice update_tick_sizes: drift_matcher must be signer (CPI-only from Drift)");
-        return Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI));
-    }
-    let (expected_matcher_pda, _bump) =
-        Address::try_find_program_address(&[PROP_AMM_MATCHER_SEED], &DRIFT_PROGRAM_ID)
-            .ok_or(ProgramError::InvalidInstructionData)?;
-    if drift_matcher.address().as_ref() != expected_matcher_pda.as_ref() {
-        log!(
-            64,
-            "midprice update_tick_sizes: drift_matcher must be Drift prop_amm_matcher PDA"
-        );
-        return Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI));
-    }
-
-    let data = validate_authority_and_borrow_mut(program_id, accounts)?;
-    let order_tick_size = u64::from_le_bytes(payload[0..8].try_into().unwrap());
-    let min_order_size = u64::from_le_bytes(payload[8..16].try_into().unwrap());
-
-    data[OPAQUE_ORDER_TICK_SIZE_OFFSET..OPAQUE_ORDER_TICK_SIZE_OFFSET + 8]
-        .copy_from_slice(&order_tick_size.to_le_bytes());
-    data[OPAQUE_MIN_ORDER_SIZE_OFFSET..OPAQUE_MIN_ORDER_SIZE_OFFSET + 8]
-        .copy_from_slice(&min_order_size.to_le_bytes());
-
-    let mut book = MidpriceBookViewMut::new(data).map_err(|_| ProgramError::InvalidAccountData)?;
-    book.increment_sequence_number();
-    Ok(())
-}
 
 /// Close the midprice account, transferring lamports to a destination.
 /// Accounts: [midprice (writable), authority (signer), destination (writable)].
@@ -1094,19 +966,12 @@ mod tests {
     fn test_wrong_clock() -> Address {
         Address::new_from_array([5u8; 32])
     }
-    /// Build 52-byte init payload: market_index (2), subaccount_index (2), maker_subaccount (32), order_tick_size (8), min_order_size (8).
-    fn init_payload(
-        market_index: u16,
-        subaccount_index: u16,
-        order_tick_size: u64,
-        min_order_size: u64,
-    ) -> Vec<u8> {
-        let mut p = Vec::with_capacity(52);
+    /// Build 36-byte init payload: market_index (2), subaccount_index (2), maker_subaccount (32).
+    fn init_payload(market_index: u16, subaccount_index: u16) -> Vec<u8> {
+        let mut p = Vec::with_capacity(36);
         p.extend_from_slice(&market_index.to_le_bytes());
         p.extend_from_slice(&subaccount_index.to_le_bytes());
         p.extend_from_slice(&[0xAA; 32]); // maker_subaccount (test placeholder)
-        p.extend_from_slice(&order_tick_size.to_le_bytes());
-        p.extend_from_slice(&min_order_size.to_le_bytes());
         p
     }
 
@@ -1172,13 +1037,11 @@ mod tests {
     }
 
     /// Build midprice account data with given header and order sizes (asks then bids). Each order
-    /// is stored as offset=0 i64 + size u64. Used for apply_fills tests.
+    /// is stored as tick_count=0 u16 + size u64. Used for apply_fills tests.
     fn make_midprice_data_with_orders(
         authority: &Address,
         market_index: u16,
         _subaccount_index: u16,
-        order_tick_size: u64,
-        min_order_size: u64,
         valid_until_slot: u64,
         _quote_ttl_slots: u64,
         ask_sizes: &[u64],
@@ -1221,21 +1084,17 @@ mod tests {
         // Opaque region
         data[OPAQUE_AUTHORITY_OFFSET..OPAQUE_AUTHORITY_OFFSET + 32]
             .copy_from_slice(authority.as_ref());
-        data[OPAQUE_ORDER_TICK_SIZE_OFFSET..OPAQUE_ORDER_TICK_SIZE_OFFSET + 8]
-            .copy_from_slice(&order_tick_size.to_le_bytes());
-        data[OPAQUE_MIN_ORDER_SIZE_OFFSET..OPAQUE_MIN_ORDER_SIZE_OFFSET + 8]
-            .copy_from_slice(&min_order_size.to_le_bytes());
         data[OPAQUE_QUOTE_TTL_OFFSET..OPAQUE_QUOTE_TTL_OFFSET + 8].fill(0);
-        // Quote data
+        // Quote data (tick_count=0 placeholder, only size matters for apply_fills tests)
         let mut off = MIDPRICE_QUOTE_DATA_START;
         for &sz in ask_sizes {
-            data[off..off + 8].copy_from_slice(&0i64.to_le_bytes());
-            data[off + 8..off + 16].copy_from_slice(&sz.to_le_bytes());
+            data[off..off + 2].copy_from_slice(&0u16.to_le_bytes());
+            data[off + 2..off + 10].copy_from_slice(&sz.to_le_bytes());
             off += LEVEL_ENTRY_SIZE;
         }
         for &sz in bid_sizes {
-            data[off..off + 8].copy_from_slice(&0i64.to_le_bytes());
-            data[off + 8..off + 16].copy_from_slice(&sz.to_le_bytes());
+            data[off..off + 2].copy_from_slice(&0u16.to_le_bytes());
+            data[off + 2..off + 10].copy_from_slice(&sz.to_le_bytes());
             off += LEVEL_ENTRY_SIZE;
         }
         data
@@ -1248,21 +1107,6 @@ mod tests {
         buf[2] = if is_ask { 1 } else { 0 };
         buf[3..11].copy_from_slice(&fill_size.to_le_bytes());
         buf
-    }
-
-    /// Drift prop_amm_matcher PDA backing for initialize tests (CPI-only gate). Pass as accounts[3] with is_signer=true.
-    fn init_drift_matcher_backing() -> Vec<u8> {
-        let (expected_matcher_pda, _) =
-            Address::try_find_program_address(&[PROP_AMM_MATCHER_SEED], &DRIFT_PROGRAM_ID).unwrap();
-        mock_account_backing(
-            expected_matcher_pda,
-            DRIFT_PROGRAM_ID,
-            0,
-            true,
-            false,
-            0,
-            None,
-        )
     }
 
     /// Common setup for apply_fills: matcher (signer), clock (slot), returns (matcher_backing, clock_backing, current_slot).
@@ -1318,14 +1162,12 @@ mod tests {
             mock_account_backing(pda, program_id, MIDPRICE_ACCOUNT_MIN_LEN, false, true, 1000, None);
         let mut auth_backing =
             mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        let mut matcher_backing = init_drift_matcher_backing();
-        let payload = init_payload(market_index, subaccount_index, 100, 10);
+        let payload = init_payload(market_index, subaccount_index);
         let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
         ix.extend_from_slice(&payload);
         let accounts = [
             account_view_from_backing(&mut midprice_backing),
             account_view_from_backing(&mut auth_backing),
-            account_view_from_backing(&mut matcher_backing),
         ];
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
@@ -1347,14 +1189,6 @@ mod tests {
             data[MAKER_SUBACCOUNT_OFFSET..MAKER_SUBACCOUNT_OFFSET + 32],
             [0xAA; 32]
         );
-        assert_eq!(
-            data[OPAQUE_ORDER_TICK_SIZE_OFFSET..OPAQUE_ORDER_TICK_SIZE_OFFSET + 8],
-            100u64.to_le_bytes()
-        );
-        assert_eq!(
-            data[OPAQUE_MIN_ORDER_SIZE_OFFSET..OPAQUE_MIN_ORDER_SIZE_OFFSET + 8],
-            10u64.to_le_bytes()
-        );
     }
 
     #[test]
@@ -1364,43 +1198,16 @@ mod tests {
         let pda = midprice_pda(&program_id, &authority, 0, 0);
         let mut midprice_backing =
             mock_account_backing(pda, program_id, MIDPRICE_ACCOUNT_MIN_LEN, false, true, 1000, None);
-        let mut auth_backing =
-            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
         let accounts = [
             account_view_from_backing(&mut midprice_backing),
-            account_view_from_backing(&mut auth_backing),
         ];
-        let payload = init_payload(0, 0, 100, 10);
+        let payload = init_payload(0, 0);
         let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
         ix.extend_from_slice(&payload);
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(matches!(
             result,
-            Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI))
-        ));
-    }
-
-    #[test]
-    fn process_initialize_missing_matcher_fails() {
-        let program_id = test_program_id();
-        let authority = test_authority();
-        let market_index = 1u16;
-        let pda = midprice_pda(&program_id, &authority, market_index, 0);
-        let mut midprice_backing =
-            mock_account_backing(pda, program_id, MIDPRICE_ACCOUNT_MIN_LEN, false, true, 1000, None);
-        let mut auth_backing =
-            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        let accounts = [
-            account_view_from_backing(&mut midprice_backing),
-            account_view_from_backing(&mut auth_backing),
-        ];
-        let payload = init_payload(market_index, 0, 100, 10);
-        let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
-        ix.extend_from_slice(&payload);
-        let result = process_instruction(&program_id, &accounts, &ix);
-        assert!(matches!(
-            result,
-            Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI))
+            Err(ProgramError::NotEnoughAccountKeys)
         ));
     }
 
@@ -1419,11 +1226,9 @@ mod tests {
         );
         let mut auth_backing =
             mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        let mut matcher_backing = init_drift_matcher_backing();
         let accounts = [
             account_view_from_backing(&mut midprice_backing),
             account_view_from_backing(&mut auth_backing),
-            account_view_from_backing(&mut matcher_backing),
         ];
         let ix = [IX_INITIALIZE_MID_PRICE_ACCOUNT, 0u8]; // only 1 byte payload (need 52)
         let result = process_instruction(&program_id, &accounts, &ix);
@@ -1446,14 +1251,12 @@ mod tests {
             0,
             None,
         );
-        let mut matcher_backing = init_drift_matcher_backing();
-        let payload = init_payload(0, 0, 100, 10);
+        let payload = init_payload(0, 0);
         let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
         ix.extend_from_slice(&payload);
         let accounts = [
             account_view_from_backing(&mut midprice_backing),
             account_view_from_backing(&mut auth_backing),
-            account_view_from_backing(&mut matcher_backing),
         ];
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(matches!(result, Err(ProgramError::Custom(0x02)))); // AUTH_ERR_MISSING_SIGNATURE
@@ -1475,14 +1278,12 @@ mod tests {
         );
         let mut auth_backing =
             mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        let mut matcher_backing = init_drift_matcher_backing();
-        let payload = init_payload(0, 0, 100, 10);
+        let payload = init_payload(0, 0);
         let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
         ix.extend_from_slice(&payload);
         let accounts = [
             account_view_from_backing(&mut midprice_backing),
             account_view_from_backing(&mut auth_backing),
-            account_view_from_backing(&mut matcher_backing),
         ];
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(matches!(result, Err(ProgramError::Custom(0x01)))); // AUTH_ERR_IMMUTABLE
@@ -1508,78 +1309,15 @@ mod tests {
         );
         let mut auth_backing =
             mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        let mut matcher_backing = init_drift_matcher_backing();
         let accounts = [
             account_view_from_backing(&mut midprice_backing),
             account_view_from_backing(&mut auth_backing),
-            account_view_from_backing(&mut matcher_backing),
         ];
-        let payload = init_payload(0, 0, 100, 10);
+        let payload = init_payload(0, 0);
         let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
         ix.extend_from_slice(&payload);
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(matches!(result, Err(ProgramError::Custom(0x20)))); // AUTH_ERR_ALREADY_INITIALIZED
-    }
-
-    #[test]
-    fn process_initialize_direct_invocation_rejected() {
-        let program_id = test_program_id();
-        let authority = test_authority();
-        let market_index = 1u16;
-        let pda = midprice_pda(&program_id, &authority, market_index, 0);
-        let mut midprice_backing =
-            mock_account_backing(pda, program_id, MIDPRICE_ACCOUNT_MIN_LEN, false, true, 1000, None);
-        let mut auth_backing =
-            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        // No matcher account — simulates a direct invocation without Drift CPI.
-        let accounts = [
-            account_view_from_backing(&mut midprice_backing),
-            account_view_from_backing(&mut auth_backing),
-        ];
-        let payload = init_payload(market_index, 0, 100, 10);
-        let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
-        ix.extend_from_slice(&payload);
-        let result = process_instruction(&program_id, &accounts, &ix);
-        assert!(matches!(
-            result,
-            Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI))
-        ));
-    }
-
-    #[test]
-    fn process_initialize_matcher_not_signer_rejected() {
-        let program_id = test_program_id();
-        let authority = test_authority();
-        let market_index = 1u16;
-        let pda = midprice_pda(&program_id, &authority, market_index, 0);
-        let mut midprice_backing =
-            mock_account_backing(pda, program_id, MIDPRICE_ACCOUNT_MIN_LEN, false, true, 1000, None);
-        let mut auth_backing =
-            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        let (matcher_pda, _) =
-            Address::try_find_program_address(&[PROP_AMM_MATCHER_SEED], &DRIFT_PROGRAM_ID).unwrap();
-        let mut matcher_backing = mock_account_backing(
-            matcher_pda,
-            DRIFT_PROGRAM_ID,
-            0,
-            false, // not signer — simulates missing Drift CPI context
-            false,
-            0,
-            None,
-        );
-        let accounts = [
-            account_view_from_backing(&mut midprice_backing),
-            account_view_from_backing(&mut auth_backing),
-            account_view_from_backing(&mut matcher_backing),
-        ];
-        let payload = init_payload(market_index, 0, 100, 10);
-        let mut ix = vec![IX_INITIALIZE_MID_PRICE_ACCOUNT];
-        ix.extend_from_slice(&payload);
-        let result = process_instruction(&program_id, &accounts, &ix);
-        assert!(matches!(
-            result,
-            Err(ProgramError::Custom(AUTH_ERR_INIT_REQUIRES_DRIFT_CPI))
-        ));
     }
 
     #[test]
@@ -1756,23 +1494,12 @@ mod tests {
     }
 
     #[test]
-    fn process_set_orders_success_with_orders_on_tick() {
+    fn process_set_orders_success_with_orders() {
         let program_id = test_program_id();
         let authority = test_authority();
-        let market_index = 1u16;
-        let mid_price = 1000u64;
-        let order_tick_size = 100u64;
-        let min_order_size = 10u64;
         let data_len = MIDPRICE_QUOTE_DATA_START + LEVEL_ENTRY_SIZE; // room for 1 order
         let mut data = vec![0u8; data_len];
         init_v1_header(&mut data, authority.as_ref());
-        data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
-            .copy_from_slice(&market_index.to_le_bytes());
-        data[REFERENCE_PRICE_OFFSET..REFERENCE_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
-        data[OPAQUE_ORDER_TICK_SIZE_OFFSET..OPAQUE_ORDER_TICK_SIZE_OFFSET + 8]
-            .copy_from_slice(&order_tick_size.to_le_bytes());
-        data[OPAQUE_MIN_ORDER_SIZE_OFFSET..OPAQUE_MIN_ORDER_SIZE_OFFSET + 8]
-            .copy_from_slice(&min_order_size.to_le_bytes());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
             program_id,
@@ -1788,11 +1515,11 @@ mod tests {
             account_view_from_backing(&mut midprice_backing),
             account_view_from_backing(&mut auth_backing),
         ];
-        // 1 ask: offset 100 -> price 1100 (on tick 100), size 10
+        // 1 ask: tick_count=1, size 10
         let mut payload = vec![];
         payload.extend_from_slice(&50u64.to_le_bytes()); // valid_until_slot
         payload.extend_from_slice(&[1u8, 0u8, 0u8, 0u8]); // ask_len=1, bid_len=0
-        payload.extend_from_slice(&100i64.to_le_bytes());
+        payload.extend_from_slice(&1u16.to_le_bytes());
         payload.extend_from_slice(&10u64.to_le_bytes());
         let mut ix = vec![IX_SET_ORDERS];
         ix.extend_from_slice(&payload);
@@ -1801,26 +1528,16 @@ mod tests {
     }
 
     #[test]
-    fn process_set_orders_price_not_on_tick_fails() {
+    fn process_set_orders_tick_count_zero_fails() {
         let program_id = test_program_id();
         let authority = test_authority();
-        let market_index = 1u16;
-        let mid_price = 1000u64;
-        let order_tick_size = 100u64;
-        let min_order_size = 10u64;
-        let mut data = vec![0u8; MIDPRICE_ACCOUNT_MIN_LEN];
+        let data_len = MIDPRICE_QUOTE_DATA_START + LEVEL_ENTRY_SIZE;
+        let mut data = vec![0u8; data_len];
         init_v1_header(&mut data, authority.as_ref());
-        data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
-            .copy_from_slice(&market_index.to_le_bytes());
-        data[REFERENCE_PRICE_OFFSET..REFERENCE_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
-        data[OPAQUE_ORDER_TICK_SIZE_OFFSET..OPAQUE_ORDER_TICK_SIZE_OFFSET + 8]
-            .copy_from_slice(&order_tick_size.to_le_bytes());
-        data[OPAQUE_MIN_ORDER_SIZE_OFFSET..OPAQUE_MIN_ORDER_SIZE_OFFSET + 8]
-            .copy_from_slice(&min_order_size.to_le_bytes());
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
             program_id,
-            MIDPRICE_ACCOUNT_MIN_LEN,
+            data_len,
             false,
             true,
             1000,
@@ -1832,11 +1549,11 @@ mod tests {
             account_view_from_backing(&mut midprice_backing),
             account_view_from_backing(&mut auth_backing),
         ];
-        // 1 ask: offset 45 -> price 1045, not on tick 100
+        // 1 ask: tick_count=0 -> invalid
         let mut payload = vec![];
         payload.extend_from_slice(&50u64.to_le_bytes()); // valid_until_slot
         payload.extend_from_slice(&[1u8, 0u8, 0u8, 0u8]);
-        payload.extend_from_slice(&45i64.to_le_bytes());
+        payload.extend_from_slice(&0u16.to_le_bytes());
         payload.extend_from_slice(&10u64.to_le_bytes());
         let mut ix = vec![IX_SET_ORDERS];
         ix.extend_from_slice(&payload);
@@ -1846,54 +1563,6 @@ mod tests {
             Err(ProgramError::Custom(AUTH_ERR_ORDER_TICK_OR_SIZE))
         ));
     }
-
-    #[test]
-    fn process_set_orders_size_below_min_fails() {
-        let program_id = test_program_id();
-        let authority = test_authority();
-        let market_index = 1u16;
-        let mid_price = 1000u64;
-        let order_tick_size = 100u64;
-        let min_order_size = 10u64;
-        let mut data = vec![0u8; MIDPRICE_ACCOUNT_MIN_LEN];
-        init_v1_header(&mut data, authority.as_ref());
-        data[MARKET_INDEX_OFFSET..MARKET_INDEX_OFFSET + 2]
-            .copy_from_slice(&market_index.to_le_bytes());
-        data[REFERENCE_PRICE_OFFSET..REFERENCE_PRICE_OFFSET + 8].copy_from_slice(&mid_price.to_le_bytes());
-        data[OPAQUE_ORDER_TICK_SIZE_OFFSET..OPAQUE_ORDER_TICK_SIZE_OFFSET + 8]
-            .copy_from_slice(&order_tick_size.to_le_bytes());
-        data[OPAQUE_MIN_ORDER_SIZE_OFFSET..OPAQUE_MIN_ORDER_SIZE_OFFSET + 8]
-            .copy_from_slice(&min_order_size.to_le_bytes());
-        let mut midprice_backing = mock_account_backing(
-            test_midprice_account(),
-            program_id,
-            MIDPRICE_ACCOUNT_MIN_LEN,
-            false,
-            true,
-            1000,
-            Some(&data),
-        );
-        let mut auth_backing =
-            mock_account_backing(authority, test_system_program(), 0, true, false, 0, None);
-        let accounts = [
-            account_view_from_backing(&mut midprice_backing),
-            account_view_from_backing(&mut auth_backing),
-        ];
-        // 1 ask: offset 100 -> price 1100 (on tick 100), size 5 < min_order_size 10
-        let mut payload = vec![];
-        payload.extend_from_slice(&50u64.to_le_bytes()); // valid_until_slot
-        payload.extend_from_slice(&[1u8, 0u8, 0u8, 0u8]);
-        payload.extend_from_slice(&100i64.to_le_bytes());
-        payload.extend_from_slice(&5u64.to_le_bytes());
-        let mut ix = vec![IX_SET_ORDERS];
-        ix.extend_from_slice(&payload);
-        let result = process_instruction(&program_id, &accounts, &ix);
-        assert!(matches!(
-            result,
-            Err(ProgramError::Custom(AUTH_ERR_ORDER_TICK_OR_SIZE))
-        ));
-    }
-
 
     #[test]
     fn process_set_quote_ttl_invalid_payload_length() {
@@ -2140,8 +1809,6 @@ mod tests {
             &authority,
             market_index,
             0, // subaccount_index
-            0,
-            0, // tick sizes
             0, // valid_until_slot=0 means no deadline
             0,
             &[100u64], // 1 ask, size 100
@@ -2172,7 +1839,7 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out_data = unsafe { accounts[2].borrow_unchecked() };
-        let base = MIDPRICE_QUOTE_DATA_START + 8;
+        let base = MIDPRICE_QUOTE_DATA_START + 2;
         let size_after = u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap());
         assert_eq!(size_after, 50);
     }
@@ -2189,8 +1856,6 @@ mod tests {
             &authority,
             market_index,
             0, // subaccount_index
-            0,
-            0,
             0, // valid_until_slot=0 means no deadline
             0,
             &[100u64], // 1 ask
@@ -2232,7 +1897,7 @@ mod tests {
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let market_index = 0u16;
         let data =
-            make_midprice_data_with_orders(&authority, market_index, 0, 0, 0, 0, 0, &[], &[200u64]);
+            make_midprice_data_with_orders(&authority, market_index, 0, 0, 0, &[], &[200u64]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2257,7 +1922,7 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out_data = unsafe { accounts[2].borrow_unchecked() };
-        let base = MIDPRICE_QUOTE_DATA_START + 8;
+        let base = MIDPRICE_QUOTE_DATA_START + 2;
         assert_eq!(
             u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
             120
@@ -2273,8 +1938,6 @@ mod tests {
         let data = make_midprice_data_with_orders(
             &authority,
             market_index,
-            0,
-            0,
             0,
             0, // valid_until_slot=0 means no deadline
             0,
@@ -2307,8 +1970,8 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out_data = unsafe { accounts[2].borrow_unchecked() };
-        let base0 = MIDPRICE_QUOTE_DATA_START + 8;
-        let base1 = MIDPRICE_QUOTE_DATA_START + LEVEL_ENTRY_SIZE + 8;
+        let base0 = MIDPRICE_QUOTE_DATA_START + 2;
+        let base1 = MIDPRICE_QUOTE_DATA_START + LEVEL_ENTRY_SIZE + 2;
         assert_eq!(
             u64::from_le_bytes(out_data[base0..base0 + 8].try_into().unwrap()),
             70
@@ -2326,9 +1989,9 @@ mod tests {
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let market_index = 1u16;
         let data0 =
-            make_midprice_data_with_orders(&authority, market_index, 0, 0, 0, 0, 0, &[100u64], &[]);
+            make_midprice_data_with_orders(&authority, market_index, 0, 0, 0, &[100u64], &[]);
         let data1 =
-            make_midprice_data_with_orders(&authority, market_index, 0, 0, 0, 0, 0, &[100u64], &[]);
+            make_midprice_data_with_orders(&authority, market_index, 0, 0, 0, &[100u64], &[]);
         let len0 = data0.len();
         let len1 = data1.len();
         let mut mid0 = mock_account_backing(
@@ -2366,7 +2029,7 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out1 = unsafe { accounts[3].borrow_unchecked() };
-        let base = MIDPRICE_QUOTE_DATA_START + 8;
+        let base = MIDPRICE_QUOTE_DATA_START + 2;
         assert_eq!(
             u64::from_le_bytes(out1[base..base + 8].try_into().unwrap()),
             50
@@ -2378,7 +2041,7 @@ mod tests {
         let program_id = test_program_id();
         let authority = test_authority();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
-        let data = make_midprice_data_with_orders(&authority, 5, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 5, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2404,7 +2067,7 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out_data = unsafe { accounts[2].borrow_unchecked() };
-        let base = MIDPRICE_QUOTE_DATA_START + 8;
+        let base = MIDPRICE_QUOTE_DATA_START + 2;
         assert_eq!(
             u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
             100
@@ -2423,8 +2086,6 @@ mod tests {
             &authority,
             1,
             0, // subaccount_index
-            0,
-            0,
             valid_until_slot,
             0,
             &[100u64],
@@ -2454,7 +2115,7 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out_data = unsafe { accounts[2].borrow_unchecked() };
-        let base = MIDPRICE_QUOTE_DATA_START + 8;
+        let base = MIDPRICE_QUOTE_DATA_START + 2;
         assert_eq!(
             u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
             100
@@ -2473,8 +2134,6 @@ mod tests {
             &authority,
             1,
             0, // subaccount_index
-            0,
-            0,
             valid_until_slot,
             0,
             &[100u64],
@@ -2504,7 +2163,7 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out_data = unsafe { accounts[2].borrow_unchecked() };
-        let base = MIDPRICE_QUOTE_DATA_START + 8;
+        let base = MIDPRICE_QUOTE_DATA_START + 2;
         assert_eq!(
             u64::from_le_bytes(out_data[base..base + 8].try_into().unwrap()),
             50
@@ -2516,7 +2175,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2548,7 +2207,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2577,7 +2236,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2605,7 +2264,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2635,7 +2294,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2665,7 +2324,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2696,7 +2355,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2730,7 +2389,7 @@ mod tests {
         let authority = test_authority();
         // 1 ask (abs_index 0) + 1 bid (abs_index 1).
         let data = make_midprice_data_with_orders(
-            &authority, 1, 0, 0, 0, 0, 0, &[100u64], &[200u64],
+            &authority, 1, 0, 0, 0, &[100u64], &[200u64],
         );
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
@@ -2761,7 +2420,7 @@ mod tests {
         let authority = test_authority();
         // 1 ask (abs_index 0) + 1 bid (abs_index 1).
         let data = make_midprice_data_with_orders(
-            &authority, 1, 0, 0, 0, 0, 0, &[100u64], &[200u64],
+            &authority, 1, 0, 0, 0, &[100u64], &[200u64],
         );
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
@@ -2798,7 +2457,7 @@ mod tests {
             Some(&50u64.to_le_bytes()),
         );
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut midprice_backing = mock_account_backing(
             test_midprice_account(),
@@ -2828,7 +2487,7 @@ mod tests {
         let program_id = test_program_id();
         let (mut matcher_backing, mut clock_backing, _) = apply_fills_setup_matcher_clock(50);
         let authority = test_authority();
-        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, 0, 0, &[100u64], &[]);
+        let data = make_midprice_data_with_orders(&authority, 1, 0, 0, 0, &[100u64], &[]);
         let data_len = data.len();
         let mut mid0 = mock_account_backing(
             test_midprice_account(),
@@ -2866,7 +2525,7 @@ mod tests {
         let result = process_instruction(&program_id, &accounts, &ix);
         assert!(result.is_ok());
         let out1 = unsafe { accounts[3].borrow_unchecked() };
-        let base = MIDPRICE_QUOTE_DATA_START + 8;
+        let base = MIDPRICE_QUOTE_DATA_START + 2;
         assert_eq!(
             u64::from_le_bytes(out1[base..base + 8].try_into().unwrap()),
             50

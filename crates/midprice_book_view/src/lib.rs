@@ -21,14 +21,14 @@
 //! | 80 | 2 | Bid length (u16 LE) |
 //! | 82 | 2 | Ask head (u16 LE, index of first non-empty ask) |
 //! | 84 | 2 | Bid head (u16 LE, index of first non-empty bid) |
-//! | 86 | 2 | Level entry size (u16 LE, stride per level, >= 16) |
+//! | 86 | 2 | Level entry size (u16 LE, stride per level, >= 10) |
 //! | 88 | 8 | Reserved (zero) |
 //!
 //! ## Quote block (at quote_data_offset)
 //!
 //! Asks \[0, ask_len) then bids \[ask_len, ask_len+bid_len).
-//! Each level is at least 16 bytes: `price_offset: i64 LE` + `base_asset_amount: u64 LE`.
-//! Effective price = `reference_price + price_offset`.
+//! Each level is at least 10 bytes: `tick_count: u16 LE` + `base_asset_amount: u64 LE`.
+//! Effective price = `reference_price ± tick_count * tick_size` (+ for asks, − for bids).
 //! Maximum levels per book: 128 (asks + bids combined).
 
 // -- Standardized header constants --
@@ -74,8 +74,8 @@ const RESERVED_SIZE: usize = 8;
 /// Size of the standardized V1 header in bytes.
 pub const STANDARDIZED_HEADER_SIZE: usize = RESERVED_OFFSET + RESERVED_SIZE; // 96
 
-/// Default (and minimum) level entry size: price_offset i64 + base_asset_amount u64.
-pub const LEVEL_ENTRY_SIZE: usize = 16;
+/// Default (and minimum) level entry size: tick_count u16 + base_asset_amount u64.
+pub const LEVEL_ENTRY_SIZE: usize = 10;
 
 /// Maximum number of levels (asks + bids combined).
 pub const MAX_ORDERS: usize = 128;
@@ -131,9 +131,9 @@ pub fn write_apply_fills_instruction_data<S: ApplyFillsSink>(
 /// Which side of the book the taker is taking (Long = taking asks, Short = taking bids).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TakingSide {
-    /// Taker is buyer; scan asks (offset > 0), cross when maker_price <= taker_limit.
+    /// Taker is buyer; scan asks, cross when maker_price <= taker_limit.
     TakingAsks,
-    /// Taker is seller; scan bids (offset < 0), cross when maker_price >= taker_limit.
+    /// Taker is seller; scan bids, cross when maker_price >= taker_limit.
     TakingBids,
 }
 
@@ -146,21 +146,27 @@ pub struct FirstCrossingLevel {
     pub is_ask: bool,
 }
 
-fn maker_price_from_offset(reference_price: u64, offset: i64) -> Option<u64> {
-    if offset == 0 {
+fn maker_price_from_ticks(
+    reference_price: u64,
+    tick_count: u16,
+    tick_size: u64,
+    is_ask: bool,
+) -> Option<u64> {
+    if tick_count == 0 {
         return None;
     }
-    if offset > 0 {
-        reference_price.checked_add(offset as u64)
+    let delta = (tick_count as u64).checked_mul(tick_size)?;
+    if is_ask {
+        reference_price.checked_add(delta)
     } else {
-        reference_price.checked_sub(offset.unsigned_abs() as u64)
+        reference_price.checked_sub(delta)
     }
 }
 
-fn is_crossing(side: TakingSide, taker_limit_price: u64, maker_price: u64, offset: i64) -> bool {
+fn is_crossing(side: TakingSide, taker_limit_price: u64, maker_price: u64) -> bool {
     match side {
-        TakingSide::TakingAsks => offset > 0 && maker_price <= taker_limit_price,
-        TakingSide::TakingBids => offset < 0 && maker_price >= taker_limit_price,
+        TakingSide::TakingAsks => maker_price <= taker_limit_price,
+        TakingSide::TakingBids => maker_price >= taker_limit_price,
     }
 }
 
@@ -269,12 +275,12 @@ impl<'a> MidpriceBookView<'a> {
         read_u16(self.data, BID_HEAD_OFFSET)
     }
 
-    /// Level entry stride in bytes (16 default, may be larger if extended).
+    /// Level entry stride in bytes (10 default, may be larger if extended).
     pub fn level_entry_size(&self) -> usize {
         self.entry_size
     }
 
-    pub fn order_offset_i64(&self, index: usize) -> Result<i64, BookError> {
+    pub fn order_tick_count_u16(&self, index: usize) -> Result<u16, BookError> {
         let base = entry_base(
             self.data,
             index,
@@ -282,8 +288,8 @@ impl<'a> MidpriceBookView<'a> {
             self.orders_data_offset,
             self.entry_size,
         )?;
-        Ok(i64::from_le_bytes(
-            self.data[base..base + 8]
+        Ok(u16::from_le_bytes(
+            self.data[base..base + 2]
                 .try_into()
                 .map_err(|_| BookError::InvalidData)?,
         ))
@@ -298,7 +304,7 @@ impl<'a> MidpriceBookView<'a> {
             self.entry_size,
         )?;
         Ok(u64::from_le_bytes(
-            self.data[base + 8..base + 16]
+            self.data[base + 2..base + 10]
                 .try_into()
                 .map_err(|_| BookError::InvalidData)?,
         ))
@@ -316,6 +322,7 @@ impl<'a> MidpriceBookView<'a> {
         reference_price: u64,
         taker_limit_price: u64,
         start_from_abs_index: Option<usize>,
+        tick_size: u64,
     ) -> Result<Option<FirstCrossingLevel>, BookError> {
         let ask_len = self.ask_len() as usize;
         let bid_len = self.bid_len() as usize;
@@ -335,11 +342,13 @@ impl<'a> MidpriceBookView<'a> {
             if size == 0 {
                 continue;
             }
-            let offset = self.order_offset_i64(abs_index)?;
-            let Some(price) = maker_price_from_offset(reference_price, offset) else {
+            let tick_count = self.order_tick_count_u16(abs_index)?;
+            let Some(price) =
+                maker_price_from_ticks(reference_price, tick_count, tick_size, is_ask)
+            else {
                 continue;
             };
-            if !is_crossing(side, taker_limit_price, price, offset) {
+            if !is_crossing(side, taker_limit_price, price) {
                 return Ok(None);
             }
             return Ok(Some(FirstCrossingLevel {
@@ -419,7 +428,7 @@ impl<'a> MidpriceBookViewMut<'a> {
             self.orders_data_offset,
             self.entry_size,
         )?;
-        self.data[base + 8..base + 16].copy_from_slice(&size.to_le_bytes());
+        self.data[base + 2..base + 10].copy_from_slice(&size.to_le_bytes());
         Ok(())
     }
 
@@ -432,7 +441,7 @@ impl<'a> MidpriceBookViewMut<'a> {
             self.entry_size,
         )?;
         Ok(u64::from_le_bytes(
-            self.data[base + 8..base + 16]
+            self.data[base + 2..base + 10]
                 .try_into()
                 .map_err(|_| BookError::InvalidData)?,
         ))
@@ -572,6 +581,82 @@ fn write_u64(data: &mut [u8], offset: usize, value: u64) {
     data[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
 }
 
+// ---------------------------------------------------------------------------
+// Test utilities: account buffer builder for downstream test code
+// ---------------------------------------------------------------------------
+
+#[cfg(any(test, feature = "test-utils"))]
+extern crate alloc;
+
+/// Builder for constructing PropAMM account buffers in tests.
+/// Gated behind `#[cfg(test)]` or `feature = "test-utils"`.
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils {
+    use super::*;
+    use alloc::vec;
+    use alloc::vec::Vec;
+
+    /// A level entry for the builder: tick count + size.
+    #[derive(Clone, Copy)]
+    pub struct Level {
+        pub tick_count: u16,
+        pub size: u64,
+    }
+
+    /// Build a PropAMM V1 account buffer with the given parameters.
+    /// Quote data starts right after the standardized header (offset 96).
+    pub fn build_midprice_account(
+        reference_price: u64,
+        maker_subaccount: &[u8; 32],
+        market_index: u16,
+        valid_until_slot: u64,
+        asks: &[Level],
+        bids: &[Level],
+    ) -> Vec<u8> {
+        let total = asks.len() + bids.len();
+        assert!(total <= MAX_ORDERS);
+        let quote_data_start = STANDARDIZED_HEADER_SIZE;
+        let mut data = vec![0u8; quote_data_start + total * LEVEL_ENTRY_SIZE];
+
+        // Header
+        data[DISCRIMINATOR_OFFSET..DISCRIMINATOR_OFFSET + DISCRIMINATOR_SIZE]
+            .copy_from_slice(&PROPAMM_ACCOUNT_DISCRIMINATOR);
+        data[VERSION_OFFSET] = VERSION_V1;
+        data[FLAGS_OFFSET] = 0;
+        write_u16(
+            &mut data,
+            HEADER_LEN_OFFSET,
+            STANDARDIZED_HEADER_SIZE as u16,
+        );
+        write_u16(&mut data, MARKET_INDEX_OFFSET, market_index);
+        data[MAKER_SUBACCOUNT_OFFSET..MAKER_SUBACCOUNT_OFFSET + 32]
+            .copy_from_slice(maker_subaccount);
+        write_u64(&mut data, VALID_UNTIL_SLOT_OFFSET, valid_until_slot);
+        write_u64(&mut data, REFERENCE_PRICE_OFFSET, reference_price);
+        write_u32(&mut data, QUOTE_DATA_OFFSET_FIELD, quote_data_start as u32);
+        write_u32(
+            &mut data,
+            QUOTE_DATA_LEN_FIELD,
+            (total * LEVEL_ENTRY_SIZE) as u32,
+        );
+        write_u16(&mut data, ASK_LEN_OFFSET, asks.len() as u16);
+        write_u16(&mut data, BID_LEN_OFFSET, bids.len() as u16);
+        write_u16(&mut data, ASK_HEAD_OFFSET, 0);
+        write_u16(&mut data, BID_HEAD_OFFSET, 0);
+        write_u16(&mut data, LEVEL_ENTRY_SIZE_OFFSET, LEVEL_ENTRY_SIZE as u16);
+
+        // Levels: asks then bids
+        let mut off = quote_data_start;
+        for level in asks.iter().chain(bids.iter()) {
+            data[off..off + 2].copy_from_slice(&level.tick_count.to_le_bytes());
+            data[off + 2..off + 10].copy_from_slice(&level.size.to_le_bytes());
+            off += LEVEL_ENTRY_SIZE;
+        }
+
+        data
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
@@ -669,18 +754,18 @@ mod tests {
             let mut view = MidpriceBookViewMut::new(&mut buf).unwrap();
             view.set_lengths_and_reset_heads(1, 1).unwrap();
         }
-        let offset_val: i64 = 1_000_000;
+        let tick_count: u16 = 100;
         let size_val: u64 = 5_000_000_000;
-        buf[TEST_QUOTE_DATA_START..TEST_QUOTE_DATA_START + 8]
-            .copy_from_slice(&offset_val.to_le_bytes());
-        buf[TEST_QUOTE_DATA_START + 8..TEST_QUOTE_DATA_START + 16]
+        buf[TEST_QUOTE_DATA_START..TEST_QUOTE_DATA_START + 2]
+            .copy_from_slice(&tick_count.to_le_bytes());
+        buf[TEST_QUOTE_DATA_START + 2..TEST_QUOTE_DATA_START + 10]
             .copy_from_slice(&size_val.to_le_bytes());
 
         let view = MidpriceBookView::new(&buf).unwrap();
         assert_eq!(view.ask_len(), 1);
         assert_eq!(view.bid_len(), 1);
         assert_eq!(view.total_orders(), 2);
-        assert_eq!(view.order_offset_i64(0).unwrap(), offset_val);
+        assert_eq!(view.order_tick_count_u16(0).unwrap(), tick_count);
         assert_eq!(view.order_size_u64(0).unwrap(), size_val);
         assert_eq!(view.level_entry_size(), LEVEL_ENTRY_SIZE);
     }
@@ -701,25 +786,25 @@ mod tests {
         write_u16(&mut buf, ASK_LEN_OFFSET, 1);
         write_u16(&mut buf, BID_LEN_OFFSET, 1);
 
-        let offset_val: i64 = 100;
+        let tick_count1: u16 = 100;
         let size_val: u64 = 200;
-        buf[TEST_QUOTE_DATA_START..TEST_QUOTE_DATA_START + 8]
-            .copy_from_slice(&offset_val.to_le_bytes());
-        buf[TEST_QUOTE_DATA_START + 8..TEST_QUOTE_DATA_START + 16]
+        buf[TEST_QUOTE_DATA_START..TEST_QUOTE_DATA_START + 2]
+            .copy_from_slice(&tick_count1.to_le_bytes());
+        buf[TEST_QUOTE_DATA_START + 2..TEST_QUOTE_DATA_START + 10]
             .copy_from_slice(&size_val.to_le_bytes());
 
-        let offset_val2: i64 = -300;
+        let tick_count2: u16 = 300;
         let size_val2: u64 = 400;
-        buf[TEST_QUOTE_DATA_START + entry_size..TEST_QUOTE_DATA_START + entry_size + 8]
-            .copy_from_slice(&offset_val2.to_le_bytes());
-        buf[TEST_QUOTE_DATA_START + entry_size + 8..TEST_QUOTE_DATA_START + entry_size + 16]
+        buf[TEST_QUOTE_DATA_START + entry_size..TEST_QUOTE_DATA_START + entry_size + 2]
+            .copy_from_slice(&tick_count2.to_le_bytes());
+        buf[TEST_QUOTE_DATA_START + entry_size + 2..TEST_QUOTE_DATA_START + entry_size + 10]
             .copy_from_slice(&size_val2.to_le_bytes());
 
         let view = MidpriceBookView::new(&buf).unwrap();
         assert_eq!(view.level_entry_size(), entry_size);
-        assert_eq!(view.order_offset_i64(0).unwrap(), offset_val);
+        assert_eq!(view.order_tick_count_u16(0).unwrap(), tick_count1);
         assert_eq!(view.order_size_u64(0).unwrap(), size_val);
-        assert_eq!(view.order_offset_i64(1).unwrap(), offset_val2);
+        assert_eq!(view.order_tick_count_u16(1).unwrap(), tick_count2);
         assert_eq!(view.order_size_u64(1).unwrap(), size_val2);
     }
 
@@ -777,86 +862,26 @@ mod tests {
     // CU comparison: current 16-byte entries vs compressed alternatives
     // -----------------------------------------------------------------------
 
-    fn scan_current(buf: &[u8], reference_price: u64, n: usize) -> (u64, u64) {
-        let mut price_sum: u64 = 0;
-        let mut size_sum: u64 = 0;
-        for i in 0..n {
-            let base = TEST_QUOTE_DATA_START + i * 16;
-            let offset = i64::from_le_bytes(buf[base..base + 8].try_into().unwrap());
-            let size = u64::from_le_bytes(buf[base + 8..base + 16].try_into().unwrap());
-            let price = if offset > 0 {
-                reference_price.wrapping_add(offset as u64)
-            } else {
-                reference_price.wrapping_sub(offset.unsigned_abs())
-            };
-            price_sum = price_sum.wrapping_add(price);
-            size_sum = size_sum.wrapping_add(size);
-        }
-        (price_sum, size_sum)
-    }
-
-    fn scan_tick_compressed(
+    /// Scan the current (u16 tick_count + u64 size) 10-byte layout.
+    fn scan_current(
         buf: &[u8],
         reference_price: u64,
         tick_size: u64,
-        min_order_size: u64,
-        n: usize,
+        n_asks: usize,
+        n_bids: usize,
     ) -> (u64, u64) {
         let mut price_sum: u64 = 0;
         let mut size_sum: u64 = 0;
+        let n = n_asks + n_bids;
         for i in 0..n {
-            let base = TEST_QUOTE_DATA_START + i * 8;
-            let offset_ticks = i32::from_le_bytes(buf[base..base + 4].try_into().unwrap()) as i64;
-            let size_ticks = u32::from_le_bytes(buf[base + 4..base + 8].try_into().unwrap()) as u64;
-            let offset = offset_ticks.wrapping_mul(tick_size as i64);
-            let size = size_ticks.wrapping_mul(min_order_size);
-            let price = if offset > 0 {
-                reference_price.wrapping_add(offset as u64)
-            } else {
-                reference_price.wrapping_sub(offset.unsigned_abs())
-            };
-            price_sum = price_sum.wrapping_add(price);
-            size_sum = size_sum.wrapping_add(size);
-        }
-        (price_sum, size_sum)
-    }
-
-    fn scan_bps_offset(buf: &[u8], reference_price: u64, n: usize) -> (u64, u64) {
-        let mut price_sum: u64 = 0;
-        let mut size_sum: u64 = 0;
-        for i in 0..n {
-            let base = TEST_QUOTE_DATA_START + i * 10;
-            let offset_bps = i16::from_le_bytes(buf[base..base + 2].try_into().unwrap()) as i64;
+            let base = TEST_QUOTE_DATA_START + i * LEVEL_ENTRY_SIZE;
+            let tick_count = u16::from_le_bytes(buf[base..base + 2].try_into().unwrap()) as u64;
             let size = u64::from_le_bytes(buf[base + 2..base + 10].try_into().unwrap());
-            let offset = offset_bps.wrapping_mul(reference_price as i64) / 10_000;
-            let price = if offset > 0 {
-                reference_price.wrapping_add(offset as u64)
+            let delta = tick_count.wrapping_mul(tick_size);
+            let price = if i < n_asks {
+                reference_price.wrapping_add(delta)
             } else {
-                reference_price.wrapping_sub(offset.unsigned_abs())
-            };
-            price_sum = price_sum.wrapping_add(price);
-            size_sum = size_sum.wrapping_add(size);
-        }
-        (price_sum, size_sum)
-    }
-
-    fn scan_tick_offset_only(
-        buf: &[u8],
-        reference_price: u64,
-        tick_size: u64,
-        n: usize,
-    ) -> (u64, u64) {
-        let mut price_sum: u64 = 0;
-        let mut size_sum: u64 = 0;
-        for i in 0..n {
-            let base = TEST_QUOTE_DATA_START + i * 12;
-            let offset_ticks = i32::from_le_bytes(buf[base..base + 4].try_into().unwrap()) as i64;
-            let size = u64::from_le_bytes(buf[base + 4..base + 12].try_into().unwrap());
-            let offset = offset_ticks.wrapping_mul(tick_size as i64);
-            let price = if offset > 0 {
-                reference_price.wrapping_add(offset as u64)
-            } else {
-                reference_price.wrapping_sub(offset.unsigned_abs())
+                reference_price.wrapping_sub(delta)
             };
             price_sum = price_sum.wrapping_add(price);
             size_sum = size_sum.wrapping_add(size);
@@ -868,45 +893,30 @@ mod tests {
     fn cu_comparison_correctness() {
         let reference_price: u64 = 50_000_000_000;
         let tick_size: u64 = 100_000;
-        let min_order_size: u64 = 1_000_000_000;
-        let n = 4;
+        let n_asks = 2;
+        let n_bids = 2;
+        let n = n_asks + n_bids;
 
-        let offsets: [i64; 4] = [1_000_000, 2_000_000, -1_000_000, -2_000_000];
+        // Tick counts (unsigned) and sizes
+        let tick_counts: [u16; 4] = [10, 20, 10, 20];
         let sizes: [u64; 4] = [5_000_000_000, 3_000_000_000, 4_000_000_000, 2_000_000_000];
 
-        // A) Current 16-byte entries
-        let mut buf_a = vec![0u8; TEST_QUOTE_DATA_START + n * 16];
+        let mut buf = vec![0u8; TEST_QUOTE_DATA_START + n * LEVEL_ENTRY_SIZE];
         for i in 0..n {
-            let base = TEST_QUOTE_DATA_START + i * 16;
-            buf_a[base..base + 8].copy_from_slice(&offsets[i].to_le_bytes());
-            buf_a[base + 8..base + 16].copy_from_slice(&sizes[i].to_le_bytes());
+            let base = TEST_QUOTE_DATA_START + i * LEVEL_ENTRY_SIZE;
+            buf[base..base + 2].copy_from_slice(&tick_counts[i].to_le_bytes());
+            buf[base + 2..base + 10].copy_from_slice(&sizes[i].to_le_bytes());
         }
-        let (pa, sa) = scan_current(&buf_a, reference_price, n);
+        let (ps, ss) = scan_current(&buf, reference_price, tick_size, n_asks, n_bids);
 
-        // B) Tick-compressed 8-byte entries
-        let mut buf_b = vec![0u8; TEST_QUOTE_DATA_START + n * 8];
-        for i in 0..n {
-            let base = TEST_QUOTE_DATA_START + i * 8;
-            let offset_ticks = (offsets[i] / tick_size as i64) as i32;
-            let size_ticks = (sizes[i] / min_order_size) as u32;
-            buf_b[base..base + 4].copy_from_slice(&offset_ticks.to_le_bytes());
-            buf_b[base + 4..base + 8].copy_from_slice(&size_ticks.to_le_bytes());
-        }
-        let (pb, sb) = scan_tick_compressed(&buf_b, reference_price, tick_size, min_order_size, n);
-
-        assert_eq!(pa, pb, "tick-compressed price sum mismatch");
-        assert_eq!(sa, sb, "tick-compressed size sum mismatch");
-
-        // D) Tick-offset-only 12-byte entries
-        let mut buf_d = vec![0u8; TEST_QUOTE_DATA_START + n * 12];
-        for i in 0..n {
-            let base = TEST_QUOTE_DATA_START + i * 12;
-            let offset_ticks = (offsets[i] / tick_size as i64) as i32;
-            buf_d[base..base + 4].copy_from_slice(&offset_ticks.to_le_bytes());
-            buf_d[base + 4..base + 12].copy_from_slice(&sizes[i].to_le_bytes());
-        }
-        let (pd, sd) = scan_tick_offset_only(&buf_d, reference_price, tick_size, n);
-        assert_eq!(pa, pd, "tick-offset-only price sum mismatch");
-        assert_eq!(sa, sd, "tick-offset-only size sum mismatch");
+        // Manually verify first ask: ref + 10*100_000 = 50_001_000_000
+        // and first bid: ref - 10*100_000 = 49_999_000_000
+        let expected_price_sum = (reference_price + 10 * tick_size)
+            + (reference_price + 20 * tick_size)
+            + (reference_price - 10 * tick_size)
+            + (reference_price - 20 * tick_size);
+        assert_eq!(ps, expected_price_sum, "price sum mismatch");
+        let expected_size_sum: u64 = sizes.iter().sum();
+        assert_eq!(ss, expected_size_sum, "size sum mismatch");
     }
 }
