@@ -22,7 +22,8 @@ MIDPRICE_DIR="$REPO_ROOT/programs/midprice_pino"
 echo "Building midprice_pino in $MIDPRICE_DIR..."
 # build midprice program with latest solana tools
 (cd "$MIDPRICE_DIR" && cargo build-sbf --tools-version v1.52)
-echo "copying built midprice_pino.so to $..."
+mkdir -p "$DEPLOY"
+echo "copying built midprice_pino.so to $DEPLOY..."
 cp programs/midprice_pino/target/deploy/midprice_pino.so "$DEPLOY"
 
 # build drift program with compatible/legacy tools
