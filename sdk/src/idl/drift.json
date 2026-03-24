@@ -15338,6 +15338,9 @@
           },
           {
             "name": "TransferPerpPosition"
+          },
+          {
+            "name": "OrderFilledWithPropAMM"
           }
         ]
       }

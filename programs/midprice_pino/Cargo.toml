@@ -1,0 +1,29 @@
+[workspace]
+
+[package]
+name = "midprice_pino"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "midprice_pino"
+
+[dependencies]
+pinocchio = "0.10.2"
+pinocchio-log = "0.5"
+midprice_book_view = { path = "../../crates/midprice_book_view" }
+solana-pubkey = { version = "4", default-features = false }
+# Enable curve25519 so Address::try_find_program_address is available (on Solana it uses syscall instead).
+# decode enables pubkey!("...") / Address::from_str_const for hardcoded IDs.
+solana-address = { version = "2.2", features = ["curve25519", "decode"] }
+solana-account-view = { version = "1.0", optional = true, default-features = false }
+
+[dev-dependencies]
+solana-account-view = "1.0"
+mollusk-svm = "0.10"
+solana-sdk = "2.0"
+bs58 = "0.5"

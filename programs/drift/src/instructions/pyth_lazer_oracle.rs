@@ -75,8 +75,8 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         let current_timestamp = pyth_lazer_oracle.publish_time;
 
         let PayloadPropertyValue::Price(Some(price)) = payload_data.properties[0] else {
-                return Err(ErrorCode::InvalidPythLazerMessage.into());
-            };
+            return Err(ErrorCode::InvalidPythLazerMessage.into());
+        };
 
         let mut best_bid_price: Option<Price> = None;
         let mut best_ask_price: Option<Price> = None;

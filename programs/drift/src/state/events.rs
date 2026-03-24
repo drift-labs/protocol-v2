@@ -388,6 +388,7 @@ pub enum OrderActionExplanation {
     DeriskLp,
     OrderFilledWithOpenbookV2,
     TransferPerpPosition,
+    OrderFilledWithPropAMM,
 }
 
 #[event]

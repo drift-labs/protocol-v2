@@ -3,7 +3,7 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [workspace]
-exclude = ["programs/openbook_v2"]
+exclude = ["programs/openbook_v2", "programs/midprice_pino"]
 
 [scripts]
 # to run local validator tests, use "./test-scripts/run-ts-mocha" in "test"

@@ -14,6 +14,7 @@ use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
+use crate::state::prop_amm_registry::{PropAmmApprovalParams, PropAmmKey};
 use crate::state::scale_order_params::ScaleOrderParams;
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -32,6 +33,11 @@ mod signer;
 pub mod state;
 #[cfg(test)]
 mod test_utils;
+#[cfg(test)]
+pub use test_utils::{
+    create_account_info, create_executable_program_account_info, get_account_bytes,
+    get_anchor_account_bytes, get_pyth_price,
+};
 mod validation;
 
 // main program entrypoint
@@ -50,6 +56,9 @@ pub fn program_entry<'info>(
             1 => Ok(handle_update_amm_spread_adjustment_native(
                 accounts, payload,
             )?),
+            2 => Ok(handle_set_oracle_cache_entries_native(accounts, payload)?),
+            3 => Ok(handle_update_oracle_price_cache_native(accounts, payload)?),
+            4 => Ok(handle_update_oracle_cache_config_native(accounts, payload)?),
             _ => Err(
                 anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData
                     .into(),
@@ -324,6 +333,36 @@ pub mod drift {
             signed_msg_order_params_message_bytes,
             is_delegate_signer,
         )
+    }
+
+    pub fn approve_prop_amms(
+        ctx: Context<ApprovePropAmms>,
+        entries: Vec<PropAmmApprovalParams>,
+    ) -> Result<()> {
+        handle_approve_prop_amms(ctx, entries)
+    }
+
+    pub fn disable_prop_amms(
+        ctx: Context<MutatePropAmmRegistry>,
+        keys: Vec<PropAmmKey>,
+    ) -> Result<()> {
+        handle_disable_prop_amms(ctx, keys)
+    }
+
+    pub fn remove_prop_amms(
+        ctx: Context<MutatePropAmmRegistry>,
+        keys: Vec<PropAmmKey>,
+    ) -> Result<()> {
+        handle_remove_prop_amms(ctx, keys)
+    }
+
+    /// Match a perp order against prop AMM liquidity. Permissionless: anyone may call.
+    /// Remaining accounts: [propamm_program], [spot_markets...] (canonical: consume while SpotMarket discriminator), then (matcher, propamm_account, maker_user)* per AMM.
+    pub fn fill_perp_order2<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, FillPerpOrder2<'info>>,
+        taker_order_id: Option<u32>,
+    ) -> Result<()> {
+        handle_fill_perp_order2(ctx, taker_order_id)
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
@@ -944,26 +983,6 @@ pub mod drift {
         handle_delete_initialized_spot_market(ctx, market_index)
     }
 
-    pub fn initialize_serum_fulfillment_config(
-        ctx: Context<InitializeSerumFulfillmentConfig>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_initialize_serum_fulfillment_config(ctx, market_index)
-    }
-
-    pub fn update_serum_fulfillment_config_status(
-        ctx: Context<UpdateSerumFulfillmentConfig>,
-        status: SpotFulfillmentConfigStatus,
-    ) -> Result<()> {
-        handle_update_serum_fulfillment_config_status(ctx, status)
-    }
-
-    pub fn delete_serum_fulfillment_config(
-        ctx: Context<DeleteSerumFulfillmentConfig>,
-    ) -> Result<()> {
-        handle_delete_serum_fulfillment_config(ctx)
-    }
-
     pub fn initialize_openbook_v2_fulfillment_config(
         ctx: Context<InitializeOpenbookV2FulfillmentConfig>,
         market_index: u16,
@@ -982,6 +1001,26 @@ pub mod drift {
         ctx: Context<DeleteOpenbookV2FulfillmentConfig>,
     ) -> Result<()> {
         handle_delete_openbook_v2_fulfillment_config(ctx)
+    }
+
+    pub fn initialize_serum_fulfillment_config(
+        ctx: Context<InitializeSerumFulfillmentConfig>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_serum_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn update_serum_fulfillment_config_status(
+        ctx: Context<UpdateSerumFulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_serum_fulfillment_config_status(ctx, status)
+    }
+
+    pub fn delete_serum_fulfillment_config(
+        ctx: Context<DeleteSerumFulfillmentConfig>,
+    ) -> Result<()> {
+        handle_delete_serum_fulfillment_config(ctx)
     }
 
     pub fn initialize_phoenix_fulfillment_config(

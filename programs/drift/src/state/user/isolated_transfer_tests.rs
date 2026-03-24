@@ -7,7 +7,6 @@ use std::str::FromStr;
 use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 
-use crate::create_account_info;
 use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
@@ -24,10 +23,9 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User, UserStats};
 use crate::test_utils::{
-    create_account_info, get_account_bytes, get_anchor_account_bytes, get_positions,
-    get_pyth_price, get_spot_positions,
+    get_account_bytes, get_anchor_account_bytes, get_positions, get_pyth_price, get_spot_positions,
 };
-use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
+use crate::{create_account_info, create_anchor_account_info, PRICE_PRECISION_I64};
 
 #[test]
 fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {

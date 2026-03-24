@@ -988,6 +988,7 @@ dependencies = [
  "drift-macros",
  "enumflags2",
  "hex",
+ "midprice_book_view",
  "num-integer",
  "num-traits",
  "openbook-v2-light",
@@ -1526,6 +1527,10 @@ dependencies = [
  "rand_core 0.6.4",
  "zeroize",
 ]
+
+[[package]]
+name = "midprice_book_view"
+version = "0.1.0"
 
 [[package]]
 name = "num"

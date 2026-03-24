@@ -468,13 +468,18 @@ export class BankrunConnection {
 			transaction
 		);
 		const returnDataProgramId =
-			simulationResult.meta?.returnData?.programId.toBase58();
-		const returnDataNormalized = Buffer.from(
-			simulationResult.meta?.returnData?.data
-		).toString('base64');
+			simulationResult.meta?.returnData?.programId?.toBase58();
+		const returnDataRaw = simulationResult.meta?.returnData?.data;
+		const returnDataNormalized =
+			returnDataRaw != null
+				? Buffer.from(returnDataRaw).toString('base64')
+				: undefined;
 		const returnData: TransactionReturnData = {
-			programId: returnDataProgramId,
-			data: [returnDataNormalized, 'base64'],
+			programId: returnDataProgramId ?? '',
+			data:
+				returnDataNormalized != null
+					? [returnDataNormalized, 'base64']
+					: ['', 'base64'],
 		};
 		return {
 			context: { slot: Number(await this._banksClient.getSlot()) },

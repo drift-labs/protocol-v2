@@ -4,7 +4,7 @@ use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
 use serum_dex::state::ToAlignedBytes;
-use std::convert::{identity, TryInto};
+use std::convert::{identity, TryFrom, TryInto};
 use std::mem::size_of;
 
 use crate::controller;
@@ -54,11 +54,14 @@ use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
-    get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
+    get_oracle_price, get_oracle_ts, get_prelaunch_price, get_pyth_price, get_switchboard_price,
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
     PrelaunchOracleParams,
 };
 use crate::state::oracle_map::OracleMap;
+use crate::state::oracle_price_cache::{
+    CachedOracleEntry, OraclePriceCache, OraclePriceCacheFixed, ORACLE_PRICE_CACHE_SEED,
+};
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketConfigFlag, MarketStatus, PerpMarket,
@@ -77,6 +80,7 @@ use crate::state::state::{
 };
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
+use crate::state::zero_copy::{AccountZeroCopyMut, ZeroCopyLoader};
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -6185,4 +6189,433 @@ pub struct UpdateDelegateUserGovTokenInsuranceStake<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+// ── Oracle Price Cache ───────────────────────────────────────────────────
+
+/// Creates both buffer PDAs (buffer_index 0 and 1) for a given cache_id.
+/// `num_oracles` pre-allocates entry slots. Oracle pubkeys are set via `set_oracle_cache_entries`.
+pub fn handle_initialize_oracle_price_cache(
+    ctx: Context<InitializeOraclePriceCache>,
+    cache_id: u8,
+    num_oracles: u16,
+) -> Result<()> {
+    let buf0 = &mut ctx.accounts.oracle_price_cache_0;
+    buf0.bump = ctx.bumps.oracle_price_cache_0;
+    buf0.cache_id = cache_id;
+    buf0.buffer_index = 0;
+    buf0.max_age_slots = 0; // default
+    buf0.entries
+        .resize(num_oracles as usize, CachedOracleEntry::default());
+
+    let buf1 = &mut ctx.accounts.oracle_price_cache_1;
+    buf1.bump = ctx.bumps.oracle_price_cache_1;
+    buf1.cache_id = cache_id;
+    buf1.buffer_index = 1;
+    buf1.max_age_slots = 0;
+    buf1.entries
+        .resize(num_oracles as usize, CachedOracleEntry::default());
+
+    Ok(())
+}
+
+/// Entry descriptor for `set_oracle_cache_entries`.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct OracleCacheEntryParams {
+    pub oracle: Pubkey,
+    pub oracle_source: u8,
+    pub max_age_slots_override: u8,
+}
+
+/// Populates both buffers with oracle pubkeys + source + per-entry max_age override.
+/// Account realloc handles grow/shrink automatically via Anchor constraints.
+/// Prices start at 0 / cached_slot=0 (stale until keeper refreshes).
+pub fn handle_set_oracle_cache_entries(
+    ctx: Context<SetOracleCacheEntries>,
+    entries: Vec<OracleCacheEntryParams>,
+) -> Result<()> {
+    let buf0 = &mut ctx.accounts.oracle_price_cache_0;
+    let buf1 = &mut ctx.accounts.oracle_price_cache_1;
+
+    // Resize to exactly match new entries (realloc handled by Anchor constraints).
+    buf0.entries
+        .resize(entries.len(), CachedOracleEntry::default());
+    buf1.entries
+        .resize(entries.len(), CachedOracleEntry::default());
+
+    for (i, e) in entries.iter().enumerate() {
+        let entry = CachedOracleEntry {
+            oracle: e.oracle,
+            oracle_source: e.oracle_source,
+            max_age_slots_override: e.max_age_slots_override,
+            ..CachedOracleEntry::default()
+        };
+        buf0.entries[i] = entry;
+        buf1.entries[i] = entry;
+    }
+
+    Ok(())
+}
+
+/// Permissionless keeper instruction. Reads live oracle AccountInfos from remaining_accounts
+/// and updates matching entries in the target buffer. For sources that expose publish
+/// timestamps, only writes if the incoming observation is newer.
+pub fn handle_update_oracle_price_cache<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateOraclePriceCache<'info>>,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let current_slot = clock.slot;
+
+    let cache_info = &ctx.accounts.oracle_price_cache;
+    let mut zc: AccountZeroCopyMut<CachedOracleEntry, OraclePriceCacheFixed> =
+        cache_info.load_zc_mut()?;
+
+    let remaining = ctx.remaining_accounts;
+
+    for oracle_account in remaining.iter() {
+        let oracle_key = oracle_account.key();
+
+        // Find matching entry in cache
+        for i in 0..zc.len() {
+            let entry = zc.get(i);
+            if entry.oracle == oracle_key {
+                let source = OracleSource::try_from(entry.oracle_source)
+                    .map_err(|_| ErrorCode::InvalidOracle)?;
+                let price_data = get_oracle_price(&source, oracle_account, current_slot)?;
+                let publish_ts = get_oracle_ts(&source, oracle_account)?;
+
+                if !entry.should_update_from(publish_ts, current_slot) {
+                    break;
+                }
+
+                let entry_mut = zc.get_mut(i);
+                entry_mut.update(&price_data, &source, current_slot, publish_ts);
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Admin: update max_age_slots on both buffers.
+pub fn handle_update_oracle_cache_config(
+    ctx: Context<UpdateOracleCacheConfig>,
+    max_age_slots: u8,
+) -> Result<()> {
+    let buf0 = &mut ctx.accounts.oracle_price_cache_0;
+    buf0.max_age_slots = max_age_slots;
+
+    let buf1 = &mut ctx.accounts.oracle_price_cache_1;
+    buf1.max_age_slots = max_age_slots;
+
+    Ok(())
+}
+
+fn validate_oracle_cache_admin_accounts<'info>(
+    admin_account: &'info AccountInfo<'info>,
+    state_account: &'info AccountInfo<'info>,
+) -> Result<()> {
+    let state = Account::<State>::try_from(state_account)?;
+    validate!(
+        admin_account.is_signer,
+        ErrorCode::DefaultError,
+        "oracle cache admin must sign"
+    )?;
+    validate!(
+        *admin_account.key == admin_hot_wallet::id() || *admin_account.key == state.admin,
+        ErrorCode::DefaultError,
+        "oracle cache admin must be state admin or hot wallet"
+    )?;
+    Ok(())
+}
+
+/// Native fast-path for set_oracle_cache_entries with lazy PDA initialization.
+///
+/// Wire format: `[cache_id: u8, ...borsh(Vec<OracleCacheEntryParams>)]`
+///
+/// If the cache buffer PDAs do not exist yet, they are created via `invoke_signed`.
+/// This replaces the separate `initialize_oracle_price_cache` Anchor instruction.
+pub fn handle_set_oracle_cache_entries_native<'info>(
+    accounts: &'info [AccountInfo<'info>],
+    data: &[u8],
+) -> Result<()> {
+    validate!(
+        accounts.len() >= 6,
+        ErrorCode::DefaultError,
+        "expected admin, state, cache0, cache1, system_program, rent"
+    )?;
+    let admin_account = &accounts[0];
+    let state_account = &accounts[1];
+    let cache0_account = &accounts[2];
+    let cache1_account = &accounts[3];
+    let system_program = &accounts[4];
+    let _rent_account = &accounts[5];
+
+    validate_oracle_cache_admin_accounts(admin_account, state_account)?;
+
+    validate!(
+        !data.is_empty(),
+        ErrorCode::DefaultError,
+        "missing cache_id + entries"
+    )?;
+    let cache_id = data[0];
+    let entries = Vec::<OracleCacheEntryParams>::try_from_slice(&data[1..])?;
+    let required_space = OraclePriceCache::space(entries.len());
+    let rent = Rent::get()?;
+
+    // Lazy-init or realloc both buffers.
+    for (buffer_index, cache_account) in [cache0_account, cache1_account].iter().enumerate() {
+        let needs_init = cache_account.lamports() == 0
+            || cache_account.owner == &solana_program::system_program::ID;
+
+        if needs_init {
+            // Create PDA via invoke_signed.
+            let bi = buffer_index as u8;
+            let seeds: &[&[u8]] = &[ORACLE_PRICE_CACHE_SEED, &[cache_id], &[bi]];
+            let (expected_key, bump) = Pubkey::find_program_address(seeds, &crate::ID);
+            validate!(
+                cache_account.key() == expected_key,
+                ErrorCode::DefaultError,
+                "cache account key does not match PDA"
+            )?;
+            let signer_seeds: &[&[u8]] = &[ORACLE_PRICE_CACHE_SEED, &[cache_id], &[bi], &[bump]];
+            let lamports = rent.minimum_balance(required_space);
+            let create_ix = solana_program::system_instruction::create_account(
+                admin_account.key,
+                cache_account.key,
+                lamports,
+                required_space as u64,
+                &crate::ID,
+            );
+            solana_program::program::invoke_signed(
+                &create_ix,
+                &[
+                    (*admin_account).clone(),
+                    (*cache_account).clone(),
+                    (*system_program).clone(),
+                ],
+                &[signer_seeds],
+            )?;
+
+            // Write Anchor discriminator so try_from succeeds below.
+            let disc = <OraclePriceCache as anchor_lang::Discriminator>::discriminator();
+            let mut account_data = cache_account
+                .try_borrow_mut_data()
+                .map_err(|_| ErrorCode::DefaultError)?;
+            account_data[..8].copy_from_slice(&disc);
+        } else {
+            // Realloc existing account if size changed.
+            let current_len = cache_account.data_len();
+            if required_space != current_len {
+                cache_account.realloc(required_space, false)?;
+
+                if required_space > current_len {
+                    let new_min_balance = rent.minimum_balance(required_space);
+                    let current_balance = cache_account.lamports();
+                    if new_min_balance > current_balance {
+                        let diff = new_min_balance.saturating_sub(current_balance);
+                        solana_program::program::invoke(
+                            &solana_program::system_instruction::transfer(
+                                admin_account.key,
+                                cache_account.key,
+                                diff,
+                            ),
+                            &[
+                                (*admin_account).clone(),
+                                (*cache_account).clone(),
+                                (*system_program).clone(),
+                            ],
+                        )?;
+                    }
+                }
+            }
+        }
+    }
+
+    let mut buf0 = Account::<OraclePriceCache>::try_from(cache0_account)?;
+    let mut buf1 = Account::<OraclePriceCache>::try_from(cache1_account)?;
+
+    // Set cache metadata (idempotent on subsequent calls).
+    buf0.cache_id = cache_id;
+    buf0.buffer_index = 0;
+    buf1.cache_id = cache_id;
+    buf1.buffer_index = 1;
+
+    buf0.entries
+        .resize(entries.len(), CachedOracleEntry::default());
+    buf1.entries
+        .resize(entries.len(), CachedOracleEntry::default());
+
+    for (i, e) in entries.iter().enumerate() {
+        let entry = CachedOracleEntry {
+            oracle: e.oracle,
+            oracle_source: e.oracle_source,
+            max_age_slots_override: e.max_age_slots_override,
+            ..CachedOracleEntry::default()
+        };
+        buf0.entries[i] = entry;
+        buf1.entries[i] = entry;
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_oracle_price_cache_native<'info>(
+    accounts: &'info [AccountInfo<'info>],
+    _data: &[u8],
+) -> Result<()> {
+    validate!(
+        !accounts.is_empty(),
+        ErrorCode::DefaultError,
+        "expected cache account"
+    )?;
+    let current_slot = Clock::get()?.slot;
+
+    let cache_info = &accounts[0];
+    let mut zc: AccountZeroCopyMut<CachedOracleEntry, OraclePriceCacheFixed> =
+        cache_info.load_zc_mut()?;
+
+    for oracle_account in accounts.iter().skip(1) {
+        let oracle_key = oracle_account.key();
+        for i in 0..zc.len() {
+            let entry = zc.get(i);
+            if entry.oracle == oracle_key {
+                let source = OracleSource::try_from(entry.oracle_source)
+                    .map_err(|_| ErrorCode::InvalidOracle)?;
+                let price_data = get_oracle_price(&source, oracle_account, current_slot)?;
+                let publish_ts = get_oracle_ts(&source, oracle_account)?;
+
+                if !entry.should_update_from(publish_ts, current_slot) {
+                    break;
+                }
+
+                let entry_mut = zc.get_mut(i);
+                entry_mut.update(&price_data, &source, current_slot, publish_ts);
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_oracle_cache_config_native<'info>(
+    accounts: &'info [AccountInfo<'info>],
+    data: &[u8],
+) -> Result<()> {
+    validate!(
+        accounts.len() >= 4,
+        ErrorCode::DefaultError,
+        "expected admin, state, cache0, cache1"
+    )?;
+    let admin_account = &accounts[0];
+    let state_account = &accounts[1];
+    let cache0_account = &accounts[2];
+    let cache1_account = &accounts[3];
+
+    validate_oracle_cache_admin_accounts(admin_account, state_account)?;
+
+    validate!(
+        !data.is_empty(),
+        ErrorCode::DefaultError,
+        "missing max_age_slots"
+    )?;
+    let max_age_slots = data[0];
+
+    let mut buf0 = Account::<OraclePriceCache>::try_from(cache0_account)?;
+    let mut buf1 = Account::<OraclePriceCache>::try_from(cache1_account)?;
+    buf0.max_age_slots = max_age_slots;
+    buf1.max_age_slots = max_age_slots;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(cache_id: u8, num_oracles: u16)]
+pub struct InitializeOraclePriceCache<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        init,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[cache_id], &[0u8]],
+        space = OraclePriceCache::space(num_oracles as usize),
+        bump,
+        payer = admin,
+    )]
+    pub oracle_price_cache_0: Box<Account<'info, OraclePriceCache>>,
+    #[account(
+        init,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[cache_id], &[1u8]],
+        space = OraclePriceCache::space(num_oracles as usize),
+        bump,
+        payer = admin,
+    )]
+    pub oracle_price_cache_1: Box<Account<'info, OraclePriceCache>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(entries: Vec<OracleCacheEntryParams>)]
+pub struct SetOracleCacheEntries<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_0.cache_id], &[0u8]],
+        bump,
+        realloc = OraclePriceCache::space(entries.len()),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub oracle_price_cache_0: Box<Account<'info, OraclePriceCache>>,
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_1.cache_id], &[1u8]],
+        bump,
+        realloc = OraclePriceCache::space(entries.len()),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub oracle_price_cache_1: Box<Account<'info, OraclePriceCache>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateOraclePriceCache<'info> {
+    /// CHECK: Validated by load_zc_mut which checks discriminator + owner.
+    #[account(mut)]
+    pub oracle_price_cache: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateOracleCacheConfig<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_0.cache_id], &[0u8]],
+        bump,
+    )]
+    pub oracle_price_cache_0: Box<Account<'info, OraclePriceCache>>,
+    #[account(
+        mut,
+        seeds = [ORACLE_PRICE_CACHE_SEED, &[oracle_price_cache_1.cache_id], &[1u8]],
+        bump,
+    )]
+    pub oracle_price_cache_1: Box<Account<'info, OraclePriceCache>>,
 }

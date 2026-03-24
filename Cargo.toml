@@ -1,9 +1,11 @@
 [workspace]
 members = [
 	"programs/*",
+	"crates/*",
 ]
 exclude = [
-	"deps/serum-dex"
+	"deps/serum-dex",
+	"programs/midprice_pino"
 ]
 resolver = "2"
 

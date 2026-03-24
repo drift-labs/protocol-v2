@@ -143,6 +143,22 @@ export function getPerpMarketPublicKeySync(
 	)[0];
 }
 
+/** Global PropAMM matcher PDA: one account can apply fills to all PropAMM books. PDA(drift_program_id, ["prop_amm_matcher"]) */
+export function getPropAmmMatcherPDA(driftProgramId: PublicKey): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from('prop_amm_matcher')],
+		driftProgramId
+	)[0];
+}
+
+/** Global PropAMM registry PDA: canonical onchain registry for offchain PropAMM discovery/filtering. */
+export function getPropAmmRegistryPDA(driftProgramId: PublicKey): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from('prop_amm_registry')],
+		driftProgramId
+	)[0];
+}
+
 export async function getSpotMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
@@ -511,6 +527,21 @@ export function getConstituentVaultPublicKey(
 export function getAmmCachePublicKey(programId: PublicKey): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[Buffer.from(anchor.utils.bytes.utf8.encode('amm_cache_seed'))],
+		programId
+	)[0];
+}
+
+export function getOraclePriceCachePublicKey(
+	programId: PublicKey,
+	cacheId: number,
+	bufferIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('oracle_price_cache')),
+			Buffer.from([cacheId]),
+			Buffer.from([bufferIndex]),
+		],
 		programId
 	)[0];
 }

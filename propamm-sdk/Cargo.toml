@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/propamm-sdk",
+    "examples/maker-bot",
+    "examples/one-shot-quote",
+]
+resolver = "2"
