@@ -24,6 +24,3 @@ solana-account-view = { version = "1.0", optional = true, default-features = fal
 
 [dev-dependencies]
 solana-account-view = "1.0"
-mollusk-svm = "0.10"
-solana-sdk = "2.0"
-bs58 = "0.5"
