@@ -129,7 +129,7 @@ describe('LP Pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
-		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200.1);
+		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 80);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 50 * LAMPORTS_PER_SOL);
@@ -184,7 +184,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(80 * PEG_PRECISION.toNumber())
 		);
 		await adminClient.addMarketToAmmCache(0);
 		await adminClient.updatePerpMarketLpPoolStatus(0, 1);
@@ -195,7 +195,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(80 * PEG_PRECISION.toNumber())
 		);
 		await adminClient.addMarketToAmmCache(1);
 		await adminClient.updatePerpMarketLpPoolStatus(1, 1);

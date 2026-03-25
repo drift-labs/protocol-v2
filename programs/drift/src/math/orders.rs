@@ -1293,6 +1293,38 @@ pub fn find_bids_and_asks_from_users(
     Ok((bids, asks))
 }
 
+/// Filter out bids and asks that are more than max_divergence_percent away from the oracle price.
+/// Bids below oracle * (100 - max_divergence) / 100 and asks above oracle * (100 + max_divergence) / 100 are excluded.
+pub fn filter_bids_asks_by_oracle_divergence(
+    bids: Vec<Level>,
+    asks: Vec<Level>,
+    oracle_price: i64,
+    max_divergence_percent: u64,
+) -> DriftResult<(Vec<Level>, Vec<Level>)> {
+    let oracle_abs = oracle_price.unsigned_abs().max(1);
+    let min_bid_price: u64 = oracle_abs
+        .cast::<u128>()?
+        .safe_mul((100 - max_divergence_percent).min(100).cast()?)?
+        .safe_div(100)?
+        .cast()?;
+    let max_ask_price: u64 = oracle_abs
+        .cast::<u128>()?
+        .safe_mul((100 + max_divergence_percent).cast()?)?
+        .safe_div(100)?
+        .cast()?;
+
+    let filtered_bids: Vec<Level> = bids
+        .into_iter()
+        .filter(|level| level.price >= min_bid_price)
+        .collect();
+    let filtered_asks: Vec<Level> = asks
+        .into_iter()
+        .filter(|level| level.price <= max_ask_price)
+        .collect();
+
+    Ok((filtered_bids, filtered_asks))
+}
+
 pub fn estimate_price_from_side(side: &Vec<Level>, depth: u64) -> DriftResult<Option<u64>> {
     let mut depth_remaining = depth;
     let mut cumulative_base = 0_u64;

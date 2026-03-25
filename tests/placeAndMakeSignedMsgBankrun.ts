@@ -156,7 +156,7 @@ describe('place and make signedMsg order', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 84);
 		solUsdLazer = getPythLazerOraclePublicKey(chProgram.programId, 6);
 
 		marketIndexes = [0];
@@ -194,7 +194,7 @@ describe('place and make signedMsg order', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(84 * PEG_PRECISION.toNumber())
 		);
 		await makerDriftClient.initializeAmmCache();
 
@@ -243,9 +243,9 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(84).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(84).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -265,7 +265,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: BASE_PRECISION,
-			price: new BN(223).mul(PRICE_PRECISION),
+			price: new BN(83).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			bitFlags: 1,
@@ -367,9 +367,9 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(84).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(84).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -501,7 +501,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(226).mul(PRICE_PRECISION),
 			auctionDuration: 30,
 			userOrderId: 1,
@@ -694,7 +694,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(226).mul(PRICE_PRECISION),
 			auctionDuration: 30,
 			userOrderId: 1,
@@ -831,9 +831,9 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(84).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(84).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -843,8 +843,8 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(220).mul(PRICE_PRECISION),
-			triggerPrice: new BN(220).mul(PRICE_PRECISION),
+			price: new BN(80).mul(PRICE_PRECISION),
+			triggerPrice: new BN(80).mul(PRICE_PRECISION),
 			userOrderId: 2,
 			triggerCondition: OrderTriggerCondition.BELOW,
 			marketType: MarketType.PERP,
@@ -854,8 +854,8 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(240).mul(PRICE_PRECISION),
-			triggerPrice: new BN(240).mul(PRICE_PRECISION),
+			price: new BN(100).mul(PRICE_PRECISION),
+			triggerPrice: new BN(100).mul(PRICE_PRECISION),
 			userOrderId: 3,
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			marketType: MarketType.PERP,
@@ -866,7 +866,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(223).mul(PRICE_PRECISION),
+			price: new BN(83).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			bitFlags: 1,
 			marketType: MarketType.PERP,
@@ -970,7 +970,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(84).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		}) as OrderParams;
@@ -980,7 +980,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(223).mul(PRICE_PRECISION),
+			price: new BN(83).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			bitFlags: 1,
 		}) as OrderParams;
@@ -1050,9 +1050,9 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(225).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(85).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(84).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -1094,8 +1094,7 @@ describe('place and make signedMsg order', () => {
 
 		await takerDriftClientUser.fetchAccounts();
 		assert(
-			convertToNumber(takerDriftClient.getUser().getOpenOrders()[0].price) ==
-				225
+			convertToNumber(takerDriftClient.getUser().getOpenOrders()[0].price) == 85
 		);
 
 		await takerDriftClientUser.unsubscribe();
@@ -1126,8 +1125,8 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(227).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(87).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -1166,7 +1165,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(225).mul(PRICE_PRECISION),
+			price: new BN(85).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			bitFlags: 1,
 		});
@@ -1218,8 +1217,8 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(227).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(87).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -1280,7 +1279,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(84).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
@@ -1343,7 +1342,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(10000).mul(PRICE_PRECISION),
 			auctionDuration: 50,
 			userOrderId: 1,
@@ -1429,7 +1428,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(10000).mul(PRICE_PRECISION),
 			auctionDuration: 50,
 			userOrderId: 1,
@@ -1502,9 +1501,9 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(84).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(84).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -1629,9 +1628,9 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(84).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(83).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(84).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -1643,7 +1642,7 @@ describe('place and make signedMsg order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(223).mul(PRICE_PRECISION),
+			price: new BN(83).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			bitFlags: 1,
 			marketType: MarketType.PERP,

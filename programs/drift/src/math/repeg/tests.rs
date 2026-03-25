@@ -1,11 +1,17 @@
-use crate::controller::amm::SwapDirection;
+use crate::controller::amm::{calculate_perp_market_amm_summary_stats, SwapDirection};
+use crate::math::amm::calculate_net_user_pnl;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, PRICE_PRECISION_U64,
-    QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PEG_PRECISION, PRICE_PRECISION,
+    PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::math::repeg::*;
 use crate::state::oracle::HistoricalOracleData;
+use crate::state::spot_market::SpotMarket;
 use crate::state::state::{PriceDivergenceGuardRails, State, ValidityGuardRails};
+use crate::test_utils::create_account_info;
+use anchor_lang::prelude::AccountLoader;
+use solana_program::pubkey::Pubkey;
+use std::str::FromStr;
 
 #[test]
 fn calc_peg_tests() {
@@ -402,4 +408,474 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
     assert!(new_peg > old_peg);
     assert_eq!(new_peg, 34657283);
     assert_eq!(_amm_update_cost, 304289);
+}
+
+#[test]
+pub fn adjust_amm_with_market_config_flag_sol_perp() {
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+
+    // SOL (as of slot 405286944)
+    let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hmz8RBQAAAAAAAAAAAAAAAAEAAAAAAAAA+qkRBQAAAABdsRIFAAAAAPXwrmkAAAAAp70SNM7//////////////2sMl0Xy//////////////+UyH9qzikiAAAAAAAAAAAAAAAAAAAAAADHNPWsFz2SAAAAAAAAAAAAhzHLjKM4kgAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAACLPpzseKCRAAAAAAAAAAAA97ORgfHVkgAAAAAAAAAAAIoIiZjdOpIAAAAAAAAAAAAdZxEFAAAAAAAAAAAAAAAAuEAQ2Nc6kgAAAAAAAAAAAICJC3h9gAEAAAAAAAAAAAAATAE0Tn3+////////////gNUMrMv9/////////////wAAAAAAAAAAAAAAAAAAAAAAAI1J/RoHAAAAAAAAAAAAfbeUXMsCAAAAAAAAAAAAALM6d4UT1f////////////9TaN/Uhi4AAAAAAAAAAAAAwJZAVILV/////////////1fY3ejmLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF+7w//////8X7vD//////xfu8P//////iZXt//////8BkLGF4hkAAAAAAAAAAAAA/9rK5xkKAAAAAAAAAAAAAIyTM6vsDwAAAAAAAAAAAAALZ/MIBA0AAAAAAAAAAAAAtl1xa5QHAAAAAAAAAAAAAAbyD4kRBQAAAAAAAAAAAADIlVF0CgAAAAAAAAAAAAAATToHaAoAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAADp2do2nzOSAAAAAAAAAAAAn64XVhxCkgAAAAAAAAAAAF/j6uMubJIAAAAAAAAAAAAow4/pnAmSAAAAAAAAAAAAmz8RBQAAAAAAAAAAAAAAAGcrEAUAAAAATN0RBQAAAABZBBEFAAAAADzvEQUAAAAAAjAoGAAAAAC+AAAAAAAAAJAyDfn/////iO6uaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACAwKBgAAAAA8fLbFL0TAADvZhhOZwAAAFsXAa20AAAA6vCuaQAAAACvZAEAAAAAANR/AQAAAAAA9fCuaQAAAADIAAAAIE4AAIoDAABACAAAILEQBQAAAACoYTIAaGQMAcDIUt4DFGT/IBbypJlMBgCAL3r//////9zgRcTl////cP7//+wAAAAscxEFAAAAAHcZvwS/fRUAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAdlCOnysAAAAy5K5pAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAANY49gAAAAAAKnIAAAAAAAC4EwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAcQ0AAKIJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAALcbg8FAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+
+    let mut sol_perp_decoded = base64::decode(sol_perp_market_str).unwrap();
+    let sol_perp_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        sol_perp_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let sol_perp_market = *AccountLoader::<PerpMarket>::try_from(&sol_perp_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    // USDC (as of slot 405455796)
+    let usdc_spot_market_str = String::from("ZLEIa6hBQSdUX6MOo7w/PClm2otsPf7406t9pXygIypU5KAmT//Dwn4XAskDe6KnOB2fuc5t8V0PxU10u3MRn4rxLxkMDhW+xvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWHmsHZFgFFAI49uEcLfeyYJqqXqJL+++g9w+I4yK2cfD1VTREMgICAgICAgICAgICAgICAgICAgICAgICAgICAgQEIPAAAAAABQAAAAAAAAACgAAAAAAAAAQUIPAAAAAABBQg8AAAAAADDzr2kAAAAAQEIPAAAAAABAQg8AAAAAAEBCDwAAAAAAQEIPAAAAAAAAAAAAAAAAAH5LYAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABHkMifZGT+FrLhfKfHFav7xo95PrVMA7wMfE+znV7oDvxI9yfADAAAAAAAAAAAAABzkytCYAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAAAs7q9pAAAAABAOAAAAAAAAoIYBAFzBAAAAAAAAAAAAAAAAAAAAAAAAGtFjnVNGqQEAAAAAAAAAAHqqtnneIb4AAAAAAAAAAAAHPuHLAgAAAAAAAAAAAAAAhpMOQAMAAAAAAAAAAAAAAO9sZsUAAAAAAAAAAAAAAACPzWbFAAAAAAAAAAAAAAAAAJAexLwWAAAAQGNSv8YBAHeum3PwggAAeGO/Fe5DAAC8+QcAAAAAAKH0r2kAAAAAofSvaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAABZO8IAAAAAABAnAAAQJwAAECcAABAnAAAAAAAAAAAAAIgTAAAANQwAFM0AAKC7DQAGAAAAAAAADwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKMFwEAAAAAAADpQcxrAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
+    let mut usdc_spot_decoded = base64::decode(usdc_spot_market_str).unwrap();
+    let usdc_spot_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        usdc_spot_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let usdc_spot_market = *AccountLoader::<SpotMarket>::try_from(&usdc_spot_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    let baseline_oracle_price_data = OraclePriceData {
+        price: sol_perp_market.amm.historical_oracle_data.last_oracle_price,
+        confidence: sol_perp_market.amm.historical_oracle_data.last_oracle_conf,
+        ..OraclePriceData::default()
+    };
+
+    // Refresh to avoid any integer drift
+    let prev_total_fee_minus_distributions = calculate_perp_market_amm_summary_stats(
+        &sol_perp_market,
+        &usdc_spot_market,
+        baseline_oracle_price_data.price,
+        true,
+    )
+    .unwrap();
+
+    // Case 1: oracle/peg moves in direction of amm, no-op
+    {
+        let mut case_market = sol_perp_market.clone();
+        let favorable_oracle_move_pct = 10; // When oracle moves favorably (reducing AMM exposure)
+        let base_price = case_market.amm.historical_oracle_data.last_oracle_price;
+        let price_extend = base_price * favorable_oracle_move_pct / 100;
+
+        // Note: base_asset_amount_with_amm is from user's perspective, amm's inventory is opposite
+        let new_oracle_price_data = if case_market.amm.base_asset_amount_with_amm >= 0 {
+            OraclePriceData {
+                price: base_price - price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        } else {
+            OraclePriceData {
+                price: base_price + price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        };
+
+        let mm_oracle_price_data = MMOraclePriceData::new(
+            new_oracle_price_data.price,
+            new_oracle_price_data.delay,
+            new_oracle_price_data.sequence_id.unwrap_or(0),
+            OracleValidity::Valid,
+            new_oracle_price_data,
+        )
+        .unwrap();
+
+        let (optimal_peg, fee_budget, _) =
+            calculate_optimal_peg_and_budget(&case_market, &mm_oracle_price_data).unwrap();
+
+        // Ensure with/without flag has no effect
+        let (adjusted_without_flag, _) =
+            adjust_amm(&case_market, optimal_peg, fee_budget, true).unwrap();
+
+        // With flag
+        case_market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+        let (adjusted_with_flag, _) =
+            adjust_amm(&case_market, optimal_peg, fee_budget, true).unwrap();
+
+        assert_eq!(adjusted_without_flag.amm.peg_multiplier, optimal_peg);
+        assert_eq!(adjusted_with_flag.amm.peg_multiplier, optimal_peg);
+        assert_eq!(
+            adjusted_without_flag.amm.peg_multiplier,
+            adjusted_with_flag.amm.peg_multiplier
+        );
+        assert_eq!(
+            adjusted_without_flag.amm.sqrt_k,
+            adjusted_with_flag.amm.sqrt_k
+        );
+
+        // Positive trade, expected increase in total_fee_minus_distributions
+        let without_flag_new_total_fee_minus_distributions =
+            calculate_perp_market_amm_summary_stats(
+                &adjusted_without_flag,
+                &usdc_spot_market,
+                new_oracle_price_data.price,
+                true,
+            )
+            .unwrap();
+
+        let with_flag_new_total_fee_minus_distributions = calculate_perp_market_amm_summary_stats(
+            &adjusted_with_flag,
+            &usdc_spot_market,
+            new_oracle_price_data.price,
+            true,
+        )
+        .unwrap();
+
+        assert!(
+            prev_total_fee_minus_distributions < without_flag_new_total_fee_minus_distributions
+        );
+        assert!(prev_total_fee_minus_distributions < with_flag_new_total_fee_minus_distributions)
+    }
+
+    // Case 2: oracle/peg moves in opposite direction of amm
+    {
+        let case_market = sol_perp_market.clone();
+        let adverse_oracle_move_pct = 50; // When oracle moves adversely (increasing AMM exposure)
+        let base_price = case_market.amm.historical_oracle_data.last_oracle_price;
+        let price_extend = base_price * adverse_oracle_move_pct / 100;
+
+        // Inverse of Case 1
+        let new_oracle_price_data = if case_market.amm.base_asset_amount_with_amm >= 0 {
+            OraclePriceData {
+                price: base_price + price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        } else {
+            OraclePriceData {
+                price: base_price - price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        };
+
+        let mm_oracle_price_data = MMOraclePriceData::new(
+            new_oracle_price_data.price,
+            new_oracle_price_data.delay,
+            new_oracle_price_data.sequence_id.unwrap_or(0),
+            OracleValidity::Valid,
+            new_oracle_price_data,
+        )
+        .unwrap();
+
+        let (optimal_peg, fee_budget, _) =
+            calculate_optimal_peg_and_budget(&case_market, &mm_oracle_price_data).unwrap();
+
+        // Case 2a: zero budget, forces K shrink path
+        {
+            let mut case_market_2a = case_market.clone();
+            let fee_budget_zero = 0_u128;
+
+            let (adjusted_without_flag, _) =
+                adjust_amm(&case_market_2a, optimal_peg, fee_budget_zero, true).unwrap();
+
+            case_market_2a.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+            let (adjusted_with_flag, _) =
+                adjust_amm(&case_market_2a, optimal_peg, fee_budget_zero, true).unwrap();
+
+            assert!(adjusted_without_flag.amm.sqrt_k < case_market.amm.sqrt_k);
+            assert_eq!(adjusted_with_flag.amm.sqrt_k, case_market.amm.sqrt_k);
+
+            let without_flag_new_total_fee_minus_distributions =
+                calculate_perp_market_amm_summary_stats(
+                    &adjusted_without_flag,
+                    &usdc_spot_market,
+                    new_oracle_price_data.price,
+                    true,
+                )
+                .unwrap();
+            let with_flag_new_total_fee_minus_distributions =
+                calculate_perp_market_amm_summary_stats(
+                    &adjusted_with_flag,
+                    &usdc_spot_market,
+                    new_oracle_price_data.price,
+                    true,
+                )
+                .unwrap();
+
+            assert!(
+                prev_total_fee_minus_distributions > without_flag_new_total_fee_minus_distributions
+            );
+            assert!(
+                prev_total_fee_minus_distributions > with_flag_new_total_fee_minus_distributions
+            );
+        }
+
+        // Case 2b: sufficient budget, use_optimal_peg = true
+        {
+            let mut case_market_2b = case_market.clone();
+
+            // Budget from calculate_optimal_peg_and_budget is naturally sufficient for SOL
+
+            let (adjusted_without_flag, _) =
+                adjust_amm(&case_market_2b, optimal_peg, fee_budget, true).unwrap();
+
+            case_market_2b.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+            let (adjusted_with_flag, _) =
+                adjust_amm(&case_market_2b, optimal_peg, fee_budget, true).unwrap();
+
+            assert_eq!(
+                adjusted_without_flag.amm.sqrt_k,
+                adjusted_with_flag.amm.sqrt_k
+            );
+            assert_eq!(
+                adjusted_without_flag.amm.peg_multiplier,
+                adjusted_with_flag.amm.peg_multiplier
+            );
+            assert_eq!(adjusted_without_flag.amm.peg_multiplier, optimal_peg);
+            assert_eq!(adjusted_without_flag.amm.sqrt_k, case_market.amm.sqrt_k);
+        }
+    }
+}
+
+#[test]
+pub fn adjust_amm_with_market_config_flag_eth_perp() {
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+
+    // ETH (as of slot 405287065)
+    let eth_perp_market_str = String::from("Ct8MLGv1N/cP8V8Fb1epGNxhYovgt6QslGhUT6HV1zTpfCkrkbwLkndwx9kOHTTRdsq6+h4yZlyZWL2p6k8cVCwzZ4FGbCUqC9queAAAAAAAAAAAAAAAAAEAAAAAAAAA69KGeAAAAADnxs14AAAAADDxrmkAAAAAK2l1AgAAAAAAAAAAAAAAAA9wrAoAAAAAAAAAAAAAAAB1c9e2AjADAAAAAAAAAAAAAAAAAAAAAAC6LBzhfxUAAAAAAAAAAAAAc+TW3n8VAAAAAAAAAAAAAFdKDwAAAAAAAAAAAAAAAAAlZfx/dBUAAAAAAAAAAAAACf3/RYsVAAAAAAAAAAAAAI+I+d9/FQAAAAAAAAAAAAAzYMt4AAAAAAAAAAAAAAAAJM/4338VAAAAAAAAAAAAAAApz9B+AwAAAAAAAAAAAABA7A4ugfz/////////////QBXe/v///////////////wAAAAAAAAAAAAAAAAAAAAAAID2IeS0AAAAAAAAAAAAA8dNzMyoBAAAAAAAAAAAAAB8eSrpw9/////////////+oR/DymgkAAAAAAAAAAAAAIKXbq2n3/////////////y0GotS3CQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA86GD///////zoYP///////Ohg///////3Gp4//////95VwGwvAMAAAAAAAAAAAAAd+LVwbQBAAAAAAAAAAAAANZLJzENAgAAAAAAAAAAAAAHsDasfP//////////////89kg4EsBAAAAAAAAAAAAAJPpFitAAQAAAAAAAAAAAADZE9QXEwEAAAAAAAAAAAAACMDfthIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACp3ewFfRUAAAAAAAAAAAAARxZnuoIVAAAAAAAAAAAAANkITkGgFQAAAAAAAAAAAABQfSCvXxUAAAAAAAAAAAAAKUqweAAAAACNAwAAAAAAAM5MWngAAAAA1k2feAAAAABSzXx4AAAAAAs3v3gAAAAAmTAoGAAAAAAABQAAAAAAAK83AwAAAAAAiO6uaQAAAAAQDgAAAAAAAEBCDwAAAAAAECcAAAAAAABAQg8AAAAAAJkwKBgAAAAALaRyN+oCAABDkJ5NDAAAAEpq/00GAAAAC/GuaQAAAACw8iQAAAAAAJGvKQAAAAAAMPGuaQAAAACvAAAAECcAAA8EAACOLQAA/DWveAAAAAAgTjIAZQAMAcCmjPgAFBv/gPvMp5lMBgBAfkf3AQAAAHq8ojMAAAAAAAAAAAAFAAAUhXh4AAAAANmaVjsbBwMAAAAAAAAAAAAAAAAAAAAAAEVUSC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAA4fUFAAAAAP8PpdToAAAAup58GBIAAACkdwppAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAAtVXAAAAAAAym4AAAAAAABuEAAAAAAAAPoAAAAAAAAAiBMAAEwdAAD0AQAAyAAAAAAAAAAQJwAAwgIAAKoCAAACAAEAAYAAAAAAAAAAAGMAQgAAAAAAAADQ+rF4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+
+    let mut eth_perp_decoded = base64::decode(eth_perp_market_str).unwrap();
+    let eth_perp_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        eth_perp_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let eth_perp_market = *AccountLoader::<PerpMarket>::try_from(&eth_perp_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    // USDC (as of slot 405455796)
+    let usdc_spot_market_str = String::from("ZLEIa6hBQSdUX6MOo7w/PClm2otsPf7406t9pXygIypU5KAmT//Dwn4XAskDe6KnOB2fuc5t8V0PxU10u3MRn4rxLxkMDhW+xvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWHmsHZFgFFAI49uEcLfeyYJqqXqJL+++g9w+I4yK2cfD1VTREMgICAgICAgICAgICAgICAgICAgICAgICAgICAgQEIPAAAAAABQAAAAAAAAACgAAAAAAAAAQUIPAAAAAABBQg8AAAAAADDzr2kAAAAAQEIPAAAAAABAQg8AAAAAAEBCDwAAAAAAQEIPAAAAAAAAAAAAAAAAAH5LYAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABHkMifZGT+FrLhfKfHFav7xo95PrVMA7wMfE+znV7oDvxI9yfADAAAAAAAAAAAAABzkytCYAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAAAs7q9pAAAAABAOAAAAAAAAoIYBAFzBAAAAAAAAAAAAAAAAAAAAAAAAGtFjnVNGqQEAAAAAAAAAAHqqtnneIb4AAAAAAAAAAAAHPuHLAgAAAAAAAAAAAAAAhpMOQAMAAAAAAAAAAAAAAO9sZsUAAAAAAAAAAAAAAACPzWbFAAAAAAAAAAAAAAAAAJAexLwWAAAAQGNSv8YBAHeum3PwggAAeGO/Fe5DAAC8+QcAAAAAAKH0r2kAAAAAofSvaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAABZO8IAAAAAABAnAAAQJwAAECcAABAnAAAAAAAAAAAAAIgTAAAANQwAFM0AAKC7DQAGAAAAAAAADwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKMFwEAAAAAAADpQcxrAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
+    let mut usdc_spot_decoded = base64::decode(usdc_spot_market_str).unwrap();
+    let usdc_spot_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        usdc_spot_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let usdc_spot_market = *AccountLoader::<SpotMarket>::try_from(&usdc_spot_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    let baseline_oracle_price_data = OraclePriceData {
+        price: eth_perp_market.amm.historical_oracle_data.last_oracle_price,
+        confidence: eth_perp_market.amm.historical_oracle_data.last_oracle_conf,
+        ..OraclePriceData::default()
+    };
+
+    // Refresh to avoid any integer drift
+    let prev_total_fee_minus_distributions = calculate_perp_market_amm_summary_stats(
+        &eth_perp_market,
+        &usdc_spot_market,
+        baseline_oracle_price_data.price,
+        true,
+    )
+    .unwrap();
+
+    // Case 1: oracle/peg moves in direction of amm, no-op
+    {
+        let mut case_market = eth_perp_market.clone();
+        let favorable_oracle_move_pct = 10; // When oracle moves favorably (reducing AMM exposure)
+        let base_price = case_market.amm.historical_oracle_data.last_oracle_price;
+        let price_extend = base_price * favorable_oracle_move_pct / 100;
+
+        // Note: base_asset_amount_with_amm is from user's perspective, amm's inventory is opposite
+        let new_oracle_price_data = if case_market.amm.base_asset_amount_with_amm >= 0 {
+            OraclePriceData {
+                price: base_price - price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        } else {
+            OraclePriceData {
+                price: base_price + price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        };
+
+        let mm_oracle_price_data = MMOraclePriceData::new(
+            new_oracle_price_data.price,
+            new_oracle_price_data.delay,
+            new_oracle_price_data.sequence_id.unwrap_or(0),
+            OracleValidity::Valid,
+            new_oracle_price_data,
+        )
+        .unwrap();
+
+        let (optimal_peg, fee_budget, _) =
+            calculate_optimal_peg_and_budget(&case_market, &mm_oracle_price_data).unwrap();
+
+        // Ensure with/without flag has no effect
+        let (adjusted_without_flag, _) =
+            adjust_amm(&case_market, optimal_peg, fee_budget, true).unwrap();
+
+        // With flag
+        case_market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+        let (adjusted_with_flag, _) =
+            adjust_amm(&case_market, optimal_peg, fee_budget, true).unwrap();
+
+        assert_eq!(adjusted_without_flag.amm.peg_multiplier, optimal_peg);
+        assert_eq!(adjusted_with_flag.amm.peg_multiplier, optimal_peg);
+        assert_eq!(
+            adjusted_without_flag.amm.peg_multiplier,
+            adjusted_with_flag.amm.peg_multiplier
+        );
+        assert_eq!(
+            adjusted_without_flag.amm.sqrt_k,
+            adjusted_with_flag.amm.sqrt_k
+        );
+
+        // Positive trade, expected increase in total_fee_minus_distributions
+        let without_flag_new_total_fee_minus_distributions =
+            calculate_perp_market_amm_summary_stats(
+                &adjusted_without_flag,
+                &usdc_spot_market,
+                new_oracle_price_data.price,
+                true,
+            )
+            .unwrap();
+
+        let with_flag_new_total_fee_minus_distributions = calculate_perp_market_amm_summary_stats(
+            &adjusted_with_flag,
+            &usdc_spot_market,
+            new_oracle_price_data.price,
+            true,
+        )
+        .unwrap();
+
+        assert!(
+            prev_total_fee_minus_distributions < without_flag_new_total_fee_minus_distributions
+        );
+        assert!(prev_total_fee_minus_distributions < with_flag_new_total_fee_minus_distributions)
+    }
+
+    // Case 2: oracle/peg moves in opposite direction of amm
+    {
+        let case_market = eth_perp_market.clone();
+        let adverse_oracle_move_pct = 50; // When oracle moves adversely (increasing AMM exposure)
+        let base_price = case_market.amm.historical_oracle_data.last_oracle_price;
+        let price_extend = base_price * adverse_oracle_move_pct / 100;
+
+        // Inverse of Case 1
+        let new_oracle_price_data = if case_market.amm.base_asset_amount_with_amm >= 0 {
+            OraclePriceData {
+                price: base_price + price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        } else {
+            OraclePriceData {
+                price: base_price - price_extend,
+                confidence: case_market.amm.historical_oracle_data.last_oracle_conf,
+                ..OraclePriceData::default()
+            }
+        };
+
+        let mm_oracle_price_data = MMOraclePriceData::new(
+            new_oracle_price_data.price,
+            new_oracle_price_data.delay,
+            new_oracle_price_data.sequence_id.unwrap_or(0),
+            OracleValidity::Valid,
+            new_oracle_price_data,
+        )
+        .unwrap();
+
+        let (optimal_peg, fee_budget, _) =
+            calculate_optimal_peg_and_budget(&case_market, &mm_oracle_price_data).unwrap();
+
+        // Case 2a: zero budget, forces K shrink path
+        {
+            let mut case_market_2a = case_market.clone();
+            let fee_budget_zero = 0_u128;
+
+            let (adjusted_without_flag, _) =
+                adjust_amm(&case_market_2a, optimal_peg, fee_budget_zero, true).unwrap();
+
+            case_market_2a.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+            let (adjusted_with_flag, _) =
+                adjust_amm(&case_market_2a, optimal_peg, fee_budget_zero, true).unwrap();
+
+            assert!(adjusted_without_flag.amm.sqrt_k < case_market.amm.sqrt_k);
+            assert_eq!(adjusted_with_flag.amm.sqrt_k, case_market.amm.sqrt_k);
+
+            let without_flag_new_total_fee_minus_distributions =
+                calculate_perp_market_amm_summary_stats(
+                    &adjusted_without_flag,
+                    &usdc_spot_market,
+                    new_oracle_price_data.price,
+                    true,
+                )
+                .unwrap();
+            let with_flag_new_total_fee_minus_distributions =
+                calculate_perp_market_amm_summary_stats(
+                    &adjusted_with_flag,
+                    &usdc_spot_market,
+                    new_oracle_price_data.price,
+                    true,
+                )
+                .unwrap();
+
+            assert!(
+                prev_total_fee_minus_distributions > without_flag_new_total_fee_minus_distributions
+            );
+            assert!(
+                prev_total_fee_minus_distributions > with_flag_new_total_fee_minus_distributions
+            );
+        }
+
+        // Case 2b: sufficient budget, use_optimal_peg = true
+        {
+            let mut case_market_2b = case_market.clone();
+
+            // Market's fee budget is insufficient for use_optimal_peg = true
+            // Inflate 100x to test that flag has no effect when budget covers the peg move
+            let fee_budget_2b = fee_budget * 100;
+
+            let (adjusted_without_flag, _) =
+                adjust_amm(&case_market_2b, optimal_peg, fee_budget_2b, true).unwrap();
+
+            case_market_2b.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+            let (adjusted_with_flag, _) =
+                adjust_amm(&case_market_2b, optimal_peg, fee_budget_2b, true).unwrap();
+
+            assert_eq!(
+                adjusted_without_flag.amm.sqrt_k,
+                adjusted_with_flag.amm.sqrt_k
+            );
+            assert_eq!(
+                adjusted_without_flag.amm.peg_multiplier,
+                adjusted_with_flag.amm.peg_multiplier
+            );
+            assert_eq!(adjusted_without_flag.amm.peg_multiplier, optimal_peg);
+            assert_eq!(adjusted_without_flag.amm.sqrt_k, case_market.amm.sqrt_k);
+        }
+    }
 }

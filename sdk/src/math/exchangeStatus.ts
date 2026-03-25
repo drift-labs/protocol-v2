@@ -12,6 +12,7 @@ import {
 	StateAccount,
 	isVariant,
 	InsuranceFundOperation,
+	MarketConfigFlag,
 } from '../types';
 import { BN } from '@coral-xyz/anchor';
 
@@ -118,4 +119,18 @@ export function isAmmDrawdownPause(market: PerpMarketAccount): boolean {
 	}
 
 	return false;
+}
+
+export function isMarketConfigFlagSet(
+	marketConfig: number,
+	flag: MarketConfigFlag
+): boolean {
+	return (marketConfig & flag) > 0;
+}
+
+export function isFormulaicKUpdateDisabled(market: PerpMarketAccount): boolean {
+	return isMarketConfigFlagSet(
+		market.marketConfig,
+		MarketConfigFlag.DISABLE_FORMULAIC_K_UPDATE
+	);
 }

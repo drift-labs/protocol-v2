@@ -70,7 +70,7 @@ describe('place and make signedMsg order', () => {
 			1
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 84);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];

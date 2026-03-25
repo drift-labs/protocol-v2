@@ -72,7 +72,7 @@ describe('Bankrun Overwrite Accounts', () => {
 		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200.1);
+		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 80);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 50 * LAMPORTS_PER_SOL);
@@ -124,7 +124,7 @@ describe('Bankrun Overwrite Accounts', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(80 * PEG_PRECISION.toNumber())
 		);
 	});
 

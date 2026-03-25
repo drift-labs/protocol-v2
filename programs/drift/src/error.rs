@@ -700,6 +700,10 @@ pub enum ErrorCode {
     InvalidOrderScaleOrderCount,
     #[msg("Invalid scale order price range")]
     InvalidOrderScalePriceRange,
+    #[msg("Invalid perp market config")]
+    InvalidPerpMarketConfig,
+    #[msg("Insurance fund withdrawal recipient must be the designated treasury address")]
+    InvalidInsuranceFundWithdrawalRecipient,
 }
 
 #[macro_export]

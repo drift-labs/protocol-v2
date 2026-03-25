@@ -4206,6 +4206,179 @@ pub mod find_bids_and_asks_from_users {
         }
         assert_eq!(asks, expected_asks);
     }
+
+    #[test]
+    fn test_with_oracle_divergence_filter() {
+        // Test that when we apply the 15% oracle divergence filter, bids/asks outside the band are excluded
+        let market = PerpMarket::default_test();
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * PRICE_PRECISION_I64,
+            ..OraclePriceData::default()
+        };
+
+        let mut maker_orders = [Order::default(); 32];
+        for (i, order) in maker_orders.iter_mut().enumerate().take(16) {
+            *order = Order {
+                status: OrderStatus::Open,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: (80 + i) as u64 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            };
+        }
+
+        for (i, order) in maker_orders.iter_mut().enumerate().skip(16) {
+            *order = Order {
+                status: OrderStatus::Open,
+                market_index: 0,
+                market_type: MarketType::Perp,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                price: (120 - i) as u64 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            };
+        }
+
+        let mut maker = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 32,
+                ..PerpPosition::default()
+            }),
+            orders: maker_orders,
+            ..User::default()
+        };
+        let maker_key = Pubkey::default();
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let (bids, asks) =
+            find_bids_and_asks_from_users(&market, &oracle_price_data, &makers_and_referrers, 0, 0)
+                .unwrap();
+
+        // Apply the 15% oracle divergence filter (as done in update_perp_bid_ask_twap)
+        let (filtered_bids, filtered_asks) =
+            crate::math::orders::filter_bids_asks_by_oracle_divergence(
+                bids,
+                asks,
+                oracle_price_data.price,
+                crate::math::constants::BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT,
+            )
+            .unwrap();
+
+        // Oracle at 100. With 15% filter: min bid = 85, max ask = 115
+        // Raw bids were 80-95. After filter: 85-95 (11 bids)
+        assert_eq!(filtered_bids.len(), 11);
+        assert_eq!(filtered_bids[0].price, 95 * PRICE_PRECISION_U64);
+        assert_eq!(filtered_bids[10].price, 85 * PRICE_PRECISION_U64);
+
+        // Raw asks were 89-104. All are <= 115, so all 16 kept
+        assert_eq!(filtered_asks.len(), 16);
+    }
+}
+
+pub mod filter_bids_asks_by_oracle_divergence {
+    use crate::math::constants::{
+        BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
+    };
+    use crate::math::orders::{filter_bids_asks_by_oracle_divergence, Level};
+
+    #[test]
+    fn test_filters_bids_below_oracle_band() {
+        // Oracle at 100, 15% filter: min bid = 85
+        let bids = vec![
+            Level {
+                price: 80 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+            Level {
+                price: 84 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+            Level {
+                price: 85 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+            Level {
+                price: 90 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+        ];
+        let asks: Vec<Level> = vec![];
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+
+        let (filtered_bids, filtered_asks) =
+            filter_bids_asks_by_oracle_divergence(bids, asks, oracle_price, 15).unwrap();
+
+        assert_eq!(filtered_bids.len(), 2); // 85 and 90 kept (order preserved from input)
+        assert_eq!(filtered_bids[0].price, 85 * PRICE_PRECISION_U64);
+        assert_eq!(filtered_bids[1].price, 90 * PRICE_PRECISION_U64);
+        assert!(filtered_asks.is_empty());
+    }
+
+    #[test]
+    fn test_filters_asks_above_oracle_band() {
+        // Oracle at 100, 15% filter: max ask = 115
+        let bids: Vec<Level> = vec![];
+        let asks = vec![
+            Level {
+                price: 110 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+            Level {
+                price: 115 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+            Level {
+                price: 116 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+            Level {
+                price: 120 * PRICE_PRECISION_U64,
+                base_asset_amount: 1,
+            },
+        ];
+
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+
+        let (filtered_bids, filtered_asks) =
+            filter_bids_asks_by_oracle_divergence(bids, asks, oracle_price, 15).unwrap();
+
+        assert!(filtered_bids.is_empty());
+        assert_eq!(filtered_asks.len(), 2); // 110 and 115 kept
+        assert_eq!(filtered_asks[0].price, 110 * PRICE_PRECISION_U64);
+        assert_eq!(filtered_asks[1].price, 115 * PRICE_PRECISION_U64);
+    }
+
+    #[test]
+    fn test_uses_constant_for_divergence() {
+        // Verify the constant is used correctly
+        let bids = vec![Level {
+            price: 90 * PRICE_PRECISION_U64,
+            base_asset_amount: 1,
+        }];
+        let asks: Vec<Level> = vec![];
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+
+        let (filtered_bids, _) = filter_bids_asks_by_oracle_divergence(
+            bids,
+            asks,
+            oracle_price,
+            BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT,
+        )
+        .unwrap();
+
+        assert_eq!(filtered_bids.len(), 1);
+        assert_eq!(filtered_bids[0].price, 90 * PRICE_PRECISION_U64);
+    }
 }
 
 pub mod calculate_limit_price_with_buffer {

@@ -152,7 +152,7 @@ describe('builder codes', () => {
 			1
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 84);
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
 		marketIndexes = [0, 1];
@@ -191,7 +191,7 @@ describe('builder codes', () => {
 			new BN(10 * 10 ** 13).mul(new BN(Math.sqrt(PRICE_PRECISION.toNumber()))),
 			new BN(10 * 10 ** 13).mul(new BN(Math.sqrt(PRICE_PRECISION.toNumber()))),
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(84 * PEG_PRECISION.toNumber())
 		);
 		await builderClient.initializePerpMarket(
 			1,
@@ -199,7 +199,7 @@ describe('builder codes', () => {
 			new BN(10 * 10 ** 13).mul(new BN(Math.sqrt(PRICE_PRECISION.toNumber()))),
 			new BN(10 * 10 ** 13).mul(new BN(Math.sqrt(PRICE_PRECISION.toNumber()))),
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(84 * PEG_PRECISION.toNumber())
 		);
 		builderUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,

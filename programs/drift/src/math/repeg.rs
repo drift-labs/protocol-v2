@@ -2,6 +2,7 @@ use std::cmp::{max, min};
 
 use crate::msg;
 use crate::state::oracle::MMOraclePriceData;
+use crate::state::perp_market::MarketConfigFlag;
 use anchor_lang::prelude::AccountInfo;
 
 use crate::error::*;
@@ -277,7 +278,7 @@ pub fn adjust_amm(
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
     }
 
-    let use_optimal_peg = (per_peg_cost == 0 // if per peg cost is 0 => free 
+    let use_optimal_peg = (per_peg_cost == 0 // if per peg cost is 0 => free
         || per_peg_cost > 0 && delta_peg < 0 // or if per peg positive and the direction is down => revenue
         || per_peg_cost < 0 && delta_peg > 0) // or if per peg negative and the direction is up => revenue
         || (budget_delta_peg_magnitude > delta_peg.unsigned_abs()); // the peg movement from full budget usage exceeds delta to optimal
@@ -291,7 +292,10 @@ pub fn adjust_amm(
         let can_lower_k = market.amm.can_lower_k()?;
 
         // equivalent to (but cheaper than) scaling down by .1%
-        let adjustment_cost: i128 = if adjust_k && can_lower_k {
+        let adjustment_cost: i128 = if adjust_k
+            && can_lower_k
+            && !market.has_market_config_flag(MarketConfigFlag::DisableFormulaicKUpdate)
+        {
             // TODO can be off by 1?
 
             // always let protocol-owned sqrt_k be either least .1% of lps or the base amount / min order
