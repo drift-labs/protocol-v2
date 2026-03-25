@@ -5256,74 +5256,104 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
     direction: TransferFeeAndPnlPoolDirection,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    let perp_market_with_fee_pool = &mut load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
-    let perp_market_with_pnl_pool = &mut load_mut!(ctx.accounts.perp_market_with_pnl_pool)?;
 
-    let fee_pool_market_index = perp_market_with_fee_pool.market_index;
-    let pnl_pool_market_index = perp_market_with_pnl_pool.market_index;
+    let same_market = ctx.accounts.perp_market_with_fee_pool.key()
+        == ctx.accounts.perp_market_with_pnl_pool.key();
 
-    let (
-        source_pool,
-        dest_pool,
-        source_market_index,
-        dest_market_index,
-        source_pool_name,
-        dest_pool_name,
-    ) = match direction {
-        TransferFeeAndPnlPoolDirection::FeeToPnlPool => (
-            &mut perp_market_with_fee_pool.amm.fee_pool,
-            &mut perp_market_with_pnl_pool.pnl_pool,
-            fee_pool_market_index,
-            pnl_pool_market_index,
-            "fee",
-            "pnl",
-        ),
-        TransferFeeAndPnlPoolDirection::PnlToFeePool => (
-            &mut perp_market_with_pnl_pool.pnl_pool,
-            &mut perp_market_with_fee_pool.amm.fee_pool,
-            pnl_pool_market_index,
-            fee_pool_market_index,
-            "pnl",
-            "fee",
-        ),
+    if same_market {
+        let mut perp_market = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
+        let fee_pool = &mut perp_market.amm.fee_pool as *mut PoolBalance;
+        let pnl_pool = &mut perp_market.pnl_pool as *mut PoolBalance;
+        execute_transfer_between_pools(
+            amount,
+            spot_market,
+            unsafe { &mut *fee_pool },
+            unsafe { &mut *pnl_pool },
+            direction,
+        )
+    } else {
+        let mut perp_market_with_fee_pool = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
+        let mut perp_market_with_pnl_pool = load_mut!(ctx.accounts.perp_market_with_pnl_pool)?;
+        let fee_pool = &mut perp_market_with_fee_pool.amm.fee_pool;
+        let pnl_pool = &mut perp_market_with_pnl_pool.pnl_pool;
+        execute_transfer_between_pools(amount, spot_market, fee_pool, pnl_pool, direction)
+    }
+}
+
+pub fn execute_transfer_between_pools(
+    amount: u64,
+    spot_market: &mut SpotMarket,
+    fee_pool: &mut PoolBalance,
+    pnl_pool: &mut PoolBalance,
+    direction: TransferFeeAndPnlPoolDirection,
+) -> Result<()> {
+    let (source_name, dest_name, source_index, dest_index) = match direction {
+        TransferFeeAndPnlPoolDirection::FeeToPnlPool => {
+            ("fee", "pnl", fee_pool.market_index, pnl_pool.market_index)
+        }
+        TransferFeeAndPnlPoolDirection::PnlToFeePool => {
+            ("pnl", "fee", pnl_pool.market_index, fee_pool.market_index)
+        }
     };
 
     msg!(
         "transferring {} from perp market {} {} pool -> perp market {} {} pool",
         amount,
-        source_market_index,
-        source_pool_name,
-        dest_market_index,
-        dest_pool_name,
+        source_index,
+        source_name,
+        dest_index,
+        dest_name,
     );
 
-    // Op 1: Decrement source pool
-    controller::spot_balance::update_spot_balances(
-        amount.cast::<u128>()?,
-        &SpotBalanceType::Borrow,
-        spot_market,
-        source_pool,
-        false,
-    )?;
+    match direction {
+        TransferFeeAndPnlPoolDirection::FeeToPnlPool => {
+            // Op 1: Decrement fee pool
+            controller::spot_balance::update_spot_balances(
+                amount.cast::<u128>()?,
+                &SpotBalanceType::Borrow,
+                spot_market,
+                fee_pool,
+                false,
+            )?;
 
-    // Op 2: Increment destination pool
-    controller::spot_balance::update_spot_balances(
-        amount.cast::<u128>()?,
-        &SpotBalanceType::Deposit,
-        spot_market,
-        dest_pool,
-        false,
-    )?;
+            // Op 2: Increment pnl pool
+            controller::spot_balance::update_spot_balances(
+                amount.cast::<u128>()?,
+                &SpotBalanceType::Deposit,
+                spot_market,
+                pnl_pool,
+                false,
+            )?;
+        }
+        TransferFeeAndPnlPoolDirection::PnlToFeePool => {
+            // Op 1: Decrement pnl pool
+            controller::spot_balance::update_spot_balances(
+                amount.cast::<u128>()?,
+                &SpotBalanceType::Borrow,
+                spot_market,
+                pnl_pool,
+                false,
+            )?;
+
+            // Op 2: Increment fee pool
+            controller::spot_balance::update_spot_balances(
+                amount.cast::<u128>()?,
+                &SpotBalanceType::Deposit,
+                spot_market,
+                fee_pool,
+                false,
+            )?;
+        }
+    }
 
     msg!(
-        "after fee_pool(market {}) scaled_balance: {} pnl_pool(market {}) scaled_balance: {}",
-        perp_market_with_fee_pool.market_index,
-        perp_market_with_fee_pool.amm.fee_pool.scaled_balance,
-        perp_market_with_pnl_pool.market_index,
-        perp_market_with_pnl_pool.pnl_pool.scaled_balance,
+        "transferred {} fee_pool(market {}) scaled_balance: {} pnl_pool(market {}) scaled_balance: {}",
+        amount,
+        fee_pool.market_index,
+        fee_pool.scaled_balance,
+        pnl_pool.market_index,
+        pnl_pool.scaled_balance,
     );
-
-    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
 
     Ok(())
 }
