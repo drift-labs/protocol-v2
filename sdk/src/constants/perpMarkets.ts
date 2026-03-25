@@ -1465,6 +1465,17 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 			'0xc0c83f00c39165892d55dcd17ade2191e289697e2ac132d9ab721e20834e2a9e',
 		pythLazerId: 2921,
 	},
+	{
+		fullName: 'Backpack',
+		category: ['Exchange'],
+		symbol: 'BP-PERP',
+		baseAssetSymbol: 'BP',
+		marketIndex: 85,
+		oracle: new PublicKey('BrwBRpuJZzqa1VufrgfT3dNy44XkL31xmbS8PUNrsR5z'),
+		launchTs: 1774454728000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 3076,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
