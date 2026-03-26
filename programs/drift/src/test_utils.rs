@@ -101,32 +101,55 @@ pub fn get_hardcoded_pyth_price(price: i64, expo: i32) -> Price {
 #[macro_export]
 macro_rules! create_anchor_account_info {
     ($account:expr, $type:ident, $name: ident) => {
-        let key = Pubkey::default();
+        let key = anchor_lang::prelude::Pubkey::default();
         let mut lamports = 0;
-        let mut data = get_anchor_account_bytes(&mut $account);
-        let owner = $type::owner();
-        let $name = create_account_info(&key, true, &mut lamports, &mut data[..], &owner);
+        let mut data = $crate::test_utils::get_anchor_account_bytes(&mut $account);
+        let owner = <$type as anchor_lang::Owner>::owner();
+        let $name = $crate::test_utils::create_account_info(
+            &key,
+            true,
+            &mut lamports,
+            &mut data[..],
+            &owner,
+        );
     };
     ($account:expr, $pubkey:expr, $type:ident, $name: ident) => {
         let mut lamports = 0;
-        let mut data = get_anchor_account_bytes(&mut $account);
-        let owner = $type::owner();
-        let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], &owner);
+        let mut data = $crate::test_utils::get_anchor_account_bytes(&mut $account);
+        let owner = <$type as anchor_lang::Owner>::owner();
+        let $name = $crate::test_utils::create_account_info(
+            $pubkey,
+            true,
+            &mut lamports,
+            &mut data[..],
+            &owner,
+        );
     };
 }
 
 #[macro_export]
 macro_rules! create_account_info {
     ($account:expr, $owner:expr, $name: ident) => {
-        let key = Pubkey::default();
+        let key = anchor_lang::prelude::Pubkey::default();
         let mut lamports = 0;
-        let mut data = get_account_bytes(&mut $account);
-        let owner = $type::owner();
-        let $name = create_account_info(&key, true, &mut lamports, &mut data[..], $owner);
+        let mut data = $crate::test_utils::get_account_bytes(&mut $account);
+        let $name = $crate::test_utils::create_account_info(
+            &key,
+            true,
+            &mut lamports,
+            &mut data[..],
+            $owner,
+        );
     };
     ($account:expr, $pubkey:expr, $owner:expr, $name: ident) => {
         let mut lamports = 0;
-        let mut data = get_account_bytes(&mut $account);
-        let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], $owner);
+        let mut data = $crate::test_utils::get_account_bytes(&mut $account);
+        let $name = $crate::test_utils::create_account_info(
+            $pubkey,
+            true,
+            &mut lamports,
+            &mut data[..],
+            $owner,
+        );
     };
 }

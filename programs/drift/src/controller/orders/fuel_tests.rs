@@ -134,6 +134,7 @@ pub mod fuel_scoring {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 base_spread: 20000,
                 long_spread: 20000,
@@ -411,6 +412,7 @@ pub mod fuel_scoring {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 base_spread: 20000,
                 long_spread: 20000,
@@ -469,7 +471,7 @@ pub mod fuel_scoring {
 
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION * 2,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION * 4,
@@ -680,6 +682,7 @@ pub mod fuel_scoring {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 base_spread: 20000,
                 long_spread: 20000,

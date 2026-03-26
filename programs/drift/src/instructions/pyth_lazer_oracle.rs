@@ -10,7 +10,7 @@ use pyth_lazer::message::SolanaMessage;
 use pyth_lazer::payload::{PayloadData, PayloadPropertyValue};
 use pyth_lazer::price::Price;
 use pyth_lazer::signature;
-use pyth_lazer::storage::{verify_message_direct, Storage};
+use pyth_lazer::storage::Storage;
 use solana_program::sysvar::instructions::load_current_index_checked;
 
 pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(

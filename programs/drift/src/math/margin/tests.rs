@@ -419,7 +419,7 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price, get_pyth_price_mantissa};
-    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
+    use crate::PRICE_PRECISION_I64;
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_bid() {
@@ -721,6 +721,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -917,6 +918,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1101,6 +1103,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1226,6 +1229,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1348,6 +1352,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1612,6 +1617,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1728,6 +1734,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1839,6 +1846,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1981,6 +1989,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2091,6 +2100,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2247,6 +2257,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2699,6 +2710,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2817,6 +2829,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -3732,6 +3745,7 @@ mod validate_spot_margin_trading {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -3881,6 +3895,7 @@ mod calculate_user_equity {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -3978,6 +3993,7 @@ mod calculate_user_equity {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -4369,6 +4385,7 @@ mod pools {
         let mut market = PerpMarket {
             amm: AMM {
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -4458,6 +4475,7 @@ mod isolated_position {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -4646,6 +4664,7 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
                 peg_multiplier: 100 * PEG_PRECISION,
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

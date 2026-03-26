@@ -91,6 +91,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 ..AMM::default()
             },
@@ -204,6 +205,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -313,6 +315,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -425,6 +428,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -538,6 +542,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -647,6 +652,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -865,6 +871,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1087,6 +1094,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1291,6 +1299,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1339,7 +1348,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1715,6 +1724,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1764,7 +1774,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2098,6 +2108,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -2147,7 +2158,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,

@@ -10,6 +10,7 @@ pub mod liquidate_perp {
 
     use crate::controller::liquidation::liquidate_perp;
     use crate::controller::position::PositionDirection;
+    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
@@ -29,6 +30,7 @@ pub mod liquidate_perp {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
@@ -37,8 +39,7 @@ pub mod liquidate_perp {
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
+    use crate::PRICE_PRECISION_I64;
 
     /// After fix: When cross-margin user's position was fully liquidated, they were stuck in
     /// BEING_LIQUIDATED. Now liquidate_perp succeeds via early-exit path and clears it.
@@ -73,7 +74,8 @@ pub mod liquidate_perp {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -186,6 +188,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -334,6 +337,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: 3600,
                 ..AMM::default()
@@ -483,6 +487,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: 3600,
                 ..AMM::default()
@@ -616,6 +621,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -764,6 +770,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -889,7 +896,10 @@ pub mod liquidate_perp {
         );
 
         let oracle_price = oracle_map
-            .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(
+                oracle_price_key,
+                crate::state::oracle::OracleSource::PythLazer,
+            ))
             .unwrap()
             .price;
 
@@ -942,6 +952,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -1141,6 +1152,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -1272,6 +1284,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -1403,6 +1416,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -1548,6 +1562,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -1824,6 +1839,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -1960,6 +1976,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -2083,6 +2100,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: 3600,
                 ..AMM::default()
@@ -2183,7 +2201,7 @@ pub mod liquidate_perp {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(23244136, 6);
+        let mut oracle_price = get_pyth_price_mantissa(23244136, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         create_anchor_account_info!(
@@ -2210,6 +2228,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: 3600,
                 ..AMM::default()
@@ -2337,6 +2356,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -2457,7 +2477,10 @@ pub mod liquidate_perp {
         assert!(!user.is_cross_margin_being_liquidated());
 
         let oracle_price = oracle_map
-            .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(
+                oracle_price_key,
+                crate::state::oracle::OracleSource::PythLazer,
+            ))
             .unwrap()
             .price;
 
@@ -2511,6 +2534,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -2540,6 +2564,7 @@ pub mod liquidate_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -2694,6 +2719,7 @@ pub mod liquidate_perp_with_fill {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
@@ -2702,8 +2728,7 @@ pub mod liquidate_perp_with_fill {
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
+    use crate::PRICE_PRECISION_I64;
 
     #[test]
     pub fn successful_liquidate_perp_with_fill_long() {
@@ -2739,6 +2764,7 @@ pub mod liquidate_perp_with_fill {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -2947,6 +2973,7 @@ pub mod liquidate_perp_with_fill {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -3156,6 +3183,7 @@ pub mod liquidate_perp_with_fill {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -3325,6 +3353,7 @@ pub mod liquidate_perp_with_fill {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -3483,14 +3512,14 @@ pub mod liquidate_spot {
     use crate::state::oracle::{HistoricalOracleData, StrictOraclePrice};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::UserStats;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
     use crate::test_utils::{get_pyth_price, get_spot_positions};
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
+    use crate::QUOTE_PRECISION_I64;
 
     #[test]
     pub fn successful_liquidation_liability_transfer_implied_by_asset_amount() {
@@ -3529,7 +3558,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3671,7 +3700,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3844,7 +3873,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3960,7 +3989,10 @@ pub mod liquidate_spot {
         )
         .unwrap();
         let oracle_price_data = oracle_map
-            .get_price_data(&(sol_oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(
+                sol_oracle_price_key,
+                crate::state::oracle::OracleSource::PythLazer,
+            ))
             .unwrap();
         let token_value =
             get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
@@ -4062,7 +4094,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4188,7 +4220,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4314,7 +4346,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4445,7 +4477,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4674,7 +4706,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4834,6 +4866,7 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
@@ -4872,6 +4905,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -4905,7 +4939,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5026,6 +5060,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5059,7 +5094,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5165,7 +5200,10 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
         let oracle_price_data = oracle_map
-            .get_price_data(&(sol_oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(
+                sol_oracle_price_key,
+                crate::state::oracle::OracleSource::PythLazer,
+            ))
             .unwrap();
         let token_value =
             get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
@@ -5225,6 +5263,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5257,7 +5296,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5378,6 +5417,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5411,7 +5451,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5524,6 +5564,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5557,7 +5598,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5670,6 +5711,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5703,7 +5745,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5826,6 +5868,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5859,7 +5902,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6037,6 +6080,7 @@ pub mod liquidate_borrow_for_perp_pnl {
 }
 
 pub mod liquidate_perp_pnl_for_deposit {
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::state::State;
     use std::str::FromStr;
 
@@ -6099,6 +6143,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6132,7 +6177,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6253,6 +6298,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6287,7 +6333,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6411,6 +6457,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6444,7 +6491,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6565,6 +6612,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6598,7 +6646,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6711,6 +6759,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6744,7 +6793,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6857,6 +6906,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6891,7 +6941,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -7012,6 +7062,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7046,7 +7097,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -7244,6 +7295,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7279,7 +7331,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -7475,6 +7527,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7506,6 +7559,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7546,7 +7600,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -7712,6 +7766,7 @@ pub mod resolve_perp_bankruptcy {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
@@ -7719,8 +7774,7 @@ pub mod resolve_perp_bankruptcy {
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
+    use crate::PRICE_PRECISION_I64;
 
     #[test]
     pub fn successful_resolve_perp_bankruptcy() {
@@ -7756,6 +7810,7 @@ pub mod resolve_perp_bankruptcy {
                 base_asset_amount_short: -5 * BASE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
                 cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
                 ..AMM::default()
@@ -7965,6 +8020,7 @@ pub mod resolve_perp_bankruptcy {
                 base_asset_amount_short: -5 * BASE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
                 cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
                 fee_pool: PoolBalance {
@@ -8165,6 +8221,7 @@ pub mod resolve_spot_bankruptcy {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
@@ -8207,6 +8264,7 @@ pub mod resolve_spot_bankruptcy {
                 base_asset_amount_long: 5 * BASE_PRECISION_I128,
                 base_asset_amount_short: -5 * BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
                 cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
                 ..AMM::default()
@@ -8329,16 +8387,18 @@ pub mod set_user_status_to_being_liquidated {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
         Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User, UserStatus,
     };
     use crate::test_utils::{get_orders, get_positions, get_pyth_price};
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
-    use crate::{create_anchor_account_info, LIQUIDATION_PCT_PRECISION};
-    use crate::{test_utils::*, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO};
+    use crate::LIQUIDATION_PCT_PRECISION;
+    use crate::PRICE_PRECISION_I64;
+    use crate::{
+        create_anchor_account_info, test_utils::*, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
+    };
 
     #[test]
     pub fn failure_sufficient_collateral() {
@@ -8371,6 +8431,7 @@ pub mod set_user_status_to_being_liquidated {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -8546,6 +8607,7 @@ pub mod set_user_status_to_being_liquidated {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -8640,14 +8702,14 @@ pub mod liquidate_spot_with_swap {
     };
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::UserStats;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
     use crate::test_utils::{get_pyth_price, get_spot_positions};
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
+    use crate::QUOTE_PRECISION_I64;
 
     #[test]
     pub fn successful_liquidation_liability_transfer_to_cover_margin_shortage() {
@@ -8689,7 +8751,7 @@ pub mod liquidate_spot_with_swap {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -9201,6 +9263,7 @@ pub mod liquidate_isolated_perp {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
@@ -9209,8 +9272,7 @@ pub mod liquidate_isolated_perp {
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
+    use crate::PRICE_PRECISION_I64;
 
     #[test]
     pub fn successful_liquidation_long_perp() {
@@ -9244,6 +9306,7 @@ pub mod liquidate_isolated_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -9393,6 +9456,7 @@ pub mod liquidate_isolated_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: 3600,
                 ..AMM::default()
@@ -9543,6 +9607,7 @@ pub mod liquidate_isolated_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -9668,7 +9733,10 @@ pub mod liquidate_isolated_perp {
         );
 
         let oracle_price = oracle_map
-            .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(
+                oracle_price_key,
+                crate::state::oracle::OracleSource::PythLazer,
+            ))
             .unwrap()
             .price;
 
@@ -9721,6 +9789,7 @@ pub mod liquidate_isolated_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: ONE_HOUR,
                 ..AMM::default()
@@ -9850,6 +9919,7 @@ pub mod liquidate_isolated_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: 3600,
                 ..AMM::default()
@@ -9946,7 +10016,7 @@ pub mod liquidate_isolated_perp {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(23244136, 6);
+        let mut oracle_price = get_pyth_price_mantissa(23244136, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         create_anchor_account_info!(
@@ -9973,6 +10043,7 @@ pub mod liquidate_isolated_perp {
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 funding_period: 3600,
                 ..AMM::default()
@@ -10096,6 +10167,7 @@ pub mod liquidate_isolated_perp {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
@@ -10314,6 +10386,7 @@ pub mod liquidate_isolated_perp {
 }
 
 pub mod liquidate_isolated_perp_pnl_for_deposit {
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::state::State;
     use std::str::FromStr;
 
@@ -10378,6 +10451,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -10411,7 +10485,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -10532,6 +10606,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 base_asset_amount_long: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -10566,7 +10641,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -10694,6 +10769,7 @@ mod liquidation_mode {
         get_perp_liquidation_mode, CrossMarginLiquidatePerpMode, IsolatedMarginLiquidatePerpMode,
         LiquidatePerpMode,
     };
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use std::collections::BTreeSet;
     use std::str::FromStr;
 
@@ -10752,6 +10828,7 @@ mod liquidation_mode {
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -10795,7 +10872,7 @@ mod liquidation_mode {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,

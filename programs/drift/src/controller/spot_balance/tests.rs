@@ -87,6 +87,7 @@ fn test_daily_withdraw_limits() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
@@ -119,7 +120,7 @@ fn test_daily_withdraw_limits() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let mut sol_spot_market = SpotMarket {
         market_index: 1,
-        oracle_source: OracleSource::Pyth,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
         oracle: oracle_price_key,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -435,7 +436,7 @@ fn test_check_withdraw_limits() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let mut sol_spot_market = SpotMarket {
         market_index: 1,
-        oracle_source: OracleSource::Pyth,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
         oracle: oracle_price_key,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -510,7 +511,7 @@ fn test_check_withdraw_limits_below_optimal_utilization() {
 
     let mut sol_spot_market = SpotMarket {
         market_index: 1,
-        oracle_source: OracleSource::Pyth,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
         oracle: oracle_price_key,
         cumulative_deposit_interest: 1020 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
         cumulative_borrow_interest: 1222 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
@@ -611,7 +612,7 @@ fn test_check_withdraw_limits_above_optimal_utilization() {
 
     let mut sol_spot_market = SpotMarket {
         market_index: 1,
-        oracle_source: OracleSource::Pyth,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
         oracle: oracle_price_key,
         cumulative_deposit_interest: 1020 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
         cumulative_borrow_interest: 1222 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
@@ -748,6 +749,7 @@ fn check_fee_collection() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
@@ -784,7 +786,7 @@ fn check_fee_collection() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let mut sol_spot_market = SpotMarket {
         market_index: 1,
-        oracle_source: OracleSource::Pyth,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
         oracle: oracle_price_key,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1120,6 +1122,7 @@ fn check_fee_collection_larger_nums() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
@@ -1154,7 +1157,7 @@ fn check_fee_collection_larger_nums() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let mut sol_spot_market = SpotMarket {
         market_index: 1,
-        oracle_source: OracleSource::Pyth,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
         oracle: oracle_price_key,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1532,6 +1535,7 @@ fn attempt_borrow_with_massive_upnl() {
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
@@ -1567,7 +1571,7 @@ fn attempt_borrow_with_massive_upnl() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let mut sol_spot_market = SpotMarket {
         market_index: 1,
-        oracle_source: OracleSource::Pyth,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
         oracle: oracle_price_key,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,

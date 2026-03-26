@@ -1080,14 +1080,16 @@ mod calculate_max_spot_order_size {
 
     use crate::state::margin_calculation::{MarginCalculation, MarginContext};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::{create_anchor_account_info, PositionDirection, QUOTE_PRECISION, SPOT_IMF_PRECISION};
-    use crate::{create_anchor_account_info, MARGIN_PRECISION};
+    use crate::MARGIN_PRECISION;
+    use crate::{
+        create_anchor_account_info, PositionDirection, QUOTE_PRECISION, SPOT_IMF_PRECISION,
+    };
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_bid() {
@@ -1957,10 +1959,7 @@ mod calculate_max_perp_order_size {
         create_anchor_account_info, PositionDirection, MARGIN_PRECISION, PRICE_PRECISION_I64,
         QUOTE_PRECISION, SPOT_IMF_PRECISION,
     };
-    use crate::{
-        create_anchor_account_info, MarketStatus, AMM_RESERVE_PRECISION, PEG_PRECISION,
-        PRICE_PRECISION,
-    };
+    use crate::{MarketStatus, AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION};
 
     #[test]
     pub fn sol_perp_5x_bid() {
@@ -1992,6 +1991,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2113,6 +2113,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2217,6 +2218,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2338,6 +2340,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2442,6 +2445,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2564,6 +2568,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2686,6 +2691,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2809,6 +2815,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -2931,6 +2938,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -3053,6 +3061,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -3175,6 +3184,7 @@ mod calculate_max_perp_order_size {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
@@ -4670,6 +4680,7 @@ mod fallback_price_logic {
                 order_tick_size: 1,
                 min_order_size: 1000,
                 // oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,

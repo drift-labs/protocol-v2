@@ -281,6 +281,7 @@ fn max_funding_rates() {
         market_index: 0,
         amm: AMM {
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
 
             base_asset_reserve: 512295081967,
             quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
@@ -367,6 +368,7 @@ fn unsettled_funding_pnl() {
         market_index: 0,
         amm: AMM {
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
 
             base_asset_reserve: 512295081967,
             quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
