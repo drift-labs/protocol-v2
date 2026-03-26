@@ -93,7 +93,7 @@ pub mod insurance_fund_withdrawal_recipient {
     #[cfg(feature = "anchor-test")]
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
     #[cfg(all(not(feature = "anchor-test"), feature = "mainnet-beta"))]
-    declare_id!("5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax");
+    declare_id!("GYUvtRMa3UTdMrwM9a78ZcouAv7b7t8komeGVdkNn6SG");
     #[cfg(all(not(feature = "anchor-test"), not(feature = "mainnet-beta")))]
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
