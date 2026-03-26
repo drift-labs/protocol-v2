@@ -2407,7 +2407,11 @@ pub fn fulfill_perp_order_with_amm(
             let order = escrow.get_order_mut(idx)?;
             order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
         } else {
-            msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
         }
     }
 
@@ -2929,7 +2933,11 @@ pub fn fulfill_perp_order_with_match(
             let order = escrow.get_order_mut(idx)?;
             order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
         } else {
-            msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
         }
     }
 

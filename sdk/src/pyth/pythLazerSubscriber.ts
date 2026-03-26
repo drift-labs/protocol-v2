@@ -1,4 +1,8 @@
-import { Channel, PythLazerClient } from '@pythnetwork/pyth-lazer-sdk';
+import {
+	Channel,
+	PriceFeedProperty,
+	PythLazerClient,
+} from '@pythnetwork/pyth-lazer-sdk';
 import { DriftEnv } from '../config';
 import { PerpMarkets } from '../constants/perpMarkets';
 
@@ -39,6 +43,8 @@ export class PythLazerSubscriber {
 	marketIndextoPriceFeedIdChunk: Map<number, number[]> = new Map();
 	marketIndextoPriceFeedId: Map<number, number> = new Map();
 
+	private readonly feedProperties: PriceFeedProperty[];
+
 	/**
 	 * Creates a new PythLazerSubscriber instance.
 	 * @param endpoints - Array of WebSocket endpoint URLs for Pyth Lazer
@@ -47,6 +53,7 @@ export class PythLazerSubscriber {
 	 * @param env - Drift environment (mainnet-beta, devnet, etc.)
 	 * @param resubTimeoutMs - Milliseconds to wait before resubscribing on data timeout
 	 * @param sdkLogging - Whether to log Pyth SDK logs to the console. This is very noisy but could be useful for debugging.
+	 * @param feedProperties - Price feed properties to request. Must include both 'price' and 'exponent' (required for getPriceFromMarketIndex). Defaults to ['price', 'bestAskPrice', 'bestBidPrice', 'exponent']. Stored by copy so caller mutation does not affect this instance.
 	 */
 	constructor(
 		private endpoints: string[],
@@ -54,8 +61,24 @@ export class PythLazerSubscriber {
 		private priceFeedArrays: PythLazerPriceFeedArray[],
 		env: DriftEnv = 'devnet',
 		private resubTimeoutMs: number = 2000,
-		private sdkLogging: boolean = false
+		private sdkLogging: boolean = false,
+		feedProperties: PriceFeedProperty[] = [
+			'price',
+			'bestAskPrice',
+			'bestBidPrice',
+			'exponent',
+			'feedUpdateTimestamp',
+		]
 	) {
+		this.feedProperties = [...feedProperties];
+		if (
+			!this.feedProperties.includes('price') ||
+			!this.feedProperties.includes('exponent')
+		) {
+			throw new Error(
+				"feedProperties must include both 'price' and 'exponent' for getPriceFromMarketIndex to work"
+			);
+		}
 		const markets = PerpMarkets[env].filter(
 			(market) => market.pythLazerId !== undefined
 		);
@@ -240,13 +263,7 @@ export class PythLazerSubscriber {
 				type: 'subscribe',
 				subscriptionId,
 				priceFeedIds: filteredFeedIds,
-				properties: [
-					'price',
-					'bestAskPrice',
-					'bestBidPrice',
-					'exponent',
-					'feedUpdateTimestamp',
-				],
+				properties: this.feedProperties,
 				formats: ['solana'],
 				deliveryFormat: 'json',
 				channel: priceFeedArray.channel ?? ('fixed_rate@200ms' as Channel),

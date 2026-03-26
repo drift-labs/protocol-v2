@@ -258,7 +258,9 @@ export class AdminClient extends DriftClient {
 			nameBuffer,
 			{
 				accounts: {
-					admin: this.isSubscribed
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.isSubscribed
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
@@ -675,7 +677,9 @@ export class AdminClient extends DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.isSubscribed
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.isSubscribed
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,
 					oracle: priceOracle,
