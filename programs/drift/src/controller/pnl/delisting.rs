@@ -22,7 +22,6 @@ pub mod delisting_test {
     use crate::controller::position::PositionDirection;
     use crate::controller::repeg::settle_expired_market;
     use crate::create_anchor_account_info;
-    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, LIQUIDATION_PCT_PRECISION,
@@ -42,6 +41,7 @@ pub mod delisting_test {
     use crate::state::oracle::{HistoricalOracleData, StrictOraclePrice};
     use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};

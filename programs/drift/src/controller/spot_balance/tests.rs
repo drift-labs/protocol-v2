@@ -7,7 +7,6 @@ use crate::controller::insurance::settle_revenue_to_insurance_fund;
 use crate::controller::spot_balance::*;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits;
 use crate::create_anchor_account_info;
-use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
@@ -30,6 +29,7 @@ use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::spot_market::{InsuranceFund, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::PositionFlag;
