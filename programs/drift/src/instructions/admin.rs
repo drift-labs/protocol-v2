@@ -5257,6 +5257,12 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        spot_market,
+        None,
+        Clock::get()?.unix_timestamp,
+    )?;
+
     let same_market = ctx.accounts.perp_market_with_fee_pool.key()
         == ctx.accounts.perp_market_with_pnl_pool.key();
 
@@ -5270,14 +5276,35 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
             unsafe { &mut *fee_pool },
             unsafe { &mut *pnl_pool },
             direction,
-        )
+        )?;
+        perp_market.amm.total_fee_minus_distributions = match direction {
+            TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market
+                .amm
+                .total_fee_minus_distributions
+                .safe_sub(amount.cast()?)?,
+            TransferFeeAndPnlPoolDirection::PnlToFeePool => perp_market
+                .amm
+                .total_fee_minus_distributions
+                .safe_add(amount.cast()?)?,
+        };
     } else {
         let mut perp_market_with_fee_pool = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
         let mut perp_market_with_pnl_pool = load_mut!(ctx.accounts.perp_market_with_pnl_pool)?;
         let fee_pool = &mut perp_market_with_fee_pool.amm.fee_pool;
         let pnl_pool = &mut perp_market_with_pnl_pool.pnl_pool;
-        execute_transfer_between_pools(amount, spot_market, fee_pool, pnl_pool, direction)
+        execute_transfer_between_pools(amount, spot_market, fee_pool, pnl_pool, direction)?;
+        perp_market_with_fee_pool.amm.total_fee_minus_distributions = match direction {
+            TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market_with_fee_pool
+                .amm
+                .total_fee_minus_distributions
+                .safe_sub(amount.cast()?)?,
+            TransferFeeAndPnlPoolDirection::PnlToFeePool => perp_market_with_fee_pool
+                .amm
+                .total_fee_minus_distributions
+                .safe_add(amount.cast()?)?,
+        };
     }
+    Ok(())
 }
 
 pub fn execute_transfer_between_pools(
