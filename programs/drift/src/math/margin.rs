@@ -41,6 +41,7 @@ pub enum MarginRequirementType {
     Initial,
     Fill,
     Maintenance,
+    LiqMaintenance
 }
 
 pub fn calculate_size_premium_liability_weight(
