@@ -276,6 +276,17 @@ describe('transfer fee and pnl pool', () => {
 		);
 	});
 
+	it('rejects oversized pnl -> fee cross market', async () => {
+		await expectFail(() =>
+			driftClient.transferFeeAndPnlPool(
+				SOL_PERP,
+				ETH_PERP,
+				hugeAmt,
+				TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL
+			)
+		);
+	});
+
 	after(async () => {
 		await driftClient.unsubscribe();
 	});

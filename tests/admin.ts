@@ -71,7 +71,7 @@ describe('admin', () => {
 				commitment: 'confirmed',
 			},
 			activeSubAccountId: 0,
-			perpMarketIndexes: [0, 1],
+			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			subAccountIds: [],
 			accountSubscription: {
