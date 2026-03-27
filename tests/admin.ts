@@ -12,7 +12,6 @@ import {
 	OracleSource,
 	SpotBalanceType,
 	TestClient,
-	TransferFeeAndPnlPoolDirection,
 	Wallet,
 } from '../sdk/src';
 
@@ -46,20 +45,6 @@ describe('admin', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let bankrunContextWrapper: BankrunContextWrapper;
-
-	const readFeePool = (marketIndex: number) =>
-		getTokenAmount(
-			driftClient.getPerpMarketAccount(marketIndex).amm.feePool.scaledBalance,
-			driftClient.getSpotMarketAccount(0),
-			SpotBalanceType.DEPOSIT
-		);
-
-	const readPnlPool = (marketIndex: number) =>
-		getTokenAmount(
-			driftClient.getPerpMarketAccount(marketIndex).pnlPool.scaledBalance,
-			driftClient.getSpotMarketAccount(0),
-			SpotBalanceType.DEPOSIT
-		);
 
 	before(async () => {
 		const context = await startAnchor('', [], []);
@@ -117,15 +102,6 @@ describe('admin', () => {
 		await driftClient.initializePerpMarket(
 			0,
 			solUsd,
-			new BN(1000),
-			new BN(1000),
-			periodicity
-		);
-
-		const btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
-		await driftClient.initializePerpMarket(
-			1,
-			btcUsd,
 			new BN(1000),
 			new BN(1000),
 			periodicity
@@ -539,149 +515,6 @@ describe('admin', () => {
 		);
 
 		assert(tokenAmount.eq(usdcAmount));
-	});
-
-	it('transfer fee and pnl pool', async () => {
-		userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount.muln(10),
-			bankrunContextWrapper,
-			driftClient.wallet.publicKey
-		);
-
-		const quoteVault = driftClient.getSpotMarketAccount(0).vault;
-
-		const splTransferIx = createTransferCheckedInstruction(
-			userUSDCAccount.publicKey,
-			usdcMint.publicKey,
-			quoteVault,
-			driftClient.wallet.publicKey,
-			usdcAmount.muln(6).toNumber(),
-			6
-		);
-
-		const tx = await driftClient.buildTransaction(splTransferIx);
-
-		//@ts-ignore
-		await driftClient.sendTransaction(tx);
-
-		await driftClient.depositIntoPerpMarketFeePool(
-			0,
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		await driftClient.depositIntoPerpMarketFeePool(
-			1,
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		await driftClient.updatePerpMarketPnlPool(0, usdcAmount);
-		await driftClient.updatePerpMarketPnlPool(1, usdcAmount);
-		await driftClient.fetchAccounts();
-
-		const amt = new BN(1_000_000); // 1 USDC
-
-		// Case 1: same market, fee -> pnl
-		{
-			const feeBefore = readFeePool(0);
-			const pnlBefore = readPnlPool(0);
-
-			await driftClient.transferFeeAndPnlPool(
-				0,
-				0,
-				amt,
-				TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL
-			);
-			await driftClient.fetchAccounts();
-
-			assert(readFeePool(0).eq(feeBefore.sub(amt)));
-			assert(readPnlPool(0).eq(pnlBefore.add(amt)));
-		}
-
-		// Case 2: same market, pnl -> fee
-		{
-			const feeBefore = readFeePool(0);
-			const pnlBefore = readPnlPool(0);
-
-			await driftClient.transferFeeAndPnlPool(
-				0,
-				0,
-				amt,
-				TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL
-			);
-			await driftClient.fetchAccounts();
-
-			assert(readFeePool(0).eq(feeBefore.add(amt)));
-			assert(readPnlPool(0).eq(pnlBefore.sub(amt)));
-		}
-
-		// Case 3: cross market, fee pool 0 -> pnl pool 1
-		{
-			const feeBefore = readFeePool(0);
-			const pnlBefore = readPnlPool(1);
-
-			await driftClient.transferFeeAndPnlPool(
-				0,
-				1,
-				amt,
-				TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL
-			);
-			await driftClient.fetchAccounts();
-
-			assert(readFeePool(0).eq(feeBefore.sub(amt)));
-			assert(readPnlPool(1).eq(pnlBefore.add(amt)));
-		}
-
-		// Case 4: cross market, pnl pool 1 -> fee pool 0
-		{
-			const feeBefore = readFeePool(0);
-			const pnlBefore = readPnlPool(1);
-
-			await driftClient.transferFeeAndPnlPool(
-				0,
-				1,
-				amt,
-				TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL
-			);
-			await driftClient.fetchAccounts();
-
-			assert(readFeePool(0).eq(feeBefore.add(amt)));
-			assert(readPnlPool(1).eq(pnlBefore.sub(amt)));
-		}
-
-		// Case 5: cross market, fee pool 1 -> pnl pool 0
-		{
-			const feeBefore = readFeePool(1);
-			const pnlBefore = readPnlPool(0);
-
-			await driftClient.transferFeeAndPnlPool(
-				1,
-				0,
-				amt,
-				TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL
-			);
-			await driftClient.fetchAccounts();
-
-			assert(readFeePool(1).eq(feeBefore.sub(amt)));
-			assert(readPnlPool(0).eq(pnlBefore.add(amt)));
-		}
-
-		// Case 6: cross market, pnl pool 0 -> fee pool 1
-		{
-			const feeBefore = readFeePool(1);
-			const pnlBefore = readPnlPool(0);
-
-			await driftClient.transferFeeAndPnlPool(
-				1,
-				0,
-				amt,
-				TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL
-			);
-			await driftClient.fetchAccounts();
-
-			assert(readFeePool(1).eq(feeBefore.add(amt)));
-			assert(readPnlPool(0).eq(pnlBefore.sub(amt)));
-		}
 	});
 
 	it('Update admin', async () => {

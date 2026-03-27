@@ -5268,8 +5268,25 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
 
     if same_market {
         let mut perp_market = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
+
+        if matches!(direction, TransferFeeAndPnlPoolDirection::FeeToPnlPool) {
+            let max_cost = perp_market
+                .amm
+                .total_fee_minus_distributions
+                .safe_sub(get_total_fee_lower_bound(&perp_market)?.cast()?)?
+                .safe_sub(perp_market.amm.total_fee_withdrawn.cast()?)?;
+            validate!(
+                amount.cast::<i128>()? <= max_cost,
+                ErrorCode::DefaultError,
+                "fee -> pnl transfer exceeds spendable fee pool: {} > {}",
+                amount,
+                max_cost,
+            )?;
+        }
+
         let fee_pool = &mut perp_market.amm.fee_pool as *mut PoolBalance;
         let pnl_pool = &mut perp_market.pnl_pool as *mut PoolBalance;
+
         execute_transfer_between_pools(
             amount,
             spot_market,
@@ -5277,6 +5294,7 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
             unsafe { &mut *pnl_pool },
             direction,
         )?;
+
         perp_market.amm.total_fee_minus_distributions = match direction {
             TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market
                 .amm
@@ -5290,9 +5308,27 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
     } else {
         let mut perp_market_with_fee_pool = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
         let mut perp_market_with_pnl_pool = load_mut!(ctx.accounts.perp_market_with_pnl_pool)?;
+
+        if matches!(direction, TransferFeeAndPnlPoolDirection::FeeToPnlPool) {
+            let max_cost = perp_market_with_fee_pool
+                .amm
+                .total_fee_minus_distributions
+                .safe_sub(get_total_fee_lower_bound(&perp_market_with_fee_pool)?.cast()?)?
+                .safe_sub(perp_market_with_fee_pool.amm.total_fee_withdrawn.cast()?)?;
+            validate!(
+                amount.cast::<i128>()? <= max_cost,
+                ErrorCode::DefaultError,
+                "fee -> pnl transfer exceeds spendable fee pool: {} > {}",
+                amount,
+                max_cost,
+            )?;
+        }
+
         let fee_pool = &mut perp_market_with_fee_pool.amm.fee_pool;
         let pnl_pool = &mut perp_market_with_pnl_pool.pnl_pool;
+
         execute_transfer_between_pools(amount, spot_market, fee_pool, pnl_pool, direction)?;
+
         perp_market_with_fee_pool.amm.total_fee_minus_distributions = match direction {
             TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market_with_fee_pool
                 .amm
@@ -5314,14 +5350,39 @@ pub fn execute_transfer_between_pools(
     pnl_pool: &mut PoolBalance,
     direction: TransferFeeAndPnlPoolDirection,
 ) -> Result<()> {
-    let (source_name, dest_name, source_index, dest_index) = match direction {
-        TransferFeeAndPnlPoolDirection::FeeToPnlPool => {
-            ("fee", "pnl", fee_pool.market_index, pnl_pool.market_index)
-        }
-        TransferFeeAndPnlPoolDirection::PnlToFeePool => {
-            ("pnl", "fee", pnl_pool.market_index, fee_pool.market_index)
-        }
+    let (source_name, dest_name, source_index, dest_index, source_token_amount) = match direction {
+        TransferFeeAndPnlPoolDirection::FeeToPnlPool => (
+            "fee",
+            "pnl",
+            fee_pool.market_index,
+            pnl_pool.market_index,
+            get_token_amount(
+                fee_pool.scaled_balance,
+                spot_market,
+                &SpotBalanceType::Deposit,
+            )?,
+        ),
+        TransferFeeAndPnlPoolDirection::PnlToFeePool => (
+            "pnl",
+            "fee",
+            pnl_pool.market_index,
+            fee_pool.market_index,
+            get_token_amount(
+                pnl_pool.scaled_balance,
+                spot_market,
+                &SpotBalanceType::Deposit,
+            )?,
+        ),
     };
+
+    validate!(
+        amount.cast::<u128>()? <= source_token_amount,
+        ErrorCode::DefaultError,
+        "insufficient {} pool balance: {} < {}",
+        source_name,
+        source_token_amount,
+        amount,
+    )?;
 
     msg!(
         "transferring {} from perp market {} {} pool -> perp market {} {} pool",
