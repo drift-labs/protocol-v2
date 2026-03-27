@@ -7842,7 +7842,8 @@ export class DriftClient {
 		orderParamsMessage:
 			| SignedMsgOrderParamsMessage
 			| SignedMsgOrderParamsDelegateMessage,
-		delegateSigner?: boolean
+		delegateSigner?: boolean,
+		signMessageFunction?: (message: Uint8Array) => Buffer
 	): SignedMsgOrderParams {
 		const borshBuf = this.encodeSignedMsgOrderParamsMessage(
 			orderParamsMessage,
@@ -7851,7 +7852,9 @@ export class DriftClient {
 		const orderParams = Buffer.from(borshBuf.toString('hex'));
 		return {
 			orderParams,
-			signature: this.signMessage(Buffer.from(borshBuf.toString('hex'))),
+			signature: signMessageFunction
+				? signMessageFunction(Buffer.from(borshBuf.toString('hex')))
+				: this.signMessage(Buffer.from(borshBuf.toString('hex'))),
 		};
 	}
 
