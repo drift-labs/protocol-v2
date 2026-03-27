@@ -5293,6 +5293,8 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
             spot_market,
             unsafe { &mut *fee_pool },
             unsafe { &mut *pnl_pool },
+            perp_market.market_index,
+            perp_market.market_index,
             direction,
         )?;
 
@@ -5325,10 +5327,21 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
             )?;
         }
 
+        let fee_pool_market_index = perp_market_with_fee_pool.market_index;
+        let pnl_pool_market_index = perp_market_with_pnl_pool.market_index;
+
         let fee_pool = &mut perp_market_with_fee_pool.amm.fee_pool;
         let pnl_pool = &mut perp_market_with_pnl_pool.pnl_pool;
 
-        execute_transfer_between_pools(amount, spot_market, fee_pool, pnl_pool, direction)?;
+        execute_transfer_between_pools(
+            amount,
+            spot_market,
+            fee_pool,
+            pnl_pool,
+            fee_pool_market_index,
+            pnl_pool_market_index,
+            direction,
+        )?;
 
         perp_market_with_fee_pool.amm.total_fee_minus_distributions = match direction {
             TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market_with_fee_pool
@@ -5341,6 +5354,7 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
                 .safe_add(amount.cast()?)?,
         };
     }
+
     Ok(())
 }
 
@@ -5349,14 +5363,16 @@ pub fn execute_transfer_between_pools(
     spot_market: &mut SpotMarket,
     fee_pool: &mut PoolBalance,
     pnl_pool: &mut PoolBalance,
+    fee_pool_market_index: u16,
+    pnl_pool_market_index: u16,
     direction: TransferFeeAndPnlPoolDirection,
 ) -> Result<()> {
     let (source_name, dest_name, source_index, dest_index, source_token_amount) = match direction {
         TransferFeeAndPnlPoolDirection::FeeToPnlPool => (
             "fee",
             "pnl",
-            fee_pool.market_index,
-            pnl_pool.market_index,
+            fee_pool_market_index,
+            pnl_pool_market_index,
             get_token_amount(
                 fee_pool.scaled_balance,
                 spot_market,
@@ -5366,8 +5382,8 @@ pub fn execute_transfer_between_pools(
         TransferFeeAndPnlPoolDirection::PnlToFeePool => (
             "pnl",
             "fee",
-            pnl_pool.market_index,
-            fee_pool.market_index,
+            pnl_pool_market_index,
+            fee_pool_market_index,
             get_token_amount(
                 pnl_pool.scaled_balance,
                 spot_market,
@@ -5404,12 +5420,20 @@ pub fn execute_transfer_between_pools(
     }
 
     msg!(
-        "transferred {} fee_pool(market {}) scaled_balance: {} pnl_pool(market {}) scaled_balance: {}",
+        "transferred {} fee_pool(market {}) token_amount: {} pnl_pool(market {}) token_amount: {}",
         amount,
-        fee_pool.market_index,
-        fee_pool.scaled_balance,
-        pnl_pool.market_index,
-        pnl_pool.scaled_balance,
+        fee_pool_market_index,
+        get_token_amount(
+            fee_pool.scaled_balance,
+            spot_market,
+            &SpotBalanceType::Deposit
+        )?,
+        pnl_pool_market_index,
+        get_token_amount(
+            pnl_pool.scaled_balance,
+            spot_market,
+            &SpotBalanceType::Deposit
+        )?,
     );
 
     Ok(())
