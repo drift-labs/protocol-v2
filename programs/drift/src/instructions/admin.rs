@@ -1,3 +1,4 @@
+use crate::controller::spot_balance::transfer_spot_balances;
 use crate::{msg, FeatureBitFlags};
 use anchor_lang::prelude::*;
 use anchor_spl::token_2022::Token2022;
@@ -5395,42 +5396,10 @@ pub fn execute_transfer_between_pools(
 
     match direction {
         TransferFeeAndPnlPoolDirection::FeeToPnlPool => {
-            // Op 1: Decrement fee pool
-            controller::spot_balance::update_spot_balances(
-                amount.cast::<u128>()?,
-                &SpotBalanceType::Borrow,
-                spot_market,
-                fee_pool,
-                false,
-            )?;
-
-            // Op 2: Increment pnl pool
-            controller::spot_balance::update_spot_balances(
-                amount.cast::<u128>()?,
-                &SpotBalanceType::Deposit,
-                spot_market,
-                pnl_pool,
-                false,
-            )?;
+            transfer_spot_balances(amount.cast::<i128>()?, spot_market, fee_pool, pnl_pool)?;
         }
         TransferFeeAndPnlPoolDirection::PnlToFeePool => {
-            // Op 1: Decrement pnl pool
-            controller::spot_balance::update_spot_balances(
-                amount.cast::<u128>()?,
-                &SpotBalanceType::Borrow,
-                spot_market,
-                pnl_pool,
-                false,
-            )?;
-
-            // Op 2: Increment fee pool
-            controller::spot_balance::update_spot_balances(
-                amount.cast::<u128>()?,
-                &SpotBalanceType::Deposit,
-                spot_market,
-                fee_pool,
-                false,
-            )?;
+            transfer_spot_balances(amount.cast::<i128>()?, spot_market, pnl_pool, fee_pool)?;
         }
     }
 
