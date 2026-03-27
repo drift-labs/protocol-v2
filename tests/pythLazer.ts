@@ -59,7 +59,9 @@ describe('pyth lazer oracles', () => {
 
 		const marketIndexes = [0];
 		const spotMarketIndexes = [0, 1];
-		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
+		const oracleInfos = [
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
+		];
 
 		driftClient = new TestClient({
 			connection,

@@ -94,7 +94,9 @@ describe('amm spread: market order', () => {
 
 		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0];
-		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
+		const oracleInfos = [
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
+		];
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

@@ -1,5 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
-import { AnchorProvider, Program, Provider } from '@coral-xyz/anchor';
+import { Program, Provider } from '@coral-xyz/anchor';
 import {
 	AccountLayout,
 	MintLayout,

@@ -121,8 +121,18 @@ describe('switch oracles', () => {
 	});
 
 	beforeEach(async () => {
-		await admin.updateSpotMarketOracle(1, solOracle, OracleSource.PYTH_LAZER, true);
-		await admin.updatePerpMarketOracle(0, solOracle, OracleSource.PYTH_LAZER, true);
+		await admin.updateSpotMarketOracle(
+			1,
+			solOracle,
+			OracleSource.PYTH_LAZER,
+			true
+		);
+		await admin.updatePerpMarketOracle(
+			0,
+			solOracle,
+			OracleSource.PYTH_LAZER,
+			true
+		);
 	});
 
 	after(async () => {
