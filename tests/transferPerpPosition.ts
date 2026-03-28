@@ -85,7 +85,7 @@ describe('trigger orders', () => {
 		oracleInfos = [
 			{
 				publicKey: solUsd,
-				source: OracleSource.PYTH,
+				source: OracleSource.PYTH_LAZER,
 			},
 		];
 

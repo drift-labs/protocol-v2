@@ -71,7 +71,7 @@ describe('max deposit', () => {
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			subAccountIds: [],
-			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }],
 			userStats: true,
 			accountSubscription: {
 				type: 'polling',

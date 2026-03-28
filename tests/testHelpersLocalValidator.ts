@@ -831,7 +831,7 @@ export async function initializeSolSpotMarket(
 		optimalRate,
 		maxRate,
 		solOracle,
-		OracleSource.PYTH,
+		OracleSource.PYTH_LAZER,
 		initialAssetWeight,
 		maintenanceAssetWeight,
 		initialLiabilityWeight,

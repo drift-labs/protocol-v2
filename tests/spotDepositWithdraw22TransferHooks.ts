@@ -116,7 +116,7 @@ describe('spot deposit and withdraw 22', () => {
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
 		admin = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -473,7 +473,7 @@ describe('spot deposit and withdraw 22', () => {
 			SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(),
 			SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(),
 			mintOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
 			SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
 			SPOT_MARKET_WEIGHT_PRECISION.toNumber(),

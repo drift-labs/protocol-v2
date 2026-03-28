@@ -87,7 +87,13 @@ describe('max leverage order params', () => {
 			bankrunContextWrapper
 		);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -103,7 +109,7 @@ describe('max leverage order params', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -171,7 +177,7 @@ describe('max leverage order params', () => {
 			[
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader

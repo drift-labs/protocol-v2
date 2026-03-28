@@ -346,7 +346,7 @@ describe('phoenix spot market', () => {
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
 		// Top-up god key's SOL balance
 		await bankrunContextWrapper.fundKeypair(god, 10 * 10 ** 9);

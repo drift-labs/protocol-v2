@@ -95,7 +95,9 @@ describe('User Account', () => {
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			subAccountIds: [],
-			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
+			oracleInfos: [
+				{ publicKey: solUsdOracle, source: OracleSource.PYTH_LAZER },
+			],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,

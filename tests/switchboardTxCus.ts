@@ -89,7 +89,13 @@ describe('switchboard place orders cus', () => {
 			bankrunContextWrapper
 		);
 
-		oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		oracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -105,7 +111,7 @@ describe('switchboard place orders cus', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -174,7 +180,7 @@ describe('switchboard place orders cus', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {

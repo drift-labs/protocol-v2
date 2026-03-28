@@ -77,7 +77,7 @@ describe('admin withdraw from insurance fund vault', () => {
 			perpMarketIndexes: [],
 			spotMarketIndexes: [0, 1],
 			subAccountIds: [],
-			oracleInfos: [{ publicKey: solOracle, source: OracleSource.PYTH }],
+			oracleInfos: [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,

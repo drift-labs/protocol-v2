@@ -91,11 +91,17 @@ describe('spot deposit and withdraw', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		await mockUserUSDCAccount(usdcMint, largeUsdcAmount, bankrunContextWrapper);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 30);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			30,
+			-7,
+			undefined,
+			10000
+		);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
 		admin = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -204,7 +210,7 @@ describe('spot deposit and withdraw', () => {
 			optimalRate,
 			maxRate,
 			solOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,

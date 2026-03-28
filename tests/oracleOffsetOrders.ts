@@ -82,10 +82,16 @@ describe('oracle offset', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 		marketIndexes = [0];
 		spotMarketIndexes = [0];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		fillerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -142,7 +148,7 @@ describe('oracle offset', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, 1, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1, solUsd, 10000);
 	});
 
 	after(async () => {

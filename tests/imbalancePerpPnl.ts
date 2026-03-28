@@ -203,7 +203,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -278,7 +278,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -532,7 +532,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			[
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader

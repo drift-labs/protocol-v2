@@ -44,10 +44,8 @@ fn calculate_funding_rate(
     Ok(funding_rate)
 }
 
-use crate::create_account_info;
-use crate::test_utils::create_account_info;
-#[cfg(test)]
-use crate::test_utils::get_account_bytes;
+use crate::create_anchor_account_info;
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 
 #[test]
 fn balanced_funding_test() {
@@ -272,11 +270,10 @@ fn max_funding_rates() {
     let mut oracle_price = get_pyth_price(51, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -284,6 +281,7 @@ fn max_funding_rates() {
         market_index: 0,
         amm: AMM {
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
 
             base_asset_reserve: 512295081967,
             quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
@@ -359,11 +357,10 @@ fn unsettled_funding_pnl() {
     let mut oracle_price = get_pyth_price(51, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -371,6 +368,7 @@ fn unsettled_funding_pnl() {
         market_index: 0,
         amm: AMM {
             oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
 
             base_asset_reserve: 512295081967,
             quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,

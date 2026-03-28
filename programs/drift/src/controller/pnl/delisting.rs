@@ -21,7 +21,6 @@ pub mod delisting_test {
     use crate::controller::pnl::settle_expired_position;
     use crate::controller::position::PositionDirection;
     use crate::controller::repeg::settle_expired_market;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
@@ -42,6 +41,7 @@ pub mod delisting_test {
     use crate::state::oracle::{HistoricalOracleData, StrictOraclePrice};
     use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
@@ -66,11 +66,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -92,6 +91,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 ..AMM::default()
             },
@@ -180,11 +180,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -206,6 +205,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -290,11 +290,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -316,6 +315,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -403,11 +403,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -429,6 +428,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -517,11 +517,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -543,6 +542,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -627,11 +627,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -653,6 +652,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -846,11 +846,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -872,6 +871,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1069,11 +1069,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1095,6 +1094,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1273,11 +1273,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1300,6 +1299,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1348,7 +1348,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1361,7 +1361,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1698,11 +1698,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1725,6 +1724,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -1774,7 +1774,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1787,7 +1787,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2082,11 +2082,10 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2109,6 +2108,7 @@ pub mod delisting_test {
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 oracle: oracle_price_key,
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
@@ -2158,7 +2158,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2171,8 +2171,8 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
-                last_oracle_price_twap_5min: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.price * 99 / 100),
+                last_oracle_price_twap_5min: (oracle_price.price * 99 / 100),
 
                 ..HistoricalOracleData::default()
             },

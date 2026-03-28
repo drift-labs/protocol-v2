@@ -96,14 +96,26 @@ describe('market order', () => {
 		);
 		await eventSubscriber.subscribe();
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
-		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 60000);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
+		btcUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			60000,
+			-7,
+			undefined,
+			10000
+		);
 
 		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0];
 		const oracleInfos = [
-			{ publicKey: solUsd, source: OracleSource.PYTH },
-			{ publicKey: btcUsd, source: OracleSource.PYTH },
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
+			{ publicKey: btcUsd, source: OracleSource.PYTH_LAZER },
 		];
 
 		driftClient = new TestClient({

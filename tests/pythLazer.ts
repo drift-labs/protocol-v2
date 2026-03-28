@@ -59,7 +59,9 @@ describe('pyth lazer oracles', () => {
 
 		const marketIndexes = [0];
 		const spotMarketIndexes = [0, 1];
-		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		const oracleInfos = [
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
+		];
 
 		driftClient = new TestClient({
 			connection,
@@ -89,6 +91,7 @@ describe('pyth lazer oracles', () => {
 		await driftClient.unsubscribe();
 	});
 
+	// TODO: update BTC string for theses
 	it('init feed', async () => {
 		await driftClient.initializePythLazerOracle(1);
 		await driftClient.initializePythLazerOracle(2);

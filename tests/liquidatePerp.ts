@@ -87,7 +87,13 @@ describe('liquidate perp (no open orders)', () => {
 			bankrunContextWrapper
 		);
 
-		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		const oracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -102,7 +108,7 @@ describe('liquidate perp (no open orders)', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -180,7 +186,7 @@ describe('liquidate perp (no open orders)', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -231,7 +237,7 @@ describe('liquidate perp (no open orders)', () => {
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
 
 		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle, 10000);
 		await sleep(2000);
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
@@ -287,7 +293,7 @@ describe('liquidate perp (no open orders)', () => {
 			)
 		);
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle, 10000);
 		await sleep(2000);
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
@@ -315,7 +321,7 @@ describe('liquidate perp (no open orders)', () => {
 		);
 		await driftClientUser.unsubscribe();
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle, 10000);
 
 		const txSig1 = await liquidatorDriftClient.setUserStatusToBeingLiquidated(
 			await driftClient.getUserAccountPublicKey(),

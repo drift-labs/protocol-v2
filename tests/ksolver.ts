@@ -220,7 +220,7 @@ describe('AMM Curve', () => {
 			oracleInfos: [
 				{
 					publicKey: solUsdOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {

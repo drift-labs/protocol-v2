@@ -90,7 +90,13 @@ describe('liquidate spot', () => {
 
 		await eventSubscriber.subscribe();
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			100,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -106,7 +112,7 @@ describe('liquidate spot', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -150,7 +156,7 @@ describe('liquidate spot', () => {
 				[
 					{
 						publicKey: solOracle,
-						source: OracleSource.PYTH,
+						source: OracleSource.PYTH_LAZER,
 					},
 				],
 				bulkAccountLoader
@@ -195,7 +201,7 @@ describe('liquidate spot', () => {
 			)
 		);
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 179, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 179, solOracle, 10000);
 		await sleep(1000);
 
 		await driftClient.fetchAccounts();
@@ -221,7 +227,8 @@ describe('liquidate spot', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			179 + convertToNumber(mtc.sub(mmr), QUOTE_PRECISION) * (2 / 1.1 - 0.001),
-			solOracle
+			solOracle,
+			10000
 		);
 		await sleep(1000);
 
@@ -247,7 +254,7 @@ describe('liquidate spot', () => {
 			)
 		);
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 190, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 190, solOracle, 10000);
 		await sleep(1000);
 
 		const spotMarketBefore = driftClient.getSpotMarketAccount(0);

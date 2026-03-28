@@ -93,7 +93,7 @@ describe('user delegate', () => {
 			subAccountIds: [],
 			oracleInfos: [
 				{
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 					publicKey: solUsd,
 				},
 			],
@@ -152,7 +152,7 @@ describe('user delegate', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: [
 				{
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 					publicKey: solUsd,
 				},
 			],

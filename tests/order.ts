@@ -130,17 +130,35 @@ describe('orders', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
-		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 60000);
-		ethUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
+		btcUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			60000,
+			-7,
+			undefined,
+			10000
+		);
+		ethUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		const marketIndexes = [marketIndex, marketIndexBTC, marketIndexEth];
 		const bankIndexes = [0];
 		const oracleInfos = [
 			{ publicKey: PublicKey.default, source: OracleSource.QUOTE_ASSET },
-			{ publicKey: solUsd, source: OracleSource.PYTH },
-			{ publicKey: btcUsd, source: OracleSource.PYTH },
-			{ publicKey: ethUsd, source: OracleSource.PYTH },
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
+			{ publicKey: btcUsd, source: OracleSource.PYTH_LAZER },
+			{ publicKey: ethUsd, source: OracleSource.PYTH_LAZER },
 		];
 
 		driftClient = new TestClient({
@@ -869,7 +887,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd, 10000);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
@@ -989,7 +1007,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd, 10000);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
@@ -1143,7 +1161,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd, 10000);
 		try {
 			await driftClient.moveAmmToPrice(
 				marketIndex,
@@ -1424,7 +1442,7 @@ describe('orders', () => {
 			price.mul(new BN(96)).div(new BN(100)),
 			PRICE_PRECISION
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd, 10000);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())

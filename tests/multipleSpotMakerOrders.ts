@@ -92,7 +92,7 @@ describe('multiple maker orders', () => {
 
 		marketIndexes = [0, 1];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		fillerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -141,7 +141,7 @@ describe('multiple maker orders', () => {
 			ammInitialQuoteAssetReserve.div(new BN(100000)),
 			periodicity,
 			new BN(0.69 * PEG_PRECISION.toNumber()),
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			ContractTier.A,
 			MARGIN_PRECISION.toNumber() / 4, // 4x
 			MARGIN_PRECISION.toNumber() / 5 // 5x
