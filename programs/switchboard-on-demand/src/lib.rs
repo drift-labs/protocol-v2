@@ -1,234 +1,221 @@
-use anchor_lang::declare_id;
-use anchor_lang::prelude::*;
-use anchor_lang::program;
-use anchor_lang::AnchorDeserialize;
-use solana_program::pubkey::Pubkey;
+#![allow(clippy::crate_in_macro_def)]
+#![allow(clippy::repr_packed_without_abi)]
+#![allow(clippy::manual_is_multiple_of)]
+#![doc(html_logo_url = "https://i.imgur.com/2cZloJp.png")]
+#![allow(unexpected_cfgs)]
+#![allow(unused_attributes)]
+#![allow(clippy::result_large_err)]
+//! # Switchboard On-Demand Oracle SDK
+//!
+//! Official Rust SDK for Switchboard On-Demand Oracles on Solana.
+//!
+//! This SDK provides secure, efficient access to real-time oracle data with
+//! comprehensive validation and zero-copy performance optimizations.
+//!
+//! ## Quick Start
+//!
+//! ```rust,no_run
+//! use switchboard_on_demand::prelude::*;
+//! # use solana_program::account_info::AccountInfo;
+//! # let queue_account: AccountInfo = todo!();
+//! # let slothash_sysvar: AccountInfo = todo!();
+//! # let instructions_sysvar: AccountInfo = todo!();
+//! # let clock_slot: u64 = 0;
+//!
+//! // Configure the verifier with required accounts
+//! let quote = QuoteVerifier::new()
+//!     .queue(&queue_account)
+//!     .slothash_sysvar(&slothash_sysvar)
+//!     .ix_sysvar(&instructions_sysvar)
+//!     .clock_slot(clock_slot)
+//!     .max_age(150)
+//!     .verify_instruction_at(0)?;
+//!
+//! // Access feed data
+//! for feed in quote.feeds() {
+//!     println!("Feed {}: {}", feed.hex_id(), feed.value());
+//! }
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! ## Security Considerations
+//!
+//! - Always validate oracle data freshness with appropriate `max_age` values
+//! - Use minimum sample counts for critical operations
+//! - Verify feed signatures in production environments
+//! - Monitor for stale data and implement appropriate fallback mechanisms
+//!
+//! ## Feature Flags
+//!
+//! - `client` - Enable RPC client functionality
+//! - `anchor` - Enable Anchor framework integration
 
-#[cfg(feature = "mainnet-beta")]
-declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
-#[cfg(not(feature = "mainnet-beta"))]
-declare_id!("Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2");
+// ===== Feature compatibility checks =====
+// These compile errors catch mutually exclusive features at build time
 
-#[program]
-pub mod switchboard_on_demand {}
-pub const SB_ON_DEMAND_PRECISION: u32 = 18;
+#[cfg(all(feature = "solana-v2", feature = "solana-v3"))]
+compile_error!("Cannot enable both 'solana-v2' and 'solana-v3' features. Choose one: use 'solana-v2' for production or 'solana-v3' for experimental builds.");
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CompactResult {
-    pub std_dev: f32,
-    pub mean: f32,
-    pub slot: u64,
-}
+#[cfg(all(feature = "client", feature = "client-v3"))]
+compile_error!("Cannot enable both 'client' (v2) and 'client-v3' features. Use 'client' for Solana v2 or 'client-v3' for Solana v3.");
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CurrentResult {
-    /// The median value of the submissions needed for quorom size
-    pub value: i128,
-    /// The standard deviation of the submissions needed for quorom size
-    pub std_dev: i128,
-    /// The mean of the submissions needed for quorom size
-    pub mean: i128,
-    /// The range of the submissions needed for quorom size
-    pub range: i128,
-    /// The minimum value of the submissions needed for quorom size
-    pub min_value: i128,
-    /// The maximum value of the submissions needed for quorom size
-    pub max_value: i128,
-    /// The number of samples used to calculate this result
-    pub num_samples: u8,
-    /// The index of the submission that was used to calculate this result
-    pub submission_idx: u8,
-    pub padding1: [u8; 6],
-    /// The slot at which this value was signed.
-    pub slot: u64,
-    /// The slot at which the first considered submission was made
-    pub min_slot: u64,
-    /// The slot at which the last considered submission was made
-    pub max_slot: u64,
-}
-impl CurrentResult {
-    /// The median value of the submissions needed for quorom size
-    pub fn value(&self) -> Option<i128> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.value)
-    }
+#[cfg(all(feature = "client-v2", feature = "client-v3"))]
+compile_error!("Cannot enable both 'client-v2' and 'client-v3' features. Choose one client version.");
 
-    /// The standard deviation of the submissions needed for quorom size
-    pub fn std_dev(&self) -> Option<i128> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.std_dev)
-    }
+// When both solana-v2 and client features are enabled, provide type compatibility layers
+#[cfg(all(feature = "solana-v2", feature = "client"))]
+pub mod v2_client_compat;
 
-    /// The mean of the submissions needed for quorom size
-    pub fn mean(&self) -> Option<i128> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.mean)
-    }
+#[cfg(all(feature = "solana-v2", feature = "client"))]
+pub mod instruction_compat;
 
-    /// The range of the submissions needed for quorom size
-    pub fn range(&self) -> Option<i128> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.range)
-    }
+#[cfg(all(feature = "solana-v2", feature = "client"))]
+pub use instruction_compat::CompatInstruction;
+#[cfg(all(feature = "solana-v2", feature = "client"))]
+pub use v2_client_compat::IntoV2Instruction;
 
-    /// The minimum value of the submissions needed for quorom size
-    pub fn min_value(&self) -> Option<i128> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.min_value)
-    }
-
-    /// The maximum value of the submissions needed for quorom size
-    pub fn max_value(&self) -> Option<i128> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.max_value)
-    }
-
-    pub fn result_slot(&self) -> Option<u64> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.slot)
-    }
-
-    pub fn min_slot(&self) -> Option<u64> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.min_slot)
-    }
-
-    pub fn max_slot(&self) -> Option<u64> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.max_slot)
+// Implement the conversion trait at crate root so it's always available
+#[cfg(all(feature = "solana-v2", feature = "client"))]
+impl instruction_compat::mixed_version::IntoInstructionBytes
+    for anchor_lang::solana_program::instruction::Instruction
+{
+    fn into_bytes(self) -> ([u8; 32], Vec<([u8; 32], bool, bool)>, Vec<u8>) {
+        let program_id_bytes = self.program_id.to_bytes();
+        let accounts_data: Vec<([u8; 32], bool, bool)> = self
+            .accounts
+            .into_iter()
+            .map(|meta| (meta.pubkey.to_bytes(), meta.is_signer, meta.is_writable))
+            .collect();
+        (program_id_bytes, accounts_data, self.data)
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct OracleSubmission {
-    /// The public key of the oracle that submitted this value.
-    pub oracle: Pubkey,
-    /// The slot at which this value was signed.
-    pub slot: u64,
-    /// The slot at which this value was landed on chain.
-    pub landed_at: u64,
-    /// The value that was submitted.
-    pub value: i128,
-}
+mod macros;
+#[allow(unused_imports)]
+use std::sync::Arc;
 
-impl OracleSubmission {
-    pub fn is_empty(&self) -> bool {
-        self.slot == 0
+/// Current SDK version
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// SDK name for identification
+pub const SDK_NAME: &str = "switchboard-on-demand";
+
+/// Supported Switchboard On-Demand program versions on Solana
+pub const SUPPORTED_PROGRAM_VERSIONS: &[&str] = &["0.7.0"];
+
+/// Minimum supported Solana version for compatibility
+pub const MIN_SOLANA_VERSION: &str = "1.18.0";
+
+/// Decimal number utilities for handling Switchboard oracle data
+pub mod decimal;
+pub use decimal::*;
+
+/// Small vector types with compact length prefixes for Borsh serialization
+pub mod smallvec;
+
+/// Core oracle functionality for on-demand data feeds
+pub mod on_demand;
+pub use on_demand::*;
+
+/// Utility functions and helpers
+pub mod utils;
+pub use utils::*;
+
+/// Traits extracted from anchor-lang to avoid dependency conflicts
+pub mod anchor_traits;
+pub use anchor_traits::*;
+
+/// Solana program ID constants
+pub mod program_id;
+pub use program_id::*;
+
+/// Solana account definitions and parsers
+pub mod accounts;
+/// Solana instruction builders and processors
+pub mod instructions;
+/// Common type definitions
+pub mod types;
+
+/// Re-exports of commonly used types and traits for convenience
+pub mod prelude;
+
+/// Solana version compatibility layer
+pub mod solana_compat;
+
+// Re-export everything from solana_compat for internal use
+pub use solana_compat::{solana_program, AccountMeta, Instruction, Pubkey, SYSTEM_PROGRAM_ID};
+
+// Re-export solana_sdk for client code (when client feature is enabled)
+#[cfg(feature = "client")]
+pub use solana_compat::solana_sdk;
+
+/// Solana sysvar utilities
+pub mod sysvar;
+pub use sysvar::*;
+
+/// AccountInfo compatibility layer
+mod account_info_compat;
+pub use account_info_compat::{AccountInfo, AsAccountInfo};
+
+cfg_client! {
+    use anchor_client::solana_sdk::signer::keypair::Keypair;
+    pub type AnchorClient = anchor_client::Client<Arc<Keypair>>;
+    pub type RpcClient = anchor_client::solana_client::nonblocking::rpc_client::RpcClient;
+
+    /// Client functionality for off-chain interactions with Switchboard On-Demand
+    ///
+    /// This module provides comprehensive tools for interacting with the Switchboard
+    /// Oracle Network and Crossbar API, including:
+    /// - Gateway and Crossbar API clients
+    /// - Pull feed management
+    /// - Oracle job definitions
+    /// - Transaction builders
+    /// - Cryptographic utilities
+    ///
+    /// Enable this module with the `client` feature flag.
+    ///
+    /// Access client functionality via the `client` module to avoid naming conflicts.
+    /// For example: `use switchboard_on_demand::client::{Gateway, PullFeed};`
+    pub mod client;
+
+    /// Returns the appropriate Switchboard On-Demand program ID for the current network.
+    ///
+    /// This client-compatible version returns anchor_lang::prelude::Pubkey type.
+    pub fn get_switchboard_on_demand_program_id() -> anchor_lang::prelude::Pubkey {
+        use anchor_lang::prelude::Pubkey;
+        if is_devnet() {
+            Pubkey::from(crate::ON_DEMAND_DEVNET_PID.to_bytes())
+        } else {
+            Pubkey::from(crate::ON_DEMAND_MAINNET_PID.to_bytes())
+        }
     }
 
-    pub fn value(&self) -> i128 {
-        self.value
-    }
-}
-
-/// A representation of the data in a pull feed account.
-#[repr(C)]
-#[account(zero_copy)]
-pub struct PullFeedAccountData {
-    /// The oracle submissions for this feed.
-    pub submissions: [OracleSubmission; 32],
-    /// The public key of the authority that can update the feed hash that
-    /// this account will use for registering updates.
-    pub authority: Pubkey,
-    /// The public key of the queue which oracles must be bound to in order to
-    /// submit data to this feed.
-    pub queue: Pubkey,
-    /// SHA-256 hash of the job schema oracles will execute to produce data
-    /// for this feed.
-    pub feed_hash: [u8; 32],
-    /// The slot at which this account was initialized.
-    pub initialized_at: i64,
-    pub permissions: u64,
-    pub max_variance: u64,
-    pub min_responses: u32,
-    pub name: [u8; 32],
-    _padding1: [u8; 2],
-    pub historical_result_idx: u8,
-    pub min_sample_size: u8,
-    pub last_update_timestamp: i64,
-    pub lut_slot: u64,
-    _reserved1: [u8; 32], // deprecated
-    pub result: CurrentResult,
-    pub max_staleness: u32,
-    _padding2: [u8; 12],
-    pub historical_results: [CompactResult; 32],
-    _ebuf4: [u8; 8],
-    _ebuf3: [u8; 24],
-    _ebuf2: [u8; 256],
-}
-
-impl PullFeedAccountData {
-    pub fn discriminator() -> [u8; 8] {
-        [196, 27, 108, 196, 10, 215, 219, 40]
+    /// Determines if the devnet environment is enabled for client usage.
+    pub fn is_devnet() -> bool {
+        cfg!(feature = "devnet") || std::env::var("SB_ENV").unwrap_or_default() == "devnet"
     }
 
-    /// The median value of the submissions needed for quorom size
-    pub fn median_value(&self) -> Option<i128> {
-        self.result.value()
-    }
+    /// Seed bytes for deriving the Switchboard state account PDA.
+    pub const STATE_SEED: &[u8] = b"STATE";
 
-    /// The standard deviation of the submissions needed for quorom size
-    pub fn std_dev(&self) -> Option<i128> {
-        self.result.std_dev()
-    }
+    /// Seed bytes for deriving oracle feed statistics account PDAs.
+    pub const ORACLE_FEED_STATS_SEED: &[u8] = b"OracleFeedStats";
 
-    /// The mean of the submissions needed for quorom size
-    pub fn mean(&self) -> Option<i128> {
-        self.result.mean()
-    }
+    /// Seed bytes for deriving oracle randomness statistics account PDAs.
+    pub const ORACLE_RANDOMNESS_STATS_SEED: &[u8] = b"OracleRandomnessStats";
 
-    /// The range of the submissions needed for quorom size
-    pub fn range(&self) -> Option<i128> {
-        self.result.range()
-    }
+    /// Seed bytes for deriving oracle statistics account PDAs.
+    pub const ORACLE_STATS_SEED: &[u8] = b"OracleStats";
 
-    /// The minimum value of the submissions needed for quorom size
-    pub fn min_value(&self) -> Option<i128> {
-        self.result.min_value()
-    }
+    /// Seed bytes for deriving lookup table signer account PDAs.
+    pub const LUT_SIGNER_SEED: &[u8] = b"LutSigner";
 
-    /// The maximum value of the submissions needed for quorom size
-    pub fn max_value(&self) -> Option<i128> {
-        self.result.max_value()
-    }
+    /// Seed bytes for deriving delegation account PDAs.
+    pub const DELEGATION_SEED: &[u8] = b"Delegation";
 
-    pub fn median_result_land_slot(&self) -> u64 {
-        let submission: OracleSubmission = self.submissions[self.result.submission_idx as usize];
-        submission.landed_at
-    }
+    /// Seed bytes for deriving delegation group account PDAs.
+    pub const DELEGATION_GROUP_SEED: &[u8] = b"Group";
 
-    pub fn latest_submissions(&self) -> Vec<OracleSubmission> {
-        let max_landed_at = self
-            .submissions
-            .iter()
-            .map(|s| s.landed_at)
-            .max()
-            .unwrap_or(0);
-        self.submissions
-            .iter()
-            .filter(|submission| submission.landed_at == max_landed_at)
-            .cloned()
-            .collect()
-    }
+    /// Seed bytes for deriving reward pool vault account PDAs.
+    pub const REWARD_POOL_VAULT_SEED: &[u8] = b"RewardPool";
 }
