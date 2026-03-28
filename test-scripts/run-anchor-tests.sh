@@ -37,6 +37,7 @@ test_files=(
   fillSpot.ts
   highLeverageMode.ts
   ifRebalance.ts
+  adminWithdrawFromInsuranceFundVault.ts
   insuranceFundStake.ts
   isolatedPositionDriftClient.ts
   isolatedPositionLiquidatePerp.ts
@@ -73,7 +74,6 @@ test_files=(
   postOnly.ts
   prelisting.ts
   pyth.ts
-  pythPull.ts
   pythLazerBankrun.ts
   referrer.ts
   roundInFavorBaseAsset.ts
@@ -96,6 +96,7 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
+  perpMarketConfig.ts
   # whitelist.ts
 )
 

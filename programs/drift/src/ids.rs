@@ -86,6 +86,18 @@ pub mod if_rebalance_wallet {
     declare_id!("BuynBZjr5yiZCFpXngFQ31BAwechmFE1Ab6vNP3f5PTt");
 }
 
+/// Designated owner for insurance fund admin withdrawal. Only token accounts owned by this
+/// pubkey can receive; prevents redirecting funds to an arbitrary address.
+pub mod insurance_fund_withdrawal_recipient {
+    use solana_program::declare_id;
+    #[cfg(feature = "anchor-test")]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+    #[cfg(all(not(feature = "anchor-test"), feature = "mainnet-beta"))]
+    declare_id!("GYUvtRMa3UTdMrwM9a78ZcouAv7b7t8komeGVdkNn6SG");
+    #[cfg(all(not(feature = "anchor-test"), not(feature = "mainnet-beta")))]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+}
+
 pub mod lighthouse {
     use solana_program::declare_id;
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");

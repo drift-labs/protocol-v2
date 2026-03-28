@@ -15,7 +15,7 @@ import {
 
 export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	private client: Client;
-	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
+	private stream: ClientDuplexStream;
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
 

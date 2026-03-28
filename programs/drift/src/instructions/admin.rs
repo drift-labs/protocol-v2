@@ -3,8 +3,6 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
-use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
-use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
 use std::convert::{identity, TryInto};
 use std::mem::size_of;
@@ -17,6 +15,7 @@ use crate::ids::{admin_hot_wallet, amm_spread_adjust_wallet, mm_oracle_crank_wal
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::load;
+use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
@@ -62,7 +61,8 @@ use crate::state::oracle::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
-    ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
+    ContractTier, ContractType, InsuranceClaim, MarketConfigFlag, MarketStatus, PerpMarket,
+    PoolBalance, AMM,
 };
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -82,7 +82,6 @@ use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
-use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 
 use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
@@ -1007,7 +1006,8 @@ pub fn handle_initialize_perp_market(
         lp_paused_operations: 0,
         last_fill_price: 0,
         lp_pool_id,
-        padding: [0; 23],
+        market_config: 0,
+        padding: [0; 22],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -4641,31 +4641,6 @@ pub fn handle_delete_prelaunch_oracle(
     Ok(())
 }
 
-pub fn handle_initialize_pyth_pull_oracle(
-    ctx: Context<InitPythPullPriceFeed>,
-    feed_id: [u8; 32],
-) -> Result<()> {
-    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
-    let cpi_accounts = InitPriceUpdate {
-        payer: ctx.accounts.admin.to_account_info(),
-        price_update_account: ctx.accounts.price_feed.to_account_info(),
-        system_program: ctx.accounts.system_program.to_account_info(),
-        write_authority: ctx.accounts.price_feed.to_account_info(),
-    };
-
-    let seeds = &[
-        PTYH_PRICE_FEED_SEED_PREFIX,
-        feed_id.as_ref(),
-        &[ctx.bumps.price_feed],
-    ];
-    let signer_seeds = &[&seeds[..]];
-    let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-
-    pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context, feed_id)?;
-
-    Ok(())
-}
-
 pub fn handle_initialize_pyth_lazer_oracle(
     ctx: Context<InitPythLazerOracle>,
     feed_id: u32,
@@ -5229,6 +5204,44 @@ pub fn handle_update_feature_bit_flags_mint_redeem_lp_pool(
         state.lp_pool_feature_bit_flags =
             state.lp_pool_feature_bit_flags & !(LpPoolFeatureBitFlags::MintRedeemLpPool as u8);
     }
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_config(
+    ctx: Context<HotAdminUpdatePerpMarket>,
+    market_config: u8,
+) -> Result<()> {
+    let allowed_bits = MarketConfigFlag::DisableFormulaicKUpdate as u8;
+
+    validate!(
+        market_config & !allowed_bits == 0,
+        ErrorCode::InvalidPerpMarketConfig,
+        "unknown bits set in market_config: {:?}",
+        market_config
+    )?;
+
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    if *ctx.accounts.admin.key != ctx.accounts.state.admin {
+        validate!(
+            market_config == 0,
+            ErrorCode::DefaultError,
+            "signer must be state admin to enable market config flags",
+        )?;
+    }
+
+    msg!(
+        "perp_market.market_config: {:?} -> {:?}",
+        perp_market.market_config,
+        market_config
+    );
+
+    perp_market.market_config = market_config;
+
     Ok(())
 }
 
@@ -5995,22 +6008,6 @@ pub struct DeleteOpenbookV2FulfillmentConfig<'info> {
         constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
     )]
     pub admin: Signer<'info>,
-}
-
-#[derive(Accounts)]
-#[instruction(feed_id : [u8; 32])]
-pub struct InitPythPullPriceFeed<'info> {
-    #[account(
-        mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
-    )]
-    pub admin: Signer<'info>,
-    pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
-    /// CHECK: This account's seeds are checked
-    #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
-    pub price_feed: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
-    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]

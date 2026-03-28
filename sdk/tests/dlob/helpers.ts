@@ -209,6 +209,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		lpExchangeFeeExcluscionScalar: 0,
 		lpStatus: 0,
 		lpPausedOperations: 0,
+		marketConfig: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -261,6 +262,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		lpExchangeFeeExcluscionScalar: 0,
 		lpStatus: 0,
 		lpPausedOperations: 0,
+		marketConfig: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -313,6 +315,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		lpExchangeFeeExcluscionScalar: 0,
 		lpStatus: 0,
 		lpPausedOperations: 0,
+		marketConfig: 0,
 	},
 ];
 

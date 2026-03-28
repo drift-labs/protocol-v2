@@ -301,6 +301,7 @@ describe('pyth-oracle', () => {
 	});
 
 	it('oracle/vamm: funding rate calc 0hour periodicity', async () => {
+		await bankrunContextWrapper.moveTimeForward(2);
 		const priceFeedAddress = await mockOracleNoProgram(
 			bankrunContextWrapper,
 			40,
@@ -330,6 +331,7 @@ describe('pyth-oracle', () => {
 	});
 
 	it('oracle/vamm: funding rate calc2 0hour periodicity', async () => {
+		await bankrunContextWrapper.moveTimeForward(2);
 		const priceFeedAddress = await mockOracleNoProgram(
 			bankrunContextWrapper,
 			40,

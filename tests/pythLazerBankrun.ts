@@ -22,7 +22,6 @@ import {
 	PYTH_LAZER_HEX_STRING_SOL,
 	PYTH_STORAGE_DATA,
 } from './pythLazerData';
-import { mockOracleNoProgram } from './testHelpers';
 
 // set up account infos to load into banks client
 const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
@@ -33,7 +32,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
 };
 
-describe('pyth pull oracles', () => {
+describe('pyth lazer oracles', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
@@ -43,7 +42,7 @@ describe('pyth pull oracles', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint;
 
-	const feedId = 0;
+	const feedId = 6;
 
 	let feedAddress: PublicKey;
 
@@ -99,6 +98,12 @@ describe('pyth pull oracles', () => {
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
 
+		await driftClient.initializePythLazerOracle(feedId);
+		await driftClient.postPythLazerOracleUpdate(
+			[feedId],
+			PYTH_LAZER_HEX_STRING_SOL
+		);
+
 		const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 		const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
 			mantissaSqrtScale
@@ -109,11 +114,12 @@ describe('pyth pull oracles', () => {
 		const periodicity = new BN(0);
 		await driftClient.initializePerpMarket(
 			0,
-			await mockOracleNoProgram(bankrunContextWrapper, 224.3),
+			feedAddress,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(82 * PEG_PRECISION.toNumber()),
+			OracleSource.PYTH_LAZER
 		);
 		await driftClient.initializeAmmCache();
 
@@ -127,7 +133,7 @@ describe('pyth pull oracles', () => {
 	it('init feed', async () => {
 		await driftClient.initializePythLazerOracle(1);
 		await driftClient.initializePythLazerOracle(2);
-		await driftClient.initializePythLazerOracle(6);
+		// await driftClient.initializePythLazerOracle(6); before hook already initialized SOL oracle
 	});
 
 	it('crank single', async () => {

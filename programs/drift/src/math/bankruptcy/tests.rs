@@ -1,4 +1,5 @@
 use crate::math::bankruptcy::is_cross_margin_bankrupt;
+use crate::math::bankruptcy::is_isolated_margin_bankrupt;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User};
 use crate::test_utils::{get_positions, get_spot_positions};
@@ -121,5 +122,8 @@ fn user_with_isolated_position() {
     user_with_negative_pnl.perp_positions[0].quote_asset_amount = -1000000000000000000;
 
     let is_bankrupt = is_cross_margin_bankrupt(&user_with_negative_pnl);
+    assert!(!is_bankrupt);
+
+    let is_bankrupt = is_isolated_margin_bankrupt(&user_with_negative_pnl, 0).unwrap();
     assert!(is_bankrupt);
 }
