@@ -21,8 +21,9 @@ RUN mkdir -p /workdir /tmp \
     libssl-dev libudev-dev bash software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.78.0 \
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.70.0 \
     && . "$HOME/.cargo/env" \
+    && rustup install 1.78.0 \
     && rustup component add rustfmt clippy --toolchain 1.78.0
 
 ENV PATH="/root/.cargo/bin:${PATH}"
