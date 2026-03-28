@@ -648,7 +648,8 @@ pub fn update_pool_balances(
             market.amm.fee_pool.balance_type(),
         )?;
 
-        if amm_fee_pool_token_amount < amm_target_min_fee_pool_token_amount {
+        // Only top up if zero
+        if amm_fee_pool_token_amount == 0 {
             let pnl_pool_token_amount = get_token_amount(
                 market.pnl_pool.balance(),
                 spot_market,
