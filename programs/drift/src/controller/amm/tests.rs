@@ -1,11 +1,16 @@
+use std::str::FromStr;
+
 use crate::controller::amm::*;
 use crate::controller::insurance::settle_revenue_to_insurance_fund;
+use crate::controller::spot_balance::execute_transfer_between_pools;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64, QUOTE_PRECISION,
     QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
 };
+use crate::state::events::TransferFeeAndPnlPoolDirection;
 use crate::state::perp_market::{InsuranceClaim, PoolBalance};
 use crate::state::user::SpotPosition;
+use crate::test_utils::create_account_info;
 
 #[test]
 fn concentration_coef_tests() {
@@ -1949,5 +1954,114 @@ mod revenue_pool_transfer_tests {
         assert_eq!(to_settle_with_user, -100);
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 10000);
         assert_eq!(spot_market.revenue_pool.scaled_balance, 9870000000000);
+    }
+}
+
+#[test]
+pub fn test_perp_market_transfer_fee_and_pnl_pool() {
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+
+    // SOL (as of slot 409451609)
+    let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hJIP3BAAAAAAAAAAAAAAAAAAAAAAAAAAAFuz0BAAAAACWcfYEAAAAANrux2kAAAAAp70SNM7//////////////2sMl0Xy//////////////8trAi6p0siAAAAAAAAAAAAAAAAAAAAAACIu8ipHGCTAAAAAAAAAAAAVrJHsB9fkwAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAAC8RNAUBsSSAAAAAAAAAAAAaQXlPOr7kwAAAAAAAAAAABvv0SyeX5MAAAAAAAAAAACqi/cEAAAAAAAAAAAAAAAASYvFspZfkwAAAAAAAAAAAAA9XbpHcQEAAAAAAAAAAACAu7hCQY7+////////////gPgV/Yj//////////////wAAAAAAAAAAAAAAAAAAAAAAAI1J/RoHAAAAAAAAAAAA+T41l9cCAAAAAAAAAAAAAGat7M1w1/////////////+SMT48ViwAAAAAAAAAAAAAfYgvvOLX/////////////0+x5G+hKwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHv0//////8ce/T//////xx79P//////sVT8//////+LhuNqHRoAAAAAAAAAAAAAV7ZkZSsKAAAAAAAAAAAAALPxdxgWEAAAAAAAAAAAAAAmzXDeFw0AAAAAAAAAAAAAtsCc654HAAAAAAAAAAAAABdPYMUUBQAAAAAAAAAAAAAPd7FXCgAAAAAAAAAAAAAAlBtnSwoAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAACjWX5b7GOTAAAAAAAAAAAASJ5XHlBbkwAAAAAAAAAAAMnRdxl0bJMAAAAAAAAAAABf/UNeyVKTAAAAAAAAAAAAJIP3BAAAAAAAAAAAAAAAAFJ58wQAAAAAjlT1BAAAAADwZvQEAAAAAAYF9gQAAAAA/L9nGAAAAACBAAAAAAAAAJJcigcAAAAA8ezHaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACLAZxgAAAAA04ppTjoWAAAmbBjfewAAALWEqk9HAAAAsu7HaQAAAACdxAIAAAAAAD6XAgAAAAAA2u7HaQAAAADIAAAAIE4AAMYAAAD+AAAAUVP3BAAAAACoYTIAaGQMAcDIUt4DFGL/ULdE/RZOBgCbVq///////9zgRcTl////cP7//+wAAADEu/QEAAAAAPviFO8ZTxYAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAsnK2MSwAAAAC7cdpAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAAE3I+AAAAAAA8XMAAAAAAADREwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAbg0AAKgJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAAIRXvcEAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+
+    let mut sol_perp_decoded = base64::decode(sol_perp_market_str).unwrap();
+    let sol_perp_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        sol_perp_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let sol_perp_market = *AccountLoader::<PerpMarket>::try_from(&sol_perp_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    // USDC (as of slot 409451751)
+    let usdc_spot_market_str = String::from("ZLEIa6hBQSdUX6MOo7w/PClm2otsPf7406t9pXygIypU5KAmT//Dwn4XAskDe6KnOB2fuc5t8V0PxU10u3MRn4rxLxkMDhW+xvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWHmsHZFgFFAI49uEcLfeyYJqqXqJL+++g9w+I4yK2cfD1VTREMgICAgICAgICAgICAgICAgICAgICAgICAgICAgukEPAAAAAAAtAAAAAAAAAB0AAAAAAAAA50EPAAAAAAC8QQ8AAAAAAGrtx2kAAAAAQEIPAAAAAABAQg8AAAAAAEBCDwAAAAAAQEIPAAAAAAAAAAAAAAAAAKyHT4jBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABHkMifZGT+FrLhfKfHFav7xo95PrVMA7wMfE+znV7oDulKyko0DAAAAAAAAAAAAAL1XqBIzAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAABt4cdpAAAAABAOAAAAAAAAoIYBAFzBAAAAAAAAAAAAAAAAAAAAAAAAfkv1jv7JXgEAAAAAAAAAAJfdQb4XCK8AAAAAAAAAAAAX/nXMAgAAAAAAAAAAAAAApqF/QQMAAAAAAAAAAAAAAG8haMUAAAAAAAAAAAAAAAAOgmjFAAAAAAAAAAAAAAAAAJAexLwWAAAAQGNSv8YBAAP7bLiXbQAAiOggJmc+AACI3AgAAAAAAIvtx2kAAAAAi+3HaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAU0MIAAAAAABAnAAAQJwAAECcAABAnAAAAAAAAAAAAAIgTAAAANQwAFM0AAKC7DQAGAAAAAAAADwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKMFwEAAAAAAADpQcxrAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
+    let mut usdc_spot_decoded = base64::decode(usdc_spot_market_str).unwrap();
+    let usdc_spot_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        usdc_spot_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let usdc_spot_market = *AccountLoader::<SpotMarket>::try_from(&usdc_spot_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    // Case 1: transfer SOL's fee -> pnl
+    {
+        let mut case_market = sol_perp_market.clone();
+        let mut case_spot_market = usdc_spot_market.clone();
+
+        let fee_pool_amount_before = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_before = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let transfer_amount = (fee_pool_amount_before / 2) as u64;
+
+        let fee_pool = &mut case_market.amm.fee_pool as *mut PoolBalance;
+        let pnl_pool = &mut case_market.pnl_pool as *mut PoolBalance;
+
+        execute_transfer_between_pools(
+            transfer_amount,
+            &mut case_spot_market,
+            unsafe { &mut *fee_pool },
+            unsafe { &mut *pnl_pool },
+            case_market.market_index,
+            case_market.market_index,
+            TransferFeeAndPnlPoolDirection::FeeToPnlPool,
+        )
+        .unwrap();
+
+        case_market.amm.total_fee_minus_distributions = case_market
+            .amm
+            .total_fee_minus_distributions
+            .safe_sub(transfer_amount.cast().unwrap())
+            .unwrap();
+
+        let now = 0_i64;
+        update_pool_balances(&mut case_market, &mut case_spot_market, 0, 0, now).unwrap();
+
+        let fee_pool_amount_after = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_after = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(
+            fee_pool_amount_after,
+            fee_pool_amount_before - transfer_amount as u128
+        );
+        assert_eq!(
+            pnl_pool_amount_after,
+            pnl_pool_amount_before + transfer_amount as u128
+        );
     }
 }
