@@ -92,7 +92,13 @@ describe('referrer', () => {
 			bankrunContextWrapper
 		);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			100,
+			-7,
+			undefined,
+			10000
+		);
 
 		const marketIndexes = [0];
 		const spotMarketIndexes = [0];

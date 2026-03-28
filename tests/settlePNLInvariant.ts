@@ -91,7 +91,13 @@ describe('spot deposit and withdraw', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		await mockUserUSDCAccount(usdcMint, largeUsdcAmount, bankrunContextWrapper);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 30);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			30,
+			-7,
+			undefined,
+			10000
+		);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];

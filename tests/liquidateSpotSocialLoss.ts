@@ -77,7 +77,13 @@ describe('liquidate spot w/ social loss', () => {
 			ZERO
 		);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			100,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -168,7 +174,7 @@ describe('liquidate spot w/ social loss', () => {
 	});
 
 	it('liquidate', async () => {
-		await setFeedPriceNoProgram(bankrunContextWrapper, 200, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 200, solOracle, 10000);
 		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
 		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
 

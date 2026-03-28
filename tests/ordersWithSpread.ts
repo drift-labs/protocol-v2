@@ -90,7 +90,13 @@ describe('amm spread: market order', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0];
@@ -155,7 +161,7 @@ describe('amm spread: market order', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, 1, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1, solUsd, 10000);
 	});
 
 	after(async () => {
@@ -638,7 +644,13 @@ describe('amm spread: market order', () => {
 		const marketIndex2Num = 1;
 		const marketIndex2 = marketIndex2Num;
 		const peg = 40000;
-		const btcUsd = await mockOracleNoProgram(bankrunContextWrapper, peg);
+		const btcUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			peg,
+			-7,
+			undefined,
+			10000
+		);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));

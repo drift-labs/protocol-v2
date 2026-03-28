@@ -86,7 +86,13 @@ describe('liquidate perp (no open orders)', () => {
 			bankrunContextWrapper
 		);
 
-		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		const oracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -224,7 +230,7 @@ describe('liquidate perp (no open orders)', () => {
 		await driftClientUser.subscribe();
 
 		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle, 10000);
 
 		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
@@ -232,7 +238,7 @@ describe('liquidate perp (no open orders)', () => {
 			0
 		);
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle, 10000);
 
 		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
@@ -242,7 +248,7 @@ describe('liquidate perp (no open orders)', () => {
 
 		await driftClientUser.unsubscribe();
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle, 10000);
 
 		const txSig1 = await liquidatorDriftClient.setUserStatusToBeingLiquidated(
 			await driftClient.getUserAccountPublicKey(),

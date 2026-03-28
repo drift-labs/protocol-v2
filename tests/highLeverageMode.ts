@@ -92,7 +92,13 @@ describe('max leverage order params', () => {
 			bankrunContextWrapper
 		);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -261,7 +267,7 @@ describe('max leverage order params', () => {
 		);
 
 		// Crash oracle price so the long position has large unrealized loss and user no longer meets maintenance
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.2, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.2, solOracle, 10000);
 
 		await driftClient.fetchAccounts();
 
@@ -278,7 +284,7 @@ describe('max leverage order params', () => {
 				failed = true;
 			}
 		} finally {
-			await setFeedPriceNoProgram(bankrunContextWrapper, 1, solOracle);
+			await setFeedPriceNoProgram(bankrunContextWrapper, 1, solOracle, 10000);
 			await driftClient.closePosition(0);
 		}
 		assert(

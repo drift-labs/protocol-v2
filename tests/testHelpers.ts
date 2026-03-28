@@ -100,7 +100,8 @@ export async function mockOracleNoProgram(
 	context: BankrunContextWrapper,
 	price: number = 50 * 10e7,
 	expo = -7,
-	confidence?: number
+	confidence?: number,
+	postedSlotOffset = 0
 ): Promise<PublicKey> {
 	const currentSlot = Number(await context.connection.getSlot());
 	const driftProgramId = new PublicKey(DRIFT_PROGRAM_ID);
@@ -108,7 +109,7 @@ export async function mockOracleNoProgram(
 	const scaledPrice = BigInt(Math.round(price * 10 ** -expo));
 	const scaledConf = confidence
 		? BigInt(Math.round(confidence * 10 ** -expo))
-		: scaledPrice / BigInt(10);
+		: scaledPrice / BigInt(1000);
 
 	const discriminator = crypto
 		.createHash('sha256')
@@ -120,7 +121,7 @@ export async function mockOracleNoProgram(
 	discriminator.copy(oracleData, 0);
 	oracleData.writeBigInt64LE(scaledPrice, 8);
 	oracleData.writeBigUInt64LE(BigInt(1), 16);
-	oracleData.writeBigUInt64LE(BigInt(currentSlot + 10000), 24);
+	oracleData.writeBigUInt64LE(BigInt(currentSlot + postedSlotOffset), 24);
 	oracleData.writeInt32LE(expo, 32);
 	oracleData.writeUInt32LE(0, 36);
 	oracleData.writeBigUInt64LE(scaledConf, 40);
@@ -801,7 +802,8 @@ export const setFeedPrice = async (
 export const setFeedPriceNoProgram = async (
 	context: BankrunContextWrapper,
 	newPrice: number,
-	priceFeed: PublicKey
+	priceFeed: PublicKey,
+	postedSlotOffset = 0
 ) => {
 	const info = await context.connection.getAccountInfo(priceFeed);
 	const data = Buffer.from(info.data);
@@ -809,10 +811,10 @@ export const setFeedPriceNoProgram = async (
 	const currentSlot = Number(await context.connection.getSlot());
 	const exponent = data.readInt32LE(32);
 	const scaledPrice = BigInt(Math.round(newPrice * 10 ** -exponent));
-	const scaledConf = scaledPrice / BigInt(10);
+	const scaledConf = scaledPrice / BigInt(1000);
 
 	data.writeBigInt64LE(scaledPrice, 8);
-	data.writeBigUInt64LE(BigInt(currentSlot + 10000), 24);
+	data.writeBigUInt64LE(BigInt(currentSlot + postedSlotOffset), 24);
 	data.writeBigUInt64LE(scaledConf, 40);
 
 	context.context.setAccount(priceFeed, {

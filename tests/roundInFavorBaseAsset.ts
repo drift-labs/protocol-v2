@@ -63,7 +63,13 @@ describe('round in favor', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 63000);
+		const solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			63000,
+			-7,
+			undefined,
+			10000
+		);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0];

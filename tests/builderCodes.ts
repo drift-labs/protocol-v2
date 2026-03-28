@@ -152,7 +152,13 @@ describe('builder codes', () => {
 			1
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 84);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			84,
+			-7,
+			undefined,
+			10000
+		);
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
 		marketIndexes = [0, 1];

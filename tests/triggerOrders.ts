@@ -86,7 +86,13 @@ describe('trigger orders', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 		marketIndexes = [0];
 		spotMarketIndexes = [0];
 		oracleInfos = [
@@ -165,7 +171,7 @@ describe('trigger orders', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, 1, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1, solUsd, 10000);
 	});
 
 	after(async () => {
@@ -254,7 +260,12 @@ describe('trigger orders', () => {
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newOraclePrice,
+			solUsd,
+			10000
+		);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
@@ -361,7 +372,12 @@ describe('trigger orders', () => {
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newOraclePrice,
+			solUsd,
+			10000
+		);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
@@ -465,7 +481,12 @@ describe('trigger orders', () => {
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newOraclePrice,
+			solUsd,
+			10000
+		);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
@@ -580,7 +601,12 @@ describe('trigger orders', () => {
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newOraclePrice,
+			solUsd,
+			10000
+		);
 
 		await driftClientUser.fetchAccounts();
 
@@ -693,7 +719,7 @@ describe('trigger orders', () => {
 			ammInitialBaseAssetReserve.div(new BN(2)),
 			ammInitialQuoteAssetReserve
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, 2.01, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 2.01, solUsd, 10000);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
@@ -800,7 +826,12 @@ describe('trigger orders', () => {
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newOraclePrice,
+			solUsd,
+			10000
+		);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
@@ -904,7 +935,7 @@ describe('trigger orders', () => {
 			ammInitialBaseAssetReserve.mul(new BN(2)),
 			ammInitialQuoteAssetReserve
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.49, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.49, solUsd, 10000);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
@@ -1011,7 +1042,12 @@ describe('trigger orders', () => {
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newOraclePrice,
+			solUsd,
+			10000
+		);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
