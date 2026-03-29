@@ -139,7 +139,7 @@ jobs:
         run: yarn
 
       - name: install typescript
-        run: npm install typescript -g
+        run: npm install typescript@5.4.5 -g
 
       - name: install mocha
         run: |
@@ -180,7 +180,7 @@ jobs:
       - name: Install ts-mocha and typescript
         run: |
           npm install -g ts-mocha
-          npm install -g typescript
+          npm install typescript@5.4.5 -g
 
       - name: Run tests
         env:
