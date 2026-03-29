@@ -4754,7 +4754,8 @@ pub struct Withdraw<'info> {
     pub drift_signer: AccountInfo<'info>,
     #[account(
         mut,
-        constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
+        constraint = user_token_account.key() != spot_market_vault.key() @ ErrorCode::InvalidSpotPosition
     )]
     pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
@@ -4961,9 +4962,10 @@ pub struct WithdrawIsolatedPerpPosition<'info> {
     )]
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
-    #[account(
+   #[account(
         mut,
-        constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
+        constraint = user_token_account.key() != spot_market_vault.key() @ ErrorCode::InvalidSpotPosition
     )]
     pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
