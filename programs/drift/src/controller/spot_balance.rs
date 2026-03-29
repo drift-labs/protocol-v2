@@ -1,4 +1,5 @@
 use crate::math::oracle::{oracle_validity, LogMode};
+use crate::state::perp_market::PoolBalance;
 use crate::state::state::ValidityGuardRails;
 use std::cmp::max; //, OracleValidity};
 
@@ -20,7 +21,7 @@ use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
-use crate::state::events::SpotInterestRecord;
+use crate::state::events::{SpotInterestRecord, TransferFeeAndPnlPoolDirection};
 use crate::state::oracle::OraclePriceData;
 use crate::state::paused_operations::SpotOperation;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
@@ -458,6 +459,87 @@ fn decrease_spot_balance(
             spot_market.borrow_balance = spot_market.borrow_balance.safe_sub(delta)?
         }
     }
+
+    Ok(())
+}
+
+pub fn execute_transfer_between_pools(
+    amount: u64,
+    spot_market: &mut SpotMarket,
+    fee_pool: &mut PoolBalance,
+    pnl_pool: &mut PoolBalance,
+    fee_pool_market_index: u16,
+    pnl_pool_market_index: u16,
+    direction: TransferFeeAndPnlPoolDirection,
+) -> Result<()> {
+    let (source_name, dest_name, source_index, dest_index, source_token_amount) = match direction {
+        TransferFeeAndPnlPoolDirection::FeeToPnlPool => (
+            "fee",
+            "pnl",
+            fee_pool_market_index,
+            pnl_pool_market_index,
+            get_token_amount(
+                fee_pool.scaled_balance,
+                spot_market,
+                &SpotBalanceType::Deposit,
+            )?,
+        ),
+        TransferFeeAndPnlPoolDirection::PnlToFeePool => (
+            "pnl",
+            "fee",
+            pnl_pool_market_index,
+            fee_pool_market_index,
+            get_token_amount(
+                pnl_pool.scaled_balance,
+                spot_market,
+                &SpotBalanceType::Deposit,
+            )?,
+        ),
+    };
+
+    validate!(
+        amount.cast::<u128>()? <= source_token_amount,
+        ErrorCode::DefaultError,
+        "insufficient {} pool balance: {} < {}",
+        source_name,
+        source_token_amount,
+        amount,
+    )?;
+
+    msg!(
+        "transferring {} from perp market {} {} pool -> perp market {} {} pool",
+        amount,
+        source_index,
+        source_name,
+        dest_index,
+        dest_name,
+    );
+
+    match direction {
+        TransferFeeAndPnlPoolDirection::FeeToPnlPool => {
+            transfer_spot_balances(amount.cast::<i128>()?, spot_market, fee_pool, pnl_pool)?;
+        }
+        TransferFeeAndPnlPoolDirection::PnlToFeePool => {
+            transfer_spot_balances(amount.cast::<i128>()?, spot_market, pnl_pool, fee_pool)?;
+        }
+    }
+
+    msg!(
+        "transferred {} fee_pool(market {}) token_amount: {} pnl_pool(market {}) token_amount: {}",
+        amount,
+        fee_pool_market_index,
+        get_token_amount(
+            fee_pool.scaled_balance,
+            spot_market,
+            &SpotBalanceType::Deposit
+        )?,
+        pnl_pool_market_index,
+        get_token_amount(
+            pnl_pool.scaled_balance,
+            spot_market,
+            &SpotBalanceType::Deposit
+        )?,
+    );
 
     Ok(())
 }

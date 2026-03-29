@@ -10,6 +10,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::events::TransferFeeAndPnlPoolDirection;
 use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
@@ -21,7 +22,6 @@ use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
-
 pub mod controller;
 pub mod error;
 pub mod ids;
@@ -2242,6 +2242,14 @@ pub mod drift {
         market_config: u8,
     ) -> Result<()> {
         handle_update_perp_market_config(ctx, market_config)
+    }
+
+    pub fn transfer_fee_and_pnl_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferFeeAndPnlPool<'info>>,
+        amount: u64,
+        direction: TransferFeeAndPnlPoolDirection,
+    ) -> Result<()> {
+        handle_transfer_fee_and_pnl_pool(ctx, amount, direction)
     }
 }
 

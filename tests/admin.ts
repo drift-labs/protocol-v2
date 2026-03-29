@@ -49,7 +49,7 @@ describe('admin', () => {
 	before(async () => {
 		const context = await startAnchor('', [], []);
 
-		bankrunContextWrapper = new BankrunContextWrapper(context);
+		bankrunContextWrapper = new BankrunContextWrapper(context as any);
 
 		bulkAccountLoader = new TestBulkAccountLoader(
 			bankrunContextWrapper.connection,
@@ -106,6 +106,7 @@ describe('admin', () => {
 			new BN(1000),
 			periodicity
 		);
+
 		await driftClient.initializeAmmCache();
 	});
 

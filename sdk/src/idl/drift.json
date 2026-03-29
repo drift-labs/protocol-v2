@@ -3839,112 +3839,6 @@
       ]
     },
     {
-      "name": "updatePythPullOracle",
-      "accounts": [
-        {
-          "name": "keeper",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "encodedVaa",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "priceFeed",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feedId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "params",
-          "type": "bytes"
-        }
-      ]
-    },
-    {
-      "name": "postPythPullOracleUpdateAtomic",
-      "accounts": [
-        {
-          "name": "keeper",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "guardianSet",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "priceFeed",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feedId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "params",
-          "type": "bytes"
-        }
-      ]
-    },
-    {
-      "name": "postMultiPythPullOracleUpdatesAtomic",
-      "accounts": [
-        {
-          "name": "keeper",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "guardianSet",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "params",
-          "type": "bytes"
-        }
-      ]
-    },
-    {
       "name": "pauseSpotMarketDepositWithdraw",
       "accounts": [
         {
@@ -7284,47 +7178,6 @@
       ]
     },
     {
-      "name": "initializePythPullOracle",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "priceFeed",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feedId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
       "name": "initializePythLazerOracle",
       "accounts": [
         {
@@ -9402,6 +9255,53 @@
         {
           "name": "marketConfig",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "transferFeeAndPnlPool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "perpMarketWithFeePool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarketWithPnlPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": "TransferFeeAndPnlPoolDirection"
+          }
         }
       ]
     }
@@ -15590,6 +15490,20 @@
       }
     },
     {
+      "name": "TransferFeeAndPnlPoolDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "FeeToPnlPool"
+          },
+          {
+            "name": "PnlToFeePool"
+          }
+        ]
+      }
+    },
+    {
       "name": "FillMode",
       "type": {
         "kind": "enum",
@@ -17744,6 +17658,56 @@
         {
           "name": "transferAmount",
           "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "AdminWithdrawFromInsuranceFundRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "admin",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "sharesBurned",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "insuranceFundVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "protocolSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "protocolSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "recipientTokenAccount",
+          "type": "publicKey",
           "index": false
         }
       ]
@@ -20134,6 +20098,11 @@
       "code": 6348,
       "name": "InvalidPerpMarketConfig",
       "msg": "Invalid perp market config"
+    },
+    {
+      "code": 6349,
+      "name": "InvalidInsuranceFundWithdrawalRecipient",
+      "msg": "Insurance fund withdrawal recipient must be the designated treasury address"
     }
   ]
 }
