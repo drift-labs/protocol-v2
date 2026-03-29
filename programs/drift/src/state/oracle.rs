@@ -415,6 +415,7 @@ pub fn get_pyth_price(
     let published_slot: u64;
     let sequence_id: Option<u64>;
 
+    // TODO: remove these branches for pull and push once we can
     if oracle_source.is_pyth_pull_oracle() {
         let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
             &mut pyth_price_data,
