@@ -57,7 +57,7 @@ impl OrderParams {
                 return Ok(self.auction_start_price.safe_unwrap()?
                     >= self.auction_end_price.safe_unwrap()?);
             }
-        } else if self.order_type == OrderType::Limit
+        } else if (self.order_type == OrderType::Limit || self.is_trigger_order())
             && self.auction_duration.is_none()
             && self.auction_start_price.is_none()
             && self.auction_end_price.is_none()
