@@ -18,6 +18,7 @@ import {
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	SpotBalanceType,
 	MARGIN_PRECISION,
+	getSpotAssetValue,
 } from '../../src';
 import { MockUserMap, mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
@@ -458,6 +459,59 @@ describe('User Tests', () => {
 
 		console.log(worstCaseAfter);
 		assert(worstCaseAfter.weight.eq(new BN(0))); // not allowed to increase exposure
+
+		// customMarginRatio > SPOT weight precision must not throw (BN subn asserted non-negative)
+		const depositOnlyNonQuote = Object.assign(
+			{},
+			myMockUserAccount.spotPositions[1],
+			{
+				marketIndex: 1,
+				scaledBalance: new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION),
+				openBids: ZERO,
+				openAsks: ZERO,
+			}
+		);
+		for (const ratio of [
+			MARGIN_PRECISION.toNumber() * 2,
+			MARGIN_PRECISION.toNumber() * 10,
+			89478485,
+		]) {
+			const wc = getWorstCaseTokenAmounts(
+				depositOnlyNonQuote,
+				solMarket,
+				strictOraclePrice,
+				'Initial',
+				ratio
+			);
+			assert(wc.weight.eq(new BN(0)));
+			assert(wc.weightedTokenValue.eq(ZERO));
+		}
+	});
+
+	it('getSpotAssetValue: large maxMarginRatio does not throw (matches getFreeCollateral path)', () => {
+		const solMarket = Object.assign({}, _.cloneDeep(mockSpotMarkets[1]), {
+			marketIndex: 1,
+			initialAssetWeight: 8000,
+			initialLiabilityWeight: 12000,
+			cumulativeDepositInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+			cumulativeBorrowInterest: SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+		});
+		const strictOraclePrice = new StrictOraclePrice(PRICE_PRECISION.muln(25));
+		const tokenAmount = new BN(100).mul(LAMPORTS_PRECISION);
+
+		for (const ratio of [
+			MARGIN_PRECISION.toNumber() * 2,
+			89478485,
+		]) {
+			const assetValue = getSpotAssetValue(
+				tokenAmount,
+				strictOraclePrice,
+				solMarket,
+				ratio,
+				'Initial'
+			);
+			assert(assetValue.eq(ZERO));
+		}
 	});
 
 	it('custom margin ratio (sol perp)', async () => {

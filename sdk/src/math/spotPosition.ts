@@ -133,8 +133,11 @@ export function calculateWeightedTokenValue(
 		spotMarket.marketIndex !== QUOTE_SPOT_MARKET_INDEX
 	) {
 		const userCustomAssetWeight = tokenValue.gte(ZERO)
-			? BN.max(ZERO, SPOT_MARKET_WEIGHT_PRECISION.subn(customMarginRatio))
-			: SPOT_MARKET_WEIGHT_PRECISION.addn(customMarginRatio);
+			? BN.max(
+					ZERO,
+					SPOT_MARKET_WEIGHT_PRECISION.sub(new BN(customMarginRatio))
+			  )
+			: SPOT_MARKET_WEIGHT_PRECISION.add(new BN(customMarginRatio));
 
 		weight = tokenValue.gte(ZERO)
 			? BN.min(weight, userCustomAssetWeight)
