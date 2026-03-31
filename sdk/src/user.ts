@@ -375,6 +375,41 @@ export class User {
 		);
 	}
 
+	/**
+	 * Returns the total USD value of deposits across all isolated perp positions.
+	 */
+	public getTotalIsolatedPositionDeposits(): BN {
+		return this.getActivePerpPositions().reduce((total, perpPosition) => {
+			if (!perpPosition.isolatedPositionScaledBalance?.gt(ZERO)) {
+				return total;
+			}
+
+			const perpMarket = this.driftClient.getPerpMarketAccount(
+				perpPosition.marketIndex
+			);
+			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+				perpMarket.quoteSpotMarketIndex
+			);
+			const quoteOraclePriceData = this.getOracleDataForSpotMarket(
+				perpMarket.quoteSpotMarketIndex
+			);
+			const strictOracle = new StrictOraclePrice(
+				quoteOraclePriceData.price,
+				quoteOraclePriceData.twap
+			);
+
+			const tokenAmount = getTokenAmount(
+				perpPosition.isolatedPositionScaledBalance,
+				quoteSpotMarket,
+				SpotBalanceType.DEPOSIT
+			);
+
+			return total.add(
+				getStrictTokenValue(tokenAmount, quoteSpotMarket.decimals, strictOracle)
+			);
+		}, ZERO);
+	}
+
 	public getClonedPosition(position: PerpPosition): PerpPosition {
 		const clonedPosition = Object.assign({}, position);
 		return clonedPosition;
@@ -1781,10 +1816,15 @@ export class User {
 			includeOpenOrders
 		);
 
+		const isolatedDeposits =
+			marginCategory === undefined
+				? this.getTotalIsolatedPositionDeposits()
+				: ZERO;
+
 		return {
 			perpLiabilityValue: perpLiability,
 			perpPnl,
-			spotAssetValue,
+			spotAssetValue: spotAssetValue.add(isolatedDeposits),
 			spotLiabilityValue,
 		};
 	}
@@ -1855,15 +1895,22 @@ export class User {
 	}
 
 	getTotalAssetValue(marginCategory?: MarginCategory): BN {
-		return this.getSpotMarketAssetValue(undefined, marginCategory, true).add(
-			this.getUnrealizedPNL(true, undefined, marginCategory)
-		);
+		const value = this.getSpotMarketAssetValue(
+			undefined,
+			marginCategory,
+			true
+		).add(this.getUnrealizedPNL(true, undefined, marginCategory));
+		if (marginCategory === undefined) {
+			return value.add(this.getTotalIsolatedPositionDeposits());
+		}
+		return value;
 	}
 
 	getNetUsdValue(): BN {
 		const netSpotValue = this.getNetSpotMarketValue();
 		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
-		return netSpotValue.add(unrealizedPnl);
+		const isolatedDeposits = this.getTotalIsolatedPositionDeposits();
+		return netSpotValue.add(unrealizedPnl).add(isolatedDeposits);
 	}
 
 	/**

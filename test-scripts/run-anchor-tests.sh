@@ -62,6 +62,8 @@ test_files=(
   oracleFillPriceGuardrails.ts
   oracleOffsetOrders.ts
   order.ts
+  orderMarginChecks.ts
+  isolatedTransferMarginChecks.ts
   ordersWithSpread.ts
   pauseExchange.ts
   pauseDepositWithdraw.ts

@@ -58,7 +58,7 @@ use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecor
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarginTypeConfig};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{
@@ -379,12 +379,19 @@ pub fn place_perp_order(
 
     // when orders are placed in bulk, only need to check margin on last place
     if options.enforce_margin_check && !options.is_liquidation() {
+        // if isolated position, use the isolated margin calculation
+        let isolated_market_index = if user.perp_positions[position_index].is_isolated() {
+            Some(market_index)
+        } else {
+            None
+        };
         meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
             options.risk_increasing,
+            isolated_market_index,
         )?;
     }
 
@@ -1795,6 +1802,7 @@ fn fulfill_perp_order(
 
     let user_order_position_decreasing =
         determine_if_user_order_is_position_decreasing(user, market_index, user_order_index)?;
+    let user_is_isolated_position = user.get_perp_position(market_index)?.is_isolated();
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let limit_price = fill_mode.get_limit_price(
@@ -1826,7 +1834,7 @@ fn fulfill_perp_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let mut maker_fills: BTreeMap<Pubkey, (i64, bool)> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -1891,6 +1899,8 @@ fn fulfill_perp_order(
             }
             PerpFulfillmentMethod::Match(maker_key, maker_order_index, maker_price) => {
                 let mut maker = makers_and_referrer.get_ref_mut(maker_key)?;
+                let maker_is_isolated_position =
+                    maker.get_perp_position(market_index)?.is_isolated();
                 let mut maker_stats = if maker.authority == user.authority {
                     None
                 } else {
@@ -1939,6 +1949,7 @@ fn fulfill_perp_order(
                         maker_key,
                         maker_direction,
                         maker_fill_base_asset_amount,
+                        maker_is_isolated_position,
                     )?;
                 }
 
@@ -1961,7 +1972,7 @@ fn fulfill_perp_order(
         quote_asset_amount
     )?;
 
-    let total_maker_fill = maker_fills.values().sum::<i64>();
+    let total_maker_fill = maker_fills.values().map(|(fill, _)| fill).sum::<i64>();
 
     validate!(
         total_maker_fill.unsigned_abs() <= base_asset_amount,
@@ -1979,13 +1990,29 @@ fn fulfill_perp_order(
             -(base_asset_amount as i64)
         };
 
-        let mut context = MarginContext::standard(if user_order_position_decreasing {
+        let margin_requirement_type = if user_order_position_decreasing {
             MarginRequirementType::Maintenance
         } else {
             MarginRequirementType::Fill
-        })
-        .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
-        .fuel_numerator(user, now);
+        };
+
+        let margin_type_config = if user_is_isolated_position {
+            MarginTypeConfig::IsolatedPositionOverride {
+                market_index,
+                margin_requirement_type,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        } else {
+            MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        };
+
+        let mut context = MarginContext::standard_with_config(margin_type_config)
+            .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
+            .fuel_numerator(user, now);
 
         if oracle_stale_for_margin && !user_order_position_decreasing {
             context = context.margin_ratio_override(MARGIN_PRECISION);
@@ -2033,7 +2060,7 @@ fn fulfill_perp_order(
         }
     }
 
-    for (maker_key, maker_base_asset_amount_filled) in maker_fills {
+    for (maker_key, (maker_base_asset_amount_filled, maker_is_isolated_position)) in maker_fills {
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
 
         let maker_stats = if maker.authority == user.authority {
@@ -2048,7 +2075,21 @@ fn fulfill_perp_order(
             market_index,
         )?;
 
-        let mut context = MarginContext::standard(margin_type)
+        let margin_type_config = if maker_is_isolated_position {
+            MarginTypeConfig::IsolatedPositionOverride {
+                market_index,
+                margin_requirement_type: margin_type,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        } else {
+            MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type: margin_type,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        };
+
+        let mut context = MarginContext::standard_with_config(margin_type_config)
             .fuel_perp_delta(market_index, -maker_base_asset_amount_filled)
             .fuel_numerator(&maker, now);
 
@@ -2147,10 +2188,11 @@ fn get_referrer<'a>(
 
 #[inline(always)]
 fn update_maker_fills_map(
-    map: &mut BTreeMap<Pubkey, i64>,
+    map: &mut BTreeMap<Pubkey, (i64, bool)>,
     maker_key: &Pubkey,
     maker_direction: PositionDirection,
     fill: u64,
+    is_isolated_position: bool,
 ) -> DriftResult {
     let signed_fill = match maker_direction {
         PositionDirection::Long => fill.cast::<i64>()?,
@@ -2158,9 +2200,9 @@ fn update_maker_fills_map(
     };
 
     if let Some(maker_filled) = map.get_mut(maker_key) {
-        *maker_filled = maker_filled.safe_add(signed_fill)?;
+        *maker_filled = (maker_filled.0.safe_add(signed_fill)?, is_isolated_position);
     } else {
-        map.insert(*maker_key, signed_fill);
+        map.insert(*maker_key, (signed_fill, is_isolated_position));
     }
 
     Ok(())
@@ -3920,6 +3962,7 @@ pub fn place_spot_order(
             spot_market_map,
             oracle_map,
             options.risk_increasing,
+            None, // no isolated positions for spot positions
         )?;
     }
 
@@ -4574,7 +4617,7 @@ fn fulfill_spot_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let mut maker_fills: BTreeMap<Pubkey, (i64, bool)> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -4616,6 +4659,7 @@ fn fulfill_spot_order(
                         maker_key,
                         maker_direction,
                         base_filled,
+                        false,
                     )?;
                 }
 
