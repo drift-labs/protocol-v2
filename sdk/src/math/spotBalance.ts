@@ -697,7 +697,7 @@ export function getSpotAssetValue(
 		) {
 			const userCustomAssetWeight = BN.max(
 				ZERO,
-				SPOT_MARKET_WEIGHT_PRECISION.subn(maxMarginRatio)
+				SPOT_MARKET_WEIGHT_PRECISION.sub(new BN(maxMarginRatio))
 			);
 			weight = BN.min(weight, userCustomAssetWeight);
 		}
