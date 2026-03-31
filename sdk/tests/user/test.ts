@@ -458,6 +458,33 @@ describe('User Tests', () => {
 
 		console.log(worstCaseAfter);
 		assert(worstCaseAfter.weight.eq(new BN(0))); // not allowed to increase exposure
+
+		// customMarginRatio > SPOT weight precision must not throw (BN subn asserted non-negative)
+		const depositOnlyNonQuote = Object.assign(
+			{},
+			myMockUserAccount.spotPositions[1],
+			{
+				marketIndex: 1,
+				scaledBalance: new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION),
+				openBids: ZERO,
+				openAsks: ZERO,
+			}
+		);
+		for (const ratio of [
+			MARGIN_PRECISION.toNumber() * 2,
+			MARGIN_PRECISION.toNumber() * 10,
+			89478485,
+		]) {
+			const wc = getWorstCaseTokenAmounts(
+				depositOnlyNonQuote,
+				solMarket,
+				strictOraclePrice,
+				'Initial',
+				ratio
+			);
+			assert(wc.weight.eq(new BN(0)));
+			assert(wc.weightedTokenValue.eq(ZERO));
+		}
 	});
 
 	it('custom margin ratio (sol perp)', async () => {
