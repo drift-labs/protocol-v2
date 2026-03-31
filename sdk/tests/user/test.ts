@@ -673,8 +673,7 @@ describe('User Tests', () => {
 		myMockUserAccount.perpPositions[0].marketIndex = 0;
 		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION;
 		myMockUserAccount.perpPositions[0].quoteAssetAmount = QUOTE_PRECISION.neg();
-		myMockUserAccount.perpPositions[0].quoteEntryAmount =
-			QUOTE_PRECISION.neg();
+		myMockUserAccount.perpPositions[0].quoteEntryAmount = QUOTE_PRECISION.neg();
 		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount =
 			QUOTE_PRECISION.neg();
 		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(
@@ -759,10 +758,7 @@ describe('User Tests', () => {
 			[1, 1, 1, 1, 1, 1, 1, 1]
 		);
 
-		const { spotAssetValue } = mockUser.getLeverageComponents(
-			true,
-			'Initial'
-		);
+		const { spotAssetValue } = mockUser.getLeverageComponents(true, 'Initial');
 		// Cross spot asset only: 200 USDC. Isolated collateral is handled separately.
 		assert(spotAssetValue.eq(new BN(200).mul(QUOTE_PRECISION)));
 	});
