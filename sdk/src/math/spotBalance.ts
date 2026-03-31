@@ -735,7 +735,7 @@ export function getSpotLiabilityValue(
 		) {
 			weight = BN.max(
 				weight,
-				SPOT_MARKET_WEIGHT_PRECISION.addn(maxMarginRatio)
+				SPOT_MARKET_WEIGHT_PRECISION.add(new BN(maxMarginRatio))
 			);
 		}
 

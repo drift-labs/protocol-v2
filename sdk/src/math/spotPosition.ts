@@ -137,7 +137,7 @@ export function calculateWeightedTokenValue(
 					ZERO,
 					SPOT_MARKET_WEIGHT_PRECISION.sub(new BN(customMarginRatio))
 			  )
-			: SPOT_MARKET_WEIGHT_PRECISION.addn(customMarginRatio);
+			: SPOT_MARKET_WEIGHT_PRECISION.add(new BN(customMarginRatio));
 
 		weight = tokenValue.gte(ZERO)
 			? BN.min(weight, userCustomAssetWeight)
