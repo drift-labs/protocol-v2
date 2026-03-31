@@ -1747,10 +1747,9 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams =
-			takerDriftClient.signSignedMsgOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const txSig = await makerDriftClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
@@ -1769,8 +1768,8 @@ describe('place and make signedMsg order', () => {
 		const takerOrders = takerDriftClient.getUser().getOpenOrders();
 		assert(takerOrders.length > 0, 'Trigger market order should be placed');
 
-		const triggerOrder = takerOrders.find(
-			(o) => isVariant(o.orderType, 'triggerMarket')
+		const triggerOrder = takerOrders.find((o) =>
+			isVariant(o.orderType, 'triggerMarket')
 		);
 		assert(triggerOrder !== undefined, 'Should find trigger market order');
 
@@ -1824,10 +1823,9 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams =
-			takerDriftClient.signSignedMsgOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const txSig = await makerDriftClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
@@ -1846,8 +1844,8 @@ describe('place and make signedMsg order', () => {
 		const takerOrders = takerDriftClient.getUser().getOpenOrders();
 		assert(takerOrders.length > 0, 'Trigger limit order should be placed');
 
-		const triggerOrder = takerOrders.find(
-			(o) => isVariant(o.orderType, 'triggerLimit')
+		const triggerOrder = takerOrders.find((o) =>
+			isVariant(o.orderType, 'triggerLimit')
 		);
 		assert(triggerOrder !== undefined, 'Should find trigger limit order');
 
@@ -1912,10 +1910,9 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams =
-			takerDriftClient.signSignedMsgOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		try {
 			await makerDriftClient.placeSignedMsgTakerOrder(
@@ -1933,8 +1930,10 @@ describe('place and make signedMsg order', () => {
 			assert.fail('Should have thrown an error');
 		} catch (e) {
 			// Expected to fail with InvalidSignedMsgOrderParam
-			assert(e.toString().includes('0x1890'),
-				`Expected InvalidSignedMsgOrderParam (0x1890), got: ${e.toString()}`);
+			assert(
+				e.toString().includes('0x1890'),
+				`Expected InvalidSignedMsgOrderParam (0x1890), got: ${e.toString()}`
+			);
 		}
 
 		await takerDriftClientUser.unsubscribe();
