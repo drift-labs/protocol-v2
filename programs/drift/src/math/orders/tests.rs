@@ -1064,7 +1064,6 @@ mod find_maker_orders {
 mod calculate_max_spot_order_size {
     use std::str::FromStr;
 
-    use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
@@ -1085,7 +1084,6 @@ mod calculate_max_spot_order_size {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
-    use crate::test_utils::*;
     use crate::MARGIN_PRECISION;
     use crate::{
         create_anchor_account_info, PositionDirection, QUOTE_PRECISION, SPOT_IMF_PRECISION,
@@ -1932,7 +1930,6 @@ mod calculate_max_perp_order_size {
     use std::str::FromStr;
 
     use anchor_lang::prelude::AccountLoader;
-    use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
@@ -4137,10 +4134,8 @@ pub mod find_bids_and_asks_from_users {
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, User};
     use crate::state::user_map::UserMap;
-    use crate::test_utils::*;
-    use crate::test_utils::{create_account_info, get_positions};
+    use crate::test_utils::get_positions;
     use crate::MarketType;
-    use anchor_lang::Owner;
 
     #[test]
     fn test() {

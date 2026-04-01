@@ -1,5 +1,4 @@
 use anchor_lang::prelude::Pubkey;
-use anchor_lang::Owner;
 
 use crate::math::constants::ONE_BPS_DENOMINATOR;
 use crate::math::margin::MarginRequirementType;
@@ -98,7 +97,6 @@ pub mod fuel_scoring {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::FUEL_START_TS;
 

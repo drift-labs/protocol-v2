@@ -1,5 +1,4 @@
 use anchor_lang::prelude::Pubkey;
-use anchor_lang::Owner;
 
 use crate::math::oracle::oracle_validity;
 use crate::state::fill_mode::FillMode;
@@ -104,7 +103,6 @@ pub mod fill_order_protected_maker {
         MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats,
         UserStatsPausedOperations, UserStatus,
     };
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::QUOTE_PRECISION_I64;
 
@@ -446,12 +444,12 @@ pub mod fulfill_order_with_maker_order {
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
 
+    use crate::create_anchor_account_info;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
-    use crate::test_utils::{get_account_bytes, get_orders, get_positions, get_pyth_price};
-    use crate::{create_account_info, create_anchor_account_info};
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price};
 
     use super::*;
-    use crate::state::oracle::{HistoricalOracleData, OracleSource};
+    use crate::state::oracle::HistoricalOracleData;
     use std::str::FromStr;
 
     #[test]
@@ -3085,7 +3083,6 @@ pub mod fulfill_order {
     use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::PERCENTAGE_PRECISION_U64;
 
@@ -6119,7 +6116,6 @@ pub mod fill_order {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::QUOTE_PRECISION_I64;
 
@@ -9418,7 +9414,6 @@ pub mod fulfill_spot_order {
 
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
@@ -9435,7 +9430,6 @@ pub mod fulfill_spot_order {
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::get_pyth_price;
-    use crate::test_utils::*;
 
     use super::*;
 
@@ -10341,7 +10335,6 @@ pub mod fill_spot_order {
 
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
@@ -10356,7 +10349,6 @@ pub mod fill_spot_order {
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_pyth_price};
 
     use super::*;
@@ -10521,7 +10513,6 @@ pub mod force_cancel_orders {
 
     use crate::controller::orders::force_cancel_orders;
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, LAMPORTS_PER_SOL_I64,
@@ -10537,7 +10528,6 @@ pub mod force_cancel_orders {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;
@@ -10770,7 +10760,6 @@ pub mod cancel_reduce_only_trigger_orders {
 
     use crate::controller::orders::cancel_reduce_only_trigger_orders;
     use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PEG_PRECISION,
@@ -10784,9 +10773,7 @@ pub mod cancel_reduce_only_trigger_orders {
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User};
-    use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;
@@ -11050,7 +11037,6 @@ pub mod get_maker_orders_info {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User};
     use crate::state::user_map::UserMap;
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::{create_anchor_account_info, get_orders, QUOTE_PRECISION_I64};
 
@@ -12295,13 +12281,9 @@ pub mod get_spot_maker_orders_info {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User};
     use crate::state::user_map::UserMap;
-    use crate::test_utils::*;
-    use crate::test_utils::{create_account_info, get_orders, get_pyth_price, get_spot_positions};
-    use crate::{
-        create_account_info, get_orders, LAMPORTS_PER_SOL_I64, QUOTE_PRECISION_U64,
-        SPOT_BALANCE_PRECISION,
-    };
+    use crate::test_utils::{get_orders, get_pyth_price, get_spot_positions};
     use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
+    use crate::{get_orders, LAMPORTS_PER_SOL_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION};
 
     use super::*;
 

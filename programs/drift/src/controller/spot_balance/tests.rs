@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 
 use crate::controller::insurance::settle_revenue_to_insurance_fund;

@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 
 use crate::controller::pnl::settle_pnl;
@@ -25,7 +24,6 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User};
-use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 use crate::{create_anchor_account_info, SettlePnlMode, PRICE_PRECISION_I64};
 use anchor_lang::prelude::Clock;

@@ -4,36 +4,33 @@ use crate::controller::amm::{
 use crate::controller::position::{update_position_and_market, PositionDelta};
 use crate::controller::repeg::_update_amm;
 
+use crate::bn::U192;
+use crate::controller::amm::update_pool_balances;
+use crate::create_anchor_account_info;
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
     BASE_PRECISION, BASE_PRECISION_I64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
+use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
 use crate::math::oracle::OracleValidity;
 use crate::math::position::swap_direction_to_close_position;
 use crate::math::repeg;
+use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_amount;
+use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle::{MMOraclePriceData, OraclePriceData, PrelaunchOracle};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::state::State;
-use crate::state::user::PerpPosition;
-use crate::test_utils::get_account_bytes;
-
-use crate::bn::U192;
-use crate::controller::amm::update_pool_balances;
-use crate::create_anchor_account_info;
-use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
-use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
-use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::State;
+use crate::state::user::PerpPosition;
 use crate::state::user::SpotPosition;
 use crate::test_utils::create_account_info;
-use crate::test_utils::get_anchor_account_bytes;
 use crate::test_utils::get_pyth_price_mantissa;
 use anchor_lang::prelude::{AccountLoader, Clock};
 use solana_program::pubkey::Pubkey;

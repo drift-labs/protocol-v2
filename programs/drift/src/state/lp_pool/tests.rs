@@ -2399,7 +2399,6 @@ mod update_aum_tests {
         state::spot_market::SpotMarket,
         state::spot_market_map::SpotMarketMap,
         state::zero_copy::AccountZeroCopyMut,
-        test_utils::{create_account_info, get_anchor_account_bytes},
     };
     use anchor_lang::prelude::Pubkey;
     use std::{cell::RefCell, marker::PhantomData};
@@ -2771,9 +2770,7 @@ mod update_constituent_target_base_for_derivatives_tests {
     use crate::state::spot_market::SpotMarket;
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::zero_copy::AccountZeroCopyMut;
-    use crate::test_utils::{create_account_info, get_anchor_account_bytes};
     use anchor_lang::prelude::Pubkey;
-    use anchor_lang::Owner;
     use std::collections::BTreeMap;
     use std::{cell::RefCell, marker::PhantomData};
 

@@ -4,10 +4,8 @@
 use std::collections::BTreeSet;
 use std::str::FromStr;
 
-use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 
-use crate::create_account_info;
 use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
@@ -20,13 +18,11 @@ use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User, UserStats};
-use crate::test_utils::{
-    create_account_info, get_account_bytes, get_anchor_account_bytes, get_positions,
-    get_pyth_price, get_spot_positions,
-};
+use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
 
 #[test]
@@ -37,16 +33,15 @@ fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
-    let oracle_price_val = oracle_price.agg.price;
+    let oracle_price_val = oracle_price.price;
     let mut market = PerpMarket {
         market_index: 0,
         amm: AMM {
@@ -65,6 +60,7 @@ fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -153,16 +149,15 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
-    let oracle_price_val = oracle_price.agg.price;
+    let oracle_price_val = oracle_price.price;
     let mut market0 = PerpMarket {
         market_index: 0,
         amm: AMM {
@@ -181,6 +176,7 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -284,16 +280,15 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
-    let oracle_price_val = oracle_price.agg.price;
+    let oracle_price_val = oracle_price.price;
     let mut market = PerpMarket {
         market_index: 0,
         amm: AMM {
@@ -312,6 +307,7 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -397,16 +393,15 @@ fn cannot_transfer_from_isolated_when_isolated_would_fail() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
+    create_anchor_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        PythLazerOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
-    let oracle_price_val = oracle_price.agg.price;
+    let oracle_price_val = oracle_price.price;
     let mut market = PerpMarket {
         market_index: 0,
         amm: AMM {
@@ -425,6 +420,7 @@ fn cannot_transfer_from_isolated_when_isolated_would_fail() {
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,

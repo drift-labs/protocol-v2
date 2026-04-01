@@ -1,8 +1,7 @@
 use crate::controller::amm::{calculate_perp_market_amm_summary_stats, SwapDirection};
-use crate::math::amm::calculate_net_user_pnl;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PEG_PRECISION, PRICE_PRECISION,
-    PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, PRICE_PRECISION_U64,
+    QUOTE_PRECISION,
 };
 use crate::math::repeg::*;
 use crate::state::oracle::HistoricalOracleData;

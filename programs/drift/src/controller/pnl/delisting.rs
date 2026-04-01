@@ -1,5 +1,4 @@
 use anchor_lang::prelude::Pubkey;
-use anchor_lang::Owner;
 
 use crate::state::oracle_map::OracleMap;
 use crate::state::user::{Order, PerpPosition};
@@ -46,7 +45,6 @@ pub mod delisting_test {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;

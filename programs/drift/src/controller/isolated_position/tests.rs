@@ -4,7 +4,6 @@ pub mod deposit_into_isolated_perp_position {
     use crate::state::state::State;
     use std::str::FromStr;
 
-    use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
@@ -21,7 +20,7 @@ pub mod deposit_into_isolated_perp_position {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{PerpPosition, PositionFlag, User};
     use crate::test_utils::get_pyth_price;
-    use crate::{create_anchor_account_info, test_utils::*, PRICE_PRECISION_I64};
+    use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
 
     #[test]
     pub fn successful_deposit_into_isolated_perp_position() {
@@ -214,7 +213,6 @@ pub mod transfer_isolated_perp_position_deposit {
     use crate::error::ErrorCode;
     use std::str::FromStr;
 
-    use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
@@ -231,7 +229,7 @@ pub mod transfer_isolated_perp_position_deposit {
     use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User, UserStats};
     use crate::test_utils::get_pyth_price;
     use crate::{
-        create_anchor_account_info, test_utils::*, PRICE_PRECISION_I64, QUOTE_PRECISION_I64,
+        create_anchor_account_info, PRICE_PRECISION_I64, QUOTE_PRECISION_I64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
 
@@ -813,7 +811,6 @@ pub mod withdraw_from_isolated_perp_position {
     use crate::error::ErrorCode;
     use std::str::FromStr;
 
-    use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
@@ -831,7 +828,7 @@ pub mod withdraw_from_isolated_perp_position {
     use crate::state::user::{PerpPosition, PositionFlag, User, UserStats};
     use crate::test_utils::get_pyth_price;
     use crate::{
-        create_anchor_account_info, test_utils::*, PRICE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        create_anchor_account_info, PRICE_PRECISION_I64, SPOT_BALANCE_PRECISION,
         SPOT_BALANCE_PRECISION_U64,
     };
 
