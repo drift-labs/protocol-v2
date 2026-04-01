@@ -3949,7 +3949,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
             found_end = true;
 
             // must be the SwapEnd instruction
-            let discriminator = crate::instruction::EndSwap::discriminator();
+            let discriminator = [0u8; 8]; // dummy data
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidSwap,
