@@ -1,11 +1,16 @@
+use std::str::FromStr;
+
 use crate::controller::amm::*;
 use crate::controller::insurance::settle_revenue_to_insurance_fund;
+use crate::controller::spot_balance::execute_transfer_between_pools;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64, QUOTE_PRECISION,
     QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
 };
+use crate::state::events::TransferFeeAndPnlPoolDirection;
 use crate::state::perp_market::{InsuranceClaim, PoolBalance};
 use crate::state::user::SpotPosition;
+use crate::test_utils::create_account_info;
 
 #[test]
 fn concentration_coef_tests() {
@@ -470,7 +475,7 @@ fn update_pool_balances_test() {
     )
     .unwrap();
     assert_eq!(to_settle_with_user, -100);
-    assert!(market.amm.fee_pool.balance() > 0);
+    assert_eq!(market.amm.fee_pool.balance(), 0);
 
     let amm_fee_pool_token_amount = get_token_amount(
         market.amm.fee_pool.balance(),
@@ -484,8 +489,8 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 99);
-    assert_eq!(amm_fee_pool_token_amount, 1);
+    assert_eq!(pnl_pool_token_amount, 100); // Removed fractional top up from user settle
+    assert_eq!(amm_fee_pool_token_amount, 0);
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
     let to_settle_with_user = update_pool_balances(
@@ -496,7 +501,10 @@ fn update_pool_balances_test() {
         now,
     )
     .unwrap();
-    assert_eq!(to_settle_with_user, 99);
+    assert_eq!(to_settle_with_user, 100);
+    assert_eq!(pnl_pool_token_amount, 100);
+    assert_eq!(amm_fee_pool_token_amount, 0);
+
     let amm_fee_pool_token_amount = get_token_amount(
         market.amm.fee_pool.balance(),
         &spot_market,
@@ -510,7 +518,7 @@ fn update_pool_balances_test() {
     )
     .unwrap();
     assert_eq!(pnl_pool_token_amount, 0);
-    assert_eq!(amm_fee_pool_token_amount, 1);
+    assert_eq!(amm_fee_pool_token_amount, 0);
 
     market.amm.total_fee_minus_distributions = 0;
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
@@ -534,7 +542,7 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 2);
+    assert_eq!(pnl_pool_token_amount, 1);
     assert_eq!(amm_fee_pool_token_amount, 0);
 
     market.amm.total_fee_minus_distributions = 90_000 * QUOTE_PRECISION as i128;
@@ -559,8 +567,8 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 3_300_000_000 + 3);
-    assert_eq!(amm_fee_pool_token_amount, 33333333);
+    assert_eq!(pnl_pool_token_amount, 3333333334);
+    assert_eq!(amm_fee_pool_token_amount, 0);
 
     // negative fee pool
     market.amm.total_fee_minus_distributions = -8_008_123_456;
@@ -586,7 +594,7 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 2332345547);
+    assert_eq!(pnl_pool_token_amount, 2332345545);
     assert_eq!(amm_fee_pool_token_amount, 0);
 }
 
@@ -881,387 +889,6 @@ fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
 }
 
 #[test]
-fn update_pool_balances_revenue_to_fee_test() {
-    let mut market = PerpMarket {
-        amm: AMM {
-            base_asset_reserve: 5122950819670000,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000,
-            base_asset_amount_with_amm: -122950819670000,
-
-            total_exchange_fee: 10 * QUOTE_PRECISION,
-            total_fee: 10 * QUOTE_PRECISION as i128,
-            total_mm_fee: 990 * QUOTE_PRECISION as i128,
-            total_fee_minus_distributions: -(10000 * QUOTE_PRECISION as i128),
-
-            curve_update_intensity: 100,
-
-            fee_pool: PoolBalance {
-                scaled_balance: 50 * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX,
-                ..PoolBalance::default()
-            },
-            ..AMM::default()
-        },
-        pnl_pool: PoolBalance {
-            scaled_balance: 50 * SPOT_BALANCE_PRECISION,
-            market_index: QUOTE_SPOT_MARKET_INDEX,
-            ..PoolBalance::default()
-        },
-        ..PerpMarket::default()
-    };
-    let mut now = 33928058;
-
-    let mut spot_market = SpotMarket {
-        deposit_balance: 200 * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        revenue_pool: PoolBalance {
-            market_index: 0,
-            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
-            ..PoolBalance::default()
-        },
-        decimals: 6,
-        ..SpotMarket::default()
-    };
-    let spot_position = SpotPosition::default();
-
-    let prev_fee_pool = market.amm.fee_pool.scaled_balance;
-    let prev_pnl_pool = market.amm.fee_pool.scaled_balance;
-    let prev_rev_pool = spot_market.revenue_pool.scaled_balance;
-    let prev_tfmd = market.amm.total_fee_minus_distributions;
-
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(spot_market.insurance_fund.revenue_settle_period, 0);
-
-    spot_market.insurance_fund.revenue_settle_period = 0;
-    let res = settle_revenue_to_insurance_fund(0, 0, &mut spot_market, now + 3600, true).unwrap();
-    assert_eq!(res, 0);
-    spot_market.insurance_fund.revenue_settle_period = 1;
-
-    spot_market.revenue_pool.scaled_balance = 0;
-    let res =
-        settle_revenue_to_insurance_fund(200000000, 0, &mut spot_market, now + 1, false).unwrap();
-    assert_eq!(res, 0);
-    spot_market.revenue_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    now += 2;
-
-    assert_eq!(
-        get_token_amount(
-            market.amm.fee_pool.balance(),
-            &spot_market,
-            &SpotBalanceType::Deposit
-        )
-        .unwrap(),
-        50 * QUOTE_PRECISION
-    );
-
-    assert_eq!(
-        get_token_amount(
-            spot_market.deposit_balance,
-            &spot_market,
-            &SpotBalanceType::Deposit
-        )
-        .unwrap(),
-        200 * QUOTE_PRECISION
-    );
-    assert_eq!(
-        spot_market.revenue_pool.scaled_balance,
-        100 * SPOT_BALANCE_PRECISION
-    );
-
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now,
-    )
-    .unwrap();
-
-    assert_eq!(
-        market.amm.fee_pool.scaled_balance,
-        5 * SPOT_BALANCE_PRECISION
-    );
-    assert_eq!(market.pnl_pool.scaled_balance, 95 * SPOT_BALANCE_PRECISION);
-    assert_eq!(
-        spot_market.revenue_pool.scaled_balance,
-        100 * SPOT_BALANCE_PRECISION
-    );
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
-
-    assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool);
-    assert_eq!(market.pnl_pool.scaled_balance > prev_pnl_pool, true);
-    assert_eq!(
-        spot_market.revenue_pool.scaled_balance == prev_rev_pool,
-        true
-    );
-    assert_eq!(market.insurance_claim.revenue_withdraw_since_last_settle, 0);
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 0);
-
-    market.insurance_claim.max_revenue_withdraw_per_period = 100000000 * 2;
-    assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
-    assert_eq!(
-        spot_market.revenue_pool.scaled_balance,
-        100 * SPOT_BALANCE_PRECISION
-    );
-    assert_eq!(market.amm.total_fee_minus_distributions, -10000000000);
-
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now,
-    )
-    .unwrap();
-
-    assert_eq!(
-        market.amm.fee_pool.scaled_balance,
-        105 * SPOT_BALANCE_PRECISION
-    );
-    assert_eq!(market.pnl_pool.scaled_balance, 95 * SPOT_BALANCE_PRECISION);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
-    assert_eq!(
-        market.insurance_claim.revenue_withdraw_since_last_settle,
-        100000000
-    );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
-
-    let spot_market_vault_amount = get_token_amount(
-        spot_market.deposit_balance,
-        &spot_market,
-        &SpotBalanceType::Deposit,
-    )
-    .unwrap() as u64;
-    assert_eq!(spot_market_vault_amount, 200000000); // total spot_market deposit balance unchanged during transfers
-
-    // calling multiple times doesnt effect other than fee pool -> pnl pool
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now,
-    )
-    .unwrap();
-    assert_eq!(
-        market.amm.fee_pool.scaled_balance,
-        5 * SPOT_BALANCE_PRECISION
-    );
-    assert_eq!(market.pnl_pool.scaled_balance, 195 * SPOT_BALANCE_PRECISION);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
-
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now,
-    )
-    .unwrap();
-    assert_eq!(
-        market.amm.fee_pool.scaled_balance,
-        5 * SPOT_BALANCE_PRECISION
-    );
-    assert_eq!(market.pnl_pool.scaled_balance, 195 * SPOT_BALANCE_PRECISION);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
-
-    // add deposits and revenue to pool
-    assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
-    spot_market.revenue_pool.scaled_balance = 9900000001000;
-
-    let spot_market_backup = spot_market;
-    let market_backup = market;
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    assert!(update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now
-    )
-    .is_err()); // assert is_err if any way has revenue pool above deposit balances
-    spot_market = spot_market_backup;
-    market = market_backup;
-    spot_market.deposit_balance += 9900000001000;
-    let spot_market_vault_amount = get_token_amount(
-        spot_market.deposit_balance,
-        &spot_market,
-        &SpotBalanceType::Deposit,
-    )
-    .unwrap() as u64;
-    assert_eq!(spot_market.deposit_balance, 10100000001000);
-    assert_eq!(spot_market_vault_amount, 10100000001);
-
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now,
-    )
-    .unwrap();
-    assert_eq!(spot_market.deposit_balance, 10100000001000);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
-    assert_eq!(market.amm.fee_pool.scaled_balance, 105000000000);
-    assert_eq!(market.pnl_pool.scaled_balance, 195000000000);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(
-        market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period as i64
-    );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
-
-    // calling again only does fee -> pnl pool
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now,
-    )
-    .unwrap();
-    assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
-    assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
-    assert_eq!(
-        market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period as i64
-    );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
-
-    // calling again does nothing
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now,
-    )
-    .unwrap();
-    assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
-    assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
-    assert_eq!(
-        market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period as i64
-    );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
-
-    // do a revenue settlement to allow up to max again
-    assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33928059);
-    assert_eq!(spot_market.deposit_balance, 10100000001000);
-
-    spot_market.insurance_fund.total_factor = 1;
-    spot_market.insurance_fund.revenue_settle_period = 1;
-    let res = settle_revenue_to_insurance_fund(
-        spot_market_vault_amount,
-        0,
-        &mut spot_market,
-        now + 3600,
-        true,
-    )
-    .unwrap();
-    assert_eq!(res, 9800000001);
-
-    let spot_market_vault_amount = get_token_amount(
-        spot_market.deposit_balance,
-        &spot_market,
-        &SpotBalanceType::Deposit,
-    )
-    .unwrap() as u64;
-
-    assert_eq!(spot_market.deposit_balance, 300000000000); // 100000000 was added to market fee/pnl pool
-    assert_eq!(spot_market.borrow_balance, 0);
-    assert_eq!(spot_market_vault_amount, 300000000);
-
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
-    assert_eq!(
-        spot_market.insurance_fund.last_revenue_settle_ts,
-        now + 3600
-    );
-
-    // add deposits and revenue to pool
-    spot_market.revenue_pool.scaled_balance = 9800000001000;
-    let market_backup = market;
-    let spot_market_backup = spot_market;
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    assert!(update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now + 3600
-    )
-    .is_err()); // assert is_err if any way has revenue pool above deposit balances
-    market = market_backup;
-    spot_market = spot_market_backup;
-    spot_market.deposit_balance += 9800000000001;
-
-    assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
-    assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928060);
-    assert_eq!(
-        spot_market.insurance_fund.last_revenue_settle_ts,
-        33928060 + 3600
-    );
-
-    let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    assert!(update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now
-    )
-    .is_err()); // now timestamp passed is wrong
-    update_pool_balances(
-        &mut market,
-        &mut spot_market,
-        user_quote_token_amount,
-        0,
-        now + 3600,
-    )
-    .unwrap();
-
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33931660);
-    assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33931660);
-    assert_eq!(market.amm.fee_pool.scaled_balance, 205000000000);
-    assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9600000000);
-    assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 9600000001000);
-    assert_eq!(
-        market.insurance_claim.revenue_withdraw_since_last_settle,
-        market.insurance_claim.max_revenue_withdraw_per_period as i64
-    );
-}
-
-#[test]
 fn update_pool_balances_revenue_to_fee_devnet_state_test() {
     let mut market = PerpMarket {
         amm: AMM {
@@ -1433,27 +1060,28 @@ fn update_pool_balances_revenue_to_fee_new_market() {
     )
     .unwrap();
 
-    assert_eq!(market.amm.fee_pool.scaled_balance, 50000000000); // $50
-
+    assert_eq!(market.amm.fee_pool.scaled_balance, 0); // no longer topped up from revenue pool
     assert_eq!(market.pnl_pool.scaled_balance, 0);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 50000000000);
+    assert_eq!(
+        spot_market.revenue_pool.scaled_balance,
+        100 * SPOT_BALANCE_PRECISION
+    ); // unchanged
     assert_eq!(market.amm.total_fee_withdrawn, 0);
-    assert_eq!(market.amm.total_fee_minus_distributions, 50026000);
-
+    assert_eq!(market.amm.total_fee_minus_distributions, 26000); // unchanged
     assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
     assert_eq!(
         spot_market.revenue_pool.scaled_balance < prev_rev_pool,
-        true
-    );
-    assert_eq!(
-        market.insurance_claim.revenue_withdraw_since_last_settle,
-        50000000
-    );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
+        false
+    ); // no longer less
+    assert_eq!(market.insurance_claim.revenue_withdraw_since_last_settle, 0);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 0);
 
     market.insurance_claim.max_revenue_withdraw_per_period = 100000000 * 2;
     assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 50000000000);
+    assert_eq!(
+        spot_market.revenue_pool.scaled_balance,
+        100 * SPOT_BALANCE_PRECISION
+    );
 }
 
 #[cfg(test)]
@@ -1912,8 +1540,8 @@ mod revenue_pool_transfer_tests {
         .unwrap();
 
         assert_eq!(to_settle_with_user, -100);
-        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
-        assert_eq!(spot_market.revenue_pool.scaled_balance, 9935000000000);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 0); // No longer updated
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 10000000000000);
 
         // revenue pool not yet settled
         let now = 10000;
@@ -1928,8 +1556,8 @@ mod revenue_pool_transfer_tests {
         .unwrap();
 
         assert_eq!(to_settle_with_user, -100);
-        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 100);
-        assert_eq!(spot_market.revenue_pool.scaled_balance, 9935000000000);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 0); // No longer updated
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 10000000000000);
 
         // revenue pool settled and negative/positive revenue for hour irrelevant for withdraw
         spot_market.insurance_fund.last_revenue_settle_ts = 3600 + 100;
@@ -1947,7 +1575,338 @@ mod revenue_pool_transfer_tests {
         .unwrap();
 
         assert_eq!(to_settle_with_user, -100);
-        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 10000);
-        assert_eq!(spot_market.revenue_pool.scaled_balance, 9870000000000);
+        assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 0); // No longer updated
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 10000000000000);
+    }
+}
+
+#[test]
+pub fn perp_market_transfer_fee_and_pnl_pool() {
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+
+    // SOL (as of slot 409451609)
+    let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hJIP3BAAAAAAAAAAAAAAAAAAAAAAAAAAAFuz0BAAAAACWcfYEAAAAANrux2kAAAAAp70SNM7//////////////2sMl0Xy//////////////8trAi6p0siAAAAAAAAAAAAAAAAAAAAAACIu8ipHGCTAAAAAAAAAAAAVrJHsB9fkwAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAAC8RNAUBsSSAAAAAAAAAAAAaQXlPOr7kwAAAAAAAAAAABvv0SyeX5MAAAAAAAAAAACqi/cEAAAAAAAAAAAAAAAASYvFspZfkwAAAAAAAAAAAAA9XbpHcQEAAAAAAAAAAACAu7hCQY7+////////////gPgV/Yj//////////////wAAAAAAAAAAAAAAAAAAAAAAAI1J/RoHAAAAAAAAAAAA+T41l9cCAAAAAAAAAAAAAGat7M1w1/////////////+SMT48ViwAAAAAAAAAAAAAfYgvvOLX/////////////0+x5G+hKwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHv0//////8ce/T//////xx79P//////sVT8//////+LhuNqHRoAAAAAAAAAAAAAV7ZkZSsKAAAAAAAAAAAAALPxdxgWEAAAAAAAAAAAAAAmzXDeFw0AAAAAAAAAAAAAtsCc654HAAAAAAAAAAAAABdPYMUUBQAAAAAAAAAAAAAPd7FXCgAAAAAAAAAAAAAAlBtnSwoAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAACjWX5b7GOTAAAAAAAAAAAASJ5XHlBbkwAAAAAAAAAAAMnRdxl0bJMAAAAAAAAAAABf/UNeyVKTAAAAAAAAAAAAJIP3BAAAAAAAAAAAAAAAAFJ58wQAAAAAjlT1BAAAAADwZvQEAAAAAAYF9gQAAAAA/L9nGAAAAACBAAAAAAAAAJJcigcAAAAA8ezHaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACLAZxgAAAAA04ppTjoWAAAmbBjfewAAALWEqk9HAAAAsu7HaQAAAACdxAIAAAAAAD6XAgAAAAAA2u7HaQAAAADIAAAAIE4AAMYAAAD+AAAAUVP3BAAAAACoYTIAaGQMAcDIUt4DFGL/ULdE/RZOBgCbVq///////9zgRcTl////cP7//+wAAADEu/QEAAAAAPviFO8ZTxYAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAsnK2MSwAAAAC7cdpAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAAE3I+AAAAAAA8XMAAAAAAADREwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAbg0AAKgJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAAIRXvcEAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+
+    let mut sol_perp_decoded = base64::decode(sol_perp_market_str).unwrap();
+    let sol_perp_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        sol_perp_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let sol_perp_market = *AccountLoader::<PerpMarket>::try_from(&sol_perp_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    // ETH (as of slot 409497574)
+    let eth_perp_market_str = String::from("Ct8MLGv1N/cP8V8Fb1epGNxhYovgt6QslGhUT6HV1zTpfCkrkbwLkndwx9kOHTTRdsq6+h4yZlyZWL2p6k8cVCwzZ4FGbCUqXGV1eAAAAAAAAAAAAAAAAAEAAAAAAAAA/SRjeAAAAAChnVt4AAAAAKgzyGkAAAAAK2l1AgAAAAAAAAAAAAAAAA9wrAoAAAAAAAAAAAAAAACh+4TbqUEDAAAAAAAAAAAAAAAAAAAAAACKuobbYRQAAAAAAAAAAAAATN2ls14UAAAAAAAAAAAAAFdKDwAAAAAAAAAAAAAAAADyCbJ/VRQAAAAAAAAAAAAASXgSFWsUAAAAAAAAAAAAAAqohkdgFAAAAAAAAAAAAADYdt14AAAAAAAAAAAAAAAACqiGR2AUAAAAAAAAAAAAAIAAnOeOAwAAAAAAAAAAAAAA7WOEb/z/////////////gO3/a/7//////////////wAAAAAAAAAAAAAAAAAAAAAAID2IeS0AAAAAAAAAAAAAHEI12XIBAAAAAAAAAAAAADCpXUuQ9/////////////8h8QjUrgkAAAAAAAAAAAAAVKXVKYz3/////////////0AW/aXJCQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJG05AQAAAAAkbTkBAAAAAF3iOAEAAAAAINF0AAAAAAA5TWeWBQUAAAAAAAAAAAAANMVeC/kCAAAAAAAAAAAAAOUtJc4RAgAAAAAAAAAAAAA5SOd/xQAAAAAAAAAAAAAA89kg4EsBAAAAAAAAAAAAAMCrPYJDAQAAAAAAAAAAAAA5jF9oEgEAAAAAAAAAAAAATeVjBxIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABhrBaiYRQAAAAAAAAAAAAAm6gN7V4UAAAAAAAAAAAAAGouldVrFAAAAAAAAAAAAABA4gHAVBQAAAAAAAAAAAAAUPB2eAAAAADICgAAAAAAANd8SHgAAAAAPpyAeAAAAACKjGR4AAAAAEGbXXgAAAAA4G9oGAAAAAA+AAAAAAAAAPfDAQAAAAAATTPIaQAAAAAQDgAAAAAAAEBCDwAAAAAAECcAAAAAAABAQg8AAAAAAOZvaBgAAAAAutxz8+ACAAAX36EsBwAAAEKKf3wDAAAAqDPIaQAAAAA7/R0AAAAAAK9SGwAAAAAAqDPIaQAAAACvAAAAECcAAJMAAACrDgAAV2V1eAAAAAAgTjIAZQAMAcCmjPgAFAD/AA5nFhtOBgD0SDn3AQAAAHq8ojMAAAAAxP///84FAAAI12J4AAAAALyI4xr88QMAAAAAAAAAAAAAAAAAAAAAAEVUSC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAA4fUFAAAAAP8PpdToAAAAFhrxGBIAAACkdwppAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAACvAXAAAAAAAlnAAAAAAAABuEAAAAAAAAPoAAAAAAAAAiBMAAEwdAAD0AQAAyAAAAAAAAAAQJwAA2gIAAPwCAAACAAEAAYAAAAAAAAAAAGMAQgAAAAAAAACAgXt4AAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+
+    let mut eth_perp_decoded = base64::decode(eth_perp_market_str).unwrap();
+    let sol_perp_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        eth_perp_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let eth_perp_market = *AccountLoader::<PerpMarket>::try_from(&sol_perp_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    // USDC (as of slot 409451751)
+    let usdc_spot_market_str = String::from("ZLEIa6hBQSdUX6MOo7w/PClm2otsPf7406t9pXygIypU5KAmT//Dwn4XAskDe6KnOB2fuc5t8V0PxU10u3MRn4rxLxkMDhW+xvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWHmsHZFgFFAI49uEcLfeyYJqqXqJL+++g9w+I4yK2cfD1VTREMgICAgICAgICAgICAgICAgICAgICAgICAgICAgukEPAAAAAAAtAAAAAAAAAB0AAAAAAAAA50EPAAAAAAC8QQ8AAAAAAGrtx2kAAAAAQEIPAAAAAABAQg8AAAAAAEBCDwAAAAAAQEIPAAAAAAAAAAAAAAAAAKyHT4jBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABHkMifZGT+FrLhfKfHFav7xo95PrVMA7wMfE+znV7oDulKyko0DAAAAAAAAAAAAAL1XqBIzAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAABt4cdpAAAAABAOAAAAAAAAoIYBAFzBAAAAAAAAAAAAAAAAAAAAAAAAfkv1jv7JXgEAAAAAAAAAAJfdQb4XCK8AAAAAAAAAAAAX/nXMAgAAAAAAAAAAAAAApqF/QQMAAAAAAAAAAAAAAG8haMUAAAAAAAAAAAAAAAAOgmjFAAAAAAAAAAAAAAAAAJAexLwWAAAAQGNSv8YBAAP7bLiXbQAAiOggJmc+AACI3AgAAAAAAIvtx2kAAAAAi+3HaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAU0MIAAAAAABAnAAAQJwAAECcAABAnAAAAAAAAAAAAAIgTAAAANQwAFM0AAKC7DQAGAAAAAAAADwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKMFwEAAAAAAADpQcxrAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
+    let mut usdc_spot_decoded = base64::decode(usdc_spot_market_str).unwrap();
+    let usdc_spot_account_info = create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        usdc_spot_decoded.as_mut_slice(),
+        &owner,
+    );
+
+    let usdc_spot_market = *AccountLoader::<SpotMarket>::try_from(&usdc_spot_account_info)
+        .unwrap()
+        .load_mut()
+        .unwrap();
+
+    // Case 1: No revert, transfer 100% pnl -> fee pool
+    {
+        let mut case_market = sol_perp_market.clone();
+        let mut case_spot_market = usdc_spot_market.clone();
+
+        let fee_pool_amount_before_transfer = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_before_transfer = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        // transfer entire pnl pool into fee pool to overfill it
+        let transfer_amount = pnl_pool_amount_before_transfer as u64;
+
+        let fee_pool = &mut case_market.amm.fee_pool as *mut PoolBalance;
+        let pnl_pool = &mut case_market.pnl_pool as *mut PoolBalance;
+
+        execute_transfer_between_pools(
+            transfer_amount,
+            &mut case_spot_market,
+            unsafe { &mut *fee_pool },
+            unsafe { &mut *pnl_pool },
+            case_market.market_index,
+            case_market.market_index,
+            TransferFeeAndPnlPoolDirection::PnlToFeePool,
+        )
+        .unwrap();
+
+        let fee_pool_amount_after_transfer = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_after_transfer = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(
+            fee_pool_amount_before_transfer.saturating_add(transfer_amount as u128),
+            fee_pool_amount_after_transfer
+        );
+
+        assert_eq!(
+            pnl_pool_amount_before_transfer.saturating_sub(transfer_amount as u128),
+            pnl_pool_amount_after_transfer
+        );
+
+        case_market.amm.total_fee_minus_distributions = case_market
+            .amm
+            .total_fee_minus_distributions
+            .safe_add(transfer_amount.cast().unwrap())
+            .unwrap();
+
+        update_pool_balances(&mut case_market, &mut case_spot_market, 0, 0, 0).unwrap();
+
+        let fee_pool_amount_after_update = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_after_update = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(fee_pool_amount_after_update, fee_pool_amount_after_transfer);
+        assert_eq!(pnl_pool_amount_after_update, pnl_pool_amount_after_transfer);
+    }
+
+    // Case 2: Expect no top up, fee -> pnl, transfer 100% of fee pool for SOL
+    {
+        let mut case_market = sol_perp_market.clone();
+        let mut case_spot_market = usdc_spot_market.clone();
+
+        let fee_pool_amount_before_transfer = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_before_transfer = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let transfer_amount = fee_pool_amount_before_transfer as u64;
+
+        let fee_pool = &mut case_market.amm.fee_pool as *mut PoolBalance;
+        let pnl_pool = &mut case_market.pnl_pool as *mut PoolBalance;
+
+        execute_transfer_between_pools(
+            transfer_amount,
+            &mut case_spot_market,
+            unsafe { &mut *fee_pool },
+            unsafe { &mut *pnl_pool },
+            case_market.market_index,
+            case_market.market_index,
+            TransferFeeAndPnlPoolDirection::FeeToPnlPool,
+        )
+        .unwrap();
+
+        let fee_pool_amount_after_transfer = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_after_transfer = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(
+            fee_pool_amount_before_transfer.saturating_sub(transfer_amount as u128),
+            fee_pool_amount_after_transfer
+        );
+
+        assert_eq!(
+            pnl_pool_amount_before_transfer.saturating_add(transfer_amount as u128),
+            pnl_pool_amount_after_transfer
+        );
+
+        case_market.amm.total_fee_minus_distributions = case_market
+            .amm
+            .total_fee_minus_distributions
+            .safe_sub(transfer_amount.cast().unwrap())
+            .unwrap();
+
+        let now = 0_i64;
+
+        update_pool_balances(&mut case_market, &mut case_spot_market, 0, 0, now).unwrap();
+
+        let fee_pool_amount_after_update = get_token_amount(
+            case_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_pool_amount_after_update = get_token_amount(
+            case_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(fee_pool_amount_after_update, fee_pool_amount_after_transfer);
+        assert_eq!(pnl_pool_amount_after_update, pnl_pool_amount_after_transfer);
+    }
+
+    // Case 3: SOL fee -> ETH pnl pool
+    {
+        let mut case_sol_market = sol_perp_market.clone();
+        let mut case_eth_market = eth_perp_market.clone();
+        let mut case_spot_market = usdc_spot_market.clone();
+
+        let sol_fee_pool_amount_before_transfer = get_token_amount(
+            case_sol_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let eth_pnl_pool_amount_before_transfer = get_token_amount(
+            case_eth_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let transfer_amount = (sol_fee_pool_amount_before_transfer / 2) as u64;
+
+        let fee_pool = &mut case_sol_market.amm.fee_pool as *mut PoolBalance;
+        let pnl_pool = &mut case_eth_market.pnl_pool as *mut PoolBalance;
+
+        execute_transfer_between_pools(
+            transfer_amount,
+            &mut case_spot_market,
+            unsafe { &mut *fee_pool },
+            unsafe { &mut *pnl_pool },
+            case_sol_market.market_index,
+            case_eth_market.market_index,
+            TransferFeeAndPnlPoolDirection::FeeToPnlPool,
+        )
+        .unwrap();
+
+        let sol_fee_pool_amount_after_transfer = get_token_amount(
+            case_sol_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let eth_pnl_pool_amount_after_transfer = get_token_amount(
+            case_eth_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(
+            sol_fee_pool_amount_before_transfer.saturating_sub(transfer_amount as u128),
+            sol_fee_pool_amount_after_transfer
+        );
+
+        assert_eq!(
+            eth_pnl_pool_amount_before_transfer.saturating_add(transfer_amount as u128),
+            eth_pnl_pool_amount_after_transfer
+        );
+
+        case_sol_market.amm.total_fee_minus_distributions = case_sol_market
+            .amm
+            .total_fee_minus_distributions
+            .safe_sub(transfer_amount.cast().unwrap())
+            .unwrap();
+
+        // To skip BlockchainClockInconsistency
+        case_eth_market.insurance_claim.last_revenue_withdraw_ts = 0;
+        case_spot_market.insurance_fund.last_revenue_settle_ts = 0;
+
+        let now = 0_i64;
+
+        update_pool_balances(&mut case_sol_market, &mut case_spot_market, 0, 0, now).unwrap();
+        update_pool_balances(&mut case_eth_market, &mut case_spot_market, 0, 0, now).unwrap();
+
+        let sol_fee_pool_amount_after_update = get_token_amount(
+            case_sol_market.amm.fee_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let eth_pnl_pool_amount_after_update = get_token_amount(
+            case_eth_market.pnl_pool.scaled_balance,
+            &case_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(
+            sol_fee_pool_amount_after_update,
+            sol_fee_pool_amount_after_transfer
+        );
+
+        assert_eq!(
+            eth_pnl_pool_amount_after_update,
+            eth_pnl_pool_amount_after_transfer
+        );
     }
 }

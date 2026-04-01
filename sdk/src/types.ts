@@ -1960,3 +1960,8 @@ export type AccountLiquidatableStatus = {
 	marginRequirement: BN;
 	totalCollateral: BN;
 };
+
+export class TransferFeeAndPnlPoolDirection {
+	static readonly FEE_TO_PNL_POOL = { feeToPnlPool: {} };
+	static readonly PNL_TO_FEE_POOL = { pnlToFeePool: {} };
+}

@@ -1,3 +1,4 @@
+use crate::controller::spot_balance::execute_transfer_between_pools;
 use crate::{msg, FeatureBitFlags};
 use anchor_lang::prelude::*;
 use anchor_spl::token_2022::Token2022;
@@ -40,6 +41,7 @@ use crate::optional_accounts::get_token_mint;
 use crate::state::amm_cache::{AmmCache, CacheInfo, AMM_POSITIONS_CACHE};
 use crate::state::events::{
     CurveRecord, DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
+    TransferFeeAndPnlPoolDirection, TransferFeeAndPnlPoolRecord,
 };
 use crate::state::fulfillment_params::openbook_v2::{
     OpenbookV2Context, OpenbookV2FulfillmentConfig,
@@ -5245,6 +5247,109 @@ pub fn handle_update_perp_market_config(
     Ok(())
 }
 
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market_with_fee_pool)
+    perp_market_valid(&ctx.accounts.perp_market_with_pnl_pool)
+)]
+pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferFeeAndPnlPool<'info>>,
+    amount: u64,
+    direction: TransferFeeAndPnlPoolDirection,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
+
+    let same_market = ctx.accounts.perp_market_with_fee_pool.key()
+        == ctx.accounts.perp_market_with_pnl_pool.key();
+
+    if same_market {
+        let mut perp_market = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
+
+        let fee_pool = &mut perp_market.amm.fee_pool as *mut PoolBalance;
+        let pnl_pool = &mut perp_market.pnl_pool as *mut PoolBalance;
+
+        execute_transfer_between_pools(
+            amount,
+            spot_market,
+            unsafe { &mut *fee_pool },
+            unsafe { &mut *pnl_pool },
+            perp_market.market_index,
+            perp_market.market_index,
+            direction,
+        )?;
+
+        perp_market.amm.total_fee_minus_distributions = match direction {
+            TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market
+                .amm
+                .total_fee_minus_distributions
+                .safe_sub(amount.cast()?)?,
+            TransferFeeAndPnlPoolDirection::PnlToFeePool => perp_market
+                .amm
+                .total_fee_minus_distributions
+                .safe_add(amount.cast()?)?,
+        };
+
+        let transfer_record = TransferFeeAndPnlPoolRecord {
+            ts: now,
+            slot,
+            perp_market_index_with_fee_pool: perp_market.market_index,
+            perp_market_index_with_pnl_pool: perp_market.market_index,
+            direction,
+            amount,
+        };
+
+        emit!(transfer_record);
+    } else {
+        let mut perp_market_with_fee_pool = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
+        let mut perp_market_with_pnl_pool = load_mut!(ctx.accounts.perp_market_with_pnl_pool)?;
+
+        let fee_pool_market_index = perp_market_with_fee_pool.market_index;
+        let pnl_pool_market_index = perp_market_with_pnl_pool.market_index;
+
+        let fee_pool = &mut perp_market_with_fee_pool.amm.fee_pool;
+        let pnl_pool = &mut perp_market_with_pnl_pool.pnl_pool;
+
+        execute_transfer_between_pools(
+            amount,
+            spot_market,
+            fee_pool,
+            pnl_pool,
+            fee_pool_market_index,
+            pnl_pool_market_index,
+            direction,
+        )?;
+
+        perp_market_with_fee_pool.amm.total_fee_minus_distributions = match direction {
+            TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market_with_fee_pool
+                .amm
+                .total_fee_minus_distributions
+                .safe_sub(amount.cast()?)?,
+            TransferFeeAndPnlPoolDirection::PnlToFeePool => perp_market_with_fee_pool
+                .amm
+                .total_fee_minus_distributions
+                .safe_add(amount.cast()?)?,
+        };
+
+        let transfer_record = TransferFeeAndPnlPoolRecord {
+            ts: now,
+            slot,
+            perp_market_index_with_fee_pool: fee_pool_market_index,
+            perp_market_index_with_pnl_pool: pnl_pool_market_index,
+            direction,
+            amount,
+        };
+
+        emit!(transfer_record);
+    }
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -6185,4 +6290,29 @@ pub struct UpdateDelegateUserGovTokenInsuranceStake<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct TransferFeeAndPnlPool<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub perp_market_with_fee_pool: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    pub perp_market_with_pnl_pool: AccountLoader<'info, PerpMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }

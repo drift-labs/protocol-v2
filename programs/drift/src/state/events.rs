@@ -919,3 +919,21 @@ pub struct LPBorrowLendDepositRecord {
 impl Size for LPBorrowLendDepositRecord {
     const SIZE: usize = 104;
 }
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default, Debug)]
+pub enum TransferFeeAndPnlPoolDirection {
+    #[default]
+    FeeToPnlPool,
+    PnlToFeePool,
+}
+
+#[event]
+#[derive(Default)]
+pub struct TransferFeeAndPnlPoolRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub perp_market_index_with_fee_pool: u16,
+    pub perp_market_index_with_pnl_pool: u16,
+    pub direction: TransferFeeAndPnlPoolDirection,
+    pub amount: u64,
+}

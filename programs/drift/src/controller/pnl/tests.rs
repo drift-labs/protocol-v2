@@ -1070,8 +1070,8 @@ pub fn market_fee_pool_receives_portion() {
     expected_user.spot_positions[0].scaled_balance = 100 * SPOT_BALANCE_PRECISION_U64;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.scaled_balance = 149 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.fee_pool.scaled_balance = SPOT_BALANCE_PRECISION;
+    expected_market.pnl_pool.scaled_balance = 150 * SPOT_BALANCE_PRECISION; // fractional addition is removed, fee pool doesn't get topped up by user settlements
+    expected_market.amm.fee_pool.scaled_balance = 0;
     expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
@@ -1214,8 +1214,8 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     expected_user.spot_positions[0].scaled_balance = 100 * SPOT_BALANCE_PRECISION_U64;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.scaled_balance = 151 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.fee_pool.scaled_balance = SPOT_BALANCE_PRECISION;
+    expected_market.pnl_pool.scaled_balance = 150 * SPOT_BALANCE_PRECISION; // fractional addition is removed, fee pool doesn't get topped up by user settlements
+    expected_market.amm.fee_pool.scaled_balance = 2 * SPOT_BALANCE_PRECISION; // same as original state
     expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
