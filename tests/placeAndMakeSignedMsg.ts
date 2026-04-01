@@ -98,7 +98,7 @@ describe('place and make signedMsg order', () => {
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		const wallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
 		makerDriftClient = new TestClient({

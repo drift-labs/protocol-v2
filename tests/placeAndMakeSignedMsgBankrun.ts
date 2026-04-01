@@ -162,7 +162,7 @@ describe('place and make signedMsg order', () => {
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [
-			{ publicKey: solUsd, source: OracleSource.PYTH },
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
 			{ publicKey: solUsdLazer, source: OracleSource.PYTH_LAZER },
 		];
 

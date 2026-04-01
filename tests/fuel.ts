@@ -124,7 +124,7 @@ describe("fuelin'", () => {
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		fillerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

@@ -142,15 +142,33 @@ describe('LP Pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
-		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 80);
-		spotMarketOracle2 = await mockOracleNoProgram(bankrunContextWrapper, 80);
+		spotMarketOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			80,
+			-7,
+			undefined,
+			10000
+		);
+		spotMarketOracle2 = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			80,
+			-7,
+			undefined,
+			10000
+		);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 80);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			80,
+			-7,
+			undefined,
+			10000
+		);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -163,7 +181,7 @@ describe('LP Pool', () => {
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1, 2],
 			spotMarketIndexes: [0, 1],
-			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -245,7 +263,7 @@ describe('LP Pool', () => {
 			optimalRate,
 			maxRate,
 			spotMarketOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,
@@ -260,7 +278,7 @@ describe('LP Pool', () => {
 			optimalRate,
 			maxRate,
 			spotMarketOracle2,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,
@@ -858,7 +876,12 @@ describe('LP Pool', () => {
 		const derivative = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 2)
 		)) as ConstituentAccount;
-		await setFeedPriceNoProgram(bankrunContextWrapper, 160, spotMarketOracle2);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			160,
+			spotMarketOracle2,
+			10000
+		);
 		await adminClient.updateConstituentOracleInfo(derivative);
 		const tx2 = new Transaction();
 		tx2
@@ -891,7 +914,12 @@ describe('LP Pool', () => {
 
 		// Move the oracle price to be half, so its target base should go to zero
 		const parentBalanceBefore = constituentTargetBase.targets[1].targetBase;
-		await setFeedPriceNoProgram(bankrunContextWrapper, 40, spotMarketOracle2);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			40,
+			spotMarketOracle2,
+			10000
+		);
 		await adminClient.updateConstituentOracleInfo(derivative);
 		const tx3 = new Transaction();
 		tx3
@@ -920,7 +948,12 @@ describe('LP Pool', () => {
 			parentBalanceBefore.toNumber() * 2,
 			10
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, 80, spotMarketOracle2);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			80,
+			spotMarketOracle2,
+			10000
+		);
 		await adminClient.updateConstituentOracleInfo(derivative);
 	});
 

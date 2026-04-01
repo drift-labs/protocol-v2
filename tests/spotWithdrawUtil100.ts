@@ -104,7 +104,7 @@ describe('test function when spot market at >= 100% util', () => {
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
 		admin = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -215,7 +215,7 @@ describe('test function when spot market at >= 100% util', () => {
 			optimalRate,
 			maxRate,
 			solOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,

@@ -2421,44 +2421,34 @@ mod force_get_isolated_perp_position_mut {
 }
 
 pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
-    use crate::math::constants::ONE_HOUR;
     use crate::state::state::State;
     use std::collections::BTreeSet;
     use std::str::FromStr;
 
-    use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::controller::liquidation::{liquidate_perp, liquidate_spot};
     use crate::controller::position::PositionDirection;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
-        MARGIN_PRECISION_U128, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::liquidation::is_cross_margin_being_liquidated;
-    use crate::math::margin::{
-        calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
-    };
-    use crate::math::position::calculate_base_asset_value_with_oracle_price;
-    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+    use crate::math::margin::MarginRequirementType;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
-        MarginMode, Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User,
-        UserStats,
+        Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User, UserStats,
     };
-    use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-    use crate::{create_account_info, PRICE_PRECISION_I64};
+    use crate::PRICE_PRECISION_I64;
 
     #[test]
     pub fn unhealthy_isolated_perp_blocks_withdraw() {
@@ -2468,11 +2458,10 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            PythLazerOracle,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2493,7 +2482,8 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

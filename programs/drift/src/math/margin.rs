@@ -297,7 +297,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
-            0,
+            -1,
             0,
             Some(LogMode::Margin),
         )?;
@@ -554,7 +554,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     .historical_oracle_data
                     .last_oracle_price_twap,
                 quote_spot_market.get_max_confidence_interval_multiplier()?,
-                0,
+                -1,
                 0,
                 Some(LogMode::Margin),
             )?;
@@ -1066,7 +1066,7 @@ pub fn calculate_user_equity(
             &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
-            0,
+            -1,
             0,
             Some(LogMode::Margin),
         )?;
@@ -1098,7 +1098,7 @@ pub fn calculate_user_equity(
                         .historical_oracle_data
                         .last_oracle_price_twap,
                     quote_spot_market.get_max_confidence_interval_multiplier()?,
-                    0,
+                    -1,
                     0,
                     Some(LogMode::Margin),
                 )?;

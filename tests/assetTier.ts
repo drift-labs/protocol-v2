@@ -101,7 +101,7 @@ describe('asset tiers', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			userStats: false,
@@ -171,11 +171,11 @@ describe('asset tiers', () => {
 			[
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 				{
 					publicKey: dogeOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader

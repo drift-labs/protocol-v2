@@ -70,8 +70,6 @@ mod market_index_offset {
     use crate::state::perp_market::PerpMarket;
     use crate::state::spot_market::SpotMarket;
     use crate::state::traits::MarketIndexOffset;
-    use crate::test_utils::*;
-    use anchor_lang::prelude::*;
     use arrayref::array_ref;
 
     #[test]

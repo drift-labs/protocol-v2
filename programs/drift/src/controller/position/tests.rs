@@ -4,37 +4,35 @@ use crate::controller::amm::{
 use crate::controller::position::{update_position_and_market, PositionDelta};
 use crate::controller::repeg::_update_amm;
 
+use crate::bn::U192;
+use crate::controller::amm::update_pool_balances;
+use crate::create_anchor_account_info;
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
     BASE_PRECISION, BASE_PRECISION_I64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
+use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
 use crate::math::oracle::OracleValidity;
 use crate::math::position::swap_direction_to_close_position;
 use crate::math::repeg;
+use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_amount;
+use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle::{MMOraclePriceData, OraclePriceData, PrelaunchOracle};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::state::State;
-use crate::state::user::PerpPosition;
-use crate::test_utils::{create_account_info, get_account_bytes};
-
-use crate::bn::U192;
-use crate::controller::amm::update_pool_balances;
-use crate::create_anchor_account_info;
-use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
-use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
-use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::State;
+use crate::state::user::PerpPosition;
 use crate::state::user::SpotPosition;
-use crate::test_utils::get_anchor_account_bytes;
-use crate::test_utils::get_hardcoded_pyth_price;
+use crate::test_utils::create_account_info;
+use crate::test_utils::get_pyth_price_mantissa;
 use anchor_lang::prelude::{AccountLoader, Clock};
-use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
@@ -2312,8 +2310,13 @@ fn recenter_amm_1() {
     let key = Pubkey::from_str("2QeqpeJUVo2LBWNELRfcBwJgrNoxJQSd7gokcaM5nvaa").unwrap();
     let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
     let mut lamports = 0;
-    let perp_market_account_info =
-        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+    let perp_market_account_info = crate::test_utils::create_account_info(
+        &key,
+        true,
+        &mut lamports,
+        perp_market_bytes,
+        &owner,
+    );
     let market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
 
     let oracle_market_str = String::from("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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
@@ -2403,19 +2406,14 @@ fn recenter_amm_2() {
     // let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
     // let oracle_market_bytes = decoded_bytes.as_mut_slice();
 
-    let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
+    let mut oracle_price = get_pyth_price_mantissa(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    let mut data = get_account_bytes(&mut oracle_price);
-    let mut lamports2 = 0;
-
-    let oracle_account_info = create_account_info(
+    create_anchor_account_info!(
+        oracle_price,
         &oracle_price_key,
-        true,
-        &mut lamports2,
-        &mut data[..],
-        &pyth_program,
+        PythLazerOracle,
+        oracle_account_info
     );
 
     //https://explorer.solana.com/block/243485436
@@ -2438,7 +2436,7 @@ fn recenter_amm_2() {
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
     let oracle_price_data = oracle_map
-        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .get_price_data(&(oracle_price_key, OracleSource::PythLazer))
         .unwrap();
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
@@ -2545,19 +2543,14 @@ fn test_move_amm() {
     // let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
     // let oracle_market_bytes = decoded_bytes.as_mut_slice();
 
-    let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
+    let mut oracle_price = get_pyth_price_mantissa(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    let mut data = get_account_bytes(&mut oracle_price);
-    let mut lamports2 = 0;
-
-    let oracle_account_info = create_account_info(
+    create_anchor_account_info!(
+        oracle_price,
         &oracle_price_key,
-        true,
-        &mut lamports2,
-        &mut data[..],
-        &pyth_program,
+        PythLazerOracle,
+        oracle_account_info
     );
 
     //https://explorer.solana.com/block/243485436
@@ -2580,7 +2573,7 @@ fn test_move_amm() {
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
     let oracle_price_data = oracle_map
-        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .get_price_data(&(oracle_price_key, OracleSource::PythLazer))
         .unwrap();
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,

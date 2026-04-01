@@ -12,7 +12,7 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
-use crate::math::oracle::{self, is_oracle_valid_for_action, DriftAction, OracleValidity};
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
@@ -415,6 +415,7 @@ pub fn get_pyth_price(
     let published_slot: u64;
     let sequence_id: Option<u64>;
 
+    // TODO: remove these branches for pull and push once we can
     if oracle_source.is_pyth_pull_oracle() {
         let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
             &mut pyth_price_data,

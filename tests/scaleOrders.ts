@@ -97,7 +97,7 @@ describe('scale orders', () => {
 		const bankIndexes = [0, 1]; // USDC and SOL spot markets
 		const oracleInfos = [
 			{ publicKey: PublicKey.default, source: OracleSource.QUOTE_ASSET },
-			{ publicKey: solUsd, source: OracleSource.PYTH },
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
 		];
 
 		driftClient = new TestClient({

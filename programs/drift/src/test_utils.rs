@@ -2,6 +2,7 @@ use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;
 
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use pyth::pc::Price;
 
 use crate::state::user::{Order, PerpPosition, SpotPosition};
@@ -68,12 +69,24 @@ pub fn create_account_info<'a>(
     AccountInfo::new(key, false, is_writable, lamports, bytes, owner, false, 0)
 }
 
-pub fn get_pyth_price(price: i64, expo: i32) -> Price {
-    let mut pyth_price = Price::default();
+pub fn get_pyth_price(price: i64, expo: i32) -> PythLazerOracle {
+    let mut pyth_price = PythLazerOracle::default();
     let price = price * 10_i64.pow(expo as u32);
-    pyth_price.agg.price = price;
-    pyth_price.twap = price;
-    pyth_price.expo = expo;
+    pyth_price.price = price;
+    pyth_price.publish_time = 0;
+    pyth_price.posted_slot = 0;
+    pyth_price.exponent = expo;
+    pyth_price
+}
+
+/// Creates a PythLazerOracle with price as raw mantissa (no multiply). Use when the price is already
+/// in the correct form for the given exponent (e.g. 990000 with expo 6 for $0.99).
+pub fn get_pyth_price_mantissa(price: i64, expo: i32) -> PythLazerOracle {
+    let mut pyth_price = PythLazerOracle::default();
+    pyth_price.price = price;
+    pyth_price.publish_time = 0;
+    pyth_price.posted_slot = 0;
+    pyth_price.exponent = expo;
     pyth_price
 }
 
@@ -88,32 +101,55 @@ pub fn get_hardcoded_pyth_price(price: i64, expo: i32) -> Price {
 #[macro_export]
 macro_rules! create_anchor_account_info {
     ($account:expr, $type:ident, $name: ident) => {
-        let key = Pubkey::default();
+        let key = anchor_lang::prelude::Pubkey::default();
         let mut lamports = 0;
-        let mut data = get_anchor_account_bytes(&mut $account);
-        let owner = $type::owner();
-        let $name = create_account_info(&key, true, &mut lamports, &mut data[..], &owner);
+        let mut data = $crate::test_utils::get_anchor_account_bytes(&mut $account);
+        let owner = <$type as anchor_lang::Owner>::owner();
+        let $name = $crate::test_utils::create_account_info(
+            &key,
+            true,
+            &mut lamports,
+            &mut data[..],
+            &owner,
+        );
     };
     ($account:expr, $pubkey:expr, $type:ident, $name: ident) => {
         let mut lamports = 0;
-        let mut data = get_anchor_account_bytes(&mut $account);
-        let owner = $type::owner();
-        let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], &owner);
+        let mut data = $crate::test_utils::get_anchor_account_bytes(&mut $account);
+        let owner = <$type as anchor_lang::Owner>::owner();
+        let $name = $crate::test_utils::create_account_info(
+            $pubkey,
+            true,
+            &mut lamports,
+            &mut data[..],
+            &owner,
+        );
     };
 }
 
 #[macro_export]
 macro_rules! create_account_info {
     ($account:expr, $owner:expr, $name: ident) => {
-        let key = Pubkey::default();
+        let key = anchor_lang::prelude::Pubkey::default();
         let mut lamports = 0;
-        let mut data = get_account_bytes(&mut $account);
-        let owner = $type::owner();
-        let $name = create_account_info(&key, true, &mut lamports, &mut data[..], $owner);
+        let mut data = $crate::test_utils::get_account_bytes(&mut $account);
+        let $name = $crate::test_utils::create_account_info(
+            &key,
+            true,
+            &mut lamports,
+            &mut data[..],
+            $owner,
+        );
     };
     ($account:expr, $pubkey:expr, $owner:expr, $name: ident) => {
         let mut lamports = 0;
-        let mut data = get_account_bytes(&mut $account);
-        let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], $owner);
+        let mut data = $crate::test_utils::get_account_bytes(&mut $account);
+        let $name = $crate::test_utils::create_account_info(
+            $pubkey,
+            true,
+            &mut lamports,
+            &mut data[..],
+            $owner,
+        );
     };
 }

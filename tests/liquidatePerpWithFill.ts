@@ -91,7 +91,13 @@ describe('liquidate perp (no open orders)', () => {
 			bankrunContextWrapper
 		);
 
-		oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		oracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -106,7 +112,7 @@ describe('liquidate perp (no open orders)', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -184,7 +190,7 @@ describe('liquidate perp (no open orders)', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -209,7 +215,7 @@ describe('liquidate perp (no open orders)', () => {
 			[
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader
@@ -226,7 +232,7 @@ describe('liquidate perp (no open orders)', () => {
 	});
 
 	it('liquidate', async () => {
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle, 10000);
 		await driftClient.updatePerpMarketPausedOperations(
 			0,
 			PerpOperation.AMM_FILL

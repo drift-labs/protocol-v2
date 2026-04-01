@@ -251,7 +251,7 @@ describe('prelisting', () => {
 		await adminDriftClient.updatePerpMarketOracle(
 			0,
 			newOracle,
-			OracleSource.PYTH
+			OracleSource.PYTH_LAZER
 		);
 
 		await adminDriftClient.deletePrelaunchOracle(0);

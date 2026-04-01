@@ -92,7 +92,7 @@ describe('oracle fill guardrails', () => {
 
 		marketIndexes = [0, 1];
 		spotMarketIndexes = [0];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		fillerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

@@ -148,7 +148,7 @@ describe('LP Pool', () => {
 			oracleInfos: [
 				{
 					publicKey: spotMarketOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -217,7 +217,7 @@ describe('LP Pool', () => {
 			optimalRate,
 			maxRate,
 			spotMarketOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,
@@ -299,7 +299,7 @@ describe('LP Pool', () => {
 				[
 					{
 						publicKey: spotMarketOracle,
-						source: OracleSource.PYTH,
+						source: OracleSource.PYTH_LAZER,
 					},
 				],
 				bulkAccountLoader

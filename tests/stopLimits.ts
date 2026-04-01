@@ -99,19 +99,31 @@ describe('stop limit', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
-		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 60000);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
+		btcUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			60000,
+			-7,
+			undefined,
+			10000
+		);
 
 		const marketIndexes = [marketIndex];
 		const spotMarketIndexes = [0];
 		const oracleInfos = [
 			{
 				publicKey: solUsd,
-				source: OracleSource.PYTH,
+				source: OracleSource.PYTH_LAZER,
 			},
 			{
 				publicKey: btcUsd,
-				source: OracleSource.PYTH,
+				source: OracleSource.PYTH_LAZER,
 			},
 		];
 
@@ -282,7 +294,7 @@ describe('stop limit', () => {
 		await driftClientUser.fetchAccounts();
 		let order = driftClientUser.getOrder(orderId);
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 1.01, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1.01, solUsd, 10000);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(1.01 * PRICE_PRECISION.toNumber())
@@ -368,7 +380,7 @@ describe('stop limit', () => {
 		driftClientUser.getUserAccount();
 		let order = driftClientUser.getOrder(orderId);
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.99, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.99, solUsd, 10000);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(0.99 * PRICE_PRECISION.toNumber())

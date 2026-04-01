@@ -101,7 +101,13 @@ describe('insurance fund stake', () => {
 			bankrunContextWrapper
 		);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 22500); // a future we all need to believe in
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			22500,
+			-7,
+			undefined,
+			10000
+		); // a future we all need to believe in
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -117,7 +123,7 @@ describe('insurance fund stake', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			userStats: true,
@@ -479,7 +485,7 @@ describe('insurance fund stake', () => {
 			[
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader
@@ -869,7 +875,8 @@ describe('insurance fund stake', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			22500 / 10000,
-			solOracle
+			solOracle,
+			-50
 		); // down 99.99%
 		await sleep(2000);
 

@@ -299,6 +299,7 @@ impl<'a> OracleMap<'a> {
             let pubkey = account_info.key();
             oracles.insert(pubkey, account_info.clone());
         } else if account_info.key() != Pubkey::default() {
+            msg!("Invalid oracle account info");
             return Err(ErrorCode::InvalidOracle);
         }
 

@@ -187,7 +187,7 @@ describe('repeg and spread amm', () => {
 		spotMarketIndexes = [0];
 		marketIndexes = mockOracles.map((_, i) => i);
 		oracleInfos = mockOracles.map((oracle) => {
-			return { publicKey: oracle, source: OracleSource.PYTH };
+			return { publicKey: oracle, source: OracleSource.PYTH_LAZER };
 		});
 
 		driftClient = new TestClient({

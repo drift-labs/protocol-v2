@@ -98,7 +98,13 @@ describe('liquidate borrow for perp pnl', () => {
 			ZERO
 		);
 
-		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			undefined,
+			undefined,
+			10000
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -113,7 +119,7 @@ describe('liquidate borrow for perp pnl', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -194,7 +200,7 @@ describe('liquidate borrow for perp pnl', () => {
 				[
 					{
 						publicKey: solOracle,
-						source: OracleSource.PYTH,
+						source: OracleSource.PYTH_LAZER,
 					},
 				],
 				bulkAccountLoader
@@ -227,7 +233,7 @@ describe('liquidate borrow for perp pnl', () => {
 	});
 
 	it('liquidate', async () => {
-		await setFeedPriceNoProgram(bankrunContextWrapper, 50, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 50, solOracle, 10000);
 
 		const txSig = await liquidatorDriftClient.liquidateBorrowForPerpPnl(
 			await driftClient.getUserAccountPublicKey(),

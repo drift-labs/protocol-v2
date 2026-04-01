@@ -101,7 +101,10 @@ describe('AMM Curve', () => {
 
 		solUsdOracle = await mockOracleNoProgram(
 			bankrunContextWrapper,
-			initialSOLPrice
+			initialSOLPrice,
+			-7,
+			undefined,
+			10000
 		);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -252,7 +255,8 @@ describe('AMM Curve', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			newOraclePrice,
-			solUsdOracle
+			solUsdOracle,
+			10000
 		);
 		// showCurve(marketIndex);
 

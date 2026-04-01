@@ -81,7 +81,13 @@ describe('drift client', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		solUsd = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			1,
+			-7,
+			undefined,
+			10000
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
@@ -101,7 +107,7 @@ describe('drift client', () => {
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			subAccountIds: [],
-			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }],
 			userStats: true,
 			accountSubscription: {
 				type: 'polling',
@@ -293,7 +299,8 @@ describe('drift client', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			1.01,
-			marketData.amm.oracle
+			marketData.amm.oracle,
+			10000
 		);
 
 		const orderR = eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -434,7 +441,8 @@ describe('drift client', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			1.0,
-			marketData.amm.oracle
+			marketData.amm.oracle,
+			10000
 		);
 
 		const baseAssetAmount = new BN(48000000000);
