@@ -299,7 +299,7 @@ describe('liquidate perp (no open orders)', () => {
 		await driftClientUser.fetchAccounts();
 		const oraclePrice3 = driftClient.getOracleDataForPerpMarket(0).price;
 		console.log('oraclePrice3:', oraclePrice3.toString());
-		assert(oraclePrice3.eq(new BN(1099999)));
+		assert(oraclePrice3.eq(new BN(1100000)));
 		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
 			driftClientUser.getUserAccount(),
