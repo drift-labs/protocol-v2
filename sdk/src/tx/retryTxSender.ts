@@ -25,7 +25,7 @@ export class RetryTxSender extends BaseTxSender {
 		connection,
 		wallet,
 		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
-		timeout = DEFAULT_TIMEOUT,
+		timeout,
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
@@ -34,7 +34,8 @@ export class RetryTxSender extends BaseTxSender {
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
-		throwOnTimeoutError = true,
+		throwOnTimeoutError,
+		custodialWalletMode = false,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -49,6 +50,7 @@ export class RetryTxSender extends BaseTxSender {
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
 		throwOnTimeoutError?: boolean;
+		custodialWalletMode?: boolean;
 	}) {
 		super({
 			connection,
@@ -63,11 +65,12 @@ export class RetryTxSender extends BaseTxSender {
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
 			throwOnTimeoutError,
+			custodialWalletMode,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
 		this.opts = opts;
-		this.timeout = timeout;
+		this.timeout = this.timeout; // Already set by BaseTxSender
 		this.retrySleep = retrySleep;
 		this.additionalConnections = additionalConnections;
 	}

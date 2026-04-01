@@ -68,8 +68,9 @@ export class WhileValidTxSender extends BaseTxSender {
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
-		throwOnTimeoutError = true,
+		throwOnTimeoutError,
 		throwOnTransactionError = true,
+		custodialWalletMode = false,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -84,6 +85,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		landRateToFeeFunc?: (landRate: number) => number;
 		throwOnTimeoutError?: boolean;
 		throwOnTransactionError?: boolean;
+		custodialWalletMode?: boolean;
 	}) {
 		super({
 			connection,
@@ -98,6 +100,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			landRateToFeeFunc,
 			throwOnTimeoutError,
 			throwOnTransactionError,
+			custodialWalletMode,
 		});
 		this.retrySleep = retrySleep;
 
