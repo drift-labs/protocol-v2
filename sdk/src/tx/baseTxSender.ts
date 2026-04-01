@@ -30,6 +30,7 @@ import { throwTransactionError } from './reportTransactionError';
 
 const BASELINE_TX_LAND_RATE = 0.9;
 const DEFAULT_TIMEOUT = 35000;
+const CUSTODIAL_WALLET_TIMEOUT = 180000; // 3 minutes for custodial wallets (e.g. Fireblocks)
 const DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES = 10;
 
 export abstract class BaseTxSender implements TxSender {
@@ -45,6 +46,7 @@ export abstract class BaseTxSender implements TxSender {
 	trackTxLandRate?: boolean;
 	throwOnTimeoutError: boolean;
 	throwOnTransactionError: boolean;
+	custodialWalletMode: boolean;
 
 	// For landing rate calcs
 	lookbackWindowMinutes: number;
@@ -57,7 +59,7 @@ export abstract class BaseTxSender implements TxSender {
 		connection,
 		wallet,
 		opts = DEFAULT_CONFIRMATION_OPTS,
-		timeout = DEFAULT_TIMEOUT,
+		timeout,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks,
@@ -65,8 +67,9 @@ export abstract class BaseTxSender implements TxSender {
 		txHandler,
 		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES,
 		landRateToFeeFunc,
-		throwOnTimeoutError = true,
+		throwOnTimeoutError,
 		throwOnTransactionError = true,
+		custodialWalletMode = false,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -81,11 +84,13 @@ export abstract class BaseTxSender implements TxSender {
 		landRateToFeeFunc?: (landRate: number) => number;
 		throwOnTimeoutError?: boolean;
 		throwOnTransactionError?: boolean;
+		custodialWalletMode?: boolean;
 	}) {
+		this.custodialWalletMode = custodialWalletMode;
 		this.connection = connection;
 		this.wallet = wallet;
 		this.opts = opts;
-		this.timeout = timeout;
+		this.timeout = timeout ?? (custodialWalletMode ? CUSTODIAL_WALLET_TIMEOUT : DEFAULT_TIMEOUT);
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
 		this.additionalTxSenderCallbacks = additionalTxSenderCallbacks;
@@ -106,7 +111,7 @@ export abstract class BaseTxSender implements TxSender {
 		}
 		this.landRateToFeeFunc =
 			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
-		this.throwOnTimeoutError = throwOnTimeoutError;
+		this.throwOnTimeoutError = throwOnTimeoutError ?? (custodialWalletMode ? false : true);
 		this.throwOnTransactionError = throwOnTransactionError;
 	}
 
