@@ -41,7 +41,7 @@ use crate::optional_accounts::get_token_mint;
 use crate::state::amm_cache::{AmmCache, CacheInfo, AMM_POSITIONS_CACHE};
 use crate::state::events::{
     CurveRecord, DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
-    TransferFeeAndPnlPoolDirection,
+    TransferFeeAndPnlPoolDirection, TransferFeeAndPnlPoolRecord,
 };
 use crate::state::fulfillment_params::openbook_v2::{
     OpenbookV2Context, OpenbookV2FulfillmentConfig,
@@ -5256,13 +5256,13 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
     amount: u64,
     direction: TransferFeeAndPnlPoolDirection,
 ) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        spot_market,
-        None,
-        Clock::get()?.unix_timestamp,
-    )?;
+    controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
 
     let same_market = ctx.accounts.perp_market_with_fee_pool.key()
         == ctx.accounts.perp_market_with_pnl_pool.key();
@@ -5293,6 +5293,17 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
                 .total_fee_minus_distributions
                 .safe_add(amount.cast()?)?,
         };
+
+        let transfer_record = TransferFeeAndPnlPoolRecord {
+            ts: now,
+            slot,
+            perp_market_index_with_fee_pool: perp_market.market_index,
+            perp_market_index_with_pnl_pool: perp_market.market_index,
+            direction,
+            amount,
+        };
+
+        emit!(transfer_record);
     } else {
         let mut perp_market_with_fee_pool = load_mut!(ctx.accounts.perp_market_with_fee_pool)?;
         let mut perp_market_with_pnl_pool = load_mut!(ctx.accounts.perp_market_with_pnl_pool)?;
@@ -5323,6 +5334,17 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
                 .total_fee_minus_distributions
                 .safe_add(amount.cast()?)?,
         };
+
+        let transfer_record = TransferFeeAndPnlPoolRecord {
+            ts: now,
+            slot,
+            perp_market_index_with_fee_pool: fee_pool_market_index,
+            perp_market_index_with_pnl_pool: pnl_pool_market_index,
+            direction,
+            amount,
+        };
+
+        emit!(transfer_record);
     }
 
     Ok(())

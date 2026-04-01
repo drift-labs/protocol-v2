@@ -18291,6 +18291,43 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "TransferFeeAndPnlPoolRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndexWithFeePool",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndexWithPnlPool",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": "TransferFeeAndPnlPoolDirection"
+          },
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [

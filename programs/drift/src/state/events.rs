@@ -926,3 +926,14 @@ pub enum TransferFeeAndPnlPoolDirection {
     FeeToPnlPool,
     PnlToFeePool,
 }
+
+#[event]
+#[derive(Default)]
+pub struct TransferFeeAndPnlPoolRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub perp_market_index_with_fee_pool: u16,
+    pub perp_market_index_with_pnl_pool: u16,
+    pub direction: TransferFeeAndPnlPoolDirection,
+    pub amount: u64,
+}

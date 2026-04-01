@@ -604,73 +604,8 @@ pub fn update_pool_balances(
     user_unsettled_pnl: i128,
     now: i64,
 ) -> DriftResult<i128> {
-    // current spot_market balance of amm fee pool
-    let amm_fee_pool_token_amount = get_token_amount(
-        market.amm.fee_pool.balance(),
-        spot_market,
-        market.amm.fee_pool.balance_type(),
-    )?
-    .cast::<i128>()?;
-
-    let mut fraction_for_amm = 100;
-
-    let amm_target_max_fee_pool_token_amount = market
-        .amm
-        .total_fee_minus_distributions
-        .safe_add(market.amm.total_liquidation_fee.cast()?)?
-        .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
-
-    if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
-        // owe the market pnl pool before settling user
-        let pnl_pool_addition =
-            max(0, amm_target_max_fee_pool_token_amount).safe_sub(amm_fee_pool_token_amount)?;
-
-        if pnl_pool_addition < 0 {
-            transfer_spot_balances(
-                pnl_pool_addition.abs(),
-                spot_market,
-                &mut market.amm.fee_pool,
-                &mut market.pnl_pool,
-            )?;
-        }
-
-        fraction_for_amm = 0;
-    }
-
     {
-        let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
-            .safe_add(market.amm.total_liquidation_fee)?
-            .safe_sub(market.amm.total_fee_withdrawn)?;
-
         let amm_fee_pool_token_amount = get_token_amount(
-            market.amm.fee_pool.balance(),
-            spot_market,
-            market.amm.fee_pool.balance_type(),
-        )?;
-
-        // Only top up if zero
-        if amm_fee_pool_token_amount == 0 {
-            let pnl_pool_token_amount = get_token_amount(
-                market.pnl_pool.balance(),
-                spot_market,
-                market.pnl_pool.balance_type(),
-            )?;
-
-            let pnl_pool_removal = amm_target_min_fee_pool_token_amount
-                .safe_sub(amm_fee_pool_token_amount)?
-                .min(pnl_pool_token_amount);
-
-            if pnl_pool_removal > 0 {
-                transfer_spot_balances(
-                    pnl_pool_removal.cast::<i128>()?,
-                    spot_market,
-                    &mut market.pnl_pool,
-                    &mut market.amm.fee_pool,
-                )?;
-            }
-        }
-
-        let amm_fee_pool_token_amount_after = get_token_amount(
             market.amm.fee_pool.balance(),
             spot_market,
             market.amm.fee_pool.balance_type(),
@@ -698,7 +633,7 @@ pub fn update_pool_balances(
         let revenue_pool_transfer = calculate_revenue_pool_transfer(
             market,
             spot_market,
-            amm_fee_pool_token_amount_after,
+            amm_fee_pool_token_amount,
             terminal_state_surplus,
         )?;
 
@@ -715,17 +650,11 @@ pub fn update_pool_balances(
                     .total_fee_withdrawn
                     .safe_add(revenue_pool_transfer.unsigned_abs())?;
             }
-            Ordering::Less => {
-                transfer_revenue_pool_to_spot_balance(
-                    revenue_pool_transfer.unsigned_abs(),
-                    spot_market,
-                    &mut market.amm.fee_pool,
-                )?;
-            }
+            Ordering::Less => (),
             Ordering::Equal => (),
         }
 
-        if revenue_pool_transfer != 0 {
+        if revenue_pool_transfer > 0 {
             market.amm.total_fee_minus_distributions = market
                 .amm
                 .total_fee_minus_distributions
@@ -760,21 +689,7 @@ pub fn update_pool_balances(
         max_withdraw_amount.max(user_unsettled_pnl)
     };
 
-    let pnl_fraction_for_amm = if fraction_for_amm > 0 && pnl_to_settle_with_user < 0 {
-        let pnl_fraction_for_amm = pnl_to_settle_with_user.safe_div(fraction_for_amm)?;
-        update_spot_balances(
-            pnl_fraction_for_amm.unsigned_abs(),
-            &SpotBalanceType::Deposit,
-            spot_market,
-            &mut market.amm.fee_pool,
-            false,
-        )?;
-        pnl_fraction_for_amm
-    } else {
-        0
-    };
-
-    let pnl_to_settle_with_market = -(pnl_to_settle_with_user.safe_sub(pnl_fraction_for_amm)?);
+    let pnl_to_settle_with_market = -(pnl_to_settle_with_user);
 
     update_spot_balances(
         pnl_to_settle_with_market.unsigned_abs(),
