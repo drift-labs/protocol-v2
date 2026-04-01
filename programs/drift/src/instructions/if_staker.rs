@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
 use crate::error::ErrorCode;
@@ -503,8 +502,8 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
             )?;
             found_end = true;
 
-            // must be the SwapEnd instruction
-            let discriminator = crate::instruction::EndInsuranceFundSwap::discriminator();
+            // must be the SwapEnd instruction (`global:end_insurance_fund_swap` discriminator)
+            let discriminator: [u8; 8] = [206, 230, 98, 8, 249, 158, 169, 167];
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidSwap,

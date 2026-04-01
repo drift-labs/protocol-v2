@@ -19,7 +19,6 @@ use crate::state::state::State;
 use crate::validate;
 use crate::{controller, load_mut};
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -727,8 +726,8 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
             )?;
             found_end = true;
 
-            // must be the SwapEnd instruction
-            let discriminator = crate::instruction::EndLpSwap::discriminator();
+            // must be the SwapEnd instruction (`global:end_lp_swap` discriminator)
+            let discriminator: [u8; 8] = [99, 125, 214, 165, 129, 175, 253, 135];
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidSwap,

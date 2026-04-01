@@ -2,7 +2,6 @@ use std::convert::TryFrom;
 use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::{
     token::Token,
@@ -3948,8 +3947,8 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
             )?;
             found_end = true;
 
-            // must be the SwapEnd instruction
-            let discriminator = crate::instruction::EndSwap::discriminator();
+            // must be the SwapEnd instruction (`global:end_swap` discriminator)
+            let discriminator: [u8; 8] = [177, 184, 27, 193, 34, 13, 210, 145];
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidSwap,

@@ -2,7 +2,6 @@ use std::cell::RefMut;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
 use anchor_spl::associated_token::get_associated_token_address_with_program_id;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
@@ -1714,8 +1713,8 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
             )?;
             found_end = true;
 
-            // must be the SwapEnd instruction
-            let discriminator = crate::instruction::LiquidateSpotWithSwapEnd::discriminator();
+            // must be the SwapEnd instruction (`global:liquidate_spot_with_swap_end` discriminator)
+            let discriminator: [u8; 8] = [142, 88, 163, 160, 223, 75, 55, 225];
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
