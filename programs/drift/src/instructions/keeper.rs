@@ -816,6 +816,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
 
+    if matching_taker_order_params.is_trigger_order()
+        && matching_taker_order_params.trigger_price.is_none()
+    {
+        msg!("Trigger order must have trigger_price set");
+        return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
+    }
+
     // Set max slot for the order early so we set correct signed msg order id
     let order_slot = verified_message_and_signature.slot;
     if order_slot < clock.slot.saturating_sub(500) {
@@ -826,7 +833,9 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
     let market_index = matching_taker_order_params.market_index;
-    let max_slot = if matching_taker_order_params.order_type == OrderType::Limit {
+    let max_slot = if matching_taker_order_params.order_type == OrderType::Limit
+        || matching_taker_order_params.is_trigger_order()
+    {
         order_slot.safe_add(
             matching_taker_order_params
                 .auction_duration

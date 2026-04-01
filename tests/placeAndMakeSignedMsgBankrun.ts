@@ -47,6 +47,7 @@ import {
 	OrderParams,
 	SignedMsgOrderParamsDelegateMessage,
 	OrderParamsBitFlag,
+	isVariant,
 } from '../sdk/src';
 
 import {
@@ -58,6 +59,7 @@ import {
 } from './testHelpers';
 import {
 	getTriggerLimitOrderParams,
+	getTriggerMarketOrderParams,
 	PEG_PRECISION,
 	PostOnlyParams,
 } from '../sdk/src';
@@ -1701,6 +1703,238 @@ describe('place and make signedMsg order', () => {
 		// @ts-ignore
 		assert(takerPosition.maxMarginRatio === 100);
 		assert(takerPosition.isolatedPositionScaledBalance.gt(new BN(0)));
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should place trigger market signed msg order', async () => {
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getTriggerMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			triggerPrice: new BN(85).mul(PRICE_PRECISION),
+			userOrderId: 1,
+			marketType: MarketType.PERP,
+		}) as OrderParams;
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const txSig = await makerDriftClient.placeSignedMsgTakerOrder(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
+
+		await takerDriftClientUser.fetchAccounts();
+		const takerOrders = takerDriftClient.getUser().getOpenOrders();
+		assert(takerOrders.length > 0, 'Trigger market order should be placed');
+
+		const triggerOrder = takerOrders.find((o) =>
+			isVariant(o.orderType, 'triggerMarket')
+		);
+		assert(triggerOrder !== undefined, 'Should find trigger market order');
+
+		const events = eventSubscriber.getEventsByTx(txSig);
+		const event = events.find(
+			(event) => event.eventType == 'SignedMsgOrderRecord'
+		);
+		assert(event !== undefined, 'SignedMsgOrderRecord event should be emitted');
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should place trigger limit signed msg order', async () => {
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getTriggerLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			triggerPrice: new BN(85).mul(PRICE_PRECISION),
+			price: new BN(86).mul(PRICE_PRECISION),
+			userOrderId: 1,
+			marketType: MarketType.PERP,
+		}) as OrderParams;
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const txSig = await makerDriftClient.placeSignedMsgTakerOrder(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
+
+		await takerDriftClientUser.fetchAccounts();
+		const takerOrders = takerDriftClient.getUser().getOpenOrders();
+		assert(takerOrders.length > 0, 'Trigger limit order should be placed');
+
+		const triggerOrder = takerOrders.find((o) =>
+			isVariant(o.orderType, 'triggerLimit')
+		);
+		assert(triggerOrder !== undefined, 'Should find trigger limit order');
+
+		// Verify the event is emitted
+		const events = eventSubscriber.getEventsByTx(txSig);
+		const event = events.find(
+			(event) => event.eventType == 'SignedMsgOrderRecord'
+		);
+		assert(event !== undefined, 'SignedMsgOrderRecord event should be emitted');
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should reject trigger order without trigger_price', async () => {
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		// Manually construct order params with TriggerMarket but no triggerPrice
+		const takerOrderParams: OrderParams = {
+			orderType: OrderType.TRIGGER_MARKET,
+			marketType: MarketType.PERP,
+			direction: PositionDirection.LONG,
+			userOrderId: 1,
+			baseAssetAmount,
+			price: ZERO,
+			marketIndex,
+			reduceOnly: false,
+			postOnly: PostOnlyParams.NONE,
+			bitFlags: 0,
+			triggerPrice: null,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			oraclePriceOffset: null,
+			auctionDuration: null,
+			maxTs: null,
+			auctionStartPrice: null,
+			auctionEndPrice: null,
+		};
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+			assert.fail('Should have thrown an error');
+		} catch (e) {
+			// Expected to fail with InvalidSignedMsgOrderParam
+			assert(
+				e.toString().includes('0x1890'),
+				`Expected InvalidSignedMsgOrderParam (0x1890), got: ${e.toString()}`
+			);
+		}
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
