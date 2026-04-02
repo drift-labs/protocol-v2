@@ -40,6 +40,8 @@ import {
 import {
 	NATIVE_MINT,
 	TOKEN_PROGRAM_ID,
+	getAssociatedTokenAddressSync,
+	createAssociatedTokenAccountIdempotentInstruction,
 	createCloseAccountInstruction,
 	createTransferInstruction,
 } from '@solana/spl-token';
@@ -746,20 +748,35 @@ describe('spot swap', () => {
 		assert(failed);
 	});
 
-	it.skip('swap and close token account after end_swap', async () => {
+	it('swap and close token account after end_swap', async () => {
 		// takerUSDC has 0 balance - it can be closed after endSwap
 		const amountIn = new BN(100).mul(QUOTE_PRECISION);
+
+		const takerUsdcAta = getAssociatedTokenAddressSync(
+			usdcMint.publicKey,
+			takerDriftClient.wallet.publicKey
+		);
+
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
 			amountIn,
 			inMarketIndex: 0,
 			outMarketIndex: 1,
-			inTokenAccount: takerUSDC,
+			inTokenAccount: takerUsdcAta,
 			outTokenAccount: takerWSOL,
 		});
 
+		// Include explicit open ix for ATA that gets closed after endSwap.
+		const openIx = createAssociatedTokenAccountIdempotentInstruction(
+			takerDriftClient.wallet.publicKey,
+			takerUsdcAta,
+			takerDriftClient.wallet.publicKey,
+			usdcMint.publicKey,
+			TOKEN_PROGRAM_ID
+		);
+
 		// Simulate swap: send all USDC to maker
 		const transferIn = createTransferInstruction(
-			takerUSDC,
+			takerUsdcAta,
 			makerUSDC.publicKey,
 			takerDriftClient.wallet.publicKey,
 			amountIn.toNumber()
@@ -773,9 +790,9 @@ describe('spot swap', () => {
 			LAMPORTS_PER_SOL
 		);
 
-		// Close takerUSDC after endSwap (balance will be 0)
+		// Close takerUsdcAta after endSwap (balance will be 0)
 		const closeIx = createCloseAccountInstruction(
-			takerUSDC,
+			takerUsdcAta,
 			takerDriftClient.wallet.publicKey,
 			takerDriftClient.wallet.publicKey,
 			undefined,
@@ -783,6 +800,7 @@ describe('spot swap', () => {
 		);
 
 		const tx = new Transaction()
+			.add(openIx)
 			.add(beginSwapIx)
 			.add(transferIn)
 			.add(transferOut)
@@ -798,9 +816,9 @@ describe('spot swap', () => {
 
 		// Verify the token account is actually closed
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			takerUSDC
+			takerUsdcAta
 		);
-		assert(accountInfo === null, 'takerUSDC should be closed');
+		assert(accountInfo === null, 'takerUsdcAta should be closed');
 	});
 
 	it('donate to revenue pool for a great feature!', async () => {

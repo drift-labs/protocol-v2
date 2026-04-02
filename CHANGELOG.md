@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: prevent user from enabling HLM when they are failing maintenance margin check [#2116](https://github.com/drift-labs/protocol-v2/pull/2116)
 - program: fix bug where users are stuck in liquidation status after completed liquidation [#2122](https://github.com/drift-labs/protocol-v2/pull/2122)
 - program: skip isolated positions when checking for cross margin bankruptcy [#2123](https://github.com/drift-labs/protocol-v2/pull/2123)
+- program: prevent OOM when close account ix included for swap [#2148](https://github.com/drift-labs/protocol-v2/pull/2148)
 
 ### Breaking
 
