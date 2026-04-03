@@ -266,7 +266,7 @@ pub fn transfer_checked_with_transfer_hook<'info>(
         ix.accounts.push(if account_info.is_writable {
             AccountMeta::new(*account_info.key, account_info.is_signer)
         } else {
-            AccountMeta::new_readonly(*account_info.key, account_info.is_writable)
+            AccountMeta::new_readonly(*account_info.key, account_info.is_signer)
         });
         account_infos.push(account_info.to_account_info());
     }
