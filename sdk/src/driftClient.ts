@@ -696,7 +696,7 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)?.data;
 	}
 
 	/**
@@ -707,7 +707,7 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<SpotMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)?.data;
 	}
 
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
