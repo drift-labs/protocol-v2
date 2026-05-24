@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/drift.json`.
  */
 export type Drift = {
-  "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
+  "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P",
   "metadata": {
     "name": "drift",
     "version": "2.162.0",
@@ -2883,6 +2883,59 @@ export type Drift = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "forceWipeAccountsDevnet",
+      "docs": [
+        "Devnet-only escape hatch: cleans up accounts stranded by a layout-breaking",
+        "program upgrade (or by a partial re-init). For each account passed via",
+        "`remaining_accounts`:",
+        "- drift-owned PDA → drain lamports (runtime GCs at end of tx)",
+        "- token-program owned vault (drift_signer close-authority) → CPI",
+        "`close_account`, rent refunded to admin",
+        "Admin gate reads State's first pubkey field at raw offset 8..40 so it",
+        "works regardless of the State layout currently on chain. `drift_signer_nonce`",
+        "must match `State.signer_nonce`; mismatch fails the token CPI signature.",
+        "Stripped from mainnet builds via `mainnet-beta`."
+      ],
+      "discriminator": [
+        105,
+        74,
+        87,
+        6,
+        166,
+        227,
+        138,
+        215
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "state",
+          "docs": [
+            "(cold-)admin pubkey at offset 8..40."
+          ]
+        },
+        {
+          "name": "driftSigner",
+          "docs": [
+            "at CPI time when closing token vaults; ignored otherwise."
+          ]
+        },
+        {
+          "name": "tokenProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "driftSignerNonce",
+          "type": "u8"
+        }
+      ]
     },
     {
       "name": "initialize",
