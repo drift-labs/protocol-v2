@@ -1094,6 +1094,7 @@ export type UserStatsAccount = {
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 	ifStakedGovTokenAmount: BN;
+	delegatePermissions: number;
 };
 
 export type UserAccount = {

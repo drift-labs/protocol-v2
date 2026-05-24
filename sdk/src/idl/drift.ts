@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/drift.json`.
  */
 export type Drift = {
-  "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P",
+  "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
   "metadata": {
     "name": "drift",
     "version": "2.162.0",
@@ -2883,59 +2883,6 @@ export type Drift = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "forceWipeAccountsDevnet",
-      "docs": [
-        "Devnet-only escape hatch: cleans up accounts stranded by a layout-breaking",
-        "program upgrade (or by a partial re-init). For each account passed via",
-        "`remaining_accounts`:",
-        "- drift-owned PDA → drain lamports (runtime GCs at end of tx)",
-        "- token-program owned vault (drift_signer close-authority) → CPI",
-        "`close_account`, rent refunded to admin",
-        "Admin gate reads State's first pubkey field at raw offset 8..40 so it",
-        "works regardless of the State layout currently on chain. `drift_signer_nonce`",
-        "must match `State.signer_nonce`; mismatch fails the token CPI signature.",
-        "Stripped from mainnet builds via `mainnet-beta`."
-      ],
-      "discriminator": [
-        105,
-        74,
-        87,
-        6,
-        166,
-        227,
-        138,
-        215
-      ],
-      "accounts": [
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "state",
-          "docs": [
-            "(cold-)admin pubkey at offset 8..40."
-          ]
-        },
-        {
-          "name": "driftSigner",
-          "docs": [
-            "at CPI time when closing token vaults; ignored otherwise."
-          ]
-        },
-        {
-          "name": "tokenProgram"
-        }
-      ],
-      "args": [
-        {
-          "name": "driftSignerNonce",
-          "type": "u8"
-        }
-      ]
     },
     {
       "name": "initialize",
@@ -8232,6 +8179,82 @@ export type Drift = {
       ]
     },
     {
+      "name": "transferDepositByDelegate",
+      "discriminator": [
+        141,
+        171,
+        241,
+        161,
+        17,
+        31,
+        135,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "fromUser",
+          "writable": true
+        },
+        {
+          "name": "toUser",
+          "writable": true
+        },
+        {
+          "name": "userStats"
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "spotMarketVault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "marketIndex"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "transferFeeAndPnlPool",
       "discriminator": [
         167,
@@ -12622,6 +12645,61 @@ export type Drift = {
         {
           "name": "settlementDuration",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateUserAllowDelegateTransfer",
+      "discriminator": [
+        235,
+        106,
+        172,
+        39,
+        223,
+        238,
+        167,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "userStats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "userStats"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "allowDelegateTransfer",
+          "type": "bool"
         }
       ]
     },
@@ -23878,11 +23956,18 @@ export type Drift = {
             "type": "u64"
           },
           {
+            "name": "delegatePermissions",
+            "docs": [
+              "Delegate permissions across all sub accounts"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                40
+                39
               ]
             }
           }

@@ -42,6 +42,7 @@ describe('user delegate', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let delegateKeyPair: Keypair;
+	let secondDelegateKeyPair: Keypair;
 	let delegateDriftClient: TestClient;
 	let delegateUsdcAccount: Keypair;
 
@@ -122,8 +123,11 @@ describe('user delegate', () => {
 		const subAccountId = 0;
 		const name = 'CRISP';
 		await driftClient.initializeUserAccount(subAccountId, name);
+		await driftClient.initializeUserAccount(1, 'CRISP 1');
+		await driftClient.switchActiveUser(0);
 
 		delegateKeyPair = await createFundedKeyPair(bankrunContextWrapper);
+		secondDelegateKeyPair = await createFundedKeyPair(bankrunContextWrapper);
 	});
 
 	after(async () => {
@@ -134,10 +138,19 @@ describe('user delegate', () => {
 
 	it('Update delegate', async () => {
 		await driftClient.updateUserDelegate(delegateKeyPair.publicKey);
+		await driftClient.switchActiveUser(1);
+		await driftClient.updateUserDelegate(delegateKeyPair.publicKey, 1);
+		await driftClient.switchActiveUser(0);
 
 		await driftClient.fetchAccounts();
 		assert(
 			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
+		);
+		assert(
+			driftClient
+				.getUser(1)
+				.getUserAccount()
+				.delegate.equals(delegateKeyPair.publicKey)
 		);
 
 		delegateDriftClient = new TestClient({
@@ -159,7 +172,7 @@ describe('user delegate', () => {
 			authority: bankrunContextWrapper.provider.wallet.publicKey,
 			authoritySubAccountMap: new Map().set(
 				bankrunContextWrapper.provider.wallet.publicKey,
-				[0]
+				[0, 1]
 			),
 			accountSubscription: {
 				type: 'polling',
@@ -184,6 +197,73 @@ describe('user delegate', () => {
 		);
 
 		assert(delegateDriftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
+	});
+
+	it('Cannot transfer deposits by delegate without permission', async () => {
+		let caughtError = false;
+		try {
+			await delegateDriftClient.transferDepositByDelegate(
+				new BN(1 * 10 ** 6),
+				QUOTE_SPOT_MARKET_INDEX,
+				0,
+				1
+			);
+		} catch (e) {
+			caughtError = true;
+		}
+		assert(caughtError);
+	});
+
+	it('Update allow delegate transfer', async () => {
+		await driftClient.updateUserAllowDelegateTransfer(true);
+	});
+
+	it('Transfer deposits by delegate', async () => {
+		const transferAmount = new BN(3 * 10 ** 6);
+
+		await delegateDriftClient.transferDepositByDelegate(
+			transferAmount,
+			QUOTE_SPOT_MARKET_INDEX,
+			0,
+			1
+		);
+		await driftClient.getUser(0).fetchAccounts();
+		await driftClient.getUser(1).fetchAccounts();
+
+		const fromAmount = driftClient
+			.getUser(0)
+			.getTokenAmount(QUOTE_SPOT_MARKET_INDEX);
+		const toAmount = driftClient
+			.getUser(1)
+			.getTokenAmount(QUOTE_SPOT_MARKET_INDEX);
+		const expectedFromAmount = usdcAmount.sub(transferAmount);
+
+		assert(
+			fromAmount.gte(expectedFromAmount.subn(1)) &&
+				fromAmount.lte(expectedFromAmount),
+			`from amount ${fromAmount.toString()}`
+		);
+		assert(toAmount.eq(transferAmount), `to amount ${toAmount.toString()}`);
+	});
+
+	it('Cannot transfer deposits unless both subaccounts use the same delegate', async () => {
+		await driftClient.switchActiveUser(1);
+		await driftClient.updateUserDelegate(secondDelegateKeyPair.publicKey, 1);
+		await driftClient.switchActiveUser(0);
+		await driftClient.fetchAccounts();
+
+		let caughtError = false;
+		try {
+			await delegateDriftClient.transferDepositByDelegate(
+				new BN(1 * 10 ** 6),
+				QUOTE_SPOT_MARKET_INDEX,
+				0,
+				1
+			);
+		} catch (e) {
+			caughtError = true;
+		}
+		assert(caughtError);
 	});
 
 	it('Withdraw', async () => {
