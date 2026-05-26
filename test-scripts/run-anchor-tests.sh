@@ -54,8 +54,8 @@ test_files=(
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
-  # lpPool.ts # depends on PerpMarket layout shifted by removal of padding_former_hlm — needs re-snapshot
-  # lpPoolSwap.ts # depends on PerpMarket layout shifted by removal of padding_former_hlm — needs re-snapshot
+  # lpPool.ts # depends on PerpMarket layout shift — needs re-snapshot
+  # lpPoolSwap.ts # depends on PerpMarket layout shift — needs re-snapshot
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
   maxDeposit.ts

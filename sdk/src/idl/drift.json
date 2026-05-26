@@ -21860,7 +21860,7 @@
           {
             "name": "bit_flags",
             "docs": [
-              "Bit flags (e.g., for high leverage mode)"
+              "Order bit flags"
             ],
             "type": "u8"
           },

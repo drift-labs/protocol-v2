@@ -1,6 +1,6 @@
 use crate::state::order_params::PostOnlyParam;
 use crate::state::scale_order_params::{ScaleOrderParams, SizeDistribution};
-use crate::state::user::MarketType;
+use crate::state::user::{MarketType, OrderBitFlag};
 use crate::{PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_U64};
 
 #[test]
@@ -401,7 +401,7 @@ fn test_expand_to_order_params_perp() {
         size_distribution: SizeDistribution::Flat,
         reduce_only: true,
         post_only: PostOnlyParam::MustPostOnly,
-        bit_flags: 2, // High leverage mode
+        bit_flags: OrderBitFlag::OracleTriggerMarket as u8,
         max_ts: Some(12345),
     };
 
