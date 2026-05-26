@@ -10,7 +10,7 @@ import { EventEmitter } from 'events';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { InsuranceFundStake } from '../types';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 
 export class WebSocketInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
@@ -18,7 +18,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 	isSubscribed: boolean;
 	resubTimeoutMs?: number;
 	commitment?: Commitment;
-	program: DriftProgram;
+	program: VelocityProgram;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		InsuranceFundStakeAccountEvents
@@ -28,7 +28,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 	insuranceFundStakeDataAccountSubscriber: AccountSubscriber<InsuranceFundStake>;
 
 	public constructor(
-		program: DriftProgram,
+		program: VelocityProgram,
 		insuranceFundStakeAccountPublicKey: PublicKey,
 		resubTimeoutMs?: number,
 		commitment?: Commitment

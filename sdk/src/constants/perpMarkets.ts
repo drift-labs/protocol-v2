@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { MarketStatus, OracleSource } from '../types';
-import { DriftEnv } from '../config';
+import { VelocityEnv } from '../config';
 
 export type PerpMarketConfig = {
 	fullName?: string;
@@ -1036,7 +1036,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 ];
 
-export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
+export const PerpMarkets: { [key in VelocityEnv]: PerpMarketConfig[] } = {
 	devnet: DevnetPerpMarkets,
 	'mainnet-beta': MainnetPerpMarkets,
 };

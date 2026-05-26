@@ -4,10 +4,10 @@ import type {
 	TransactionInstruction,
 } from '@solana/web3.js';
 import type { BN } from '../../isomorphic/anchor';
-import type { DriftProgram } from '../../config';
+import type { VelocityProgram } from '../../config';
 
 export async function buildDepositInstruction(args: {
-	program: DriftProgram;
+	program: VelocityProgram;
 	marketIndex: number;
 	amount: BN;
 	reduceOnly: boolean;

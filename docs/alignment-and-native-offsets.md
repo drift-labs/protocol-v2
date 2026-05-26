@@ -313,7 +313,7 @@ assertions fail.
 
 ```bash
 cd sdk
-yarn run test --grep "Custom user decode"
+bun run test --grep "Custom user decode"
 ```
 
 The test decodes 100 real mainnet `UserAccount` buffers and compares every field between the

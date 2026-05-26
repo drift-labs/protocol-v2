@@ -47,7 +47,7 @@ pub struct ScaleOrderParams {
     pub reduce_only: bool,
     /// Post-only setting for all orders
     pub post_only: PostOnlyParam,
-    /// Bit flags (e.g., for high leverage mode)
+    /// Order bit flags
     pub bit_flags: u8,
     /// Maximum timestamp for orders to be valid
     pub max_ts: Option<i64>,

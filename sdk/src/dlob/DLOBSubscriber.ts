@@ -7,7 +7,7 @@ import {
 	DLOBSubscriptionConfig,
 	SlotSource,
 } from './types';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { isVariant, MarketType } from '../types';
 import {
 	DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
@@ -20,7 +20,11 @@ import {
 import { BN } from '../isomorphic/anchor';
 
 export class DLOBSubscriber {
-	driftClient: DriftClient;
+	velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	public get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
@@ -28,7 +32,13 @@ export class DLOBSubscriber {
 	dlob: DLOB;
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 	constructor(config: DLOBSubscriptionConfig) {
-		this.driftClient = config.driftClient;
+		const velocityClient = config.velocityClient ?? config.driftClient;
+		if (!velocityClient) {
+			throw new Error(
+				'DLOBSubscriber: velocityClient (or deprecated driftClient) must be provided'
+			);
+		}
+		this.velocityClient = velocityClient;
 		this.dlobSource = config.dlobSource;
 		this.slotSource = config.slotSource;
 		this.updateFrequency = config.updateFrequency;
@@ -93,7 +103,7 @@ export class DLOBSubscriber {
 	}): L2OrderBook {
 		if (marketName) {
 			const derivedMarketInfo =
-				this.driftClient.getMarketIndexAndType(marketName);
+				this.velocityClient.getMarketIndexAndType(marketName);
 			if (!derivedMarketInfo) {
 				throw new Error(`Market ${marketName} not found`);
 			}
@@ -111,13 +121,13 @@ export class DLOBSubscriber {
 		const isPerp = isVariant(marketType, 'perp');
 		if (isPerp) {
 			const perpMarketAccount =
-				this.driftClient.getPerpMarketAccount(marketIndex);
-			oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
+				this.velocityClient.getPerpMarketAccount(marketIndex);
+			oraclePriceData = this.velocityClient.getOracleDataForPerpMarket(
 				perpMarketAccount.marketIndex
 			);
 		} else {
 			oraclePriceData =
-				this.driftClient.getOracleDataForSpotMarket(marketIndex);
+				this.velocityClient.getOracleDataForSpotMarket(marketIndex);
 		}
 
 		if (isPerp && includeVamm) {
@@ -129,9 +139,9 @@ export class DLOBSubscriber {
 
 			fallbackL2Generators = [
 				getVammL2Generator({
-					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
+					marketAccount: this.velocityClient.getPerpMarketAccount(marketIndex),
 					mmOraclePriceData:
-						this.driftClient.getMMOracleDataForPerpMarket(marketIndex),
+						this.velocityClient.getMMOracleDataForPerpMarket(marketIndex),
 					numOrders: numVammOrders ?? depth,
 					topOfBookQuoteAmounts:
 						marketIndex < 3
@@ -170,7 +180,7 @@ export class DLOBSubscriber {
 	}): L3OrderBook {
 		if (marketName) {
 			const derivedMarketInfo =
-				this.driftClient.getMarketIndexAndType(marketName);
+				this.velocityClient.getMarketIndexAndType(marketName);
 			if (!derivedMarketInfo) {
 				throw new Error(`Market ${marketName} not found`);
 			}
@@ -188,10 +198,10 @@ export class DLOBSubscriber {
 		const isPerp = isVariant(marketType, 'perp');
 		if (isPerp) {
 			oraclePriceData =
-				this.driftClient.getOracleDataForPerpMarket(marketIndex);
+				this.velocityClient.getOracleDataForPerpMarket(marketIndex);
 		} else {
 			oraclePriceData =
-				this.driftClient.getOracleDataForSpotMarket(marketIndex);
+				this.velocityClient.getOracleDataForSpotMarket(marketIndex);
 		}
 
 		return this.dlob.getL3({

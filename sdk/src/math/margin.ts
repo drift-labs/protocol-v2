@@ -19,7 +19,7 @@ import { BN } from '../isomorphic/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { calculateMarketMarginRatio } from './market';
 import { calculateScaledInitialAssetWeight } from './spotBalance';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
 import {
 	PerpMarketAccount,
@@ -220,7 +220,7 @@ export function calculatePerpLiabilityValue(
  * @returns
  */
 export function calculateMarginUSDCRequiredForTrade(
-	driftClient: DriftClient,
+	driftClient: VelocityClient,
 	targetMarketIndex: number,
 	baseSize: BN,
 	userMaxMarginRatio?: number,
@@ -254,7 +254,7 @@ export function calculateMarginUSDCRequiredForTrade(
  * Returns collateral required in the precision of the target collateral market.
  */
 export function calculateCollateralDepositRequiredForTrade(
-	driftClient: DriftClient,
+	driftClient: VelocityClient,
 	targetMarketIndex: number,
 	baseSize: BN,
 	collateralIndex: number,
@@ -294,7 +294,7 @@ export function calculateCollateralDepositRequiredForTrade(
 }
 
 export function calculateCollateralValueOfDeposit(
-	driftClient: DriftClient,
+	driftClient: VelocityClient,
 	collateralIndex: number,
 	baseSize: BN
 ): BN {
@@ -341,7 +341,7 @@ export function calculateLiquidationPrice(
 }
 
 export function calculateUserMaxPerpOrderSize(
-	driftClient: DriftClient,
+	driftClient: VelocityClient,
 	userAccountKey: PublicKey,
 	userAccount: UserAccount,
 	targetMarketIndex: number,

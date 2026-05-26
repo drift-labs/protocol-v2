@@ -2,8 +2,8 @@ import {
 	AccountToPoll,
 	DataAndSlot,
 	DelistedMarketSetting,
-	DriftClientAccountEvents,
-	DriftClientAccountSubscriber,
+	VelocityClientAccountEvents,
+	VelocityClientAccountSubscriber,
 	NotSubscribedError,
 	OraclesToPoll,
 } from './types';
@@ -17,7 +17,7 @@ import {
 	OracleSource,
 } from '../types';
 import {
-	getDriftStateAccountPublicKey,
+	getVelocityStateAccountPublicKey,
 	getPerpMarketPublicKey,
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
@@ -27,7 +27,7 @@ import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
-import { findAllMarketAndOracles, DriftProgram } from '../config';
+import { findAllMarketAndOracles, VelocityProgram } from '../config';
 import { getOracleId } from '../oracles/oracleId';
 
 const ORACLE_DEFAULT_ID = getOracleId(
@@ -35,11 +35,11 @@ const ORACLE_DEFAULT_ID = getOracleId(
 	OracleSource.QUOTE_ASSET
 );
 
-export class PollingDriftClientAccountSubscriber
-	implements DriftClientAccountSubscriber
+export class PollingVelocityClientAccountSubscriber
+	implements VelocityClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: DriftProgram;
+	program: VelocityProgram;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
@@ -47,7 +47,7 @@ export class PollingDriftClientAccountSubscriber
 
 	shouldFindAllMarketsAndOracles: boolean;
 
-	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
+	eventEmitter: StrictEventEmitter<EventEmitter, VelocityClientAccountEvents>;
 
 	accountLoader: BulkAccountLoader;
 	accountsToPoll = new Map<string, AccountToPoll>();
@@ -70,7 +70,7 @@ export class PollingDriftClientAccountSubscriber
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
-		program: DriftProgram,
+		program: VelocityProgram,
 		accountLoader: BulkAccountLoader,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
@@ -144,7 +144,7 @@ export class PollingDriftClientAccountSubscriber
 			return;
 		}
 
-		const statePublicKey = await getDriftStateAccountPublicKey(
+		const statePublicKey = await getVelocityStateAccountPublicKey(
 			this.program.programId
 		);
 
@@ -643,3 +643,10 @@ export class PollingDriftClientAccountSubscriber
 		this.accountLoader.updatePollingFrequency(pollingFrequency);
 	}
 }
+
+/** @deprecated Use `PollingVelocityClientAccountSubscriber` instead. `PollingDriftClientAccountSubscriber` will be removed in a future major. */
+export const PollingDriftClientAccountSubscriber =
+	PollingVelocityClientAccountSubscriber;
+/** @deprecated Use `PollingVelocityClientAccountSubscriber` instead. `PollingDriftClientAccountSubscriber` will be removed in a future major. */
+export type PollingDriftClientAccountSubscriber =
+	PollingVelocityClientAccountSubscriber;

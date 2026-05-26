@@ -1,6 +1,6 @@
 /**
  * AdminClient — governance and protocol administration instruction builders.
- * Extends {@link DriftClient}; all trading/keeper methods are also available.
+ * Extends {@link VelocityClient}; all trading/keeper methods are also available.
  *
  * Covers: perp/spot market initialization and updates, oracle guard rail config,
  * fee structure updates, insurance fund operations, vault management, IF rebalancing,
@@ -37,7 +37,7 @@ import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from './isomorphic/anchor';
 import * as anchor from './isomorphic/anchor';
 import {
-	getDriftStateAccountPublicKeyAndNonce,
+	getVelocityStateAccountPublicKeyAndNonce,
 	getSpotMarketPublicKey,
 	getSpotMarketVaultPublicKey,
 	getPerpMarketPublicKey,
@@ -56,7 +56,7 @@ import {
 	getConstituentVaultPublicKey,
 	getAmmCachePublicKey,
 	getLpPoolTokenVaultPublicKey,
-	getDriftSignerPublicKey,
+	getVelocitySignerPublicKey,
 	getConstituentCorrelationsPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
@@ -68,7 +68,7 @@ import {
 	MINT_SIZE,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { DriftClient } from './driftClient';
+import { VelocityClient } from './velocityClient';
 import {
 	PEG_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
@@ -83,7 +83,7 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { JupiterClient, QuoteResponse } from './jupiter/jupiterClient';
 import { SwapMode } from './swap/UnifiedSwapClient';
 
-export class AdminClient extends DriftClient {
+export class AdminClient extends VelocityClient {
 	public async initialize(
 		usdcMint: PublicKey,
 		_adminControlsPrices: boolean
@@ -95,9 +95,8 @@ export class AdminClient extends DriftClient {
 			throw new Error('Clearing house already initialized');
 		}
 
-		const [driftStatePublicKey] = await getDriftStateAccountPublicKeyAndNonce(
-			this.program.programId
-		);
+		const [driftStatePublicKey] =
+			await getVelocityStateAccountPublicKeyAndNonce(this.program.programId);
 
 		const initializeIx = await this.program.instruction.initialize({
 			accounts: {
@@ -5574,7 +5573,7 @@ export class AdminClient extends DriftClient {
 					spotMarketVault: withdrawSpotMarket.vault,
 					tokenProgram: withdrawTokenProgram,
 					mint: withdrawSpotMarket.mint,
-					driftSigner: getDriftSignerPublicKey(this.program.programId),
+					driftSigner: getVelocitySignerPublicKey(this.program.programId),
 					oracle: withdrawSpotMarket.oracle,
 				},
 			}

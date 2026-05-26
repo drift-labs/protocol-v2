@@ -1,10 +1,12 @@
-import { Commitment, Context, PublicKey } from '@solana/web3.js';
+import { Context, PublicKey } from '@solana/web3.js';
 import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
-import { GrpcConfigs, ResubOpts } from '../accounts/types';
+import { GrpcConfigs } from '../accounts/types';
 import { SignedMsgUserOrdersAccount } from '../types';
 import { getSignedMsgUserOrdersFilter } from '../memcmp';
-import { SignedMsgUserOrdersAccountSubscriber } from './signedMsgUserAccountSubscriber';
-import { DriftClient } from '../driftClient';
+import {
+	SignedMsgUserOrdersAccountSubscriber,
+	SignedMsgUserOrdersAccountSubscriberConfig,
+} from './signedMsgUserAccountSubscriber';
 
 export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrdersAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
@@ -12,26 +14,11 @@ export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrder
 
 	constructor({
 		grpcConfigs,
-		driftClient,
-		commitment,
-		resubOpts,
-		decodeFn,
-		resyncIntervalMs,
-	}: {
+		...rest
+	}: SignedMsgUserOrdersAccountSubscriberConfig & {
 		grpcConfigs: GrpcConfigs;
-		driftClient: DriftClient;
-		commitment?: Commitment;
-		resubOpts?: ResubOpts;
-		decodeFn?: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
-		resyncIntervalMs?: number;
 	}) {
-		super({
-			driftClient,
-			commitment,
-			resubOpts,
-			decodeFn,
-			resyncIntervalMs,
-		});
+		super(rest);
 		this.grpcConfigs = grpcConfigs;
 	}
 
@@ -42,7 +29,7 @@ export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrder
 					this.grpcConfigs,
 					'SingedMsgUserOrdersAccountMap',
 					'signedMsgUserOrders',
-					this.driftClient.program,
+					this.velocityClient.program,
 					this.decodeFn,
 					{
 						filters: [getSignedMsgUserOrdersFilter()],

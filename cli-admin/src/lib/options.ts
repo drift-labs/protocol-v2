@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import * as os from 'os';
 import { GlobalOpts } from './provider';
-import { DriftEnv } from '@drift-labs/sdk';
+import { DriftEnv } from '@velocity-exchange/sdk';
 
 /**
  * Attach shared global options to every subcommand.

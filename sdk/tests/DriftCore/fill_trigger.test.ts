@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Keypair } from '@solana/web3.js';
-import { DriftCore } from '../../src/core/DriftCore';
+import { VelocityCore } from '../../src/core/VelocityCore';
 
 describe('DriftCore fill/trigger builders', () => {
 	test('buildFillPerpOrderInstruction wires accounts + args', async () => {
@@ -21,7 +21,7 @@ describe('DriftCore fill/trigger builders', () => {
 		};
 		const pk = () => Keypair.generate().publicKey;
 
-		const ix = await DriftCore.buildFillPerpOrderInstruction({
+		const ix = await VelocityCore.buildFillPerpOrderInstruction({
 			program,
 			orderId: 7,
 			state: pk(),
@@ -56,7 +56,7 @@ describe('DriftCore fill/trigger builders', () => {
 		};
 		const pk = () => Keypair.generate().publicKey;
 
-		const ix = await DriftCore.buildTriggerOrderInstruction({
+		const ix = await VelocityCore.buildTriggerOrderInstruction({
 			program,
 			orderId: 9,
 			state: pk(),

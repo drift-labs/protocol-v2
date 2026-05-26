@@ -2,7 +2,7 @@ import { OracleClient } from './types';
 import { OracleSource } from '../types';
 import { getOracleClient } from '../factory/oracleClient';
 import { Connection } from '@solana/web3.js';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 
 export class OracleClientCache {
 	cache = new Map<string, OracleClient>();
@@ -11,7 +11,7 @@ export class OracleClientCache {
 	public get(
 		oracleSource: OracleSource,
 		connection: Connection,
-		program: DriftProgram
+		program: VelocityProgram
 	) {
 		const key = Object.keys(oracleSource)[0];
 		if (this.cache.has(key)) {

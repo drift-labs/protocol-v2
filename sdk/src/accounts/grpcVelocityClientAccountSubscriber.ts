@@ -1,8 +1,8 @@
-import { WebSocketDriftClientAccountSubscriber } from './webSocketDriftClientAccountSubscriber';
+import { WebSocketVelocityClientAccountSubscriber } from './webSocketVelocityClientAccountSubscriber';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
-import { findAllMarketAndOracles, DriftProgram } from '../config';
+import { findAllMarketAndOracles, VelocityProgram } from '../config';
 import {
-	getDriftStateAccountPublicKey,
+	getVelocityStateAccountPublicKey,
 	getPerpMarketPublicKey,
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
@@ -11,12 +11,12 @@ import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import { getOracleId } from '../oracles/oracleId';
 
-export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
+export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
-		program: DriftProgram,
+		program: VelocityProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -71,7 +71,7 @@ export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			);
 		}
 
-		const statePublicKey = await getDriftStateAccountPublicKey(
+		const statePublicKey = await getVelocityStateAccountPublicKey(
 			this.program.programId
 		);
 
@@ -204,3 +204,10 @@ export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		return true;
 	}
 }
+
+/** @deprecated Use `grpcVelocityClientAccountSubscriber` instead. `grpcDriftClientAccountSubscriber` will be removed in a future major. */
+export const grpcDriftClientAccountSubscriber =
+	grpcVelocityClientAccountSubscriber;
+/** @deprecated Use `grpcVelocityClientAccountSubscriber` instead. `grpcDriftClientAccountSubscriber` will be removed in a future major. */
+export type grpcDriftClientAccountSubscriber =
+	grpcVelocityClientAccountSubscriber;

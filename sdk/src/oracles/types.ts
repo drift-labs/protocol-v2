@@ -2,7 +2,7 @@
  * Oracle types and the OraclePriceData interface used throughout the SDK.
  * Each oracle source (Pyth, Switchboard, Pyth Lazer, Prelaunch) has a client adapter
  * in this directory that fetches and normalises prices into OraclePriceData.
- * Oracle client selection is configured via DriftClientConfig and cached in OracleClientCache.
+ * Oracle client selection is configured via VelocityClientConfig and cached in OracleClientCache.
  */
 import { BN } from '../isomorphic/anchor';
 import { PublicKey } from '@solana/web3.js';

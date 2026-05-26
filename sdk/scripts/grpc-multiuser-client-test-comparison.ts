@@ -1,7 +1,7 @@
 import { grpcUserAccountSubscriber } from '../src/accounts/grpcUserAccountSubscriber';
 import { grpcMultiUserAccountSubscriber } from '../src/accounts/grpcMultiUserAccountSubscriber';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { DRIFT_PROGRAM_ID } from '../src';
+import { VELOCITY_PROGRAM_ID } from '../src';
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
 import driftIDL from '../src/idl/drift.json';
@@ -30,7 +30,7 @@ async function testGrpcUserAccountSubscriberV1VsV2() {
 	const connection = new Connection(RPC_ENDPOINT);
 	const wallet = new Wallet(new Keypair());
 
-	const programId = new PublicKey(DRIFT_PROGRAM_ID);
+	const programId = new PublicKey(VELOCITY_PROGRAM_ID);
 	const provider = new AnchorProvider(
 		connection,
 		// @ts-ignore

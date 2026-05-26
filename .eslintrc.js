@@ -36,7 +36,7 @@ module.exports = {
 					{
 						// Restrict importing BN from bn.js
 						"group": ["bn.js"],
-						"message": "Import BN from @drift-labs/sdk instead",
+						"message": "Import BN from @velocity-exchange/sdk instead",
 					},
 					{
 						// Prevent imports from index files within the same package

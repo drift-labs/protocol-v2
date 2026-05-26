@@ -2,8 +2,9 @@ import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
 } from '../constants/perpMarkets';
-import { DriftClient } from '../driftClient';
-import { DriftEnv } from '../config';
+import { VelocityClient } from '../velocityClient';
+import { VelocityEnv } from '../config';
+import { AtLeastOne } from '../util/deprecatedAlias';
 import {
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
@@ -27,10 +28,8 @@ export interface AccountGetter {
 	mustGetUserAccount(publicKey: string): Promise<UserAccount>;
 }
 
-export type SwiftOrderSubscriberConfig = {
-	driftClient: DriftClient;
+type SwiftOrderSubscriberConfigBase = {
 	userAccountGetter?: AccountGetter;
-	driftEnv: DriftEnv;
 	endpoint?: string;
 	marketIndexes: number[];
 	/**
@@ -40,6 +39,10 @@ export type SwiftOrderSubscriberConfig = {
 	*/
 	keypair: Keypair;
 };
+
+export type SwiftOrderSubscriberConfig = SwiftOrderSubscriberConfigBase &
+	AtLeastOne<'velocityEnv', 'driftEnv', VelocityEnv> &
+	AtLeastOne<'velocityClient', 'driftClient', VelocityClient>;
 
 /**
  * Swift order message received from WebSocket
@@ -70,7 +73,11 @@ export class SwiftOrderSubscriber {
 	private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	private get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
 	public onOrder: (
 		orderMessageRaw: SwiftOrderMessage,
@@ -83,7 +90,8 @@ export class SwiftOrderSubscriber {
 	subscribed = false;
 
 	constructor(private config: SwiftOrderSubscriberConfig) {
-		this.driftClient = config.driftClient;
+		// Type-system guarantees at least one of the two is supplied.
+		this.velocityClient = (config.velocityClient ?? config.driftClient)!;
 		this.userAccountGetter = config.userAccountGetter;
 	}
 
@@ -97,10 +105,8 @@ export class SwiftOrderSubscriber {
 	}
 
 	getSymbolForMarketIndex(marketIndex: number): string {
-		const markets =
-			this.config.driftEnv === 'devnet'
-				? DevnetPerpMarkets
-				: MainnetPerpMarkets;
+		const env = this.config.velocityEnv ?? this.config.driftEnv;
+		const markets = env === 'devnet' ? DevnetPerpMarkets : MainnetPerpMarkets;
 		return markets[marketIndex].symbol;
 	}
 
@@ -156,10 +162,12 @@ export class SwiftOrderSubscriber {
 	): Promise<void> {
 		this.onOrder = onOrder;
 
+		const env = this.config.velocityEnv ?? this.config.driftEnv;
 		const endpoint =
-			this.config.endpoint || this.config.driftEnv === 'devnet'
+			this.config.endpoint ??
+			(env === 'devnet'
 				? 'wss://master.swift.drift.trade/ws'
-				: 'wss://swift.drift.trade/ws';
+				: 'wss://swift.drift.trade/ws');
 		const ws = new WebSocket(
 			endpoint + '?pubkey=' + this.config.keypair.publicKey.toBase58()
 		);
@@ -202,7 +210,7 @@ export class SwiftOrderSubscriber {
 							)
 						);
 					const signedMessage =
-						this.driftClient.decodeSignedMsgOrderParamsMessage(
+						this.velocityClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
 							isDelegateSigner
 						);
@@ -279,7 +287,7 @@ export class SwiftOrderSubscriber {
 					).slice(0, 8)
 				)
 			);
-		const signedMessage = this.driftClient.decodeSignedMsgOrderParamsMessage(
+		const signedMessage = this.velocityClient.decodeSignedMsgOrderParamsMessage(
 			signedMsgOrderParamsBuf,
 			isDelegateSigner
 		);
@@ -289,14 +297,14 @@ export class SwiftOrderSubscriber {
 		const takerUserPubkey = isDelegateSigner
 			? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
 			: await getUserAccountPublicKey(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					takerAuthority,
 					(signedMessage as SignedMsgOrderParamsMessage).subAccountId
 			  );
 		const takerUserAccount = await this.userAccountGetter.mustGetUserAccount(
 			takerUserPubkey.toString()
 		);
-		const ixs = await this.driftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+		const ixs = await this.velocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			{
 				orderParams: signedMsgOrderParamsBuf,
 				signature: Buffer.from(orderMessageRaw.order_signature, 'base64'),
@@ -306,7 +314,7 @@ export class SwiftOrderSubscriber {
 				taker: takerUserPubkey,
 				takerUserAccount,
 				takerStats: getUserStatsAccountPublicKey(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					takerUserAccount.authority
 				),
 				signingAuthority: signingAuthority,

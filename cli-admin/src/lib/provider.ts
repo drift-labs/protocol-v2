@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { AdminClient, BulkAccountLoader, DriftEnv, initialize } from '@drift-labs/sdk';
+import { AdminClient, BulkAccountLoader, DriftEnv, initialize } from '@velocity-exchange/sdk';
 import * as fs from 'fs';
 import * as os from 'os';
 

@@ -3,7 +3,7 @@ import {
 	PriceFeedProperty,
 	PythLazerClient,
 } from '@pythnetwork/pyth-lazer-sdk';
-import { DriftEnv } from '../config';
+import { VelocityEnv } from '../config';
 import { PerpMarkets } from '../constants/perpMarkets';
 
 /**
@@ -59,7 +59,7 @@ export class PythLazerSubscriber {
 		private endpoints: string[],
 		private token: string,
 		private priceFeedArrays: PythLazerPriceFeedArray[],
-		env: DriftEnv = 'devnet',
+		env: VelocityEnv = 'devnet',
 		private resubTimeoutMs: number = 2000,
 		private sdkLogging: boolean = false,
 		feedProperties: PriceFeedProperty[] = [

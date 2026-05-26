@@ -115,7 +115,7 @@ export type EventMap = {
 
 export type EventType = keyof EventMap;
 
-export type DriftEvent =
+export type VelocityEvent =
 	| Event<DepositRecord>
 	| Event<FundingPaymentRecord>
 	| Event<LiquidationRecord>
@@ -139,6 +139,9 @@ export type DriftEvent =
 	| Event<LPSwapRecord>
 	| Event<LPBorrowLendDepositRecord>
 	| Event<CuUsage>;
+
+/** @deprecated Use `VelocityEvent` instead. `DriftEvent` will be removed in a future major. */
+export type DriftEvent = VelocityEvent;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;

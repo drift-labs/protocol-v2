@@ -2,9 +2,9 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { PublicKey } from '@solana/web3.js';
-import { findAllMarketAndOracles, DriftProgram } from '../config';
+import { findAllMarketAndOracles, VelocityProgram } from '../config';
 import {
-	getDriftStateAccountPublicKey,
+	getVelocityStateAccountPublicKey,
 	getPerpMarketPublicKey,
 	getPerpMarketPublicKeySync,
 	getSpotMarketPublicKey,
@@ -14,8 +14,8 @@ import {
 	AccountSubscriber,
 	DataAndSlot,
 	DelistedMarketSetting,
-	DriftClientAccountEvents,
-	DriftClientAccountSubscriber,
+	VelocityClientAccountEvents,
+	VelocityClientAccountSubscriber,
 	NotSubscribedError,
 	GrpcConfigs,
 	ResubOpts,
@@ -30,8 +30,8 @@ import {
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { findDelistedPerpMarketsAndOracles } from './utils';
 
-export class grpcDriftClientAccountSubscriberV2
-	implements DriftClientAccountSubscriber
+export class grpcVelocityClientAccountSubscriberV2
+	implements VelocityClientAccountSubscriber
 {
 	private grpcConfigs: GrpcConfigs;
 	private perpMarketsSubscriber?: grpcMultiAccountSubscriber<PerpMarketAccount>;
@@ -46,11 +46,11 @@ export class grpcDriftClientAccountSubscriberV2
 
 	public eventEmitter: StrictEventEmitter<
 		EventEmitter,
-		DriftClientAccountEvents
+		VelocityClientAccountEvents
 	>;
 	public isSubscribed: boolean;
 	public isSubscribing: boolean;
-	public program: DriftProgram;
+	public program: VelocityProgram;
 	public perpMarketIndexes: number[];
 	public spotMarketIndexes: number[];
 	public shouldFindAllMarketsAndOracles: boolean;
@@ -75,7 +75,7 @@ export class grpcDriftClientAccountSubscriberV2
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
-		program: DriftProgram,
+		program: VelocityProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -215,7 +215,7 @@ export class grpcDriftClientAccountSubscriberV2
 
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
-			console.log('[grpcDriftClientAccountSubscriberV2] addOracle');
+			console.log('[grpcVelocityClientAccountSubscriberV2] addOracle');
 		}
 		if (oracleInfo.publicKey.equals(PublicKey.default)) {
 			return true;
@@ -271,7 +271,7 @@ export class grpcDriftClientAccountSubscriberV2
 			);
 		}
 
-		const statePublicKey = await getDriftStateAccountPublicKey(
+		const statePublicKey = await getVelocityStateAccountPublicKey(
 			this.program.programId
 		);
 
@@ -463,7 +463,7 @@ export class grpcDriftClientAccountSubscriberV2
 	async subscribeToPerpMarketAccounts(): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
 			console.log(
-				'[grpcDriftClientAccountSubscriberV2] subscribeToPerpMarketAccounts'
+				'[grpcVelocityClientAccountSubscriberV2] subscribeToPerpMarketAccounts'
 			);
 		}
 		const perpMarketIndexToAccountPubkeys: Array<[number, PublicKey]> =
@@ -499,7 +499,7 @@ export class grpcDriftClientAccountSubscriberV2
 					try {
 						if (this.resubOpts?.logResubMessages) {
 							console.log(
-								'[grpcDriftClientAccountSubscriberV2] perp markets subscriber unsubscribed; resubscribing'
+								'[grpcVelocityClientAccountSubscriberV2] perp markets subscriber unsubscribed; resubscribing'
 							);
 						}
 						await this.subscribeToPerpMarketAccounts();
@@ -530,7 +530,7 @@ export class grpcDriftClientAccountSubscriberV2
 	async subscribeToSpotMarketAccounts(): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
 			console.log(
-				'[grpcDriftClientAccountSubscriberV2] subscribeToSpotMarketAccounts'
+				'[grpcVelocityClientAccountSubscriberV2] subscribeToSpotMarketAccounts'
 			);
 		}
 		const spotMarketIndexToAccountPubkeys: Array<[number, PublicKey]> =
@@ -566,7 +566,7 @@ export class grpcDriftClientAccountSubscriberV2
 					try {
 						if (this.resubOpts?.logResubMessages) {
 							console.log(
-								'[grpcDriftClientAccountSubscriberV2] spot markets subscriber unsubscribed; resubscribing'
+								'[grpcVelocityClientAccountSubscriberV2] spot markets subscriber unsubscribed; resubscribing'
 							);
 						}
 						await this.subscribeToSpotMarketAccounts();
@@ -596,7 +596,7 @@ export class grpcDriftClientAccountSubscriberV2
 
 	async subscribeToOracles(): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
-			console.log('grpcDriftClientAccountSubscriberV2 subscribeToOracles');
+			console.log('grpcVelocityClientAccountSubscriberV2 subscribeToOracles');
 		}
 		const oraclePubkeyToInfosMap = new Map<string, OracleInfo[]>();
 		for (const info of this.oracleInfos) {
@@ -637,7 +637,7 @@ export class grpcDriftClientAccountSubscriberV2
 				try {
 					if (this.resubOpts?.logResubMessages) {
 						console.log(
-							'[grpcDriftClientAccountSubscriberV2] oracle subscriber unsubscribed; resubscribing'
+							'[grpcVelocityClientAccountSubscriberV2] oracle subscriber unsubscribed; resubscribing'
 						);
 					}
 					await this.subscribeToOracles();
@@ -753,3 +753,10 @@ export class grpcDriftClientAccountSubscriberV2
 		this.spotOracleStringMap.clear();
 	}
 }
+
+/** @deprecated Use `grpcVelocityClientAccountSubscriberV2` instead. `grpcDriftClientAccountSubscriberV2` will be removed in a future major. */
+export const grpcDriftClientAccountSubscriberV2 =
+	grpcVelocityClientAccountSubscriberV2;
+/** @deprecated Use `grpcVelocityClientAccountSubscriberV2` instead. `grpcDriftClientAccountSubscriberV2` will be removed in a future major. */
+export type grpcDriftClientAccountSubscriberV2 =
+	grpcVelocityClientAccountSubscriberV2;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DriftCore } from '../../src/core/DriftCore';
+import { VelocityCore } from '../../src/core/VelocityCore';
 import { Keypair } from '@solana/web3.js';
 import { BN } from '../../src/isomorphic/anchor';
 
@@ -23,7 +23,7 @@ describe('DriftCore instruction builders', () => {
 
 		const pk = () => Keypair.generate().publicKey;
 
-		const ix = await DriftCore.buildDepositInstruction({
+		const ix = await VelocityCore.buildDepositInstruction({
 			program,
 			marketIndex: 1,
 			amount: new BN(123),

@@ -12,7 +12,7 @@ import { CustomBorshCoder } from '../decode/customCoder';
 import driftIDL from '../idl/drift.json';
 import type { Drift } from '../idl/drift';
 import type { UserAccount } from '../types';
-import type { DriftProgram } from '../config';
+import type { VelocityProgram } from '../config';
 import { fetchAccount } from '../accounts/fetch';
 import type { BN } from '@coral-xyz/anchor';
 import { buildDepositInstruction } from './instructions/deposit';
@@ -39,7 +39,7 @@ import {
 import * as remainingAccounts from './remainingAccounts';
 import * as signedMsg from './signedMsg';
 
-export type DriftCoreContext = {
+export type VelocityCoreContext = {
 	/** Drift program id. */
 	programId: PublicKey;
 
@@ -47,14 +47,17 @@ export type DriftCoreContext = {
 	idl?: Drift;
 };
 
+/** @deprecated Use `VelocityCoreContext` instead. `DriftCoreContext` will be removed in a future major. */
+export type DriftCoreContext = VelocityCoreContext;
+
 /**
- * DriftCore is the minimal, core SDK surface:
+ * VelocityCore is the minimal, core SDK surface:
  * - No subscriptions / polling / websockets.
  * - Pure helpers for PDAs, decoding, constants, and instruction building.
  *
- * Transaction/instruction builders will be progressively moved here from `DriftClient`.
+ * Transaction/instruction builders will be progressively moved here from `VelocityClient`.
  */
-export class DriftCore {
+export class VelocityCore {
 	/** Re-export PDA helpers (pure). */
 	static readonly pdas = pdas;
 
@@ -69,7 +72,7 @@ export class DriftCore {
 		return driftIDL as unknown as Drift;
 	}
 
-	static coder(idl: Drift = DriftCore.defaultIdl()): CustomBorshCoder {
+	static coder(idl: Drift = VelocityCore.defaultIdl()): CustomBorshCoder {
 		return new CustomBorshCoder(idl as any);
 	}
 
@@ -84,11 +87,11 @@ export class DriftCore {
 		userAccountPublicKey: PublicKey
 	): Promise<UserAccount | null> {
 		const data = await fetchAccount(connection, userAccountPublicKey);
-		return data ? DriftCore.decodeUserAccount(data) : null;
+		return data ? VelocityCore.decodeUserAccount(data) : null;
 	}
 
 	static async buildDepositInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		marketIndex: number;
 		amount: BN;
 		reduceOnly: boolean;
@@ -106,7 +109,7 @@ export class DriftCore {
 	}
 
 	static async buildWithdrawInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		marketIndex: number;
 		amount: BN;
 		reduceOnly: boolean;
@@ -125,7 +128,7 @@ export class DriftCore {
 	}
 
 	static async buildPlaceOrdersInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		formattedParams: any[];
 		state: PublicKey;
 		user: PublicKey;
@@ -137,7 +140,7 @@ export class DriftCore {
 	}
 
 	static async buildCancelOrdersInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		marketType: any;
 		marketIndex: number | null;
 		direction: any;
@@ -151,7 +154,7 @@ export class DriftCore {
 	}
 
 	static async buildFillPerpOrderInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderId: number | null;
 		state: PublicKey;
 		filler: PublicKey;
@@ -165,7 +168,7 @@ export class DriftCore {
 	}
 
 	static async buildTriggerOrderInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderId: number;
 		state: PublicKey;
 		filler: PublicKey;
@@ -177,7 +180,7 @@ export class DriftCore {
 	}
 
 	static async buildSettlePnlInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		marketIndex: number;
 		state: PublicKey;
 		authority: PublicKey;
@@ -189,7 +192,7 @@ export class DriftCore {
 	}
 
 	static async buildLiquidatePerpInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		marketIndex: number;
 		maxBaseAssetAmount: any;
 		limitPrice: any | null;
@@ -205,7 +208,7 @@ export class DriftCore {
 	}
 
 	static async buildPlacePerpOrderInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderParams: any;
 		state: PublicKey;
 		user: PublicKey;
@@ -217,7 +220,7 @@ export class DriftCore {
 	}
 
 	static async buildPlaceAndTakePerpOrderInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderParams: any;
 		optionalParams: number | null;
 		state: PublicKey;
@@ -230,7 +233,7 @@ export class DriftCore {
 	}
 
 	static async buildPlaceAndMakePerpOrderInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderParams: any;
 		takerOrderId: number;
 		state: PublicKey;
@@ -245,7 +248,7 @@ export class DriftCore {
 	}
 
 	static async buildCancelOrderInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderId: number | null;
 		state: PublicKey;
 		user: PublicKey;
@@ -256,7 +259,7 @@ export class DriftCore {
 	}
 
 	static async buildCancelOrderByUserIdInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		userOrderId: number;
 		state: PublicKey;
 		user: PublicKey;
@@ -268,7 +271,7 @@ export class DriftCore {
 	}
 
 	static async buildCancelOrdersByIdsInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderIds: number[] | undefined;
 		state: PublicKey;
 		user: PublicKey;
@@ -279,7 +282,7 @@ export class DriftCore {
 	}
 
 	static async buildModifyOrderInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		orderId: number;
 		modifyParams: any;
 		state: PublicKey;
@@ -292,7 +295,7 @@ export class DriftCore {
 	}
 
 	static async buildModifyOrderByUserIdInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		userOrderId: number;
 		modifyParams: any;
 		state: PublicKey;
@@ -305,7 +308,7 @@ export class DriftCore {
 	}
 
 	static async buildUpdateFundingRateInstruction(args: {
-		program: DriftProgram;
+		program: VelocityProgram;
 		perpMarketIndex: number;
 		state: PublicKey;
 		perpMarket: PublicKey;
@@ -317,10 +320,18 @@ export class DriftCore {
 	/**
 	 * Placeholder for instruction builders.
 	 *
-	 * In follow-up refactors, DriftClient methods like `getDepositInstruction`,
+	 * In follow-up refactors, VelocityClient methods like `getDepositInstruction`,
 	 * `getPlaceOrdersIx`, etc. will be moved here as pure builders.
 	 */
-	static buildInstructions(_ctx: DriftCoreContext): TransactionInstruction[] {
+	static buildInstructions(
+		_ctx: VelocityCoreContext
+	): TransactionInstruction[] {
 		return [];
 	}
 }
+
+/** @deprecated Use `VelocityCore` instead. `DriftCore` will be removed in a future major. */
+export const DriftCore = VelocityCore;
+
+/** @deprecated Use `VelocityCore` instead. `DriftCore` will be removed in a future major. */
+export type DriftCore = VelocityCore;

@@ -1,10 +1,10 @@
-import { DriftClient } from '../src/driftClient';
-import { grpcDriftClientAccountSubscriberV2 } from '../src/accounts/grpcDriftClientAccountSubscriberV2';
-import { grpcDriftClientAccountSubscriber } from '../src/accounts/grpcDriftClientAccountSubscriber';
+import { VelocityClient } from '../src/velocityClient';
+import { grpcVelocityClientAccountSubscriberV2 } from '../src/accounts/grpcVelocityClientAccountSubscriberV2';
+import { grpcVelocityClientAccountSubscriber } from '../src/accounts/grpcVelocityClientAccountSubscriber';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { DriftClientConfig } from '../src/driftClientConfig';
+import { VelocityClientConfig } from '../src/velocityClientConfig';
 import {
-	DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	Wallet,
@@ -30,7 +30,7 @@ async function initializeGrpcDriftClientV2VersusV1() {
 	const wallet = new Wallet(new Keypair());
 	dotenv.config({ path: '../' });
 
-	const programId = new PublicKey(DRIFT_PROGRAM_ID);
+	const programId = new PublicKey(VELOCITY_PROGRAM_ID);
 	const provider = new AnchorProvider(
 		connection,
 		// @ts-ignore
@@ -102,34 +102,34 @@ async function initializeGrpcDriftClientV2VersusV1() {
 		},
 	};
 
-	const configV2: DriftClientConfig = {
+	const configV2: VelocityClientConfig = {
 		connection,
 		wallet,
-		programID: new PublicKey(DRIFT_PROGRAM_ID),
+		programID: new PublicKey(VELOCITY_PROGRAM_ID),
 		accountSubscription: {
 			...baseAccountSubscription,
-			driftClientAccountSubscriber: grpcDriftClientAccountSubscriberV2,
+			velocityClientAccountSubscriber: grpcVelocityClientAccountSubscriberV2,
 		},
 		perpMarketIndexes,
 		spotMarketIndexes,
 		oracleInfos,
 	};
 
-	const configV1: DriftClientConfig = {
+	const configV1: VelocityClientConfig = {
 		connection,
 		wallet,
-		programID: new PublicKey(DRIFT_PROGRAM_ID),
+		programID: new PublicKey(VELOCITY_PROGRAM_ID),
 		accountSubscription: {
 			...baseAccountSubscription,
-			driftClientAccountSubscriber: grpcDriftClientAccountSubscriber,
+			velocityClientAccountSubscriber: grpcVelocityClientAccountSubscriber,
 		},
 		perpMarketIndexes,
 		spotMarketIndexes,
 		oracleInfos,
 	};
 
-	const clientV2 = new DriftClient(configV2);
-	const clientV1 = new DriftClient(configV1);
+	const clientV2 = new VelocityClient(configV2);
+	const clientV1 = new VelocityClient(configV1);
 
 	await Promise.all([clientV1.subscribe(), clientV2.subscribe()]);
 	const compare = () => {

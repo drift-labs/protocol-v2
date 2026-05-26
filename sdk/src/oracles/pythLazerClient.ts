@@ -2,7 +2,7 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
 import { AnchorProvider, BN, Program } from '../isomorphic/anchor';
 import { Drift } from '../idl/drift';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import {
 	ONE,
 	PRICE_PRECISION,
@@ -16,7 +16,7 @@ export class PythLazerClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
 	private stableCoin: boolean;
-	private program: DriftProgram;
+	private program: VelocityProgram;
 	readonly decodeFunc: (name: string, data: Buffer) => any;
 
 	public constructor(

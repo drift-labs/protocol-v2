@@ -1,6 +1,6 @@
 import { LaserGrpcConfigs, ResubOpts } from './types';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import * as Buffer from 'buffer';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
 
@@ -41,7 +41,7 @@ export class LaserstreamProgramAccountSubscriber<
 		laserCommitmentLevel: typeof LaserCommitmentLevel,
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		decodeBufferFn: (accountName: string, ix: Buffer) => T,
 		options: { filters: MemcmpFilter[] } = { filters: [] },
 		resubOpts?: ResubOpts
@@ -63,7 +63,7 @@ export class LaserstreamProgramAccountSubscriber<
 		grpcConfigs: LaserGrpcConfigs,
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		decodeBufferFn: (accountName: string, ix: Buffer) => U,
 		options: { filters: MemcmpFilter[] } = {
 			filters: [],

@@ -3,7 +3,7 @@
  * Tracks referral links, 30-day maker/taker volume, and IF staking stats.
  * One `UserStats` account exists per authority (shared across all subaccounts).
  */
-import { DriftClient } from './driftClient';
+import { VelocityClient } from './velocityClient';
 import { PublicKey } from '@solana/web3.js';
 import { DataAndSlot, UserStatsAccountSubscriber } from './accounts/types';
 import { UserStatsConfig } from './userStatsConfig';
@@ -17,24 +17,30 @@ import {
 import { grpcUserStatsAccountSubscriber } from './accounts/grpcUserStatsAccountSubscriber';
 
 export class UserStats {
-	driftClient: DriftClient;
+	velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	public get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	userStatsAccountPublicKey: PublicKey;
 	accountSubscriber: UserStatsAccountSubscriber;
 	isSubscribed: boolean;
 
 	public constructor(config: UserStatsConfig) {
-		this.driftClient = config.driftClient;
+		// Type-system guarantees at least one of the two is supplied.
+		const velocityClient = (config.velocityClient ?? config.driftClient)!;
+		this.velocityClient = velocityClient;
 		this.userStatsAccountPublicKey = config.userStatsAccountPublicKey;
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingUserStatsAccountSubscriber(
-				config.driftClient.program,
+				velocityClient.program,
 				config.userStatsAccountPublicKey,
 				config.accountSubscription.accountLoader
 			);
 		} else if (config.accountSubscription?.type === 'grpc') {
 			this.accountSubscriber = new grpcUserStatsAccountSubscriber(
 				config.accountSubscription.grpcConfigs,
-				config.driftClient.program,
+				velocityClient.program,
 				config.userStatsAccountPublicKey,
 				{
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
@@ -43,7 +49,7 @@ export class UserStats {
 			);
 		} else if (config.accountSubscription?.type === 'websocket') {
 			this.accountSubscriber = new WebSocketUserStatsAccountSubscriber(
-				config.driftClient.program,
+				velocityClient.program,
 				config.userStatsAccountPublicKey,
 				{
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
@@ -95,12 +101,12 @@ export class UserStats {
 		} else {
 			return {
 				referrer: getUserAccountPublicKeySync(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					this.getAccount().referrer,
 					0
 				),
 				referrerStats: getUserStatsAccountPublicKey(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					this.getAccount().referrer
 				),
 			};

@@ -3,7 +3,7 @@ import {
 	PublicKey,
 	RpcResponseAndContext,
 } from '@solana/web3.js';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { ReferrerInfo } from '../types';
 import {
 	getUserAccountPublicKeySync,
@@ -28,7 +28,11 @@ export class ReferrerMap {
 	 * Will be undefined if the referrer is not in the map yet.
 	 */
 	private referrerReferrerInfoMap = new Map<string, ReferrerInfo>();
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	private get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	private parallelSync: boolean;
 
 	private fetchPromise?: Promise<void>;
@@ -37,10 +41,10 @@ export class ReferrerMap {
 	/**
 	 * Creates a new UserStatsMap instance.
 	 *
-	 * @param {DriftClient} driftClient - The DriftClient instance.
+	 * @param {VelocityClient} velocityClient - The VelocityClient instance.
 	 */
-	constructor(driftClient: DriftClient, parallelSync?: boolean) {
-		this.driftClient = driftClient;
+	constructor(velocityClient: VelocityClient, parallelSync?: boolean) {
+		this.velocityClient = velocityClient;
 		this.parallelSync = parallelSync !== undefined ? parallelSync : true;
 	}
 
@@ -52,7 +56,7 @@ export class ReferrerMap {
 			return;
 		}
 
-		await this.driftClient.subscribe();
+		await this.velocityClient.subscribe();
 		await this.sync();
 	}
 
@@ -69,11 +73,11 @@ export class ReferrerMap {
 			this.authorityReferrerMap.set(authority, referrer);
 		} else if (referrer === undefined) {
 			const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
-				this.driftClient.program.programId,
+				this.velocityClient.program.programId,
 				new PublicKey(authority)
 			);
 			const buffer = (
-				await this.driftClient.connection.getAccountInfo(
+				await this.velocityClient.connection.getAccountInfo(
 					userStatsAccountPublicKey,
 					'processed'
 				)
@@ -118,12 +122,12 @@ export class ReferrerMap {
 		const referrerKey = new PublicKey(referrer);
 		const referrerInfo = {
 			referrer: getUserAccountPublicKeySync(
-				this.driftClient.program.programId,
+				this.velocityClient.program.programId,
 				referrerKey,
 				0
 			),
 			referrerStats: getUserStatsAccountPublicKey(
-				this.driftClient.program.programId,
+				this.velocityClient.program.programId,
 				referrerKey
 			),
 		};
@@ -171,9 +175,9 @@ export class ReferrerMap {
 
 	public async syncAll(): Promise<void> {
 		const rpcRequestArgs = [
-			this.driftClient.program.programId.toBase58(),
+			this.velocityClient.program.programId.toBase58(),
 			{
-				commitment: this.driftClient.opts.commitment,
+				commitment: this.velocityClient.opts.commitment,
 				filters: [getUserStatsFilter()],
 				encoding: 'base64',
 				dataSlice: {
@@ -186,7 +190,7 @@ export class ReferrerMap {
 
 		const rpcJSONResponse: any =
 			// @ts-ignore
-			await this.driftClient.connection._rpcRequest(
+			await this.velocityClient.connection._rpcRequest(
 				'getProgramAccounts',
 				rpcRequestArgs
 			);
@@ -211,9 +215,9 @@ export class ReferrerMap {
 
 	async syncReferrer(referrerFilter: MemcmpFilter): Promise<void> {
 		const rpcRequestArgs = [
-			this.driftClient.program.programId.toBase58(),
+			this.velocityClient.program.programId.toBase58(),
 			{
-				commitment: this.driftClient.opts.commitment,
+				commitment: this.velocityClient.opts.commitment,
 				filters: [getUserStatsFilter(), referrerFilter],
 				encoding: 'base64',
 				dataSlice: {
@@ -226,7 +230,7 @@ export class ReferrerMap {
 
 		const rpcJSONResponse: any =
 			// @ts-ignore
-			await this.driftClient.connection._rpcRequest(
+			await this.velocityClient.connection._rpcRequest(
 				'getProgramAccounts',
 				rpcRequestArgs
 			);

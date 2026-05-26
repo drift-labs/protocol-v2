@@ -21997,7 +21997,7 @@ export type Drift = {
           {
             "name": "bitFlags",
             "docs": [
-              "Bit flags (e.g., for high leverage mode)"
+              "Order bit flags"
             ],
             "type": "u8"
           },

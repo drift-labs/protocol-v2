@@ -1,6 +1,6 @@
 import { BufferAndSlot, ProgramAccountSubscriber, ResubOpts } from './types';
 import { AnchorProvider } from '../isomorphic/anchor';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import {
 	AccountInfoBase,
@@ -99,7 +99,7 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 	subscriptionName: string;
 	accountDiscriminator: string;
 	bufferAndSlotMap: Map<string, BufferAndSlot> = new Map();
-	program: DriftProgram;
+	program: VelocityProgram;
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
 	onChange: (
 		accountId: PublicKey,
@@ -143,7 +143,7 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 	public constructor(
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		decodeBufferFn: (accountName: string, ix: Buffer) => T,
 		options: { filters: MemcmpFilter[]; commitment?: Commitment } = {
 			filters: [],

@@ -9,11 +9,11 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { OracleClient, OraclePriceData } from '../oracles/types';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 
 export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 	isSubscribed: boolean;
-	program: DriftProgram;
+	program: VelocityProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, OracleEvents>;
 	publicKey: PublicKey;
 

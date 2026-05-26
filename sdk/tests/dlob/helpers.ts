@@ -4,7 +4,7 @@ import {
 	AssetTier,
 	PerpPosition,
 	BN,
-	DriftClient,
+	VelocityClient,
 	User,
 	PerpMarketAccount,
 	SpotMarketAccount,
@@ -634,12 +634,12 @@ export class MockUserMap implements UserMapInterface {
 	eventEmitter: EventEmitter = new EventEmitter();
 	private userMap = new Map<string, User>();
 	private userAccountToAuthority = new Map<string, string>();
-	private driftClient: DriftClient;
+	private driftClient: VelocityClient;
 
 	constructor() {
 		this.userMap = new Map();
 		this.userAccountToAuthority = new Map();
-		this.driftClient = new DriftClient({
+		this.driftClient = new VelocityClient({
 			connection: new Connection('http://localhost:8899'),
 			wallet: new Wallet(new Keypair()),
 			programID: PublicKey.default,

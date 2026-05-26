@@ -1,5 +1,5 @@
 import {
-	DriftClient,
+	VelocityClient,
 	DevnetSpotMarkets,
 	MainnetSpotMarkets,
 	DevnetPerpMarkets,
@@ -49,7 +49,7 @@ describe('Verify Constants', function () {
 		1
 	);
 
-	const devnetDriftClient = new DriftClient({
+	const devnetDriftClient = new VelocityClient({
 		connection: devnetConnection,
 		wallet,
 		env: 'devnet',
@@ -59,7 +59,7 @@ describe('Verify Constants', function () {
 		},
 	});
 
-	const mainnetDriftClient = new DriftClient({
+	const mainnetDriftClient = new VelocityClient({
 		connection: mainnetConnection,
 		wallet,
 		env: 'mainnet-beta',

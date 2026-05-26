@@ -14,7 +14,7 @@ import {
 } from '@solana/spl-token';
 import { SpotMarketAccount, TokenProgramFlag } from '../types';
 
-export async function getDriftStateAccountPublicKeyAndNonce(
+export async function getVelocityStateAccountPublicKeyAndNonce(
 	programId: PublicKey
 ): Promise<[PublicKey, number]> {
 	return PublicKey.findProgramAddress(
@@ -23,11 +23,18 @@ export async function getDriftStateAccountPublicKeyAndNonce(
 	);
 }
 
-export async function getDriftStateAccountPublicKey(
+/** @deprecated Use `getVelocityStateAccountPublicKeyAndNonce` instead. `getDriftStateAccountPublicKeyAndNonce` will be removed in a future major. */
+export const getDriftStateAccountPublicKeyAndNonce =
+	getVelocityStateAccountPublicKeyAndNonce;
+
+export async function getVelocityStateAccountPublicKey(
 	programId: PublicKey
 ): Promise<PublicKey> {
-	return (await getDriftStateAccountPublicKeyAndNonce(programId))[0];
+	return (await getVelocityStateAccountPublicKeyAndNonce(programId))[0];
 }
+
+/** @deprecated Use `getVelocityStateAccountPublicKey` instead. `getDriftStateAccountPublicKey` will be removed in a future major. */
+export const getDriftStateAccountPublicKey = getVelocityStateAccountPublicKey;
 
 export async function getUserAccountPublicKeyAndNonce(
 	programId: PublicKey,
@@ -209,12 +216,15 @@ export function getInsuranceFundStakeAccountPublicKey(
 	)[0];
 }
 
-export function getDriftSignerPublicKey(programId: PublicKey): PublicKey {
+export function getVelocitySignerPublicKey(programId: PublicKey): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_signer'))],
 		programId
 	)[0];
 }
+
+/** @deprecated Use `getVelocitySignerPublicKey` instead. `getDriftSignerPublicKey` will be removed in a future major. */
+export const getDriftSignerPublicKey = getVelocitySignerPublicKey;
 
 export function getReferrerNamePublicKeySync(
 	programId: PublicKey,

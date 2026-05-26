@@ -2,8 +2,8 @@ import {
 	AccountSubscriber,
 	DataAndSlot,
 	DelistedMarketSetting,
-	DriftClientAccountEvents,
-	DriftClientAccountSubscriber,
+	VelocityClientAccountEvents,
+	VelocityClientAccountSubscriber,
 	NotSubscribedError,
 	ResubOpts,
 } from './types';
@@ -11,7 +11,7 @@ import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
-	getDriftStateAccountPublicKey,
+	getVelocityStateAccountPublicKey,
 	getPerpMarketPublicKey,
 	getPerpMarketPublicKeySync,
 	getSpotMarketPublicKey,
@@ -23,7 +23,7 @@ import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
-import { findAllMarketAndOracles, DriftProgram } from '../config';
+import { findAllMarketAndOracles, VelocityProgram } from '../config';
 import { findDelistedPerpMarketsAndOracles } from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
@@ -55,11 +55,11 @@ async function ensureAccountFetched<T>(
 	}
 }
 
-export class WebSocketDriftClientAccountSubscriber
-	implements DriftClientAccountSubscriber
+export class WebSocketVelocityClientAccountSubscriber
+	implements VelocityClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: DriftProgram;
+	program: VelocityProgram;
 	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
@@ -69,7 +69,7 @@ export class WebSocketDriftClientAccountSubscriber
 	resubOpts?: ResubOpts;
 	shouldFindAllMarketsAndOracles: boolean;
 
-	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
+	eventEmitter: StrictEventEmitter<EventEmitter, VelocityClientAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
 	perpMarketAccountSubscribers = new Map<
 		number,
@@ -91,7 +91,7 @@ export class WebSocketDriftClientAccountSubscriber
 	initialOraclePriceData: Map<string, OraclePriceData>;
 	customPerpMarketAccountSubscriber?: new (
 		accountName: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -99,7 +99,7 @@ export class WebSocketDriftClientAccountSubscriber
 	) => AccountSubscriber<any>;
 	customOracleAccountSubscriber?: new (
 		accountName: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -111,7 +111,7 @@ export class WebSocketDriftClientAccountSubscriber
 	protected subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
-		program: DriftProgram,
+		program: VelocityProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -121,7 +121,7 @@ export class WebSocketDriftClientAccountSubscriber
 		commitment?: Commitment,
 		customPerpMarketAccountSubscriber?: new (
 			accountName: string,
-			program: DriftProgram,
+			program: VelocityProgram,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
@@ -129,7 +129,7 @@ export class WebSocketDriftClientAccountSubscriber
 		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>,
 		customOracleAccountSubscriber?: new (
 			accountName: string,
-			program: DriftProgram,
+			program: VelocityProgram,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
@@ -185,7 +185,7 @@ export class WebSocketDriftClientAccountSubscriber
 			);
 		}
 
-		const statePublicKey = await getDriftStateAccountPublicKey(
+		const statePublicKey = await getVelocityStateAccountPublicKey(
 			this.program.programId
 		);
 
@@ -710,3 +710,10 @@ export class WebSocketDriftClientAccountSubscriber
 		return this.getOraclePriceDataAndSlot(oracleId);
 	}
 }
+
+/** @deprecated Use `WebSocketVelocityClientAccountSubscriber` instead. `WebSocketDriftClientAccountSubscriber` will be removed in a future major. */
+export const WebSocketDriftClientAccountSubscriber =
+	WebSocketVelocityClientAccountSubscriber;
+/** @deprecated Use `WebSocketVelocityClientAccountSubscriber` instead. `WebSocketDriftClientAccountSubscriber` will be removed in a future major. */
+export type WebSocketDriftClientAccountSubscriber =
+	WebSocketVelocityClientAccountSubscriber;

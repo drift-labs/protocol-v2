@@ -1504,10 +1504,13 @@ export type HealthComponent = {
 	weightedValue: BN;
 };
 
-export interface DriftClientMetricsEvents {
+export interface VelocityClientMetricsEvents {
 	txSigned: SignedTxData[];
 	preTxSigned: void;
 }
+
+/** @deprecated Use `VelocityClientMetricsEvents` instead. `DriftClientMetricsEvents` will be removed in a future major. */
+export interface DriftClientMetricsEvents extends VelocityClientMetricsEvents {}
 
 export type SignedTxData = {
 	txSig: string;

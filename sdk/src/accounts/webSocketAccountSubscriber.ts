@@ -6,7 +6,7 @@ import {
 } from './types';
 import { AnchorProvider } from '../isomorphic/anchor';
 import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import * as Buffer from 'buffer';
 
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
@@ -14,7 +14,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	logAccountName: string;
-	program: DriftProgram;
+	program: VelocityProgram;
 	accountPublicKey: PublicKey;
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
@@ -31,7 +31,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	public constructor(
 		accountName: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts,

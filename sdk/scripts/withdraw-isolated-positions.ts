@@ -8,15 +8,15 @@ import {
 } from '@coral-xyz/anchor';
 import driftIDL from '../src/idl/drift.json';
 import {
-	DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	OracleInfo,
 	Wallet,
 	ZERO,
 } from '../src';
-import { DriftClient } from '../src/driftClient';
-import { DriftClientConfig } from '../src/driftClientConfig';
+import { VelocityClient } from '../src/velocityClient';
+import { VelocityClientConfig } from '../src/velocityClientConfig';
 
 function isStatusOpen(status: any) {
 	return !!status && 'open' in status;
@@ -52,7 +52,7 @@ async function main() {
 	const provider = new AnchorProvider(connection, wallet as any, {
 		commitment: 'processed',
 	});
-	const programId = new PublicKey(DRIFT_PROGRAM_ID);
+	const programId = new PublicKey(VELOCITY_PROGRAM_ID);
 	const program = new Program(driftIDL as Idl, programId, provider);
 
 	// Discover markets and oracles (like the example test script)
@@ -94,8 +94,8 @@ async function main() {
 		}
 	}
 
-	// Build DriftClient with websocket subscription (lightweight)
-	const clientConfig: DriftClientConfig = {
+	// Build VelocityClient with websocket subscription (lightweight)
+	const clientConfig: VelocityClientConfig = {
 		connection,
 		wallet,
 		programID: programId,
@@ -108,7 +108,7 @@ async function main() {
 		oracleInfos,
 		env: 'devnet',
 	};
-	const client = new DriftClient(clientConfig);
+	const client = new VelocityClient(clientConfig);
 	await client.subscribe();
 
 	// Ensure user exists and is subscribed

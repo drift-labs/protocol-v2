@@ -1,5 +1,5 @@
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { RevenueShareEscrowAccount } from '../types';
 import { getRevenueShareEscrowAccountPublicKey } from '../addresses/pda';
 import { getRevenueShareEscrowFilter } from '../memcmp';
@@ -9,7 +9,11 @@ export class RevenueShareEscrowMap {
 	 * map from authority pubkey to RevenueShareEscrow account data.
 	 */
 	private authorityEscrowMap = new Map<string, RevenueShareEscrowAccount>();
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	private get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	private parallelSync: boolean;
 
 	private fetchPromise?: Promise<void>;
@@ -18,11 +22,11 @@ export class RevenueShareEscrowMap {
 	/**
 	 * Creates a new RevenueShareEscrowMap instance.
 	 *
-	 * @param {DriftClient} driftClient - The DriftClient instance.
+	 * @param {VelocityClient} velocityClient - The VelocityClient instance.
 	 * @param {boolean} parallelSync - Whether to sync accounts in parallel.
 	 */
-	constructor(driftClient: DriftClient, parallelSync?: boolean) {
-		this.driftClient = driftClient;
+	constructor(velocityClient: VelocityClient, parallelSync?: boolean) {
+		this.velocityClient = velocityClient;
 		this.parallelSync = parallelSync !== undefined ? parallelSync : true;
 	}
 
@@ -34,7 +38,7 @@ export class RevenueShareEscrowMap {
 			return;
 		}
 
-		await this.driftClient.subscribe();
+		await this.velocityClient.subscribe();
 		await this.sync();
 	}
 
@@ -65,19 +69,19 @@ export class RevenueShareEscrowMap {
 
 	public async addRevenueShareEscrow(authority: string) {
 		const escrowAccountPublicKey = getRevenueShareEscrowAccountPublicKey(
-			this.driftClient.program.programId,
+			this.velocityClient.program.programId,
 			new PublicKey(authority)
 		);
 
 		try {
-			const accountInfo = await this.driftClient.connection.getAccountInfo(
+			const accountInfo = await this.velocityClient.connection.getAccountInfo(
 				escrowAccountPublicKey,
 				'processed'
 			);
 
 			if (accountInfo && accountInfo.data) {
 				const escrow = (
-					this.driftClient.program.account as any
+					this.velocityClient.program.account as any
 				).revenueShareEscrow.coder.accounts.decode(
 					'revenueShareEscrow',
 					accountInfo.data
@@ -123,15 +127,15 @@ export class RevenueShareEscrowMap {
 			return this.fetchPromise;
 		}
 		for (const authority of this.authorityEscrowMap.keys()) {
-			const accountInfo = await this.driftClient.connection.getAccountInfo(
+			const accountInfo = await this.velocityClient.connection.getAccountInfo(
 				getRevenueShareEscrowAccountPublicKey(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					new PublicKey(authority)
 				),
 				'confirmed'
 			);
 			const escrowNew = (
-				this.driftClient.program.account as any
+				this.velocityClient.program.account as any
 			).revenueShareEscrow.coder.accounts.decode(
 				'revenueShareEscrow',
 				accountInfo.data
@@ -142,9 +146,9 @@ export class RevenueShareEscrowMap {
 
 	public async syncAll(): Promise<void> {
 		const rpcRequestArgs = [
-			this.driftClient.program.programId.toBase58(),
+			this.velocityClient.program.programId.toBase58(),
 			{
-				commitment: this.driftClient.opts.commitment,
+				commitment: this.velocityClient.opts.commitment,
 				filters: [getRevenueShareEscrowFilter()],
 				encoding: 'base64',
 				withContext: true,
@@ -153,7 +157,7 @@ export class RevenueShareEscrowMap {
 
 		const rpcJSONResponse: any =
 			// @ts-ignore
-			await this.driftClient.connection._rpcRequest(
+			await this.velocityClient.connection._rpcRequest(
 				'getProgramAccounts',
 				rpcRequestArgs
 			);
@@ -182,7 +186,7 @@ export class RevenueShareEscrowMap {
 							);
 
 							const escrow = (
-								this.driftClient.program.account as any
+								this.velocityClient.program.account as any
 							).revenueShareEscrow.coder.accounts.decode(
 								'revenueShareEscrow',
 								buffer
@@ -209,7 +213,7 @@ export class RevenueShareEscrowMap {
 						);
 
 						const escrow = (
-							this.driftClient.program.account as any
+							this.velocityClient.program.account as any
 						).revenueShareEscrow.coder.accounts.decode(
 							'revenueShareEscrow',
 							buffer

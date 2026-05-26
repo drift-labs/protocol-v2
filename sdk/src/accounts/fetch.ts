@@ -11,11 +11,11 @@ import {
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
 } from '../addresses/pda';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 
 export async function fetchUserAccounts(
 	connection: Connection,
-	program: DriftProgram,
+	program: VelocityProgram,
 	authority: PublicKey,
 	limit = 8
 ): Promise<(UserAccount | undefined)[]> {
@@ -31,7 +31,7 @@ export async function fetchUserAccounts(
 
 export async function fetchUserAccountsUsingKeys(
 	connection: Connection,
-	program: DriftProgram,
+	program: VelocityProgram,
 	userAccountPublicKeys: PublicKey[]
 ): Promise<(UserAccount | undefined)[]> {
 	const accountInfos = await connection.getMultipleAccountsInfo(
@@ -52,7 +52,7 @@ export async function fetchUserAccountsUsingKeys(
 
 export async function fetchUserStatsAccount(
 	connection: Connection,
-	program: DriftProgram,
+	program: VelocityProgram,
 	authority: PublicKey
 ): Promise<UserStatsAccount | undefined> {
 	const userStatsPublicKey = getUserStatsAccountPublicKey(
@@ -74,7 +74,7 @@ export async function fetchUserStatsAccount(
 
 export async function fetchRevenueShareAccount(
 	connection: Connection,
-	program: DriftProgram,
+	program: VelocityProgram,
 	authority: PublicKey
 ): Promise<RevenueShareAccount | null> {
 	const revenueShareAccountPublicKey = getRevenueShareAccountPublicKey(
@@ -93,7 +93,7 @@ export async function fetchRevenueShareAccount(
 
 export async function fetchRevenueShareEscrowAccount(
 	connection: Connection,
-	program: DriftProgram,
+	program: VelocityProgram,
 	authority: PublicKey
 ): Promise<RevenueShareEscrowAccount | null> {
 	const revenueShareEscrowPubKey = getRevenueShareEscrowAccountPublicKey(

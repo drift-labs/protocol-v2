@@ -4,14 +4,14 @@ import { OracleClient } from '../oracles/types';
 import { PythClient } from '../oracles/pythClient';
 import { QuoteAssetOracleClient } from '../oracles/quoteAssetOracleClient';
 import { BN } from '../isomorphic/anchor';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import { PrelaunchOracleClient } from '../oracles/prelaunchOracleClient';
 import { PythLazerClient } from '../oracles/pythLazerClient';
 
 export function getOracleClient(
 	oracleSource: OracleSource,
 	connection: Connection,
-	program: DriftProgram
+	program: VelocityProgram
 ): OracleClient {
 	if (isVariant(oracleSource, 'pyth')) {
 		return new PythClient(connection);

@@ -3,15 +3,15 @@ import dotenv from 'dotenv';
 import { AnchorProvider, Idl, Program, ProgramAccount, BN } from '@coral-xyz/anchor';
 import driftIDL from '../src/idl/drift.json';
 import {
-	DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	OracleInfo,
 	Wallet,
 	numberToSafeBN,
 } from '../src';
-import { DriftClient } from '../src/driftClient';
-import { DriftClientConfig } from '../src/driftClientConfig';
+import { VelocityClient } from '../src/velocityClient';
+import { VelocityClientConfig } from '../src/velocityClientConfig';
 
 async function main() {
 	dotenv.config({ path: '../' });
@@ -34,7 +34,7 @@ async function main() {
 	const provider = new AnchorProvider(connection, wallet as any, {
 		commitment: 'processed',
 	});
-	const programId = new PublicKey(DRIFT_PROGRAM_ID);
+	const programId = new PublicKey(VELOCITY_PROGRAM_ID);
 	const program = new Program(driftIDL as Idl, programId, provider);
 
 	const allPerpMarketProgramAccounts =
@@ -61,7 +61,7 @@ async function main() {
 		}
 	}
 
-	const clientConfig: DriftClientConfig = {
+	const clientConfig: VelocityClientConfig = {
 		connection,
 		wallet,
 		programID: programId,
@@ -71,7 +71,7 @@ async function main() {
 		oracleInfos,
 		env: 'devnet',
 	};
-	const client = new DriftClient(clientConfig);
+	const client = new VelocityClient(clientConfig);
 	await client.subscribe();
 
 	const candidates = perpMarketIndexes.filter((i) => i >= 0 && i <= 5);

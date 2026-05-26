@@ -11,7 +11,7 @@ import {
 } from './numericConstants';
 import { OracleSource } from '../types';
 import { BN } from '../isomorphic/anchor';
-import { DriftEnv } from '../config';
+import { VelocityEnv } from '../config';
 
 export type SpotMarketConfig = {
 	symbol: string;
@@ -868,7 +868,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	},
 ];
 
-export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
+export const SpotMarkets: { [key in VelocityEnv]: SpotMarketConfig[] } = {
 	devnet: DevnetSpotMarkets,
 	'mainnet-beta': MainnetSpotMarkets,
 };
