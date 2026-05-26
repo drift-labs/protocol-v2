@@ -1,4 +1,4 @@
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { getUserStatsAccountPublicKey } from '../addresses/pda';
 import {
 	OrderRecord,
@@ -26,7 +26,11 @@ export class UserStatsMap {
 	 * map from authority pubkey to UserStats
 	 */
 	private userStatsMap = new Map<string, UserStats>();
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	private get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	private bulkAccountLoader: BulkAccountLoader;
 	private decode;
 	private syncConfig: SyncConfig;
@@ -37,19 +41,19 @@ export class UserStatsMap {
 	/**
 	 * Creates a new UserStatsMap instance.
 	 *
-	 * @param {DriftClient} driftClient - The DriftClient instance.
+	 * @param {VelocityClient} velocityClient - The VelocityClient instance.
 	 * @param {BulkAccountLoader} [bulkAccountLoader] - If not provided, a new BulkAccountLoader with polling disabled will be created.
 	 */
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		bulkAccountLoader?: BulkAccountLoader,
 		syncConfig?: SyncConfig
 	) {
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		if (!bulkAccountLoader) {
 			bulkAccountLoader = new BulkAccountLoader(
-				driftClient.connection,
-				driftClient.opts.commitment,
+				velocityClient.connection,
+				velocityClient.opts.commitment,
 				0
 			);
 		}
@@ -60,9 +64,9 @@ export class UserStatsMap {
 		};
 
 		this.decode = (
-			this.driftClient.program.account as any
+			this.velocityClient.program.account as any
 		).userStats.coder.accounts.decodeUnchecked.bind(
-			(this.driftClient.program.account as any).userStats.coder.accounts
+			(this.velocityClient.program.account as any).userStats.coder.accounts
 		);
 	}
 
@@ -71,7 +75,7 @@ export class UserStatsMap {
 			return;
 		}
 
-		await this.driftClient.subscribe();
+		await this.velocityClient.subscribe();
 		await this.sync(authorities);
 	}
 
@@ -87,9 +91,9 @@ export class UserStatsMap {
 		skipFetch?: boolean
 	) {
 		const userStat = new UserStats({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			userStatsAccountPublicKey: getUserStatsAccountPublicKey(
-				this.driftClient.program.programId,
+				this.velocityClient.program.programId,
 				authority
 			),
 			accountSubscription: {
@@ -252,8 +256,8 @@ export class UserStatsMap {
 			let accountsToLoad = authorities;
 			if (authorities.length === 0) {
 				const accountsPrefetch =
-					await this.driftClient.connection.getProgramAccounts(
-						this.driftClient.program.programId,
+					await this.velocityClient.connection.getProgramAccounts(
+						this.velocityClient.program.programId,
 						{
 							dataSlice: { offset: 0, length: 0 },
 							filters: [getUserStatsFilter()],
@@ -295,10 +299,10 @@ export class UserStatsMap {
 				const chunk = accountsToLoad.slice(i, i + chunkSize);
 				tasks.push(async () => {
 					const accountInfos =
-						await this.driftClient.connection.getMultipleAccountsInfoAndContext(
+						await this.velocityClient.connection.getMultipleAccountsInfoAndContext(
 							chunk,
 							{
-								commitment: this.driftClient.opts.commitment,
+								commitment: this.velocityClient.opts.commitment,
 							}
 						);
 

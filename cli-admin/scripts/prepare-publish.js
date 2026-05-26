@@ -30,10 +30,10 @@ const range = isPrerelease ? sdkVersion : `^${sdkVersion}`;
 
 cliPkg.dependencies = {
 	...cliPkg.dependencies,
-	'@drift-labs/sdk': range,
+	'@velocity-exchange/sdk': range,
 };
 
 fs.writeFileSync(cliPkgPath, JSON.stringify(cliPkg, null, '\t') + '\n');
 console.log(
-	`[prepare-publish] cli-admin/package.json @drift-labs/sdk -> ${range}`
+	`[prepare-publish] cli-admin/package.json @velocity-exchange/sdk -> ${range}`
 );

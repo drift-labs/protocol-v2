@@ -1,6 +1,7 @@
 import { Commitment, Connection, MemcmpFilter } from '@solana/web3.js';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { GrpcConfigs } from '../accounts/types';
+import { AtLeastOne } from '../util/deprecatedAlias';
 
 // passed into UserMap.getUniqueAuthorities to filter users
 export type UserAccountFilterCriteria = {
@@ -18,9 +19,8 @@ export type SyncConfig =
 			concurrencyLimit?: number;
 	  };
 
-export type UserMapConfig = {
-	driftClient: DriftClient;
-	// connection object to use specifically for the UserMap. If undefined, will use the driftClient's connection
+type UserMapConfigBase = {
+	// connection object to use specifically for the UserMap. If undefined, will use the velocityClient's connection
 	connection?: Connection;
 	subscriptionConfig:
 		| {
@@ -64,3 +64,6 @@ export type UserMapConfig = {
 
 	additionalFilters?: MemcmpFilter[];
 };
+
+export type UserMapConfig = UserMapConfigBase &
+	AtLeastOne<'velocityClient', 'driftClient', VelocityClient>;

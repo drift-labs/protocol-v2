@@ -10,7 +10,7 @@
     "source=${localWorkspaceFolder},target=/workdir,type=bind,consistency=cached",
     "source=drift-target,target=/workdir/target,type=volume,consistency=delegated"
   ],
-  "postCreateCommand": "yarn config set ignore-package-manager true && echo 'Dev container ready! You can now run: anchor build, anchor test, cargo build, etc.'",
+  "postCreateCommand": "echo 'Dev container ready! You can now run: anchor build, anchor test, cargo build, etc.'",
   "customizations": {
     "vscode": {
       "extensions": [

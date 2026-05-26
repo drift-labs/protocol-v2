@@ -10,11 +10,11 @@ import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { Account } from '@solana/spl-token';
 import { parseTokenAccount } from '../token';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 
 export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	isSubscribed: boolean;
-	program: DriftProgram;
+	program: VelocityProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, TokenAccountEvents>;
 	publicKey: PublicKey;
 

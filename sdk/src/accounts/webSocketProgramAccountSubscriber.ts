@@ -7,7 +7,7 @@ import {
 	MemcmpFilter,
 	PublicKey,
 } from '@solana/web3.js';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import * as Buffer from 'buffer';
 
 export class WebSocketProgramAccountSubscriber<T>
@@ -17,7 +17,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	accountDiscriminator: string;
 	bufferAndSlot?: BufferAndSlot;
 	bufferAndSlotMap: Map<string, BufferAndSlot> = new Map();
-	program: DriftProgram;
+	program: VelocityProgram;
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
 	onChange: (
 		accountId: PublicKey,
@@ -36,7 +36,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	public constructor(
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		decodeBufferFn: (accountName: string, ix: Buffer) => T,
 		options: { filters: MemcmpFilter[]; commitment?: Commitment } = {
 			filters: [],

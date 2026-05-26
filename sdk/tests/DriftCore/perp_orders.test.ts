@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { Keypair } from '@solana/web3.js';
-import { DriftCore } from '../../src/core/DriftCore';
+import { VelocityCore } from '../../src/core/VelocityCore';
 
-describe('DriftCore perp order instruction builders', () => {
+describe('VelocityCore perp order instruction builders', () => {
 	const pk = () => Keypair.generate().publicKey;
 	const fakeIx = {
 		keys: [],
@@ -20,7 +20,7 @@ describe('DriftCore perp order instruction builders', () => {
 				},
 			},
 		};
-		const ix = await DriftCore.buildPlacePerpOrderInstruction({
+		const ix = await VelocityCore.buildPlacePerpOrderInstruction({
 			program,
 			orderParams: { x: 1 },
 			state: pk(),
@@ -43,7 +43,7 @@ describe('DriftCore perp order instruction builders', () => {
 				},
 			},
 		};
-		const ix = await DriftCore.buildPlaceAndTakePerpOrderInstruction({
+		const ix = await VelocityCore.buildPlaceAndTakePerpOrderInstruction({
 			program,
 			orderParams: { m: 0 },
 			optionalParams: 256,
@@ -67,7 +67,7 @@ describe('DriftCore perp order instruction builders', () => {
 				},
 			},
 		};
-		const ix = await DriftCore.buildPlaceAndMakePerpOrderInstruction({
+		const ix = await VelocityCore.buildPlaceAndMakePerpOrderInstruction({
 			program,
 			orderParams: {},
 			takerOrderId: 7,
@@ -93,7 +93,7 @@ describe('DriftCore perp order instruction builders', () => {
 				},
 			},
 		};
-		const ix = await DriftCore.buildCancelOrderInstruction({
+		const ix = await VelocityCore.buildCancelOrderInstruction({
 			program,
 			orderId: 3,
 			state: pk(),
@@ -115,7 +115,7 @@ describe('DriftCore perp order instruction builders', () => {
 				},
 			},
 		};
-		const ix = await DriftCore.buildCancelOrderByUserIdInstruction({
+		const ix = await VelocityCore.buildCancelOrderByUserIdInstruction({
 			program,
 			userOrderId: 9,
 			state: pk(),
@@ -139,7 +139,7 @@ describe('DriftCore perp order instruction builders', () => {
 			},
 		};
 		const ids = [1, 2];
-		const ix = await DriftCore.buildCancelOrdersByIdsInstruction({
+		const ix = await VelocityCore.buildCancelOrdersByIdsInstruction({
 			program,
 			orderIds: ids,
 			state: pk(),
@@ -162,7 +162,7 @@ describe('DriftCore perp order instruction builders', () => {
 			},
 		};
 		const mp = { baseAssetAmount: null };
-		const ix = await DriftCore.buildModifyOrderInstruction({
+		const ix = await VelocityCore.buildModifyOrderInstruction({
 			program,
 			orderId: 4,
 			modifyParams: mp,
@@ -188,7 +188,7 @@ describe('DriftCore perp order instruction builders', () => {
 			},
 		};
 		const mp = { reduceOnly: false };
-		const ix = await DriftCore.buildModifyOrderByUserIdInstruction({
+		const ix = await VelocityCore.buildModifyOrderByUserIdInstruction({
 			program,
 			userOrderId: 11,
 			modifyParams: mp,

@@ -1,5 +1,5 @@
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import * as Buffer from 'buffer';
 import bs58 from 'bs58';
 
@@ -40,7 +40,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
 	private stream: ClientDuplexStream;
 	private commitmentLevel: CommitmentLevel;
-	private program: DriftProgram;
+	private program: VelocityProgram;
 	private accountName: string;
 	private decodeBufferFn?: (
 		buffer: Buffer,
@@ -69,7 +69,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		client: Client,
 		commitmentLevel: CommitmentLevel,
 		accountName: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string) => T,
 		resubOpts?: ResubOpts,
 		onUnsubscribe?: () => Promise<void>,
@@ -88,7 +88,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	public static async create<T, U = undefined>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
-		program: DriftProgram,
+		program: VelocityProgram,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string, accountProps?: U) => T,
 		resubOpts?: ResubOpts,
 		clientProp?: Client,

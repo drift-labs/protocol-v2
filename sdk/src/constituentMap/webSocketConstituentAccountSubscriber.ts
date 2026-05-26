@@ -3,7 +3,7 @@ import {
 	ConstituentAccountEvents,
 	ConstituentAccountSubscriber,
 } from '../accounts/types';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
@@ -18,7 +18,7 @@ export class WebSocketConstituentAccountSubscriber
 	isSubscribed: boolean;
 	resubTimeoutMs?: number;
 	commitment?: Commitment;
-	program: DriftProgram;
+	program: VelocityProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, ConstituentAccountEvents>;
 
 	constituentDataAccountSubscriber: WebSocketProgramAccountSubscriber<ConstituentAccount>;
@@ -27,7 +27,7 @@ export class WebSocketConstituentAccountSubscriber
 
 	public constructor(
 		constituentMap: ConstituentMap,
-		program: DriftProgram,
+		program: VelocityProgram,
 		resubTimeoutMs?: number,
 		commitment?: Commitment,
 		additionalFilters?: MemcmpFilter[]

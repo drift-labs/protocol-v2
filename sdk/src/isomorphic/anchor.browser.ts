@@ -24,7 +24,7 @@ export { web3 };
 export class AnchorProvider {
 	constructor() {
 		throw new Error(
-			'AnchorProvider is not supported in the browser build. Use `DriftCore` (pure builders/decoders/PDAs) instead of `DriftClient`.'
+			'AnchorProvider is not supported in the browser build. Use `VelocityCore` (pure builders/decoders/PDAs) instead of `VelocityClient`.'
 		);
 	}
 }
@@ -32,7 +32,7 @@ export class AnchorProvider {
 export class Program<_T = any> {
 	constructor() {
 		throw new Error(
-			'Program is not supported in the browser build. Use `DriftCore` (pure builders/decoders/PDAs) instead of `DriftClient`.'
+			'Program is not supported in the browser build. Use `VelocityCore` (pure builders/decoders/PDAs) instead of `VelocityClient`.'
 		);
 	}
 }

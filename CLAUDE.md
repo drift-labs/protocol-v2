@@ -94,7 +94,7 @@ bash test-scripts/run-anchor-tests.sh
 # Skip rebuild if .so is already built:
 bash test-scripts/run-anchor-tests.sh --skip-build
 ```
-The integration tests in `tests/` resolve `@coral-xyz/anchor` and friends from the **repo-root** `node_modules`, not from `sdk/`. If you only ran `bun install` / `yarn install` inside `sdk/`, the test files will fail to load with `Cannot find module '@coral-xyz/anchor'`. Run `yarn install` (or `bun install`) at the repo root first.
+The integration tests in `tests/` resolve `@coral-xyz/anchor` and friends from the **repo-root** `node_modules`, not from `sdk/`. If you only ran `bun install` inside `sdk/`, the test files will fail to load with `Cannot find module '@coral-xyz/anchor'`. Run `bun install` at the repo root first.
 
 **SDK unit tests:**
 ```bash
@@ -105,10 +105,10 @@ cd sdk/ && bun run test:ci      # CI subset
 **Lint/format:**
 ```bash
 cargo fmt                        # Rust
-cd sdk/ && yarn prettify:fix     # SDK (TypeScript)
+cd sdk/ && bun run prettify:fix  # SDK (TypeScript)
 ```
 
-**Always run `cargo fmt` and `cargo clippy -p drift` before declaring Rust work complete.** CI runs `cargo fmt -- --check` and `cargo clippy -p drift` (see `.github/workflows/main.yml`) and will fail the PR otherwise. The equivalent SDK gate is `cd sdk/ && yarn prettify` + `yarn lint`. Do not hand off a change until those commands are clean.
+**Always run `cargo fmt` and `cargo clippy -p drift` before declaring Rust work complete.** CI runs `cargo fmt -- --check` and `cargo clippy -p drift` (see `.github/workflows/main.yml`) and will fail the PR otherwise. The equivalent SDK gate is `cd sdk/ && bun run prettify` + `bun run lint`. Do not hand off a change until those commands are clean.
 
 ## Devnet program upgrade
 
@@ -154,7 +154,7 @@ This is **Drift Protocol v2** — a Solana perpetuals and spot trading protocol.
 - **`openbook_v2/`, `token_faucet/`** — DEX integration and test utilities
 
 ### SDK (`sdk/`)
-TypeScript library (`@drift-labs/sdk`). Key modules in `src/`:
+TypeScript library (`@velocity-exchange/sdk`). Key modules in `src/`:
 - `driftClient.ts` — main client class
 - `user.ts` — user account abstraction
 - `dlob/` — Decentralized Limit Order Book implementation

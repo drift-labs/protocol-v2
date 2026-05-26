@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { Keypair } from '@solana/web3.js';
-import { DriftCore } from '../../src/core/DriftCore';
+import { VelocityCore } from '../../src/core/VelocityCore';
 
-describe('DriftCore settlement/liquidation builders', () => {
+describe('VelocityCore settlement/liquidation builders', () => {
 	test('buildSettlePnlInstruction wires args', async () => {
 		const called: any[] = [];
 		const fakeIx = {
@@ -20,7 +20,7 @@ describe('DriftCore settlement/liquidation builders', () => {
 		};
 		const pk = () => Keypair.generate().publicKey;
 
-		const ix = await DriftCore.buildSettlePnlInstruction({
+		const ix = await VelocityCore.buildSettlePnlInstruction({
 			program,
 			marketIndex: 1,
 			state: pk(),
@@ -50,7 +50,7 @@ describe('DriftCore settlement/liquidation builders', () => {
 		};
 		const pk = () => Keypair.generate().publicKey;
 
-		const ix = await DriftCore.buildLiquidatePerpInstruction({
+		const ix = await VelocityCore.buildLiquidatePerpInstruction({
 			program,
 			marketIndex: 2,
 			maxBaseAssetAmount: 123,

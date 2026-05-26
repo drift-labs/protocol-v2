@@ -1,21 +1,20 @@
 import { describe, expect, test } from 'bun:test';
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { DriftCore } from '../../src/core/DriftCore';
+import { VelocityCore } from '../../src/core/VelocityCore';
 
 describe('DriftCore.pdas', () => {
 	test('derives deterministic user/state PDAs', async () => {
 		const programId = Keypair.generate().publicKey;
 		const authority = Keypair.generate().publicKey;
 
-		const [state] = await DriftCore.pdas.getDriftStateAccountPublicKeyAndNonce(
-			programId
-		);
-		const user0 = await DriftCore.pdas.getUserAccountPublicKey(
+		const [state] =
+			await VelocityCore.pdas.getDriftStateAccountPublicKeyAndNonce(programId);
+		const user0 = await VelocityCore.pdas.getUserAccountPublicKey(
 			programId,
 			authority,
 			0
 		);
-		const user1 = await DriftCore.pdas.getUserAccountPublicKey(
+		const user1 = await VelocityCore.pdas.getUserAccountPublicKey(
 			programId,
 			authority,
 			1

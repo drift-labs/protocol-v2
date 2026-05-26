@@ -1,11 +1,11 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import dotenv from 'dotenv';
 import {
-	DriftClient,
-	DriftClientConfig,
+	VelocityClient,
+	VelocityClientConfig,
 	Wallet,
 	UserMap,
-	DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID,
 	getMarketsAndOraclesForSubscription,
 	BulkAccountLoader,
 	BN,
@@ -61,10 +61,10 @@ async function main() {
 
 		const accountLoader = new BulkAccountLoader(connection, 'confirmed', 60_000);
 
-	const clientConfig: DriftClientConfig = {
+	const clientConfig: VelocityClientConfig = {
 		connection,
 		wallet,
-		programID: new PublicKey(DRIFT_PROGRAM_ID),
+		programID: new PublicKey(VELOCITY_PROGRAM_ID),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader,
@@ -75,7 +75,7 @@ async function main() {
 		env: 'mainnet-beta',
 	};
 
-	const client = new DriftClient(clientConfig);
+	const client = new VelocityClient(clientConfig);
 	await client.subscribe();
 
 	const userMap = new UserMap({

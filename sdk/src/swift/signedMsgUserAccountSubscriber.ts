@@ -3,9 +3,17 @@ import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramA
 import { SignedMsgOrderId, SignedMsgUserOrdersAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
+import { AtLeastOne } from '../util/deprecatedAlias';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
+
+export type SignedMsgUserOrdersAccountSubscriberConfig = {
+	commitment?: Commitment;
+	resubOpts?: ResubOpts;
+	decodeFn?: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
+	resyncIntervalMs?: number;
+} & AtLeastOne<'velocityClient', 'driftClient', VelocityClient>;
 
 export interface SignedMsgUserOrdersAccountSubscriberEvents {
 	onAccountUpdate: (
@@ -22,7 +30,11 @@ export interface SignedMsgUserOrdersAccountSubscriberEvents {
 }
 
 export class SignedMsgUserOrdersAccountSubscriber {
-	protected driftClient: DriftClient;
+	protected velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	protected get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	protected commitment: Commitment;
 	protected resubOpts?: ResubOpts;
 	protected resyncTimeoutId?: ReturnType<typeof setTimeout>;
@@ -47,27 +59,23 @@ export class SignedMsgUserOrdersAccountSubscriber {
 	>;
 
 	constructor({
+		velocityClient,
 		driftClient,
 		commitment,
 		resubOpts,
 		decodeFn,
 		resyncIntervalMs,
-	}: {
-		driftClient: DriftClient;
-		commitment?: Commitment;
-		resubOpts?: ResubOpts;
-		decodeFn?: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
-		resyncIntervalMs?: number;
-	}) {
+	}: SignedMsgUserOrdersAccountSubscriberConfig) {
 		this.commitment = commitment ?? 'confirmed';
 		this.resubOpts = resubOpts;
-		this.driftClient = driftClient;
+		// Type-system guarantees at least one of the two is supplied.
+		this.velocityClient = (velocityClient ?? driftClient)!;
 		this.decodeFn =
 			decodeFn ??
 			(
-				this.driftClient.program.account as any
+				this.velocityClient.program.account as any
 			).signedMsgUserOrders.coder.accounts.decodeUnchecked.bind(
-				(this.driftClient.program.account as any).signedMsgUserOrders.coder
+				(this.velocityClient.program.account as any).signedMsgUserOrders.coder
 					.accounts
 			);
 		this.resyncIntervalMs = resyncIntervalMs;
@@ -82,7 +90,7 @@ export class SignedMsgUserOrdersAccountSubscriber {
 				new WebSocketProgramAccountSubscriber<SignedMsgUserOrdersAccount>(
 					'SingedMsgUserOrdersAccountMap',
 					'signedMsgUserOrders',
-					this.driftClient.program,
+					this.velocityClient.program,
 					this.decodeFn,
 					{
 						filters,
@@ -139,8 +147,8 @@ export class SignedMsgUserOrdersAccountSubscriber {
 
 		try {
 			const rpcResponseAndContext =
-				await this.driftClient.connection.getProgramAccounts(
-					this.driftClient.program.programId,
+				await this.velocityClient.connection.getProgramAccounts(
+					this.velocityClient.program.programId,
 					{
 						commitment: this.commitment,
 						filters: [getSignedMsgUserOrdersFilter()],

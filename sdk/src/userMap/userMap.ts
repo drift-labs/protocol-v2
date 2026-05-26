@@ -1,6 +1,6 @@
 import { BN } from '../isomorphic/anchor';
 import { User } from '../user';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import {
 	UserAccount,
 	OrderRecord,
@@ -77,7 +77,11 @@ export interface UserMapInterface {
 
 export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, DataAndSlot<User>>();
-	driftClient: DriftClient;
+	velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	public get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	private connection: Connection;
 	private commitment: Commitment;
@@ -109,18 +113,19 @@ export class UserMap implements UserMapInterface {
 	 * Constructs a new UserMap instance.
 	 */
 	constructor(config: UserMapConfig) {
-		this.driftClient = config.driftClient;
+		// Type-system guarantees at least one of the two is supplied.
+		this.velocityClient = (config.velocityClient ?? config.driftClient)!;
 		if (config.connection) {
 			this.connection = config.connection;
 		} else {
-			this.connection = this.driftClient.connection;
+			this.connection = this.velocityClient.connection;
 		}
 		this.commitment =
 			config.subscriptionConfig.type === 'websocket' ||
 			config.subscriptionConfig.type === 'polling'
 				? config.subscriptionConfig.commitment ??
-				  this.driftClient.opts.commitment
-				: this.driftClient.opts.commitment;
+				  this.velocityClient.opts.commitment
+				: this.velocityClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
 		this.filterByPoolId = config.filterByPoolId;
 		this.additionalFilters = config.additionalFilters;
@@ -132,9 +137,9 @@ export class UserMap implements UserMapInterface {
 			decodeFn = (name, buffer) => decodeUser(buffer);
 		} else {
 			decodeFn = (
-				this.driftClient.program.account as any
+				this.velocityClient.program.account as any
 			).user.coder.accounts.decodeUnchecked.bind(
-				(this.driftClient.program.account as any).user.coder.accounts
+				(this.velocityClient.program.account as any).user.coder.accounts
 			);
 		}
 		this.decode = decodeFn;
@@ -183,11 +188,11 @@ export class UserMap implements UserMapInterface {
 			return;
 		}
 
-		await this.driftClient.subscribe();
+		await this.velocityClient.subscribe();
 		this.lastNumberOfSubAccounts =
-			this.driftClient.getStateAccount().numberOfSubAccounts;
+			this.velocityClient.getStateAccount().numberOfSubAccounts;
 		if (!this.disableSyncOnTotalAccountsChange) {
-			this.driftClient.eventEmitter.on(
+			this.velocityClient.eventEmitter.on(
 				'stateAccountUpdate',
 				this.stateAccountUpdateCallback
 			);
@@ -203,13 +208,13 @@ export class UserMap implements UserMapInterface {
 		accountSubscription?: UserSubscriptionConfig
 	) {
 		const user = new User({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			userAccountPublicKey,
 			accountSubscription: accountSubscription ?? {
 				type: 'custom',
 				// OneShotUserAccountSubscriber used here so we don't load up the RPC with AccountSubscribes
 				userAccountSubscriber: new OneShotUserAccountSubscriber(
-					this.driftClient.program,
+					this.velocityClient.program,
 					userAccountPublicKey,
 					userAccount,
 					slot,
@@ -428,7 +433,7 @@ export class UserMap implements UserMapInterface {
 
 		try {
 			const rpcRequestArgs = [
-				this.driftClient.program.programId.toBase58(),
+				this.velocityClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
 					filters: this.getFilters(),
@@ -526,7 +531,7 @@ export class UserMap implements UserMapInterface {
 
 		try {
 			const accountsPrefetch = await this.connection.getProgramAccounts(
-				this.driftClient.program.programId,
+				this.velocityClient.program.programId,
 				{
 					dataSlice: { offset: 0, length: 0 },
 					filters: this.getFilters(),
@@ -642,7 +647,7 @@ export class UserMap implements UserMapInterface {
 
 		if (this.lastNumberOfSubAccounts) {
 			if (!this.disableSyncOnTotalAccountsChange) {
-				this.driftClient.eventEmitter.removeListener(
+				this.velocityClient.eventEmitter.removeListener(
 					'stateAccountUpdate',
 					this.stateAccountUpdateCallback
 				);

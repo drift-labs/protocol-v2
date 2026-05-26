@@ -21,7 +21,7 @@ import {
 } from '../constants/numericConstants';
 import { decodeName } from '../userName';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from './DLOBNode';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import {
 	calculateOrderBaseAssetAmount,
 	getLimitPrice,
@@ -1702,7 +1702,7 @@ export class DLOB {
 	}
 
 	public printTop(
-		driftClient: DriftClient,
+		driftClient: VelocityClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType

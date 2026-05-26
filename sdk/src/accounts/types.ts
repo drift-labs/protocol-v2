@@ -1,7 +1,7 @@
 /**
  * Account subscription interfaces and types.
  *
- * DriftClient uses a `DriftClientAccountSubscriber` (WebSocket or polling) to keep
+ * VelocityClient uses a `VelocityClientAccountSubscriber` (WebSocket or polling) to keep
  * market, oracle, and state accounts cached in memory. `User` uses a `UserAccountSubscriber`
  * for the individual User account. All subscribers implement the interfaces defined here.
  *
@@ -51,7 +51,7 @@ export class NotSubscribedError extends Error {
 	name = 'NotSubscribedError';
 }
 
-export interface DriftClientAccountEvents {
+export interface VelocityClientAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
 	perpMarketAccountUpdate: (payload: PerpMarketAccount) => void;
 	spotMarketAccountUpdate: (payload: SpotMarketAccount) => void;
@@ -65,8 +65,11 @@ export interface DriftClientAccountEvents {
 	error: (e: Error) => void;
 }
 
-export interface DriftClientAccountSubscriber {
-	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
+/** @deprecated Use `VelocityClientAccountEvents` instead. `DriftClientAccountEvents` will be removed in a future major. */
+export interface DriftClientAccountEvents extends VelocityClientAccountEvents {}
+
+export interface VelocityClientAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, VelocityClientAccountEvents>;
 	isSubscribed: boolean;
 
 	subscribe(): Promise<boolean>;
@@ -100,6 +103,10 @@ export interface DriftClientAccountSubscriber {
 
 	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
 }
+
+/** @deprecated Use `VelocityClientAccountSubscriber` instead. `DriftClientAccountSubscriber` will be removed in a future major. */
+export interface DriftClientAccountSubscriber
+	extends VelocityClientAccountSubscriber {}
 
 export enum DelistedMarketSetting {
 	Unsubscribe,

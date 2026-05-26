@@ -1,5 +1,5 @@
 /**
- * DriftClient — main SDK entry point for all trading and keeper operations.
+ * VelocityClient — main SDK entry point for all trading and keeper operations.
  *
  * Responsibilities:
  *   - Builds and sends all on-chain instructions (place/cancel/fill orders, deposits, withdrawals,
@@ -32,7 +32,7 @@ import {
 	resolveExtraAccountMeta,
 } from '@solana/spl-token';
 import {
-	DriftClientMetricsEvents,
+	VelocityClientMetricsEvents,
 	isVariant,
 	IWallet,
 	MakerInfo,
@@ -72,7 +72,7 @@ import {
 	ConstituentTargetBaseAccount,
 	AmmCache,
 } from './types';
-import { DriftCore } from './core/DriftCore';
+import { VelocityCore } from './core/VelocityCore';
 
 /** Client-side guardrail; mirrors on-chain `ErrorCode::SpotDlobTradingDisabled`. */
 const SPOT_DLOB_TRADING_DISABLED_MSG =
@@ -103,8 +103,8 @@ import { TokenFaucet } from './tokenFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
-	getDriftSignerPublicKey,
-	getDriftStateAccountPublicKey,
+	getVelocitySignerPublicKey,
+	getVelocityStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
 	getPythLazerOraclePublicKey,
@@ -131,8 +131,8 @@ import {
 import {
 	DataAndSlot,
 	DelistedMarketSetting,
-	DriftClientAccountEvents,
-	DriftClientAccountSubscriber,
+	VelocityClientAccountEvents,
+	VelocityClientAccountSubscriber,
 } from './accounts/types';
 import { TxSender, TxSigAndSlot } from './tx/types';
 import {
@@ -154,17 +154,17 @@ import {
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
-import { DriftClientConfig } from './driftClientConfig';
-import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
+import { VelocityClientConfig } from './velocityClientConfig';
+import { PollingVelocityClientAccountSubscriber } from './accounts/pollingVelocityClientAccountSubscriber';
+import { WebSocketVelocityClientAccountSubscriber } from './accounts/webSocketVelocityClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
 import {
 	configs,
 	DEFAULT_CONFIRMATION_OPTS,
-	DriftEnv,
-	DriftProgram,
+	VelocityEnv,
+	VelocityProgram,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 } from './config';
 import { Drift } from './idl/drift';
@@ -190,7 +190,7 @@ import {
 	isVersionedTransaction,
 	MAX_TX_BYTE_SIZE,
 } from './tx/utils';
-import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
+import { grpcVelocityClientAccountSubscriber } from './accounts/grpcVelocityClientAccountSubscriber';
 import nacl from 'tweetnacl';
 import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
@@ -215,15 +215,15 @@ type RemainingAccountParams =
 	import('./core/remainingAccounts').RemainingAccountParams;
 
 /**
- * # DriftClient
- * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
+ * # VelocityClient
+ * This class is the main way to interact with Velocity Exchange. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
  */
-export class DriftClient {
+export class VelocityClient {
 	connection: Connection;
 	wallet: IWallet;
-	public program: DriftProgram;
+	public program: VelocityProgram;
 	provider: AnchorProvider;
-	env: DriftEnv;
+	env: VelocityEnv;
 	opts?: ConfirmOptions;
 	useHotWalletAdmin?: boolean;
 	users = new Map<string, User>();
@@ -231,11 +231,11 @@ export class DriftClient {
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
-	accountSubscriber: DriftClientAccountSubscriber;
-	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
+	accountSubscriber: VelocityClientAccountSubscriber;
+	eventEmitter: StrictEventEmitter<EventEmitter, VelocityClientAccountEvents>;
 	metricsEventEmitter: StrictEventEmitter<
 		EventEmitter,
-		DriftClientMetricsEvents
+		VelocityClientMetricsEvents
 	>;
 	_isSubscribed = false;
 	txSender: TxSender;
@@ -310,7 +310,7 @@ export class DriftClient {
 		this._isSubscribed = val;
 	}
 
-	public constructor(config: DriftClientConfig) {
+	public constructor(config: VelocityClientConfig) {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
 		this.env = config.env ?? 'mainnet-beta';
@@ -330,7 +330,7 @@ export class DriftClient {
 			this.opts
 		);
 		this.program = new Program<Drift>(
-			DriftCore.defaultIdl() as unknown as Drift,
+			VelocityCore.defaultIdl() as unknown as Drift,
 			this.provider,
 			config.coder
 		);
@@ -429,7 +429,7 @@ export class DriftClient {
 
 		if (config.userStats) {
 			this.userStats = new UserStats({
-				driftClient: this,
+				velocityClient: this,
 				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
 					this.program.programId,
 					this.authority
@@ -459,7 +459,7 @@ export class DriftClient {
 			config.spotMarketIndexes === undefined &&
 			config.oracleInfos === undefined;
 		if (config.accountSubscription?.type === 'polling') {
-			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
+			this.accountSubscriber = new PollingVelocityClientAccountSubscriber(
 				this.program,
 				config.accountSubscription.accountLoader,
 				config.perpMarketIndexes ?? [],
@@ -470,8 +470,9 @@ export class DriftClient {
 			);
 		} else if (config.accountSubscription?.type === 'grpc') {
 			const accountSubscriberClass: any =
+				config.accountSubscription?.velocityClientAccountSubscriber ??
 				config.accountSubscription?.driftClientAccountSubscriber ??
-				grpcDriftClientAccountSubscriber;
+				grpcVelocityClientAccountSubscriber;
 			this.accountSubscriber = new accountSubscriberClass(
 				config.accountSubscription.grpcConfigs,
 				this.program as any,
@@ -487,8 +488,9 @@ export class DriftClient {
 			);
 		} else {
 			const accountSubscriberClass: any =
+				config.accountSubscription?.velocityClientAccountSubscriber ??
 				config.accountSubscription?.driftClientAccountSubscriber ??
-				WebSocketDriftClientAccountSubscriber;
+				WebSocketVelocityClientAccountSubscriber;
 			this.accountSubscriber = new accountSubscriberClass(
 				this.program as any,
 				config.perpMarketIndexes ?? [],
@@ -537,7 +539,7 @@ export class DriftClient {
 		);
 
 		return new User({
-			driftClient: this,
+			velocityClient: this,
 			userAccountPublicKey,
 			accountSubscription: accountSubscriptionConfig,
 		});
@@ -597,7 +599,7 @@ export class DriftClient {
 		if (this.statePublicKey) {
 			return this.statePublicKey;
 		}
-		this.statePublicKey = await getDriftStateAccountPublicKey(
+		this.statePublicKey = await getVelocityStateAccountPublicKey(
 			this.program.programId
 		);
 		return this.statePublicKey;
@@ -608,7 +610,7 @@ export class DriftClient {
 		if (this.signerPublicKey) {
 			return this.signerPublicKey;
 		}
-		this.signerPublicKey = getDriftSignerPublicKey(this.program.programId);
+		this.signerPublicKey = getVelocitySignerPublicKey(this.program.programId);
 		return this.signerPublicKey;
 	}
 
@@ -769,7 +771,7 @@ export class DriftClient {
 			this.opts
 		);
 		const newProgram = new Program<Drift>(
-			DriftCore.defaultIdl() as unknown as Drift,
+			VelocityCore.defaultIdl() as unknown as Drift,
 			newProvider
 		);
 
@@ -818,7 +820,7 @@ export class DriftClient {
 		this.userStats = undefined;
 
 		this.userStats = new UserStats({
-			driftClient: this,
+			velocityClient: this,
 			userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
 			accountSubscription: this.userStatsAccountSubscriptionConfig,
 		});
@@ -866,7 +868,7 @@ export class DriftClient {
 		this.userStats = undefined;
 
 		this.userStats = new UserStats({
-			driftClient: this,
+			velocityClient: this,
 			userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
 			accountSubscription: this.userStatsAccountSubscriptionConfig,
 		});
@@ -901,7 +903,7 @@ export class DriftClient {
 			}
 
 			this.userStats = new UserStats({
-				driftClient: this,
+				velocityClient: this,
 				userStatsAccountPublicKey: this.userStatsAccountPublicKey,
 				accountSubscription: this.userStatsAccountSubscriptionConfig,
 			});
@@ -2274,7 +2276,7 @@ export class DriftClient {
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 
 		if (!this.users.has(userMapKey)) {
-			throw new Error(`DriftClient has no user for user id ${userMapKey}`);
+			throw new Error(`VelocityClient has no user for user id ${userMapKey}`);
 		}
 		return this.users.get(userMapKey);
 	}
@@ -2464,7 +2466,7 @@ export class DriftClient {
 		});
 	}
 	getRemainingAccounts(params: RemainingAccountParams): AccountMeta[] {
-		return DriftCore.remainingAccounts.getRemainingAccounts(this, params);
+		return VelocityCore.remainingAccounts.getRemainingAccounts(this, params);
 	}
 
 	addPerpMarketToRemainingAccountMaps(
@@ -2904,7 +2906,7 @@ export class DriftClient {
 
 		const authority = overrides?.authority ?? this.wallet.publicKey;
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
-		return await DriftCore.buildDepositInstruction({
+		return await VelocityCore.buildDepositInstruction({
 			program: this.program,
 			marketIndex,
 			amount,
@@ -3601,7 +3603,7 @@ export class DriftClient {
 
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
-		return await DriftCore.buildWithdrawInstruction({
+		return await VelocityCore.buildWithdrawInstruction({
 			program: this.program,
 			marketIndex,
 			amount,
@@ -4543,7 +4545,7 @@ export class DriftClient {
 				: undefined,
 		});
 
-		return await DriftCore.buildPlacePerpOrderInstruction({
+		return await VelocityCore.buildPlacePerpOrderInstruction({
 			program: this.program,
 			orderParams,
 			state: await this.getStatePublicKey(),
@@ -4725,7 +4727,7 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
-		return await DriftCore.buildCancelOrderInstruction({
+		return await VelocityCore.buildCancelOrderInstruction({
 			program: this.program,
 			orderId: orderId ?? null,
 			state: await this.getStatePublicKey(),
@@ -4765,7 +4767,7 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
-		return await DriftCore.buildCancelOrderByUserIdInstruction({
+		return await VelocityCore.buildCancelOrderByUserIdInstruction({
 			program: this.program,
 			userOrderId,
 			state: await this.getStatePublicKey(),
@@ -4839,7 +4841,7 @@ export class DriftClient {
 
 		const authority = overrides?.authority ?? this.wallet.publicKey;
 
-		return await DriftCore.buildCancelOrdersByIdsInstruction({
+		return await VelocityCore.buildCancelOrdersByIdsInstruction({
 			program: this.program,
 			orderIds,
 			state: await this.getStatePublicKey(),
@@ -4898,7 +4900,7 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
-		return await DriftCore.buildCancelOrdersInstruction({
+		return await VelocityCore.buildCancelOrdersInstruction({
 			program: this.program,
 			marketType: marketType ?? null,
 			marketIndex: marketIndex ?? null,
@@ -5032,7 +5034,7 @@ export class DriftClient {
 		const formattedParams = params.map((item) => getOrderParams(item));
 		const authority = overrides?.authority ?? this.wallet.publicKey;
 
-		return await DriftCore.buildPlaceOrdersInstruction({
+		return await VelocityCore.buildPlaceOrdersInstruction({
 			program: this.program,
 			formattedParams,
 			state: await this.getStatePublicKey(),
@@ -5338,7 +5340,7 @@ export class DriftClient {
 		}
 
 		const orderId = isSignedMsg ? null : order.orderId;
-		return await DriftCore.buildFillPerpOrderInstruction({
+		return await VelocityCore.buildFillPerpOrderInstruction({
 			program: this.program,
 			orderId,
 			state: await this.getStatePublicKey(),
@@ -6198,7 +6200,7 @@ export class DriftClient {
 		);
 
 		const orderId = order.orderId;
-		return await DriftCore.buildTriggerOrderInstruction({
+		return await VelocityCore.buildTriggerOrderInstruction({
 			program: this.program,
 			orderId,
 			state: await this.getStatePublicKey(),
@@ -6757,7 +6759,7 @@ export class DriftClient {
 
 		const authority = overrides?.authority ?? this.wallet.publicKey;
 
-		return await DriftCore.buildPlaceAndTakePerpOrderInstruction({
+		return await VelocityCore.buildPlaceAndTakePerpOrderInstruction({
 			program: this.program,
 			orderParams,
 			optionalParams,
@@ -6838,7 +6840,7 @@ export class DriftClient {
 				isSigner: false,
 			});
 		}
-		return await DriftCore.buildPlaceAndMakePerpOrderInstruction({
+		return await VelocityCore.buildPlaceAndMakePerpOrderInstruction({
 			program: this.program,
 			orderParams,
 			takerOrderId,
@@ -6912,7 +6914,7 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
-		return DriftCore.signedMsg.encodeSignedMsgOrderParamsMessage({
+		return VelocityCore.signedMsg.encodeSignedMsgOrderParamsMessage({
 			coderTypes: this.program.coder.types as any,
 			orderParamsMessage,
 			delegateSigner,
@@ -6929,7 +6931,7 @@ export class DriftClient {
 		encodedMessage: Buffer,
 		delegateSigner?: boolean
 	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
-		return DriftCore.signedMsg.decodeSignedMsgOrderParamsMessage({
+		return VelocityCore.signedMsg.decodeSignedMsgOrderParamsMessage({
 			coderTypes: this.program.coder.types as any,
 			encodedMessage,
 			delegateSigner,
@@ -7464,7 +7466,7 @@ export class DriftClient {
 			overrides?.authority ??
 			overrides?.user?.getUserAccount().authority ??
 			this.wallet.publicKey;
-		return await DriftCore.buildModifyOrderInstruction({
+		return await VelocityCore.buildModifyOrderInstruction({
 			program: this.program,
 			orderId,
 			modifyParams: orderParams,
@@ -7586,7 +7588,7 @@ export class DriftClient {
 			maxTs: maxTs || null,
 		};
 
-		return await DriftCore.buildModifyOrderByUserIdInstruction({
+		return await VelocityCore.buildModifyOrderByUserIdInstruction({
 			program: this.program,
 			userOrderId,
 			modifyParams: orderParams,
@@ -7802,7 +7804,7 @@ export class DriftClient {
 			}
 		}
 
-		return await DriftCore.buildSettlePnlInstruction({
+		return await VelocityCore.buildSettlePnlInstruction({
 			program: this.program,
 			marketIndex,
 			state: await this.getStatePublicKey(),
@@ -8105,7 +8107,7 @@ export class DriftClient {
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
-		return await DriftCore.buildLiquidatePerpInstruction({
+		return await VelocityCore.buildLiquidatePerpInstruction({
 			program: this.program,
 			marketIndex,
 			maxBaseAssetAmount,
@@ -8964,7 +8966,7 @@ export class DriftClient {
 			this.program.programId,
 			perpMarketIndex
 		);
-		return await DriftCore.buildUpdateFundingRateInstruction({
+		return await VelocityCore.buildUpdateFundingRateInstruction({
 			program: this.program,
 			perpMarketIndex,
 			state: await this.getStatePublicKey(),
@@ -9097,7 +9099,10 @@ export class DriftClient {
 		});
 	}
 
-	public triggerEvent(eventName: keyof DriftClientAccountEvents, data?: any) {
+	public triggerEvent(
+		eventName: keyof VelocityClientAccountEvents,
+		data?: any
+	) {
 		this.eventEmitter.emit(eventName, data);
 	}
 
@@ -11213,7 +11218,7 @@ export class DriftClient {
 	 *
 	 * @param tx
 	 * @param additionalSigners
-	 * @param opts :: Will fallback to DriftClient's opts if not provided
+	 * @param opts :: Will fallback to VelocityClient's opts if not provided
 	 * @param preSigned
 	 * @returns
 	 */
@@ -11351,3 +11356,9 @@ export class DriftClient {
 		return currentBase.add(orderBaseAmount).abs().gt(currentBase.abs());
 	}
 }
+
+/** @deprecated Use `VelocityClient` instead. `DriftClient` will be removed in a future major. */
+export const DriftClient = VelocityClient;
+
+/** @deprecated Use `VelocityClient` instead. `DriftClient` will be removed in a future major. */
+export type DriftClient = VelocityClient;

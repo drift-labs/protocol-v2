@@ -1,4 +1,4 @@
-export * from './DriftCore';
+export * from './VelocityCore';
 export * from './remainingAccounts';
 export * from './signedMsg';
 export * from './instructions/deposit';

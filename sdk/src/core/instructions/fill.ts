@@ -3,10 +3,10 @@ import type {
 	PublicKey,
 	TransactionInstruction,
 } from '@solana/web3.js';
-import type { DriftProgram } from '../../config';
+import type { VelocityProgram } from '../../config';
 
 export async function buildFillPerpOrderInstruction(args: {
-	program: DriftProgram;
+	program: VelocityProgram;
 	orderId: number | null;
 	state: PublicKey;
 	filler: PublicKey;

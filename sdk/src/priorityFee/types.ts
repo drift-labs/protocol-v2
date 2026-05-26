@@ -2,9 +2,10 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { SolanaPriorityFeeResponse } from './solanaPriorityFeeMethod';
 import { HeliusPriorityFeeResponse } from './heliusPriorityFeeMethod';
 import {
-	DriftMarketInfo,
-	DriftPriorityFeeResponse,
-} from './driftPriorityFeeMethod';
+	VelocityMarketInfo,
+	VelocityPriorityFeeResponse,
+} from './velocityPriorityFeeMethod';
+import { AtLeastOne } from '../util/deprecatedAlias';
 
 export const DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS = 10_000;
 
@@ -15,14 +16,14 @@ export interface PriorityFeeStrategy {
 		samples:
 			| SolanaPriorityFeeResponse[]
 			| HeliusPriorityFeeResponse
-			| DriftPriorityFeeResponse
+			| VelocityPriorityFeeResponse
 	): number;
 }
 
 export enum PriorityFeeMethod {
 	SOLANA = 'solana',
 	HELIUS = 'helius',
-	DRIFT = 'drift',
+	VELOCITY = 'velocity',
 }
 
 export type PriorityFeeSubscriberConfig = {
@@ -32,8 +33,10 @@ export type PriorityFeeSubscriberConfig = {
 	frequencyMs?: number;
 	/// addresses you plan to write lock, used to determine priority fees
 	addresses?: PublicKey[];
-	/// drift market type and index, optionally provide at initialization time if using priorityFeeMethod.DRIFT
-	driftMarkets?: DriftMarketInfo[];
+	/// market type and index, optionally provide at initialization time if using priorityFeeMethod.VELOCITY
+	velocityMarkets?: VelocityMarketInfo[];
+	/** @deprecated Use `velocityMarkets` instead. `driftMarkets` will be removed in a future major. */
+	driftMarkets?: VelocityMarketInfo[];
 	/// custom strategy to calculate priority fees, defaults to AVERAGE
 	customStrategy?: PriorityFeeStrategy;
 	/// method for fetching priority fee samples
@@ -42,7 +45,9 @@ export type PriorityFeeSubscriberConfig = {
 	slotsToCheck?: number;
 	/// url for helius rpc, required if using priorityFeeMethod.HELIUS
 	heliusRpcUrl?: string;
-	/// url for drift cached priority fee endpoint, required if using priorityFeeMethod.DRIFT
+	/// url for Velocity cached priority fee endpoint, required if using priorityFeeMethod.VELOCITY
+	velocityPriorityFeeEndpoint?: string;
+	/** @deprecated Use `velocityPriorityFeeEndpoint` instead. `driftPriorityFeeEndpoint` will be removed in a future major. */
 	driftPriorityFeeEndpoint?: string;
 	/// clamp any returned priority fee value to this value.
 	maxFeeMicroLamports?: number;
@@ -50,11 +55,15 @@ export type PriorityFeeSubscriberConfig = {
 	priorityFeeMultiplier?: number;
 };
 
-export type PriorityFeeSubscriberMapConfig = {
+type PriorityFeeSubscriberMapConfigBase = {
 	/// frequency to make RPC calls to update priority fee samples, in milliseconds
 	frequencyMs?: number;
-	/// drift market type and associated market index to query
-	driftMarkets?: DriftMarketInfo[];
-	/// url for drift cached priority fee endpoint
-	driftPriorityFeeEndpoint: string;
+	/// market type and associated market index to query
+	velocityMarkets?: VelocityMarketInfo[];
+	/** @deprecated Use `velocityMarkets` instead. `driftMarkets` will be removed in a future major. */
+	driftMarkets?: VelocityMarketInfo[];
 };
+
+/// url for Velocity cached priority fee endpoint
+export type PriorityFeeSubscriberMapConfig = PriorityFeeSubscriberMapConfigBase &
+	AtLeastOne<'velocityPriorityFeeEndpoint', 'driftPriorityFeeEndpoint', string>;

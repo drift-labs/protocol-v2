@@ -4,7 +4,7 @@ import {
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from './types';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Context, PublicKey } from '@solana/web3.js';
@@ -18,12 +18,12 @@ export class WebSocketProgramUserAccountSubscriber
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
 	private userAccountPublicKey: PublicKey;
-	private program: DriftProgram;
+	private program: VelocityProgram;
 	private programSubscriber: WebSocketProgramAccountSubscriber<UserAccount>;
 	private userAccountAndSlot?: DataAndSlot<UserAccount>;
 
 	public constructor(
-		program: DriftProgram,
+		program: VelocityProgram,
 		userAccountPublicKey: PublicKey,
 		programSubscriber: WebSocketProgramAccountSubscriber<UserAccount>
 	) {

@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { PublicKey } from '@solana/web3.js';
-import { HotRole } from '@drift-labs/sdk';
+import { HotRole } from '@velocity-exchange/sdk';
 import { readGlobalOpts, withGlobalOptions } from '../lib/options';
 import { buildAdminClient } from '../lib/provider';
 

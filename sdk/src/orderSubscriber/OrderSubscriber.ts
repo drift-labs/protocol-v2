@@ -1,4 +1,4 @@
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { UserAccount } from '../types';
 import {
 	getNonIdleUserFilter,
@@ -20,7 +20,11 @@ import { calculateOrderBaseAssetAmount } from '../math/orders';
 import { ZERO } from '../constants/numericConstants';
 
 export class OrderSubscriber {
-	driftClient: DriftClient;
+	velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	public get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription | grpcSubscription;
 	commitment: Commitment;
@@ -36,7 +40,13 @@ export class OrderSubscriber {
 	fetchAllNonIdleUsers?: boolean;
 
 	constructor(config: OrderSubscriberConfig) {
-		this.driftClient = config.driftClient;
+		const velocityClient = config.velocityClient ?? config.driftClient;
+		if (!velocityClient) {
+			throw new Error(
+				'OrderSubscriber: velocityClient (or deprecated driftClient) must be provided'
+			);
+		}
+		this.velocityClient = velocityClient;
 		this.commitment = config.subscriptionConfig.commitment || 'processed';
 		if (config.subscriptionConfig.type === 'polling') {
 			this.subscription = new PollingSubscription({
@@ -72,9 +82,9 @@ export class OrderSubscriber {
 			this.decodeFn = (name, data) => decodeUser(data);
 		} else {
 			this.decodeFn = (
-				this.driftClient.program.account as any
+				this.velocityClient.program.account as any
 			).user.coder.accounts.decodeUnchecked.bind(
-				(this.driftClient.program.account as any).user.coder.accounts
+				(this.velocityClient.program.account as any).user.coder.accounts
 			);
 		}
 		this.eventEmitter = new EventEmitter();
@@ -100,7 +110,7 @@ export class OrderSubscriber {
 
 		try {
 			const rpcRequestArgs = [
-				this.driftClient.program.programId.toBase58(),
+				this.velocityClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
 					filters,
@@ -111,7 +121,7 @@ export class OrderSubscriber {
 
 			const rpcJSONResponse: any =
 				// @ts-ignore
-				await this.driftClient.connection._rpcRequest(
+				await this.velocityClient.connection._rpcRequest(
 					'getProgramAccounts',
 					rpcRequestArgs
 				);
@@ -268,7 +278,7 @@ export class OrderSubscriber {
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const accountInfo =
-			await this.driftClient.connection.getAccountInfoAndContext(
+			await this.velocityClient.connection.getAccountInfoAndContext(
 				userAccountPublicKey,
 				this.commitment
 			);

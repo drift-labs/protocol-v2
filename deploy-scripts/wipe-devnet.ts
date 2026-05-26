@@ -55,7 +55,7 @@ async function confirm(prompt: string): Promise<boolean> {
 		output: process.stdout,
 	});
 	const ans = await new Promise<string>((res) =>
-		rl.question(`${prompt} [y/N] `, res),
+		rl.question(`${prompt} [y/N] `, res)
 	);
 	rl.close();
 	return /^y(es)?$/i.test(ans.trim());
@@ -63,7 +63,7 @@ async function confirm(prompt: string): Promise<boolean> {
 
 function collectReceiptTargets(
 	receipt: Record<string, unknown>,
-	programId: PublicKey,
+	programId: PublicKey
 ): { label: string; pubkey: PublicKey }[] {
 	const out: { label: string; pubkey: PublicKey }[] = [];
 	const pushIfPresent = (label: string, raw?: unknown) => {
@@ -77,18 +77,20 @@ function collectReceiptTargets(
 	pushIfPresent('lpPool', (receipt.lpPool as any)?.pubkey);
 	pushIfPresent(
 		'protectedMakerModeConfig',
-		(receipt.protectedMakerModeConfig as any)?.pubkey,
+		(receipt.protectedMakerModeConfig as any)?.pubkey
 	);
 	pushIfPresent(
 		'protocolIfSharesTransferConfig',
-		(receipt.protocolIfSharesTransferConfig as any)?.pubkey,
+		(receipt.protocolIfSharesTransferConfig as any)?.pubkey
 	);
 
-	const perp = (receipt.perpMarkets as Record<string, { pubkey?: string }>) ?? {};
+	const perp =
+		(receipt.perpMarkets as Record<string, { pubkey?: string }>) ?? {};
 	for (const [idx, m] of Object.entries(perp)) {
 		pushIfPresent(`perpMarket[${idx}]`, m?.pubkey);
 	}
-	const spot = (receipt.spotMarkets as Record<string, { pubkey?: string }>) ?? {};
+	const spot =
+		(receipt.spotMarkets as Record<string, { pubkey?: string }>) ?? {};
 	for (const [idx, m] of Object.entries(spot)) {
 		pushIfPresent(`spotMarket[${idx}]`, m?.pubkey);
 		// Each spot market also has two token-program-owned vaults (spot +
@@ -96,11 +98,11 @@ function collectReceiptTargets(
 		const idxLe = Buffer.from(new Uint16Array([Number(idx)]).buffer);
 		const [spotVault] = PublicKey.findProgramAddressSync(
 			[Buffer.from('spot_market_vault'), idxLe],
-			programId,
+			programId
 		);
 		const [ifVault] = PublicKey.findProgramAddressSync(
 			[Buffer.from('insurance_fund_vault'), idxLe],
-			programId,
+			programId
 		);
 		out.push({ label: `spotMarketVault[${idx}]`, pubkey: spotVault });
 		out.push({ label: `insuranceFundVault[${idx}]`, pubkey: ifVault });
@@ -137,7 +139,7 @@ function loadAllReceipts(activePath: string): Record<string, unknown>[] {
 			) {
 				try {
 					receipts.push(
-						JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')),
+						JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'))
 					);
 				} catch {
 					// ignore unparseable archives
@@ -167,7 +169,7 @@ async function main() {
 	// drift_signer PDA + nonce — needed to authorize SPL CloseAccount CPI.
 	const [driftSigner, driftSignerNonce] = PublicKey.findProgramAddressSync(
 		[Buffer.from('drift_signer')],
-		programId,
+		programId
 	);
 
 	// State for the admin gate. If the live receipt has it use that; otherwise
@@ -176,8 +178,8 @@ async function main() {
 		? new PublicKey((activeReceipt.state as any).pubkey)
 		: PublicKey.findProgramAddressSync(
 				[Buffer.from('drift_state')],
-				programId,
-			)[0];
+				programId
+		  )[0];
 
 	const seen = new Set<string>();
 	const candidates: { label: string; pubkey: PublicKey }[] = [];
@@ -223,7 +225,9 @@ async function main() {
 			continue;
 		}
 		console.log(
-			`skip ${c.label} ${c.pubkey.toBase58()} (owned by ${info.owner.toBase58()}, not drift or token program)`,
+			`skip ${
+				c.label
+			} ${c.pubkey.toBase58()} (owned by ${info.owner.toBase58()}, not drift or token program)`
 		);
 	}
 
@@ -236,7 +240,9 @@ async function main() {
 	console.log(`  token vaults (will burn + close):`);
 	for (const t of tokenVaults) {
 		console.log(
-			`    - ${t.label.padEnd(28)} ${t.pubkey.toBase58()}  mint=${t.mint.toBase58()}`,
+			`    - ${t.label.padEnd(
+				28
+			)} ${t.pubkey.toBase58()}  mint=${t.mint.toBase58()}`
 		);
 	}
 	console.log(`  drift PDAs (will drain lamports):`);
@@ -284,8 +290,8 @@ async function main() {
 		console.log(`  ix accounts (${ix.keys.length}):`);
 		ix.keys.forEach((k, i) =>
 			console.log(
-				`    [${i}] ${k.pubkey.toBase58()}  w=${k.isWritable} s=${k.isSigner}`,
-			),
+				`    [${i}] ${k.pubkey.toBase58()}  w=${k.isWritable} s=${k.isSigner}`
+			)
 		);
 
 		const recent = await connection.getLatestBlockhash('confirmed');
@@ -301,7 +307,7 @@ async function main() {
 		tx.sign([admin]);
 
 		console.log(
-			`\nwiping ${tokenVaults.length} token vault(s) + ${driftPdas.length} drift PDA(s)…`,
+			`\nwiping ${tokenVaults.length} token vault(s) + ${driftPdas.length} drift PDA(s)…`
 		);
 		const sig = await connection.sendRawTransaction(tx.serialize(), {
 			skipPreflight: false,
@@ -309,7 +315,7 @@ async function main() {
 		console.log(`  tx: ${sig}`);
 		const conf = await connection.confirmTransaction(
 			{ signature: sig, ...recent },
-			'confirmed',
+			'confirmed'
 		);
 		if (conf.value.err) {
 			throw new Error(`wipe tx failed: ${JSON.stringify(conf.value.err)}`);
@@ -328,7 +334,7 @@ async function main() {
 	// Archive the receipt — next init run will create a fresh one.
 	const archived = RECEIPT_PATH.replace(
 		/\.json$/,
-		`.wiped-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+		`.wiped-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
 	);
 	fs.renameSync(RECEIPT_PATH, archived);
 	console.log(`\nReceipt archived → ${archived}`);

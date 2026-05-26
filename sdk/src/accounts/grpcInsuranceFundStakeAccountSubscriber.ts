@@ -3,14 +3,14 @@ import { PublicKey } from '@solana/web3.js';
 import { InsuranceFundStake } from '../types';
 import { WebSocketInsuranceFundStakeAccountSubscriber } from './webSocketInsuranceFundStakeAccountSubscriber';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 
 export class grpcInsuranceFundStakeAccountSubscriber extends WebSocketInsuranceFundStakeAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
 	public constructor(
 		grpcConfigs: GrpcConfigs,
-		program: DriftProgram,
+		program: VelocityProgram,
 		insuranceFundStakeAccountPublicKey: PublicKey,
 		resubTimeoutMs?: number
 	) {

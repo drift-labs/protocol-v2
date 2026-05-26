@@ -1,9 +1,9 @@
-import { DriftClient } from '../src/driftClient';
-import { grpcDriftClientAccountSubscriberV2 } from '../src/accounts/grpcDriftClientAccountSubscriberV2';
+import { VelocityClient } from '../src/velocityClient';
+import { grpcVelocityClientAccountSubscriberV2 } from '../src/accounts/grpcVelocityClientAccountSubscriberV2';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { DriftClientConfig } from '../src/driftClientConfig';
+import { VelocityClientConfig } from '../src/velocityClientConfig';
 import {
-	DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	Wallet,
@@ -32,7 +32,7 @@ async function initializeSingleGrpcClient() {
 	const wallet = new Wallet(new Keypair());
 	dotenv.config({ path: '../' });
 
-	const programId = new PublicKey(DRIFT_PROGRAM_ID);
+	const programId = new PublicKey(VELOCITY_PROGRAM_ID);
 	const provider = new AnchorProvider(
 		connection,
 		// @ts-ignore
@@ -118,20 +118,20 @@ async function initializeSingleGrpcClient() {
 		grpcMultiUserAccountSubscriber: multiUserSubsciber,
 	};
 
-	const config: DriftClientConfig = {
+	const config: VelocityClientConfig = {
 		connection,
 		wallet,
-		programID: new PublicKey(DRIFT_PROGRAM_ID),
+		programID: new PublicKey(VELOCITY_PROGRAM_ID),
 		accountSubscription: {
 			...baseAccountSubscription,
-			driftClientAccountSubscriber: grpcDriftClientAccountSubscriberV2,
+			velocityClientAccountSubscriber: grpcVelocityClientAccountSubscriberV2,
 		},
 		perpMarketIndexes,
 		spotMarketIndexes,
 		oracleInfos,
 	};
 
-	const client = new DriftClient(config);
+	const client = new VelocityClient(config);
 
 	// Set up event listeners
 	const eventCounts = {

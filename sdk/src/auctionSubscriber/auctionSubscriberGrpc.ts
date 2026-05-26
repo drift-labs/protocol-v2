@@ -1,5 +1,5 @@
 import { AuctionSubscriberConfig, AuctionSubscriberEvents } from './types';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { getUserFilter, getUserWithAuctionFilter } from '../memcmp';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -10,7 +10,11 @@ import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
 
 export class AuctionSubscriberGrpc {
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	private get driftClient(): VelocityClient {
+		return this.velocityClient;
+	}
 	private opts: ConfirmOptions;
 	private resubOpts?: ResubOpts;
 	private grpcConfigs?: GrpcConfigs;
@@ -19,14 +23,16 @@ export class AuctionSubscriberGrpc {
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
 
 	constructor({
+		velocityClient,
 		driftClient,
 		opts,
 		grpcConfigs,
 		resubTimeoutMs,
 		logResubMessages,
 	}: AuctionSubscriberConfig) {
-		this.driftClient = driftClient;
-		this.opts = opts || this.driftClient.opts;
+		// Type-system guarantees at least one of the two is supplied.
+		this.velocityClient = (velocityClient ?? driftClient)!;
+		this.opts = opts || this.velocityClient.opts;
 		this.eventEmitter = new EventEmitter();
 		this.resubOpts = { resubTimeoutMs, logResubMessages };
 		this.grpcConfigs = grpcConfigs;
@@ -38,11 +44,11 @@ export class AuctionSubscriberGrpc {
 				this.grpcConfigs,
 				'AuctionSubscriber',
 				'user',
-				this.driftClient.program,
+				this.velocityClient.program,
 				(
-					this.driftClient.program.account as any
+					this.velocityClient.program.account as any
 				).user.coder.accounts.decode.bind(
-					(this.driftClient.program.account as any).user.coder.accounts
+					(this.velocityClient.program.account as any).user.coder.accounts
 				),
 				{
 					filters: [getUserFilter(), getUserWithAuctionFilter()],

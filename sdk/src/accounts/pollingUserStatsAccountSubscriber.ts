@@ -4,7 +4,7 @@ import {
 	UserStatsAccountSubscriber,
 	UserStatsAccountEvents,
 } from './types';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
@@ -15,7 +15,7 @@ export class PollingUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: DriftProgram;
+	program: VelocityProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
 
@@ -26,7 +26,7 @@ export class PollingUserStatsAccountSubscriber
 	userStats?: DataAndSlot<UserStatsAccount>;
 
 	public constructor(
-		program: DriftProgram,
+		program: VelocityProgram,
 		userStatsAccountPublicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {

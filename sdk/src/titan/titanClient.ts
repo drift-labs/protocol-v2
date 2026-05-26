@@ -354,7 +354,7 @@ export class TitanClient {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
 	}): TransactionInstruction[] {
-		// Filter out common system instructions that can be handled by DriftClient
+		// Filter out common system instructions that can be handled by VelocityClient
 		const filteredInstructions = transactionMessage.instructions.filter(
 			(instruction) => {
 				const programId = instruction.programId.toString();

@@ -1,9 +1,9 @@
 /**
- * @module @drift-labs/sdk
+ * @module @velocity-exchange/sdk
  * Main package barrel — re-exports all public SDK types, classes, and utilities.
  *
  * Primary entry points:
- *   {@link DriftClient}  — trading and keeper instruction builders (driftClient.ts)
+ *   {@link VelocityClient}  — trading and keeper instruction builders (velocityClient.ts)
  *   {@link AdminClient}  — governance/admin instruction builders (adminClient.ts)
  *   {@link User}         — user account abstraction: margin queries, position accessors (user.ts)
  *   {@link DLOB}         — decentralized limit order book (dlob/DLOB.ts)
@@ -20,18 +20,21 @@ export * from './oracles/pythClient';
 export * from './oracles/strictOraclePrice';
 export * from './types';
 export * from './accounts/fetch';
-export * from './accounts/webSocketDriftClientAccountSubscriber';
+export * from './accounts/webSocketVelocityClientAccountSubscriber';
 export * from './accounts/webSocketInsuranceFundStakeAccountSubscriber';
 export { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
 export { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 export { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 export { WebSocketProgramAccountsSubscriberV2 } from './accounts/webSocketProgramAccountsSubscriberV2';
-export { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
+export {
+	WebSocketVelocityClientAccountSubscriberV2,
+	WebSocketDriftClientAccountSubscriberV2,
+} from './accounts/webSocketVelocityClientAccountSubscriberV2';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';
 export { CustomizedCadenceBulkAccountLoader } from './accounts/customizedCadenceBulkAccountLoader';
-export * from './accounts/pollingDriftClientAccountSubscriber';
+export * from './accounts/pollingVelocityClientAccountSubscriber';
 export * from './accounts/pollingOracleAccountSubscriber';
 export * from './accounts/pollingTokenAccountSubscriber';
 export * from './accounts/pollingUserAccountSubscriber';
@@ -53,7 +56,7 @@ export * from './userName';
 export * from './userStatsConfig';
 export * from './decode/user';
 export * from './decode/customCoder';
-export * from './driftClient';
+export * from './velocityClient';
 export * from './factory/oracleClient';
 export * from './factory/bigNum';
 export * from './events/types';
@@ -116,7 +119,7 @@ export * from './util/digest';
 export * from './util/tps';
 export * from './util/promiseTimeout';
 export * from './math/spotBalance';
-export * from './driftClientConfig';
+export * from './velocityClientConfig';
 export * from './dlob/DLOB';
 export * from './dlob/DLOBNode';
 export * from './dlob/NodeList';

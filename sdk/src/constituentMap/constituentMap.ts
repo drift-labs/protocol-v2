@@ -9,7 +9,7 @@ import { ConstituentAccountSubscriber, DataAndSlot } from '../accounts/types';
 import { ConstituentAccount } from '../types';
 import { PollingConstituentAccountSubscriber } from './pollingConstituentAccountSubscriber';
 import { WebSocketConstituentAccountSubscriber } from './webSocketConstituentAccountSubscriber';
-import { DriftClient } from '../driftClient';
+import { VelocityClient } from '../velocityClient';
 import { getConstituentFilter, getConstituentLpPoolFilter } from '../memcmp';
 import { ZSTDDecoder } from 'zstddec';
 import { getLpPoolPublicKey } from '../addresses/pda';
@@ -17,7 +17,9 @@ import { getLpPoolPublicKey } from '../addresses/pda';
 const MAX_CONSTITUENT_SIZE_BYTES = 480; // TODO: update this when account is finalized
 
 export type ConstituentMapConfig = {
-	driftClient: DriftClient;
+	velocityClient?: VelocityClient;
+	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
+	driftClient?: VelocityClient;
 	connection?: Connection;
 	subscriptionConfig:
 		| {
@@ -55,7 +57,7 @@ export interface ConstituentMapInterface {
 }
 
 export class ConstituentMap implements ConstituentMapInterface {
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private constituentMap = new Map<string, DataAndSlot<ConstituentAccount>>();
 	private constituentAccountSubscriber: ConstituentAccountSubscriber;
 	private additionalFilters?: MemcmpFilter[];
@@ -69,10 +71,16 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private decoder: 'base64' | 'base64+zstd';
 
 	constructor(config: ConstituentMapConfig) {
-		this.driftClient = config.driftClient;
+		const velocityClient = config.velocityClient ?? config.driftClient;
+		if (!velocityClient) {
+			throw new Error(
+				'ConstituentMap: velocityClient (or deprecated driftClient) must be provided'
+			);
+		}
+		this.velocityClient = velocityClient;
 		this.additionalFilters = config.additionalFilters;
 		this.commitment = config.subscriptionConfig.commitment;
-		this.connection = config.connection || this.driftClient.connection;
+		this.connection = config.connection || this.velocityClient.connection;
 		this.lpPoolId = config.lpPoolId ?? 0;
 		this.decoder = config.decoder ?? 'base64+zstd';
 
@@ -80,7 +88,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 			this.constituentAccountSubscriber =
 				new PollingConstituentAccountSubscriber(
 					this,
-					this.driftClient.program,
+					this.velocityClient.program,
 					config.subscriptionConfig.frequency,
 					config.subscriptionConfig.commitment,
 					this.getFilters()
@@ -89,7 +97,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 			this.constituentAccountSubscriber =
 				new WebSocketConstituentAccountSubscriber(
 					this,
-					this.driftClient.program,
+					this.velocityClient.program,
 					config.subscriptionConfig.resubTimeoutMs,
 					config.subscriptionConfig.commitment,
 					this.getFilters()
@@ -109,7 +117,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 		const filters = [
 			getConstituentFilter(),
 			getConstituentLpPoolFilter(
-				getLpPoolPublicKey(this.driftClient.program.programId, this.lpPoolId)
+				getLpPoolPublicKey(this.velocityClient.program.programId, this.lpPoolId)
 			),
 		];
 		if (this.additionalFilters) {
@@ -120,14 +128,14 @@ export class ConstituentMap implements ConstituentMapInterface {
 
 	private decode(name: string, buffer: Buffer): ConstituentAccount {
 		return (
-			this.driftClient.program.account as any
+			this.velocityClient.program.account as any
 		).constituent.coder.accounts.decodeUnchecked(name, buffer);
 	}
 
 	public async sync(): Promise<void> {
 		try {
 			const rpcRequestArgs = [
-				this.driftClient.program.programId.toBase58(),
+				this.velocityClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
 					filters: this.getFilters(),

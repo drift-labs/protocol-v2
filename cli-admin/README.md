@@ -1,4 +1,4 @@
-# @drift-labs/admin-cli
+# @velocity-exchange/admin-cli
 
 CLI for Drift v2 admin operations. Sign with the right key (or pass a Squads
 V4 multisig); the on-chain program enforces which tier of authority is
@@ -7,9 +7,9 @@ required for the action.
 ## Install
 
 ```sh
-npm install -g @drift-labs/admin-cli
+npm install -g @velocity-exchange/admin-cli
 # or, one-off:
-npx @drift-labs/admin-cli --help
+npx @velocity-exchange/admin-cli --help
 ```
 
 ## Usage
@@ -96,12 +96,12 @@ bun run build           # tsc → lib/
 ./lib/index.js --help   # run the compiled binary as the published package would
 ```
 
-The committed `package.json` keeps `"@drift-labs/sdk": "file:../sdk"` so
+The committed `package.json` keeps `"@velocity-exchange/sdk": "file:../sdk"` so
 local edits to the SDK are picked up immediately. Publishing rewrites that
 to a real semver range based on `sdk/package.json`'s version (see
 `scripts/prepare-publish.js`) and restores the `file:` ref afterwards. CI
 handles this automatically; for a manual publish:
 
 ```sh
-yarn publish-cli
+bun run publish-cli
 ```

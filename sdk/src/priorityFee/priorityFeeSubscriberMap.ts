@@ -1,38 +1,49 @@
 import {
-	DriftMarketInfo,
-	DriftPriorityFeeLevels,
-	DriftPriorityFeeResponse,
-	fetchDriftPriorityFee,
-} from './driftPriorityFeeMethod';
+	VelocityMarketInfo,
+	VelocityPriorityFeeLevels,
+	VelocityPriorityFeeResponse,
+	fetchVelocityPriorityFee,
+} from './velocityPriorityFeeMethod';
 import {
 	DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS,
 	PriorityFeeSubscriberMapConfig,
 } from './types';
 
 /**
- * takes advantage of /batchPriorityFees endpoint from drift hosted priority fee service
+ * takes advantage of /batchPriorityFees endpoint from Velocity hosted priority fee service
  */
 export class PriorityFeeSubscriberMap {
 	frequencyMs: number;
 	intervalId?: ReturnType<typeof setTimeout>;
 
-	driftMarkets?: DriftMarketInfo[];
-	driftPriorityFeeEndpoint?: string;
-	feesMap: Map<string, Map<number, DriftPriorityFeeLevels>>; // marketType -> marketIndex -> priority fee
+	velocityMarkets?: VelocityMarketInfo[];
+	/** @deprecated Use `velocityMarkets` instead. `driftMarkets` will be removed in a future major. */
+	public get driftMarkets(): VelocityMarketInfo[] | undefined {
+		return this.velocityMarkets;
+	}
+	velocityPriorityFeeEndpoint: string;
+	/** @deprecated Use `velocityPriorityFeeEndpoint` instead. `driftPriorityFeeEndpoint` will be removed in a future major. */
+	public get driftPriorityFeeEndpoint(): string {
+		return this.velocityPriorityFeeEndpoint;
+	}
+	feesMap: Map<string, Map<number, VelocityPriorityFeeLevels>>; // marketType -> marketIndex -> priority fee
 
 	public constructor(config: PriorityFeeSubscriberMapConfig) {
-		this.frequencyMs = config.frequencyMs;
 		this.frequencyMs =
 			config.frequencyMs ?? DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS;
-		this.driftPriorityFeeEndpoint = config.driftPriorityFeeEndpoint;
-		this.driftMarkets = config.driftMarkets;
-		this.feesMap = new Map<string, Map<number, DriftPriorityFeeLevels>>();
-		this.feesMap.set('perp', new Map<number, DriftPriorityFeeLevels>());
-		this.feesMap.set('spot', new Map<number, DriftPriorityFeeLevels>());
+		// Type-system guarantees at least one of the two is supplied.
+		this.velocityPriorityFeeEndpoint = (config.velocityPriorityFeeEndpoint ??
+			config.driftPriorityFeeEndpoint)!;
+		this.velocityMarkets = config.velocityMarkets ?? config.driftMarkets;
+		this.feesMap = new Map<string, Map<number, VelocityPriorityFeeLevels>>();
+		this.feesMap.set('perp', new Map<number, VelocityPriorityFeeLevels>());
+		this.feesMap.set('spot', new Map<number, VelocityPriorityFeeLevels>());
 	}
 
-	private updateFeesMap(driftPriorityFeeResponse: DriftPriorityFeeResponse) {
-		driftPriorityFeeResponse.forEach((fee: DriftPriorityFeeLevels) => {
+	private updateFeesMap(
+		velocityPriorityFeeResponse: VelocityPriorityFeeResponse
+	) {
+		velocityPriorityFeeResponse.forEach((fee: VelocityPriorityFeeLevels) => {
 			this.feesMap.get(fee.marketType)!.set(fee.marketIndex, fee);
 		});
 	}
@@ -55,50 +66,50 @@ export class PriorityFeeSubscriberMap {
 
 	public async load(): Promise<void> {
 		try {
-			if (!this.driftMarkets) {
+			if (!this.velocityMarkets) {
 				return;
 			}
-			const fees = await fetchDriftPriorityFee(
-				this.driftPriorityFeeEndpoint!,
-				this.driftMarkets.map((m) => m.marketType),
-				this.driftMarkets.map((m) => m.marketIndex)
+			const fees = await fetchVelocityPriorityFee(
+				this.velocityPriorityFeeEndpoint,
+				this.velocityMarkets.map((m) => m.marketType),
+				this.velocityMarkets.map((m) => m.marketIndex)
 			);
 			this.updateFeesMap(fees);
 		} catch (e) {
-			console.error('Error fetching drift priority fees', e);
+			console.error('Error fetching priority fees', e);
 		}
 	}
 
-	public updateMarketTypeAndIndex(driftMarkets: DriftMarketInfo[]) {
-		this.driftMarkets = driftMarkets;
+	public updateMarketTypeAndIndex(velocityMarkets: VelocityMarketInfo[]) {
+		this.velocityMarkets = velocityMarkets;
 	}
 
 	public getPriorityFees(
 		marketType: string,
 		marketIndex: number
-	): DriftPriorityFeeLevels | undefined {
+	): VelocityPriorityFeeLevels | undefined {
 		return this.feesMap.get(marketType)?.get(marketIndex);
 	}
 }
 
 /** Example usage:
 async function main() {
-    const driftMarkets: DriftMarketInfo[] = [
+    const velocityMarkets: VelocityMarketInfo[] = [
         { marketType: 'perp', marketIndex: 0 },
         { marketType: 'perp', marketIndex: 1 },
         { marketType: 'spot', marketIndex: 2 }
     ];
 
     const subscriber = new PriorityFeeSubscriberMap({
-        driftPriorityFeeEndpoint: 'https://dlob.drift.trade',
+        velocityPriorityFeeEndpoint: 'https://dlob.velocity.trade',
         frequencyMs: 5000,
-        driftMarkets
+        velocityMarkets
     });
     await subscriber.subscribe();
 
     for (let i = 0; i < 20; i++) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        driftMarkets.forEach(market => {
+        velocityMarkets.forEach(market => {
             const fees = subscriber.getPriorityFees(market.marketType, market.marketIndex);
             console.log(`Priority fees for ${market.marketType} market ${market.marketIndex}:`, fees);
         });

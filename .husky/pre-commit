@@ -2,8 +2,8 @@
 exit 0 # skip husky for now
 . "$(dirname "$0")/_/husky.sh"
 
-yarn prettify
-yarn lint
+bun run prettify
+bun run lint
 
 if [ -z "$TS_PRECOMMIT_ONLY" ] || [ "$TS_PRECOMMIT_ONLY" = "false" ]; then
   cargo fmt -- --check

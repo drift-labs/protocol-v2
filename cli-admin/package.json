@@ -1,5 +1,5 @@
 {
-	"name": "@drift-labs/admin-cli",
+	"name": "@velocity-exchange/admin-cli",
 	"version": "0.1.0",
 	"description": "Drift v2 admin CLI: rotate authority keys, pause markets, and route operations through a Squads V4 multisig.",
 	"author": "drift-labs",
@@ -34,10 +34,10 @@
 	"scripts": {
 		"start": "bun run src/index.ts",
 		"clean": "rm -rf lib",
-		"build": "yarn clean && tsc -p tsconfig.json && chmod +x lib/index.js",
+		"build": "bun run clean && tsc -p tsconfig.json && chmod +x lib/index.js",
 		"prepare-publish": "node scripts/prepare-publish.js",
 		"restore-publish": "node scripts/restore-publish.js",
-		"publish-cli": "yarn build && yarn prepare-publish && (npm publish --access=public; status=$?; yarn restore-publish; exit $status)",
+		"publish-cli": "bun run build && bun run prepare-publish && (npm publish --access=public; status=$?; bun run restore-publish; exit $status)",
 		"lint": "eslint './src/**/*.ts' --quiet --format unix",
 		"prettify": "prettier --check './src/**/*.ts'",
 		"prettify:fix": "prettier --write './src/**/*.ts'",
@@ -45,7 +45,7 @@
 	},
 	"dependencies": {
 		"@coral-xyz/anchor": "0.32.1",
-		"@drift-labs/sdk": "file:../sdk",
+		"@velocity-exchange/sdk": "file:../sdk",
 		"@solana/web3.js": "1.73.2",
 		"@sqds/multisig": "2.1.3",
 		"commander": "12.1.0"

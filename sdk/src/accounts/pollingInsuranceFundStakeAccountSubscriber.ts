@@ -4,7 +4,7 @@ import {
 	InsuranceFundStakeAccountEvents,
 	InsuranceFundStakeAccountSubscriber,
 } from './types';
-import { DriftProgram } from '../config';
+import { VelocityProgram } from '../config';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
@@ -15,7 +15,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: DriftProgram;
+	program: VelocityProgram;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		InsuranceFundStakeAccountEvents
@@ -29,7 +29,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 	insuranceFundStakeAccountAndSlot?: DataAndSlot<InsuranceFundStake>;
 
 	public constructor(
-		program: DriftProgram,
+		program: VelocityProgram,
 		publicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {

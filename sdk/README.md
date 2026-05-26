@@ -1,10 +1,10 @@
 <div align="center">
-  <img height="120x" src="https://uploads-ssl.webflow.com/611580035ad59b20437eb024/616f97a42f5637c4517d0193_Logo%20(1)%20(1).png" />
+  <img height="120" src="https://raw.githubusercontent.com/drift-labs/protocol-v2-shadow/master/assets/velocity-logo.svg" />
 
-  <h1 style="margin-top:20px;">Drift Protocol v2</h1>
+  <h1 style="margin-top:20px;">Velocity Exchange</h1>
 
   <p>
-    <a href="https://www.npmjs.com/package/@drift-labs/sdk"><img alt="SDK npm package" src="https://img.shields.io/npm/v/@drift-labs/sdk" /></a>
+    <a href="https://www.npmjs.com/package/@velocity-exchange/sdk"><img alt="SDK npm package" src="https://img.shields.io/npm/v/@velocity-exchange/sdk" /></a>
     <a href="https://drift-labs.github.io/protocol-v2/sdk/"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
     <a href="https://discord.com/channels/849494028176588802/878700556904980500"><img alt="Discord Chat" src="https://img.shields.io/discord/889577356681945098?color=blueviolet" /></a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/github/license/project-serum/anchor?color=blueviolet" /></a>
@@ -14,7 +14,7 @@
 ## Installation
 
 ```
-npm i @drift-labs/sdk
+npm i @velocity-exchange/sdk
 ```
 
 ## Getting Started
@@ -75,7 +75,7 @@ The Drift SDK uses some common precisions, which are available as constants to i
 Because BN only supports integers, you need to be conscious of the numbers you are using when dividing. BN will return the floor when using the regular division function; if you want to get the exact division, you need to add the modulus of the two numbers as well. There is a helper function `convertToNumber` in the SDK which will do this for you.
 
 ```typescript
-import { convertToNumber } from '@drift-labs/sdk';
+import { convertToNumber } from '@velocity-exchange/sdk';
 
 // Gets the floor value
 new BN(10500).div(new BN(1000)).toNumber(); // = 10
@@ -272,4 +272,3 @@ Drift Protocol v2 is licensed under [Apache 2.0](./LICENSE).
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.
-

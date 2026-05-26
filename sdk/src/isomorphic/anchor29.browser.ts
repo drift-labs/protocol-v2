@@ -8,7 +8,7 @@ export { web3 };
 export class AnchorProvider {
 	constructor() {
 		throw new Error(
-			'Anchor (0.29) is not supported in the browser build. Use `DriftCore` instead of `DriftClient`.'
+			'Anchor (0.29) is not supported in the browser build. Use `VelocityCore` instead of `VelocityClient`.'
 		);
 	}
 }
@@ -16,7 +16,7 @@ export class AnchorProvider {
 export class Program<_T = any> {
 	constructor() {
 		throw new Error(
-			'Anchor (0.29) Program is not supported in the browser build. Use `DriftCore` instead of `DriftClient`.'
+			'Anchor (0.29) Program is not supported in the browser build. Use `VelocityCore` instead of `VelocityClient`.'
 		);
 	}
 }
