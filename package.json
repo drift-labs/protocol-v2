@@ -24,7 +24,7 @@
 		"eslint-config-prettier": "8.3.0",
 		"eslint-plugin-prettier": "3.4.0",
 		"husky": "7.0.4",
-		"mocha": "^11.7.6",
+		"mocha": "11.7.5",
 		"prettier": "3.0.1",
 		"ts-mocha": "^11.1.0",
 		"ts-node": "^10.9.2",
