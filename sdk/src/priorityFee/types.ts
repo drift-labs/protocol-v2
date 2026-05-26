@@ -65,5 +65,10 @@ type PriorityFeeSubscriberMapConfigBase = {
 };
 
 /// url for Velocity cached priority fee endpoint
-export type PriorityFeeSubscriberMapConfig = PriorityFeeSubscriberMapConfigBase &
-	AtLeastOne<'velocityPriorityFeeEndpoint', 'driftPriorityFeeEndpoint', string>;
+export type PriorityFeeSubscriberMapConfig =
+	PriorityFeeSubscriberMapConfigBase &
+		AtLeastOne<
+			'velocityPriorityFeeEndpoint',
+			'driftPriorityFeeEndpoint',
+			string
+		>;

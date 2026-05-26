@@ -148,7 +148,10 @@ export const getConfig = (): VelocityConfig => currentConfig;
  * Mirror a canonical/deprecated alias pair so the resolved config carries the
  * same value under both keys regardless of which one the caller overrode.
  */
-const mirrorAlias = <K1 extends keyof VelocityConfig, K2 extends keyof VelocityConfig>(
+const mirrorAlias = <
+	K1 extends keyof VelocityConfig,
+	K2 extends keyof VelocityConfig,
+>(
 	merged: VelocityConfig,
 	override: Partial<VelocityConfig>,
 	canon: K1,

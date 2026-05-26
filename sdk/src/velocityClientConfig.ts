@@ -75,7 +75,9 @@ type GrpcVelocityClientAccountSubscriberCtor = new (
 	oracleInfos: OracleInfo[],
 	shouldFindAllMarketsAndOracles: boolean,
 	delistedMarketSetting: DelistedMarketSetting
-) => grpcVelocityClientAccountSubscriberV2 | grpcVelocityClientAccountSubscriber;
+) =>
+	| grpcVelocityClientAccountSubscriberV2
+	| grpcVelocityClientAccountSubscriber;
 
 type WsVelocityClientAccountSubscriberCtor = new (
 	program: Program,

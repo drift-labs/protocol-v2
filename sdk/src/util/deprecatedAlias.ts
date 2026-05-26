@@ -16,10 +16,6 @@
  * major" on a config object without dropping back to "both optional + runtime
  * throw".
  */
-export type AtLeastOne<
-	A extends string,
-	B extends string,
-	T
-> =
+export type AtLeastOne<A extends string, B extends string, T> =
 	| ({ [K in A]: T } & { [K in B]?: T })
 	| ({ [K in A]?: T } & { [K in B]: T });
