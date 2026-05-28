@@ -434,7 +434,7 @@ describe('multiple maker orders', () => {
 				await thirdMakerDriftClient.placePerpOrder({
 					marketIndex: 1,
 					direction: PositionDirection.LONG,
-					oraclePriceOffset: -(i / 1000) * PRICE_PRECISION.toNumber(),
+					oraclePriceOffset: new BN(-i).mul(PRICE_PRECISION).div(new BN(1000)),
 					orderType: OrderType.LIMIT,
 					baseAssetAmount: BASE_PRECISION,
 				});

@@ -95,7 +95,7 @@ export function getAuctionPrice(
 	) {
 		return getAuctionPriceForFixedAuction(order, slot);
 	} else if (isVariant(order.orderType, 'limit')) {
-		if (order.oraclePriceOffset != null && order.oraclePriceOffset !== 0) {
+		if (order.oraclePriceOffset != null && !order.oraclePriceOffset.eq(ZERO)) {
 			return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
 		} else {
 			return getAuctionPriceForFixedAuction(order, slot);
@@ -207,7 +207,7 @@ export function deriveOracleAuctionParams({
 		min: BN;
 		max: BN;
 	};
-}): { auctionStartPrice: BN; auctionEndPrice: BN; oraclePriceOffset: number } {
+}): { auctionStartPrice: BN; auctionEndPrice: BN; oraclePriceOffset: BN } {
 	let oraclePriceOffset;
 
 	if (limitPrice.eq(ZERO) || oraclePrice.eq(ZERO)) {
@@ -220,13 +220,6 @@ export function deriveOracleAuctionParams({
 		oraclePriceOffset = isVariant(direction, 'long')
 			? auctionEndPrice.sub(oraclePrice).add(ONE)
 			: auctionEndPrice.sub(oraclePrice).sub(ONE);
-	}
-
-	let oraclePriceOffsetNum;
-	try {
-		oraclePriceOffsetNum = oraclePriceOffset.toNumber();
-	} catch (e) {
-		oraclePriceOffsetNum = 0;
 	}
 
 	if (auctionPriceCaps) {
@@ -243,7 +236,7 @@ export function deriveOracleAuctionParams({
 	return {
 		auctionStartPrice: auctionStartPrice.sub(oraclePrice),
 		auctionEndPrice: auctionEndPrice.sub(oraclePrice),
-		oraclePriceOffset: oraclePriceOffsetNum,
+		oraclePriceOffset: oraclePriceOffset,
 	};
 }
 

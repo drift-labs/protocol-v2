@@ -556,7 +556,7 @@ describe('place and make signedMsg order', () => {
 			immediateOrCancel: true,
 			direction: takerOrderParams.direction,
 			postOnly: false,
-			oraclePriceOffset: takerOrderParams.oraclePriceOffset ?? 0,
+			oraclePriceOffset: takerOrderParams.oraclePriceOffset ?? ZERO,
 			// Rest are not required for DLOB
 			price: ZERO,
 			maxTs: ZERO,
@@ -749,7 +749,7 @@ describe('place and make signedMsg order', () => {
 			immediateOrCancel: true,
 			direction: takerOrderParams.direction,
 			postOnly: false,
-			oraclePriceOffset: takerOrderParams.oraclePriceOffset ?? 0,
+			oraclePriceOffset: takerOrderParams.oraclePriceOffset ?? ZERO,
 			// Rest are not required for DLOB
 			price: ZERO,
 			maxTs: ZERO,
@@ -912,7 +912,7 @@ describe('place and make signedMsg order', () => {
 		 Max size: 1232
 		 We currently trade on sol market w/ sol oracle so would be better with LUT, so -64 bytes + 2 bytes
 		 We dont have referrers for maker so need to add 64 bytes
-		 We want to allow for positions to be full with maximally different markets for maker/taker and spot/perp, 
+		 We want to allow for positions to be full with maximally different markets for maker/taker and spot/perp,
 				so add 30 bytes for market/oracle for taker and 30 bytes for maker
 		 Add 32 bytes for LUT
 			size of transaction + 32 + 2 + 30 + 30 < 1232
@@ -1682,7 +1682,7 @@ describe('place and make signedMsg order', () => {
 		 Max size: 1232
 		 We currently trade on sol market w/ sol oracle so would be better with LUT, so -64 bytes + 2 bytes
 		 We dont have referrers for maker so need to add 64 bytes
-		 We want to allow for positions to be full with maximally different markets for maker/taker and spot/perp, 
+		 We want to allow for positions to be full with maximally different markets for maker/taker and spot/perp,
 				so add 30 bytes for market/oracle for taker and 30 bytes for maker
 		 Add 32 bytes for LUT
 			size of transaction + 32 + 2 + 30 + 30 < 1232

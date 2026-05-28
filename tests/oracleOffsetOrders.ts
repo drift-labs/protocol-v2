@@ -211,7 +211,7 @@ describe('oracle offset', () => {
 			price,
 			reduceOnly,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset.toNumber(),
+			oraclePriceOffset: priceOffset,
 		});
 		await driftClient.placePerpOrder(orderParams);
 
@@ -297,7 +297,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			oraclePriceOffset: priceOffset.toNumber(),
+			oraclePriceOffset: priceOffset,
 		});
 
 		await driftClient.placePerpOrder(orderParams);
@@ -388,7 +388,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			reduceOnly,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset.toNumber(),
+			oraclePriceOffset: priceOffset,
 		});
 		await driftClient.placePerpOrder(orderParams);
 
@@ -476,7 +476,7 @@ describe('oracle offset', () => {
 			price,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			oraclePriceOffset: priceOffset.toNumber(),
+			oraclePriceOffset: priceOffset,
 		});
 		await driftClient.placePerpOrder(orderParams);
 
@@ -565,7 +565,7 @@ describe('oracle offset', () => {
 			price,
 			reduceOnly,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			oraclePriceOffset: priceOffset.toNumber(),
+			oraclePriceOffset: priceOffset,
 		});
 		await driftClient.placePerpOrder(orderParams);
 
@@ -633,7 +633,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset.toNumber(),
+			oraclePriceOffset: priceOffset,
 		});
 		await driftClient.placePerpOrder(orderParams);
 

@@ -3,8 +3,8 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128, THIRTY_DAY,
+    EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+    SPOT_WEIGHT_PRECISION_I128, THIRTY_DAY,
 };
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
@@ -66,7 +66,7 @@ pub enum SpecialUserStatus {
 
 // implement SIZE const for User
 impl Size for User {
-    const SIZE: usize = 4240;
+    const SIZE: usize = 4496;
 }
 
 #[account(zero_copy(unsafe))]
@@ -1355,7 +1355,7 @@ pub struct Order {
     pub max_ts: i64,
     /// If set, the order limit price is the oracle price + this offset
     /// precision: PRICE_PRECISION
-    pub oracle_price_offset: i32,
+    pub oracle_price_offset: i64,
     /// The id for the order. Each users has their own order id space
     pub order_id: u32,
     /// The perp/spot market index
@@ -1387,7 +1387,7 @@ pub struct Order {
     /// Bitflags for further classification
     /// 0: is_signed_message
     pub bit_flags: u8,
-    pub padding: [u8; 1],
+    pub padding: [u8; 5],
 }
 
 #[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug)]
@@ -1678,7 +1678,7 @@ impl Default for Order {
             max_ts: 0,
             posted_slot_tail: 0,
             bit_flags: 0,
-            padding: [0; 1],
+            padding: [0; 5],
         }
     }
 }

@@ -28,7 +28,7 @@ describe('Auction Tests', () => {
 			oracleOrderParams.auctionEndPrice.eq(new BN(10).mul(PRICE_PRECISION))
 		);
 		assert(
-			oracleOrderParams.oraclePriceOffset === 20 * PRICE_PRECISION.toNumber()
+			oracleOrderParams.oraclePriceOffset.eq(new BN(20).mul(PRICE_PRECISION))
 		);
 
 		oracleOrderParams = deriveOracleAuctionParams({
@@ -41,7 +41,7 @@ describe('Auction Tests', () => {
 
 		assert(oracleOrderParams.auctionStartPrice.eq(new BN(0)));
 		assert(oracleOrderParams.auctionEndPrice.eq(new BN(0)));
-		assert(oracleOrderParams.oraclePriceOffset === 1);
+		assert(oracleOrderParams.oraclePriceOffset.eq(new BN(1)));
 
 		oraclePrice = new BN(100).mul(PRICE_PRECISION);
 		auctionStartPrice = new BN(110).mul(PRICE_PRECISION);
@@ -63,7 +63,7 @@ describe('Auction Tests', () => {
 			oracleOrderParams.auctionEndPrice.eq(new BN(-10).mul(PRICE_PRECISION))
 		);
 		assert(
-			oracleOrderParams.oraclePriceOffset === -20 * PRICE_PRECISION.toNumber()
+			oracleOrderParams.oraclePriceOffset.eq(new BN(-20).mul(PRICE_PRECISION))
 		);
 
 		oracleOrderParams = deriveOracleAuctionParams({
@@ -76,6 +76,6 @@ describe('Auction Tests', () => {
 
 		assert(oracleOrderParams.auctionStartPrice.eq(new BN(0)));
 		assert(oracleOrderParams.auctionEndPrice.eq(new BN(0)));
-		assert(oracleOrderParams.oraclePriceOffset === -1);
+		assert(oracleOrderParams.oraclePriceOffset.eq(new BN(-1)));
 	});
 });

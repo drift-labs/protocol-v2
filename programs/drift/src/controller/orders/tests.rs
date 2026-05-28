@@ -2010,7 +2010,7 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION_U64,
                 auction_start_price: 0,
                 auction_end_price: 0,
-                oracle_price_offset: (100 * PRICE_PRECISION_I64) as i32,
+                oracle_price_offset: (100 * PRICE_PRECISION_I64),
                 auction_duration: 10,
                 ..Order::default()
             }),
@@ -2311,7 +2311,7 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION_U64,
                 auction_start_price: 0,
                 auction_end_price: 0,
-                oracle_price_offset: (-50 * PRICE_PRECISION_I64) as i32,
+                oracle_price_offset: (-50 * PRICE_PRECISION_I64),
                 auction_duration: 10,
                 ..Order::default()
             }),

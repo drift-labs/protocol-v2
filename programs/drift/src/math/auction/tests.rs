@@ -381,7 +381,7 @@ mod calculate_auction_price {
             slot: 0,
             auction_start_price: 100 * PRICE_PRECISION_I64 / 20, // 5% above oracle
             auction_end_price: 100 * PRICE_PRECISION_I64 / 10,   // 10% above oracle
-            oracle_price_offset: (100 * PRICE_PRECISION_I64 / 5) as i32, // 20% above oracle
+            oracle_price_offset: 100 * PRICE_PRECISION_I64 / 5,  // 20% above oracle
             ..Order::default()
         };
 
@@ -410,7 +410,7 @@ mod calculate_auction_price {
             slot: 0,
             auction_start_price: -100 * PRICE_PRECISION_I64 / 20, // 5% below oracle
             auction_end_price: -100 * PRICE_PRECISION_I64 / 10,   // 10% below oracle
-            oracle_price_offset: (-100 * PRICE_PRECISION_I64 / 5) as i32, // 20% below oracle
+            oracle_price_offset: -100 * PRICE_PRECISION_I64 / 5,  // 20% below oracle
             ..Order::default()
         };
 

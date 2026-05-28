@@ -42,7 +42,7 @@ export const mockOrder: Order = {
 	existingPositionDirection: PositionDirection.LONG,
 	postOnly: false,
 	immediateOrCancel: false,
-	oraclePriceOffset: 0,
+	oraclePriceOffset: ZERO,
 	auctionDuration: 0,
 	auctionStartPrice: ZERO,
 	auctionEndPrice: ZERO,
