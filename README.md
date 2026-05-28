@@ -113,6 +113,58 @@ docker compose up -d
 docker compose exec drift bash
 ```
 
+# Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please). You never bump a version or publish to npm by hand — version numbers, `CHANGELOG.md` entries, Git tags, and npm publishes are all derived from [Conventional Commit](https://www.conventionalcommits.org/) history.
+
+## What you need to do
+
+PRs are **squash-merged**, so the squashed commit subject is the PR title. That means **your PR title must be a valid Conventional Commit** — it's the only thing release-please reads. The `pr-title-lint` check enforces this on every PR.
+
+| PR title prefix | Effect on the next release |
+| --- | --- |
+| `feat: …` | minor bump (see pre-1.0 note below) |
+| `fix: …` / `perf: …` | patch bump |
+| `feat!: …` or a `BREAKING CHANGE:` footer | major bump (see pre-1.0 note below) |
+| `docs:` `test:` `build:` `ci:` `chore:` `style:` `refactor:` | no version bump (some appear in the changelog, some are hidden) |
+
+Add a scope when useful, e.g. `fix(margin): correct rounding on partial fills`.
+
+> **Pre-1.0 note:** while a package's major version is `0` (the SDK is currently `0.x`), release-please down-shifts bumps by one level — `feat` behaves like a patch and a breaking change behaves like a minor. Set `bump-minor-pre-major: true` in `release-please-config.json` if you want `feat` to drive minor bumps before 1.0.
+>
+> **Reminder — flip this on the first release:** we deliberately ship the first
+> few releases with the down-shifted (default) behavior to keep early `0.x`
+> versions calm. Once we cut the first real release and want `feat:` to mean a
+> proper minor bump, set `bump-minor-pre-major: true` in
+> [`release-please-config.json`](./release-please-config.json) and update this
+> table.
+
+## How a release happens
+
+1. **You merge a feature/fix PR** into `master` with a Conventional Commit title.
+2. **release-please opens (or updates) a "release PR"** titled `chore(master): release …`. This PR bumps the version in `package.json`, regenerates `CHANGELOG.md`, and updates `.release-please-manifest.json`. It is **recomputed on every push** to `master` — the version reflects the highest bump across all unreleased commits, and new commits keep getting added to it. It does **not** publish anything.
+3. **You merge the release PR** when you're ready to ship. release-please then creates the Git tag(s) and GitHub Release(s).
+4. **Publish jobs run automatically** (`.github/workflows/release-please.yml`), publishing the bumped packages to npm via OIDC [trusted publishing](https://docs.npmjs.com/trusted-publishers) — no `NPM_TOKEN`. Downstream repos are notified via `repository_dispatch`.
+
+Leaving the release PR open is fine and expected — accumulate changes until you want to cut a release, then merge it.
+
+## Managed packages
+
+| Path | npm package | Tag format |
+| --- | --- | --- |
+| `sdk/` | `@velocity-exchange/sdk` (+ `-browser`) | `sdk-v<version>` |
+| `cli-admin/` | `@velocity-exchange/admin-cli` | `cli-admin-v<version>` |
+
+Versions are tracked independently in [`.release-please-manifest.json`](./.release-please-manifest.json); per-package settings live in [`release-please-config.json`](./release-please-config.json).
+
+## Forcing a specific version
+
+Add a `Release-As:` footer to a commit (or a manually titled PR), e.g.:
+
+```bash
+git commit --allow-empty -m "chore: release 1.0.0" -m "Release-As: 1.0.0"
+```
+
 # Bug Bounty
 
 Information about the Bug Bounty can be found [here](./bug-bounty/README.md)

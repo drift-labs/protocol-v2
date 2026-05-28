@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "67811397ead897a7a113733ade7bd6e5d7cf4682",
+  "release-type": "node",
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "separate-pull-requests": false,
+  "pull-request-title-pattern": "chore(${branch}): release ${component} ${version}",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "revert", "section": "Reverts" },
+    { "type": "refactor", "section": "Refactors", "hidden": false },
+    { "type": "docs", "section": "Documentation", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Build", "hidden": true },
+    { "type": "ci", "section": "CI", "hidden": true },
+    { "type": "chore", "section": "Chores", "hidden": true }
+  ],
+  "packages": {
+    "sdk": {
+      "package-name": "@velocity-exchange/sdk",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "cli-admin": {
+      "package-name": "@velocity-exchange/admin-cli",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}

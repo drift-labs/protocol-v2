@@ -1,0 +1,43 @@
+name: pr-title-lint
+
+# Releases are driven by release-please, which derives version bumps and
+# changelog entries from Conventional Commit subjects. Because PRs are
+# squash-merged, the squashed commit subject is the PR title — so the PR title
+# is the thing that must be a valid Conventional Commit. This check enforces it.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint-pr-title:
+    runs-on: ubicloud
+    steps:
+      - uses: amannn/action-semantic-pull-request@0723387faaf9b38adef4775cd42cfd5155ed6017 # v5.5.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed Conventional Commit types. feat -> minor, fix/perf -> patch,
+          # `!`/BREAKING CHANGE -> major; the rest do not bump the version but
+          # are still valid titles.
+          types: |
+            feat
+            fix
+            perf
+            revert
+            refactor
+            docs
+            test
+            build
+            ci
+            chore
+            style
+          requireScope: false
+          # Subject must not start with an uppercase letter (keeps history tidy).
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Start the subject with a
+            lowercase letter, e.g. "feat: add batch order placement".
