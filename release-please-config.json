@@ -4,7 +4,7 @@
   "release-type": "node",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
-  "separate-pull-requests": false,
+  "separate-pull-requests": true,
   "pull-request-title-pattern": "chore(${branch}): release ${component} ${version}",
   "changelog-sections": [
     { "type": "feat", "section": "Features" },
