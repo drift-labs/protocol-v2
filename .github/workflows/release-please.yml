@@ -35,12 +35,20 @@ jobs:
       cli_admin_tag: ${{ steps.release.outputs['cli-admin--tag_name'] }}
       cli_admin_version: ${{ steps.release.outputs['cli-admin--version'] }}
     steps:
+      # Mint an App installation token so the release PR is authored by the
+      # App (not github-actions[bot]). Without this, GitHub suppresses
+      # workflow runs on the release PR — required-check gates can never pass.
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: googleapis/release-please-action@a02a34c4d625f9be7cb89156071d8567266a2445 # v4
         id: release
         with:
-          # Default GITHUB_TOKEN is fine — release-please opens PRs from a branch
-          # it owns and doesn't push directly to master, so the ruleset is happy.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
