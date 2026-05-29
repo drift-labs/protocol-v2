@@ -928,24 +928,6 @@ pub fn handle_transfer_deposit_by_delegate<'c: 'info, 'info>(
     )?;
 
     validate!(
-        from_user.authority == to_user.authority,
-        ErrorCode::DefaultError,
-        "from_user and to_user must have the same authority"
-    )?;
-
-    validate!(
-        signer_key != Pubkey::default(),
-        ErrorCode::DefaultError,
-        "delegate cannot be default pubkey"
-    )?;
-
-    validate!(
-        from_user.delegate == signer_key && to_user.delegate == signer_key,
-        ErrorCode::DefaultError,
-        "signer must be delegate for both users"
-    )?;
-
-    validate!(
         !to_user.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "to_user bankrupt"
@@ -4634,9 +4616,18 @@ pub struct TransferDeposit<'info> {
 #[derive(Accounts)]
 #[instruction(market_index: u16,)]
 pub struct TransferDepositByDelegate<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = from_user.load()?.delegate == authority.key(),
+        constraint = from_user.load()?.delegate != Pubkey::default(),
+    )]
     pub from_user: AccountLoader<'info, User>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = to_user.load()?.authority == from_user.load()?.authority,
+        constraint = to_user.load()?.delegate == authority.key(),
+        constraint = to_user.load()?.delegate != Pubkey::default(),
+    )]
     pub to_user: AccountLoader<'info, User>,
     #[account(
         constraint = is_stats_for_user(&from_user, &user_stats)?
