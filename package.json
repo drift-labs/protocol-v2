@@ -48,6 +48,7 @@
 		"prettify:fix": "prettier --write './sdk/src/**/*.ts' './tests/**.ts'",
 		"lint": "eslint . --ext ts --quiet --format unix",
 		"lint:fix": "eslint . --ext ts --fix",
+		"bench:native-cu": "RUST_LOG=error ts-mocha -t 1000000 ./tests/nativeCuBench.ts",
 		"update-idl": "anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json"
 	},
 	"engines": {
