@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [master, devnet]
 
+permissions:
+  contents: read
+  # dorny/paths-filter calls the Pull Requests API to list changed files on
+  # pull_request events (check-for-sdk-changes / check-for-cli-admin-changes /
+  # check-for-program-version-changes). Without this the token defaults to
+  # contents/metadata only and the filter step fails with
+  # "Resource not accessible by integration".
+  pull-requests: read
+
 defaults:
   run:
     shell: bash
