@@ -1838,6 +1838,32 @@ export class VelocityClient {
 		return txSig;
 	}
 
+	public async getUpdateUserAllowDelegateTransferIx(
+		allowDelegateTransfer: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateUserAllowDelegateTransfer(
+			allowDelegateTransfer,
+			{
+				accounts: {
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+	}
+
+	public async updateUserAllowDelegateTransfer(
+		allowDelegateTransfer: boolean
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getUpdateUserAllowDelegateTransferIx(allowDelegateTransfer),
+			this.txParams
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async updateUserAdvancedLp(
 		updates: { advancedLp: boolean; subAccountId: number }[]
 	): Promise<TransactionSignature> {
@@ -3715,6 +3741,89 @@ export class VelocityClient {
 			},
 			remainingAccounts,
 		});
+	}
+
+	public async transferDepositByDelegate(
+		amount: BN,
+		marketIndex: number,
+		fromSubAccountId: number,
+		toSubAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getTransferDepositByDelegateIx(
+					amount,
+					marketIndex,
+					fromSubAccountId,
+					toSubAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		if (
+			fromSubAccountId === this.activeSubAccountId ||
+			toSubAccountId === this.activeSubAccountId
+		) {
+			this.spotMarketLastSlotCache.set(marketIndex, slot);
+		}
+		return txSig;
+	}
+
+	public async getTransferDepositByDelegateIx(
+		amount: BN,
+		marketIndex: number,
+		fromSubAccountId: number,
+		toSubAccountId: number
+	): Promise<TransactionInstruction> {
+		const fromUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			fromSubAccountId
+		);
+		const toUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			toSubAccountId
+		);
+
+		let remainingAccounts;
+
+		const userMapKey = this.getUserMapKey(fromSubAccountId, this.authority);
+		if (this.users.has(userMapKey)) {
+			remainingAccounts = this.getRemainingAccounts({
+				userAccounts: [this.users.get(userMapKey).getUserAccount()],
+				useMarketLastSlotCache: true,
+				writableSpotMarketIndexes: [marketIndex],
+			});
+		} else {
+			const fromUserAccount = (await (this.program.account as any).user.fetch(
+				fromUser
+			)) as UserAccount;
+			remainingAccounts = this.getRemainingAccounts({
+				userAccounts: [fromUserAccount],
+				useMarketLastSlotCache: true,
+				writableSpotMarketIndexes: [marketIndex],
+			});
+		}
+
+		return await this.program.instruction.transferDepositByDelegate(
+			marketIndex,
+			amount,
+			{
+				accounts: {
+					delegate: this.wallet.publicKey,
+					fromUser,
+					toUser,
+					userStats: this.getUserStatsAccountPublicKey(),
+					state: await this.getStatePublicKey(),
+					spotMarketVault: this.getSpotMarketAccount(marketIndex).vault,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	public async transferPools(

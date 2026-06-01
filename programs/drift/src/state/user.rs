@@ -1753,6 +1753,12 @@ pub enum PositionFlag {
     Bankrupt = 0b00000100,
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[borsh(use_discriminant = true)]
+pub enum UserDelegatePermission {
+    AllowDelegateTransfer = 0b00000001,
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -1801,7 +1807,9 @@ pub struct UserStats {
     /// The amount of tokens staked in the governance spot markets if
     pub if_staked_gov_token_amount: u64,
 
-    pub padding: [u8; 40],
+    /// Delegate permissions across all sub accounts
+    pub delegate_permissions: u8,
+    pub padding: [u8; 39],
 }
 
 impl Default for UserStats {
@@ -1824,7 +1832,8 @@ impl Default for UserStats {
             disable_update_perp_bid_ask_twap: 0,
             paused_operations: 0,
             if_staked_gov_token_amount: 0,
-            padding: [0; 40],
+            delegate_permissions: 0,
+            padding: [0; 39],
         }
     }
 }
@@ -1857,6 +1866,33 @@ impl Size for UserStats {
 }
 
 impl UserStats {
+    pub fn update_allow_delegate_transfer(&mut self, allow_delegate_transfer: bool) -> DriftResult {
+        if allow_delegate_transfer {
+            self.delegate_permissions |= UserDelegatePermission::AllowDelegateTransfer as u8;
+        } else {
+            self.delegate_permissions &= !(UserDelegatePermission::AllowDelegateTransfer as u8);
+        }
+
+        self.validate_delegate_permissions()
+    }
+
+    pub fn is_delegate_transfer_allowed(&self) -> bool {
+        self.delegate_permissions & UserDelegatePermission::AllowDelegateTransfer as u8 != 0
+    }
+
+    pub fn validate_delegate_permissions(&self) -> DriftResult {
+        let allowed_bits = UserDelegatePermission::AllowDelegateTransfer as u8;
+
+        validate!(
+            self.delegate_permissions & !allowed_bits == 0,
+            ErrorCode::DefaultError,
+            "unknown bits set in delegate_permissions: {:?}",
+            self.delegate_permissions
+        )?;
+
+        Ok(())
+    }
+
     pub fn update_maker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
 
