@@ -93,5 +93,5 @@
 		"supports-hyperlinks": "<4.1.1",
 		"has-ansi": "<6.0.1"
 	},
-	"packageManager": "bun@1.2.0"
+	"packageManager": "bun@1.3.14"
 }

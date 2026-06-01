@@ -14,5 +14,5 @@ test_files=(
 )
 
 for test_file in ${test_files[@]}; do
-  ts-mocha -t 300000 ./tests/${test_file}
+  ts-mocha --exit -t 300000 ./tests/${test_file}
 done

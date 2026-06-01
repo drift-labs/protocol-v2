@@ -125,7 +125,7 @@ mod update_perp_auction_params {
             auction_end_price: Some(-((amm.last_bid_price_twap - 1000000) as i64)),
             auction_duration: Some(30),
             direction: PositionDirection::Short,
-            oracle_price_offset: Some(-((amm.last_bid_price_twap - 1000000) as i32)),
+            oracle_price_offset: Some(-((amm.last_bid_price_twap - 1000000) as i64)),
             ..OrderParams::default()
         };
 
@@ -652,7 +652,7 @@ mod update_perp_auction_params {
             auction_duration: None,
             post_only: PostOnlyParam::None,
             bit_flags: 0,
-            oracle_price_offset: Some((PRICE_PRECISION_I64 * 10) as i32),
+            oracle_price_offset: Some(PRICE_PRECISION_I64 * 10),
             price: 0,
             direction: PositionDirection::Long,
             ..OrderParams::default()
@@ -676,7 +676,7 @@ mod update_perp_auction_params {
             auction_duration: None,
             post_only: PostOnlyParam::None,
             bit_flags: 0,
-            oracle_price_offset: Some((-PRICE_PRECISION_I64 * 2) as i32),
+            oracle_price_offset: Some(-PRICE_PRECISION_I64 * 2),
             price: 0,
             direction: PositionDirection::Long,
             ..OrderParams::default()
@@ -693,7 +693,7 @@ mod update_perp_auction_params {
             auction_duration: None,
             post_only: PostOnlyParam::None,
             bit_flags: 0,
-            oracle_price_offset: Some((144) as i32),
+            oracle_price_offset: Some(144),
             price: 0,
             direction: PositionDirection::Long,
             ..OrderParams::default()
@@ -710,7 +710,7 @@ mod update_perp_auction_params {
             auction_duration: None,
             post_only: PostOnlyParam::None,
             bit_flags: 0,
-            oracle_price_offset: Some((199003) as i32),
+            oracle_price_offset: Some(199003),
             price: 0,
             direction: PositionDirection::Long,
             ..OrderParams::default()
@@ -733,7 +733,7 @@ mod update_perp_auction_params {
             auction_duration: None,
             post_only: PostOnlyParam::None,
             bit_flags: 0,
-            oracle_price_offset: Some((-PRICE_PRECISION_I64 * 10) as i32),
+            oracle_price_offset: Some(-PRICE_PRECISION_I64 * 10),
             price: 0,
             direction: PositionDirection::Short,
             ..OrderParams::default()
@@ -757,7 +757,7 @@ mod update_perp_auction_params {
             auction_duration: None,
             post_only: PostOnlyParam::None,
             bit_flags: 0,
-            oracle_price_offset: Some((-199003) as i32),
+            oracle_price_offset: Some(-199003),
             price: 0,
             direction: PositionDirection::Short,
             ..OrderParams::default()
@@ -1168,7 +1168,7 @@ mod update_perp_auction_params {
             direction: PositionDirection::Long,
             auction_start_price: None,
             auction_end_price: None,
-            oracle_price_offset: Some(5 * PRICE_PRECISION_U64 as i32),
+            oracle_price_offset: Some(5 * PRICE_PRECISION_I64),
             auction_duration: None,
 
             ..OrderParams::default()
@@ -1265,7 +1265,7 @@ mod update_perp_auction_params {
             direction: PositionDirection::Short,
             auction_start_price: None,
             auction_end_price: None,
-            oracle_price_offset: Some(-5 * PRICE_PRECISION_I64 as i32),
+            oracle_price_offset: Some(-5 * PRICE_PRECISION_I64),
             auction_duration: None,
 
             ..OrderParams::default()
@@ -1366,7 +1366,7 @@ mod get_close_perp_params {
         let oracle_price_offset = params.oracle_price_offset.unwrap();
         assert_eq!(auction_start_price, -1000000);
         assert_eq!(auction_end_price, 2 * PRICE_PRECISION_I64);
-        assert_eq!(oracle_price_offset, 2 * PRICE_PRECISION_I64 as i32);
+        assert_eq!(oracle_price_offset, 2 * PRICE_PRECISION_I64);
 
         let order = get_order(&params, slot);
 
@@ -1401,7 +1401,7 @@ mod get_close_perp_params {
         let oracle_price_offset = params.oracle_price_offset.unwrap();
         assert_eq!(auction_start_price, 2 * PRICE_PRECISION_I64);
         assert_eq!(auction_end_price, 4 * PRICE_PRECISION_I64);
-        assert_eq!(oracle_price_offset, 4 * PRICE_PRECISION_I64 as i32);
+        assert_eq!(oracle_price_offset, 4 * PRICE_PRECISION_I64);
 
         let order = get_order(&params, slot);
 
@@ -1481,7 +1481,7 @@ mod get_close_perp_params {
         let oracle_price_offset = params.oracle_price_offset.unwrap();
         assert_eq!(auction_start_price, 0);
         assert_eq!(auction_end_price, -2 * PRICE_PRECISION_I64);
-        assert_eq!(oracle_price_offset, -2 * PRICE_PRECISION_I64 as i32);
+        assert_eq!(oracle_price_offset, -2 * PRICE_PRECISION_I64);
 
         let order = get_order(&params, slot);
 
@@ -1555,7 +1555,7 @@ mod get_close_perp_params {
         let oracle_price_offset = params.oracle_price_offset.unwrap();
         assert_eq!(auction_start_price, -2 * PRICE_PRECISION_I64);
         assert_eq!(auction_end_price, -4 * PRICE_PRECISION_I64);
-        assert_eq!(oracle_price_offset, -4 * PRICE_PRECISION_I64 as i32);
+        assert_eq!(oracle_price_offset, -4 * PRICE_PRECISION_I64);
 
         let order = get_order(&params, slot);
 
@@ -1678,7 +1678,7 @@ mod get_close_perp_params {
             max_ts: 100,
             posted_slot_tail: get_posted_slot_from_clock_slot(slot),
             bit_flags: 0,
-            padding: [0; 1],
+            padding: [0; 5],
         }
     }
 
@@ -1741,7 +1741,7 @@ mod get_close_perp_params {
         let auction_duration = params.auction_duration.unwrap();
         assert_eq!(auction_start_price, long_start); // $25 above
         assert_eq!(auction_end_price, long_end); // 115
-        assert_eq!(oracle_price_offset, long_end as i32);
+        assert_eq!(oracle_price_offset, long_end);
         assert_eq!(auction_duration, 80);
 
         let order = get_order(&params, slot);

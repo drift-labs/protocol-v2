@@ -1,0 +1,162 @@
+name: release-please
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+# Note: the node version for the publish jobs lives in the npm-publish-setup
+# composite action's default input, not here — main.yml keeps its own
+# NODE_VERSION because GitHub Actions can't share env across workflow files
+# without promoting one of them to a reusable workflow (not worth it for a
+# single string).
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. release-please: parses Conventional Commits since the last release tag.
+  #
+  #    On every push to master it either opens / updates a "release PR" (which
+  #    bumps versions, regenerates CHANGELOGs, and updates the manifest) or, if
+  #    the most recent push was the merge of a release PR, creates Git tags +
+  #    GitHub Releases and exports `<component>--release_created` outputs that
+  #    gate the publish jobs below.
+  # ---------------------------------------------------------------------------
+  release-please:
+    runs-on: ubicloud
+    outputs:
+      sdk_released: ${{ steps.release.outputs['sdk--release_created'] }}
+      sdk_tag: ${{ steps.release.outputs['sdk--tag_name'] }}
+      sdk_version: ${{ steps.release.outputs['sdk--version'] }}
+      cli_admin_released: ${{ steps.release.outputs['cli-admin--release_created'] }}
+      cli_admin_tag: ${{ steps.release.outputs['cli-admin--tag_name'] }}
+      cli_admin_version: ${{ steps.release.outputs['cli-admin--version'] }}
+    steps:
+      # Mint an App installation token so the release PR is authored by the
+      # App (not github-actions[bot]). Without this, GitHub suppresses
+      # workflow runs on the release PR — required-check gates can never pass.
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@a02a34c4d625f9be7cb89156071d8567266a2445 # v4
+        id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # ---------------------------------------------------------------------------
+  # 2. Publish @velocity-exchange/sdk (node).
+  #    Runs only when release-please cut a tag for the `sdk` component.
+  # ---------------------------------------------------------------------------
+  publish-sdk:
+    needs: release-please
+    if: needs.release-please.outputs.sdk_released == 'true'
+    runs-on: ubicloud
+    permissions:
+      contents: read
+      id-token: write # required for npm trusted publishing (OIDC token exchange)
+    defaults:
+      run:
+        working-directory: ./sdk
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.release-please.outputs.sdk_tag }}
+      - uses: ./.github/actions/npm-publish-setup
+        with:
+          working-directory: ./sdk
+      - name: Publish node build to npm
+        # OIDC trusted publishing — --provenance is implicit, no NPM_TOKEN.
+        run: npm publish --access=public
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        with:
+          channel-id: '#code-review'
+          slack-message: '<!here> ❌ SDK publish failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+
+  # ---------------------------------------------------------------------------
+  # 3. Publish @velocity-exchange/admin-cli. Depends on publish-sdk so the SDK
+  #    version it pins resolves on npm. `always()` + result guards let this run
+  #    when the SDK wasn't part of this release.
+  # ---------------------------------------------------------------------------
+  publish-cli-admin:
+    needs: [release-please, publish-sdk]
+    if: |
+      always() &&
+      needs.release-please.outputs.cli_admin_released == 'true' &&
+      (needs.publish-sdk.result == 'success' || needs.publish-sdk.result == 'skipped')
+    runs-on: ubicloud
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: ./cli-admin
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.release-please.outputs.cli_admin_tag }}
+      - uses: ./.github/actions/npm-publish-setup
+        with:
+          working-directory: ./cli-admin
+      - name: Pin @velocity-exchange/sdk dep + publish
+        # prepare-publish rewrites file:../sdk to a real semver before publish;
+        # restore-publish puts the file:.. back so the local checkout matches
+        # the committed state. Authenticates via OIDC trusted publishing.
+        run: |
+          bun run prepare-publish
+          npm publish --access=public
+          status=$?
+          bun run restore-publish
+          exit $status
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        with:
+          channel-id: '#code-review'
+          slack-message: '<!here> ❌ cli-admin publish failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+
+  # ---------------------------------------------------------------------------
+  # 4. Fan out repository_dispatch events to downstream consumers of the SDK.
+  #    Mirrors the previous `emit-dispatch-events` job in main.yml.
+  # ---------------------------------------------------------------------------
+  emit-dispatch-events:
+    needs: [release-please, publish-sdk]
+    if: needs.release-please.outputs.sdk_released == 'true' && needs.publish-sdk.result == 'success'
+    runs-on: ubicloud
+    strategy:
+      matrix:
+        repo:
+          - jit-proxy
+          - dlob-server
+          - drift-vaults
+          - drift-common
+          - drift-ffi-sys
+          - drift-rs
+          - swift
+    steps:
+      - name: Emit dispatch event
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          VERSION: ${{ needs.release-please.outputs.sdk_version }}
+          REPO: ${{ matrix.repo }}
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token $GH_PAT" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/drift-labs/$REPO/dispatches" \
+            -d "{\"event_type\": \"sdk-update\", \"client_payload\": { \"version\": \"$VERSION\" }}"

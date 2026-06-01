@@ -168,11 +168,8 @@ export function getLimitPrice<T extends MarketTypeStr>(
 ): BN | undefined {
 	if (hasAuctionPrice(order, slot)) {
 		return getAuctionPrice(order, slot, oraclePriceData.price);
-	} else if (order.oraclePriceOffset !== 0) {
-		return BN.max(
-			oraclePriceData.price.add(new BN(order.oraclePriceOffset)),
-			ONE
-		);
+	} else if (!order.oraclePriceOffset.eq(ZERO)) {
+		return BN.max(oraclePriceData.price.add(order.oraclePriceOffset), ONE);
 	} else if (order.price.eq(ZERO)) {
 		return fallbackPrice;
 	} else {
@@ -183,7 +180,7 @@ export function getLimitPrice<T extends MarketTypeStr>(
 export function hasLimitPrice(order: Order, slot: number): boolean {
 	return (
 		order.price.gt(ZERO) ||
-		order.oraclePriceOffset != 0 ||
+		!order.oraclePriceOffset.eq(ZERO) ||
 		!isAuctionComplete(order, slot)
 	);
 }

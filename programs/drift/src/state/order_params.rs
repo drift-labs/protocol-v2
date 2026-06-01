@@ -32,7 +32,7 @@ pub struct OrderParams {
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: Option<i32>, // price offset from oracle for order (~ +/- 2147 max)
+    pub oracle_price_offset: Option<i64>, // price offset from oracle for order
     pub auction_duration: Option<u8>,     // specified in slots
     pub auction_start_price: Option<i64>, // specified in price or oracle_price_offset
     pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
@@ -99,8 +99,7 @@ impl OrderParams {
                     let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
 
                     let crosses = if is_oracle_offset_oracle {
-                        oracle_price_offset.cast::<i64>()?
-                            > (est_ask as i64).safe_sub(oracle_price)?
+                        oracle_price_offset > (est_ask as i64).safe_sub(oracle_price)?
                     } else {
                         self.price > est_ask
                     };
@@ -124,7 +123,7 @@ impl OrderParams {
                                 "Updating oracle auction end price to {}",
                                 oracle_price_offset
                             );
-                            self.auction_end_price = Some(oracle_price_offset as i64);
+                            self.auction_end_price = Some(oracle_price_offset);
                         } else {
                             msg!(
                                 "Updating auction start price to {}",
@@ -141,8 +140,7 @@ impl OrderParams {
                     let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
 
                     let crosses = if is_oracle_offset_oracle {
-                        oracle_price_offset.cast::<i64>()?
-                            < (est_bid as i64).safe_sub(oracle_price)?
+                        oracle_price_offset < (est_bid as i64).safe_sub(oracle_price)?
                     } else {
                         self.price < est_bid
                     };
@@ -166,7 +164,7 @@ impl OrderParams {
                                 "Updating oracle auction end price to {}",
                                 oracle_price_offset
                             );
-                            self.auction_end_price = Some(oracle_price_offset as i64);
+                            self.auction_end_price = Some(oracle_price_offset);
                         } else {
                             msg!(
                                 "Updating auction start price to {}",
@@ -237,7 +235,7 @@ impl OrderParams {
                         "Updating oracle limit auction end price to {}",
                         oracle_price_offset
                     );
-                    self.auction_end_price = Some(oracle_price_offset as i64);
+                    self.auction_end_price = Some(oracle_price_offset);
                 } else {
                     msg!("Updating limit auction end price to {}", self.price);
                     self.auction_end_price = Some(self.price as i64);
@@ -246,7 +244,7 @@ impl OrderParams {
         }
 
         let worst_price = if is_oracle_offset_oracle {
-            oracle_price_offset as i64
+            oracle_price_offset
         } else {
             self.price as i64
         };
@@ -569,7 +567,7 @@ impl OrderParams {
         perp_market: &PerpMarket,
         direction: PositionDirection,
         oracle_price: i64,
-        oracle_price_offset: Option<i32>,
+        oracle_price_offset: Option<i64>,
         start_buffer: i64,
     ) -> DriftResult<(i64, i64, u8)> {
         let (mut auction_start_price, mut auction_end_price) = if let Some(oracle_price_offset) =
@@ -578,7 +576,7 @@ impl OrderParams {
             let mut auction_start_price_offset =
                 OrderParams::get_perp_baseline_start_price_offset(perp_market, direction)?;
 
-            let oracle_price_offset = oracle_price_offset as i64;
+            let oracle_price_offset = oracle_price_offset;
             if direction == PositionDirection::Long {
                 auction_start_price_offset = auction_start_price_offset.min(oracle_price_offset)
             } else {
@@ -924,7 +922,7 @@ pub struct ModifyOrderParams {
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: Option<OrderTriggerCondition>,
-    pub oracle_price_offset: Option<i32>,
+    pub oracle_price_offset: Option<i64>,
     pub auction_duration: Option<u8>,
     pub auction_start_price: Option<i64>,
     pub auction_end_price: Option<i64>,

@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use crate::controller::amm::*;
-use crate::controller::insurance::settle_revenue_to_insurance_fund;
 use crate::controller::spot_balance::execute_transfer_between_pools;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64, QUOTE_PRECISION,
