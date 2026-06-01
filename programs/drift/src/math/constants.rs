@@ -231,3 +231,7 @@ pub const INTEREST_RATE_SEGMENT_AND_WEIGHTS: &[(u128, u128)] = &[
     (995_000, 250),
     (1_000_000, 250),
 ];
+
+// MM ORACLE
+pub const MM_ORACLE_MIN_SLOT_GAP: u64 = 2; // min slots between accepted writes
+pub const MM_ORACLE_MAX_STEP_PCT_PRECISION: i128 = PERCENTAGE_PRECISION_I128 / 100; // 1%

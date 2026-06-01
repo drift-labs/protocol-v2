@@ -416,7 +416,9 @@ describe('admin', () => {
 	});
 
 	it('update MM oracle native', async () => {
-		const oraclePrice = new BN(100);
+		// Use a realistic baseline in PRICE_PRECISION so the small numeric increments
+		// stay well under the 1% step cap enforced by the native handler.
+		const oraclePrice = new BN(100_000_000);
 		const oracleTS = new BN(Date.now());
 		await driftClient.updateFeatureBitFlagsMMOracle(true);
 		await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
@@ -465,6 +467,31 @@ describe('admin', () => {
 		perpMarket = driftClient.getPerpMarketAccount(0);
 		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice.addn(2)));
 		assert(perpMarket.amm.mmOracleSequenceId.eq(oracleTS.addn(1)));
+	});
+
+	it('mm oracle step cap rejects too large jump', async () => {
+		await driftClient.fetchAccounts();
+		const before = driftClient.getPerpMarketAccount(0);
+		const baselinePrice = before.amm.mmOraclePrice;
+		const baselineSeqId = before.amm.mmOracleSequenceId;
+
+		// 5% jump from the last accepted price exceeds the 1% step cap.
+		const tooLargePrice = baselinePrice.muln(105).divn(100);
+		const freshSeqId = baselineSeqId.addn(1000);
+
+		// Silent no-op: the tx itself succeeds but state must be unchanged.
+		await driftClient.updateMmOracleNative(0, tooLargePrice, freshSeqId);
+		await driftClient.fetchAccounts();
+
+		const after = driftClient.getPerpMarketAccount(0);
+		assert(
+			after.amm.mmOraclePrice.eq(baselinePrice),
+			'mm oracle price should be unchanged after step-cap reject'
+		);
+		assert(
+			after.amm.mmOracleSequenceId.eq(baselineSeqId),
+			'mm oracle sequence id should be unchanged after step-cap reject'
+		);
 	});
 
 	it('update amm adjustment oracle native', async () => {
