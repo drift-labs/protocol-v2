@@ -381,7 +381,7 @@ impl MarginCalculation {
             return false;
         }
 
-        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations {
+        for isolated_margin_calculation in self.isolated_margin_calculations.values() {
             if !isolated_margin_calculation.meets_margin_requirement() {
                 return false;
             }
@@ -398,7 +398,7 @@ impl MarginCalculation {
             return false;
         }
 
-        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations {
+        for isolated_margin_calculation in self.isolated_margin_calculations.values() {
             if !isolated_margin_calculation.meets_margin_requirement_with_buffer() {
                 return false;
             }

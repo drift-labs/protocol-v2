@@ -416,9 +416,9 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const market00 = driftClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
-		console.log('market00 oracle string:', market00.amm.oracle.toString());
+		console.log('market00 oracle string:', market00.oracle.toString());
 		const oraclePriceData00Test = driftClient.getOraclePriceDataAndSlot(
-			market00.amm.oracle
+			market00.oracle
 		);
 		console.log(oraclePriceData00Test);
 		const oraclePriceData00 = driftClient.getOracleDataForPerpMarket(
@@ -559,7 +559,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
 		assert(
-			market0.amm.quoteAssetAmount.eq(
+			market0.quoteAssetAmount.eq(
 				winnerUser.perpPositions[0].quoteAssetAmount.add(
 					loserUser.perpPositions[0].quoteAssetAmount
 				)
@@ -576,7 +576,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		// assert(bid1.sub(bid0After).abs().lte(TWO));
 		// assert(ask1.sub(ask0After).abs().lte(TWO));
 
-		while (!market0.amm.lastOracleValid) {
+		while (!market0.marketStats.lastOracleValid) {
 			const imbalance = calculateNetUserPnlImbalance(
 				market0,
 				bank0,
@@ -589,16 +589,16 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 			console.log(
 				'lastOraclePrice:',
-				market0.amm.historicalOracleData.lastOraclePrice.toString()
+				market0.marketStats.historicalOracleData.lastOraclePrice.toString()
 			);
-			console.log('lastOracleValid:', market0.amm.lastOracleValid.toString());
+			console.log('lastOracleValid:', market0.marketStats.lastOracleValid.toString());
 			console.log('lastUpdateSlot:', market0.amm.lastUpdateSlot.toString());
 
-			console.log('lastAskPriceTwap:', market0.amm.lastAskPriceTwap.toString());
-			console.log('lastBidPriceTwap:', market0.amm.lastBidPriceTwap.toString());
+			console.log('lastAskPriceTwap:', market0.marketStats.lastAskPriceTwap.toString());
+			console.log('lastBidPriceTwap:', market0.marketStats.lastBidPriceTwap.toString());
 			console.log(
 				'lastOraclePriceTwap:',
-				market0.amm.historicalOracleData.lastOraclePriceTwap.toString()
+				market0.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
 			);
 
 			try {
@@ -627,18 +627,18 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		console.log(
 			'lastOraclePrice:',
-			market0.amm.historicalOracleData.lastOraclePrice.toString()
+			market0.marketStats.historicalOracleData.lastOraclePrice.toString()
 		);
-		console.log('lastOracleValid:', market0.amm.lastOracleValid.toString());
+		console.log('lastOracleValid:', market0.marketStats.lastOracleValid.toString());
 		console.log('lastUpdateSlot:', market0.amm.lastUpdateSlot.toString());
 
-		console.log('lastAskPriceTwap:', market0.amm.lastAskPriceTwap.toString());
-		console.log('lastBidPriceTwap:', market0.amm.lastBidPriceTwap.toString());
+		console.log('lastAskPriceTwap:', market0.marketStats.lastAskPriceTwap.toString());
+		console.log('lastBidPriceTwap:', market0.marketStats.lastBidPriceTwap.toString());
 		console.log(
 			'lastOraclePriceTwap:',
-			market0.amm.historicalOracleData.lastOraclePriceTwap.toString()
+			market0.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
 		);
-		assert(market0.amm.lastOracleValid == true);
+		assert(market0.marketStats.lastOracleValid == true);
 	});
 	it('update market imbalance limits', async () => {
 		const marketIndex = 0;
@@ -717,7 +717,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(isVariant(perpMarket.status, 'active'));
 		console.log(
 			'totalExchangeFee:',
-			perpMarket.amm.totalExchangeFee.toString()
+			perpMarket.totalExchangeFee.toString()
 		);
 		console.log('totalFee:', perpMarket.amm.totalFee.toString());
 		console.log('totalMMFee:', perpMarket.amm.totalMmFee.toString());
@@ -959,7 +959,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(isVariant(perpMarket.status, 'active'));
 		console.log(
 			'totalExchangeFee:',
-			perpMarket.amm.totalExchangeFee.toString()
+			perpMarket.totalExchangeFee.toString()
 		);
 		console.log('totalFee:', perpMarket.amm.totalFee.toString());
 		console.log('totalMMFee:', perpMarket.amm.totalMmFee.toString());
@@ -1054,7 +1054,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 	console.log('feePool:', marketAfter0.amm.feePool.scaledBalance.toString());
 	// 	console.log(
 	// 		'totalExchangeFee:',
-	// 		marketAfter0.amm.totalExchangeFee.toString()
+	// 		marketAfter0.totalExchangeFee.toString()
 	// 	);
 	// 	assert(marketAfter0.amm.feePool.scaledBalance.eq(new BN(4356250)));
 	// 	await liquidatorDriftClientUser.unsubscribe();

@@ -56,14 +56,13 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let fee = quote_asset_amount_surplus
             .cast::<u64>()?
             .safe_sub(maker_rebate)
-            .map_err(|e| {
+            .inspect_err(|_e| {
                 msg!(
                     "quote_asset_amount_surplus {} quote_asset_amount {} maker_rebate {}",
                     quote_asset_amount_surplus,
                     quote_asset_amount,
                     maker_rebate
                 );
-                e
             })?;
 
         let filler_reward = if !reward_filler {
@@ -420,9 +419,9 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     })
 }
 
-pub fn determine_user_fee_tier<'a>(
+pub fn determine_user_fee_tier(
     user_stats: &UserStats,
-    fee_structure: &'a FeeStructure,
+    fee_structure: &FeeStructure,
     market_type: &MarketType,
 ) -> DriftResult<FeeTier> {
     match market_type {

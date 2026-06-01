@@ -466,7 +466,7 @@ describe('place and make signedMsg order', () => {
 					.map((account) => account.pubkey),
 				...makerDriftClient
 					.getPerpMarketAccounts()
-					.map((account) => account.amm.oracle),
+					.map((account) => account.oracle),
 				...makerDriftClient
 					.getSpotMarketAccounts()
 					.map((account) => account.pubkey),
@@ -639,7 +639,7 @@ describe('place and make signedMsg order', () => {
 					.map((account) => account.pubkey),
 				...makerDriftClient
 					.getPerpMarketAccounts()
-					.map((account) => account.amm.oracle),
+					.map((account) => account.oracle),
 				...makerDriftClient
 					.getSpotMarketAccounts()
 					.map((account) => account.pubkey),

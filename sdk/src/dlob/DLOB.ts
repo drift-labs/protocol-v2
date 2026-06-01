@@ -483,7 +483,7 @@ export class DLOB {
 		);
 
 		const stepSize = isVariant(marketType, 'perp')
-			? (marketAccount as PerpMarketAccount).amm.orderStepSize
+			? (marketAccount as PerpMarketAccount).orderStepSize
 			: (marketAccount as SpotMarketAccount).orderStepSize;
 
 		const cancelReduceOnlyNodesToFill =

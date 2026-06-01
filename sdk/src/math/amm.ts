@@ -17,6 +17,7 @@ import {
 } from '../constants/numericConstants';
 import {
 	AMM,
+	MarketStats,
 	PositionDirection,
 	SwapDirection,
 	PerpMarketAccount,
@@ -52,6 +53,7 @@ export function calculatePegFromTargetPrice(
 
 export function calculateOptimalPegAndBudget(
 	amm: AMM,
+	totalExchangeFee: BN,
 	mmOraclePriceData: MMOraclePriceData
 ): [BN, BN, BN, boolean] {
 	const reservePriceBefore = calculatePrice(
@@ -67,7 +69,7 @@ export function calculateOptimalPegAndBudget(
 	);
 	const prePegCost = calculateRepegCost(amm, newPeg);
 
-	const totalFeeLB = amm.totalExchangeFee.div(new BN(2));
+	const totalFeeLB = totalExchangeFee.div(new BN(2));
 	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
 
 	let checkLowerBound = true;
@@ -102,7 +104,7 @@ export function calculateOptimalPegAndBudget(
 
 			return [newTargetPrice, newOptimalPeg, newBudget, false];
 		} else if (
-			amm.totalFeeMinusDistributions.lt(amm.totalExchangeFee.div(new BN(2)))
+			amm.totalFeeMinusDistributions.lt(totalExchangeFee.div(new BN(2)))
 		) {
 			checkLowerBound = false;
 		}
@@ -113,13 +115,14 @@ export function calculateOptimalPegAndBudget(
 
 export function calculateNewAmm(
 	amm: AMM,
+	totalExchangeFee: BN,
 	mmOraclePriceData: MMOraclePriceData
 ): [BN, BN, BN, BN] {
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
 	const [targetPrice, _newPeg, budget, _checkLowerBound] =
-		calculateOptimalPegAndBudget(amm, mmOraclePriceData);
+		calculateOptimalPegAndBudget(amm, totalExchangeFee, mmOraclePriceData);
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
 
@@ -155,6 +158,7 @@ export function calculateNewAmm(
 
 export function calculateUpdatedAMM(
 	amm: AMM,
+	totalExchangeFee: BN,
 	mmOraclePriceData: MMOraclePriceData
 ): AMM {
 	if (amm.curveUpdateIntensity == 0 || mmOraclePriceData === undefined) {
@@ -163,6 +167,7 @@ export function calculateUpdatedAMM(
 	const newAmm = Object.assign({}, amm);
 	const [prepegCost, pKNumer, pKDenom, newPeg] = calculateNewAmm(
 		amm,
+		totalExchangeFee,
 		mmOraclePriceData
 	);
 
@@ -195,13 +200,16 @@ export function calculateUpdatedAMM(
 
 export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
+	marketStats: MarketStats,
+	totalExchangeFee: BN,
 	direction: PositionDirection,
 	mmOraclePriceData: MMOraclePriceData,
 	latestSlot?: BN
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, totalExchangeFee, mmOraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
+		marketStats,
 		mmOraclePriceData,
 		undefined,
 		latestSlot
@@ -223,19 +231,22 @@ export function calculateUpdatedAMMSpreadReserves(
 
 export function calculateBidAskPrice(
 	amm: AMM,
+	marketStats: MarketStats,
+	totalExchangeFee: BN,
 	mmOraclePriceData: MMOraclePriceData,
 	withUpdate = true,
 	latestSlot?: BN
 ): [BN, BN] {
 	let newAmm: AMM;
 	if (withUpdate) {
-		newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
+		newAmm = calculateUpdatedAMM(amm, totalExchangeFee, mmOraclePriceData);
 	} else {
 		newAmm = amm;
 	}
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		newAmm,
+		marketStats,
 		mmOraclePriceData,
 		undefined,
 		latestSlot
@@ -844,6 +855,7 @@ export function calculateSpreadBN(
 
 export function calculateSpread(
 	amm: AMM,
+	marketStats: MarketStats,
 	oraclePriceData: OraclePriceData,
 	now?: BN,
 	reservePrice?: BN
@@ -867,9 +879,13 @@ export function calculateSpread(
 		.div(reservePrice);
 
 	now = now || new BN(new Date().getTime() / 1000); //todo
-	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);
+	const liveOracleStd = calculateLiveOracleStd(
+		marketStats,
+		oraclePriceData,
+		now
+	);
 	const confIntervalPct = getNewOracleConfPct(
-		amm,
+		marketStats,
 		oraclePriceData,
 		reservePrice,
 		now
@@ -890,11 +906,11 @@ export function calculateSpread(
 		amm.baseAssetReserve,
 		amm.minBaseAssetReserve,
 		amm.maxBaseAssetReserve,
-		amm.markStd,
+		marketStats.markStd,
 		liveOracleStd,
-		amm.longIntensityVolume,
-		amm.shortIntensityVolume,
-		amm.volume24H,
+		marketStats.longIntensityVolume,
+		marketStats.shortIntensityVolume,
+		marketStats.volume24H,
 		amm.ammInventorySpreadAdjustment
 	);
 	let longSpread = spreads[0];
@@ -925,6 +941,7 @@ export function calculateSpread(
 
 export function calculateSpreadReserves(
 	amm: AMM,
+	marketStats: MarketStats,
 	mmOraclePriceData: MMOraclePriceData,
 	now?: BN,
 	latestSlot?: BN
@@ -1022,25 +1039,27 @@ export function calculateSpreadReserves(
 
 		referencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
-			amm.last24HAvgFundingRate,
+			marketStats.last24HAvgFundingRate,
 			liquidityFractionAfterDeadband,
-			amm.historicalOracleData.lastOraclePriceTwap5Min,
-			amm.lastMarkPriceTwap5Min,
-			amm.historicalOracleData.lastOraclePriceTwap,
-			amm.lastMarkPriceTwap,
+			marketStats.historicalOracleData.lastOraclePriceTwap5Min,
+			marketStats.lastMarkPriceTwap5Min,
+			marketStats.historicalOracleData.lastOraclePriceTwap,
+			marketStats.lastMarkPriceTwap,
 			maxOffset
 		).toNumber();
 	}
 
 	let [longSpread, shortSpread] = calculateSpread(
 		amm,
+		marketStats,
 		mmOraclePriceData,
 		now,
 		reservePrice
 	);
 
+	const lastReferencePriceOffset = marketStats.lastReferencePriceOffset;
 	const doReferencePricOffsetSmooth =
-		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset) &&
+		Math.sign(referencePriceOffset) !== Math.sign(lastReferencePriceOffset) &&
 		amm.curveUpdateIntensity > 100;
 
 	if (doReferencePricOffsetSmooth) {
@@ -1048,17 +1067,17 @@ export function calculateSpreadReserves(
 			latestSlot != null
 				? BN.max(latestSlot.sub(amm.lastUpdateSlot), ZERO).toNumber()
 				: 0;
-		const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
+		const fullOffsetDelta = referencePriceOffset - lastReferencePriceOffset;
 		const raw = Math.trunc(
 			Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
 		);
 		const maxAllowed =
-			Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
+			Math.abs(lastReferencePriceOffset) || Math.abs(referencePriceOffset);
 
 		const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
 		const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
 
-		referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
+		referencePriceOffset = lastReferencePriceOffset + referencePriceDelta;
 
 		if (referencePriceDelta < 0) {
 			longSpread += Math.abs(referencePriceDelta);
@@ -1159,6 +1178,7 @@ export function calculateTerminalPrice(market: PerpMarketAccount) {
 
 export function calculateMaxBaseAssetAmountToTrade(
 	amm: AMM,
+	marketStats: MarketStats,
 	limit_price: BN,
 	direction: PositionDirection,
 	mmOraclePriceData?: MMOraclePriceData,
@@ -1175,6 +1195,7 @@ export function calculateMaxBaseAssetAmountToTrade(
 	const newBaseAssetReserve = squareRootBN(newBaseAssetReserveSquared);
 	const [shortSpreadReserves, longSpreadReserves] = calculateSpreadReserves(
 		amm,
+		marketStats,
 		mmOraclePriceData,
 		now
 	);
@@ -1221,6 +1242,7 @@ export function calculateQuoteAssetAmountSwapped(
 
 export function calculateMaxBaseAssetAmountFillable(
 	amm: AMM,
+	orderStepSize: BN,
 	orderDirection: PositionDirection
 ): BN {
 	const maxFillSize = amm.baseAssetReserve.div(
@@ -1241,6 +1263,6 @@ export function calculateMaxBaseAssetAmountFillable(
 
 	return standardizeBaseAssetAmount(
 		BN.min(maxFillSize, maxBaseAssetAmountOnSide),
-		amm.orderStepSize
+		orderStepSize
 	);
 }

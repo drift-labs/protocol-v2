@@ -95,10 +95,10 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
     let constituent_map =
-        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
+        ConstituentMap::load(&ConstituentSet::new(), lp_pool_key, remaining_accounts)?;
 
     let mut amm_inventories: BTreeMap<u16, AmmInventoryAndPricesAndSlots> = BTreeMap::new();
-    for (_, cache_info) in amm_cache.iter().enumerate() {
+    for cache_info in amm_cache.iter() {
         if cache_info.lp_status_for_perp_market == 0 {
             continue;
         }
@@ -341,7 +341,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         0,
         None,
     )?;
-    let in_oracle = in_oracle.clone();
+    let in_oracle = *in_oracle;
 
     let (out_oracle, out_oracle_validity) = oracle_map.get_price_data_and_validity(
         MarketType::Spot,
@@ -397,7 +397,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_target_oracle_slot_delay,
         out_target_oracle_slot_delay,
         &in_oracle,
-        &out_oracle,
+        out_oracle,
         &in_constituent,
         &out_constituent,
         &in_spot_market,
@@ -566,7 +566,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
         0,
         None,
     )?;
-    let in_oracle = in_oracle.clone();
+    let in_oracle = *in_oracle;
 
     let (out_oracle, _) = oracle_map.get_price_data_and_validity(
         MarketType::Spot,
@@ -594,7 +594,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
         in_target_oracle_slot_delay,
         out_target_oracle_slot_delay,
         &in_oracle,
-        &out_oracle,
+        out_oracle,
         &in_constituent,
         &out_constituent,
         &in_spot_market,
@@ -708,7 +708,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         0,
         None,
     )?;
-    let in_oracle = in_oracle.clone();
+    let in_oracle = *in_oracle;
 
     if !is_oracle_valid_for_action(in_oracle_validity, Some(DriftAction::LpPoolSwap))? {
         msg!(
@@ -760,9 +760,9 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     );
 
     let lp_mint_amount_net_fees = if lp_fee_amount > 0 {
-        lp_amount.safe_sub(lp_fee_amount.unsigned_abs() as u64)?
+        lp_amount.safe_sub(lp_fee_amount.unsigned_abs())?
     } else {
-        lp_amount.safe_add(lp_fee_amount.unsigned_abs() as u64)?
+        lp_amount.safe_add(lp_fee_amount.unsigned_abs())?
     };
 
     validate!(
@@ -928,7 +928,7 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
         0,
         None,
     )?;
-    let in_oracle = in_oracle.clone();
+    let in_oracle = *in_oracle;
 
     if !is_oracle_valid_for_action(in_oracle_validity, Some(DriftAction::LpPoolSwap))? {
         msg!(
@@ -1123,9 +1123,9 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     );
 
     let lp_burn_amount_net_fees = if lp_fee_amount > 0 {
-        lp_burn_amount.safe_sub(lp_fee_amount.unsigned_abs() as u64)?
+        lp_burn_amount.safe_sub(lp_fee_amount.unsigned_abs())?
     } else {
-        lp_burn_amount.safe_add(lp_fee_amount.unsigned_abs() as u64)?
+        lp_burn_amount.safe_add(lp_fee_amount.unsigned_abs())?
     };
 
     let out_amount_net_fees = if out_fee_amount > 0 {
@@ -1332,7 +1332,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
         0,
         None,
     )?;
-    let out_oracle = out_oracle.clone();
+    let out_oracle = *out_oracle;
 
     if !is_oracle_valid_for_action(out_oracle_validity, Some(DriftAction::LpPoolSwap))? {
         msg!(
@@ -1429,7 +1429,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
-        Some(&oracle_data),
+        Some(oracle_data),
         clock.unix_timestamp,
     )?;
     let token_balance_after_cumulative_interest_update = constituent
@@ -1446,7 +1446,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     controller::token::send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         &ctx.accounts.constituent_token_account,
-        &spot_market_vault,
+        spot_market_vault,
         &ctx.accounts.constituent_token_account.to_account_info(),
         &Constituent::get_vault_signer_seeds(
             &constituent.lp_pool,
@@ -1624,7 +1624,7 @@ fn transfer_from_program_vault<'info>(
 ) -> Result<()> {
     constituent.sync_token_balance(constituent_token_account.amount);
 
-    let balance_before = constituent.get_full_token_amount(&spot_market)?;
+    let balance_before = constituent.get_full_token_amount(spot_market)?;
 
     // Adding some 5% flexibility to max threshold to prevent race conditions
     let buffer = constituent
@@ -1680,10 +1680,10 @@ fn transfer_from_program_vault<'info>(
     // Re-check spot market invariants
     spot_market_vault.reload()?;
     spot_market.validate_max_token_deposits_and_borrows(true)?;
-    math::spot_withdraw::validate_spot_market_vault_amount(&spot_market, spot_market_vault.amount)?;
+    math::spot_withdraw::validate_spot_market_vault_amount(spot_market, spot_market_vault.amount)?;
 
     // Verify withdraw fully accounted for in BLPosition
-    let balance_after = constituent.get_full_token_amount(&spot_market)?;
+    let balance_after = constituent.get_full_token_amount(spot_market)?;
 
     let balance_diff_notional = if spot_market.decimals > 6 {
         balance_after

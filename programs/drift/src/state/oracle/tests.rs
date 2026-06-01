@@ -1,3 +1,4 @@
+use crate::state::perp_market::MarketStats;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
@@ -26,12 +27,10 @@ fn pyth_1k() {
         get_oracle_price(&OracleSource::Pyth1K, &oracle_account_info, 0).unwrap();
     assert_eq!(oracle_price_data.price, 839);
 
-    let amm = AMM {
-        oracle_source: OracleSource::Pyth1K,
-        ..AMM::default()
-    };
-
-    let twap = amm.get_oracle_twap(&oracle_account_info, 0).unwrap();
+    let amm = AMM { ..AMM::default() };
+    let twap = amm
+        .get_oracle_twap(&oracle_account_info, 0, OracleSource::Pyth1K)
+        .unwrap();
     assert_eq!(twap, Some(839));
 }
 
@@ -52,12 +51,10 @@ fn pyth_1m() {
         get_oracle_price(&OracleSource::Pyth1M, &oracle_account_info, 0).unwrap();
     assert_eq!(oracle_price_data.price, 839400);
 
-    let amm = AMM {
-        oracle_source: OracleSource::Pyth1M,
-        ..AMM::default()
-    };
-
-    let twap = amm.get_oracle_twap(&oracle_account_info, 0).unwrap();
+    let amm = AMM { ..AMM::default() };
+    let twap = amm
+        .get_oracle_twap(&oracle_account_info, 0, OracleSource::Pyth1M)
+        .unwrap();
     assert_eq!(twap, Some(839400));
 }
 
@@ -91,13 +88,10 @@ fn pyth_pull_oracles_are_rejected() {
         ErrorCode::InvalidOracle
     );
 
-    let amm = AMM {
-        oracle_source: OracleSource::PythPull,
-        ..AMM::default()
-    };
+    let amm = AMM { ..AMM::default() };
 
     assert_eq!(
-        amm.get_oracle_twap(&oracle_account_info, 0),
+        amm.get_oracle_twap(&oracle_account_info, 0, OracleSource::PythPull),
         Err(ErrorCode::InvalidOracle)
     );
 }
@@ -132,12 +126,6 @@ fn use_mm_oracle() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            mm_oracle_price: 130 * PRICE_PRECISION_I64 + 973,
-            mm_oracle_slot: slot,
-            mm_oracle_sequence_id: 1756262481,
-            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
-                oracle_price_data,
-            ),
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -146,6 +134,15 @@ fn use_mm_oracle() {
         imf_factor: 1000, // 1_000/1_000_000 = .001
         unrealized_pnl_initial_asset_weight: 100,
         unrealized_pnl_maintenance_asset_weight: 100,
+        market_stats: MarketStats {
+            mm_oracle_price: 130 * PRICE_PRECISION_I64 + 973,
+            mm_oracle_slot: slot,
+            mm_oracle_sequence_id: 1756262481,
+            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
+                oracle_price_data,
+            ),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     let state = State::default();
@@ -165,7 +162,7 @@ fn use_mm_oracle() {
     );
 
     // Update the MM oracle slot to be equal but the sequence number to be behind, should use exchange oracle
-    market.amm.mm_oracle_sequence_id = 1756262481 - 10;
+    market.market_stats.mm_oracle_sequence_id = 1756262481 - 10;
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
@@ -176,7 +173,7 @@ fn use_mm_oracle() {
     oracle_price_data.sequence_id = None;
 
     // With no sequence id and delayed mm oracle slot, should fall back to using oracle price data
-    market.amm.mm_oracle_slot = slot - 5;
+    market.market_stats.mm_oracle_slot = slot - 5;
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
@@ -184,7 +181,7 @@ fn use_mm_oracle() {
     assert_eq!(mm_oracle_price_data.get_delay(), oracle_price_data.delay,);
 
     // With no sequence id and up to date mm oracle slot, should use mm oracle
-    market.amm.mm_oracle_slot = slot;
+    market.market_stats.mm_oracle_slot = slot;
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
@@ -198,8 +195,8 @@ fn use_mm_oracle() {
     );
 
     // With really off sequence id and up to date mm oracle slot, should fall back to slot comparison
-    market.amm.mm_oracle_sequence_id = 1756262481000; // wrong resolution
-    market.amm.mm_oracle_slot = slot - 5;
+    market.market_stats.mm_oracle_sequence_id = 1756262481000; // wrong resolution
+    market.market_stats.mm_oracle_slot = slot - 5;
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
@@ -226,12 +223,6 @@ fn mm_oracle_confidence() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            mm_oracle_price: 130 * PRICE_PRECISION_I64 + 999,
-            mm_oracle_slot: slot,
-            mm_oracle_sequence_id: 1,
-            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
-                oracle_price_data,
-            ),
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -240,6 +231,15 @@ fn mm_oracle_confidence() {
         imf_factor: 1000, // 1_000/1_000_000 = .001
         unrealized_pnl_initial_asset_weight: 100,
         unrealized_pnl_maintenance_asset_weight: 100,
+        market_stats: MarketStats {
+            mm_oracle_price: 130 * PRICE_PRECISION_I64 + 999,
+            mm_oracle_slot: slot,
+            mm_oracle_sequence_id: 1,
+            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
+                oracle_price_data,
+            ),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     let state = State::default();

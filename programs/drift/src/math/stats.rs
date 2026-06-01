@@ -37,7 +37,7 @@ pub fn calculate_weighted_average(
         return Ok(data1);
     }
 
-    let bias: i64 = bias.unwrap_or_else(|| {
+    let bias: i64 = bias.unwrap_or({
         if weight2 > 1 {
             if latest_price_01 < prev_twap_99 {
                 -1

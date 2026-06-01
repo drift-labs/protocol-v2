@@ -1,10 +1,9 @@
-use crate::math::amm::update_oracle_price_twap;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
 };
 use crate::math::oracle::*;
 use crate::state::oracle::HistoricalOracleData;
-use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
+use crate::state::perp_market::{ContractTier, MarketStats, PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
 
 #[test]
@@ -18,6 +17,9 @@ fn calculate_oracle_valid() {
         base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         peg_multiplier: 33 * PEG_PRECISION,
+        ..AMM::default()
+    };
+    let market_stats = MarketStats {
         historical_oracle_data: HistoricalOracleData {
             last_oracle_price_twap_5min: px as i64,
             last_oracle_price_twap: (px as i64) - 1000,
@@ -27,7 +29,7 @@ fn calculate_oracle_valid() {
         mark_std: PRICE_PRECISION as u64,
         last_mark_price_twap_ts: prev,
         funding_period: 3600_i64,
-        ..AMM::default()
+        ..MarketStats::default()
     };
     let mut oracle_price_data = OraclePriceData {
         price: (34 * PRICE_PRECISION) as i64,
@@ -38,6 +40,7 @@ fn calculate_oracle_valid() {
     };
     let mut market: PerpMarket = PerpMarket {
         amm,
+        market_stats,
         contract_tier: ContractTier::B,
         ..PerpMarket::default()
     };
@@ -73,10 +76,23 @@ fn calculate_oracle_valid() {
     assert_eq!(oracle_status.oracle_reserve_price_spread_pct, 30303); //0.030303 ()
     assert!(!oracle_status.mark_too_divergent);
 
-    let _new_oracle_twap =
-        update_oracle_price_twap(&mut market.amm, now, &mm_oracle_price_data, None, None).unwrap();
+    let funding_period = market.market_stats.funding_period;
+    let _new_oracle_twap = market
+        .market_stats
+        .update_oracle_twap(
+            &market.amm,
+            now,
+            &mm_oracle_price_data,
+            None,
+            None,
+            funding_period,
+        )
+        .unwrap();
     assert_eq!(
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market
+            .market_stats
+            .historical_oracle_data
+            .last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64
     );
 
@@ -98,10 +114,13 @@ fn calculate_oracle_valid() {
 
     oracle_price_data.delay = 8;
     market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min = 32 * PRICE_PRECISION as i64;
-    market.amm.historical_oracle_data.last_oracle_price_twap = 21 * PRICE_PRECISION as i64;
+    market
+        .market_stats
+        .historical_oracle_data
+        .last_oracle_price_twap = 21 * PRICE_PRECISION as i64;
     oracle_status = get_oracle_status(
         &market,
         &oracle_price_data,
@@ -113,7 +132,7 @@ fn calculate_oracle_valid() {
     assert!(!oracle_status.mark_too_divergent);
 
     market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min = 29 * PRICE_PRECISION as i64;
     oracle_status = get_oracle_status(

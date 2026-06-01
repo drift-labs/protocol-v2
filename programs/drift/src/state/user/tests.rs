@@ -1,5 +1,5 @@
 mod get_claimable_pnl {
-    use crate::math::amm::calculate_net_user_pnl;
+    use crate::amm::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, MAX_CONCENTRATION_COEFFICIENT,
         PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
@@ -9,7 +9,7 @@ mod get_claimable_pnl {
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
     use crate::state::oracle::OracleSource;
-    use crate::state::perp_market::{PerpMarket, PoolBalance, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, PoolBalance, AMM};
     use crate::state::spot_market::{SpotBalance, SpotMarket};
     use crate::state::user::{PerpPosition, User};
     use crate::test_utils::get_positions;
@@ -233,7 +233,6 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -241,6 +240,7 @@ mod get_claimable_pnl {
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
+            quote_asset_amount: -100 * QUOTE_PRECISION_I128,
             ..PerpMarket::default()
         };
 
@@ -287,7 +287,13 @@ mod get_claimable_pnl {
         .unwrap() as i128;
         assert_eq!(pnl_pool_token_amount, 10000000);
 
-        let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
+        let net_user_pnl = calculate_net_user_pnl(
+            &perp_market.amm,
+            oracle_price,
+            perp_market.quote_asset_amount,
+            perp_market.net_unsettled_funding_pnl,
+        )
+        .unwrap();
         assert_eq!(net_user_pnl, 50000000);
 
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
@@ -339,7 +345,6 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount: -99 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -347,6 +352,7 @@ mod get_claimable_pnl {
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
+            quote_asset_amount: -99 * QUOTE_PRECISION_I128,
             ..PerpMarket::default()
         };
 
@@ -393,7 +399,13 @@ mod get_claimable_pnl {
         .unwrap() as i128;
         assert_eq!(pnl_pool_token_amount, 60000000);
 
-        let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
+        let net_user_pnl = calculate_net_user_pnl(
+            &perp_market.amm,
+            oracle_price,
+            perp_market.quote_asset_amount,
+            perp_market.net_unsettled_funding_pnl,
+        )
+        .unwrap();
         assert_eq!(net_user_pnl, 51000000);
 
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
@@ -440,8 +452,14 @@ mod get_claimable_pnl {
         );
         assert_eq!(unsettled_pnl3, 9_000_000);
 
-        perp_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
-        let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
+        perp_market.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+        let net_user_pnl = calculate_net_user_pnl(
+            &perp_market.amm,
+            oracle_price,
+            perp_market.quote_asset_amount,
+            perp_market.net_unsettled_funding_pnl,
+        )
+        .unwrap();
         assert_eq!(net_user_pnl, 50000000);
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
             (pnl_pool_token_amount - QUOTE_PRECISION_I128)
@@ -490,7 +508,6 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -498,6 +515,7 @@ mod get_claimable_pnl {
                 market_index: 0,
                 ..PoolBalance::default()
             },
+            quote_asset_amount: -100 * QUOTE_PRECISION_I128,
             ..PerpMarket::default()
         };
 
@@ -544,7 +562,13 @@ mod get_claimable_pnl {
         .unwrap() as i128;
         assert_eq!(pnl_pool_token_amount, 1000000000);
 
-        let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
+        let net_user_pnl = calculate_net_user_pnl(
+            &perp_market.amm,
+            oracle_price,
+            perp_market.quote_asset_amount,
+            perp_market.net_unsettled_funding_pnl,
+        )
+        .unwrap();
         assert_eq!(net_user_pnl, 60000000);
 
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
@@ -2097,7 +2121,7 @@ pub mod meets_withdraw_margin_requirement {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -2127,20 +2151,11 @@ pub mod meets_withdraw_margin_requirement {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2149,6 +2164,14 @@ pub mod meets_withdraw_margin_requirement {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);

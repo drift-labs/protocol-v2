@@ -206,7 +206,7 @@ pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> Dri
             let segment_end = bp;
             let segment_range = segment_end.safe_sub(segment_start)?;
             let segment_rate_total = total_extra_rate
-                .safe_mul(weight as u128)?
+                .safe_mul(weight)?
                 .safe_div(weights_divisor)?;
 
             if utilization <= segment_end {

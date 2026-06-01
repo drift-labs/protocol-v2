@@ -707,9 +707,9 @@ impl LPPool {
             self.target_position_delay_fee_bps_per_10_slots,
         )?;
 
-        Ok(oracle_uncertainty_fee
+        oracle_uncertainty_fee
             .safe_add(position_uncertainty_fee)?
-            .cast::<i128>()?)
+            .cast::<i128>()
     }
 
     pub fn record_mint_redeem_fees(&mut self, amount: i64) -> DriftResult {
@@ -742,17 +742,14 @@ impl LPPool {
                     constituent.last_oracle_slot,
                     slot
                 );
-                return Err(ErrorCode::ConstituentOracleStale.into());
+                return Err(ErrorCode::ConstituentOracleStale);
             }
 
             if constituent.constituent_derivative_index >= 0 && constituent.derivative_weight != 0 {
-                if !derivative_groups
-                    .contains_key(&(constituent.constituent_derivative_index as u16))
+                if let std::collections::btree_map::Entry::Vacant(e) =
+                    derivative_groups.entry(constituent.constituent_derivative_index as u16)
                 {
-                    derivative_groups.insert(
-                        constituent.constituent_derivative_index as u16,
-                        vec![constituent.constituent_index],
-                    );
+                    e.insert(vec![constituent.constituent_index]);
                 } else {
                     derivative_groups
                         .get_mut(&(constituent.constituent_derivative_index as u16))
@@ -780,7 +777,7 @@ impl LPPool {
                     "Constituent {} oracle is not valid for action",
                     constituent.constituent_index
                 );
-                return Err(ErrorCode::InvalidOracle.into());
+                return Err(ErrorCode::InvalidOracle);
             }
 
             let constituent_aum = constituent

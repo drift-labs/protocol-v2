@@ -797,7 +797,7 @@ export class AdminClient extends VelocityClient {
 					this.program.programId,
 					perpMarketIndex
 				),
-				oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+				oracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
 			},
 		});
 	}
@@ -881,7 +881,7 @@ export class AdminClient extends VelocityClient {
 						this.program.programId,
 						QUOTE_SPOT_MARKET_INDEX
 					),
-					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+					oracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
 				},
 			}
 		);
@@ -1078,7 +1078,7 @@ export class AdminClient extends VelocityClient {
 			this.program.programId,
 			perpMarketIndex
 		);
-		const ammData = this.getPerpMarketAccount(perpMarketIndex).amm;
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
 
 		return await this.program.instruction.repegAmmCurve(newPeg, {
 			accounts: {
@@ -1086,7 +1086,7 @@ export class AdminClient extends VelocityClient {
 				admin: this.isSubscribed
 					? this.getStateAccount().coldAdmin
 					: this.wallet.publicKey,
-				oracle: ammData.oracle,
+				oracle: perpMarketAccount.oracle,
 				perpMarket: perpMarketPublicKey,
 			},
 		});
@@ -1108,7 +1108,7 @@ export class AdminClient extends VelocityClient {
 	public async getUpdatePerpMarketAmmOracleTwapIx(
 		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
-		const ammData = this.getPerpMarketAccount(perpMarketIndex).amm;
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -1120,7 +1120,7 @@ export class AdminClient extends VelocityClient {
 				admin: this.isSubscribed
 					? this.getStateAccount().coldAdmin
 					: this.wallet.publicKey,
-				oracle: ammData.oracle,
+				oracle: perpMarketAccount.oracle,
 				perpMarket: perpMarketPublicKey,
 			},
 		});
@@ -1142,7 +1142,7 @@ export class AdminClient extends VelocityClient {
 	public async getResetPerpMarketAmmOracleTwapIx(
 		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
-		const ammData = this.getPerpMarketAccount(perpMarketIndex).amm;
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -1154,7 +1154,7 @@ export class AdminClient extends VelocityClient {
 				admin: this.isSubscribed
 					? this.getStateAccount().coldAdmin
 					: this.wallet.publicKey,
-				oracle: ammData.oracle,
+				oracle: perpMarketAccount.oracle,
 				perpMarket: perpMarketPublicKey,
 			},
 		});
@@ -1469,7 +1469,7 @@ export class AdminClient extends VelocityClient {
 						this.program.programId,
 						QUOTE_SPOT_MARKET_INDEX
 					),
-					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+					oracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
 				},
 			}
 		);
@@ -2368,7 +2368,7 @@ export class AdminClient extends VelocityClient {
 						perpMarketIndex
 					),
 					oracle: oracle,
-					oldOracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+					oldOracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
 					ammCache: getAmmCachePublicKey(this.program.programId),
 				},
 			}

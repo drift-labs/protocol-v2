@@ -1,3 +1,4 @@
+use crate::state::perp_market::MarketStats;
 use std::str::FromStr;
 
 use solana_program::pubkey::Pubkey;
@@ -45,9 +46,10 @@ pub fn check_perp_market_valid(
 ) -> DriftResult {
     // todo
 
-    if perp_market.amm.oracle == spot_market.oracle
+    if perp_market.oracle == spot_market.oracle
         && spot_balance.balance_type() == &SpotBalanceType::Borrow
-        && (perp_market.amm.last_update_slot != current_slot || !perp_market.amm.last_oracle_valid)
+        && (perp_market.amm.last_update_slot != current_slot
+            || !perp_market.market_stats.last_oracle_valid)
     {
         return Err(ErrorCode::InvalidOracle);
     }
@@ -75,20 +77,11 @@ fn test_daily_withdraw_limits() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -96,6 +89,14 @@ fn test_daily_withdraw_limits() {
         number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -374,7 +375,7 @@ fn test_daily_withdraw_limits() {
 
     // ok to withdraw when market is valid
     market.amm.last_update_slot = 8009;
-    market.amm.last_oracle_valid = true;
+    market.market_stats.last_oracle_valid = true;
     check_perp_market_valid(
         &market,
         &sol_spot_market,
@@ -737,20 +738,11 @@ fn check_fee_collection() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -758,6 +750,14 @@ fn check_fee_collection() {
         number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1110,20 +1110,11 @@ fn check_fee_collection_larger_nums() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1131,6 +1122,14 @@ fn check_fee_collection_larger_nums() {
         number_of_users_with_base: 1,
         status: MarketStatus::Initialized,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1531,12 +1530,7 @@ fn attempt_borrow_with_massive_upnl() {
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
             ..AMM::default()
         },
         unrealized_pnl_initial_asset_weight: 0,
@@ -1546,6 +1540,14 @@ fn attempt_borrow_with_massive_upnl() {
         number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);

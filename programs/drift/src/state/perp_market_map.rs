@@ -15,7 +15,7 @@ use crate::state::user::PerpPositions;
 
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::msg;
-use crate::state::traits::Size;
+use crate::state::traits::{MarketIndexOffset, Size};
 use std::panic::Location;
 
 use super::user::SpotPosition;
@@ -25,7 +25,7 @@ pub struct PerpMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, PerpMarket>>);
 impl<'a> PerpMarketMap<'a> {
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<PerpMarket>> {
+    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<'_, PerpMarket>> {
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {
@@ -58,7 +58,7 @@ impl<'a> PerpMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<PerpMarket>> {
+    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<'_, PerpMarket>> {
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {
@@ -111,8 +111,9 @@ impl<'a> PerpMarketMap<'a> {
                 break;
             }
 
-            // market index 1112 bytes from front of account
-            let market_index = u16::from_le_bytes(*array_ref![data, 1112, 2]);
+            // market index `MARKET_INDEX_OFFSET` bytes from front of account (incl 8-byte Anchor disc)
+            let market_index =
+                u16::from_le_bytes(*array_ref![data, PerpMarket::MARKET_INDEX_OFFSET, 2]);
 
             if perp_market_map.0.contains_key(&market_index) {
                 msg!("Can not include same market index twice {}", market_index);
@@ -160,8 +161,10 @@ impl<'a> PerpMarketMap<'a> {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
 
-        // market index 1112 bytes from front of account
-        let market_index = u16::from_le_bytes(*array_ref![data, 1112, 2]);
+        // market index `MARKET_INDEX_OFFSET` bytes from front of account
+        // (offset includes the 8-byte Anchor discriminator).
+        let market_index =
+            u16::from_le_bytes(*array_ref![data, PerpMarket::MARKET_INDEX_OFFSET, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<PerpMarket> =
@@ -203,8 +206,9 @@ impl<'a> PerpMarketMap<'a> {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
 
-            // market index 1112 bytes from front of account
-            let market_index = u16::from_le_bytes(*array_ref![data, 1112, 2]);
+            // market index `MARKET_INDEX_OFFSET` bytes from front of account (incl 8-byte Anchor disc)
+            let market_index =
+                u16::from_le_bytes(*array_ref![data, PerpMarket::MARKET_INDEX_OFFSET, 2]);
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<PerpMarket> =

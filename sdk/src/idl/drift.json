@@ -1,5 +1,5 @@
 {
-  "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P",
+  "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
   "metadata": {
     "name": "drift",
     "version": "2.162.0",
@@ -2877,59 +2877,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "force_wipe_accounts_devnet",
-      "docs": [
-        "Devnet-only escape hatch: cleans up accounts stranded by a layout-breaking",
-        "program upgrade (or by a partial re-init). For each account passed via",
-        "`remaining_accounts`:",
-        "- drift-owned PDA → drain lamports (runtime GCs at end of tx)",
-        "- token-program owned vault (drift_signer close-authority) → CPI",
-        "`close_account`, rent refunded to admin",
-        "Admin gate reads State's first pubkey field at raw offset 8..40 so it",
-        "works regardless of the State layout currently on chain. `drift_signer_nonce`",
-        "must match `State.signer_nonce`; mismatch fails the token CPI signature.",
-        "Stripped from mainnet builds via `mainnet-beta`."
-      ],
-      "discriminator": [
-        105,
-        74,
-        87,
-        6,
-        166,
-        227,
-        138,
-        215
-      ],
-      "accounts": [
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "state",
-          "docs": [
-            "(cold-)admin pubkey at offset 8..40."
-          ]
-        },
-        {
-          "name": "drift_signer",
-          "docs": [
-            "at CPI time when closing token vaults; ignored otherwise."
-          ]
-        },
-        {
-          "name": "token_program"
-        }
-      ],
-      "args": [
-        {
-          "name": "drift_signer_nonce",
-          "type": "u8"
-        }
-      ]
     },
     {
       "name": "initialize",
@@ -16233,24 +16180,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "oracle",
-            "docs": [
-              "oracle price data public key"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "historical_oracle_data",
-            "docs": [
-              "stores historically witnessed oracle data"
-            ],
-            "type": {
-              "defined": {
-                "name": "HistoricalOracleData"
-              }
-            }
-          },
-          {
             "name": "fee_pool",
             "docs": [
               "partition of fees from perp market trading moved from pnl settlements"
@@ -16327,108 +16256,12 @@
             "type": "u128"
           },
           {
-            "name": "base_asset_amount_long",
-            "docs": [
-              "always non-negative. tracks number of total longs in market (regardless of counterparty)",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "base_asset_amount_short",
-            "docs": [
-              "always non-positive. tracks number of total shorts in market (regardless of counterparty)",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
             "name": "base_asset_amount_with_amm",
             "docs": [
               "tracks net position (longs-shorts) in market with AMM as counterparty",
               "precision: BASE_PRECISION"
             ],
             "type": "i128"
-          },
-          {
-            "name": "max_open_interest",
-            "docs": [
-              "max allowed open interest, blocks trades that breach this value",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "quote_asset_amount",
-            "docs": [
-              "sum of all user's perp quote_asset_amount in market",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "quote_entry_amount_long",
-            "docs": [
-              "sum of all long user's quote_entry_amount in market",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "quote_entry_amount_short",
-            "docs": [
-              "sum of all short user's quote_entry_amount in market",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "quote_break_even_amount_long",
-            "docs": [
-              "sum of all long user's quote_break_even_amount in market",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "quote_break_even_amount_short",
-            "docs": [
-              "sum of all short user's quote_break_even_amount in market",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "last_funding_rate",
-            "docs": [
-              "last funding rate in this perp market (unit is quote per base)",
-              "precision: FUNDING_RATE_PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "last_funding_rate_long",
-            "docs": [
-              "last funding rate for longs in this perp market (unit is quote per base)",
-              "precision: FUNDING_RATE_PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "last_funding_rate_short",
-            "docs": [
-              "last funding rate for shorts in this perp market (unit is quote per base)",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "last_24h_avg_funding_rate",
-            "docs": [
-              "estimate of last 24h of funding rate perp market (unit is quote per base)",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i64"
           },
           {
             "name": "total_fee",
@@ -16447,14 +16280,6 @@
             "type": "i128"
           },
           {
-            "name": "total_exchange_fee",
-            "docs": [
-              "total fees collected by exchange fee schedule",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
             "name": "total_fee_minus_distributions",
             "docs": [
               "total fees minus any recognized upnl and pool withdraws",
@@ -16471,124 +16296,9 @@
             "type": "u128"
           },
           {
-            "name": "total_liquidation_fee",
-            "docs": [
-              "all fees collected by market for liquidations",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "cumulative_funding_rate_long",
-            "docs": [
-              "accumulated funding rate for longs since inception in market"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "cumulative_funding_rate_short",
-            "docs": [
-              "accumulated funding rate for shorts since inception in market"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "total_social_loss",
-            "docs": [
-              "accumulated social loss paid by users since inception in market"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "ask_base_asset_reserve",
-            "docs": [
-              "transformed base_asset_reserve for users going long",
-              "precision: AMM_RESERVE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "ask_quote_asset_reserve",
-            "docs": [
-              "transformed quote_asset_reserve for users going long",
-              "precision: AMM_RESERVE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "bid_base_asset_reserve",
-            "docs": [
-              "transformed base_asset_reserve for users going short",
-              "precision: AMM_RESERVE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "bid_quote_asset_reserve",
-            "docs": [
-              "transformed quote_asset_reserve for users going short",
-              "precision: AMM_RESERVE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "last_oracle_normalised_price",
-            "docs": [
-              "the last seen oracle price partially shrunk toward the amm reserve price",
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "last_oracle_reserve_price_spread_pct",
-            "docs": [
-              "the gap between the oracle price and the reserve price = y * peg_multiplier / x"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "last_bid_price_twap",
-            "docs": [
-              "average estimate of bid price over funding_period",
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "last_ask_price_twap",
-            "docs": [
-              "average estimate of ask price over funding_period",
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "last_mark_price_twap",
-            "docs": [
-              "average estimate of (bid+ask)/2 price over funding_period",
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "last_mark_price_twap_5min",
-            "docs": [
-              "average estimate of (bid+ask)/2 price over FIVE_MINUTES"
-            ],
-            "type": "u64"
-          },
-          {
             "name": "last_update_slot",
             "docs": [
               "the last blockchain slot the amm was updated"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "last_oracle_conf_pct",
-            "docs": [
-              "the pct size of the oracle confidence interval",
-              "precision: PERCENTAGE_PRECISION"
             ],
             "type": "u64"
           },
@@ -16597,104 +16307,6 @@
             "docs": [
               "the total_fee_minus_distribution change since the last funding update",
               "precision: QUOTE_PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "last_funding_rate_ts",
-            "docs": [
-              "the last funding rate update unix_timestamp"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "funding_period",
-            "docs": [
-              "the peridocity of the funding rate updates"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "order_step_size",
-            "docs": [
-              "the base step size (increment) of orders",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "order_tick_size",
-            "docs": [
-              "the price tick size of orders",
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "min_order_size",
-            "docs": [
-              "the minimum base size of an order",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "mm_oracle_slot",
-            "docs": [
-              "the max base size a single user can have",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "volume_24h",
-            "docs": [
-              "estimated total of volume in market",
-              "QUOTE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "long_intensity_volume",
-            "docs": [
-              "the volume intensity of long fills against AMM"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "short_intensity_volume",
-            "docs": [
-              "the volume intensity of short fills against AMM"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "last_trade_ts",
-            "docs": [
-              "the blockchain unix timestamp at the time of the last trade"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "mark_std",
-            "docs": [
-              "estimate of standard deviation of the fill (mark) prices",
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "oracle_std",
-            "docs": [
-              "estimate of standard deviation of the oracle price at each update",
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "last_mark_price_twap_ts",
-            "docs": [
-              "the last unix_timestamp the mark twap was updated"
             ],
             "type": "i64"
           },
@@ -16711,27 +16323,6 @@
               "the maximum spread the AMM can quote"
             ],
             "type": "u32"
-          },
-          {
-            "name": "long_spread",
-            "docs": [
-              "the spread for asks vs the reserve price"
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "short_spread",
-            "docs": [
-              "the spread for bids vs the reserve price"
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "mm_oracle_price",
-            "docs": [
-              "MM oracle price"
-            ],
-            "type": "i64"
           },
           {
             "name": "max_fill_reserve_fraction",
@@ -16763,65 +16354,11 @@
             "type": "u8"
           },
           {
-            "name": "oracle_source",
-            "docs": [
-              "the oracle provider information. used to decode/scale the oracle public key"
-            ],
-            "type": {
-              "defined": {
-                "name": "OracleSource"
-              }
-            }
-          },
-          {
-            "name": "last_oracle_valid",
-            "docs": [
-              "tracks whether the oracle was considered valid at the last AMM update"
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "oracle_low_risk_slot_delay_override",
-            "docs": [
-              "the override for the state.min_perp_auction_duration",
-              "0 is no override, -1 is disable speed bump, 1-100 is literal speed bump"
-            ],
-            "type": "i8"
-          },
-          {
             "name": "amm_spread_adjustment",
             "docs": [
               "signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)"
             ],
             "type": "i8"
-          },
-          {
-            "name": "oracle_slot_delay_override",
-            "type": "i8"
-          },
-          {
-            "name": "padding_pre_mm_oracle_sequence",
-            "docs": [
-              "alignment padding for the following u64 (Rust would otherwise insert 5 implicit bytes here)"
-            ],
-            "type": {
-              "array": [
-                "u8",
-                5
-              ]
-            }
-          },
-          {
-            "name": "mm_oracle_sequence_id",
-            "type": "u64"
-          },
-          {
-            "name": "net_unsettled_funding_pnl",
-            "type": "i64"
-          },
-          {
-            "name": "reference_price_offset",
-            "type": "i32"
           },
           {
             "name": "amm_inventory_spread_adjustment",
@@ -16835,27 +16372,11 @@
             "type": "u8"
           },
           {
-            "name": "padding_pre_last_funding",
+            "name": "padding_post_amm",
             "type": {
               "array": [
                 "u8",
-                2
-              ]
-            }
-          },
-          {
-            "name": "last_funding_oracle_twap",
-            "type": "i64"
-          },
-          {
-            "name": "padding_trailing",
-            "docs": [
-              "trailing alignment padding (struct alignment is 16 due to u128 fields)"
-            ],
-            "type": {
-              "array": [
-                "u8",
-                8
+                10
               ]
             }
           }
@@ -19664,6 +19185,227 @@
       }
     },
     {
+      "name": "MarketStats",
+      "docs": [
+        "Historic market data shared across all makers, updated on every fill",
+        "regardless of which maker filled (vAMM, DLOB resting order, JIT participant,",
+        "future quoter types). Holds mark/oracle TWAPs, rolling std, volume,",
+        "intensity, mm-oracle snapshot, `historical_oracle_data`,",
+        "`last_oracle_normalised_price`, `last_oracle_valid`.",
+        "",
+        "Update-cadence rule: anything that needs to refresh on every market event",
+        "lives here. Anything AMM-private (reserves, peg, spreads — only matters",
+        "when the AMM specifically is the counterparty) lives on `AMM`. See",
+        "`docs/amm-decoupling-and-maker-interface.md`."
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "last_mark_price_twap",
+            "docs": [
+              "Average estimate of (bid+ask)/2 price over funding_period.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_mark_price_twap_5min",
+            "docs": [
+              "Average estimate of (bid+ask)/2 price over FIVE_MINUTES."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_mark_price_twap_ts",
+            "docs": [
+              "The last unix_timestamp the mark twap was updated."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_bid_price_twap",
+            "docs": [
+              "Average estimate of bid price over funding_period.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_ask_price_twap",
+            "docs": [
+              "Average estimate of ask price over funding_period.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "mark_std",
+            "docs": [
+              "Estimate of standard deviation of fill (mark) prices.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "oracle_std",
+            "docs": [
+              "Estimate of standard deviation of the oracle price at each update.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_oracle_conf_pct",
+            "docs": [
+              "The pct size of the oracle confidence interval.",
+              "precision: PERCENTAGE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "volume_24h",
+            "docs": [
+              "Estimated total of volume in market.",
+              "QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "long_intensity_volume",
+            "docs": [
+              "The volume intensity of long fills (across all makers)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "short_intensity_volume",
+            "docs": [
+              "The volume intensity of short fills (across all makers)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_trade_ts",
+            "docs": [
+              "The blockchain unix_timestamp at the time of the last trade."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_24h_avg_funding_rate",
+            "docs": [
+              "estimate of last 24h of funding rate perp market (unit is quote per base)",
+              "Market-wide config / rolling stat — read by the AMM when computing",
+              "`reference_price_offset` and by funding-rate updates. Migrated from",
+              "`PerpMarket` so the AMM reads only from `MarketStats`.",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "funding_period",
+            "docs": [
+              "the periodicity of the funding rate updates. Market-wide config used",
+              "across the funding path. Migrated from `PerpMarket`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "min_order_size",
+            "docs": [
+              "the minimum base size of an order. Market-wide config read by the AMM",
+              "when computing fallback prices / spread reserves. Migrated from",
+              "`PerpMarket`.",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "mm_oracle_price",
+            "docs": [
+              "MM oracle price snapshot (set by the native handler)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "mm_oracle_slot",
+            "docs": [
+              "Slot at which the mm_oracle_* fields were last updated."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "mm_oracle_sequence_id",
+            "docs": [
+              "Monotonically increasing sequence id for mm_oracle updates."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_oracle_normalised_price",
+            "docs": [
+              "Canonical sanitised/clamped oracle price — the latest oracle reading",
+              "after normalisation (any quoter's view, not AMM-specific)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_reference_price_offset",
+            "docs": [
+              "Previous reference price offset, written by `_update_amm` after a",
+              "successful repeg/k_update. Read by `compute_amm_quote_state` to",
+              "implement the legacy time-decayed reference-price-offset smoothing",
+              "transition — when the freshly computed offset's sign flips relative",
+              "to this cached value AND `curve_update_intensity > 100`, the",
+              "transition is clamped per-slot rather than snapping. Migrated from",
+              "`AMM.reference_price_offset` (which was deleted in the AMM-decoupling",
+              "refactor) so the smoothing behaviour is preserved across cranks.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i32"
+          },
+          {
+            "name": "last_oracle_valid",
+            "docs": [
+              "Whether the oracle was valid at the most recent `_update_amm`.",
+              "Read by settlement and fill paths to gate operations."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "docs": [
+              "Padding so historical_oracle_data is 8-aligned."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                11
+              ]
+            }
+          },
+          {
+            "name": "historical_oracle_data",
+            "docs": [
+              "Historical oracle readings — TWAPs, last raw price, confidence, delay,",
+              "timestamp. Market-wide data (any quoter would want it), updated by",
+              "`_update_amm` / funding paths. Migrated from AMM."
+            ],
+            "type": {
+              "defined": {
+                "name": "HistoricalOracleData"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketStatus",
       "type": {
         "kind": "enum",
@@ -20886,15 +20628,113 @@
             "type": "pubkey"
           },
           {
-            "name": "amm",
+            "name": "base_asset_amount_long",
             "docs": [
-              "The automated market maker"
+              "always non-negative. tracks number of total longs in market (regardless of counterparty)",
+              "precision: BASE_PRECISION"
             ],
-            "type": {
-              "defined": {
-                "name": "AMM"
-              }
-            }
+            "type": "i128"
+          },
+          {
+            "name": "base_asset_amount_short",
+            "docs": [
+              "always non-positive. tracks number of total shorts in market (regardless of counterparty)",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "quote_asset_amount",
+            "docs": [
+              "sum of all user's perp quote_asset_amount in market",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "quote_entry_amount_long",
+            "docs": [
+              "sum of all long user's quote_entry_amount in market",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "quote_entry_amount_short",
+            "docs": [
+              "sum of all short user's quote_entry_amount in market",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "quote_break_even_amount_long",
+            "docs": [
+              "sum of all long user's quote_break_even_amount in market",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "quote_break_even_amount_short",
+            "docs": [
+              "sum of all short user's quote_break_even_amount in market",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "max_open_interest",
+            "docs": [
+              "max allowed open interest, blocks trades that breach this value",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "total_social_loss",
+            "docs": [
+              "accumulated social loss paid by users since inception in market",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "cumulative_funding_rate_long",
+            "docs": [
+              "accumulated funding rate for longs since inception in market"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "cumulative_funding_rate_short",
+            "docs": [
+              "accumulated funding rate for shorts since inception in market"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "total_exchange_fee",
+            "docs": [
+              "total fees collected by exchange fee schedule",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "total_liquidation_fee",
+            "docs": [
+              "all fees collected by market for liquidations",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "oracle",
+            "docs": [
+              "oracle price data public key"
+            ],
+            "type": "pubkey"
           },
           {
             "name": "pnl_pool",
@@ -20930,6 +20770,67 @@
                 "name": "InsuranceClaim"
               }
             }
+          },
+          {
+            "name": "last_funding_rate",
+            "docs": [
+              "last funding rate in this perp market (unit is quote per base)",
+              "precision: FUNDING_RATE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_funding_rate_long",
+            "docs": [
+              "last funding rate for longs in this perp market (unit is quote per base)",
+              "precision: FUNDING_RATE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_funding_rate_short",
+            "docs": [
+              "last funding rate for shorts in this perp market (unit is quote per base)",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_funding_rate_ts",
+            "docs": [
+              "the last funding rate update unix_timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "net_unsettled_funding_pnl",
+            "docs": [
+              "unsettled funding pnl across the market (protocol-wide)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_funding_oracle_twap",
+            "docs": [
+              "oracle TWAP captured at last funding update"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "order_step_size",
+            "docs": [
+              "the base step size (increment) of orders",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "order_tick_size",
+            "docs": [
+              "the price tick size of orders",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
           },
           {
             "name": "unrealized_pnl_max_imbalance",
@@ -21118,6 +21019,21 @@
             "type": "i16"
           },
           {
+            "name": "_padding_align_lfp",
+            "docs": [
+              "Explicit padding so the IDL records the 6 bytes the Rust compiler",
+              "inserts to 8-align `last_fill_price`. Without this the JS borsh",
+              "decoder (which reads sequentially after the variable-span enum",
+              "`status`) reads every field past `fee_adjustment` 6 bytes early."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          },
+          {
             "name": "last_fill_price",
             "type": "u64"
           },
@@ -21159,12 +21075,87 @@
             "type": "u8"
           },
           {
+            "name": "oracle_source",
+            "docs": [
+              "the oracle provider information. used to decode/scale the oracle public key"
+            ],
+            "type": {
+              "defined": {
+                "name": "OracleSource"
+              }
+            }
+          },
+          {
+            "name": "oracle_slot_delay_override",
+            "docs": [
+              "override for the per-fill slot delay required from the oracle (default -1 = use state default)"
+            ],
+            "type": "i8"
+          },
+          {
+            "name": "oracle_low_risk_slot_delay_override",
+            "docs": [
+              "the override for the state.min_perp_auction_duration",
+              "0 is no override, -1 is disable speed bump, 1-100 is literal speed bump"
+            ],
+            "type": "i8"
+          },
+          {
             "name": "padding",
+            "docs": [
+              "Trailing 28 bytes (was 27 + 1 compiler-inserted gap) so the IDL",
+              "records every byte and `market_stats` lands at the same offset Rust",
+              "computes via repr(C) alignment."
+            ],
             "type": {
               "array": [
                 "u8",
-                30
+                28
               ]
+            }
+          },
+          {
+            "name": "market_stats",
+            "docs": [
+              "Market-wide stats shared across all makers: mark/oracle TWAPs, std,",
+              "volume, intensity, mm-oracle snapshot, `historical_oracle_data`,",
+              "`last_oracle_normalised_price`, `last_oracle_valid`. Writers (e.g.",
+              "`MarketStats::update_mark_std`, `update_volume_24h`, native",
+              "`handle_update_mm_oracle_native`) update this directly."
+            ],
+            "type": {
+              "defined": {
+                "name": "MarketStats"
+              }
+            }
+          },
+          {
+            "name": "_padding_align_amm",
+            "docs": [
+              "8 bytes of explicit padding so MarketStats (216 bytes) plus this",
+              "padding equals 224 bytes — the offset Rust naturally inserts to",
+              "16-align AMM's leading u128. Making it explicit keeps the IDL byte",
+              "layout aligned with `repr(C)`."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "amm",
+            "docs": [
+              "The automated market maker. Last field so a future excision into a",
+              "dedicated AMM program is a clean truncate at this offset — `PerpMarket`",
+              "minus the trailing `AMM` bytes equals the future \"orderbook-only\"",
+              "account layout."
+            ],
+            "type": {
+              "defined": {
+                "name": "AMM"
+              }
             }
           }
         ]

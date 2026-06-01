@@ -297,7 +297,7 @@ impl State {
     pub fn require_cold(&self, signer: &Pubkey) -> DriftResult<()> {
         if !self.is_cold(signer) {
             msg!("signer {} is not cold admin", signer);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }
@@ -305,7 +305,7 @@ impl State {
     pub fn require_warm(&self, signer: &Pubkey) -> DriftResult<()> {
         if !self.is_warm(signer) {
             msg!("signer {} is neither cold nor warm admin", signer);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }
@@ -313,7 +313,7 @@ impl State {
     pub fn require_pause(&self, signer: &Pubkey) -> DriftResult<()> {
         if !self.is_pause(signer) {
             msg!("signer {} is not authorized to flip pause flags", signer);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }
@@ -321,7 +321,7 @@ impl State {
     pub fn require_hot(&self, signer: &Pubkey, role: HotRole) -> DriftResult<()> {
         if !self.is_hot(signer, role) {
             msg!("signer {} is not authorized for role {:?}", signer, role);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }

@@ -45,7 +45,11 @@ export function calculateReservePrice(
 	market: PerpMarketAccount,
 	mmOraclePriceData: MMOraclePriceData
 ): BN {
-	const newAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
+	const newAmm = calculateUpdatedAMM(
+		market.amm,
+		market.totalExchangeFee,
+		mmOraclePriceData
+	);
 	return calculatePrice(
 		newAmm.baseAssetReserve,
 		newAmm.quoteAssetReserve,
@@ -67,6 +71,8 @@ export function calculateBidPrice(
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
+			market.marketStats,
+			market.totalExchangeFee,
 			PositionDirection.SHORT,
 			mmOraclePriceData,
 			latestSlot
@@ -89,6 +95,8 @@ export function calculateAskPrice(
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
+			market.marketStats,
+			market.totalExchangeFee,
 			PositionDirection.LONG,
 			mmOraclePriceData,
 			latestSlot
@@ -251,8 +259,8 @@ export function calculateNetUserPnl(
 		.div(BASE_PRECISION)
 		.div(PRICE_TO_QUOTE_PRECISION);
 
-	const netUserCostBasis = perpMarket.amm.quoteAssetAmount.add(
-		perpMarket.amm.netUnsettledFundingPnl
+	const netUserCostBasis = perpMarket.quoteAssetAmount.add(
+		perpMarket.netUnsettledFundingPnl
 	);
 
 	const netUserPnl = netUserPositionValue.add(netUserCostBasis);
@@ -297,7 +305,7 @@ export function calculateAvailablePerpLiquidity(
 		market.amm.baseAssetReserve,
 		market.amm.minBaseAssetReserve,
 		market.amm.maxBaseAssetReserve,
-		market.amm.orderStepSize
+		market.orderStepSize
 	);
 
 	asks = asks.abs();
@@ -358,9 +366,9 @@ export function getTriggerPrice(
 	const lastFillPrice = market.lastFillPrice;
 
 	// Calculate 5-minute basis
-	const markPrice5minTwap = market.amm.lastMarkPriceTwap5Min;
+	const markPrice5minTwap = market.marketStats.lastMarkPriceTwap5Min;
 	const lastOraclePriceTwap5min =
-		market.amm.historicalOracleData.lastOraclePriceTwap5Min;
+		market.marketStats.historicalOracleData.lastOraclePriceTwap5Min;
 	const basis5min = markPrice5minTwap.sub(lastOraclePriceTwap5min);
 
 	const oraclePlusBasis5min = oraclePrice.add(basis5min);
@@ -388,23 +396,23 @@ function getLastFundingBasis(
 	oraclePrice: BN,
 	now: BN
 ): BN {
-	if (market.amm.lastFundingOracleTwap.gt(ZERO)) {
-		const lastFundingRate = market.amm.lastFundingRate
+	if (market.lastFundingOracleTwap.gt(ZERO)) {
+		const lastFundingRate = market.lastFundingRate
 			.mul(PRICE_PRECISION)
-			.div(market.amm.lastFundingOracleTwap)
+			.div(market.lastFundingOracleTwap)
 			.muln(24);
 		const lastFundingRatePreAdj = lastFundingRate.sub(
 			FUNDING_RATE_PRECISION.div(new BN(3333)) // FUNDING_RATE_OFFSET_PERCENTAGE
 		);
 		const timeLeftUntilFundingUpdate = BN.min(
-			BN.max(now.sub(market.amm.lastFundingRateTs), ZERO),
-			market.amm.fundingPeriod
+			BN.max(now.sub(market.lastFundingRateTs), ZERO),
+			market.marketStats.fundingPeriod
 		);
 		const lastFundingBasis = oraclePrice
 			.mul(lastFundingRatePreAdj)
 			.div(PERCENTAGE_PRECISION)
-			.mul(market.amm.fundingPeriod.sub(timeLeftUntilFundingUpdate))
-			.div(market.amm.fundingPeriod)
+			.mul(market.marketStats.fundingPeriod.sub(timeLeftUntilFundingUpdate))
+			.div(market.marketStats.fundingPeriod)
 			.div(new BN(1000)); // FUNDING_RATE_BUFFER
 		return lastFundingBasis;
 	} else {

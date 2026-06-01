@@ -246,10 +246,10 @@ pub fn transfer_checked_with_transfer_hook<'info>(
 
     let mut ix = spl_token_2022::instruction::transfer_checked(
         token_program.key,
-        &from_account_info.key,
-        &mint_account_info.key,
-        &to_account_info.key,
-        &authority_account_info.key,
+        from_account_info.key,
+        mint_account_info.key,
+        to_account_info.key,
+        authority_account_info.key,
         &[],
         amount,
         mint.decimals,

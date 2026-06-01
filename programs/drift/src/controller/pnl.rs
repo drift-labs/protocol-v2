@@ -1,4 +1,5 @@
-use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
+use crate::amm::controller::{update_pnl_pool_and_user_balance, update_pool_balances};
+use crate::amm::math::amm::calculate_net_user_pnl;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
@@ -9,7 +10,6 @@ use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
 };
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm::calculate_net_user_pnl;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
@@ -124,8 +124,8 @@ pub fn settle_pnl(
     let mut spot_market = spot_market_map.get_quote_spot_market_mut()?;
     let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
 
-    if perp_market.amm.curve_update_intensity > 0 {
-        let healthy_oracle = perp_market.amm.is_recent_oracle_valid(oracle_map.slot)?;
+    if perp_market.amm.is_curve_update_enabled() {
+        let healthy_oracle = perp_market.is_recent_oracle_valid(oracle_map.slot)?;
 
         if !healthy_oracle {
             let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
@@ -133,7 +133,7 @@ pub fn settle_pnl(
                 perp_market.market_index,
                 &perp_market.oracle_id(),
                 perp_market
-                    .amm
+                    .market_stats
                     .historical_oracle_data
                     .last_oracle_price_twap,
                 perp_market.get_max_confidence_interval_multiplier()?,
@@ -145,7 +145,7 @@ pub fn settle_pnl(
             if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
                 || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
             {
-                if !perp_market.amm.last_oracle_valid {
+                if !perp_market.market_stats.last_oracle_valid {
                     let msg = format!(
                         "Oracle Price detected as invalid ({}) on last perp market update for Market = {}",
                         oracle_validity,
@@ -154,13 +154,13 @@ pub fn settle_pnl(
                     return mode.result(oracle_validity.get_error_code(), market_index, &msg);
                 }
 
-                if oracle_map.slot != perp_market.amm.last_update_slot {
+                if !perp_market.amm.is_fresh_at(oracle_map.slot) {
                     let msg = format!(
                         "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
                         market_index,
                         oracle_map.slot,
-                        perp_market.amm.last_update_slot,
-                        perp_market.amm.last_oracle_valid
+                        perp_market.amm.last_update_slot(),
+                        perp_market.market_stats.last_oracle_valid
                     );
                     return mode.result(ErrorCode::AMMNotUpdatedInSameSlot, market_index, &msg);
                 }
@@ -225,19 +225,22 @@ pub fn settle_pnl(
         perp_market.pnl_pool.balance_type(),
     )?;
 
-    let fraction_of_fee_pool_token_amount = get_token_amount(
-        perp_market.amm.fee_pool.scaled_balance,
-        &spot_market,
-        perp_market.amm.fee_pool.balance_type(),
-    )?
-    .safe_div(5)?;
+    let fraction_of_fee_pool_token_amount = perp_market
+        .amm
+        .fee_pool_token_amount(&spot_market)?
+        .safe_div(5)?;
 
     // add a buffer from fee pool for pnl pool balance
     let pnl_tokens_available: i128 = pnl_pool_token_amount
         .safe_add(fraction_of_fee_pool_token_amount)?
         .cast()?;
 
-    let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price)?;
+    let net_user_pnl = calculate_net_user_pnl(
+        &perp_market.amm,
+        oracle_price,
+        perp_market.quote_asset_amount,
+        perp_market.net_unsettled_funding_pnl,
+    )?;
     let max_pnl_pool_excess = if net_user_pnl < pnl_tokens_available {
         pnl_tokens_available.safe_sub(net_user_pnl.max(0))?
     } else {
@@ -598,10 +601,10 @@ pub fn settle_expired_position(
 
     update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
-    perp_market.amm.base_asset_amount_with_amm = perp_market
-        .amm
-        .base_asset_amount_with_amm
-        .safe_add(position_delta.base_asset_amount.cast()?)?;
+    <crate::amm::AMM as crate::amm::quoter::AmmContract>::apply_settlement_counterparty(
+        &mut perp_market.amm,
+        position_delta.base_asset_amount.cast()?,
+    )?;
 
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
 

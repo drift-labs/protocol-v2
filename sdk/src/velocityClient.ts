@@ -2483,9 +2483,9 @@ export class VelocityClient {
 			isWritable: writable,
 		});
 		const oracleWritable =
-			writable && isVariant(perpMarketAccount.amm.oracleSource, 'prelaunch');
-		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-			pubkey: perpMarketAccount.amm.oracle,
+			writable && isVariant(perpMarketAccount.oracleSource, 'prelaunch');
+		oracleAccountMap.set(perpMarketAccount.oracle.toString(), {
+			pubkey: perpMarketAccount.oracle,
 			isSigner: false,
 			isWritable: oracleWritable,
 		});
@@ -4584,7 +4584,7 @@ export class VelocityClient {
 				isSigner: false,
 			});
 			oracleAccountInfos.push({
-				pubkey: market.amm.oracle,
+				pubkey: market.oracle,
 				isWritable: false,
 				isSigner: false,
 			});
@@ -4760,7 +4760,7 @@ export class VelocityClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const order = this.getOrderByUserId(userOrderId);
-		const oracle = this.getPerpMarketAccount(order.marketIndex).amm.oracle;
+		const oracle = this.getPerpMarketAccount(order.marketIndex).oracle;
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -8995,15 +8995,15 @@ export class VelocityClient {
 	): Promise<TransactionInstruction> {
 		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
 
-		if (!isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
-			throw new Error(`Wrong oracle source ${perpMarket.amm.oracleSource}`);
+		if (!isVariant(perpMarket.oracleSource, 'prelaunch')) {
+			throw new Error(`Wrong oracle source ${perpMarket.oracleSource}`);
 		}
 
 		return await this.program.instruction.updatePrelaunchOracle({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				perpMarket: perpMarket.pubkey,
-				oracle: perpMarket.amm.oracle,
+				oracle: perpMarket.oracle,
 			},
 		});
 	}
@@ -9048,7 +9048,7 @@ export class VelocityClient {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				perpMarket: perpMarket.pubkey,
-				oracle: perpMarket.amm.oracle,
+				oracle: perpMarket.oracle,
 				authority: this.wallet.publicKey,
 				keeperStats: this.getUserStatsAccountPublicKey(),
 			},
@@ -9116,14 +9116,14 @@ export class VelocityClient {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
-		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
-		const pctDiff = perpMarket.amm.mmOraclePrice
+		const isMMOracleActive = !perpMarket.marketStats.mmOracleSlot.eq(ZERO);
+		const pctDiff = perpMarket.marketStats.mmOraclePrice
 			.sub(oracleData.price)
 			.abs()
 			.mul(PERCENTAGE_PRECISION)
 			.div(BN.max(oracleData.price, ONE));
 
-		const mmOracleSequenceId = perpMarket.amm.mmOracleSequenceId;
+		const mmOracleSequenceId = perpMarket.marketStats.mmOracleSequenceId;
 
 		// Do slot check for recency if sequence ids are zero or they're too divergent
 		const doSlotCheckForRecency =
@@ -9131,14 +9131,14 @@ export class VelocityClient {
 			oracleData.sequenceId.eq(ZERO) ||
 			mmOracleSequenceId.eq(ZERO) ||
 			oracleData.sequenceId
-				.sub(perpMarket.amm.mmOracleSequenceId)
+				.sub(perpMarket.marketStats.mmOracleSequenceId)
 				.abs()
 				.gt(oracleData.sequenceId.div(new BN(10_000)));
 
 		let isExchangeOracleMoreRecent = true;
 		if (
 			doSlotCheckForRecency &&
-			oracleData.slot <= perpMarket.amm.mmOracleSlot
+			oracleData.slot <= perpMarket.marketStats.mmOracleSlot
 		) {
 			isExchangeOracleMoreRecent = false;
 		} else if (
@@ -9149,30 +9149,30 @@ export class VelocityClient {
 		}
 
 		const conf = getOracleConfidenceFromMMOracleData(
-			perpMarket.amm.mmOraclePrice,
+			perpMarket.marketStats.mmOraclePrice,
 			oracleData
 		);
 
 		if (
 			isOracleTooDivergent(
-				perpMarket.amm,
+				perpMarket.marketStats,
 				{
-					price: perpMarket.amm.mmOraclePrice,
-					slot: perpMarket.amm.mmOracleSlot,
+					price: perpMarket.marketStats.mmOraclePrice,
+					slot: perpMarket.marketStats.mmOracleSlot,
 					confidence: conf,
 					hasSufficientNumberOfDataPoints: true,
 				},
 				stateAccountAndSlot.data.oracleGuardRails
 			) ||
-			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
+			perpMarket.marketStats.mmOraclePrice.eq(ZERO) ||
 			isExchangeOracleMoreRecent ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
 			return { ...oracleData, isMMOracleActive };
 		} else {
 			return {
-				price: perpMarket.amm.mmOraclePrice,
-				slot: perpMarket.amm.mmOracleSlot,
+				price: perpMarket.marketStats.mmOraclePrice,
+				slot: perpMarket.marketStats.mmOracleSlot,
 				confidence: conf,
 				hasSufficientNumberOfDataPoints: true,
 				isMMOracleActive,
@@ -9848,7 +9848,7 @@ export class VelocityClient {
 
 		const extendedInfo: PerpMarketExtendedInfo = {
 			marketIndex,
-			minOrderSize: marketAccount.amm?.minOrderSize,
+			minOrderSize: marketAccount.marketStats?.minOrderSize,
 			marginMaintenance: marketAccount.marginRatioMaintenance,
 			pnlPoolValue: getTokenAmount(
 				marketAccount.pnlPool?.scaledBalance,

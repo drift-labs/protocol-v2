@@ -486,13 +486,13 @@ export class PollingVelocityClientAccountSubscriber
 		for (const perpMarket of perpMarkets) {
 			const perpMarketAccount = perpMarket.data;
 			const perpMarketIndex = perpMarketAccount.marketIndex;
-			const oracle = perpMarketAccount.amm.oracle;
-			const oracleId = getOracleId(oracle, perpMarketAccount.amm.oracleSource);
+			const oracle = perpMarketAccount.oracle;
+			const oracleId = getOracleId(oracle, perpMarketAccount.oracleSource);
 			if (!this.oracles.has(oracleId)) {
 				oraclePromises.push(
 					this.addOracle({
 						publicKey: oracle,
-						source: perpMarketAccount.amm.oracleSource,
+						source: perpMarketAccount.oracleSource,
 					})
 				);
 			}
@@ -613,7 +613,7 @@ export class PollingVelocityClientAccountSubscriber
 			return undefined;
 		}
 
-		if (!perpMarketAccount.data.amm.oracle.equals(oracle)) {
+		if (!perpMarketAccount.data.oracle.equals(oracle)) {
 			// If the oracle has changed, we need to update the oracle map in background
 			this.setPerpOracleMap();
 		}

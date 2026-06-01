@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use anchor_lang::prelude::{
     borsh::{BorshDeserialize, BorshSerialize},
     *,
@@ -9,19 +7,16 @@ use super::oracle_map::OracleIdentifier;
 #[cfg(test)]
 use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::{
-    controller::position::PositionDirection,
+    amm::math::amm::{self},
     error::{DriftResult, ErrorCode},
     math::{
-        amm::{self},
         casting::Cast,
         constants::{
-            AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-            BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+            AMM_TO_QUOTE_PRECISION_RATIO, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
             FUNDING_RATE_BUFFER_I128, FUNDING_RATE_OFFSET_PERCENTAGE, LIQUIDATION_FEE_PRECISION,
             MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER,
-            PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-            PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
-            TWENTY_FOUR_HOUR,
+            PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64,
+            PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
         },
         margin::{
             calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -31,18 +26,13 @@ use crate::{
             is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode, OracleValidity,
         },
         safe_math::SafeMath,
-        stats,
     },
     msg,
     state::{
         fill_mode::FillMode,
         market_status::MarketStatus,
-        oracle::{
-            get_prelaunch_price, HistoricalOracleData, MMOraclePriceData, OraclePriceData,
-            OracleSource,
-        },
+        oracle::{HistoricalOracleData, MMOraclePriceData, OraclePriceData, OracleSource},
         paused_operations::PerpOperation,
-        pyth_lazer_oracle::PythLazerOracle,
         spot_market::{AssetTier, SpotBalance, SpotBalanceType},
         state::{State, ValidityGuardRails},
         traits::{MarketIndexOffset, Size},
@@ -127,8 +117,47 @@ pub enum MarketConfigFlag {
 pub struct PerpMarket {
     /// The perp market's address. It is a pda of the market index
     pub pubkey: Pubkey,
-    /// The automated market maker
-    pub amm: AMM,
+    // u128/i128 fields placed first so the zero-copy struct's u128 fields hit
+    // 16-byte alignment. Group: protocol-wide position counters / open interest.
+    /// always non-negative. tracks number of total longs in market (regardless of counterparty)
+    /// precision: BASE_PRECISION
+    pub base_asset_amount_long: i128,
+    /// always non-positive. tracks number of total shorts in market (regardless of counterparty)
+    /// precision: BASE_PRECISION
+    pub base_asset_amount_short: i128,
+    /// sum of all user's perp quote_asset_amount in market
+    /// precision: QUOTE_PRECISION
+    pub quote_asset_amount: i128,
+    /// sum of all long user's quote_entry_amount in market
+    /// precision: QUOTE_PRECISION
+    pub quote_entry_amount_long: i128,
+    /// sum of all short user's quote_entry_amount in market
+    /// precision: QUOTE_PRECISION
+    pub quote_entry_amount_short: i128,
+    /// sum of all long user's quote_break_even_amount in market
+    /// precision: QUOTE_PRECISION
+    pub quote_break_even_amount_long: i128,
+    /// sum of all short user's quote_break_even_amount in market
+    /// precision: QUOTE_PRECISION
+    pub quote_break_even_amount_short: i128,
+    /// max allowed open interest, blocks trades that breach this value
+    /// precision: BASE_PRECISION
+    pub max_open_interest: u128,
+    /// accumulated social loss paid by users since inception in market
+    /// precision: QUOTE_PRECISION
+    pub total_social_loss: u128,
+    /// accumulated funding rate for longs since inception in market
+    pub cumulative_funding_rate_long: i128,
+    /// accumulated funding rate for shorts since inception in market
+    pub cumulative_funding_rate_short: i128,
+    /// total fees collected by exchange fee schedule
+    /// precision: QUOTE_PRECISION
+    pub total_exchange_fee: u128,
+    /// all fees collected by market for liquidations
+    /// precision: QUOTE_PRECISION
+    pub total_liquidation_fee: u128,
+    /// oracle price data public key
+    pub oracle: Pubkey,
     /// The market's pnl pool. When users settle negative pnl, the balance increases.
     /// When users settle positive pnl, the balance decreases. Can not go negative.
     pub pnl_pool: PoolBalance,
@@ -136,6 +165,27 @@ pub struct PerpMarket {
     pub name: [u8; 32],
     /// The perp market's claim on the insurance fund
     pub insurance_claim: InsuranceClaim,
+    /// last funding rate in this perp market (unit is quote per base)
+    /// precision: FUNDING_RATE_PRECISION
+    pub last_funding_rate: i64,
+    /// last funding rate for longs in this perp market (unit is quote per base)
+    /// precision: FUNDING_RATE_PRECISION
+    pub last_funding_rate_long: i64,
+    /// last funding rate for shorts in this perp market (unit is quote per base)
+    /// precision: QUOTE_PRECISION
+    pub last_funding_rate_short: i64,
+    /// the last funding rate update unix_timestamp
+    pub last_funding_rate_ts: i64,
+    /// unsettled funding pnl across the market (protocol-wide)
+    pub net_unsettled_funding_pnl: i64,
+    /// oracle TWAP captured at last funding update
+    pub last_funding_oracle_twap: i64,
+    /// the base step size (increment) of orders
+    /// precision: BASE_PRECISION
+    pub order_step_size: u64,
+    /// the price tick size of orders
+    /// precision: PRICE_PRECISION
+    pub order_tick_size: u64,
     /// The max pnl imbalance before positive pnl asset weight is discounted
     /// pnl imbalance is the difference between long and short pnl. When it's greater than 0,
     /// the amm has negative pnl and the initial asset weight for positive pnl is discounted
@@ -199,6 +249,11 @@ pub struct PerpMarket {
     /// E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps
     /// if this is 50 and the fee is 5bps, the new fee will be 7.5bps
     pub fee_adjustment: i16,
+    /// Explicit padding so the IDL records the 6 bytes the Rust compiler
+    /// inserts to 8-align `last_fill_price`. Without this the JS borsh
+    /// decoder (which reads sequentially after the variable-span enum
+    /// `status`) reads every field past `fee_adjustment` 6 bytes early.
+    pub _padding_align_lfp: [u8; 6],
     pub last_fill_price: u64,
     pub pool_id: u8,
     pub _padding_pmm: [u8; 2],
@@ -208,17 +263,64 @@ pub struct PerpMarket {
     pub lp_exchange_fee_excluscion_scalar: u8,
     pub lp_pool_id: u8,
     pub market_config: u8,
-    pub padding: [u8; 30],
+    /// the oracle provider information. used to decode/scale the oracle public key
+    pub oracle_source: OracleSource,
+    /// override for the per-fill slot delay required from the oracle (default -1 = use state default)
+    pub oracle_slot_delay_override: i8,
+    /// the override for the state.min_perp_auction_duration
+    /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
+    pub oracle_low_risk_slot_delay_override: i8,
+    /// Trailing 28 bytes (was 27 + 1 compiler-inserted gap) so the IDL
+    /// records every byte and `market_stats` lands at the same offset Rust
+    /// computes via repr(C) alignment.
+    pub padding: [u8; 28],
+    /// Market-wide stats shared across all makers: mark/oracle TWAPs, std,
+    /// volume, intensity, mm-oracle snapshot, `historical_oracle_data`,
+    /// `last_oracle_normalised_price`, `last_oracle_valid`. Writers (e.g.
+    /// `MarketStats::update_mark_std`, `update_volume_24h`, native
+    /// `handle_update_mm_oracle_native`) update this directly.
+    pub market_stats: MarketStats,
+    /// 8 bytes of explicit padding so MarketStats (216 bytes) plus this
+    /// padding equals 224 bytes — the offset Rust naturally inserts to
+    /// 16-align AMM's leading u128. Making it explicit keeps the IDL byte
+    /// layout aligned with `repr(C)`.
+    pub _padding_align_amm: [u8; 8],
+    /// The automated market maker. Last field so a future excision into a
+    /// dedicated AMM program is a clean truncate at this offset — `PerpMarket`
+    /// minus the trailing `AMM` bytes equals the future "orderbook-only"
+    /// account layout.
+    pub amm: AMM,
 }
 
 impl Default for PerpMarket {
     fn default() -> Self {
         PerpMarket {
             pubkey: Pubkey::default(),
-            amm: AMM::default(),
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
+            quote_asset_amount: 0,
+            quote_entry_amount_long: 0,
+            quote_entry_amount_short: 0,
+            quote_break_even_amount_long: 0,
+            quote_break_even_amount_short: 0,
+            max_open_interest: 0,
+            total_social_loss: 0,
+            cumulative_funding_rate_long: 0,
+            cumulative_funding_rate_short: 0,
+            total_exchange_fee: 0,
+            total_liquidation_fee: 0,
+            oracle: Pubkey::default(),
             pnl_pool: PoolBalance::default(),
             name: [0; 32],
             insurance_claim: InsuranceClaim::default(),
+            last_funding_rate: 0,
+            last_funding_rate_long: 0,
+            last_funding_rate_short: 0,
+            last_funding_rate_ts: 0,
+            net_unsettled_funding_pnl: 0,
+            last_funding_oracle_twap: 0,
+            order_step_size: 0,
+            order_tick_size: 0,
             unrealized_pnl_max_imbalance: 0,
             expiry_ts: 0,
             expiry_price: 0,
@@ -242,6 +344,7 @@ impl Default for PerpMarket {
             paused_operations: 0,
             quote_spot_market_index: 0,
             fee_adjustment: 0,
+            _padding_align_lfp: [0; 6],
             pool_id: 0,
             _padding_pmm: [0; 2],
             lp_fee_transfer_scalar: 0,
@@ -251,29 +354,36 @@ impl Default for PerpMarket {
             last_fill_price: 0,
             lp_pool_id: 0,
             market_config: 0,
-            padding: [0; 30],
+            oracle_source: OracleSource::default(),
+            oracle_slot_delay_override: -1,
+            oracle_low_risk_slot_delay_override: 0,
+            padding: [0; 28],
+            market_stats: MarketStats::default(),
+            _padding_align_amm: [0; 8],
+            amm: AMM::default(),
         }
     }
 }
 
 impl Size for PerpMarket {
-    const SIZE: usize = 1176;
+    // 1104-byte struct + 8-byte discriminator. AMM-decoupling Step A2
+    // deleted 8 cached/derived AMM fields (4×u128 spread reserves, 1×i64
+    // last_oracle_reserve_price_spread_pct, 2×u32 long/short_spread, 1×i32
+    // reference_price_offset) — 80 bytes of cache that's now computed on
+    // demand via `math::amm_spread::compute_amm_quote_state`.
+    const SIZE: usize = 1112;
 }
 
 impl MarketIndexOffset for PerpMarket {
-    // PoolBalance padding was widened from [u8;6] to [u8;14] so that
-    // sizeof(PoolBalance) == 32 on both x86_64 and SBF (u128 is 16 bytes with
-    // 8-byte alignment on SBF, so explicit padding avoids tail-padding divergence).
-    // PerpMarket padding was widened from [u8;22] to [u8;30] so the total
-    // declared content is 1232 bytes (a multiple of 16), making sizeof(PerpMarket)
-    // == 1232 on both architectures.  market_index is at struct byte 1168,
-    // account byte 1176 on both.
-    const MARKET_INDEX_OFFSET: usize = 1112;
+    // Account-byte offset (includes the 8-byte Anchor discriminator). Used
+    // by callers that read `market_index` straight out of the account-bytes
+    // slice without deserialising the full struct.
+    const MARKET_INDEX_OFFSET: usize = 8 + std::mem::offset_of!(PerpMarket, market_index);
 }
 
 impl PerpMarket {
     pub fn oracle_id(&self) -> OracleIdentifier {
-        (self.amm.oracle, self.amm.oracle_source)
+        (self.oracle, self.oracle_source)
     }
 
     pub fn has_market_config_flag(&self, flag: MarketConfigFlag) -> bool {
@@ -318,42 +428,7 @@ impl PerpMarket {
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
-        let quote_drawdown_limit_breached = match self.contract_tier {
-            ContractTier::A | ContractTier::B => {
-                self.amm.net_revenue_since_last_funding
-                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 400
-            }
-            _ => {
-                self.amm.net_revenue_since_last_funding
-                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 200
-            }
-        };
-
-        if quote_drawdown_limit_breached {
-            let percent_drawdown = self
-                .amm
-                .net_revenue_since_last_funding
-                .cast::<i128>()?
-                .safe_mul(PERCENTAGE_PRECISION_I128)?
-                .safe_div(self.amm.total_fee_minus_distributions.max(1))?;
-
-            let percent_drawdown_limit_breached = match self.contract_tier {
-                ContractTier::A => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 50,
-                ContractTier::B => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 33,
-                ContractTier::C => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 25,
-                _ => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 20,
-            };
-
-            if percent_drawdown_limit_breached {
-                msg!("AMM has too much on-the-hour drawdown (percentage={}, quote={}) to accept fills",
-                percent_drawdown,
-                self.amm.net_revenue_since_last_funding
-            );
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
+        self.amm.has_too_much_drawdown(self.contract_tier)
     }
 
     pub fn get_max_confidence_interval_multiplier(self) -> DriftResult<u64> {
@@ -470,7 +545,9 @@ impl PerpMarket {
         {
             let net_unsettled_pnl = amm::calculate_net_user_pnl(
                 &self.amm,
-                self.amm.historical_oracle_data.last_oracle_price,
+                self.market_stats.historical_oracle_data.last_oracle_price,
+                self.quote_asset_amount,
+                self.net_unsettled_funding_pnl,
             )?;
 
             if net_unsettled_pnl > self.unrealized_pnl_max_imbalance.cast::<i128>()? {
@@ -513,10 +590,9 @@ impl PerpMarket {
     }
 
     pub fn get_open_interest(&self) -> u128 {
-        self.amm
-            .base_asset_amount_long
+        self.base_asset_amount_long
             .abs()
-            .max(self.amm.base_asset_amount_short.abs())
+            .max(self.base_asset_amount_short.abs())
             .unsigned_abs()
     }
 
@@ -526,8 +602,8 @@ impl PerpMarket {
         let open_interest = self.get_open_interest();
 
         let depth = (open_interest.safe_div(1000)?.cast::<u64>()?).clamp(
-            self.amm.min_order_size.safe_mul(100)?,
-            self.amm.min_order_size.safe_mul(5000)?,
+            self.market_stats.min_order_size.safe_mul(100)?,
+            self.market_stats.min_order_size.safe_mul(5000)?,
         );
 
         Ok(depth)
@@ -535,10 +611,14 @@ impl PerpMarket {
 
     pub fn is_price_divergence_ok_for_settle_pnl(&self, oracle_price: i64) -> DriftResult<bool> {
         let oracle_divergence = oracle_price
-            .safe_sub(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?
+            .safe_sub(
+                self.market_stats
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+            )?
             .safe_mul(PERCENTAGE_PRECISION_I64)?
             .safe_div(
-                self.amm
+                self.market_stats
                     .historical_oracle_data
                     .last_oracle_price_twap_5min
                     .min(oracle_price),
@@ -564,8 +644,11 @@ impl PerpMarket {
             return Ok(false);
         }
 
-        let min_price =
-            oracle_price.min(self.amm.historical_oracle_data.last_oracle_price_twap_5min);
+        let min_price = oracle_price.min(
+            self.market_stats
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+        );
 
         let std_limit = match self.contract_tier {
             ContractTier::A => min_price / 50,                 // 200 bps
@@ -577,11 +660,11 @@ impl PerpMarket {
         }
         .unsigned_abs();
 
-        if self.amm.oracle_std.max(self.amm.mark_std) >= std_limit {
+        if self.market_stats.oracle_std.max(self.market_stats.mark_std) >= std_limit {
             msg!(
                 "market_index={} std too large to safely settle pnl: {} >= {}",
                 self.market_index,
-                self.amm.oracle_std.max(self.amm.mark_std),
+                self.market_stats.oracle_std.max(self.market_stats.mark_std),
                 std_limit
             );
             return Ok(false);
@@ -591,7 +674,7 @@ impl PerpMarket {
     }
 
     pub fn can_sanitize_market_order_auctions(&self) -> bool {
-        self.amm.oracle_source != OracleSource::Prelaunch
+        self.oracle_source != OracleSource::Prelaunch
     }
 
     pub fn get_trigger_price(
@@ -606,9 +689,11 @@ impl PerpMarket {
 
         let last_fill_price = self.last_fill_price;
 
-        let mark_price_5min_twap = self.amm.last_mark_price_twap_5min;
-        let last_oracle_price_twap_5min =
-            self.amm.historical_oracle_data.last_oracle_price_twap_5min;
+        let mark_price_5min_twap = self.market_stats.last_mark_price_twap_5min;
+        let last_oracle_price_twap_5min = self
+            .market_stats
+            .historical_oracle_data
+            .last_oracle_price_twap_5min;
 
         let basis_5min = mark_price_5min_twap
             .cast::<i64>()?
@@ -651,32 +736,30 @@ impl PerpMarket {
 
     #[inline(always)]
     fn get_last_funding_basis(&self, oracle_price: i64, now: i64) -> DriftResult<i64> {
-        if self.amm.last_funding_oracle_twap > 0 {
+        if self.last_funding_oracle_twap > 0 {
             let last_funding_rate = self
-                .amm
                 .last_funding_rate
                 .cast::<i128>()?
                 .safe_mul(PRICE_PRECISION_I128)?
-                .safe_div(self.amm.last_funding_oracle_twap.cast::<i128>()?)?
+                .safe_div(self.last_funding_oracle_twap.cast::<i128>()?)?
                 .safe_mul(24)?;
             let last_funding_rate_pre_adj =
                 last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE as i128)?;
 
-            let time_left_until_funding_update = now
-                .safe_sub(self.amm.last_funding_rate_ts)?
-                .min(self.amm.funding_period);
+            let funding_period = self.market_stats.funding_period;
+            let time_left_until_funding_update =
+                now.safe_sub(self.last_funding_rate_ts)?.min(funding_period);
 
             let last_funding_basis = oracle_price
                 .cast::<i128>()?
                 .safe_mul(last_funding_rate_pre_adj)?
                 .safe_div(PERCENTAGE_PRECISION_I128)?
                 .safe_mul(
-                    self.amm
-                        .funding_period
+                    funding_period
                         .safe_sub(time_left_until_funding_update)?
                         .cast::<i128>()?,
                 )?
-                .safe_div(self.amm.funding_period.cast::<i128>()?)?
+                .safe_div(funding_period.cast::<i128>()?)?
                 / FUNDING_RATE_BUFFER_I128;
 
             last_funding_basis.cast::<i64>()
@@ -702,6 +785,12 @@ impl PerpMarket {
         ))
     }
 
+    /// Whether the oracle was valid at the last AMM update AND the AMM was
+    /// updated in the current slot.
+    pub fn is_recent_oracle_valid(&self, current_slot: u64) -> DriftResult<bool> {
+        Ok(self.market_stats.last_oracle_valid && self.amm.is_fresh_at(current_slot))
+    }
+
     #[inline(always)]
     pub fn get_mm_oracle_price_data(
         &self,
@@ -711,37 +800,39 @@ impl PerpMarket {
     ) -> DriftResult<MMOraclePriceData> {
         let delay = clock_slot
             .cast::<i64>()?
-            .safe_sub(self.amm.mm_oracle_slot.cast::<i64>()?)?;
+            .safe_sub(self.market_stats.mm_oracle_slot.cast::<i64>()?)?;
         let oracle_data = OraclePriceData {
-            price: self.amm.mm_oracle_price,
+            price: self.market_stats.mm_oracle_price,
             delay,
             sequence_id: None,
             confidence: oracle_price_data.confidence,
             has_sufficient_number_of_data_points: true,
         };
-        let oracle_validity = if self.amm.mm_oracle_price == 0 {
+        let oracle_validity = if self.market_stats.mm_oracle_price == 0 {
             OracleValidity::NonPositive
         } else {
             oracle_validity(
                 MarketType::Perp,
                 self.market_index,
-                self.amm.historical_oracle_data.last_oracle_price_twap,
+                self.market_stats
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
                 &oracle_data,
-                &oracle_guard_rails,
+                oracle_guard_rails,
                 self.get_max_confidence_interval_multiplier()?,
-                &self.amm.oracle_source,
+                &self.oracle_source,
                 LogMode::MMOracle,
-                self.amm.oracle_slot_delay_override,
-                self.amm.oracle_low_risk_slot_delay_override,
+                self.oracle_slot_delay_override,
+                self.oracle_low_risk_slot_delay_override,
             )?
         };
-        Ok(MMOraclePriceData::new(
-            self.amm.mm_oracle_price,
+        MMOraclePriceData::new(
+            self.market_stats.mm_oracle_price,
             delay,
-            self.amm.mm_oracle_sequence_id,
+            self.market_stats.mm_oracle_sequence_id,
             oracle_validity,
             oracle_price_data,
-        )?)
+        )
     }
 
     pub fn amm_can_fill_order(
@@ -769,8 +860,7 @@ impl PerpMarket {
         // This is basically early volatility protection
         let mm_oracle_not_too_volatile =
             if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
-                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
-                amm_available
+                !mm_oracle_price_data.is_mm_exchange_diff_bps_high()
             } else {
                 true
             };
@@ -814,7 +904,9 @@ impl PerpMarket {
                 msg!("AMM cannot fill order: oracle not valid for immediate fills");
                 return Ok(false);
             }
-            let amm_wants_to_jit_make = self.amm.amm_wants_to_jit_make(order.direction)?;
+            let amm_wants_to_jit_make = self
+                .amm
+                .amm_wants_to_jit_make(order.direction, self.order_step_size)?;
             if !amm_wants_to_jit_make {
                 msg!("AMM cannot fill order: AMM does not want to JIT make");
                 return Ok(false);
@@ -830,7 +922,7 @@ impl PerpMarket {
             }
 
             let amm_can_skip_duration =
-                self.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
+                self.can_skip_auction_duration(state, amm_has_low_enough_inventory)?;
 
             if !amm_can_skip_duration {
                 msg!("AMM cannot fill order: AMM cannot skip duration");
@@ -847,9 +939,20 @@ impl PerpMarket {
 #[cfg(test)]
 impl PerpMarket {
     pub fn default_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
         let amm = AMM::default_test();
         PerpMarket {
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: PRICE_PRECISION_I64,
+                    ..HistoricalOracleData::default()
+                },
+                last_oracle_valid: true,
+                ..MarketStats::default()
+            },
             amm,
+            order_step_size: 1,
+            order_tick_size: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             ..PerpMarket::default()
@@ -857,11 +960,27 @@ impl PerpMarket {
     }
 
     pub fn default_btc_test() -> Self {
+        use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64};
         let amm = AMM::default_btc_test();
         PerpMarket {
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: 19_400 * PRICE_PRECISION_I64,
+                    last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
+                    last_oracle_price_twap_5min: 19_400 * PRICE_PRECISION_I64,
+                    last_oracle_price_twap_ts: 1_662_800_000_i64,
+                    ..HistoricalOracleData::default()
+                },
+                last_mark_price_twap_ts: 1_662_800_000,
+                mark_std: PRICE_PRECISION as u64,
+                last_oracle_valid: true,
+                funding_period: 3600,
+                ..MarketStats::default()
+            },
             amm,
-            margin_ratio_initial: 1000,    // 10x
-            margin_ratio_maintenance: 500, // 5x
+            quote_asset_amount: 19_000_000_000, // short 1 BTC @ $19000
+            margin_ratio_initial: 1000,         // 10x
+            margin_ratio_maintenance: 500,      // 5x
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         }
@@ -931,608 +1050,238 @@ impl SpotBalance for PoolBalance {
     }
 }
 
+/// Historic market data shared across all makers, updated on every fill
+/// regardless of which maker filled (vAMM, DLOB resting order, JIT participant,
+/// future quoter types). Holds mark/oracle TWAPs, rolling std, volume,
+/// intensity, mm-oracle snapshot, `historical_oracle_data`,
+/// `last_oracle_normalised_price`, `last_oracle_valid`.
+///
+/// Update-cadence rule: anything that needs to refresh on every market event
+/// lives here. Anything AMM-private (reserves, peg, spreads — only matters
+/// when the AMM specifically is the counterparty) lives on `AMM`. See
+/// `docs/amm-decoupling-and-maker-interface.md`.
 #[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
-pub struct AMM {
-    /// oracle price data public key
-    pub oracle: Pubkey,
-    /// stores historically witnessed oracle data
-    pub historical_oracle_data: HistoricalOracleData,
-    /// partition of fees from perp market trading moved from pnl settlements
-    pub fee_pool: PoolBalance,
-    /// `x` reserves for constant product mm formula (x * y = k)
-    /// precision: AMM_RESERVE_PRECISION
-    pub base_asset_reserve: u128,
-    /// `y` reserves for constant product mm formula (x * y = k)
-    /// precision: AMM_RESERVE_PRECISION
-    pub quote_asset_reserve: u128,
-    /// determines how close the min/max base asset reserve sit vs base reserves
-    /// allow for decreasing slippage without increasing liquidity and v.v.
-    /// precision: PERCENTAGE_PRECISION
-    pub concentration_coef: u128,
-    /// minimum base_asset_reserve allowed before AMM is unavailable
-    /// precision: AMM_RESERVE_PRECISION
-    pub min_base_asset_reserve: u128,
-    /// maximum base_asset_reserve allowed before AMM is unavailable
-    /// precision: AMM_RESERVE_PRECISION
-    pub max_base_asset_reserve: u128,
-    /// `sqrt(k)` in constant product mm formula (x * y = k). stored to avoid drift caused by integer math issues
-    /// precision: AMM_RESERVE_PRECISION
-    pub sqrt_k: u128,
-    /// normalizing numerical factor for y, its use offers lowest slippage in cp-curve when market is balanced
-    /// precision: PEG_PRECISION
-    pub peg_multiplier: u128,
-    /// y when market is balanced. stored to save computation
-    /// precision: AMM_RESERVE_PRECISION
-    pub terminal_quote_asset_reserve: u128,
-    /// always non-negative. tracks number of total longs in market (regardless of counterparty)
-    /// precision: BASE_PRECISION
-    pub base_asset_amount_long: i128,
-    /// always non-positive. tracks number of total shorts in market (regardless of counterparty)
-    /// precision: BASE_PRECISION
-    pub base_asset_amount_short: i128,
-    /// tracks net position (longs-shorts) in market with AMM as counterparty
-    /// precision: BASE_PRECISION
-    pub base_asset_amount_with_amm: i128,
-    /// max allowed open interest, blocks trades that breach this value
-    /// precision: BASE_PRECISION
-    pub max_open_interest: u128,
-    /// sum of all user's perp quote_asset_amount in market
-    /// precision: QUOTE_PRECISION
-    pub quote_asset_amount: i128,
-    /// sum of all long user's quote_entry_amount in market
-    /// precision: QUOTE_PRECISION
-    pub quote_entry_amount_long: i128,
-    /// sum of all short user's quote_entry_amount in market
-    /// precision: QUOTE_PRECISION
-    pub quote_entry_amount_short: i128,
-    /// sum of all long user's quote_break_even_amount in market
-    /// precision: QUOTE_PRECISION
-    pub quote_break_even_amount_long: i128,
-    /// sum of all short user's quote_break_even_amount in market
-    /// precision: QUOTE_PRECISION
-    pub quote_break_even_amount_short: i128,
-    /// last funding rate in this perp market (unit is quote per base)
-    /// precision: FUNDING_RATE_PRECISION
-    pub last_funding_rate: i64,
-    /// last funding rate for longs in this perp market (unit is quote per base)
-    /// precision: FUNDING_RATE_PRECISION
-    pub last_funding_rate_long: i64,
-    /// last funding rate for shorts in this perp market (unit is quote per base)
-    /// precision: QUOTE_PRECISION
-    pub last_funding_rate_short: i64,
-    /// estimate of last 24h of funding rate perp market (unit is quote per base)
-    /// precision: QUOTE_PRECISION
-    pub last_24h_avg_funding_rate: i64,
-    /// total fees collected by this perp market
-    /// precision: QUOTE_PRECISION
-    pub total_fee: i128,
-    /// total fees collected by the vAMM's bid/ask spread
-    /// precision: QUOTE_PRECISION
-    pub total_mm_fee: i128,
-    /// total fees collected by exchange fee schedule
-    /// precision: QUOTE_PRECISION
-    pub total_exchange_fee: u128,
-    /// total fees minus any recognized upnl and pool withdraws
-    /// precision: QUOTE_PRECISION
-    pub total_fee_minus_distributions: i128,
-    /// sum of all fees from fee pool withdrawn to revenue pool
-    /// precision: QUOTE_PRECISION
-    pub total_fee_withdrawn: u128,
-    /// all fees collected by market for liquidations
-    /// precision: QUOTE_PRECISION
-    pub total_liquidation_fee: u128,
-    /// accumulated funding rate for longs since inception in market
-    pub cumulative_funding_rate_long: i128,
-    /// accumulated funding rate for shorts since inception in market
-    pub cumulative_funding_rate_short: i128,
-    /// accumulated social loss paid by users since inception in market
-    pub total_social_loss: u128,
-    /// transformed base_asset_reserve for users going long
-    /// precision: AMM_RESERVE_PRECISION
-    pub ask_base_asset_reserve: u128,
-    /// transformed quote_asset_reserve for users going long
-    /// precision: AMM_RESERVE_PRECISION
-    pub ask_quote_asset_reserve: u128,
-    /// transformed base_asset_reserve for users going short
-    /// precision: AMM_RESERVE_PRECISION
-    pub bid_base_asset_reserve: u128,
-    /// transformed quote_asset_reserve for users going short
-    /// precision: AMM_RESERVE_PRECISION
-    pub bid_quote_asset_reserve: u128,
-    /// the last seen oracle price partially shrunk toward the amm reserve price
-    /// precision: PRICE_PRECISION
-    pub last_oracle_normalised_price: i64,
-    /// the gap between the oracle price and the reserve price = y * peg_multiplier / x
-    pub last_oracle_reserve_price_spread_pct: i64,
-    /// average estimate of bid price over funding_period
-    /// precision: PRICE_PRECISION
-    pub last_bid_price_twap: u64,
-    /// average estimate of ask price over funding_period
-    /// precision: PRICE_PRECISION
-    pub last_ask_price_twap: u64,
-    /// average estimate of (bid+ask)/2 price over funding_period
+pub struct MarketStats {
+    /// Average estimate of (bid+ask)/2 price over funding_period.
     /// precision: PRICE_PRECISION
     pub last_mark_price_twap: u64,
-    /// average estimate of (bid+ask)/2 price over FIVE_MINUTES
+    /// Average estimate of (bid+ask)/2 price over FIVE_MINUTES.
     pub last_mark_price_twap_5min: u64,
-    /// the last blockchain slot the amm was updated
-    pub last_update_slot: u64,
-    /// the pct size of the oracle confidence interval
-    /// precision: PERCENTAGE_PRECISION
-    pub last_oracle_conf_pct: u64,
-    /// the total_fee_minus_distribution change since the last funding update
-    /// precision: QUOTE_PRECISION
-    pub net_revenue_since_last_funding: i64,
-    /// the last funding rate update unix_timestamp
-    pub last_funding_rate_ts: i64,
-    /// the peridocity of the funding rate updates
-    pub funding_period: i64,
-    /// the base step size (increment) of orders
-    /// precision: BASE_PRECISION
-    pub order_step_size: u64,
-    /// the price tick size of orders
+    /// The last unix_timestamp the mark twap was updated.
+    pub last_mark_price_twap_ts: i64,
+    /// Average estimate of bid price over funding_period.
     /// precision: PRICE_PRECISION
-    pub order_tick_size: u64,
-    /// the minimum base size of an order
-    /// precision: BASE_PRECISION
-    pub min_order_size: u64,
-    /// the max base size a single user can have
-    /// precision: BASE_PRECISION
-    pub mm_oracle_slot: u64,
-    /// estimated total of volume in market
-    /// QUOTE_PRECISION
-    pub volume_24h: u64,
-    /// the volume intensity of long fills against AMM
-    pub long_intensity_volume: u64,
-    /// the volume intensity of short fills against AMM
-    pub short_intensity_volume: u64,
-    /// the blockchain unix timestamp at the time of the last trade
-    pub last_trade_ts: i64,
-    /// estimate of standard deviation of the fill (mark) prices
+    pub last_bid_price_twap: u64,
+    /// Average estimate of ask price over funding_period.
+    /// precision: PRICE_PRECISION
+    pub last_ask_price_twap: u64,
+    /// Estimate of standard deviation of fill (mark) prices.
     /// precision: PRICE_PRECISION
     pub mark_std: u64,
-    /// estimate of standard deviation of the oracle price at each update
+    /// Estimate of standard deviation of the oracle price at each update.
     /// precision: PRICE_PRECISION
     pub oracle_std: u64,
-    /// the last unix_timestamp the mark twap was updated
-    pub last_mark_price_twap_ts: i64,
-    /// the minimum spread the AMM can quote. also used as step size for some spread logic increases.
-    pub base_spread: u32,
-    /// the maximum spread the AMM can quote
-    pub max_spread: u32,
-    /// the spread for asks vs the reserve price
-    pub long_spread: u32,
-    /// the spread for bids vs the reserve price
-    pub short_spread: u32,
-    /// MM oracle price
+    /// The pct size of the oracle confidence interval.
+    /// precision: PERCENTAGE_PRECISION
+    pub last_oracle_conf_pct: u64,
+    /// Estimated total of volume in market.
+    /// QUOTE_PRECISION
+    pub volume_24h: u64,
+    /// The volume intensity of long fills (across all makers).
+    pub long_intensity_volume: u64,
+    /// The volume intensity of short fills (across all makers).
+    pub short_intensity_volume: u64,
+    /// The blockchain unix_timestamp at the time of the last trade.
+    pub last_trade_ts: i64,
+    /// estimate of last 24h of funding rate perp market (unit is quote per base)
+    /// Market-wide config / rolling stat — read by the AMM when computing
+    /// `reference_price_offset` and by funding-rate updates. Migrated from
+    /// `PerpMarket` so the AMM reads only from `MarketStats`.
+    /// precision: QUOTE_PRECISION
+    pub last_24h_avg_funding_rate: i64,
+    /// the periodicity of the funding rate updates. Market-wide config used
+    /// across the funding path. Migrated from `PerpMarket`.
+    pub funding_period: i64,
+    /// the minimum base size of an order. Market-wide config read by the AMM
+    /// when computing fallback prices / spread reserves. Migrated from
+    /// `PerpMarket`.
+    /// precision: BASE_PRECISION
+    pub min_order_size: u64,
+    /// MM oracle price snapshot (set by the native handler).
     pub mm_oracle_price: i64,
-    /// the fraction of total available liquidity a single fill on the AMM can consume
-    pub max_fill_reserve_fraction: u16,
-    /// the maximum slippage a single fill on the AMM can push
-    pub max_slippage_ratio: u16,
-    /// the update intensity of AMM formulaic updates (adjusting k). 0-100
-    pub curve_update_intensity: u8,
-    /// the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation.
-    /// (0, 100] is intensity for protocol-owned AMM.
-    pub amm_jit_intensity: u8,
-    /// the oracle provider information. used to decode/scale the oracle public key
-    pub oracle_source: OracleSource,
-    /// tracks whether the oracle was considered valid at the last AMM update
-    pub last_oracle_valid: bool,
-    /// the override for the state.min_perp_auction_duration
-    /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
-    pub oracle_low_risk_slot_delay_override: i8,
-    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
-    pub amm_spread_adjustment: i8,
-    pub oracle_slot_delay_override: i8,
-    /// alignment padding for the following u64 (Rust would otherwise insert 5 implicit bytes here)
-    pub padding_pre_mm_oracle_sequence: [u8; 5],
+    /// Slot at which the mm_oracle_* fields were last updated.
+    pub mm_oracle_slot: u64,
+    /// Monotonically increasing sequence id for mm_oracle updates.
     pub mm_oracle_sequence_id: u64,
-    pub net_unsettled_funding_pnl: i64,
-    pub reference_price_offset: i32,
-    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
-    pub amm_inventory_spread_adjustment: i8,
-    pub reference_price_offset_deadband_pct: u8,
-    pub padding_pre_last_funding: [u8; 2],
-    pub last_funding_oracle_twap: i64,
-    /// trailing alignment padding (struct alignment is 16 due to u128 fields)
-    pub padding_trailing: [u8; 8],
+    /// Canonical sanitised/clamped oracle price — the latest oracle reading
+    /// after normalisation (any quoter's view, not AMM-specific).
+    pub last_oracle_normalised_price: i64,
+    /// Previous reference price offset, written by `_update_amm` after a
+    /// successful repeg/k_update. Read by `compute_amm_quote_state` to
+    /// implement the legacy time-decayed reference-price-offset smoothing
+    /// transition — when the freshly computed offset's sign flips relative
+    /// to this cached value AND `curve_update_intensity > 100`, the
+    /// transition is clamped per-slot rather than snapping. Migrated from
+    /// `AMM.reference_price_offset` (which was deleted in the AMM-decoupling
+    /// refactor) so the smoothing behaviour is preserved across cranks.
+    /// precision: PRICE_PRECISION
+    pub last_reference_price_offset: i32,
+    /// Whether the oracle was valid at the most recent `_update_amm`.
+    /// Read by settlement and fill paths to gate operations.
+    pub last_oracle_valid: bool,
+    /// Padding so historical_oracle_data is 8-aligned.
+    pub padding: [u8; 11],
+    /// Historical oracle readings — TWAPs, last raw price, confidence, delay,
+    /// timestamp. Market-wide data (any quoter would want it), updated by
+    /// `_update_amm` / funding paths. Migrated from AMM.
+    pub historical_oracle_data: HistoricalOracleData,
 }
 
-impl Default for AMM {
+impl Default for MarketStats {
     fn default() -> Self {
-        AMM {
-            oracle: Pubkey::default(),
-            historical_oracle_data: HistoricalOracleData::default(),
-            fee_pool: PoolBalance::default(),
-            base_asset_reserve: 0,
-            quote_asset_reserve: 0,
-            concentration_coef: 0,
-            min_base_asset_reserve: 0,
-            max_base_asset_reserve: 0,
-            sqrt_k: 0,
-            peg_multiplier: 0,
-            terminal_quote_asset_reserve: 0,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: 0,
-            base_asset_amount_with_amm: 0,
-            max_open_interest: 0,
-            quote_asset_amount: 0,
-            quote_entry_amount_long: 0,
-            quote_entry_amount_short: 0,
-            quote_break_even_amount_long: 0,
-            quote_break_even_amount_short: 0,
-            last_funding_rate: 0,
-            last_funding_rate_long: 0,
-            last_funding_rate_short: 0,
-            last_24h_avg_funding_rate: 0,
-            total_fee: 0,
-            total_mm_fee: 0,
-            total_exchange_fee: 0,
-            total_fee_minus_distributions: 0,
-            total_fee_withdrawn: 0,
-            total_liquidation_fee: 0,
-            cumulative_funding_rate_long: 0,
-            cumulative_funding_rate_short: 0,
-            total_social_loss: 0,
-            ask_base_asset_reserve: 0,
-            ask_quote_asset_reserve: 0,
-            bid_base_asset_reserve: 0,
-            bid_quote_asset_reserve: 0,
-            last_oracle_normalised_price: 0,
-            last_oracle_reserve_price_spread_pct: 0,
-            last_bid_price_twap: 0,
-            last_ask_price_twap: 0,
+        // `min_order_size: 1` preserves the old `PerpMarket::default` behaviour
+        // (the field used to live on `PerpMarket`). All other fields are zero.
+        Self {
             last_mark_price_twap: 0,
             last_mark_price_twap_5min: 0,
-            last_update_slot: 0,
+            last_mark_price_twap_ts: 0,
+            last_bid_price_twap: 0,
+            last_ask_price_twap: 0,
+            mark_std: 0,
+            oracle_std: 0,
             last_oracle_conf_pct: 0,
-            net_revenue_since_last_funding: 0,
-            last_funding_rate_ts: 0,
-            funding_period: 0,
-            order_step_size: 0,
-            order_tick_size: 0,
-            min_order_size: 1,
             volume_24h: 0,
             long_intensity_volume: 0,
             short_intensity_volume: 0,
             last_trade_ts: 0,
-            mark_std: 0,
-            oracle_std: 0,
-            last_mark_price_twap_ts: 0,
-            base_spread: 0,
-            max_spread: 0,
-            long_spread: 0,
-            short_spread: 0,
+            last_24h_avg_funding_rate: 0,
+            funding_period: 0,
+            min_order_size: 1,
             mm_oracle_price: 0,
             mm_oracle_slot: 0,
-            max_fill_reserve_fraction: 0,
-            max_slippage_ratio: 0,
-            curve_update_intensity: 0,
-            amm_jit_intensity: 0,
-            oracle_source: OracleSource::default(),
-            last_oracle_valid: false,
-            oracle_low_risk_slot_delay_override: 0,
-            amm_spread_adjustment: 0,
-            oracle_slot_delay_override: -1,
-            padding_pre_mm_oracle_sequence: [0; 5],
             mm_oracle_sequence_id: 0,
-            net_unsettled_funding_pnl: 0,
-            reference_price_offset: 0,
-            amm_inventory_spread_adjustment: 0,
-            reference_price_offset_deadband_pct: 0,
-            padding_pre_last_funding: [0; 2],
-            last_funding_oracle_twap: 0,
-            padding_trailing: [0; 8],
+            last_oracle_normalised_price: 0,
+            last_reference_price_offset: 0,
+            last_oracle_valid: false,
+            padding: [0; 11],
+            historical_oracle_data: HistoricalOracleData::default(),
         }
     }
 }
 
-impl AMM {
-    pub fn get_reference_price_offset_deadband_pct(&self) -> DriftResult<u128> {
-        let pct = self.reference_price_offset_deadband_pct as u128;
-        Ok(PERCENTAGE_PRECISION.safe_mul(pct)?.safe_div(100_u128)?)
+impl crate::state::traits::Size for MarketStats {
+    const SIZE: usize = 216;
+}
+
+impl MarketStats {
+    /// Update the mark-price rolling-std estimate.
+    pub fn update_mark_std(
+        &mut self,
+        now: i64,
+        price: u64,
+        ewma: u64,
+        ewma_5min: u64,
+    ) -> crate::error::DriftResult<()> {
+        self.mark_std = crate::amm::math::amm::update_amm_mark_std(
+            self.mark_std,
+            self.last_mark_price_twap_ts,
+            now,
+            price,
+            ewma,
+            ewma_5min,
+        )?;
+        Ok(())
     }
-    pub fn get_fallback_price(
-        self,
-        direction: &PositionDirection,
-        amm_available_liquidity: u64,
-        oracle_price: i64,
-        seconds_til_order_expiry: i64,
-    ) -> DriftResult<u64> {
-        // PRICE_PRECISION
-        if direction.eq(&PositionDirection::Long) {
-            // pick amm ask + buffer if theres liquidity
-            // otherwise be aggressive vs oracle + 1hr premium
-            if amm_available_liquidity >= self.min_order_size {
-                let reserve_price = self.reserve_price()?;
-                let amm_ask_price: i64 = self.ask_price(reserve_price)?.cast()?;
-                amm_ask_price
-                    .safe_add(amm_ask_price / (seconds_til_order_expiry * 20).clamp(100, 200))?
-                    .cast::<u64>()
-            } else {
-                oracle_price
-                    .safe_add(
-                        self.last_ask_price_twap
-                            .cast::<i64>()?
-                            .safe_sub(self.historical_oracle_data.last_oracle_price_twap)?
-                            .max(0),
-                    )?
-                    .safe_add(oracle_price / (seconds_til_order_expiry * 2).clamp(10, 50))?
-                    .cast::<u64>()
-            }
+
+    /// Update the oracle-price rolling-std estimate.
+    pub fn update_oracle_std(
+        &mut self,
+        now: i64,
+        price: u64,
+        ewma: u64,
+        ewma_5min: u64,
+    ) -> crate::error::DriftResult<()> {
+        self.oracle_std = crate::amm::math::amm::update_amm_oracle_std(
+            self.oracle_std,
+            self.historical_oracle_data.last_oracle_price_twap_ts,
+            now,
+            price,
+            ewma,
+            ewma_5min,
+        )?;
+        Ok(())
+    }
+
+    /// Update the oracle-confidence percentage estimate using the previous
+    /// value decayed as a lower bound.
+    pub fn update_oracle_conf_pct(
+        &mut self,
+        confidence: u64,
+        reserve_price: u64,
+        now: i64,
+    ) -> crate::error::DriftResult<()> {
+        use crate::math::constants::BID_ASK_SPREAD_PRECISION;
+        use crate::math::safe_math::SafeMath;
+        let upper_bound_divisor = 21_u64;
+        let lower_bound_divisor = 5_u64;
+        let since_last = now
+            .safe_sub(self.historical_oracle_data.last_oracle_price_twap_ts)?
+            .max(0);
+
+        let confidence_lower_bound = if since_last > 0 {
+            let confidence_divisor = upper_bound_divisor
+                .saturating_sub(since_last as u64)
+                .max(lower_bound_divisor);
+            self.last_oracle_conf_pct
+                .safe_sub(self.last_oracle_conf_pct / confidence_divisor)?
         } else {
-            // pick amm bid - buffer if theres liquidity
-            // otherwise be aggressive vs oracle + 1hr bid premium
-            if amm_available_liquidity >= self.min_order_size {
-                let reserve_price = self.reserve_price()?;
-                let amm_bid_price: i64 = self.bid_price(reserve_price)?.cast()?;
-                amm_bid_price
-                    .safe_sub(amm_bid_price / (seconds_til_order_expiry * 20).clamp(100, 200))?
-                    .cast::<u64>()
-            } else {
-                oracle_price
-                    .safe_add(
-                        self.last_bid_price_twap
-                            .cast::<i64>()?
-                            .safe_sub(self.historical_oracle_data.last_oracle_price_twap)?
-                            .min(0),
-                    )?
-                    .safe_sub(oracle_price / (seconds_til_order_expiry * 2).clamp(10, 50))?
-                    .max(0)
-                    .cast::<u64>()
-            }
-        }
-    }
-
-    pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
-        Ok(self.sqrt_k.min(
-            (self.min_order_size.cast::<u128>()?)
-                .max(self.base_asset_amount_with_amm.unsigned_abs()),
-        ))
-    }
-
-    // direction with_amm is the net user direction
-    pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
-        self.base_asset_amount_with_amm.cast::<i64>()
-    }
-
-    pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
-        if self.curve_update_intensity <= 100 {
-            return Ok(0);
-        } else if self.curve_update_intensity >= 200 {
-            // mimic old max behavior with 100 bps
-            return Ok((self.max_spread.cast::<i64>()? / 2).max(10_000));
-        }
-
-        let lower_bound_multiplier: i64 =
-            self.curve_update_intensity.safe_sub(100)?.cast::<i64>()?;
-
-        // always the lesser of 1-100 bps of price offset and half of the market's max_spread
-        let lb_bps =
-            (PERCENTAGE_PRECISION.cast::<i64>()? / 10000).safe_mul(lower_bound_multiplier)?;
-        let max_offset = (self.max_spread.cast::<i64>()? / 2).min(lb_bps);
-
-        Ok(max_offset)
-    }
-
-    pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {
-        let amm_wants_to_jit_make = match taker_direction {
-            PositionDirection::Long => {
-                self.base_asset_amount_with_amm < -(self.order_step_size.cast()?)
-            }
-            PositionDirection::Short => {
-                self.base_asset_amount_with_amm > (self.order_step_size.cast()?)
-            }
+            self.last_oracle_conf_pct
         };
-        Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
+
+        self.last_oracle_conf_pct = confidence
+            .safe_mul(BID_ASK_SPREAD_PRECISION)?
+            .safe_div(reserve_price)?
+            .max(confidence_lower_bound);
+        Ok(())
     }
 
-    pub fn amm_has_low_enough_inventory(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
-        // mark low inventory if below a certain level of available liquidity
-        // i.e. 10%
-        if amm_wants_to_jit_make {
-            // inventory scale
-            let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
-                self.base_asset_reserve,
-                self.min_base_asset_reserve,
-                self.max_base_asset_reserve,
-            )?;
-
-            let protocol_owned_min_side_liquidity = max_bids.min(max_asks.abs());
-
-            Ok(self.base_asset_amount_with_amm.abs()
-                < protocol_owned_min_side_liquidity.safe_div(10)?)
-        } else {
-            Ok(true)
-        }
-    }
-
-    pub fn amm_jit_is_active(&self) -> bool {
-        self.amm_jit_intensity > 0
-    }
-
-    pub fn reserve_price(&self) -> DriftResult<u64> {
-        amm::calculate_price(
-            self.quote_asset_reserve,
-            self.base_asset_reserve,
-            self.peg_multiplier,
-        )
-    }
-
-    pub fn bid_price(&self, reserve_price: u64) -> DriftResult<u64> {
-        let adjusted_spread =
-            (-(self.short_spread.cast::<i32>()?)).safe_add(self.reference_price_offset)?;
-        let multiplier = BID_ASK_SPREAD_PRECISION_I128.safe_add(adjusted_spread.cast::<i128>()?)?;
-
-        reserve_price
-            .cast::<u128>()?
-            .safe_mul(multiplier.cast::<u128>()?)?
-            .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
-            .cast()
-    }
-
-    pub fn ask_price(&self, reserve_price: u64) -> DriftResult<u64> {
-        let adjusted_spread = self
-            .long_spread
-            .cast::<i32>()?
-            .safe_add(self.reference_price_offset)?;
-
-        let multiplier = BID_ASK_SPREAD_PRECISION_I128.safe_add(adjusted_spread.cast::<i128>()?)?;
-
-        reserve_price
-            .cast::<u128>()?
-            .safe_mul(multiplier.cast::<u128>()?)?
-            .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
-            .cast()
-    }
-
-    pub fn bid_ask_price(&self, reserve_price: u64) -> DriftResult<(u64, u64)> {
-        let bid_price = self.bid_price(reserve_price)?;
-        let ask_price = self.ask_price(reserve_price)?;
-        Ok((bid_price, ask_price))
-    }
-
-    pub fn last_ask_premium(&self) -> DriftResult<i64> {
-        let reserve_price = self.reserve_price()?;
-        let ask_price = self.ask_price(reserve_price)?.cast::<i64>()?;
-        ask_price.safe_sub(self.historical_oracle_data.last_oracle_price)
-    }
-
-    pub fn last_bid_discount(&self) -> DriftResult<i64> {
-        let reserve_price = self.reserve_price()?;
-        let bid_price = self.bid_price(reserve_price)?.cast::<i64>()?;
-        self.historical_oracle_data
-            .last_oracle_price
-            .safe_sub(bid_price)
-    }
-
-    pub fn can_lower_k(&self) -> DriftResult<bool> {
-        let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
-        let min_order_size_u128 = self.min_order_size.cast::<u128>()?;
-
-        let can_lower = (self.base_asset_amount_with_amm.unsigned_abs()
-            < max_bids.unsigned_abs().min(max_asks.unsigned_abs()))
-            && (self
-                .base_asset_amount_with_amm
-                .unsigned_abs()
-                .max(min_order_size_u128)
-                < self.sqrt_k)
-            && (min_order_size_u128 < max_bids.unsigned_abs().max(max_asks.unsigned_abs()));
-
-        Ok(can_lower)
-    }
-
-    pub fn get_oracle_twap(
-        &self,
-        price_oracle: &AccountInfo,
-        slot: u64,
-    ) -> DriftResult<Option<i64>> {
-        match self.oracle_source {
-            OracleSource::Pyth | OracleSource::PythStableCoin => {
-                Ok(Some(self.get_pyth_twap(price_oracle, &OracleSource::Pyth)?))
-            }
-            OracleSource::Pyth1K => Ok(Some(
-                self.get_pyth_twap(price_oracle, &OracleSource::Pyth1K)?,
-            )),
-            OracleSource::Pyth1M => Ok(Some(
-                self.get_pyth_twap(price_oracle, &OracleSource::Pyth1M)?,
-            )),
-            OracleSource::DeprecatedSwitchboard | OracleSource::DeprecatedSwitchboardOnDemand => {
-                Err(ErrorCode::InvalidOracle)
-            }
-            OracleSource::QuoteAsset => {
-                msg!("Can't get oracle twap for quote asset");
-                Err(ErrorCode::DefaultError)
-            }
-            OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
-            OracleSource::PythPull
-            | OracleSource::Pyth1KPull
-            | OracleSource::Pyth1MPull
-            | OracleSource::PythStableCoinPull => Err(ErrorCode::InvalidOracle),
-            OracleSource::PythLazer => Ok(Some(
-                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer)?,
-            )),
-            OracleSource::PythLazer1K => Ok(Some(
-                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer1K)?,
-            )),
-            OracleSource::PythLazer1M => Ok(Some(
-                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer1M)?,
-            )),
-            OracleSource::PythLazerStableCoin => Ok(Some(
-                self.get_pyth_twap(price_oracle, &OracleSource::PythLazerStableCoin)?,
-            )),
-        }
-    }
-
-    pub fn get_pyth_twap(
-        &self,
-        price_oracle: &AccountInfo,
-        oracle_source: &OracleSource,
-    ) -> DriftResult<i64> {
-        let multiple = oracle_source.get_pyth_multiple();
-        let mut pyth_price_data: &[u8] = &price_oracle
-            .try_borrow_data()
-            .or(Err(ErrorCode::UnableToLoadOracle))?;
-
-        let oracle_price: i64;
-        let oracle_twap: i64;
-        let oracle_exponent: i32;
-
-        if oracle_source.is_pyth_push_oracle() {
-            let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
-            oracle_price = price_data.agg.price;
-            oracle_twap = price_data.twap.val;
-            oracle_exponent = price_data.expo;
-        } else if matches!(
-            oracle_source,
-            OracleSource::PythLazer
-                | OracleSource::PythLazer1K
-                | OracleSource::PythLazer1M
-                | OracleSource::PythLazerStableCoin
-        ) {
-            let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data)
-                .or(Err(ErrorCode::UnableToLoadOracle))?;
-            oracle_price = price_data.price;
-            oracle_twap = price_data.price;
-            oracle_exponent = price_data.exponent;
-        } else {
-            return Err(ErrorCode::InvalidOracle);
-        }
-
-        assert!(oracle_twap > oracle_price / 10);
-
-        let oracle_precision = 10_u128
-            .pow(oracle_exponent.unsigned_abs())
-            .safe_div(multiple)?;
-
-        let mut oracle_scale_mult = 1;
-        let mut oracle_scale_div = 1;
-
-        if oracle_precision > PRICE_PRECISION {
-            oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
-        } else {
-            oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
-        }
-
-        oracle_twap
-            .cast::<i128>()?
-            .safe_mul(oracle_scale_mult.cast()?)?
-            .safe_div(oracle_scale_div.cast()?)?
-            .cast::<i64>()
-    }
-
+    /// Update volume / long-short intensity rolling sums and the last-trade
+    /// timestamp on this `MarketStats`. Called from every fill path so the
+    /// stats reflect total market activity across all makers.
     pub fn update_volume_24h(
         &mut self,
         quote_asset_amount: u64,
-        position_direction: PositionDirection,
+        position_direction: crate::controller::position::PositionDirection,
         now: i64,
-    ) -> DriftResult {
-        let since_last = max(1_i64, now.safe_sub(self.last_trade_ts)?);
+    ) -> crate::error::DriftResult<()> {
+        use crate::math::constants::{ONE_HOUR, TWENTY_FOUR_HOUR};
+        use crate::math::safe_math::SafeMath;
+        use crate::math::stats;
 
-        amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
+        let since_last = core::cmp::max(1_i64, now.safe_sub(self.last_trade_ts)?);
+
+        let (long_quote_amount, short_quote_amount) =
+            if position_direction == crate::controller::position::PositionDirection::Long {
+                (quote_asset_amount, 0_u64)
+            } else {
+                (0_u64, quote_asset_amount)
+            };
+
+        self.long_intensity_volume = stats::calculate_rolling_sum(
+            self.long_intensity_volume,
+            long_quote_amount,
+            since_last,
+            ONE_HOUR,
+        )?;
+
+        self.short_intensity_volume = stats::calculate_rolling_sum(
+            self.short_intensity_volume,
+            short_quote_amount,
+            since_last,
+            ONE_HOUR,
+        )?;
 
         self.volume_24h = stats::calculate_rolling_sum(
             self.volume_24h,
@@ -1546,114 +1295,372 @@ impl AMM {
         Ok(())
     }
 
-    pub fn get_new_oracle_conf_pct(
-        &self,
-        confidence: u64,    // price precision
-        reserve_price: u64, // price precision
+    /// Update the bid/ask/mid mark-price TWAPs (funding-period and 5-minute)
+    /// from a freshly-observed bid/ask pair. Pure MarketStats mutation —
+    /// callers compute `bid_price` / `ask_price` from whichever liquidity
+    /// source produced the fill (vAMM quote, DLOB, JIT participant).
+    pub fn update_mark_twap(
+        &mut self,
         now: i64,
-    ) -> DriftResult<u64> {
-        // use previous value decayed as lower bound to avoid shrinking too quickly
-        let upper_bound_divisor = 21_u64;
-        let lower_bound_divisor = 5_u64;
-        let since_last = now
-            .safe_sub(self.historical_oracle_data.last_oracle_price_twap_ts)?
-            .max(0);
+        bid_price: u64,
+        ask_price: u64,
+        precomputed_trade_price: Option<u64>,
+        sanitize_clamp: Option<i64>,
+        funding_period: i64,
+    ) -> crate::error::DriftResult<u64> {
+        use crate::amm::math::amm::sanitize_new_price;
+        use crate::math::casting::Cast;
+        use crate::math::constants::{FIVE_MINUTE, ONE_MINUTE};
+        use crate::math::safe_math::SafeMath;
+        use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
+        use crate::validate;
+        use core::cmp::max;
 
-        let confidence_lower_bound = if since_last > 0 {
-            let confidence_divisor = upper_bound_divisor
-                .saturating_sub(since_last.cast::<u64>()?)
-                .max(lower_bound_divisor);
-            self.last_oracle_conf_pct
-                .safe_sub(self.last_oracle_conf_pct / confidence_divisor)?
-        } else {
-            self.last_oracle_conf_pct
+        let (bid_price_capped_update, ask_price_capped_update) = (
+            sanitize_new_price(
+                bid_price.cast()?,
+                self.last_bid_price_twap.cast()?,
+                sanitize_clamp,
+            )?,
+            sanitize_new_price(
+                ask_price.cast()?,
+                self.last_ask_price_twap.cast()?,
+                sanitize_clamp,
+            )?,
+        );
+
+        validate!(
+            bid_price_capped_update <= ask_price_capped_update,
+            crate::error::ErrorCode::InvalidMarkTwapUpdateDetected,
+            "bid_price_capped_update not <= ask_price_capped_update,"
+        )?;
+
+        let last_valid_trade_since_oracle_twap_update = self
+            .historical_oracle_data
+            .last_oracle_price_twap_ts
+            .safe_sub(self.last_mark_price_twap_ts)?;
+
+        // if delayed more than ONE_MINUTE or 60th of funding period, shrink toward oracle_twap
+        let (last_bid_price_twap, last_ask_price_twap) =
+            if last_valid_trade_since_oracle_twap_update
+                > funding_period.safe_div(60)?.max(ONE_MINUTE.cast()?)
+            {
+                crate::msg!(
+                    "correcting mark twap update (oracle previously invalid for {:?} seconds)",
+                    last_valid_trade_since_oracle_twap_update
+                );
+
+                let from_start_valid = max(
+                    0,
+                    funding_period.safe_sub(last_valid_trade_since_oracle_twap_update)?,
+                );
+                (
+                    calculate_weighted_average(
+                        self.historical_oracle_data
+                            .last_oracle_price_twap
+                            .cast::<i64>()?,
+                        self.last_bid_price_twap.cast()?,
+                        last_valid_trade_since_oracle_twap_update,
+                        from_start_valid,
+                        Some(
+                            self.historical_oracle_data
+                                .last_oracle_price_twap
+                                .safe_sub(self.last_bid_price_twap.cast()?)?
+                                .signum(),
+                        ),
+                    )?,
+                    calculate_weighted_average(
+                        self.historical_oracle_data
+                            .last_oracle_price_twap
+                            .cast::<i64>()?,
+                        self.last_ask_price_twap.cast()?,
+                        last_valid_trade_since_oracle_twap_update,
+                        from_start_valid,
+                        Some(
+                            self.historical_oracle_data
+                                .last_oracle_price_twap
+                                .safe_sub(self.last_ask_price_twap.cast()?)?
+                                .signum(),
+                        ),
+                    )?,
+                )
+            } else {
+                (
+                    self.last_bid_price_twap.cast()?,
+                    self.last_ask_price_twap.cast()?,
+                )
+            };
+
+        let bid_twap = calculate_new_twap(
+            bid_price_capped_update,
+            now,
+            last_bid_price_twap,
+            self.last_mark_price_twap_ts,
+            funding_period,
+        )?;
+        self.last_bid_price_twap = bid_twap.cast()?;
+
+        let ask_twap = calculate_new_twap(
+            ask_price_capped_update,
+            now,
+            last_ask_price_twap,
+            self.last_mark_price_twap_ts,
+            funding_period,
+        )?;
+        self.last_ask_price_twap = ask_twap.cast()?;
+
+        let mid_twap = bid_twap.safe_add(ask_twap)? / 2;
+
+        let trade_price: u64 = match precomputed_trade_price {
+            Some(trade_price) => trade_price,
+            None => bid_price.safe_add(ask_price)?.safe_div(2)?,
+        };
+        self.update_mark_std(
+            now,
+            trade_price,
+            self.last_mark_price_twap,
+            self.last_mark_price_twap_5min,
+        )?;
+
+        self.last_mark_price_twap = mid_twap.cast()?;
+        self.last_mark_price_twap_5min = calculate_new_twap(
+            bid_price_capped_update
+                .safe_add(ask_price_capped_update)?
+                .safe_div(2)?
+                .cast()?,
+            now,
+            self.last_mark_price_twap_5min.cast()?,
+            self.last_mark_price_twap_ts,
+            FIVE_MINUTE as i64,
+        )?
+        .cast()?;
+
+        self.last_mark_price_twap_ts = now;
+
+        mid_twap.cast()
+    }
+
+    /// Update the mark-price TWAP by first estimating today's best bid/ask
+    /// from the AMM's quote state (and an optional trade-price hint).
+    /// `amm` is read-only; only `self` is mutated.
+    /// Test-only convenience that derives the bid/ask inputs from a `&AMM`
+    /// borrow and forwards to [`update_mark_twap_with_amm_bid_ask`]. Real
+    /// callers (orchestrator, funding) read the bid/ask themselves and call
+    /// the data-only entrypoint — in the future-AMM model those reads are
+    /// CPIs and the AMM is no longer reachable as a Rust struct.
+    #[cfg(test)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_mark_twap_from_estimates(
+        &mut self,
+        amm: &AMM,
+        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        now: i64,
+        precomputed_trade_price: Option<u64>,
+        direction: Option<crate::controller::position::PositionDirection>,
+        sanitize_clamp: Option<i64>,
+        funding_period: i64,
+        order_tick_size: u64,
+    ) -> crate::error::DriftResult<u64> {
+        let reserve_price = amm.reserve_price()?;
+        let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(
+            reserve_price,
+            amm_quote_state.long_spread,
+            amm_quote_state.short_spread,
+            amm_quote_state.reference_price_offset,
+        )?;
+        self.update_mark_twap_with_amm_bid_ask(
+            amm_bid_price,
+            amm_ask_price,
+            amm.base_spread,
+            amm_quote_state,
+            now,
+            precomputed_trade_price,
+            direction,
+            sanitize_clamp,
+            funding_period,
+            order_tick_size,
+        )
+    }
+
+    /// Update the mark TWAP using AMM-derived bid/ask + base spread plus an
+    /// optional trade-price hint. Pure-data entrypoint: no `&AMM` borrow
+    /// (the AMM-derived scalars come from the caller — today via direct
+    /// reads, in the future-AMM model via CPI to the AMM program).
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_mark_twap_with_amm_bid_ask(
+        &mut self,
+        amm_bid_price: u64,
+        amm_ask_price: u64,
+        amm_base_spread: u32,
+        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        now: i64,
+        precomputed_trade_price: Option<u64>,
+        direction: Option<crate::controller::position::PositionDirection>,
+        sanitize_clamp: Option<i64>,
+        funding_period: i64,
+        order_tick_size: u64,
+    ) -> crate::error::DriftResult<u64> {
+        let (bid_price, ask_price) = crate::amm::math::amm::estimate_best_bid_ask_price(
+            amm_bid_price,
+            amm_ask_price,
+            amm_base_spread,
+            amm_quote_state,
+            &self.historical_oracle_data,
+            precomputed_trade_price,
+            direction,
+            order_tick_size,
+        )?;
+        self.update_mark_twap(
+            now,
+            bid_price,
+            ask_price,
+            precomputed_trade_price,
+            sanitize_clamp,
+            funding_period,
+        )
+    }
+
+    /// Update the mark-price TWAP using the *best* of (vAMM bid/ask, DLOB
+    /// bid/ask). Used by the explicit mark-twap crank to fold DLOB liquidity
+    /// into the on-chain TWAP estimate.
+    pub fn update_mark_twap_crank(
+        &mut self,
+        amm: &AMM,
+        now: i64,
+        oracle_price_data: &crate::state::oracle::OraclePriceData,
+        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        best_dlob_bid_price: Option<u64>,
+        best_dlob_ask_price: Option<u64>,
+        sanitize_clamp: Option<i64>,
+        funding_period: i64,
+    ) -> crate::error::DriftResult<()> {
+        use crate::math::casting::Cast;
+        use crate::math::safe_math::SafeMath;
+
+        let amm_reserve_price = amm.reserve_price()?;
+        let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(
+            amm_reserve_price,
+            amm_quote_state.long_spread,
+            amm_quote_state.short_spread,
+            amm_quote_state.reference_price_offset,
+        )?;
+
+        let mut best_bid_price = match best_dlob_bid_price {
+            Some(best_dlob_bid_price) => best_dlob_bid_price.max(amm_bid_price),
+            None => amm_bid_price,
+        };
+        let mut best_ask_price = match best_dlob_ask_price {
+            Some(best_dlob_ask_price) => best_dlob_ask_price.min(amm_ask_price),
+            None => amm_ask_price,
         };
 
-        Ok(confidence
-            .safe_mul(BID_ASK_SPREAD_PRECISION)?
-            .safe_div(reserve_price)?
-            .max(confidence_lower_bound))
-    }
+        if best_bid_price > best_ask_price {
+            let market_basis = self
+                .last_mark_price_twap_5min
+                .cast::<i64>()?
+                .safe_sub(self.historical_oracle_data.last_oracle_price_twap_5min)?
+                .clamp(
+                    -oracle_price_data.price / 100,
+                    oracle_price_data.price / 100,
+                );
+            if best_bid_price >= oracle_price_data.price.safe_add(market_basis)?.cast()? {
+                best_bid_price = best_ask_price;
+            } else {
+                best_ask_price = best_bid_price;
+            }
+        }
 
-    pub fn is_recent_oracle_valid(&self, current_slot: u64) -> DriftResult<bool> {
-        Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
-    }
-
-    pub fn update_mm_oracle_info(
-        &mut self,
-        mm_oracle_price: i64,
-        mm_oracle_slot: u64,
-    ) -> DriftResult {
-        self.mm_oracle_price = mm_oracle_price;
-        self.mm_oracle_slot = mm_oracle_slot;
+        self.update_mark_twap(
+            now,
+            best_bid_price,
+            best_ask_price,
+            None,
+            sanitize_clamp,
+            funding_period,
+        )?;
         Ok(())
     }
+
+    /// Update the oracle-price TWAP and rolling oracle-confidence stats.
+    /// `amm` is read-only — only used to fall back to `amm.reserve_price()`
+    /// when `precomputed_reserve_price` is `None`. Only `self` is mutated.
+    pub fn update_oracle_twap(
+        &mut self,
+        amm: &AMM,
+        now: i64,
+        mm_oracle_price_data: &crate::state::oracle::MMOraclePriceData,
+        precomputed_reserve_price: Option<u64>,
+        sanitize_clamp: Option<i64>,
+        funding_period: i64,
+    ) -> crate::error::DriftResult<i64> {
+        use crate::amm::math::amm::{
+            calculate_new_oracle_price_twap, normalise_oracle_price, sanitize_new_price, TwapPeriod,
+        };
+        use crate::math::casting::Cast;
+
+        let reserve_price = match precomputed_reserve_price {
+            Some(reserve_price) => reserve_price,
+            None => amm.reserve_price()?,
+        };
+
+        let oracle_confidence = mm_oracle_price_data.get_confidence();
+        let oracle_price = normalise_oracle_price(
+            &mm_oracle_price_data.get_exchange_oracle_price_data(),
+            reserve_price,
+        )?;
+
+        let capped_oracle_update_price = sanitize_new_price(
+            oracle_price,
+            self.historical_oracle_data.last_oracle_price_twap,
+            sanitize_clamp,
+        )?;
+
+        let oracle_price_twap: i64;
+        if capped_oracle_update_price > 0 && oracle_price > 0 {
+            oracle_price_twap = calculate_new_oracle_price_twap(
+                self,
+                now,
+                capped_oracle_update_price,
+                TwapPeriod::FundingPeriod,
+                funding_period,
+            )?;
+
+            let oracle_price_twap_5min = calculate_new_oracle_price_twap(
+                self,
+                now,
+                capped_oracle_update_price,
+                TwapPeriod::FiveMin,
+                funding_period,
+            )?;
+
+            self.last_oracle_normalised_price = capped_oracle_update_price;
+            self.historical_oracle_data.last_oracle_price =
+                mm_oracle_price_data.get_exchange_oracle_price_data().price;
+
+            let prev_oracle_twap = self.historical_oracle_data.last_oracle_price_twap;
+            let prev_oracle_twap_5min = self.historical_oracle_data.last_oracle_price_twap_5min;
+
+            self.update_oracle_conf_pct(oracle_confidence, reserve_price, now)?;
+
+            self.historical_oracle_data.last_oracle_delay =
+                mm_oracle_price_data.get_exchange_oracle_price_data().delay;
+
+            self.update_oracle_std(
+                now,
+                oracle_price.cast()?,
+                prev_oracle_twap.cast()?,
+                prev_oracle_twap_5min.cast()?,
+            )?;
+
+            self.historical_oracle_data.last_oracle_price_twap_5min = oracle_price_twap_5min;
+            self.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
+            self.historical_oracle_data.last_oracle_price_twap_ts = now;
+        } else {
+            oracle_price_twap = self.historical_oracle_data.last_oracle_price_twap;
+        }
+
+        Ok(oracle_price_twap)
+    }
 }
 
-#[cfg(test)]
-impl AMM {
-    pub fn default_test() -> Self {
-        use crate::math::constants::PRICE_PRECISION_I64;
-
-        let default_reserves = 100 * AMM_RESERVE_PRECISION;
-        // make sure tests dont have the default sqrt_k = 0
-        AMM {
-            base_asset_reserve: default_reserves,
-            quote_asset_reserve: default_reserves,
-            sqrt_k: default_reserves,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            order_step_size: 1,
-            order_tick_size: 1,
-            max_base_asset_reserve: u64::MAX as u128,
-            min_base_asset_reserve: 0,
-            terminal_quote_asset_reserve: default_reserves,
-            peg_multiplier: crate::math::constants::PEG_PRECISION,
-            max_fill_reserve_fraction: 1,
-            max_spread: 1000,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: PRICE_PRECISION_I64,
-                ..HistoricalOracleData::default()
-            },
-            last_oracle_valid: true,
-            ..AMM::default()
-        }
-    }
-
-    pub fn default_btc_test() -> Self {
-        use crate::math::constants::PRICE_PRECISION_I64;
-
-        AMM {
-            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 63015384615,
-            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
-            sqrt_k: 64 * AMM_RESERVE_PRECISION,
-
-            peg_multiplier: 19_400_000_000,
-
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
-            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
-
-            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
-            mark_std: PRICE_PRECISION as u64,
-
-            quote_asset_amount: 19_000_000_000, // short 1 BTC @ $19000
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: 19_400 * PRICE_PRECISION_I64,
-                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
-                last_oracle_price_twap_5min: 19_400 * PRICE_PRECISION_I64,
-                last_oracle_price_twap_ts: 1662800000_i64,
-                ..HistoricalOracleData::default()
-            },
-            last_mark_price_twap_ts: 1662800000,
-
-            curve_update_intensity: 100,
-
-            base_spread: 250,
-            max_spread: 975,
-            funding_period: 3600,
-            last_oracle_valid: true,
-            ..AMM::default()
-        }
-    }
-}
+pub use crate::amm::state::{AmmCurveRecordMetrics, AMM};

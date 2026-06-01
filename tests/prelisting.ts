@@ -233,7 +233,7 @@ describe('prelisting', () => {
 		assert(price.price.eq(new BN(40000000)));
 
 		const markTwap =
-			adminDriftClient.getPerpMarketAccount(0).amm.lastMarkPriceTwap;
+			adminDriftClient.getPerpMarketAccount(0).marketStats.lastMarkPriceTwap;
 		assert(markTwap.eq(new BN(40000000)));
 	});
 
@@ -245,7 +245,7 @@ describe('prelisting', () => {
 			console.log('Delete successfully failed');
 		}
 
-		const oldOracleKey = adminDriftClient.getPerpMarketAccount(0).amm.oracle;
+		const oldOracleKey = adminDriftClient.getPerpMarketAccount(0).oracle;
 
 		const newOracle = await mockOracleNoProgram(bankrunContextWrapper, 40);
 		await adminDriftClient.updatePerpMarketOracle(

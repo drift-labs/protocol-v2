@@ -20,7 +20,7 @@ construct_uint! {
 impl U256 {
     /// Convert u256 to u64
     pub fn to_u64(self) -> Option<u64> {
-        self.try_to_u64().map_or_else(|_| None, Some)
+        self.try_to_u64().ok()
     }
 
     /// Convert u256 to u64
@@ -30,7 +30,7 @@ impl U256 {
 
     /// Convert u256 to u128
     pub fn to_u128(self) -> Option<u128> {
-        self.try_to_u128().map_or_else(|_| None, Some)
+        self.try_to_u128().ok()
     }
 
     /// Convert u256 to u128
@@ -62,7 +62,7 @@ construct_uint! {
 impl U192 {
     /// Convert u192 to u64
     pub fn to_u64(self) -> Option<u64> {
-        self.try_to_u64().map_or_else(|_| None, Some)
+        self.try_to_u64().ok()
     }
 
     /// Convert u192 to u64
@@ -72,7 +72,7 @@ impl U192 {
 
     /// Convert u192 to u128
     pub fn to_u128(self) -> Option<u128> {
-        self.try_to_u128().map_or_else(|_| None, Some)
+        self.try_to_u128().ok()
     }
 
     /// Convert u192 to u128

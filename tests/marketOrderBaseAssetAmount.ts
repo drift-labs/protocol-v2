@@ -187,8 +187,8 @@ describe('market orders', () => {
 
 		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(48000000000)));
-		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(48000000000)));
-		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
+		assert.ok(market.baseAssetAmountLong.eq(new BN(48000000000)));
+		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.numberOfUsersWithBase === 1);
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
@@ -254,8 +254,8 @@ describe('market orders', () => {
 		const market = driftClient.getPerpMarketAccount(0);
 		console.log(market.amm.baseAssetAmountWithAmm.toString());
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
-		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(24000000000)));
-		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
+		assert.ok(market.baseAssetAmountLong.eq(new BN(24000000000)));
+		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.numberOfUsersWithBase === 1);
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
@@ -320,8 +320,8 @@ describe('market orders', () => {
 
 		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
-		assert.ok(market.amm.baseAssetAmountLong.eq(ZERO));
-		assert.ok(market.amm.baseAssetAmountShort.eq(new BN(-24000000000)));
+		assert.ok(market.baseAssetAmountLong.eq(ZERO));
+		assert.ok(market.baseAssetAmountShort.eq(new BN(-24000000000)));
 		assert.ok(market.numberOfUsersWithBase === 1);
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));

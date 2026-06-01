@@ -6,8 +6,8 @@ use std::cmp::max; //, OracleValidity};
 use crate::msg;
 use anchor_lang::prelude::*;
 
+use crate::amm::math::amm::sanitize_new_price;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm::sanitize_new_price;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     FIVE_MINUTE, IF_FACTOR_PRECISION, ONE_HOUR, ONE_MINUTE, QUOTE_SPOT_MARKET_INDEX,

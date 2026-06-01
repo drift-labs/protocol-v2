@@ -7,7 +7,7 @@ mod determine_perp_fulfillment_methods {
     use crate::state::fulfillment::PerpFulfillmentMethod;
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::HistoricalOracleData;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::user::Order;
     use solana_program::pubkey::Pubkey;
 
@@ -17,17 +17,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -35,11 +37,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -57,6 +56,7 @@ mod determine_perp_fulfillment_methods {
             &taker_order,
             &[(Pubkey::default(), 0, 103 * PRICE_PRECISION_U64)],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -72,17 +72,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -90,11 +92,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -112,6 +111,7 @@ mod determine_perp_fulfillment_methods {
             &taker_order,
             &[(Pubkey::default(), 0, 99 * PRICE_PRECISION_U64)],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -133,17 +133,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -151,11 +153,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -179,6 +178,7 @@ mod determine_perp_fulfillment_methods {
             &taker_order,
             &[(Pubkey::default(), 0, 101 * PRICE_PRECISION_U64)],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -201,17 +201,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -219,11 +221,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -244,6 +243,7 @@ mod determine_perp_fulfillment_methods {
                 (Pubkey::default(), 1, 101 * PRICE_PRECISION_U64),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -267,17 +267,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -285,11 +287,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -314,6 +313,7 @@ mod determine_perp_fulfillment_methods {
                 ),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -340,17 +340,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -358,11 +360,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -383,6 +382,7 @@ mod determine_perp_fulfillment_methods {
                 (Pubkey::default(), 1, 103 * PRICE_PRECISION_U64),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -407,17 +407,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -425,11 +427,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -450,6 +449,7 @@ mod determine_perp_fulfillment_methods {
                 (Pubkey::default(), 1, 99 * PRICE_PRECISION_U64),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -473,17 +473,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -491,11 +493,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -516,6 +515,7 @@ mod determine_perp_fulfillment_methods {
                 (Pubkey::default(), 1, 101 * PRICE_PRECISION_U64),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -538,17 +538,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -556,11 +558,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -581,6 +580,7 @@ mod determine_perp_fulfillment_methods {
                 (Pubkey::default(), 1, 98 * PRICE_PRECISION_U64),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -605,17 +605,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -623,11 +625,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -648,6 +647,7 @@ mod determine_perp_fulfillment_methods {
                 (Pubkey::default(), 1, 102 * PRICE_PRECISION_U64),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -663,17 +663,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -681,11 +683,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -706,6 +705,7 @@ mod determine_perp_fulfillment_methods {
                 (Pubkey::default(), 1, 98 * PRICE_PRECISION_U64),
             ],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -721,17 +721,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -739,11 +741,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -762,6 +761,7 @@ mod determine_perp_fulfillment_methods {
             &taker_order,
             &[],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,
@@ -777,17 +777,19 @@ mod determine_perp_fulfillment_methods {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
                 base_spread: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -795,11 +797,8 @@ mod determine_perp_fulfillment_methods {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -818,6 +817,7 @@ mod determine_perp_fulfillment_methods {
             &taker_order,
             &[],
             &market.amm,
+            &Default::default(),
             market.amm.reserve_price().unwrap(),
             taker_price,
             true,

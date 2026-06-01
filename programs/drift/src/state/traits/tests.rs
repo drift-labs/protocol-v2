@@ -76,33 +76,36 @@ mod size {
 /// If either test fails after a struct change, update the corresponding literal in admin.rs AND
 /// the expected value here together.
 mod native_instruction_offsets {
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::state::State;
 
     const DISC: usize = 8; // Anchor 8-byte account discriminator
 
-    /// AMM fields are in a zero_copy account: on-chain bytes == repr(C) memory layout.
+    /// Native handlers read/write PerpMarket bytes at fixed offsets — verify
+    /// these match the actual struct layout. `mm_oracle_*` lives in
+    /// `MarketStats`; `amm_spread_adjustment` lives in `AMM`.
     #[test]
     fn amm_zero_copy_offsets() {
         let amm_start = DISC + std::mem::offset_of!(PerpMarket, amm);
+        let stats_start = DISC + std::mem::offset_of!(PerpMarket, market_stats);
         assert_eq!(
-            amm_start + std::mem::offset_of!(AMM, mm_oracle_slot),
-            776,
-            "mm_oracle_slot offset changed — update handle_update_mm_oracle_native"
-        );
-        assert_eq!(
-            amm_start + std::mem::offset_of!(AMM, mm_oracle_price),
-            856,
+            stats_start + std::mem::offset_of!(MarketStats, mm_oracle_price),
+            720,
             "mm_oracle_price offset changed — update handle_update_mm_oracle_native"
         );
         assert_eq!(
-            amm_start + std::mem::offset_of!(AMM, mm_oracle_sequence_id),
-            880,
+            stats_start + std::mem::offset_of!(MarketStats, mm_oracle_slot),
+            728,
+            "mm_oracle_slot offset changed — update handle_update_mm_oracle_native"
+        );
+        assert_eq!(
+            stats_start + std::mem::offset_of!(MarketStats, mm_oracle_sequence_id),
+            736,
             "mm_oracle_sequence_id offset changed — update handle_update_mm_oracle_native"
         );
         assert_eq!(
             amm_start + std::mem::offset_of!(AMM, amm_spread_adjustment),
-            873,
+            1094,
             "amm_spread_adjustment offset changed — update handle_update_amm_spread_adjustment_native"
         );
     }

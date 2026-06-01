@@ -150,15 +150,15 @@ where
 #[macro_export]
 macro_rules! impl_zero_copy_loader {
     ($Acc:ty, $ID:path, $Fixed:ty, $Elem:ty) => {
-        impl<'info> crate::state::zero_copy::ZeroCopyLoader<'_, $Elem, $Fixed>
+        impl<'info> $crate::state::zero_copy::ZeroCopyLoader<'_, $Elem, $Fixed>
             for AccountInfo<'info>
         {
             fn load_zc<'a>(
                 self: &'a Self,
-            ) -> crate::error::DriftResult<
-                crate::state::zero_copy::AccountZeroCopy<'a, $Elem, $Fixed>,
+            ) -> $crate::error::DriftResult<
+                $crate::state::zero_copy::AccountZeroCopy<'a, $Elem, $Fixed>,
             > {
-                crate::state::zero_copy::load_generic::<$Fixed, $Elem>(
+                $crate::state::zero_copy::load_generic::<$Fixed, $Elem>(
                     self,
                     <$Acc as anchor_lang::Discriminator>::DISCRIMINATOR,
                     $ID(),

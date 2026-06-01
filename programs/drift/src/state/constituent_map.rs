@@ -23,7 +23,7 @@ pub struct ConstituentMap<'a>(pub BTreeMap<u16, AccountLoader<'a, Constituent>>)
 impl<'a> ConstituentMap<'a> {
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref(&self, constituent_index: &u16) -> DriftResult<Ref<Constituent>> {
+    pub fn get_ref(&self, constituent_index: &u16) -> DriftResult<Ref<'_, Constituent>> {
         let loader = match self.0.get(constituent_index) {
             Some(loader) => loader,
             None => {
@@ -56,7 +56,7 @@ impl<'a> ConstituentMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<Constituent>> {
+    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<'_, Constituent>> {
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {

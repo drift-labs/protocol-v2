@@ -90,7 +90,7 @@ pub fn deserialize_into_verified_message(
             SignatureVerificationError::InvalidMessageDataSize
         })?;
 
-        return Ok(VerifiedMessage {
+        Ok(VerifiedMessage {
             signed_msg_order_params: deserialized.signed_msg_order_params,
             sub_account_id: None,
             delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
@@ -103,7 +103,7 @@ pub fn deserialize_into_verified_message(
             builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
             isolated_position_deposit: deserialized.isolated_position_deposit,
             signature: *signature,
-        });
+        })
     } else {
         if payload.len() < 8 {
             return Err(SignatureVerificationError::InvalidMessageDataSize.into());
@@ -120,7 +120,7 @@ pub fn deserialize_into_verified_message(
             msg!("Invalid delegate message encoding for with is_delegate_signer = false");
             SignatureVerificationError::InvalidMessageDataSize
         })?;
-        return Ok(VerifiedMessage {
+        Ok(VerifiedMessage {
             signed_msg_order_params: deserialized.signed_msg_order_params,
             sub_account_id: Some(deserialized.sub_account_id),
             delegate_signed_taker_pubkey: None,
@@ -133,7 +133,7 @@ pub fn deserialize_into_verified_message(
             builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
             isolated_position_deposit: deserialized.isolated_position_deposit,
             signature: *signature,
-        });
+        })
     }
 }
 
@@ -153,7 +153,7 @@ pub fn verify_and_decode_ed25519_msg(
     msg: &[u8],
     is_delegate_signer: bool,
 ) -> Result<VerifiedMessage> {
-    if ed25519_ix.program_id != ED25519_ID || ed25519_ix.accounts.len() != 0 {
+    if ed25519_ix.program_id != ED25519_ID || !ed25519_ix.accounts.is_empty() {
         msg!("Invalid Ix: program ID: {:?}", ed25519_ix.program_id);
         msg!("Invalid Ix: accounts: {:?}", ed25519_ix.accounts.len());
         return Err(ErrorCode::SigVerificationFailed.into());

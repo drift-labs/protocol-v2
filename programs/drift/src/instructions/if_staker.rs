@@ -568,7 +568,7 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
             if found_end {
                 for meta in ix.accounts.iter() {
                     validate!(
-                        meta.is_writable == false,
+                        !meta.is_writable,
                         ErrorCode::InvalidSwap,
                         "instructions after swap end must not have writable accounts"
                     )?;

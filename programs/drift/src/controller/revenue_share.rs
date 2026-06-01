@@ -112,14 +112,14 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
 
                     referrer_rev_share.total_referrer_rewards = referrer_rev_share
                         .total_referrer_rewards
-                        .safe_add(fees_accrued as u64)?;
+                        .safe_add(fees_accrued)?;
 
                     emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(
                         RevenueShareSettleRecord {
                             ts: now_ts,
                             builder: None,
                             referrer: Some(referrer_authority),
-                            fee_settled: fees_accrued as u64,
+                            fee_settled: fees_accrued,
                             market_index: order_market_index,
                             market_type: order_market_type,
                             builder_total_referrer_rewards: referrer_rev_share
@@ -164,13 +164,13 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
 
                 builder_revenue_share.total_builder_rewards = builder_revenue_share
                     .total_builder_rewards
-                    .safe_add(fees_accrued as u64)?;
+                    .safe_add(fees_accrued)?;
 
                 emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(RevenueShareSettleRecord {
                     ts: now_ts,
                     builder: Some(builder_authority),
                     referrer: None,
-                    fee_settled: fees_accrued as u64,
+                    fee_settled: fees_accrued,
                     market_index: order_market_index,
                     market_type: order_market_type,
                     builder_total_referrer_rewards: builder_revenue_share.total_referrer_rewards,

@@ -121,15 +121,15 @@ pub fn calculate_perp_position_value_and_pnl(
     // the funding must be calculated before calculated the unrealized pnl w simulated lp position
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
+            market.cumulative_funding_rate_long
         } else {
-            market.amm.cumulative_funding_rate_short
+            market.cumulative_funding_rate_short
         },
         market_position,
     )?;
 
     let (base_asset_value, unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
+        calculate_base_asset_value_and_pnl_with_oracle_price(market_position, valuation_price)?;
 
     let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
 
@@ -528,10 +528,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             MarketType::Perp,
             market.market_index,
             &market.oracle_id(),
-            market.amm.historical_oracle_data.last_oracle_price_twap,
+            market
+                .market_stats
+                .historical_oracle_data
+                .last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
-            market.amm.oracle_slot_delay_override,
-            market.amm.oracle_low_risk_slot_delay_override,
+            market.oracle_slot_delay_override,
+            market.oracle_low_risk_slot_delay_override,
             Some(LogMode::Margin),
         )?;
 
@@ -564,7 +567,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 margin_ratio_override.max(perp_position_custom_margin_ratio);
         }
 
-        let (perp_margin_requirement, weighted_pnl, worst_case_liability_value, base_asset_value) =
+        let (perp_margin_requirement, weighted_pnl, worst_case_liability_value, _base_asset_value) =
             calculate_perp_position_value_and_pnl(
                 market_position,
                 market,
@@ -980,10 +983,13 @@ pub fn calculate_user_equity(
             MarketType::Perp,
             market.market_index,
             &market.oracle_id(),
-            market.amm.historical_oracle_data.last_oracle_price_twap,
+            market
+                .market_stats
+                .historical_oracle_data
+                .last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
-            market.amm.oracle_slot_delay_override,
-            market.amm.oracle_low_risk_slot_delay_override,
+            market.oracle_slot_delay_override,
+            market.oracle_low_risk_slot_delay_override,
             Some(LogMode::Margin),
         )?;
 
@@ -998,17 +1004,15 @@ pub fn calculate_user_equity(
 
         let unrealized_funding = calculate_funding_payment(
             if market_position.base_asset_amount > 0 {
-                market.amm.cumulative_funding_rate_long
+                market.cumulative_funding_rate_long
             } else {
-                market.amm.cumulative_funding_rate_short
+                market.cumulative_funding_rate_short
             },
             market_position,
         )?;
 
-        let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
-            &market_position,
-            valuation_price,
-        )?;
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(market_position, valuation_price)?;
 
         let pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
 

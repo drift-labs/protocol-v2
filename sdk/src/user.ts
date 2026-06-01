@@ -2093,10 +2093,10 @@ export class User {
 				userPosition.marketIndex
 			);
 			if (
-				market.amm.cumulativeFundingRateLong.eq(
+				market.cumulativeFundingRateLong.eq(
 					userPosition.lastCumulativeFundingRate
 				) ||
-				market.amm.cumulativeFundingRateShort.eq(
+				market.cumulativeFundingRateShort.eq(
 					userPosition.lastCumulativeFundingRate
 				)
 			) {
@@ -2153,7 +2153,7 @@ export class User {
 		const oracle = market.oracle;
 		const perpMarketWithSameOracle = this.velocityClient
 			.getPerpMarketAccounts()
-			.find((market) => market.amm.oracle.equals(oracle));
+			.find((market) => market.oracle.equals(oracle));
 		const oraclePrice =
 			this.velocityClient.getOracleDataForSpotMarket(marketIndex).price;
 		if (perpMarketWithSameOracle) {
@@ -2172,7 +2172,7 @@ export class User {
 				if (freeCollateralDeltaForPerp) {
 					const { numerator, denominator } = getMultipleBetweenOracleSources(
 						market.oracleSource,
-						perpMarketWithSameOracle.amm.oracleSource
+						perpMarketWithSameOracle.oracleSource
 					);
 					freeCollateralDeltaForPerp = freeCollateralDeltaForPerp
 						.mul(numerator)
@@ -2224,7 +2224,7 @@ export class User {
 		const market = this.velocityClient.getPerpMarketAccount(marketIndex);
 
 		const oracle =
-			this.velocityClient.getPerpMarketAccount(marketIndex).amm.oracle;
+			this.velocityClient.getPerpMarketAccount(marketIndex).oracle;
 
 		const oraclePrice =
 			this.velocityClient.getOracleDataForPerpMarket(marketIndex).price;
@@ -2292,7 +2292,7 @@ export class User {
 
 		positionBaseSizeChange = standardizeBaseAssetAmount(
 			positionBaseSizeChange,
-			market.amm.orderStepSize
+			market.orderStepSize
 		);
 
 		const freeCollateralChangeFromNewPosition =
@@ -2345,7 +2345,7 @@ export class User {
 
 				if (spotFreeCollateralDelta) {
 					const { numerator, denominator } = getMultipleBetweenOracleSources(
-						market.amm.oracleSource,
+						market.oracleSource,
 						spotMarketWithSameOracle.oracleSource
 					);
 					spotFreeCollateralDelta = spotFreeCollateralDelta

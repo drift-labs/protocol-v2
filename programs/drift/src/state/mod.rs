@@ -26,6 +26,7 @@ pub mod paused_operations;
 pub mod perp_market;
 pub mod perp_market_map;
 pub mod pyth_lazer_oracle;
+pub mod quoter;
 pub mod revenue_share;
 pub mod revenue_share_map;
 pub mod scale_order_params;

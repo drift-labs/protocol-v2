@@ -1,0 +1,462 @@
+//! Test-only helpers to migrate base64-encoded `PerpMarket` snapshots from the
+//! pre-AMM-decoupling layout to the current layout.
+//!
+//! Background: a refactor moved ~28 fields out of `AMM` into the top-level
+//! `PerpMarket`, and introduced a new `MarketStats` struct at the tail of
+//! `PerpMarket` (oracle TWAPs, mark/oracle std, volume, mm-oracle, etc.).
+//! Existing tests embed base64 blobs captured under the old layout; this
+//! module reads those blobs as `LegacyPerpMarket`, copies every field to the
+//! correct new location, and re-encodes the resulting current-`PerpMarket`
+//! as base64 — yielding a drop-in replacement for the snapshot string.
+//!
+//! The `LegacyAmm` and `LegacyPerpMarket` field definitions mirror
+//! `git show HEAD:programs/drift/src/state/perp_market.rs` exactly (the
+//! committed pre-refactor layout the snapshots were generated against).
+#![allow(dead_code)]
+#![cfg(test)]
+use crate::state::market_status::MarketStatus;
+use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::perp_market::{InsuranceClaim, MarketStats, PerpMarket, PoolBalance, AMM};
+use crate::state::traits::Size;
+use anchor_lang::prelude::Pubkey;
+
+// ---- Legacy AMM (pre-decoupling) layout ----------------------------------
+//
+// The struct below mirrors the AMM struct as committed at HEAD (the layout
+// the snapshots were serialized under). Every field, in order, with the
+// exact same `repr(C)` semantics. Do not reorder.
+//
+// `packed(8)` caps each field's alignment at 8 bytes — matching the SBF
+// target where the snapshots were generated (on SBF `align_of::<u128>() ==
+// 8`, but on x86_64 with Rust ≥ 1.77 it's 16). Without this cap, x86_64
+// `sizeof::<LegacyAmm>()` is 880 vs the on-chain 704.
+#[repr(C, packed(8))]
+#[derive(Clone, Copy)]
+pub struct LegacyAmm {
+    pub oracle: Pubkey,
+    pub historical_oracle_data: HistoricalOracleData,
+    pub fee_pool: PoolBalance,
+    pub base_asset_reserve: u128,
+    pub quote_asset_reserve: u128,
+    pub concentration_coef: u128,
+    pub min_base_asset_reserve: u128,
+    pub max_base_asset_reserve: u128,
+    pub sqrt_k: u128,
+    pub peg_multiplier: u128,
+    pub terminal_quote_asset_reserve: u128,
+    pub base_asset_amount_long: i128,
+    pub base_asset_amount_short: i128,
+    pub base_asset_amount_with_amm: i128,
+    pub max_open_interest: u128,
+    pub quote_asset_amount: i128,
+    pub quote_entry_amount_long: i128,
+    pub quote_entry_amount_short: i128,
+    pub quote_break_even_amount_long: i128,
+    pub quote_break_even_amount_short: i128,
+    pub last_funding_rate: i64,
+    pub last_funding_rate_long: i64,
+    pub last_funding_rate_short: i64,
+    pub last_24h_avg_funding_rate: i64,
+    pub total_fee: i128,
+    pub total_mm_fee: i128,
+    pub total_exchange_fee: u128,
+    pub total_fee_minus_distributions: i128,
+    pub total_fee_withdrawn: u128,
+    pub total_liquidation_fee: u128,
+    pub cumulative_funding_rate_long: i128,
+    pub cumulative_funding_rate_short: i128,
+    pub total_social_loss: u128,
+    pub ask_base_asset_reserve: u128,
+    pub ask_quote_asset_reserve: u128,
+    pub bid_base_asset_reserve: u128,
+    pub bid_quote_asset_reserve: u128,
+    pub last_oracle_normalised_price: i64,
+    pub last_oracle_reserve_price_spread_pct: i64,
+    pub last_bid_price_twap: u64,
+    pub last_ask_price_twap: u64,
+    pub last_mark_price_twap: u64,
+    pub last_mark_price_twap_5min: u64,
+    pub last_update_slot: u64,
+    pub last_oracle_conf_pct: u64,
+    pub net_revenue_since_last_funding: i64,
+    pub last_funding_rate_ts: i64,
+    pub funding_period: i64,
+    pub order_step_size: u64,
+    pub order_tick_size: u64,
+    pub min_order_size: u64,
+    pub mm_oracle_slot: u64,
+    pub volume_24h: u64,
+    pub long_intensity_volume: u64,
+    pub short_intensity_volume: u64,
+    pub last_trade_ts: i64,
+    pub mark_std: u64,
+    pub oracle_std: u64,
+    pub last_mark_price_twap_ts: i64,
+    pub base_spread: u32,
+    pub max_spread: u32,
+    pub long_spread: u32,
+    pub short_spread: u32,
+    pub mm_oracle_price: i64,
+    pub max_fill_reserve_fraction: u16,
+    pub max_slippage_ratio: u16,
+    pub curve_update_intensity: u8,
+    pub amm_jit_intensity: u8,
+    pub oracle_source: u8, // OracleSource is repr(u8)
+    pub last_oracle_valid: bool,
+    pub oracle_low_risk_slot_delay_override: i8,
+    pub amm_spread_adjustment: i8,
+    pub oracle_slot_delay_override: i8,
+    pub padding_pre_mm_oracle_sequence: [u8; 5],
+    pub mm_oracle_sequence_id: u64,
+    pub net_unsettled_funding_pnl: i64,
+    pub reference_price_offset: i32,
+    pub amm_inventory_spread_adjustment: i8,
+    pub reference_price_offset_deadband_pct: u8,
+    pub padding_pre_last_funding: [u8; 2],
+    pub last_funding_oracle_twap: i64,
+    pub padding_trailing: [u8; 8],
+}
+
+/// Legacy PerpMarket layout (pre-decoupling). Mirrors `git show
+/// HEAD:programs/drift/src/state/perp_market.rs` field order.
+///
+/// See `LegacyAmm` for why `packed(8)` is needed.
+#[repr(C, packed(8))]
+#[derive(Clone, Copy)]
+pub struct LegacyPerpMarket {
+    pub pubkey: Pubkey,
+    pub amm: LegacyAmm,
+    pub pnl_pool: PoolBalance,
+    pub name: [u8; 32],
+    pub insurance_claim: InsuranceClaim,
+    pub unrealized_pnl_max_imbalance: u64,
+    pub expiry_ts: i64,
+    pub expiry_price: i64,
+    pub next_fill_record_id: u64,
+    pub next_funding_rate_record_id: u64,
+    pub next_curve_record_id: u64,
+    pub imf_factor: u32,
+    pub unrealized_pnl_imf_factor: u32,
+    pub liquidator_fee: u32,
+    pub if_liquidation_fee: u32,
+    pub margin_ratio_initial: u32,
+    pub margin_ratio_maintenance: u32,
+    pub unrealized_pnl_initial_asset_weight: u32,
+    pub unrealized_pnl_maintenance_asset_weight: u32,
+    pub number_of_users_with_base: u32,
+    pub number_of_users: u32,
+    pub market_index: u16,
+    pub status: u8, // MarketStatus is repr(u8)
+    pub contract_type: u8,
+    pub contract_tier: u8,
+    pub paused_operations: u8,
+    pub quote_spot_market_index: u16,
+    pub fee_adjustment: i16,
+    pub last_fill_price: u64,
+    pub pool_id: u8,
+    pub _padding_pmm: [u8; 2],
+    pub lp_fee_transfer_scalar: u8,
+    pub lp_status: u8,
+    pub lp_paused_operations: u8,
+    pub lp_exchange_fee_excluscion_scalar: u8,
+    pub lp_pool_id: u8,
+    pub market_config: u8,
+    pub padding: [u8; 30],
+}
+
+/// Decode a base64 snapshot of a pre-decoupling PerpMarket, translate it
+/// into the current PerpMarket layout, and re-encode as base64 (with the
+/// original 8-byte Anchor discriminator preserved).
+pub fn regenerate_perp_market_snapshot(old_b64: &str) -> String {
+    let decoded = base64::decode(old_b64.trim()).expect("snapshot is valid base64");
+
+    let disc_len = 8;
+    let legacy_size = std::mem::size_of::<LegacyPerpMarket>();
+    assert!(
+        decoded.len() >= disc_len + legacy_size,
+        "snapshot too short: got {} bytes, expected at least {} + {} ({}) — \
+         double-check LegacyAmm field order against git show HEAD:.../perp_market.rs",
+        decoded.len(),
+        disc_len,
+        legacy_size,
+        disc_len + legacy_size,
+    );
+
+    // Read the legacy struct out of the byte buffer at byte offset 8 (after
+    // the Anchor discriminator). The buffer may not be 16-aligned, so use an
+    // unaligned read into a local owned by this function.
+    let legacy: LegacyPerpMarket = unsafe {
+        std::ptr::read_unaligned(decoded[disc_len..].as_ptr() as *const LegacyPerpMarket)
+    };
+
+    // ---- Translate to the current PerpMarket layout --------------------
+    let mut pm = PerpMarket::default();
+
+    // Top-level scalars that didn't move.
+    pm.pubkey = legacy.pubkey;
+    pm.pnl_pool = legacy.pnl_pool;
+    pm.name = legacy.name;
+    pm.insurance_claim = legacy.insurance_claim;
+    pm.unrealized_pnl_max_imbalance = legacy.unrealized_pnl_max_imbalance;
+    pm.expiry_ts = legacy.expiry_ts;
+    pm.expiry_price = legacy.expiry_price;
+    pm.next_fill_record_id = legacy.next_fill_record_id;
+    pm.next_funding_rate_record_id = legacy.next_funding_rate_record_id;
+    pm.next_curve_record_id = legacy.next_curve_record_id;
+    pm.imf_factor = legacy.imf_factor;
+    pm.unrealized_pnl_imf_factor = legacy.unrealized_pnl_imf_factor;
+    pm.liquidator_fee = legacy.liquidator_fee;
+    pm.if_liquidation_fee = legacy.if_liquidation_fee;
+    pm.margin_ratio_initial = legacy.margin_ratio_initial;
+    pm.margin_ratio_maintenance = legacy.margin_ratio_maintenance;
+    pm.unrealized_pnl_initial_asset_weight = legacy.unrealized_pnl_initial_asset_weight;
+    pm.unrealized_pnl_maintenance_asset_weight = legacy.unrealized_pnl_maintenance_asset_weight;
+    pm.number_of_users_with_base = legacy.number_of_users_with_base;
+    pm.number_of_users = legacy.number_of_users;
+    pm.market_index = legacy.market_index;
+    // SAFETY: legacy.status was read from a serialized MarketStatus byte that
+    // a real protocol writer produced; the same is true for contract_type /
+    // contract_tier / oracle_source. Transmute is sound for these
+    // repr(u8) enums (and OracleSource is the same in both layouts).
+    pm.status = unsafe { std::mem::transmute::<u8, MarketStatus>(legacy.status) };
+    pm.contract_type = unsafe {
+        std::mem::transmute::<u8, crate::state::perp_market::ContractType>(legacy.contract_type)
+    };
+    pm.contract_tier = unsafe {
+        std::mem::transmute::<u8, crate::state::perp_market::ContractTier>(legacy.contract_tier)
+    };
+    pm.paused_operations = legacy.paused_operations;
+    pm.quote_spot_market_index = legacy.quote_spot_market_index;
+    pm.fee_adjustment = legacy.fee_adjustment;
+    pm.last_fill_price = legacy.last_fill_price;
+    pm.pool_id = legacy.pool_id;
+    pm._padding_pmm = legacy._padding_pmm;
+    pm.lp_fee_transfer_scalar = legacy.lp_fee_transfer_scalar;
+    pm.lp_status = legacy.lp_status;
+    pm.lp_paused_operations = legacy.lp_paused_operations;
+    pm.lp_exchange_fee_excluscion_scalar = legacy.lp_exchange_fee_excluscion_scalar;
+    pm.lp_pool_id = legacy.lp_pool_id;
+    pm.market_config = legacy.market_config;
+
+    // ---- AMM fields that didn't move stay on AMM. ------------------
+    let la = &legacy.amm;
+    let mut amm = AMM::default();
+    amm.fee_pool = la.fee_pool;
+    amm.base_asset_reserve = la.base_asset_reserve;
+    amm.quote_asset_reserve = la.quote_asset_reserve;
+    amm.concentration_coef = la.concentration_coef;
+    amm.min_base_asset_reserve = la.min_base_asset_reserve;
+    amm.max_base_asset_reserve = la.max_base_asset_reserve;
+    amm.sqrt_k = la.sqrt_k;
+    amm.peg_multiplier = la.peg_multiplier;
+    amm.terminal_quote_asset_reserve = la.terminal_quote_asset_reserve;
+    amm.base_asset_amount_with_amm = la.base_asset_amount_with_amm;
+    amm.total_fee = la.total_fee;
+    amm.total_mm_fee = la.total_mm_fee;
+    amm.total_fee_minus_distributions = la.total_fee_minus_distributions;
+    amm.total_fee_withdrawn = la.total_fee_withdrawn;
+    // The cached spread state on AMM (`ask/bid_*_asset_reserve`,
+    // `last_oracle_reserve_price_spread_pct`, `long_spread`, `short_spread`,
+    // `reference_price_offset`) was removed in the AMM-decoupling refactor.
+    // Snapshot regeneration drops those values from the legacy layout — the
+    // new layout doesn't carry them.
+    amm.last_update_slot = la.last_update_slot;
+    amm.net_revenue_since_last_funding = la.net_revenue_since_last_funding;
+    amm.base_spread = la.base_spread;
+    amm.max_spread = la.max_spread;
+    amm.max_fill_reserve_fraction = la.max_fill_reserve_fraction;
+    amm.max_slippage_ratio = la.max_slippage_ratio;
+    amm.curve_update_intensity = la.curve_update_intensity;
+    amm.amm_jit_intensity = la.amm_jit_intensity;
+    amm.amm_spread_adjustment = la.amm_spread_adjustment;
+    amm.amm_inventory_spread_adjustment = la.amm_inventory_spread_adjustment;
+    amm.reference_price_offset_deadband_pct = la.reference_price_offset_deadband_pct;
+    pm.amm = amm;
+
+    // ---- AMM → PerpMarket field moves ---------------------------------
+    pm.base_asset_amount_long = la.base_asset_amount_long;
+    pm.base_asset_amount_short = la.base_asset_amount_short;
+    pm.quote_asset_amount = la.quote_asset_amount;
+    pm.quote_entry_amount_long = la.quote_entry_amount_long;
+    pm.quote_entry_amount_short = la.quote_entry_amount_short;
+    pm.quote_break_even_amount_long = la.quote_break_even_amount_long;
+    pm.quote_break_even_amount_short = la.quote_break_even_amount_short;
+    pm.max_open_interest = la.max_open_interest;
+    pm.total_social_loss = la.total_social_loss;
+    pm.cumulative_funding_rate_long = la.cumulative_funding_rate_long;
+    pm.cumulative_funding_rate_short = la.cumulative_funding_rate_short;
+    pm.total_exchange_fee = la.total_exchange_fee;
+    pm.total_liquidation_fee = la.total_liquidation_fee;
+    pm.oracle = la.oracle;
+    pm.last_funding_rate = la.last_funding_rate;
+    pm.last_funding_rate_long = la.last_funding_rate_long;
+    pm.last_funding_rate_short = la.last_funding_rate_short;
+    pm.last_funding_rate_ts = la.last_funding_rate_ts;
+    pm.net_unsettled_funding_pnl = la.net_unsettled_funding_pnl;
+    pm.last_funding_oracle_twap = la.last_funding_oracle_twap;
+    pm.order_step_size = la.order_step_size;
+    pm.order_tick_size = la.order_tick_size;
+    pm.oracle_source = unsafe { std::mem::transmute::<u8, OracleSource>(la.oracle_source) };
+    pm.oracle_slot_delay_override = la.oracle_slot_delay_override;
+    pm.oracle_low_risk_slot_delay_override = la.oracle_low_risk_slot_delay_override;
+
+    // ---- AMM → MarketStats field moves --------------------------------
+    pm.market_stats = MarketStats {
+        funding_period: la.funding_period,
+        last_24h_avg_funding_rate: la.last_24h_avg_funding_rate,
+        min_order_size: la.min_order_size,
+        last_mark_price_twap: la.last_mark_price_twap,
+        last_mark_price_twap_5min: la.last_mark_price_twap_5min,
+        last_mark_price_twap_ts: la.last_mark_price_twap_ts,
+        last_bid_price_twap: la.last_bid_price_twap,
+        last_ask_price_twap: la.last_ask_price_twap,
+        mark_std: la.mark_std,
+        oracle_std: la.oracle_std,
+        last_oracle_conf_pct: la.last_oracle_conf_pct,
+        volume_24h: la.volume_24h,
+        long_intensity_volume: la.long_intensity_volume,
+        short_intensity_volume: la.short_intensity_volume,
+        last_trade_ts: la.last_trade_ts,
+        mm_oracle_price: la.mm_oracle_price,
+        mm_oracle_slot: la.mm_oracle_slot,
+        mm_oracle_sequence_id: la.mm_oracle_sequence_id,
+        last_oracle_normalised_price: la.last_oracle_normalised_price,
+        last_reference_price_offset: la.reference_price_offset,
+        last_oracle_valid: la.last_oracle_valid,
+        padding: [0; 11],
+        historical_oracle_data: la.historical_oracle_data,
+    };
+
+    // ---- Re-encode (discriminator + struct bytes) ---------------------
+    let mut out_bytes = Vec::with_capacity(disc_len + std::mem::size_of::<PerpMarket>());
+    out_bytes.extend_from_slice(&decoded[..disc_len]);
+    let pm_bytes: &[u8] = unsafe {
+        std::slice::from_raw_parts(
+            &pm as *const PerpMarket as *const u8,
+            std::mem::size_of::<PerpMarket>(),
+        )
+    };
+    out_bytes.extend_from_slice(pm_bytes);
+
+    base64::encode(&out_bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Print sizes so we can iterate on the layout.
+    #[test]
+    fn print_legacy_layout_sizes() {
+        println!(
+            "size_of LegacyAmm = {}, LegacyPerpMarket = {}",
+            std::mem::size_of::<LegacyAmm>(),
+            std::mem::size_of::<LegacyPerpMarket>(),
+        );
+    }
+
+    /// New PerpMarket is the size the tests will write into.
+    #[test]
+    fn current_perp_market_size_unchanged() {
+        // Documented invariant in Size::SIZE: 1112 with 8-byte discriminator,
+        // i.e. struct is 1104 bytes.
+        assert_eq!(std::mem::size_of::<PerpMarket>(), 1104);
+        assert_eq!(PerpMarket::SIZE, 1112);
+    }
+
+    /// One-shot regeneration helper. Run with:
+    /// `cargo test -p drift --lib test_utils::legacy_snapshot::tests::print_regenerated -- --ignored --nocapture`
+    /// then copy the printed lines back into each test.
+    #[test]
+    #[ignore = "regeneration tool; run on demand"]
+    fn print_regenerated() {
+        let snapshots: &[(&str, &str)] = &[
+            (
+                "amm_pool_balance_liq_fees_example",
+                AMM_POOL_BALANCE_LIQ_FEES_EXAMPLE,
+            ),
+            (
+                "amm_pred_expiry_price_yes_market_example",
+                AMM_PRED_EXPIRY_PRICE_YES_MARKET_EXAMPLE,
+            ),
+            (
+                "amm_pred_expiry_price_market_example",
+                AMM_PRED_EXPIRY_PRICE_MARKET_EXAMPLE,
+            ),
+            (
+                "amm_pred_settle_market_example",
+                AMM_PRED_SETTLE_MARKET_EXAMPLE,
+            ),
+            ("amm_pred_market_example", AMM_PRED_MARKET_EXAMPLE),
+            (
+                "amm_ref_price_decay_tail_test",
+                AMM_REF_PRICE_DECAY_TAIL_TEST,
+            ),
+            (
+                "amm_ref_price_offset_decay_logic",
+                AMM_REF_PRICE_OFFSET_DECAY_LOGIC,
+            ),
+            (
+                "amm_negative_ref_price_offset_decay_logic",
+                AMM_NEGATIVE_REF_PRICE_OFFSET_DECAY_LOGIC,
+            ),
+            ("amm_perp_ref_offset", AMM_PERP_REF_OFFSET),
+            ("update_amm_near_boundary", UPDATE_AMM_NEAR_BOUNDARY),
+            ("update_amm_near_boundary2", UPDATE_AMM_NEAR_BOUNDARY2),
+            ("recenter_amm_1", RECENTER_AMM_1),
+            ("recenter_amm_2", RECENTER_AMM_2),
+            ("test_move_amm", TEST_MOVE_AMM),
+            ("order_params::btc", ORDER_PARAMS_BTC),
+            ("order_params::doge", ORDER_PARAMS_DOGE),
+            (
+                "order_params::test_default_starts_on_perp_markets",
+                ORDER_PARAMS_DEFAULT_STARTS,
+            ),
+            (
+                "crate::amm::controller::perp_market_transfer_fee_and_pnl_pool::sol",
+                PMTFPP_SOL,
+            ),
+            (
+                "crate::amm::controller::perp_market_transfer_fee_and_pnl_pool::eth",
+                PMTFPP_ETH,
+            ),
+        ];
+        for (name, b64) in snapshots {
+            let new = regenerate_perp_market_snapshot(b64);
+            println!("---BEGIN {}---", name);
+            println!("{}", new);
+            println!("---END {}---", name);
+        }
+    }
+
+    // Snapshot strings read from .b64 sibling files (populated by extracting
+    // the `let perp_market_str` blob out of each `#[ignore]` test body).
+
+    const AMM_POOL_BALANCE_LIQ_FEES_EXAMPLE: &str =
+        include_str!("snapshots/amm_pool_balance_liq_fees_example.b64");
+    const AMM_PRED_EXPIRY_PRICE_YES_MARKET_EXAMPLE: &str =
+        include_str!("snapshots/amm_pred_expiry_price_yes_market_example.b64");
+    const AMM_PRED_EXPIRY_PRICE_MARKET_EXAMPLE: &str =
+        include_str!("snapshots/amm_pred_expiry_price_market_example.b64");
+    const AMM_PRED_SETTLE_MARKET_EXAMPLE: &str =
+        include_str!("snapshots/amm_pred_settle_market_example.b64");
+    const AMM_PRED_MARKET_EXAMPLE: &str = include_str!("snapshots/amm_pred_market_example.b64");
+    const AMM_REF_PRICE_DECAY_TAIL_TEST: &str =
+        include_str!("snapshots/amm_ref_price_decay_tail_test.b64");
+    const AMM_REF_PRICE_OFFSET_DECAY_LOGIC: &str =
+        include_str!("snapshots/amm_ref_price_offset_decay_logic.b64");
+    const AMM_NEGATIVE_REF_PRICE_OFFSET_DECAY_LOGIC: &str =
+        include_str!("snapshots/amm_negative_ref_price_offset_decay_logic.b64");
+    const AMM_PERP_REF_OFFSET: &str = include_str!("snapshots/amm_perp_ref_offset.b64");
+    const UPDATE_AMM_NEAR_BOUNDARY: &str = include_str!("snapshots/update_amm_near_boundary.b64");
+    const UPDATE_AMM_NEAR_BOUNDARY2: &str = include_str!("snapshots/update_amm_near_boundary2.b64");
+    const RECENTER_AMM_1: &str = include_str!("snapshots/recenter_amm_1.b64");
+    const RECENTER_AMM_2: &str = include_str!("snapshots/recenter_amm_2.b64");
+    const TEST_MOVE_AMM: &str = include_str!("snapshots/test_move_amm.b64");
+    const ORDER_PARAMS_BTC: &str = include_str!("snapshots/order_params_btc.b64");
+    const ORDER_PARAMS_DOGE: &str = include_str!("snapshots/order_params_doge.b64");
+    const ORDER_PARAMS_DEFAULT_STARTS: &str =
+        include_str!("snapshots/order_params_default_starts.b64");
+    const PMTFPP_SOL: &str = include_str!("snapshots/pmtfpp_sol.b64");
+    const PMTFPP_ETH: &str = include_str!("snapshots/pmtfpp_eth.b64");
+}

@@ -2,6 +2,7 @@ use std::cmp::max;
 
 use crate::msg;
 
+use crate::amm::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn;
 use crate::math::casting::Cast;
@@ -9,7 +10,6 @@ use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER,
     PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
-use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::PerpMarket;
@@ -27,51 +27,43 @@ pub fn calculate_funding_rate_long_short(
 ) -> DriftResult<(i128, i128, i128)> {
     // Calculate the funding payment owed by the net_market_position if funding is not capped
     // If the net market position owes funding payment, the protocol receives payment
-    let settled_net_market_position = market.amm.base_asset_amount_with_amm;
+    let settled_net_market_position = market.amm.net_counterparty_position();
 
     let net_market_position_funding_payment =
         calculate_funding_payment_in_quote_precision(funding_rate, settled_net_market_position)?;
     let uncapped_funding_pnl = -net_market_position_funding_payment;
 
+    use crate::amm::quoter::AmmContract;
+
     // If the uncapped_funding_pnl is positive, the protocol receives money.
     if uncapped_funding_pnl >= 0 {
-        market.amm.total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .safe_add(uncapped_funding_pnl)?;
-
-        market.amm.net_revenue_since_last_funding = market
-            .amm
-            .net_revenue_since_last_funding
-            .safe_add(uncapped_funding_pnl as i64)?;
-
+        market.amm.record_amm_pnl(uncapped_funding_pnl)?;
         return Ok((funding_rate, funding_rate, uncapped_funding_pnl));
     }
 
     let (capped_funding_rate, capped_funding_pnl) =
         calculate_capped_funding_rate(market, uncapped_funding_pnl, funding_rate)?;
 
-    let new_total_fee_minus_distributions = market
-        .amm
-        .total_fee_minus_distributions
-        .safe_add(capped_funding_pnl)?;
-
-    // protocol is paying part of funding imbalance
+    // protocol is paying part of funding imbalance — enforce the lower bound
+    // BEFORE recording the P&L so the AMM books only mutate on an accepted
+    // delta. The pure-math floor check stays out of the AMM trait.
     if capped_funding_pnl != 0 {
+        let projected_total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .safe_add(capped_funding_pnl)?;
         let total_fee_minus_distributions_lower_bound =
             get_total_fee_lower_bound(market)?.cast::<i128>()?;
-
-        // makes sure the protocol doesn't pay more than the share of fees allocated to `distributions`
-        if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
-            msg!("new_total_fee_minus_distributions={} < total_fee_minus_distributions_lower_bound={}", new_total_fee_minus_distributions, total_fee_minus_distributions_lower_bound);
+        if projected_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
+            msg!(
+                "new_total_fee_minus_distributions={} < total_fee_minus_distributions_lower_bound={}",
+                projected_total_fee_minus_distributions,
+                total_fee_minus_distributions_lower_bound
+            );
             return Err(ErrorCode::InvalidFundingProfitability);
         }
     }
-    market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
-    market.amm.net_revenue_since_last_funding = market
-        .amm
-        .net_revenue_since_last_funding
-        .safe_sub(capped_funding_pnl.unsigned_abs() as i64)?;
+    market.amm.record_amm_pnl(capped_funding_pnl)?;
 
     let funding_rate_long = if funding_rate < 0 {
         capped_funding_rate
@@ -107,9 +99,9 @@ fn calculate_capped_funding_rate(
         let funding_payment_from_users = calculate_funding_payment_in_quote_precision(
             funding_rate,
             if funding_rate > 0 {
-                market.amm.base_asset_amount_long
+                market.base_asset_amount_long
             } else {
-                market.amm.base_asset_amount_short
+                market.base_asset_amount_short
             },
         )?;
 
@@ -122,13 +114,13 @@ fn calculate_capped_funding_rate(
             // longs receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.amm.base_asset_amount_long,
+                market.base_asset_amount_long,
             )?
         } else {
             // shorts receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.amm.base_asset_amount_short,
+                market.base_asset_amount_short,
             )?
         }
     } else {

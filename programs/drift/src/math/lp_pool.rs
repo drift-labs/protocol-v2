@@ -70,14 +70,11 @@ pub mod perp_lp_pool_settlement {
 
         if result.direction == SettlementDirection::ToLpPool {
             if result.fee_pool_used > 0 {
-                let fee_pool_token_amount = get_token_amount(
-                    perp_market.amm.fee_pool.balance(),
-                    quote_spot_market,
-                    &SpotBalanceType::Deposit,
-                )?;
+                let fee_pool_token_amount =
+                    perp_market.amm.fee_pool_token_amount(quote_spot_market)?;
                 validate!(
                     fee_pool_token_amount >= result.fee_pool_used,
-                    ErrorCode::LpPoolSettleInvariantBreached.into(),
+                    ErrorCode::LpPoolSettleInvariantBreached,
                     "Fee pool balance insufficient for settlement: {} < {}",
                     fee_pool_token_amount,
                     result.fee_pool_used
@@ -92,7 +89,7 @@ pub mod perp_lp_pool_settlement {
                 )?;
                 validate!(
                     pnl_pool_token_amount >= result.pnl_pool_used,
-                    ErrorCode::LpPoolSettleInvariantBreached.into(),
+                    ErrorCode::LpPoolSettleInvariantBreached,
                     "Pnl pool balance insufficient for settlement: {} < {}",
                     pnl_pool_token_amount,
                     result.pnl_pool_used
@@ -104,7 +101,7 @@ pub mod perp_lp_pool_settlement {
                 ctx.quote_constituent_token_balance
                     .saturating_sub(result.amount_transferred)
                     >= QUOTE_PRECISION_U64,
-                ErrorCode::LpPoolSettleInvariantBreached.into(),
+                ErrorCode::LpPoolSettleInvariantBreached,
                 "Quote constituent token balance insufficient for settlement: {} < {}",
                 ctx.quote_constituent_token_balance,
                 result.amount_transferred
@@ -196,21 +193,18 @@ pub mod perp_lp_pool_settlement {
     ) -> Result<()> {
         match result.direction {
             SettlementDirection::FromLpPool => {
-                controller::spot_balance::update_spot_balances(
+                <crate::amm::AMM as crate::amm::quoter::AmmContract>::deposit_to_fee_pool(
+                    &mut perp_market.amm,
                     result.amount_transferred as u128,
-                    &SpotBalanceType::Deposit,
                     quote_spot_market,
-                    &mut perp_market.amm.fee_pool,
-                    false,
                 )?;
             }
             SettlementDirection::ToLpPool => {
                 if result.fee_pool_used > 0 {
-                    controller::spot_balance::update_spot_balances(
+                    <crate::amm::AMM as crate::amm::quoter::AmmContract>::withdraw_from_fee_pool(
+                        &mut perp_market.amm,
                         result.fee_pool_used,
-                        &SpotBalanceType::Borrow,
                         quote_spot_market,
-                        &mut perp_market.amm.fee_pool,
                         true,
                     )?;
                 }

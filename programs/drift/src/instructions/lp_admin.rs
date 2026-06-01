@@ -93,7 +93,7 @@ pub fn handle_initialize_lp_pool(
     amm_constituent_mapping.bump = ctx.bumps.amm_constituent_mapping;
     amm_constituent_mapping
         .weights
-        .resize_with(0 as usize, AmmConstituentDatum::default);
+        .resize_with(0_usize, AmmConstituentDatum::default);
     amm_constituent_mapping.validate()?;
 
     let constituent_target_base = &mut ctx.accounts.constituent_target_base;
@@ -101,13 +101,13 @@ pub fn handle_initialize_lp_pool(
     constituent_target_base.bump = ctx.bumps.constituent_target_base;
     constituent_target_base
         .targets
-        .resize_with(0 as usize, TargetsDatum::default);
+        .resize_with(0_usize, TargetsDatum::default);
     constituent_target_base.validate()?;
 
     let consituent_correlations = &mut ctx.accounts.constituent_correlations;
     consituent_correlations.lp_pool = ctx.accounts.lp_pool.key();
     consituent_correlations.bump = ctx.bumps.constituent_correlations;
-    consituent_correlations.correlations.resize(0 as usize, 0);
+    consituent_correlations.correlations.resize(0_usize, 0);
     consituent_correlations.validate()?;
 
     Ok(())
@@ -140,7 +140,7 @@ pub fn handle_initialize_constituent<'info>(
 
     constituent_target_base
         .targets
-        .resize_with((current_len + 1) as usize, TargetsDatum::default);
+        .resize_with(current_len + 1, TargetsDatum::default);
 
     let new_target = constituent_target_base
         .targets
@@ -770,7 +770,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
 
                 for meta in ix.accounts.iter() {
                     validate!(
-                        meta.is_writable == false,
+                        !meta.is_writable,
                         ErrorCode::InvalidSwap,
                         "instructions after swap end must not have writable accounts"
                     )?;
@@ -895,7 +895,7 @@ pub fn handle_update_perp_market_lp_pool_status(
 
     msg!("perp market {}", perp_market.market_index);
     perp_market.lp_status = lp_status;
-    amm_cache.update_perp_market_fields(&perp_market)?;
+    amm_cache.update_perp_market_fields(perp_market)?;
 
     Ok(())
 }
@@ -1028,7 +1028,7 @@ pub struct InitializeLpPool<'info> {
         init,
         seeds = [AMM_MAP_PDA_SEED.as_bytes(), lp_pool.key().as_ref()],
         bump,
-        space = AmmConstituentMapping::space(0 as usize),
+        space = AmmConstituentMapping::space(0_usize),
         payer = admin,
     )]
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
@@ -1037,7 +1037,7 @@ pub struct InitializeLpPool<'info> {
         init,
         seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_bytes(), lp_pool.key().as_ref()],
         bump,
-        space = ConstituentTargetBase::space(0 as usize),
+        space = ConstituentTargetBase::space(0_usize),
         payer = admin,
     )]
     pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
@@ -1046,7 +1046,7 @@ pub struct InitializeLpPool<'info> {
         init,
         seeds = [CONSTITUENT_CORRELATIONS_PDA_SEED.as_bytes(), lp_pool.key().as_ref()],
         bump,
-        space = ConstituentCorrelations::space(0 as usize),
+        space = ConstituentCorrelations::space(0_usize),
         payer = admin,
     )]
     pub constituent_correlations: Box<Account<'info, ConstituentCorrelations>>,

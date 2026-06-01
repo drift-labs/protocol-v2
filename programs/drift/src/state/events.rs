@@ -710,7 +710,7 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 ) -> DriftResult {
     let mut data_writer = std::io::Cursor::new(data_buf);
     data_writer
-        .write_all(&<T as Discriminator>::DISCRIMINATOR)
+        .write_all(<T as Discriminator>::DISCRIMINATOR)
         .safe_unwrap()?;
     borsh::to_writer(&mut data_writer, &event).safe_unwrap()?;
     let data_len = data_writer.position() as usize;

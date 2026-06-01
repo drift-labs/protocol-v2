@@ -502,11 +502,9 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     fn total_base_asset_amount_is_zero() {
         let loss = -QUOTE_PRECISION_I128;
         let market = PerpMarket {
-            amm: AMM {
-                base_asset_amount_long: 0,
-                base_asset_amount_short: 0,
-                ..AMM::default()
-            },
+            amm: AMM { ..AMM::default() },
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
             ..PerpMarket::default()
         };
 
@@ -517,11 +515,9 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     fn total_base_asset_amount_not_zero() {
         let loss = -100 * QUOTE_PRECISION_I128;
         let market = PerpMarket {
-            amm: AMM {
-                base_asset_amount_long: 7 * BASE_PRECISION_I128,
-                base_asset_amount_short: -4 * BASE_PRECISION_I128,
-                ..AMM::default()
-            },
+            amm: AMM { ..AMM::default() },
+            base_asset_amount_long: 7 * BASE_PRECISION_I128,
+            base_asset_amount_short: -4 * BASE_PRECISION_I128,
             ..PerpMarket::default()
         };
 

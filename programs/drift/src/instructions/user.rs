@@ -12,7 +12,6 @@ use anchor_spl::{
 };
 use solana_program::program::invoke;
 
-use crate::auth::check_hot;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{
     cancel_orders, validate_spot_dlob_trading_enabled_for_market_type, ModifyOrderId,
@@ -95,7 +94,6 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
-use crate::state::state::HotRole;
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::OrderStatus;
@@ -697,7 +695,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         None
     };
-    let user_token_amount_after = user.get_total_token_amount(&spot_market)?;
+    let user_token_amount_after = user.get_total_token_amount(spot_market)?;
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -736,7 +734,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 ) -> anchor_lang::Result<()> {
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
-    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
+    let _user_stats = load_mut!(ctx.accounts.user_stats)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -843,7 +841,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
     let is_borrow = user
         .get_spot_position(market_index)
-        .map_or(false, |pos| pos.is_borrow());
+        .is_ok_and(|pos| pos.is_borrow());
     let deposit_explanation = if is_borrow {
         DepositExplanation::Borrow
     } else {
@@ -919,10 +917,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let _user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
+    let _now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -1037,7 +1035,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user.get_total_token_amount(&spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1086,7 +1084,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             }
         }
 
-        let user_token_amount_after = to_user.get_total_token_amount(&spot_market)?;
+        let user_token_amount_after = to_user.get_total_token_amount(spot_market)?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
@@ -1146,7 +1144,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let _user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
 
@@ -1517,7 +1515,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .remaining_accounts
             .iter()
             .find(|acc| acc.key() == token_program_pubkey)
-            .map(|acc| Interface::try_from(acc))
+            .map(Interface::try_from)
             .unwrap()
             .unwrap();
 
@@ -1547,7 +1545,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .remaining_accounts
             .iter()
             .find(|acc| acc.key() == token_program_pubkey)
-            .map(|acc| Interface::try_from(acc))
+            .map(Interface::try_from)
             .unwrap()
             .unwrap();
 
@@ -1613,8 +1611,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let slot = clock.slot;
 
-    let mut to_user = &mut load_mut!(ctx.accounts.to_user)?;
-    let mut from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let to_user = &mut load_mut!(ctx.accounts.to_user)?;
+    let from_user = &mut load_mut!(ctx.accounts.from_user)?;
 
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -1649,7 +1647,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    controller::repeg::update_amm(
+    crate::amm::refresh::update_amm(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -1658,14 +1656,14 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     )?;
 
     settle_funding_payment(
-        &mut from_user,
+        from_user,
         &from_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     settle_funding_payment(
-        &mut to_user,
+        to_user,
         &to_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
@@ -1683,16 +1681,16 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
             market_index,
             &perp_market.oracle_id(),
             perp_market
-                .amm
+                .market_stats
                 .historical_oracle_data
                 .last_oracle_price_twap,
             perp_market.get_max_confidence_interval_multiplier()?,
-            perp_market.amm.oracle_slot_delay_override,
-            perp_market.amm.oracle_low_risk_slot_delay_override,
+            perp_market.oracle_slot_delay_override,
+            perp_market.oracle_low_risk_slot_delay_override,
             Some(LogMode::Margin),
         )?;
-        step_size = perp_market.amm.order_step_size;
-        tick_size = perp_market.amm.order_tick_size;
+        step_size = perp_market.order_step_size;
+        tick_size = perp_market.order_tick_size;
 
         validate!(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
@@ -1816,7 +1814,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
     let from_user_margin_calculation =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &from_user,
+            from_user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -1833,7 +1831,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
     let to_user_margin_requirement =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &to_user,
+            to_user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -2493,7 +2491,7 @@ fn place_orders<'c: 'info, 'info>(
             let order_step_size = match scale_params.market_type {
                 MarketType::Perp => {
                     let market = perp_market_map.get_ref(&scale_params.market_index)?;
-                    market.amm.order_step_size
+                    market.order_step_size
                 }
                 MarketType::Spot => {
                     let market = spot_market_map.get_ref(&scale_params.market_index)?;
@@ -2592,7 +2590,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let is_immediate_or_cancel = params.is_immediate_or_cancel();
 
-    controller::repeg::update_amm(
+    crate::amm::refresh::update_amm(
         params.market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -2719,7 +2717,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
-    controller::repeg::update_amm(
+    crate::amm::refresh::update_amm(
         params.market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -2833,7 +2831,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
-    controller::repeg::update_amm(
+    crate::amm::refresh::update_amm(
         params.market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -3437,7 +3435,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
 
                 for meta in ix.accounts.iter() {
                     validate!(
-                        meta.is_writable == false,
+                        !meta.is_writable,
                         ErrorCode::InvalidSwap,
                         "instructions after swap end must not have writable accounts"
                     )?;
@@ -3914,7 +3912,7 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    controller::repeg::update_amm(
+    crate::amm::refresh::update_amm(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -3948,12 +3946,12 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
             market_index,
             &perp_market.oracle_id(),
             perp_market
-                .amm
+                .market_stats
                 .historical_oracle_data
                 .last_oracle_price_twap,
             perp_market.get_max_confidence_interval_multiplier()?,
-            perp_market.amm.oracle_slot_delay_override,
-            perp_market.amm.oracle_low_risk_slot_delay_override,
+            perp_market.oracle_slot_delay_override,
+            perp_market.oracle_low_risk_slot_delay_override,
             Some(LogMode::Margin),
         )?;
 
@@ -3963,8 +3961,8 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
             "oracle is not valid for action"
         )?;
 
-        step_size = perp_market.amm.order_step_size;
-        tick_size = perp_market.amm.order_tick_size;
+        step_size = perp_market.order_step_size;
+        tick_size = perp_market.order_tick_size;
         oracle_price = oracle_price_data.price;
     }
 
@@ -4049,18 +4047,19 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
 
         update_position_and_market(position, &mut market, &position_delta)?;
 
-        market.amm.base_asset_amount_with_amm = market
-            .amm
-            .base_asset_amount_with_amm
-            .safe_add(position_delta.base_asset_amount.cast()?)?;
+        <crate::amm::AMM as crate::amm::quoter::AmmContract>::apply_settlement_counterparty(
+            &mut market.amm,
+            position_delta.base_asset_amount.cast()?,
+        )?;
 
         validate!(
-            market.amm.base_asset_amount_with_amm.unsigned_abs() <= MAX_BASE_ASSET_AMOUNT_WITH_AMM,
+            market.amm.net_counterparty_position().unsigned_abs() <= MAX_BASE_ASSET_AMOUNT_WITH_AMM,
             ErrorCode::InvalidAmmDetected,
             "base_asset_amount_with_amm exceeds max"
         )?;
 
-        controller::amm::update_spread_reserves(&mut market)?;
+        // Spread reserves are no longer cached on the AMM; computed on
+        // demand via `math::amm_spread::compute_amm_quote_state`.
     }
 
     let user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance);

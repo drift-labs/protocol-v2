@@ -1,8 +1,8 @@
-use crate::controller::amm::SwapDirection;
+use crate::amm::controller::SwapDirection;
+use crate::amm::math::amm;
+use crate::amm::math::amm::calculate_quote_asset_amount_swapped;
 use crate::controller::position::PositionDelta;
 use crate::error::DriftResult;
-use crate::math::amm;
-use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
@@ -11,7 +11,7 @@ use crate::math::constants::{
 use crate::math::pnl::calculate_pnl;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::AMM;
+use crate::amm::AMM;
 use crate::state::user::PerpPosition;
 
 pub fn calculate_base_asset_value_and_pnl(

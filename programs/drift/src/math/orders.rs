@@ -3,10 +3,10 @@ use std::ops::Sub;
 
 use crate::msg;
 
+use crate::amm::math::amm::calculate_amm_available_liquidity;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128, MARGIN_PRECISION_U128,
@@ -14,7 +14,7 @@ use crate::math::constants::{
     PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
 use crate::state::user::OrderBitFlag;
-use crate::{load, math, FeeTier};
+use crate::{load, FeeTier};
 
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
@@ -44,6 +44,7 @@ mod tests;
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
     market: &PerpMarket,
+    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
     limit_price: Option<u64>,
     override_fill_price: Option<u64>,
     existing_base_asset_amount: i64,
@@ -77,15 +78,53 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     let base_asset_amount = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
         market,
+        amm_quote_state,
         limit_price_with_buffer,
         Some(existing_base_asset_amount),
     )?;
-    let max_base_asset_amount = calculate_amm_available_liquidity(&market.amm, &order.direction)?;
+    let max_base_asset_amount =
+        calculate_amm_available_liquidity(&market.amm, &order.direction, market.order_step_size)?;
 
     Ok((min(base_asset_amount, max_base_asset_amount), limit_price))
 }
 
-fn calculate_limit_price_with_buffer(
+/// Apply the post-only maker-rebate buffer and the one-tick walk-inside-
+/// limit to a taker's order limit, then intersect with any `override` price
+/// (used by the AMM-after-DLOB chained fill where the AMM is capped at the
+/// crossing maker price). Returns the effective price ceiling to hand the
+/// matcher as `taker_limit_price`. `None` for unbounded market orders with
+/// no override.
+///
+/// Lives here (taker-side order math) rather than inside the AMM Quoter
+/// because the buffer / tick / override are *taker-policy* concerns — the
+/// AMM as a maker should not change behaviour based on what the taker is
+/// trying to do.
+pub fn calculate_effective_amm_taker_limit(
+    order: &Order,
+    taker_limit_price: Option<u64>,
+    override_fill_price: Option<u64>,
+    fee_tier: &crate::state::state::FeeTier,
+    fee_adjustment: i16,
+    order_tick_size: u64,
+) -> DriftResult<Option<u64>> {
+    let buffered =
+        calculate_limit_price_with_buffer(order, taker_limit_price, fee_tier, fee_adjustment)?;
+    let pre_tick = match (buffered, override_fill_price) {
+        (Some(lp), Some(ovr)) => Some(match order.direction {
+            PositionDirection::Long => lp.min(ovr),
+            PositionDirection::Short => lp.max(ovr),
+        }),
+        (Some(lp), None) => Some(lp),
+        (None, Some(ovr)) => Some(ovr),
+        (None, None) => None,
+    };
+    Ok(pre_tick.map(|p| match order.direction {
+        PositionDirection::Long => p.saturating_sub(order_tick_size),
+        PositionDirection::Short => p.saturating_add(order_tick_size),
+    }))
+}
+
+pub fn calculate_limit_price_with_buffer(
     order: &Order,
     limit_price: Option<u64>,
     fee_tier: &FeeTier,
@@ -122,6 +161,7 @@ fn calculate_limit_price_with_buffer(
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
+    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
     limit_price: Option<u64>,
     existing_base_asset_amount: Option<i64>,
 ) -> DriftResult<u64> {
@@ -132,12 +172,13 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     {
         // buy to right below or sell up right above the limit price
         let adjusted_limit_price = match order.direction {
-            PositionDirection::Long => limit_price.safe_sub(market.amm.order_tick_size)?,
-            PositionDirection::Short => limit_price.safe_add(market.amm.order_tick_size)?,
+            PositionDirection::Long => limit_price.safe_sub(market.order_tick_size)?,
+            PositionDirection::Short => limit_price.safe_add(market.order_tick_size)?,
         };
 
-        math::amm_spread::calculate_base_asset_amount_to_trade_to_price(
+        crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
+            amm_quote_state,
             adjusted_limit_price,
             order.direction,
         )?
@@ -151,7 +192,7 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
 
     standardize_base_asset_amount(
         min(base_asset_amount_unfilled, max_trade_base_asset_amount),
-        market.amm.order_step_size,
+        market.order_step_size,
     )
 }
 
@@ -275,22 +316,32 @@ pub fn get_price_for_perp_order(
     direction: PositionDirection,
     post_only: PostOnlyParam,
     amm: &AMM,
+    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+    order_tick_size: u64,
 ) -> DriftResult<u64> {
-    let mut limit_price = standardize_price(price, amm.order_tick_size, direction)?;
+    let mut limit_price = standardize_price(price, order_tick_size, direction)?;
 
     if post_only == PostOnlyParam::Slide {
         let reserve_price = amm.reserve_price()?;
         match direction {
             PositionDirection::Long => {
-                let amm_ask = amm.ask_price(reserve_price)?;
+                let amm_ask = amm.ask_price(
+                    reserve_price,
+                    amm_quote_state.long_spread,
+                    amm_quote_state.reference_price_offset,
+                )?;
                 if limit_price >= amm_ask {
-                    limit_price = amm_ask.safe_sub(amm.order_tick_size)?;
+                    limit_price = amm_ask.safe_sub(order_tick_size)?;
                 }
             }
             PositionDirection::Short => {
-                let amm_bid = amm.bid_price(reserve_price)?;
+                let amm_bid = amm.bid_price(
+                    reserve_price,
+                    amm_quote_state.short_spread,
+                    amm_quote_state.reference_price_offset,
+                )?;
                 if limit_price <= amm_bid {
-                    limit_price = amm_bid.safe_add(amm.order_tick_size)?;
+                    limit_price = amm_bid.safe_add(order_tick_size)?;
                 }
             }
         }
@@ -794,7 +845,7 @@ pub fn calculate_max_perp_order_size(
     if free_collateral_before <= 0 {
         return standardize_base_asset_amount(
             order_size_to_reduce_position,
-            perp_market.amm.order_step_size,
+            perp_market.order_step_size,
         );
     }
 
@@ -855,7 +906,7 @@ pub fn calculate_max_perp_order_size(
 
     standardize_base_asset_amount(
         order_size.safe_add(order_size_to_reduce_position)?,
-        perp_market.amm.order_step_size,
+        perp_market.order_step_size,
     )
 }
 
@@ -1144,7 +1195,7 @@ pub fn find_bids_and_asks_from_users(
     let mut asks: Vec<Level> = Vec::with_capacity(32);
 
     let market_index = perp_market.market_index;
-    let tick_size = perp_market.amm.order_tick_size;
+    let tick_size = perp_market.order_tick_size;
     let oracle_price = Some(oracle_price_date.price);
 
     let mut insert_order = |base_asset_amount: u64, price: u64, direction: PositionDirection| {
@@ -1178,7 +1229,7 @@ pub fn find_bids_and_asks_from_users(
     for account_loader in users.0.values() {
         let user = load!(account_loader)?;
 
-        for (_, order) in user.orders.iter().enumerate() {
+        for order in user.orders.iter() {
             if order.status != OrderStatus::Open {
                 continue;
             }
@@ -1321,9 +1372,9 @@ pub fn calculate_existing_position_fields_for_order_action(
         }
 
         if base_asset_amount_filled > base_asset_amount {
-            return Ok((Some(quote_entry_amount), Some(base_asset_amount)));
+            Ok((Some(quote_entry_amount), Some(base_asset_amount)))
         } else {
-            return Ok((
+            Ok((
                 Some(
                     quote_entry_amount
                         .cast::<u128>()?
@@ -1332,7 +1383,7 @@ pub fn calculate_existing_position_fields_for_order_action(
                         .cast::<u64>()?,
                 ),
                 None,
-            ));
+            ))
         }
     } else {
         Ok((None, None))

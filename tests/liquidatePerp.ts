@@ -236,7 +236,7 @@ describe('liquidate perp (no open orders)', () => {
 		console.log('liqPrice:', liqPrice.toString());
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
 
-		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
+		const oracle = driftClient.getPerpMarketAccount(0).oracle;
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle, 10000);
 		await sleep(2000);
 		await driftClient.fetchAccounts();
@@ -446,7 +446,7 @@ describe('liquidate perp (no open orders)', () => {
 				QUOTE_PRECISION
 			)
 		);
-		assert(marketBeforeBankruptcy.amm.totalSocialLoss.eq(ZERO));
+		assert(marketBeforeBankruptcy.totalSocialLoss.eq(ZERO));
 		const _sig = await liquidatorDriftClient.resolvePerpBankruptcy(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
@@ -467,10 +467,10 @@ describe('liquidate perp (no open orders)', () => {
 		);
 		assert(marketAfterBankruptcy.amm.feePool.scaledBalance.eq(ZERO));
 		console.log(
-			'marketAfterBankruptcy.amm.totalSocialLoss:',
-			marketAfterBankruptcy.amm.totalSocialLoss.toString()
+			'marketAfterBankruptcy.totalSocialLoss:',
+			marketAfterBankruptcy.totalSocialLoss.toString()
 		);
-		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(5767726)));
+		assert(marketAfterBankruptcy.totalSocialLoss.eq(new BN(5767726)));
 
 		// assert(!driftClient.getUserAccount().isBankrupt);
 		// assert(!driftClient.getUserAccount().isBeingLiquidated);
@@ -503,10 +503,10 @@ describe('liquidate perp (no open orders)', () => {
 
 		const market = driftClient.getPerpMarketAccount(0);
 		console.log(
-			market.amm.cumulativeFundingRateLong.toString(),
-			market.amm.cumulativeFundingRateShort.toString()
+			market.cumulativeFundingRateLong.toString(),
+			market.cumulativeFundingRateShort.toString()
 		);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(329597500)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-329572500)));
+		assert(market.cumulativeFundingRateLong.eq(new BN(329597500)));
+		assert(market.cumulativeFundingRateShort.eq(new BN(-329572500)));
 	});
 });

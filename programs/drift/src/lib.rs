@@ -27,6 +27,7 @@ use crate::state::spot_market::AssetTier;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
+pub mod amm;
 pub mod auth;
 pub mod controller;
 pub mod error;
@@ -59,8 +60,7 @@ pub fn program_entry<'info>(
                 accounts, payload,
             )?),
             _ => Err(
-                anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData
-                    .into(),
+                anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData,
             ),
         }
     } else {

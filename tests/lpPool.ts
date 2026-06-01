@@ -973,7 +973,7 @@ describe('LP Pool', () => {
 		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(2, 100, 0);
 
 		const perpMarket = adminClient.getPerpMarketAccount(0);
-		perpMarket.amm.totalExchangeFee = perpMarket.amm.totalExchangeFee.add(
+		perpMarket.totalExchangeFee = perpMarket.totalExchangeFee.add(
 			QUOTE_PRECISION.muln(100)
 		);
 		await overWritePerpMarket(

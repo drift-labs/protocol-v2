@@ -18,27 +18,34 @@ mod test;
 pub fn validate_order(
     order: &Order,
     market: &PerpMarket,
+    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
     valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> DriftResult {
     match order.order_type {
-        OrderType::Market => {
-            validate_market_order(order, market.amm.order_step_size, market.amm.min_order_size)?
+        OrderType::Market => validate_market_order(
+            order,
+            market.order_step_size,
+            market.market_stats.min_order_size,
+        )?,
+        OrderType::Limit => {
+            validate_limit_order(order, market, amm_quote_state, valid_oracle_price, slot)?
         }
-        OrderType::Limit => validate_limit_order(order, market, valid_oracle_price, slot)?,
         OrderType::TriggerMarket => validate_trigger_market_order(
             order,
-            market.amm.order_step_size,
-            market.amm.min_order_size,
+            market.order_step_size,
+            market.market_stats.min_order_size,
         )?,
         OrderType::TriggerLimit => validate_trigger_limit_order(
             order,
-            market.amm.order_step_size,
-            market.amm.min_order_size,
+            market.order_step_size,
+            market.market_stats.min_order_size,
         )?,
-        OrderType::Oracle => {
-            validate_oracle_order(order, market.amm.order_step_size, market.amm.min_order_size)?
-        }
+        OrderType::Oracle => validate_oracle_order(
+            order,
+            market.order_step_size,
+            market.market_stats.min_order_size,
+        )?,
     }
 
     Ok(())
@@ -109,13 +116,14 @@ fn validate_oracle_order(order: &Order, step_size: u64, min_order_size: u64) -> 
 fn validate_limit_order(
     order: &Order,
     market: &PerpMarket,
+    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
     valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> DriftResult {
     validate_base_asset_amount(
         order,
-        market.amm.order_step_size,
-        market.amm.min_order_size,
+        market.order_step_size,
+        market.market_stats.min_order_size,
         order.reduce_only || order.is_jit_maker(),
     )?;
 
@@ -141,7 +149,7 @@ fn validate_limit_order(
             "post only limit order cant have auction"
         )?;
 
-        validate_post_only_order(order, market, valid_oracle_price, slot)?;
+        validate_post_only_order(order, market, amm_quote_state, valid_oracle_price, slot)?;
     }
 
     validate_limit_order_auction_params(order)?;
@@ -176,6 +184,7 @@ fn validate_limit_order_auction_params(order: &Order) -> DriftResult {
 fn validate_post_only_order(
     order: &Order,
     market: &PerpMarket,
+    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
     valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> DriftResult {
@@ -189,11 +198,12 @@ fn validate_post_only_order(
     }
 
     let limit_price =
-        order.force_get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?;
+        order.force_get_limit_price(valid_oracle_price, None, slot, market.order_tick_size)?;
 
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
         market,
+        amm_quote_state,
         Some(limit_price),
         None,
     )?;
@@ -204,10 +214,10 @@ fn validate_post_only_order(
             base_asset_amount_market_can_fill,
         );
 
-        if market.amm.last_update_slot != slot {
+        if !market.amm.is_fresh_at(slot) {
             msg!(
                 "market.amm.last_update_slot={} behind current slot={}",
-                market.amm.last_update_slot,
+                market.amm.last_update_slot(),
                 slot
             );
         }

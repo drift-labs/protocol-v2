@@ -460,6 +460,7 @@ mod calculate_auction_params_for_trigger_order {
                 &oracle_price_data,
                 min_auction_duration,
                 None,
+                None,
             )
             .unwrap();
         assert_eq!(auction_duration, 10);
@@ -474,6 +475,7 @@ mod calculate_auction_params_for_trigger_order {
                 &order,
                 &oracle_price_data,
                 min_auction_duration,
+                None,
                 None,
             )
             .unwrap();
@@ -503,6 +505,7 @@ mod calculate_auction_params_for_trigger_order {
                 &oracle_price_data,
                 min_auction_duration,
                 None,
+                None,
             )
             .unwrap();
 
@@ -517,6 +520,7 @@ mod calculate_auction_params_for_trigger_order {
                 &order,
                 &oracle_price_data,
                 min_auction_duration,
+                None,
                 None,
             )
             .unwrap();

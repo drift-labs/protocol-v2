@@ -1,6 +1,7 @@
 //! Tests for `User::meets_transfer_isolated_position_deposit_margin_requirement`.
 //! Covers transfer-to-isolated and transfer-from-isolated flows with pass/fail scenarios.
 
+use crate::state::perp_market::MarketStats;
 use std::collections::BTreeSet;
 use std::str::FromStr;
 
@@ -48,20 +49,11 @@ fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-            oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
-            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -70,6 +62,14 @@ fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
         status: MarketStatus::Initialized,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -160,20 +160,11 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-            oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
-            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -182,6 +173,14 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
         status: MarketStatus::Initialized,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market0, PerpMarket, market0_account_info);
@@ -287,20 +286,11 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-            oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
-            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -309,6 +299,14 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
         status: MarketStatus::Initialized,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -396,20 +394,11 @@ fn cannot_transfer_from_isolated_when_isolated_would_fail() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-            oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
-            oracle_source: OracleSource::PythLazer,
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -418,6 +407,14 @@ fn cannot_transfer_from_isolated_when_isolated_would_fail() {
         status: MarketStatus::Initialized,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price_val),
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);

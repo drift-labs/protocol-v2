@@ -36,7 +36,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
     validate_any_isolated_tier_requirements,
 };
-use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarginTypeConfig};
+use crate::state::margin_calculation::{MarginContext, MarginTypeConfig};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market_map::SpotMarketMap;
@@ -347,7 +347,7 @@ impl User {
         for perp_position in self.perp_positions.iter() {
             if perp_position.is_isolated() {
                 perp_token_amount = perp_token_amount
-                    .safe_add(perp_position.get_isolated_token_amount(&spot_market)?)?;
+                    .safe_add(perp_position.get_isolated_token_amount(spot_market)?)?;
             }
         }
 
@@ -717,7 +717,7 @@ impl User {
             return Ok(false);
         }
 
-        return Ok(true);
+        Ok(true)
     }
 
     pub fn update_perp_position_max_margin_ratio(

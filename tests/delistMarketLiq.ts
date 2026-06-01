@@ -411,7 +411,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		// TODO: quoteAssetAmountShort!= sum of users
 		assert(
-			market0.amm.quoteAssetAmount.eq(
+			market0.quoteAssetAmount.eq(
 				winnerUser.perpPositions[0].quoteAssetAmount.add(
 					loserUser.perpPositions[0].quoteAssetAmount
 				)
@@ -449,7 +449,7 @@ describe('delist market, liquidation of expired position', () => {
 		);
 		assert(market.expiryTs.eq(expiryTs));
 
-		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
+		console.log('totalExchangeFee:', market.totalExchangeFee.toString());
 		console.log('totalFee:', market.amm.totalFee.toString());
 		console.log('totalMMFee:', market.amm.totalMmFee.toString());
 		console.log(
@@ -522,13 +522,13 @@ describe('delist market, liquidation of expired position', () => {
 
 		assert(market.expiryPrice.gt(ZERO));
 		assert(market.expiryPrice.eq(new BN(38820329))); // net user pnl calc more accurate now
-		// assert(market.amm.lastMarkPriceTwap.eq(new BN(42753480)));
+		// assert(market.marketStats.lastMarkPriceTwap.eq(new BN(42753480)));
 		console.log(
-			'market.amm.lastMarkPriceTwap:',
-			convertToNumber(market.amm.lastMarkPriceTwap)
+			'market.marketStats.lastMarkPriceTwap:',
+			convertToNumber(market.marketStats.lastMarkPriceTwap)
 		);
-		assert(market.amm.lastMarkPriceTwap.gte(new BN(42503984 - 200)));
-		assert(market.amm.lastMarkPriceTwap.lte(new BN(42504249 + 200)));
+		assert(market.marketStats.lastMarkPriceTwap.gte(new BN(42503984 - 200)));
+		assert(market.marketStats.lastMarkPriceTwap.lte(new BN(42504249 + 200)));
 	});
 
 	it('liq and settle expired market position', async () => {
@@ -770,10 +770,10 @@ describe('delist market, liquidation of expired position', () => {
 		console.log('feePool:', marketAfter0.amm.feePool.scaledBalance.toString());
 		console.log(
 			'totalExchangeFee:',
-			marketAfter0.amm.totalExchangeFee.toString()
+			marketAfter0.totalExchangeFee.toString()
 		);
 		assert(marketAfter0.amm.feePool.scaledBalance.eq(ZERO));
-		assert(marketAfter0.amm.totalExchangeFee.eq(new BN(8712501)));
+		assert(marketAfter0.totalExchangeFee.eq(new BN(8712501)));
 		await liquidatorDriftClientUser.unsubscribe();
 	});
 });

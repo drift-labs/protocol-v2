@@ -177,11 +177,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
         (1, 10_u128.pow(6 - asset_decimals))
     };
 
-    let asset_delta = if asset_transfer > asset_amount {
-        asset_transfer - asset_amount
-    } else {
-        asset_amount - asset_transfer
-    };
+    let asset_delta = asset_transfer.abs_diff(asset_amount);
 
     let asset_value_delta = asset_delta
         .safe_mul(asset_price.cast()?)?
@@ -303,10 +299,9 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
     market: &PerpMarket,
 ) -> DriftResult<i128> {
     let total_base_asset_amount = market
-        .amm
         .base_asset_amount_long
         .abs()
-        .safe_add(market.amm.base_asset_amount_short.abs())?;
+        .safe_add(market.base_asset_amount_short.abs())?;
 
     validate!(
         total_base_asset_amount != 0,

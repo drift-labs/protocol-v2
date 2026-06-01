@@ -1,4 +1,3 @@
-use anchor_lang::accounts::account::Account;
 use anchor_lang::accounts::account_loader::AccountLoader;
 use anchor_lang::accounts::signer::Signer;
 use anchor_lang::prelude::*;
@@ -71,7 +70,7 @@ pub fn valid_oracle_for_perp_market(
     market: &AccountLoader<PerpMarket>,
 ) -> anchor_lang::Result<()> {
     validate!(
-        market.load()?.amm.oracle.eq(oracle.key),
+        market.load()?.oracle.eq(oracle.key),
         ErrorCode::InvalidOracle,
         "not valid_oracle_for_perp_market"
     )?;

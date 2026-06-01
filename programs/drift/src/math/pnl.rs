@@ -1,4 +1,4 @@
-use crate::controller::amm::SwapDirection;
+use crate::amm::controller::SwapDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;

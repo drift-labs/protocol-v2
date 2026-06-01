@@ -67,11 +67,11 @@ pub fn update_prelaunch_oracle(
     oracle_map: &OracleMap,
     slot: u64,
 ) -> DriftResult {
-    if perp_market.amm.oracle_source != OracleSource::Prelaunch {
+    if perp_market.oracle_source != OracleSource::Prelaunch {
         return Ok(());
     }
 
-    let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
+    let oracle_account_info = oracle_map.get_account_info(&perp_market.oracle)?;
 
     let mut oracle: RefMut<PrelaunchOracle> =
         load_ref_mut(&oracle_account_info).or(Err(UnableToLoadOracle))?;

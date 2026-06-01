@@ -70,7 +70,7 @@ impl SignedMsgUserOrders {
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.signed_msg_order_data.len() >= 1 && self.signed_msg_order_data.len() <= 128,
+            !self.signed_msg_order_data.is_empty() && self.signed_msg_order_data.len() <= 128,
             ErrorCode::DefaultError,
             "SignedMsgUserOrders len must be between 1 and 128"
         )?;
@@ -161,7 +161,7 @@ impl<'a> SignedMsgUserOrdersZeroCopyMut<'a> {
             || signed_msg_order_id.order_id == 0
             || signed_msg_order_id.uuid == [0; 8]
         {
-            return Err(ErrorCode::InvalidSignedMsgOrderId.into());
+            return Err(ErrorCode::InvalidSignedMsgOrderId);
         }
 
         for i in 0..self.len() {
@@ -171,17 +171,17 @@ impl<'a> SignedMsgUserOrdersZeroCopyMut<'a> {
             }
         }
 
-        Err(ErrorCode::SignedMsgUserOrdersAccountFull.into())
+        Err(ErrorCode::SignedMsgUserOrdersAccountFull)
     }
 }
 
 pub trait SignedMsgUserOrdersLoader<'a> {
-    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy>;
-    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut>;
+    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy<'_>>;
+    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut<'_>>;
 }
 
 impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
-    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy> {
+    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -206,7 +206,7 @@ impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
         })
     }
 
-    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut> {
+    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut<'_>> {
         let owner = self.owner;
 
         validate!(

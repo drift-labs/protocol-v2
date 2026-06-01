@@ -16,18 +16,10 @@ use std::iter::Peekable;
 use std::panic::Location;
 use std::slice::Iter;
 
+#[derive(Default)]
 pub struct RevenueShareEntry<'a> {
     pub user: Option<AccountLoader<'a, User>>,
     pub revenue_share: Option<AccountLoader<'a, RevenueShare>>,
-}
-
-impl<'a> Default for RevenueShareEntry<'a> {
-    fn default() -> Self {
-        Self {
-            user: None,
-            revenue_share: None,
-        }
-    }
 }
 
 pub struct RevenueShareMap<'a>(pub BTreeMap<Pubkey, RevenueShareEntry<'a>>);
@@ -71,7 +63,7 @@ impl<'a> RevenueShareMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_user_ref_mut(&self, authority: &Pubkey) -> DriftResult<RefMut<User>> {
+    pub fn get_user_ref_mut(&self, authority: &Pubkey) -> DriftResult<RefMut<'_, User>> {
         let loader = match self.0.get(authority).and_then(|e| e.user.as_ref()) {
             Some(loader) => loader,
             None => {
@@ -107,7 +99,7 @@ impl<'a> RevenueShareMap<'a> {
     pub fn get_revenue_share_account_mut(
         &self,
         authority: &Pubkey,
-    ) -> DriftResult<RefMut<RevenueShare>> {
+    ) -> DriftResult<RefMut<'_, RevenueShare>> {
         let loader = match self.0.get(authority).and_then(|e| e.revenue_share.as_ref()) {
             Some(loader) => loader,
             None => {

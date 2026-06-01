@@ -20,7 +20,7 @@ pub fn validate_perp_position_with_perp_market(
     validate!(
         is_multiple_of_step_size(
             position.base_asset_amount.unsigned_abs().cast()?,
-            market.amm.order_step_size
+            market.order_step_size
         )?,
         ErrorCode::InvalidPerpPositionDetected,
         "position not multiple of stepsize"

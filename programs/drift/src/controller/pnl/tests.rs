@@ -1,3 +1,4 @@
+use crate::state::perp_market::MarketStats;
 use std::str::FromStr;
 
 use solana_program::pubkey::Pubkey;
@@ -66,26 +67,11 @@ pub fn user_no_position() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -97,6 +83,20 @@ pub fn user_no_position() {
             scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
+        },
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
         },
         ..PerpMarket::default()
     };
@@ -184,26 +184,11 @@ pub fn user_does_not_meet_maintenance_requirement() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -217,6 +202,20 @@ pub fn user_does_not_meet_maintenance_requirement() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -309,26 +308,11 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -342,6 +326,20 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -451,26 +449,11 @@ pub fn user_unsettled_negative_pnl() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -485,6 +468,20 @@ pub fn user_unsettled_negative_pnl() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -530,7 +527,7 @@ pub fn user_unsettled_negative_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
     settle_pnl(
@@ -588,26 +585,11 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -621,6 +603,20 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -666,7 +662,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -723,26 +719,11 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -757,6 +738,20 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -802,7 +797,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 25 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = -175 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -175 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
     settle_pnl(
@@ -861,27 +856,12 @@ pub fn market_fee_pool_receives_portion() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -896,6 +876,20 @@ pub fn market_fee_pool_receives_portion() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -942,7 +936,7 @@ pub fn market_fee_pool_receives_portion() {
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 150 * SPOT_BALANCE_PRECISION; // fractional addition is removed, fee pool doesn't get topped up by user settlements
     expected_market.amm.fee_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
     settle_pnl(
@@ -1000,31 +994,16 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             fee_pool: PoolBalance {
                 scaled_balance: (2 * SPOT_BALANCE_PRECISION),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
-            },
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
             },
             ..AMM::default()
         },
@@ -1040,6 +1019,20 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1086,7 +1079,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 150 * SPOT_BALANCE_PRECISION; // fractional addition is removed, fee pool doesn't get topped up by user settlements
     expected_market.amm.fee_pool.scaled_balance = 2 * SPOT_BALANCE_PRECISION; // same as original state
-    expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
     settle_pnl(
@@ -1144,26 +1137,11 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 151 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1177,6 +1155,20 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1225,7 +1217,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -1282,26 +1274,11 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 121 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1315,6 +1292,20 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1363,7 +1354,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
     assert!(settle_pnl(
         0,
@@ -1417,26 +1408,11 @@ pub fn user_long_negative_unrealized_pnl() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 51 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1450,6 +1426,20 @@ pub fn user_long_negative_unrealized_pnl() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1498,7 +1488,7 @@ pub fn user_long_negative_unrealized_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -1555,26 +1545,11 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 51 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1588,6 +1563,20 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1636,7 +1625,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount = 100 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = 100 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -1693,26 +1682,11 @@ pub fn user_short_negative_unrealized_pnl() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1726,6 +1700,20 @@ pub fn user_short_negative_unrealized_pnl() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1774,7 +1762,7 @@ pub fn user_short_negative_unrealized_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = 200 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = 200 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -1832,27 +1820,12 @@ pub fn user_invalid_oracle_position() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             curve_update_intensity: 100,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1866,6 +1839,20 @@ pub fn user_invalid_oracle_position() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     let mut spot_market = SpotMarket {
@@ -1904,10 +1891,10 @@ pub fn user_invalid_oracle_position() {
     let authority = Pubkey::default();
 
     market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min -= market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min
         / 33;
@@ -1933,7 +1920,7 @@ pub fn user_invalid_oracle_position() {
     assert_eq!(result, Err(ErrorCode::OracleStaleForAMM));
 
     market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min /= 2;
     market.amm.last_update_slot = clock.slot;
@@ -1959,7 +1946,7 @@ pub fn user_invalid_oracle_position() {
     assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
 
     market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min *= 4;
     market.amm.last_update_slot = clock.slot;
@@ -1985,7 +1972,7 @@ pub fn user_invalid_oracle_position() {
     assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
 
     market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min = oracle_price.price * 95 / 100;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2010,7 +1997,7 @@ pub fn user_invalid_oracle_position() {
     assert_eq!(result, Err(ErrorCode::OracleStaleForAMM));
 
     market
-        .amm
+        .market_stats
         .historical_oracle_data
         .last_oracle_price_twap_5min = oracle_price.price - 789789;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2054,26 +2041,11 @@ pub fn is_price_divergence_ok_on_invalid_oracle() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -2087,6 +2059,20 @@ pub fn is_price_divergence_ok_on_invalid_oracle() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
 
@@ -2094,20 +2080,20 @@ pub fn is_price_divergence_ok_on_invalid_oracle() {
         .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
-    market.amm.mark_std = (oracle_price.price / 100) as u64;
-    market.amm.oracle_std = (oracle_price.price / 190) as u64;
+    market.market_stats.mark_std = (oracle_price.price / 100) as u64;
+    market.market_stats.oracle_std = (oracle_price.price / 190) as u64;
 
     assert!(market
         .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
-    market.amm.mark_std = (oracle_price.price / 10) as u64;
+    market.market_stats.mark_std = (oracle_price.price / 10) as u64;
 
     assert!(!market
         .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
         .unwrap());
 
-    market.amm.oracle_std = (oracle_price.price * 10) as u64;
+    market.market_stats.oracle_std = (oracle_price.price * 10) as u64;
 
     assert!(!market
         .is_price_divergence_ok_for_settle_pnl(oracle_price.price)
@@ -2150,26 +2136,11 @@ pub fn isolated_perp_position_negative_pnl() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -2184,6 +2155,20 @@ pub fn isolated_perp_position_negative_pnl() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2226,7 +2211,7 @@ pub fn isolated_perp_position_negative_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
     settle_pnl(
@@ -2284,26 +2269,11 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
-            order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
-            oracle: oracle_price_key,
-            oracle_source: crate::state::oracle::OracleSource::PythLazer,
-            historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.price,
-                last_oracle_price_twap_5min: oracle_price.price,
-                last_oracle_price_twap: oracle_price.price,
-                ..HistoricalOracleData::default()
-            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -2318,6 +2288,20 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
             ..PoolBalance::default()
         },
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        order_step_size: 10000000,
+        quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+        base_asset_amount_long: BASE_PRECISION_I128,
+        oracle: oracle_price_key,
+        oracle_source: crate::state::oracle::OracleSource::PythLazer,
+        market_stats: MarketStats {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.price,
+                last_oracle_price_twap_5min: oracle_price.price,
+                last_oracle_price_twap: oracle_price.price,
+                ..HistoricalOracleData::default()
+            },
+            ..MarketStats::default()
+        },
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2360,7 +2344,7 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 25 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = -175 * QUOTE_PRECISION_I128;
+    expected_market.quote_asset_amount = -175 * QUOTE_PRECISION_I128;
     expected_market.number_of_users = 0;
 
     settle_pnl(

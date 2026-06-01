@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
+use crate::amm::math::amm::calculate_net_user_pnl;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
 use crate::math::oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode};
 use crate::math::safe_math::SafeMath;
@@ -93,7 +93,7 @@ impl Default for CacheInfo {
 
 impl CacheInfo {
     pub fn get_oracle_source(&self) -> DriftResult<OracleSource> {
-        Ok(OracleSource::try_from(self.oracle_source)?)
+        OracleSource::try_from(self.oracle_source)
     }
 
     pub fn oracle_id(&self) -> DriftResult<OracleIdentifier> {
@@ -110,8 +110,8 @@ impl CacheInfo {
     }
 
     pub fn update_perp_market_fields(&mut self, perp_market: &PerpMarket) -> DriftResult<()> {
-        self.oracle = perp_market.amm.oracle;
-        self.oracle_source = u8::from(perp_market.amm.oracle_source);
+        self.oracle = perp_market.oracle;
+        self.oracle_source = u8::from(perp_market.oracle_source);
         self.position = perp_market
             .amm
             .get_protocol_owned_position()?
@@ -132,16 +132,16 @@ impl CacheInfo {
             MarketType::Perp,
             perp_market.market_index,
             perp_market
-                .amm
+                .market_stats
                 .historical_oracle_data
                 .last_oracle_price_twap,
             &safe_oracle_data,
             &oracle_guard_rails.validity,
             perp_market.get_max_confidence_interval_multiplier()?,
-            &perp_market.amm.oracle_source,
+            &perp_market.oracle_source,
             LogMode::SafeMMOracle,
-            perp_market.amm.oracle_slot_delay_override,
-            perp_market.amm.oracle_low_risk_slot_delay_override,
+            perp_market.oracle_slot_delay_override,
+            perp_market.oracle_low_risk_slot_delay_override,
         )?;
         if is_oracle_valid_for_action(validity, Some(DriftAction::UpdateAmmCache))? {
             self.oracle_price = safe_oracle_data.price;
@@ -192,7 +192,7 @@ impl AmmCache {
                 "Updating amm cache from admin with perp market index not found in cache: {}",
                 perp_market.market_index
             );
-            return Err(ErrorCode::DefaultError.into());
+            return Err(ErrorCode::DefaultError);
         }
 
         Ok(())
@@ -219,7 +219,7 @@ impl AmmCache {
                 "Updating amm cache from admin with perp market index not found in cache: {}",
                 market_index
             );
-            return Err(ErrorCode::DefaultError.into());
+            return Err(ErrorCode::DefaultError);
         }
 
         Ok(())
@@ -235,7 +235,7 @@ impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
                 return Ok(cache_info);
             }
         }
-        Err(ErrorCode::MarketIndexNotFoundAmmCache.into())
+        Err(ErrorCode::MarketIndexNotFoundAmmCache)
     }
 
     pub fn check_settle_staleness(&self, slot: u64, threshold_slot_diff: u64) -> DriftResult<()> {
@@ -245,7 +245,7 @@ impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
             }
             if cache_info.last_settle_slot < slot.saturating_sub(threshold_slot_diff) {
                 msg!("AMM settle data is stale for perp market {}", i);
-                return Err(ErrorCode::AMMCacheStale.into());
+                return Err(ErrorCode::AMMCacheStale);
             }
         }
         Ok(())
@@ -258,7 +258,7 @@ impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
             }
             if cache_info.slot < slot.saturating_sub(threshold) {
                 msg!("Perp market cache info is stale for perp market {}", i);
-                return Err(ErrorCode::AMMCacheStale.into());
+                return Err(ErrorCode::AMMCacheStale);
             }
         }
         Ok(())
@@ -276,7 +276,7 @@ impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
                     cache_info.oracle_slot,
                     slot
                 );
-                return Err(ErrorCode::AMMCacheStale.into());
+                return Err(ErrorCode::AMMCacheStale);
             }
         }
         Ok(())
@@ -301,7 +301,7 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
             Ok(self.get_mut(i))
         } else {
             msg!("Market index not found in amm cache: {}", market_index);
-            Err(ErrorCode::MarketIndexNotFoundAmmCache.into())
+            Err(ErrorCode::MarketIndexNotFoundAmmCache)
         }
     }
 
@@ -312,21 +312,19 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
     ) -> DriftResult<()> {
         let cached_info = self.get_mut(perp_market.market_index as u32);
 
-        let fee_pool_token_amount = get_token_amount(
-            perp_market.amm.fee_pool.scaled_balance,
-            &quote_market,
-            perp_market.amm.fee_pool.balance_type(),
-        )?;
+        let fee_pool_token_amount = perp_market.amm.fee_pool_token_amount(quote_market)?;
 
         let net_pnl_pool_token_amount = get_token_amount(
             perp_market.pnl_pool.scaled_balance,
-            &quote_market,
+            quote_market,
             perp_market.pnl_pool.balance_type(),
         )?
         .cast::<i128>()?
         .safe_sub(calculate_net_user_pnl(
             &perp_market.amm,
             cached_info.oracle_price,
+            perp_market.quote_asset_amount,
+            perp_market.net_unsettled_funding_pnl,
         )?)?;
 
         let amm_amount_available =
@@ -338,14 +336,13 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
         {
             cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
             cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-            cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee;
-            cached_info.last_settle_amm_ex_fees = perp_market.amm.total_exchange_fee;
+            cached_info.last_exchange_fees = perp_market.total_exchange_fee;
+            cached_info.last_settle_amm_ex_fees = perp_market.total_exchange_fee;
             cached_info.last_settle_amm_pnl = net_pnl_pool_token_amount;
             return Ok(());
         }
 
         let exchange_fee_delta = perp_market
-            .amm
             .total_exchange_fee
             .saturating_sub(cached_info.last_exchange_fees);
 
@@ -366,7 +363,7 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
 
         cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
         cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-        cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee;
+        cached_info.last_exchange_fees = perp_market.total_exchange_fee;
 
         Ok(())
     }

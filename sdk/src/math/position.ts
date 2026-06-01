@@ -53,6 +53,8 @@ export function calculateBaseAssetValue(
 			const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 				calculateUpdatedAMMSpreadReserves(
 					market.amm,
+					market.marketStats,
+					market.totalExchangeFee,
 					directionToClose,
 					mmOraclePriceData,
 					latestSlot
@@ -64,7 +66,11 @@ export function calculateBaseAssetValue(
 				pegMultiplier: newPeg,
 			};
 		} else {
-			prepegAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
+			prepegAmm = calculateUpdatedAMM(
+				market.amm,
+				market.totalExchangeFee,
+				mmOraclePriceData
+			);
 		}
 	} else {
 		prepegAmm = market.amm;
@@ -213,9 +219,9 @@ export function calculateUnsettledFundingPnl(
 
 	let ammCumulativeFundingRate: BN;
 	if (perpPosition.baseAssetAmount.gt(ZERO)) {
-		ammCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
+		ammCumulativeFundingRate = market.cumulativeFundingRateLong;
 	} else {
-		ammCumulativeFundingRate = market.amm.cumulativeFundingRateShort;
+		ammCumulativeFundingRate = market.cumulativeFundingRateShort;
 	}
 
 	const perPositionFundingRate = ammCumulativeFundingRate
