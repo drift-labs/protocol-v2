@@ -8256,8 +8256,12 @@ export type Drift = {
           "name": "userStats"
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "delegate",
+          "signer": true,
+          "relations": [
+            "fromUser",
+            "toUser"
+          ]
         },
         {
           "name": "state"

@@ -8250,8 +8250,12 @@
           "name": "user_stats"
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "delegate",
+          "signer": true,
+          "relations": [
+            "from_user",
+            "to_user"
+          ]
         },
         {
           "name": "state"

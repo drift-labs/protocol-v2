@@ -3814,7 +3814,7 @@ export class VelocityClient {
 			amount,
 			{
 				accounts: {
-					authority: this.wallet.publicKey,
+					delegate: this.wallet.publicKey,
 					fromUser,
 					toUser,
 					userStats: this.getUserStatsAccountPublicKey(),

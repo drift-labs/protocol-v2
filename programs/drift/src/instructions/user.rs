@@ -909,7 +909,7 @@ pub fn handle_transfer_deposit_by_delegate<'c: 'info, 'info>(
     market_index: u16,
     amount: u64,
 ) -> anchor_lang::Result<()> {
-    let signer_key = ctx.accounts.authority.key();
+    let signer_key = ctx.accounts.delegate.key();
     let to_user_key = ctx.accounts.to_user.key();
     let from_user_key = ctx.accounts.from_user.key();
 
@@ -925,24 +925,6 @@ pub fn handle_transfer_deposit_by_delegate<'c: 'info, 'info>(
         user_stats.is_delegate_transfer_allowed(),
         ErrorCode::DefaultError,
         "delegate transfer not allowed"
-    )?;
-
-    validate!(
-        !to_user.is_bankrupt(),
-        ErrorCode::UserBankrupt,
-        "to_user bankrupt"
-    )?;
-
-    validate!(
-        !from_user.is_bankrupt(),
-        ErrorCode::UserBankrupt,
-        "from_user bankrupt"
-    )?;
-
-    validate!(
-        from_user_key != to_user_key,
-        ErrorCode::CantTransferBetweenSameUserAccount,
-        "cant transfer between the same user account"
     )?;
 
     let AccountMaps {
@@ -4618,22 +4600,23 @@ pub struct TransferDeposit<'info> {
 pub struct TransferDepositByDelegate<'info> {
     #[account(
         mut,
-        constraint = from_user.load()?.delegate == authority.key(),
-        constraint = from_user.load()?.delegate != Pubkey::default(),
+        has_one = delegate,
+        constraint = !from_user.load()?.is_bankrupt() @ ErrorCode::UserBankrupt,
     )]
     pub from_user: AccountLoader<'info, User>,
     #[account(
         mut,
+        has_one = delegate,
         constraint = to_user.load()?.authority == from_user.load()?.authority,
-        constraint = to_user.load()?.delegate == authority.key(),
-        constraint = to_user.load()?.delegate != Pubkey::default(),
+        constraint = !to_user.load()?.is_bankrupt() @ ErrorCode::UserBankrupt,
+        constraint = to_user.key() != from_user.key() @ ErrorCode::CantTransferBetweenSameUserAccount,
     )]
     pub to_user: AccountLoader<'info, User>,
     #[account(
         constraint = is_stats_for_user(&from_user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
+    pub delegate: Signer<'info>,
     pub state: AccountLoader<'info, State>,
     #[account(
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
