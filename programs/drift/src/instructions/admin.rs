@@ -4352,18 +4352,18 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
         return Err(ErrorCode::DefaultError.into());
     }
 
-    let mut perp_market = accounts[0].data.borrow_mut();
-    // Account offsets verified via offset_of!(AMM, field) + 8 discriminator bytes.
+    let mut perp_market_data = accounts[0].data.borrow_mut();
+    let perp_market: &mut PerpMarket =
+        bytemuck::from_bytes_mut(&mut perp_market_data[8..8 + std::mem::size_of::<PerpMarket>()]);
     // Sequence-id check uses only seq fields. Defer the rest.
     let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
-    let perp_market_sequence_id = u64::from_le_bytes(perp_market[880..888].try_into().unwrap());
-    if incoming_sequence_id <= perp_market_sequence_id {
+    if incoming_sequence_id <= perp_market.amm.mm_oracle_sequence_id {
         return Ok(());
     }
 
     let clock_data = accounts[2].data.borrow();
     let current_slot = u64::from_le_bytes(clock_data[0..8].try_into().unwrap());
-    let perp_market_slot = u64::from_le_bytes(perp_market[776..784].try_into().unwrap());
+    let perp_market_slot = perp_market.amm.mm_oracle_slot;
 
     if current_slot <= perp_market_slot {
         msg!(
@@ -4384,9 +4384,9 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
     }
 
     // Step cap vs last accepted price. Bootstrap when prev == 0.
-    let perp_market_price = i64::from_le_bytes(perp_market[856..864].try_into().unwrap());
+    let perp_market_price = perp_market.amm.mm_oracle_price;
+    let incoming_price = i64::from_le_bytes(data[0..8].try_into().unwrap());
     if perp_market_price != 0 {
-        let incoming_price = i64::from_le_bytes(data[0..8].try_into().unwrap());
         let prev_abs = (perp_market_price as i128).abs();
         let diff_abs = ((incoming_price as i128) - (perp_market_price as i128)).abs();
         // Cross-multiply form of (diff_abs / prev_abs) > MAX_STEP / PCT
@@ -4400,9 +4400,9 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
         }
     }
 
-    perp_market[776..784].copy_from_slice(&clock_data[0..8]); // mm_oracle_slot
-    perp_market[856..864].copy_from_slice(&data[0..8]); // mm_oracle_price
-    perp_market[880..888].copy_from_slice(&data[8..16]); // mm_oracle_sequence_id
+    perp_market.amm.mm_oracle_slot = current_slot;
+    perp_market.amm.mm_oracle_price = incoming_price;
+    perp_market.amm.mm_oracle_sequence_id = incoming_sequence_id;
 
     Ok(())
 }
@@ -4427,8 +4427,10 @@ pub fn handle_update_amm_spread_adjustment_native(
             hot_key
         );
     }
-    let mut perp_market = accounts[0].data.borrow_mut();
-    perp_market[873..874].copy_from_slice(&[data[0]]); // amm_spread_adjustment
+    let mut perp_market_data = accounts[0].data.borrow_mut();
+    let perp_market: &mut PerpMarket =
+        bytemuck::from_bytes_mut(&mut perp_market_data[8..8 + std::mem::size_of::<PerpMarket>()]);
+    perp_market.amm.amm_spread_adjustment = data[0] as i8;
 
     Ok(())
 }
