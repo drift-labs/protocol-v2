@@ -152,10 +152,10 @@ pub mod amm_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
 
@@ -1257,10 +1257,10 @@ pub mod amm_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
 
@@ -1474,10 +1474,10 @@ pub mod amm_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
 
@@ -1674,10 +1674,10 @@ pub mod amm_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
 
@@ -2306,10 +2306,10 @@ pub mod amm_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
 
@@ -2582,10 +2582,10 @@ pub mod amm_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
 

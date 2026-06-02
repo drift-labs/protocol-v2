@@ -1,6 +1,5 @@
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::{Owner, ZeroCopy};
-use base64;
 use bytes::BytesMut;
 
 #[cfg(test)]

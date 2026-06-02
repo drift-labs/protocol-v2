@@ -3,8 +3,7 @@ use crate::amm::math::cp_curve::*;
 use crate::amm::AMM;
 use crate::controller::position::PositionDirection;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, PRICE_PRECISION,
-    QUOTE_PRECISION_I64,
+    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
 };
 use crate::state::perp_market::PerpMarket;
 
@@ -159,7 +158,7 @@ fn calculate_k_with_rounding() {
     let k_pct_upper_bound = 100000000;
     let k_pct_lower_bound = 1000000;
 
-    let mut market = PerpMarket {
+    let market = PerpMarket {
         amm: AMM {
             base_asset_reserve,
             quote_asset_reserve,
@@ -341,7 +340,7 @@ fn calculate_k_tests() {
 
 #[test]
 fn calculate_k_tests_wrapper_fcn() {
-    let mut market = PerpMarket {
+    let market = PerpMarket {
         amm: AMM {
             base_asset_reserve: AMM_RESERVE_PRECISION * 55414,
             quote_asset_reserve: AMM_RESERVE_PRECISION * 55530,

@@ -9,7 +9,6 @@ use crate::controller::position::{
     get_position_index, update_quote_asset_and_break_even_amount, PositionDirection,
 };
 use crate::error::DriftResult;
-use crate::get_then_update_id;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FUNDING_RATE_BUFFER, FUNDING_RATE_CLAMP_DENOMINATOR,
@@ -258,13 +257,10 @@ pub fn update_funding_rate(
         let k_update_eligible = market.amm.is_curve_update_enabled()
             && !market.has_market_config_flag(MarketConfigFlag::DisableFormulaicKUpdate);
         let market_stats_snap = market.market_stats;
-        let market_index = market.market_index;
         let market_status = market.status;
         let market_config = market.market_config;
         let order_tick_size = market.order_tick_size;
         let order_step_size = market.order_step_size;
-        let total_exchange_fee = market.total_exchange_fee;
-        let total_liquidation_fee = market.total_liquidation_fee;
         let min_order_size = market.market_stats.min_order_size;
         let funding_inputs = FundingMarketInputs::from_market(market);
         let safe_oracle = mm_oracle_price_data.get_safe_oracle_price_data();

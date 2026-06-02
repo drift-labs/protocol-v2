@@ -44,15 +44,14 @@ mod update_perp_auction_params {
     use crate::state::perp_market::{ContractTier, MarketStats, PerpMarket, AMM};
     use crate::state::user::OrderType;
     use crate::{
-        OracleSource, OrderParams, PositionDirection, AMM_RESERVE_PRECISION,
-        BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
-        QUOTE_PRECISION_U64,
+        OracleSource, OrderParams, PositionDirection, AMM_RESERVE_PRECISION, PEG_PRECISION,
+        PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_U64,
     };
 
     #[test]
     fn test_extreme_sanitize_oracle_order() {
         let oracle_price = 145 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -71,7 +70,7 @@ mod update_perp_auction_params {
 
         market_stats.historical_oracle_data.last_oracle_price = oracle_price;
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             ..PerpMarket::default()
@@ -152,7 +151,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_signed_msg_orders_oracle() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -171,7 +170,7 @@ mod update_perp_auction_params {
 
         market_stats.historical_oracle_data.last_oracle_price = oracle_price;
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             contract_tier: ContractTier::A,
@@ -276,7 +275,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_signed_msg_orders_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -295,7 +294,7 @@ mod update_perp_auction_params {
 
         market_stats.historical_oracle_data.last_oracle_price = oracle_price;
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             contract_tier: ContractTier::A,
@@ -403,7 +402,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_extreme_sanitize_oracle_order_huge_market_prem() {
         let oracle_price = 145 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -424,7 +423,7 @@ mod update_perp_auction_params {
 
         market_stats.historical_oracle_data.last_oracle_price = oracle_price;
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             ..PerpMarket::default()
@@ -453,7 +452,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_sanitize_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -635,7 +634,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_sanitize_oracle_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -654,7 +653,7 @@ mod update_perp_auction_params {
 
         market_stats.historical_oracle_data.last_oracle_price = oracle_price;
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             ..PerpMarket::default()
@@ -797,7 +796,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_market_sanitize() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -911,7 +910,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_oracle_market_sanitize() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -932,7 +931,7 @@ mod update_perp_auction_params {
         market_stats.last_mark_price_twap_5min =
             (market_stats.last_ask_price_twap + market_stats.last_bid_price_twap) / 2;
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             contract_tier: ContractTier::B,
@@ -1007,7 +1006,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_market_sanatize_no_auction_params() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -1030,7 +1029,7 @@ mod update_perp_auction_params {
 
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
         market_stats.min_order_size = 1;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             contract_tier: ContractTier::Speculative,
@@ -1162,7 +1161,7 @@ mod update_perp_auction_params {
     #[test]
     fn test_oracle_market_sanitize_no_auction_params() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
-        let mut amm = AMM {
+        let amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -1191,7 +1190,7 @@ mod update_perp_auction_params {
 
         market_stats.volume_24h = 1_000_000 * QUOTE_PRECISION_U64;
         market_stats.min_order_size = 1;
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             market_stats,
             amm,
             contract_tier: ContractTier::Speculative,
@@ -1224,7 +1223,7 @@ mod update_perp_auction_params {
         );
         assert_eq!(
             order_params_after.auction_end_price.unwrap(),
-            order_params_before.oracle_price_offset.unwrap() as i64
+            order_params_before.oracle_price_offset.unwrap()
         );
 
         let order_params_before = OrderParams {
@@ -1333,7 +1332,7 @@ mod update_perp_auction_params {
         );
         assert_eq!(
             order_params_after.auction_end_price.unwrap(),
-            order_params_before.oracle_price_offset.unwrap() as i64
+            order_params_before.oracle_price_offset.unwrap()
         );
         assert_eq!(order_params_after.auction_duration.unwrap(), 180);
 
@@ -1385,7 +1384,7 @@ mod get_close_perp_params {
         let amm = AMM {
             ..AMM::default_test()
         };
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm,
             market_stats: MarketStats {
                 min_order_size: 1,
@@ -1445,7 +1444,7 @@ mod get_close_perp_params {
         let amm = AMM {
             ..AMM::default_test()
         };
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm,
             market_stats: MarketStats {
                 min_order_size: 1,
@@ -1501,7 +1500,7 @@ mod get_close_perp_params {
         let amm = AMM {
             ..AMM::default_test()
         };
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm,
             market_stats: MarketStats {
                 min_order_size: 1,
@@ -1562,7 +1561,7 @@ mod get_close_perp_params {
         let amm = AMM {
             ..AMM::default_test()
         };
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm,
             market_stats: MarketStats {
                 min_order_size: 1,
@@ -1621,7 +1620,7 @@ mod get_close_perp_params {
         let amm = AMM {
             ..AMM::default_test()
         };
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm,
             market_stats: MarketStats {
                 min_order_size: 1,
@@ -1677,7 +1676,7 @@ mod get_close_perp_params {
         let amm = AMM {
             ..AMM::default_test()
         };
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm,
             market_stats: MarketStats {
                 min_order_size: 1,

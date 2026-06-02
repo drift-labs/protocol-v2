@@ -1020,7 +1020,7 @@ pub fn handle_transfer_deposit_by_delegate<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: Some(signer_key),
-            user_token_amount_after: from_user.get_total_token_amount(&spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1069,7 +1069,7 @@ pub fn handle_transfer_deposit_by_delegate<'c: 'info, 'info>(
             }
         }
 
-        let user_token_amount_after = to_user.get_total_token_amount(&spot_market)?;
+        let user_token_amount_after = to_user.get_total_token_amount(spot_market)?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {

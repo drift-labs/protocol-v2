@@ -5,8 +5,6 @@ use anchor_lang::prelude::{
 
 use super::oracle_map::OracleIdentifier;
 use crate::amm::math::spread::AmmQuoteState;
-#[cfg(test)]
-use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::{
     amm::math::amm::{self},
     error::{DriftResult, ErrorCode},
@@ -285,10 +283,12 @@ pub struct PerpMarket {
     /// 16-align AMM's leading u128. Making it explicit keeps the IDL byte
     /// layout aligned with `repr(C)`.
     pub _padding_align_amm: [u8; 8],
-    /// The automated market maker. Last field so a future excision into a
-    /// dedicated AMM program is a clean truncate at this offset — `PerpMarket`
-    /// minus the trailing `AMM` bytes equals the future "orderbook-only"
-    /// account layout.
+    /// The automated market maker. Last field so future quoter modules can
+    /// land in the trailing region without disturbing earlier byte offsets
+    /// — in the target architecture this account holds back-to-back
+    /// per-quoter state slices (AMM, DLOB-maker state, future propAMM-style
+    /// participants, …) and each module owns a contiguous span starting at
+    /// a known offset.
     pub amm: AMM,
 }
 
@@ -1501,8 +1501,9 @@ impl MarketStats {
     /// Test-only convenience that derives the bid/ask inputs from a `&AMM`
     /// borrow and forwards to [`update_mark_twap_with_amm_bid_ask`]. Real
     /// callers (orchestrator, funding) read the bid/ask themselves and call
-    /// the data-only entrypoint — in the future-AMM model those reads are
-    /// CPIs and the AMM is no longer reachable as a Rust struct.
+    /// the data-only entrypoint — in the target architecture those reads
+    /// come back from the AMM module's contract methods and Drift's general
+    /// logic stops reaching for the AMM as a Rust struct directly.
     #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn update_mark_twap_from_estimates(
@@ -1538,7 +1539,8 @@ impl MarketStats {
     /// Update the mark TWAP using AMM-derived bid/ask + base spread plus an
     /// optional trade-price hint. Pure-data entrypoint: no `&AMM` borrow
     /// (the AMM-derived scalars come from the caller — today via direct
-    /// reads, in the future-AMM model via CPI to the AMM program).
+    /// reads, in the target architecture via the AMM module's contract
+    /// methods).
     #[allow(clippy::too_many_arguments)]
     pub fn update_mark_twap_with_amm_bid_ask(
         &mut self,

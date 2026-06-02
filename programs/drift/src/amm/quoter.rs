@@ -11,32 +11,38 @@
 
 use anchor_lang::prelude::*;
 
-use crate::amm::controller as amm_controller;
-use crate::amm::controller::SwapDirection;
-use crate::amm::math::amm as amm_math;
-use crate::amm::math::spread::AmmQuoteState;
-use crate::amm::AMM;
-use crate::controller::position::PositionDirection;
-use crate::error::{DriftResult, ErrorCode};
-use crate::math::casting::Cast;
-use crate::math::safe_math::SafeMath;
-use crate::state::oracle::OraclePriceData;
 #[cfg(test)]
 use crate::state::perp_market::MarketStats;
-use crate::state::quoter::{
-    FillFeePolicy, MarketEvent, QuoteContext, Quoter, QuoterCommit, QuoterFill,
+use crate::{
+    amm::{
+        controller as amm_controller,
+        controller::SwapDirection,
+        math::{amm as amm_math, spread::AmmQuoteState},
+        AMM,
+    },
+    controller::position::PositionDirection,
+    error::{DriftResult, ErrorCode},
+    math::{casting::Cast, safe_math::SafeMath},
+    state::{
+        oracle::OraclePriceData,
+        quoter::{FillFeePolicy, MarketEvent, QuoteContext, Quoter, QuoterCommit, QuoterFill},
+    },
 };
 
-/// The future-architecture interface to the AMM smart contract.
+/// The contract boundary between Drift's general logic and the AMM module.
 ///
-/// In the target architecture, the vAMM is its own on-chain program. Drift
-/// will then mutate AMM state only by CPI into AMM-defined instructions —
-/// never by direct field writes. `AmmContract` is that interface, expressed
-/// today as a trait so external code can be written against it now; tomorrow
-/// each method becomes a CPI to the AMM program.
+/// In the target architecture, the vAMM is one of several quoter modules
+/// that share a perp-market account's bytes — sitting alongside other
+/// quoter-state regions (DLOB maker state, future propAMM-style
+/// participants, etc.) within the same program. Each module owns its own
+/// state slice and exposes a contract trait; Drift's general logic mutates
+/// the AMM's state slice *only* through `AmmContract` methods, never by
+/// direct field writes. It's not a CPI boundary — both sides live in this
+/// program — it's a module boundary enforced by the type system and an
+/// audit grep ("does any non-`amm/` code write AMM fields directly?").
 ///
 /// **Scope.** This trait covers exactly the operations that are *special*
-/// to the vAMM — the things no other maker can do:
+/// to the vAMM — the things no other quoter can do:
 ///
 /// 1. **Moving P&L around** between the AMM's books and other protocol
 ///    accounts: insurance-fund credits ([`record_credit`]), revenue-pool
@@ -121,15 +127,15 @@ pub trait AmmContract {
     ) -> DriftResult<()>;
 }
 
-/// Materialised AMM view used by the matcher.
-///
-/// The legacy version held only `&mut AMM`; after the AMM-decoupling
-/// refactor, spread / reference-offset / spread-reserves are no longer
-/// cached on AMM — callers materialise an [`AmmQuoteState`] via
-/// [`crate::amm::math::spread::compute_amm_quote_state`] before constructing
-/// `AmmQuoter`. The matcher reuses the same `quote_state` across all
-/// `best_price` / `cumulative_size` / `try_fill_solo` calls within a single
-/// match.
+// `AmmQuoter` (the matcher-facing materialised view, defined further down in
+// this file) used to hold only `&mut AMM`; after the AMM-decoupling refactor,
+// spread / reference-offset / spread-reserves are no longer cached on AMM —
+// callers materialise an `AmmQuoteState` via
+// `crate::amm::math::spread::compute_amm_quote_state` before constructing
+// `AmmQuoter`, and the matcher reuses the same `quote_state` across all
+// `best_price` / `cumulative_size` / `try_fill_solo` calls within a single
+// match.
+
 // ============================================================================
 // AmmContract impl — the only struct that satisfies this trait is the AMM
 // itself. External callers (insurance, revenue-pool transfer, settlement) go
@@ -223,11 +229,11 @@ impl AmmContract for AMM {
 
 // ============================================================================
 // AMM-internal helpers — methods that are NOT part of `AmmContract` (the
-// future-CPI interface) but provide the explicit-method write path for
-// admin-side operations that need to mutate AMM state. Keeping these as
-// methods on AMM (rather than letting callers do `market.amm.field = ...`)
-// makes the audit "does any non-AMM-module code write AMM fields directly?"
-// answerable by grep.
+// Drift↔AMM contract boundary) but provide the explicit-method write path
+// for admin-side operations that need to mutate AMM state. Keeping these
+// as methods on AMM (rather than letting callers do `market.amm.field =
+// ...`) makes the audit "does any non-AMM-module code write AMM fields
+// directly?" answerable by grep.
 // ============================================================================
 
 impl AMM {
@@ -319,8 +325,8 @@ impl<'a> AmmQuoter<'a> {
     /// AMM's natural bid/ask (spread-adjusted, no taker-side cap) computed
     /// off the quoter's snapshot. Exposed for callers that need to feed
     /// these into a market-stats helper without reaching back into the AMM
-    /// — in the future-AMM-as-its-own-program world this is the values
-    /// Drift would receive via CPI from the AMM.
+    /// directly — in the target architecture these are the values the AMM
+    /// module surfaces to other parts of Drift through its contract.
     pub fn amm_bid_ask(&self, reserve_price: u64) -> DriftResult<(u64, u64)> {
         self.amm.bid_ask_price(
             reserve_price,
@@ -330,8 +336,8 @@ impl<'a> AmmQuoter<'a> {
         )
     }
 
-    /// AMM's base spread (in BID_ASK_SPREAD_PRECISION). Same future-CPI
-    /// rationale as [`Self::amm_bid_ask`].
+    /// AMM's base spread (in BID_ASK_SPREAD_PRECISION). Same contract-
+    /// boundary rationale as [`Self::amm_bid_ask`].
     pub fn amm_base_spread(&self) -> u32 {
         self.amm.base_spread
     }
@@ -361,13 +367,6 @@ impl<'a> AmmQuoter<'a> {
         match side {
             PositionDirection::Long => SwapDirection::Remove,
             PositionDirection::Short => SwapDirection::Add,
-        }
-    }
-
-    fn no_quote(side: PositionDirection) -> u64 {
-        match side {
-            PositionDirection::Long => u64::MAX,
-            PositionDirection::Short => 0,
         }
     }
 
@@ -528,7 +527,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
         // the taker's side (taker Long → AMM sells → trade direction Long).
         let (amount, dir_result) =
             crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
-                &self.amm,
+                self.amm,
                 &self.quote_state,
                 price,
                 side,
@@ -574,7 +573,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
         }
         let direction = Self::swap_direction(side);
         let swap = amm_controller::calculate_base_swap_output_with_quote_state(
-            &self.amm,
+            self.amm,
             &self.quote_state,
             base,
             direction,
@@ -681,7 +680,6 @@ impl<'a> QuoterCommit for AmmQuoter<'a> {
                 if *k_update_eligible {
                     let funding_imbalance_cost = -payment;
                     self.handle_funding_applied(
-                        _ctx,
                         funding_imbalance_cost,
                         oracle_price_data,
                         *total_fee_floor,
@@ -716,7 +714,6 @@ impl<'a> AmmQuoter<'a> {
     /// this floor, the k-update is skipped.
     pub(crate) fn handle_funding_applied(
         &mut self,
-        _ctx: &QuoteContext,
         funding_imbalance_cost: i128,
         oracle_price_data: &OraclePriceData,
         total_fee_floor: i128,
@@ -1140,11 +1137,13 @@ impl<'a> QuoterCommit for AmmJitQuoter<'a> {
 #[cfg(test)]
 mod amm_maker_tests {
     use super::*;
-    use crate::amm::AMM;
-    use crate::math::constants::{AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION};
+    use crate::{
+        amm::AMM,
+        math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION},
+    };
 
     fn make_amm() -> AMM {
-        let mut amm = AMM {
+        AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -1152,8 +1151,7 @@ mod amm_maker_tests {
             min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
             max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
             ..AMM::default()
-        };
-        amm
+        }
     }
 
     fn make_ctx<'a>(stats: &'a MarketStats, oracle: &'a OraclePriceData) -> QuoteContext<'a> {
@@ -1267,11 +1265,7 @@ mod amm_maker_tests {
             .cumulative_size(&ctx, PositionDirection::Long, fill.clearing_price)
             .unwrap();
         let tolerance = target / 1_000_000 + 100; // ~1 ppm + 100 base units
-        let diff = if cum_at_marginal > target {
-            cum_at_marginal - target
-        } else {
-            target - cum_at_marginal
-        };
+        let diff = cum_at_marginal.abs_diff(target);
         assert!(
             diff <= tolerance,
             "expected |cum_at_marginal - target| <= {} but got cum {} vs target {} (diff {})",
@@ -1461,13 +1455,13 @@ mod amm_maker_tests {
 #[cfg(test)]
 mod amm_jit_maker_tests {
     use super::*;
-    use crate::amm::AMM;
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
+    use crate::{
+        amm::AMM,
+        math::constants::{AMM_RESERVE_PRECISION, BASE_PRECISION, PEG_PRECISION},
     };
 
     fn make_amm() -> AMM {
-        let mut amm = AMM {
+        AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
@@ -1475,8 +1469,7 @@ mod amm_jit_maker_tests {
             min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
             max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
             ..AMM::default()
-        };
-        amm
+        }
     }
 
     fn make_ctx<'a>(stats: &'a MarketStats, oracle: &'a OraclePriceData) -> QuoteContext<'a> {

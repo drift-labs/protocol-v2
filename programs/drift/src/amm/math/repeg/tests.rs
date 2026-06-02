@@ -679,7 +679,7 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
 
     // Case 1: oracle/peg moves in direction of amm, no-op
     {
-        let mut case_market = sol_perp_market.clone();
+        let mut case_market = sol_perp_market;
         let favorable_oracle_move_pct = 10; // When oracle moves favorably (reducing AMM exposure)
         let base_price = case_market
             .market_stats
@@ -766,7 +766,7 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
 
     // Case 2: oracle/peg moves in opposite direction of amm
     {
-        let case_market = sol_perp_market.clone();
+        let case_market = sol_perp_market;
         let adverse_oracle_move_pct = 50; // When oracle moves adversely (increasing AMM exposure)
         let base_price = case_market
             .market_stats
@@ -809,7 +809,7 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
 
         // Case 2a: zero budget, forces K shrink path
         {
-            let mut case_market_2a = case_market.clone();
+            let mut case_market_2a = case_market;
             let fee_budget_zero = 0_u128;
 
             let (adjusted_without_flag, _) =
@@ -849,7 +849,7 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
 
         // Case 2b: sufficient budget, use_optimal_peg = true
         {
-            let mut case_market_2b = case_market.clone();
+            let mut case_market_2b = case_market;
 
             // Budget from calculate_optimal_peg_and_budget is naturally sufficient for SOL
 
@@ -938,7 +938,7 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
 
     // Case 1: oracle/peg moves in direction of amm, no-op
     {
-        let mut case_market = eth_perp_market.clone();
+        let mut case_market = eth_perp_market;
         let favorable_oracle_move_pct = 10; // When oracle moves favorably (reducing AMM exposure)
         let base_price = case_market
             .market_stats
@@ -1025,7 +1025,7 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
 
     // Case 2: oracle/peg moves in opposite direction of amm
     {
-        let case_market = eth_perp_market.clone();
+        let case_market = eth_perp_market;
         let adverse_oracle_move_pct = 50; // When oracle moves adversely (increasing AMM exposure)
         let base_price = case_market
             .market_stats
@@ -1068,7 +1068,7 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
 
         // Case 2a: zero budget, forces K shrink path
         {
-            let mut case_market_2a = case_market.clone();
+            let mut case_market_2a = case_market;
             let fee_budget_zero = 0_u128;
 
             let (adjusted_without_flag, _) =
@@ -1108,7 +1108,7 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
 
         // Case 2b: sufficient budget, use_optimal_peg = true
         {
-            let mut case_market_2b = case_market.clone();
+            let mut case_market_2b = case_market;
 
             // Market's fee budget is insufficient for use_optimal_peg = true
             // Inflate 100x to test that flag has no effect when budget covers the peg move

@@ -34,10 +34,13 @@ use crate::{
 ///
 /// # Write-access policy
 ///
-/// In the target architecture, the vAMM lives in its own on-chain program;
-/// no external code can reach into AMM fields directly — every mutation is a
-/// CPI into an AMM-defined instruction. Today's code follows the same
-/// discipline:
+/// In the target architecture, the vAMM is one of several quoter modules
+/// that share a perp-market account's bytes — its state slice sits next
+/// to other quoter slices (DLOB makers, future propAMM-style
+/// participants, etc.) in the same program. No external code reaches into
+/// AMM fields directly; every mutation goes through a method on the AMM
+/// module. The contract boundary is enforced in-process by the type
+/// system, not by a CPI — and today's code follows the same discipline:
 ///
 /// - **Fills + market events**: `controller/match` dispatches through
 ///   `QuoterCommit::commit_fill` / `on_market_event` on [`crate::amm::AmmQuoter`].

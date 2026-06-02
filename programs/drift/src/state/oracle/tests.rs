@@ -251,7 +251,7 @@ fn mm_oracle_confidence() {
     let expected_confidence = oracle_price_data.confidence
         + (mm_oracle_price_data._get_mm_oracle_price()
             - mm_oracle_price_data.get_exchange_oracle_price_data().price)
-            .abs() as u64;
+            .unsigned_abs();
 
     let confidence = mm_oracle_price_data.get_confidence();
     assert_eq!(confidence, expected_confidence);

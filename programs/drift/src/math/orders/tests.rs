@@ -133,7 +133,7 @@ mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
     use crate::math::orders::order_breaches_maker_oracle_price_bands;
-    use crate::state::perp_market::{MarketStats, PerpMarket};
+    use crate::state::perp_market::PerpMarket;
     use crate::state::user::Order;
 
     #[test]
@@ -2750,7 +2750,7 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let drift_program = crate::ID;
+        let _drift_program = crate::ID;
         create_anchor_account_info!(
             oracle_price,
             &oracle_price_key,
@@ -3320,7 +3320,7 @@ mod calculate_max_perp_order_size {
             &lazer_program,
         );
 
-        let account_infos = vec![
+        let account_infos = [
             usdc_oracle_info,
             sol_oracle_info,
             eth_oracle_info,
@@ -3504,7 +3504,7 @@ pub mod validate_fill_price_within_price_bands {
         let oracle_price = 50 * PRICE_PRECISION_I64;
         let twap = 100 * PRICE_PRECISION_I64;
         // 50% less than twap
-        let fill_price = 1 * PRICE_PRECISION_U64;
+        let fill_price = PRICE_PRECISION_U64;
         let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
 
         assert!(validate_fill_price_within_price_bands(
@@ -3749,7 +3749,7 @@ pub mod get_price_for_perp_order {
 
     use crate::amm::AMM;
     use crate::state::order_params::PostOnlyParam;
-    use crate::{PositionDirection, BID_ASK_SPREAD_PRECISION_U128};
+    use crate::PositionDirection;
     use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
 
     #[test]
@@ -3942,7 +3942,7 @@ pub mod find_bids_and_asks_from_users {
     use crate::math::constants::{BASE_PRECISION_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
     use crate::math::orders::{find_bids_and_asks_from_users, Level};
     use crate::state::oracle::OraclePriceData;
-    use crate::state::perp_market::{MarketStats, PerpMarket};
+    use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, User};
     use crate::state::user_map::UserMap;
     use crate::test_utils::get_positions;

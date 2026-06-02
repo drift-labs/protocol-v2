@@ -93,32 +93,32 @@ fn user_with_isolated_position() {
         ..User::default()
     };
 
-    let mut user_with_scaled_balance = user.clone();
+    let mut user_with_scaled_balance = user;
     user_with_scaled_balance.perp_positions[0].isolated_position_scaled_balance =
         1000000000000000000;
 
     let is_bankrupt = is_cross_margin_bankrupt(&user_with_scaled_balance);
     assert!(!is_bankrupt);
 
-    let mut user_with_base_asset_amount = user.clone();
+    let mut user_with_base_asset_amount = user;
     user_with_base_asset_amount.perp_positions[0].base_asset_amount = 1000000000000000000;
 
     let is_bankrupt = is_cross_margin_bankrupt(&user_with_base_asset_amount);
     assert!(!is_bankrupt);
 
-    let mut user_with_open_order = user.clone();
+    let mut user_with_open_order = user;
     user_with_open_order.perp_positions[0].open_orders = 1;
 
     let is_bankrupt = is_cross_margin_bankrupt(&user_with_open_order);
     assert!(!is_bankrupt);
 
-    let mut user_with_positive_pnl = user.clone();
+    let mut user_with_positive_pnl = user;
     user_with_positive_pnl.perp_positions[0].quote_asset_amount = 1000000000000000000;
 
     let is_bankrupt = is_cross_margin_bankrupt(&user_with_positive_pnl);
     assert!(!is_bankrupt);
 
-    let mut user_with_negative_pnl = user.clone();
+    let mut user_with_negative_pnl = user;
     user_with_negative_pnl.perp_positions[0].quote_asset_amount = -1000000000000000000;
 
     let is_bankrupt = is_cross_margin_bankrupt(&user_with_negative_pnl);

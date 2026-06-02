@@ -2379,7 +2379,7 @@ pub mod liquidate_perp {
         };
         create_anchor_account_info!(market2, PerpMarket, market2_account_info);
 
-        let market_account_infos = vec![market_account_info, market2_account_info];
+        let market_account_infos = [market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
         let perp_market_map =
             PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
@@ -2400,7 +2400,7 @@ pub mod liquidate_perp {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
-        let mut spot_positions = [SpotPosition::default(); 8];
+        let spot_positions = [SpotPosition::default(); 8];
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 0,
@@ -2448,7 +2448,7 @@ pub mod liquidate_perp {
             ..Default::default()
         };
 
-        let isolated_position_before = user.perp_positions[1].clone();
+        let isolated_position_before = user.perp_positions[1];
 
         let result = liquidate_perp(
             1,
@@ -2489,7 +2489,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        let isolated_position_after = user.perp_positions[1].clone();
+        let isolated_position_after = user.perp_positions[1];
 
         assert_eq!(isolated_position_before, isolated_position_after);
     }
@@ -4657,7 +4657,7 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -5866,7 +5866,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{ContractTier, MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -7486,7 +7486,7 @@ pub mod resolve_perp_bankruptcy {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, PoolBalance, AMM};
+    use crate::state::perp_market::{PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -7931,7 +7931,7 @@ pub mod resolve_spot_bankruptcy {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -8581,7 +8581,7 @@ pub mod liquidate_spot_with_swap {
             slot,
             &state,
             asset_transfer as u128,
-            liability_transfer as u128,
+            liability_transfer,
         )
         .unwrap();
 
@@ -8728,7 +8728,7 @@ mod liquidate_dust_spot_market {
             btc_oracle_account_info
         );
 
-        let account_infos = vec![
+        let account_infos = [
             btc_oracle_account_info,
             usdc_oracle_account_info,
             sol_oracle_account_info,
@@ -9729,11 +9729,11 @@ pub mod liquidate_isolated_perp {
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
 
-        let mut market2 = market.clone();
+        let mut market2 = market;
         market2.market_index = 1;
         create_anchor_account_info!(market2, PerpMarket, market2_account_info);
 
-        let market_account_infos = vec![market_account_info, market2_account_info];
+        let market_account_infos = [market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
         let perp_market_map =
             PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
@@ -9757,11 +9757,11 @@ pub mod liquidate_isolated_perp {
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
-        let mut spot_market2 = spot_market.clone();
+        let mut spot_market2 = spot_market;
         spot_market2.market_index = 1;
         create_anchor_account_info!(spot_market2, SpotMarket, spot_market2_account_info);
 
-        let spot_market_account_infos = vec![spot_market_account_info, spot_market2_account_info];
+        let spot_market_account_infos = [spot_market_account_info, spot_market2_account_info];
         let mut spot_market_set = BTreeSet::default();
         spot_market_set.insert(0);
         spot_market_set.insert(1);
@@ -9805,7 +9805,7 @@ pub mod liquidate_isolated_perp {
         user.spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            scaled_balance: 1 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -9901,9 +9901,9 @@ pub mod liquidate_isolated_perp {
             false
         );
 
-        let spot_position_one_before = user.spot_positions[0].clone();
-        let spot_position_two_before = user.spot_positions[1].clone();
-        let perp_position_one_before = user.perp_positions[1].clone();
+        let spot_position_one_before = user.spot_positions[0];
+        let spot_position_two_before = user.spot_positions[1];
+        let perp_position_one_before = user.perp_positions[1];
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -9923,9 +9923,9 @@ pub mod liquidate_isolated_perp {
         )
         .unwrap();
 
-        let spot_position_one_after = user.spot_positions[0].clone();
-        let spot_position_two_after = user.spot_positions[1].clone();
-        let perp_position_one_after = user.perp_positions[1].clone();
+        let spot_position_one_after = user.spot_positions[0];
+        let spot_position_two_after = user.spot_positions[1];
+        let perp_position_one_after = user.perp_positions[1];
 
         assert_eq!(spot_position_one_before, spot_position_one_after);
         assert_eq!(spot_position_two_before, spot_position_two_after);
@@ -9954,7 +9954,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{ContractTier, MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -10050,7 +10050,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         let spot_market_map =
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
-        let mut spot_positions = [SpotPosition::default(); 8];
+        let spot_positions = [SpotPosition::default(); 8];
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
@@ -10202,7 +10202,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         let spot_market_map =
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
-        let mut spot_positions = [SpotPosition::default(); 8];
+        let spot_positions = [SpotPosition::default(); 8];
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
@@ -10321,7 +10321,7 @@ mod liquidation_mode {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -10376,7 +10376,7 @@ mod liquidation_mode {
         };
         create_anchor_account_info!(market2, PerpMarket, market2_account_info);
 
-        let market_account_infos = vec![market_account_info, market2_account_info];
+        let market_account_infos = [market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
         let market_map =
             PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();

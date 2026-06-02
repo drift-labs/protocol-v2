@@ -18,8 +18,9 @@ mod tests;
 
 /// PerpMarket-level scalars that the funding math reads. Snapshotted by
 /// the orchestrator once before the AmmQuoter takes its `&mut amm` borrow,
-/// then handed to the pure helpers so they don't need `&PerpMarket`. The
-/// future cross-program AMM uses the same shape.
+/// then handed to the pure helpers so they don't need `&PerpMarket`. Same
+/// shape the AMM module exposes through its contract in the target
+/// architecture.
 #[derive(Clone, Copy)]
 pub struct FundingMarketInputs {
     /// AMM-side counterparty position (== `amm.base_asset_amount_with_amm`).
@@ -156,7 +157,7 @@ pub fn validate_funding_pnl_profitability(
             projected_total_fee_minus_distributions,
             total_fee_minus_distributions_lower_bound
         );
-        return Err(ErrorCode::InvalidFundingProfitability.into());
+        return Err(ErrorCode::InvalidFundingProfitability);
     }
     Ok(())
 }

@@ -187,15 +187,15 @@ pub enum FillFeePolicy {
 ///    creates a segment boundary.
 /// 2. Walk segments left to right. For each segment `[p_lo, p_hi]`:
 ///    1. Segment supply = Σ over active makers of
-///      `cumulative_size(ctx, S, p_hi) − cumulative_size(ctx, S, p_lo)`.
+///       `cumulative_size(ctx, S, p_hi) − cumulative_size(ctx, S, p_lo)`.
 ///    2. If cumulative_filled + segment_supply < T: every active maker fills
-///      their segment contribution. Advance.
+///       their segment contribution. Advance.
 ///    3. Else: clearing happens here. If exactly one maker is active AND
-///      `try_fill_solo` returns `Some`, take the analytical result.
-///      Otherwise bisect for `p*` in `[p_lo, p_hi]` where Σ cumulative_size
-///      crosses demand. Apply inframarginal portions to all active makers.
-///      Distribute marginal slice at `p*`: priority makers (`is_prio` =
-///      true) take full marginal first; non-priority pro-rata the residual.
+///       `try_fill_solo` returns `Some`, take the analytical result.
+///       Otherwise bisect for `p*` in `[p_lo, p_hi]` where Σ cumulative_size
+///       crosses demand. Apply inframarginal portions to all active makers.
+///       Distribute marginal slice at `p*`: priority makers (`is_prio` =
+///       true) take full marginal first; non-priority pro-rata the residual.
 /// 3. If sweep drains without clearing: partial fill, `p* = None`.
 ///
 /// Bisection precision = `ctx.tick`. Quote methods must be pure functions of

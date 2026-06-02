@@ -200,7 +200,7 @@ fn amm_pool_balance_liq_fees_example() {
 
         // after removing automatic transfers, all pnl goes to pnl pool
         // to prevent precision error
-        let expected = pnl_pool_before + unsettled_pnl.unsigned_abs() as u128;
+        let expected = pnl_pool_before + unsettled_pnl.unsigned_abs();
         assert!(pnl_pool_token_amount.abs_diff(expected) <= 1);
 
         let fee_pool_token_amount = get_token_amount(
@@ -794,7 +794,7 @@ fn amm_ref_price_decay_tail_test() {
         // advance time for next iteration
 
         // some multiple cranks same slot
-        if i < 6 || i > 9 {
+        if !(6..=9).contains(&i) {
             now += 250;
             clock_slot += 700;
         }
@@ -969,7 +969,7 @@ fn amm_ref_price_offset_decay_logic() {
         // advance time for next iteration
 
         // some multiple cranks same slot
-        if i < 6 || i > 9 {
+        if !(6..=9).contains(&i) {
             now += 1;
             clock_slot += 2;
         }
@@ -1146,7 +1146,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
         // advance time for next iteration
 
         // some multiple cranks same slot
-        if i < 6 || i > 9 {
+        if !(6..=9).contains(&i) {
             now += 1;
             clock_slot += 2;
         }

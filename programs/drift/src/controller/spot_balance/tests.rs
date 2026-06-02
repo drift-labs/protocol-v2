@@ -273,7 +273,7 @@ fn test_daily_withdraw_limits() {
     };
     sol_spot_market.deposit_balance = 50 * SPOT_BALANCE_PRECISION;
     sol_spot_market.deposit_token_twap = (500 * SPOT_BALANCE_PRECISION) as u64;
-    sol_spot_market.optimal_utilization = 1_000_000 as u32; //20% APR
+    sol_spot_market.optimal_utilization = 1_000_000_u32; //20% APR
 
     sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
     sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
@@ -1445,7 +1445,7 @@ fn test_multi_stage_borrow_rate_curve() {
 fn test_multi_stage_borrow_rate_curve_sol() {
     let sol_market_str = "ZLEIa6hBQSe8mOScO4Q3gPiYlmy/ytlG/cnYQTYnRtaSWXsTV1MIDdyLk9ix4D+qm1SCoZnNadQyNDlZvAA3W5B/Hvp4Nzsj/NFB6YMsrxCtkXSVyg8nG1spPNRwJ+pzcAftQOs5oL2NnO4AQjaj0aPvLSuAhrujNBdQ4Oed3CsiKSwbXOb62kppdG9TT0wtMyAgICAgICAgICAgICAgICAgICAgICAgBQ7q6o4U/7qbYioIRxYhFLgpsnX2BILH3sxCdObbN5qwkjujDwAAAAAAAAAAAAAA+NPdiw8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAIxEAAAAAAHAaNmgAAAAAEA4AAAAAAACghgEAUMMAAAAAAAAAAAAAAAAAAAAAAABiSVuRhRwAAAAAAAAAAAAAq1qJH44XAAAAAAAAAAAAAI5u4VQCAAAAAAAAAAAAAACff1FVAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADcN/AIAAAAAAAAAAAAAAAAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2MDRDAAAAAAAAAAAAAAAACkAAAAAAAAAjZzNDAAAAAAbptAMAAAAAPsfNmgAAAAAkcXoCgAAAACRxegKAAAAAJHF6AoAAAAAkcXoCgAAAAAAAAAAAAAAAACgck4YCQAAAIDdYrIhAgD+gVi3CR0AAEg+hxOlFwAA6W4MAAAAAAD7HzZoAAAAAPsfNmgAAAAAAAAAAAAAAACAlpgAAAAAAGQAAAAAAAAAgJaYAAAAAAAAAAAAAAAAAAEAAAAAAAAAsAcAAAAAAAA0IQAAIiQAAOwsAAD+KQAAMgAAAIgTAACYOgAAADUMACBOAAAgoQcACQAAACgAAQsBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABA5ZwwEgAAAAUAAQEAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
     let mut sol_market_bytes =
-        unsafe { crate::test_utils::aligned_account_bytes_from_b64::<SpotMarket>(&sol_market_str) };
+        unsafe { crate::test_utils::aligned_account_bytes_from_b64::<SpotMarket>(sol_market_str) };
 
     let key = Pubkey::default();
     let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
@@ -1961,7 +1961,7 @@ fn check_spot_market_min_borrow_rate() {
 
 #[test]
 fn isolated_perp_position() {
-    let now = 30_i64;
+    let _now = 30_i64;
     let _slot = 0_u64;
 
     let mut spot_market = SpotMarket {

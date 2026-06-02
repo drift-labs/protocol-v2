@@ -13,7 +13,7 @@ use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use crate::instructions::optional_accounts::get_token_mint;
 use crate::instructions::*;
 use crate::{
-    amm::math::{amm, cp_curve::get_update_k_result, repeg::get_total_fee_lower_bound},
+    amm::math::{amm, cp_curve::get_update_k_result},
     auth::{check_hot, check_warm},
     controller,
     controller::spot_balance::execute_transfer_between_pools,

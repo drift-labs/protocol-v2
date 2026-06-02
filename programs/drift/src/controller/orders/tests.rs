@@ -4,7 +4,7 @@ use crate::math::oracle::oracle_validity;
 use crate::state::fill_mode::FillMode;
 use crate::state::market_status::MarketStatus;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{MarketStats, PerpMarket};
+use crate::state::perp_market::PerpMarket;
 use crate::state::state::{FeeStructure, FeeTier, State};
 use crate::state::user::{MarketType, Order, PerpPosition};
 
@@ -5930,10 +5930,10 @@ pub mod fill_order {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6128,10 +6128,10 @@ pub mod fill_order {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6464,10 +6464,10 @@ pub mod fill_order {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6646,10 +6646,10 @@ pub mod force_cancel_orders {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6889,10 +6889,10 @@ pub mod cancel_reduce_only_trigger_orders {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7147,10 +7147,10 @@ pub mod get_maker_orders_info {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7332,10 +7332,10 @@ pub mod get_maker_orders_info {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7518,10 +7518,10 @@ pub mod get_maker_orders_info {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7690,10 +7690,10 @@ pub mod get_maker_orders_info {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7936,10 +7936,10 @@ pub mod get_maker_orders_info {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -8124,10 +8124,10 @@ pub mod get_maker_orders_info {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
-        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
-        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
             crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
         create_anchor_account_info!(market, PerpMarket, market_account_info);

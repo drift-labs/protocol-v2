@@ -7,7 +7,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
 use std::ops::DerefMut;
-use std::u64;
 
 use crate::msg;
 use crate::state::revenue_share::{
@@ -16,7 +15,6 @@ use crate::state::revenue_share::{
 use anchor_lang::prelude::*;
 
 use crate::amm::math::amm::calculate_amm_available_liquidity;
-use crate::amm::math::jit::calculate_amm_jit_liquidity;
 use crate::amm::math::spread::AmmQuoteState;
 use crate::amm::AmmQuoter;
 use crate::controller;
@@ -35,13 +33,13 @@ use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
-use crate::math::constants::{BASE_PRECISION_U64, MARGIN_PRECISION, PERP_DECIMALS};
+use crate::math::constants::{BASE_PRECISION_U64, MARGIN_PRECISION};
 use crate::math::fees::{determine_user_fee_tier, FillFees};
 use crate::math::fulfillment::determine_perp_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
-    are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
-    calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
+    are_orders_same_market_but_different_sides, calculate_filler_multiplier_for_matched_orders,
+    is_maker_for_taker,
 };
 use crate::math::oracle::{
     self, is_oracle_valid_for_action, oracle_validity, DriftAction, OracleValidity,
@@ -2372,8 +2370,6 @@ pub fn fulfill_perp_order_step(
     let safe_oracle = mm_oracle_price_data.get_safe_oracle_price_data();
     let order_tick_size = market.order_tick_size;
     let order_step_size = market.order_step_size;
-    let total_exchange_fee = market.total_exchange_fee;
-    let total_liquidation_fee = market.total_liquidation_fee;
     let market_status_local = market.status;
     let market_config_local = market.market_config;
     let setup_ctx = QuoteContext {
@@ -2465,8 +2461,9 @@ pub fn fulfill_perp_order_step(
     // price hint: the AMM's natural ask/bid for AMM-only steps; the maker
     // price for Match steps. `update_mark_twap_with_amm_bid_ask` takes the
     // AMM inputs as scalars — no `&AMM` borrow — so this call is shaped
-    // for the future-AMM CPI world (the bid/ask/base-spread would come
-    // back from a `query` CPI rather than reading the AMM struct directly).
+    // for the target architecture where the AMM is an isolated module:
+    // bid/ask/base-spread come back through the AMM's contract methods
+    // rather than from reaching into its struct.
     let twap_trade_price = match_maker_price.unwrap_or(match taker_direction {
         PositionDirection::Long => amm_ask_price,
         PositionDirection::Short => amm_bid_price,
@@ -2531,11 +2528,12 @@ pub fn fulfill_perp_order_step(
             )?
         }
         PerpFulfillmentMethod::Match(_, m_idx, maker_price) => {
-            // Drop the AMM-only quoter so `AmmJitQuoter::from_match_context`
+            // Release the AMM-only quoter so `AmmJitQuoter::from_match_context`
             // can take `&mut market` (`amm_quoter` holds `&mut market.amm`).
             // The AMM has already been refreshed by `amm_quoter`'s setup; the
-            // JIT quoter doesn't re-refresh.
-            drop(amm_quoter);
+            // JIT quoter doesn't re-refresh. Discarding the binding ends the
+            // borrow scope (no `Drop` impl to run).
+            let _ = amm_quoter;
             let m_idx = m_idx as usize;
             let maker_user = maker
                 .as_deref_mut()

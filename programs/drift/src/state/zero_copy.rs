@@ -167,10 +167,10 @@ macro_rules! impl_zero_copy_loader {
 
             fn load_zc_mut<'a>(
                 self: &'a Self,
-            ) -> crate::error::DriftResult<
-                crate::state::zero_copy::AccountZeroCopyMut<'a, $Elem, $Fixed>,
+            ) -> $crate::error::DriftResult<
+                $crate::state::zero_copy::AccountZeroCopyMut<'a, $Elem, $Fixed>,
             > {
-                crate::state::zero_copy::load_generic_mut::<$Fixed, $Elem>(
+                $crate::state::zero_copy::load_generic_mut::<$Fixed, $Elem>(
                     self,
                     <$Acc as anchor_lang::Discriminator>::DISCRIMINATOR,
                     $ID(),

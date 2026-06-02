@@ -1731,8 +1731,8 @@ pub fn perp_market_transfer_fee_and_pnl_pool() {
 
     // Case 1: No revert, transfer 100% pnl -> fee pool
     {
-        let mut case_market = sol_perp_market.clone();
-        let mut case_spot_market = usdc_spot_market.clone();
+        let mut case_market = sol_perp_market;
+        let mut case_spot_market = usdc_spot_market;
 
         let fee_pool_amount_before_transfer = get_token_amount(
             case_market.amm.fee_pool.scaled_balance,
@@ -1817,8 +1817,8 @@ pub fn perp_market_transfer_fee_and_pnl_pool() {
 
     // Case 2: Expect no top up, fee -> pnl, transfer 100% of fee pool for SOL
     {
-        let mut case_market = sol_perp_market.clone();
-        let mut case_spot_market = usdc_spot_market.clone();
+        let mut case_market = sol_perp_market;
+        let mut case_spot_market = usdc_spot_market;
 
         let fee_pool_amount_before_transfer = get_token_amount(
             case_market.amm.fee_pool.scaled_balance,
@@ -1904,9 +1904,9 @@ pub fn perp_market_transfer_fee_and_pnl_pool() {
 
     // Case 3: SOL fee -> ETH pnl pool
     {
-        let mut case_sol_market = sol_perp_market.clone();
-        let mut case_eth_market = eth_perp_market.clone();
-        let mut case_spot_market = usdc_spot_market.clone();
+        let mut case_sol_market = sol_perp_market;
+        let mut case_eth_market = eth_perp_market;
+        let mut case_spot_market = usdc_spot_market;
 
         let sol_fee_pool_amount_before_transfer = get_token_amount(
             case_sol_market.amm.fee_pool.scaled_balance,

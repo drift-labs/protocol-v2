@@ -6,7 +6,7 @@ mod test {
             AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION,
             BID_ASK_SPREAD_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
         },
-        state::perp_market::{MarketStats, PerpMarket},
+        state::perp_market::PerpMarket,
     };
 
     #[test]

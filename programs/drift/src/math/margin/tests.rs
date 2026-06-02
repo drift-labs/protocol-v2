@@ -7,7 +7,7 @@ mod test {
     use crate::math::margin::{calculate_perp_position_value_and_pnl, MarginRequirementType};
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
-    use crate::state::perp_market::{ContractTier, MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::spot_market::{AssetTier, SpotMarket};
     use crate::state::user::PerpPosition;
     use crate::{
@@ -396,7 +396,6 @@ mod calculate_margin_requirement_and_total_collateral {
 
     use solana_program::pubkey::Pubkey;
 
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
@@ -410,7 +409,7 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -2111,7 +2110,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{ContractTier, MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -3043,7 +3042,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::liquidation((MARGIN_PRECISION / 100) as u32),
+            MarginContext::liquidation(MARGIN_PRECISION / 100),
         )
         .unwrap();
 
@@ -3361,7 +3360,7 @@ mod validate_spot_margin_trading {
     use crate::test_utils::*;
 
     use crate::state::market_status::MarketStatus;
-    use crate::state::perp_market::{ContractTier, MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::{AMM_RESERVE_PRECISION, BASE_PRECISION_I64, PEG_PRECISION, QUOTE_PRECISION_I64};
 
     #[test]
@@ -4294,7 +4293,7 @@ mod pools {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -4429,7 +4428,7 @@ mod isolated_position {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -4615,7 +4614,7 @@ mod meets_place_order_margin_requirement_with_isolated {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -5395,7 +5394,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -5489,7 +5488,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         };
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // $1000 isolated collateral
@@ -5559,7 +5558,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -5654,7 +5653,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // Isolated ETH-PERP position
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // $200 isolated collateral
@@ -5734,7 +5733,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -5833,7 +5832,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // but with an open order that increases the worst-case position size
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 110 * SPOT_BALANCE_PRECISION_U64, // $110 isolated collateral
@@ -5920,7 +5919,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![eth_oracle_account_info];
+        let oracle_account_infos = [eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -5979,7 +5978,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // New isolated ETH-PERP position with sufficient collateral
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64, // $150 isolated collateral
@@ -6049,7 +6048,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6144,7 +6143,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // New isolated ETH-PERP position with sufficient collateral
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // $200 isolated collateral
@@ -6202,7 +6201,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6275,7 +6274,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64, // PI: >= $100 IM
@@ -6318,7 +6317,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![eth_oracle_account_info];
+        let oracle_account_infos = [eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6369,7 +6368,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 70 * SPOT_BALANCE_PRECISION_U64, // PM: $70 < IM $100
@@ -6410,7 +6409,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![eth_oracle_account_info];
+        let oracle_account_infos = [eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6461,7 +6460,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64, // FM: < $50 MM
@@ -6511,7 +6510,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6590,7 +6589,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         };
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 70 * SPOT_BALANCE_PRECISION_U64, // isolated PM
@@ -6641,7 +6640,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6722,7 +6721,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         };
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // current PI
@@ -6767,7 +6766,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -6800,7 +6799,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6869,7 +6868,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_passes_when_current_isolated_passes_fill_others_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -6881,7 +6880,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64,
@@ -6905,9 +6904,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -6921,7 +6920,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_current_isolated_only_passes_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -6933,7 +6932,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 7 * SPOT_BALANCE_PRECISION_U64,
@@ -6957,9 +6956,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -6973,7 +6972,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_current_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7009,9 +7008,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7025,7 +7024,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_cross_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7037,7 +7036,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64,
@@ -7045,7 +7044,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             };
@@ -7067,9 +7066,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7083,7 +7082,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7095,7 +7094,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64,
@@ -7103,7 +7102,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7127,9 +7126,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7145,7 +7144,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_decreasing_passes_when_all_pass_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7181,9 +7180,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7197,7 +7196,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_decreasing_fails_when_current_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7233,9 +7232,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7249,7 +7248,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_decreasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7269,7 +7268,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7293,9 +7292,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7311,7 +7310,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_passes_when_cross_passes_fill_isolated_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7323,7 +7322,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             };
@@ -7343,9 +7342,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7359,7 +7358,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_fails_when_cross_only_passes_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7391,9 +7390,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7407,7 +7406,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_fails_when_cross_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7439,9 +7438,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7455,7 +7454,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7467,13 +7466,13 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7495,9 +7494,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7513,7 +7512,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_decreasing_passes_when_all_pass_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7545,9 +7544,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7561,7 +7560,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_decreasing_fails_when_cross_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7593,9 +7592,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7609,7 +7608,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_decreasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7627,7 +7626,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7649,9 +7648,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();

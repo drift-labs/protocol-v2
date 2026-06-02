@@ -29,7 +29,7 @@ use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
 
 #[test]
 fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
-    let now = 0_i64;
+    let _now = 0_i64;
     let slot = 0_u64;
 
     let mut oracle_price = get_pyth_price(100, 6);
@@ -120,7 +120,7 @@ fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
         ..User::default()
     };
 
-    let mut user_stats = UserStats::default();
+    let _user_stats = UserStats::default();
 
     let result = user.meets_transfer_isolated_position_deposit_margin_requirement(
         &perp_market_map,
@@ -140,7 +140,7 @@ fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
 
 #[test]
 fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
-    let now = 0_i64;
+    let _now = 0_i64;
     let slot = 0_u64;
 
     let mut oracle_price = get_pyth_price(100, 6);
@@ -184,10 +184,10 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market0, PerpMarket, market0_account_info);
-    let mut market1 = market0.clone();
+    let mut market1 = market0;
     market1.market_index = 1;
     create_anchor_account_info!(market1, PerpMarket, market1_account_info);
-    let market_account_infos = vec![market0_account_info, market1_account_info];
+    let market_account_infos = [market0_account_info, market1_account_info];
     let market_set = BTreeSet::default();
     let perp_market_map: PerpMarketMap<'_> =
         PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
@@ -247,7 +247,7 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
         ..PerpPosition::default()
     };
 
-    let mut user_stats = UserStats::default();
+    let _user_stats = UserStats::default();
 
     let result = user.meets_transfer_isolated_position_deposit_margin_requirement(
         &perp_market_map,
@@ -266,7 +266,7 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
 
 #[test]
 fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
-    let now = 0_i64;
+    let _now = 0_i64;
     let slot = 0_u64;
 
     let mut oracle_price = get_pyth_price(100, 6);
@@ -341,7 +341,7 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
         spot_positions: [SpotPosition::default(); 8],
         perp_positions: get_positions(PerpPosition {
             market_index: 0,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -100 * QUOTE_PRECISION_I64,
             quote_entry_amount: -100 * QUOTE_PRECISION_I64,
             quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
@@ -352,7 +352,7 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
         ..User::default()
     };
 
-    let mut user_stats = UserStats::default();
+    let _user_stats = UserStats::default();
 
     let result = user.meets_transfer_isolated_position_deposit_margin_requirement(
         &perp_market_map,
@@ -374,7 +374,7 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
 
 #[test]
 fn cannot_transfer_from_isolated_when_isolated_would_fail() {
-    let now = 0_i64;
+    let _now = 0_i64;
     let slot = 0_u64;
 
     let mut oracle_price = get_pyth_price(100, 6);
@@ -459,7 +459,7 @@ fn cannot_transfer_from_isolated_when_isolated_would_fail() {
         ..User::default()
     };
 
-    let mut user_stats = UserStats::default();
+    let _user_stats = UserStats::default();
 
     let result = user.meets_transfer_isolated_position_deposit_margin_requirement(
         &perp_market_map,

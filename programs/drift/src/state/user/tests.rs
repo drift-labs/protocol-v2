@@ -9,7 +9,7 @@ mod get_claimable_pnl {
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
     use crate::state::oracle::OracleSource;
-    use crate::state::perp_market::{MarketStats, PerpMarket, PoolBalance, AMM};
+    use crate::state::perp_market::{PerpMarket, PoolBalance, AMM};
     use crate::state::spot_market::{SpotBalance, SpotMarket};
     use crate::state::user::{PerpPosition, User};
     use crate::test_utils::get_positions;
@@ -1898,7 +1898,7 @@ mod worst_case_liability_value {
 
     #[test]
     fn perp() {
-        let contract_type = ContractType::Perpetual;
+        let _contract_type = ContractType::Perpetual;
         let position = PerpPosition {
             base_asset_amount: 0,
             open_bids: BASE_PRECISION_I64,
@@ -1914,7 +1914,7 @@ mod worst_case_liability_value {
         assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(worst_case_liability, 100 * QUOTE_PRECISION);
 
-        let contract_type = ContractType::Perpetual;
+        let _contract_type = ContractType::Perpetual;
         let position = PerpPosition {
             base_asset_amount: 0,
             open_bids: 2 * BASE_PRECISION_I64,
@@ -2176,11 +2176,11 @@ pub mod meets_withdraw_margin_requirement {
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
 
-        let mut market2 = market.clone();
+        let mut market2 = market;
         market2.market_index = 1;
         create_anchor_account_info!(market2, PerpMarket, market2_account_info);
 
-        let market_account_infos = vec![market_account_info, market2_account_info];
+        let market_account_infos = [market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
         let perp_market_map =
             PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
@@ -2204,11 +2204,11 @@ pub mod meets_withdraw_margin_requirement {
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
-        let mut spot_market2 = spot_market.clone();
+        let mut spot_market2 = spot_market;
         spot_market2.market_index = 1;
         create_anchor_account_info!(spot_market2, SpotMarket, spot_market2_account_info);
 
-        let spot_market_account_infos = vec![spot_market_account_info, spot_market2_account_info];
+        let spot_market_account_infos = [spot_market_account_info, spot_market2_account_info];
         let mut spot_market_set = BTreeSet::default();
         spot_market_set.insert(0);
         spot_market_set.insert(1);
@@ -2252,7 +2252,7 @@ pub mod meets_withdraw_margin_requirement {
         user.spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            scaled_balance: 1 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 

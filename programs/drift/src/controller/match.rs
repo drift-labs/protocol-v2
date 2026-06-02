@@ -26,7 +26,7 @@ use crate::amm::AmmQuoter;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_math::SafeMath;
-use crate::state::quoter::{FillFeePolicy, QuoteContext, QuoterCommit, QuoterFill};
+use crate::state::quoter::{QuoteContext, QuoterCommit, QuoterFill};
 
 /// Index into the `makers` slice passed to [`match_take`].
 pub type QuoterId = u16;
@@ -722,7 +722,7 @@ mod tests {
     use super::*;
     use crate::state::oracle::OraclePriceData;
     use crate::state::perp_market::MarketStats;
-    use crate::state::quoter::{QuoteContext, Quoter};
+    use crate::state::quoter::{FillFeePolicy, QuoteContext, Quoter};
 
     /// A trivial single-price-step maker for unit tests — emulates a DLOB
     /// resting order.
@@ -908,9 +908,7 @@ mod tests {
         // sole-AMM case. Verifies one call mutates AMM reserves, refreshes
         // spread reserves, and mirrors stats — i.e., is a drop-in replacement
         // for swap_base_asset + post-swap bookkeeping.
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::perp_market::{PerpMarket, AMM};
 
         let stats = MarketStats::default();
@@ -961,9 +959,7 @@ mod tests {
         // as a Maker, run match_take, then apply the Match to the PerpMarket.
         // Verify the AMM mutated AND the MarketStats sync happened.
         use crate::amm::AmmQuoter;
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::perp_market::{PerpMarket, AMM};
 
         let stats = MarketStats::default();
@@ -1080,9 +1076,7 @@ mod tests {
         // reserves and the AMM curve is non-linear). Regression guard.
         use crate::amm::AmmQuoter;
         use crate::amm::AMM;
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::quoter::{DlobOrderQuoter, Quoter};
         use crate::state::user::{
             MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType,
@@ -1201,9 +1195,7 @@ mod tests {
         // the exact swap quote, not base * best_ask / base_precision.
         use crate::amm::AmmQuoter;
         use crate::amm::AMM;
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::quoter::DlobOrderQuoter;
         use crate::state::user::{
             MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType,
@@ -1312,9 +1304,7 @@ mod tests {
         // price priority wins first — DLOB should fill before AMM.
         use crate::amm::AmmQuoter;
         use crate::amm::AMM;
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::quoter::DlobOrderQuoter;
         use crate::state::user::{
             MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType,
@@ -1402,9 +1392,7 @@ mod tests {
         // to whichever offers a better price.
         use crate::amm::AmmQuoter;
         use crate::amm::AMM;
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::quoter::DlobOrderQuoter;
         use crate::state::user::{
             MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType,
@@ -1494,9 +1482,7 @@ mod tests {
         // The AMM caps at its throttled max_jit_base.
         use crate::amm::AmmJitQuoter;
         use crate::amm::AMM;
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::quoter::DlobOrderQuoter;
         use crate::state::user::{
             MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType,
@@ -1601,9 +1587,7 @@ mod tests {
     fn matcher_works_with_amm_maker() {
         use crate::amm::AmmQuoter;
         use crate::amm::AMM;
-        use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION,
-        };
+        use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
 
         let stats = MarketStats::default();
         let oracle = OraclePriceData::default();

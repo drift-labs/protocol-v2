@@ -1,9 +1,7 @@
 mod amm {
     use crate::amm::math::spread::AmmQuoteState;
     use crate::state::perp_market::{MarketStats, AMM};
-    use crate::{
-        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64,
-    };
+    use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64};
 
     /// Quote state with a non-trivial long_spread / short_spread so the
     /// premium / discount helpers compute non-zero values. Spread of 10000
@@ -97,7 +95,7 @@ mod get_trigger_price {
     fn test_get_last_funding_basis() {
         let oracle_price = 109144736794;
         let last_funding_rate_ts = 1752080410;
-        let now = last_funding_rate_ts + 0;
+        let now = last_funding_rate_ts;
         let perp_market = PerpMarket {
             market_stats: MarketStats {
                 last_mark_price_twap: 109146153042,

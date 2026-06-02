@@ -604,7 +604,6 @@ impl OrderParams {
                 direction,
             )?;
 
-            let oracle_price_offset = oracle_price_offset;
             if direction == PositionDirection::Long {
                 auction_start_price_offset = auction_start_price_offset.min(oracle_price_offset)
             } else {

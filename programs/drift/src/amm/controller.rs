@@ -1,23 +1,20 @@
 use anchor_lang::prelude::*;
 
-use crate::amm::math::amm;
-use crate::amm::math::amm::calculate_quote_asset_amount_swapped;
-use crate::amm::math::spread::AmmQuoteState;
-use crate::error::DriftResult;
-use crate::math::casting::Cast;
-use crate::math::quote_asset::*;
-use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
-
-use crate::state::perp_market::AMM;
-use crate::state::spot_market::{SpotBalance, SpotMarket};
-
 #[cfg(test)]
 use crate::math::constants::FEE_POOL_TO_REVENUE_POOL_THRESHOLD;
 #[cfg(test)]
 use crate::state::oracle::OraclePriceData;
 #[cfg(test)]
 use crate::state::perp_market::{MarketConfigFlag, PerpMarket};
+use crate::{
+    amm::math::{amm, amm::calculate_quote_asset_amount_swapped, spread::AmmQuoteState},
+    error::DriftResult,
+    math::{casting::Cast, quote_asset::*, safe_math::SafeMath, spot_balance::get_token_amount},
+    state::{
+        perp_market::AMM,
+        spot_market::{SpotBalance, SpotMarket},
+    },
+};
 
 #[cfg(test)]
 mod tests;
@@ -168,11 +165,10 @@ pub fn formulaic_update_k(
     market: &mut PerpMarket,
     oracle_price_data: &OraclePriceData,
     funding_imbalance_cost: i128,
-    _now: i64,
+    now: i64,
     amm_quote_state: &AmmQuoteState,
 ) -> DriftResult {
     use crate::amm::AmmQuoter;
-    use crate::state::quoter::QuoteContext;
 
     let k_update_eligible =
         !market.has_market_config_flag(MarketConfigFlag::DisableFormulaicKUpdate);
@@ -182,26 +178,11 @@ pub fn formulaic_update_k(
     let total_fee_floor = market.amm.protocol_floor()?;
     let market_status = market.status;
     let min_order_size = market.market_stats.min_order_size;
-    let stats_snapshot = market.market_stats;
-    let ctx = QuoteContext {
-        stats: &stats_snapshot,
-        oracle: oracle_price_data,
-        mm_oracle: None,
-        oracle_validity: None,
-        fee_budget: 0,
-        tick: market.order_tick_size,
-        step_size: market.order_step_size,
-        slot: 0,
-        base_precision: crate::math::constants::BASE_PRECISION_U64,
-        market_status: crate::state::market_status::MarketStatus::default(),
-        market_config: 0,
-    };
     let long_spread = amm_quote_state.long_spread;
     let short_spread = amm_quote_state.short_spread;
     let market_index = market.market_index;
     let mut amm_maker = AmmQuoter::for_amm(&mut market.amm);
     amm_maker.handle_funding_applied(
-        &ctx,
         funding_imbalance_cost,
         oracle_price_data,
         total_fee_floor,
@@ -210,7 +191,7 @@ pub fn formulaic_update_k(
         market_status,
         min_order_size,
         market_index,
-        _now,
+        now,
     )?;
     Ok(())
 }
@@ -227,12 +208,10 @@ pub fn get_fee_pool_tokens(amm: &AMM, spot_market: &SpotMarket) -> DriftResult<i
 // Market-level pool accounting lives in `controller::perp_pools` — it reads
 // AMM bookkeeping but the operations are protocol-level plumbing. Re-exported
 // here so `use crate::amm::controller::*` star-imports still resolve them.
-pub use crate::controller::perp_pools::{update_pnl_pool_and_user_balance, update_pool_balances};
-
 // Private helper re-export for `crate::amm::controller::tests`.
 #[cfg(test)]
 pub(crate) use crate::controller::perp_pools::calculate_revenue_pool_transfer;
-
+pub use crate::controller::perp_pools::{update_pnl_pool_and_user_balance, update_pool_balances};
 // `move_price` / `recenter` moved to `impl AMM` in `amm::state`.
 
 // Cross-cutting AMM ↔ PerpMarket summary stat — lives in `math::perp_market`

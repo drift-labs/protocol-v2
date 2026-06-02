@@ -60,7 +60,7 @@ fn balanced_funding_test() {
         let px = px0 + count;
         let sqrt_k = sqrt_k0 + count;
 
-        let mut market = PerpMarket {
+        let market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: sqrt_k,
                 quote_asset_reserve: sqrt_k,
@@ -124,7 +124,7 @@ fn balanced_funding_test() {
         let px = px0 + count;
         let sqrt_k = sqrt_k0 + count;
 
-        let mut market = PerpMarket {
+        let market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: sqrt_k,
                 quote_asset_reserve: sqrt_k,

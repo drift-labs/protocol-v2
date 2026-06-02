@@ -25,7 +25,7 @@ mod tests {
     fn test_complex_implementation() {
         // Constituents are BTC, SOL, ETH, USDC
 
-        let slot = 20202020 as u64;
+        let slot = 20202020_u64;
         let amm_data = [
             amm_const_datum(0, 0, PERCENTAGE_PRECISION_I64, slot), // BTC-PERP
             amm_const_datum(1, 1, PERCENTAGE_PRECISION_I64, slot), // SOL-PERP
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_single_zero_weight() {
-        let slot = 20202020 as u64;
+        let slot = 20202020_u64;
         let amm_datum = amm_const_datum(0, 1, 0, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_single_full_weight() {
-        let slot = 20202020 as u64;
+        let slot = 20202020_u64;
         let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -317,7 +317,7 @@ mod tests {
             .unwrap();
 
         let weight = calculate_target_weight(
-            target_zc_mut.get(0).target_base as i64,
+            target_zc_mut.get(0).target_base,
             &SpotMarket::default(),
             price,
             aum,
@@ -326,7 +326,7 @@ mod tests {
 
         assert_eq!(
             target_zc_mut.get(0).target_base as i128,
-            -1 * 10_i128.pow(6_u32)
+            -10_i128.pow(6_u32)
         );
         assert_eq!(weight, -1000000);
         assert_eq!(target_zc_mut.len(), 1);
@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_multiple_constituents_partial_weights() {
-        let slot = 20202020 as u64;
+        let slot = 20202020_u64;
         let amm_mapping_data = vec![
             amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64 / 2, 111),
             amm_const_datum(0, 2, PERCENTAGE_PRECISION_I64 / 2, 111),
@@ -443,7 +443,7 @@ mod tests {
                     aum,
                 )
                 .unwrap(),
-                -1 * PERCENTAGE_PRECISION_I64 / 2
+                -PERCENTAGE_PRECISION_I64 / 2
             );
             assert_eq!(target_zc_mut.get(i).last_oracle_slot, slot);
         }
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn test_zero_aum_safe() {
-        let slot = 20202020 as u64;
+        let slot = 20202020_u64;
         let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -743,8 +743,8 @@ mod swap_tests {
     #[test]
     fn test_get_weight() {
         let c = Constituent {
-            swap_fee_min: -1 * PERCENTAGE_PRECISION_I64 / 10000, // -1 bps (rebate)
-            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,        // 100 bps
+            swap_fee_min: -PERCENTAGE_PRECISION_I64 / 10000, // -1 bps (rebate)
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,    // 100 bps
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
             spot_market_index: 0,
             spot_balance: ConstituentSpotBalance {
@@ -1231,7 +1231,7 @@ mod swap_tests {
         let in_token_amount = in_notional * 10_i128.pow(6) / oracle_0.price as i128;
         let in_spot_balance = if in_token_amount > 0 {
             ConstituentSpotBalance {
-                scaled_balance: (in_token_amount.abs() as u128)
+                scaled_balance: in_token_amount.unsigned_abs()
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
@@ -1239,7 +1239,7 @@ mod swap_tests {
             }
         } else {
             ConstituentSpotBalance {
-                scaled_balance: (in_token_amount.abs() as u128)
+                scaled_balance: in_token_amount.unsigned_abs()
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Borrow,
                 market_index: 0,
@@ -1252,7 +1252,7 @@ mod swap_tests {
         let out_token_amount = out_notional * 10_i128.pow(6) / oracle_1.price as i128;
         let out_spot_balance = if out_token_amount > 0 {
             ConstituentSpotBalance {
-                scaled_balance: (out_token_amount.abs() as u128)
+                scaled_balance: out_token_amount.unsigned_abs()
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
@@ -1260,7 +1260,7 @@ mod swap_tests {
             }
         } else {
             ConstituentSpotBalance {
-                scaled_balance: (out_token_amount.abs() as u128)
+                scaled_balance: out_token_amount.unsigned_abs()
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
@@ -1318,14 +1318,14 @@ mod swap_tests {
             )
             .unwrap();
 
-        return (
+        (
             in_amount_result,
             out_amount,
             in_fee,
             out_fee,
             in_token_amount,
             out_token_amount,
-        );
+        )
     }
 
     #[test]
@@ -2291,7 +2291,7 @@ mod settle_tests {
 
         let timestamps = [1000, 2000, 3000, 1500, 5000]; // Including out-of-order
 
-        for (_, &ts) in timestamps.iter().enumerate() {
+        for &ts in timestamps.iter() {
             let result = SettlementResult {
                 amount_transferred: 100,
                 direction: SettlementDirection::FromLpPool,
@@ -2584,7 +2584,7 @@ mod update_aum_tests {
         let spot_market_map =
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
         // Build an oracle map containing the three non-quote oracles
-        let oracle_accounts = vec![
+        let oracle_accounts = [
             sol_oracle_account_info.clone(),
             btc_oracle_account_info.clone(),
             bonk_oracle_account_info.clone(),
@@ -2647,11 +2647,7 @@ mod update_aum_tests {
         );
 
         // Verify the results (allow small rounding differences)
-        let aum_diff = if aum > expected_aum {
-            aum - expected_aum
-        } else {
-            expected_aum - aum
-        };
+        let aum_diff = aum.abs_diff(expected_aum);
         assert!(
             aum_diff <= QUOTE_PRECISION, // Allow up to $1 difference for rounding
             "{}: AUM mismatch. Got: ${}, Expected: ${}, Diff: ${}",
@@ -2811,7 +2807,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             last_oracle_slot: 100,
             decimals: 9,
             constituent_derivative_index: parent_index as i16,
-            derivative_weight: derivative_weights.get(0).map(|w| *w).unwrap_or(0),
+            derivative_weight: derivative_weights.first().copied().unwrap_or(0),
             constituent_derivative_depeg_threshold: 950_000, // 95% threshold
             ..Constituent::default()
         };
@@ -2831,7 +2827,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             last_oracle_slot: 100,
             decimals: 9,
             constituent_derivative_index: parent_index as i16,
-            derivative_weight: derivative_weights.get(1).map(|w| *w).unwrap_or(0),
+            derivative_weight: derivative_weights.get(1).copied().unwrap_or(0),
             constituent_derivative_depeg_threshold: 950_000, // 95% threshold
             ..Constituent::default()
         };
@@ -2851,7 +2847,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             last_oracle_slot: 100,
             decimals: 9,
             constituent_derivative_index: parent_index as i16,
-            derivative_weight: derivative_weights.get(2).map(|w| *w).unwrap_or(0),
+            derivative_weight: derivative_weights.get(2).copied().unwrap_or(0),
             constituent_derivative_depeg_threshold: 950_000, // 95% threshold
             ..Constituent::default()
         };
@@ -3004,7 +3000,7 @@ mod update_constituent_target_base_for_derivatives_tests {
         let spot_market_map = SpotMarketMap::load_multiple(spot_market_list, true).unwrap();
 
         // Build an oracle map for parent and derivatives
-        let oracle_accounts = vec![
+        let oracle_accounts = [
             parent_oracle_account_info.clone(),
             derivative1_oracle_account_info.clone(),
             derivative2_oracle_account_info.clone(),
@@ -3291,7 +3287,7 @@ mod update_constituent_target_base_for_derivatives_tests {
         .unwrap();
 
         // Build oracle map
-        let oracle_accounts = vec![
+        let oracle_accounts = [
             parent_oracle_account_info.clone(),
             derivative_oracle_account_info.clone(),
         ];
@@ -3580,7 +3576,7 @@ mod update_constituent_target_base_for_derivatives_tests {
         .unwrap();
 
         // Build oracle map
-        let oracle_accounts = vec![
+        let oracle_accounts = [
             parent_oracle_account_info.clone(),
             derivative_oracle_account_info.clone(),
         ];
@@ -3810,7 +3806,7 @@ mod update_constituent_target_base_for_derivatives_tests {
         .unwrap();
 
         // Oracle map
-        let oracle_accounts = vec![
+        let oracle_accounts = [
             parent_oracle_account_info.clone(),
             derivative1_oracle_account_info.clone(),
             derivative2_oracle_account_info.clone(),

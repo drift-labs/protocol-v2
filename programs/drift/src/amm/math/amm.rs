@@ -10,13 +10,13 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
-    DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR,
+    DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
     PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
-use crate::math::stats::{calculate_rolling_sum, calculate_weighted_average};
+use crate::math::stats::calculate_weighted_average;
 use crate::state::oracle::{MMOraclePriceData, OraclePriceData};
 use crate::validate;
 
@@ -108,10 +108,10 @@ pub fn _calculate_market_open_bids_asks(
 /// a `(bid, ask)` pair clipped to the AMM's natural `(amm_bid, amm_ask)`.
 ///
 /// Takes the AMM's natural bid/ask and base spread as scalars rather than a
-/// `&AMM` borrow — in the future-AMM-as-its-own-program world Drift will
-/// receive these via CPI from the AMM rather than reading them directly,
-/// and the call sites that need the sanitised pair should not have to
-/// pretend they own the AMM's state.
+/// `&AMM` borrow — in the target architecture (AMM as an isolated module
+/// alongside other quoters in the same program) callers receive these via
+/// the AMM module's contract methods, and the call sites that need the
+/// sanitised pair shouldn't have to pretend they own the AMM's state.
 pub fn estimate_best_bid_ask_price(
     amm_bid_price: u64,
     amm_ask_price: u64,

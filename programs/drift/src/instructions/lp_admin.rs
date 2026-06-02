@@ -212,7 +212,7 @@ pub fn handle_initialize_constituent<'info>(
     Ok(())
 }
 
-pub fn handle_update_constituent_status<'info>(
+pub fn handle_update_constituent_status(
     ctx: Context<UpdateConstituentStatus>,
     new_status: u8,
 ) -> Result<()> {
@@ -226,7 +226,7 @@ pub fn handle_update_constituent_status<'info>(
     Ok(())
 }
 
-pub fn handle_update_constituent_paused_operations<'info>(
+pub fn handle_update_constituent_paused_operations(
     ctx: Context<UpdateConstituentPausedOperations>,
     paused_operations: u8,
 ) -> Result<()> {
@@ -290,7 +290,7 @@ pub struct ConstituentParams {
     pub xi: Option<u8>,
 }
 
-pub fn handle_update_constituent_params<'info>(
+pub fn handle_update_constituent_params(
     ctx: Context<UpdateConstituentParams>,
     constituent_params: ConstituentParams,
 ) -> Result<()> {
@@ -423,7 +423,7 @@ pub struct LpPoolParams {
     pub whitelist_mint: Option<Pubkey>,
 }
 
-pub fn handle_update_lp_pool_params<'info>(
+pub fn handle_update_lp_pool_params(
     ctx: Context<UpdateLpPoolParams>,
     lp_pool_params: LpPoolParams,
 ) -> Result<()> {
@@ -479,7 +479,7 @@ pub fn handle_update_lp_pool_params<'info>(
     Ok(())
 }
 
-pub fn handle_update_amm_constituent_mapping_data<'info>(
+pub fn handle_update_amm_constituent_mapping_data(
     ctx: Context<UpdateAmmConstituentMappingData>,
     amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
 ) -> Result<()> {
@@ -521,7 +521,7 @@ pub fn handle_update_amm_constituent_mapping_data<'info>(
     Ok(())
 }
 
-pub fn handle_remove_amm_constituent_mapping_data<'info>(
+pub fn handle_remove_amm_constituent_mapping_data(
     ctx: Context<RemoveAmmConstituentMappingData>,
     perp_market_index: u16,
     constituent_index: u16,
@@ -549,7 +549,7 @@ pub fn handle_remove_amm_constituent_mapping_data<'info>(
     Ok(())
 }
 
-pub fn handle_add_amm_constituent_data<'info>(
+pub fn handle_add_amm_constituent_data(
     ctx: Context<AddAmmConstituentMappingData>,
     init_amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
 ) -> Result<()> {
@@ -574,11 +574,13 @@ pub fn handle_add_amm_constituent_data<'info>(
         )?;
 
         let constituent_index = init_datum.constituent_index;
-        let mut datum = AmmConstituentDatum::default();
-        datum.perp_market_index = perp_market_index;
-        datum.constituent_index = constituent_index;
-        datum.weight = init_datum.weight;
-        datum.last_slot = Clock::get()?.slot;
+        let datum = AmmConstituentDatum {
+            perp_market_index,
+            constituent_index,
+            weight: init_datum.weight,
+            last_slot: Clock::get()?.slot,
+            ..AmmConstituentDatum::default()
+        };
 
         // Check if the datum already exists
         let exists = amm_mapping.weights.iter().any(|d| {
@@ -602,7 +604,7 @@ pub fn handle_add_amm_constituent_data<'info>(
     Ok(())
 }
 
-pub fn handle_update_constituent_correlation_data<'info>(
+pub fn handle_update_constituent_correlation_data(
     ctx: Context<UpdateConstituentCorrelation>,
     index1: u16,
     index2: u16,
