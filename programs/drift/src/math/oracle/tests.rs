@@ -76,17 +76,9 @@ fn calculate_oracle_valid() {
     assert_eq!(oracle_status.oracle_reserve_price_spread_pct, 30303); //0.030303 ()
     assert!(!oracle_status.mark_too_divergent);
 
-    let funding_period = market.market_stats.funding_period;
     let _new_oracle_twap = market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
         .unwrap();
     assert_eq!(
         market

@@ -2503,7 +2503,6 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     let before_mark_twap_ts = perp_market.market_stats.last_mark_price_twap_ts;
 
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
-    let funding_period = perp_market.market_stats.funding_period;
     {
         let reserve_price = perp_market.amm.reserve_price()?;
         let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
@@ -2524,7 +2523,6 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
             estimated_bid,
             estimated_ask,
             sanitize_clamp_denominator,
-            funding_period,
         )?;
     }
 

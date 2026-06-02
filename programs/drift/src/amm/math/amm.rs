@@ -242,7 +242,6 @@ pub fn calculate_new_oracle_price_twap(
     now: i64,
     oracle_price: i64,
     twap_period: TwapPeriod,
-    funding_period: i64,
 ) -> DriftResult<i64> {
     let historical_oracle_data = &market_stats.historical_oracle_data;
     let (last_mark_twap, last_oracle_twap) = match twap_period {
@@ -257,7 +256,7 @@ pub fn calculate_new_oracle_price_twap(
     };
 
     let period: i64 = match twap_period {
-        TwapPeriod::FundingPeriod => funding_period,
+        TwapPeriod::FundingPeriod => market_stats.funding_period,
         TwapPeriod::FiveMin => FIVE_MINUTE as i64,
     };
 
@@ -297,68 +296,6 @@ pub fn calculate_new_oracle_price_twap(
         since_last,
         from_start,
         None,
-    )
-}
-
-/// Returns the new mark_std rolling sum. Pure — the caller writes the
-/// result back into `market_stats.mark_std`.
-pub fn update_amm_mark_std(
-    prev_mark_std: u64,
-    last_mark_price_twap_ts: i64,
-    now: i64,
-    price: u64,
-    ewma: u64,
-    ewma_5min: u64,
-) -> DriftResult<u64> {
-    let since_last = max(1_i64, now.safe_sub(last_mark_price_twap_ts)?);
-
-    let price_change_abs = price
-        .cast::<i64>()?
-        .safe_sub(ewma.cast::<i64>()?)?
-        .unsigned_abs()
-        .max(
-            price
-                .cast::<i64>()?
-                .safe_sub(ewma_5min.cast::<i64>()?)?
-                .unsigned_abs(),
-        );
-
-    calculate_rolling_sum(
-        prev_mark_std,
-        price_change_abs,
-        max(ONE_HOUR, since_last),
-        ONE_HOUR,
-    )
-}
-
-/// Returns the new oracle_std rolling sum. Pure — the caller writes the
-/// result back into `market_stats.oracle_std`.
-pub fn update_amm_oracle_std(
-    prev_oracle_std: u64,
-    last_oracle_price_twap_ts: i64,
-    now: i64,
-    price: u64,
-    ewma: u64,
-    ewma_5min: u64,
-) -> DriftResult<u64> {
-    let since_last = max(1_i64, now.safe_sub(last_oracle_price_twap_ts)?);
-
-    let price_change_abs: i64 = price
-        .cast::<i64>()?
-        .safe_sub(ewma.cast::<i64>()?)?
-        .abs()
-        .max(
-            price
-                .cast::<i64>()?
-                .safe_sub(ewma_5min.cast::<i64>()?)?
-                .abs(),
-        );
-
-    calculate_rolling_sum(
-        prev_oracle_std,
-        price_change_abs as u64,
-        max(ONE_HOUR, since_last),
-        ONE_HOUR,
     )
 }
 

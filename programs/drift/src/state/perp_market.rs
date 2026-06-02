@@ -466,7 +466,6 @@ impl PerpMarket {
             Some(crate::math::oracle::DriftAction::UpdateTwap),
         )? {
             let sanitize_clamp_denominator = self.get_sanitize_clamp_denominator()?;
-            let funding_period = self.market_stats.funding_period;
             let PerpMarket {
                 amm, market_stats, ..
             } = self;
@@ -476,7 +475,6 @@ impl PerpMarket {
                 mm_oracle_price_data,
                 Some(reserve_price_after),
                 sanitize_clamp_denominator,
-                funding_period,
             )?;
         }
 
@@ -1240,7 +1238,7 @@ impl MarketStats {
         ewma: u64,
         ewma_5min: u64,
     ) -> crate::error::DriftResult<()> {
-        self.mark_std = crate::amm::math::amm::update_amm_mark_std(
+        self.mark_std = crate::math::stats::roll_std(
             self.mark_std,
             self.last_mark_price_twap_ts,
             now,
@@ -1259,7 +1257,7 @@ impl MarketStats {
         ewma: u64,
         ewma_5min: u64,
     ) -> crate::error::DriftResult<()> {
-        self.oracle_std = crate::amm::math::amm::update_amm_oracle_std(
+        self.oracle_std = crate::math::stats::roll_std(
             self.oracle_std,
             self.historical_oracle_data.last_oracle_price_twap_ts,
             now,
@@ -1362,8 +1360,8 @@ impl MarketStats {
         ask_price: u64,
         precomputed_trade_price: Option<u64>,
         sanitize_clamp: Option<i64>,
-        funding_period: i64,
     ) -> crate::error::DriftResult<u64> {
+        let funding_period = self.funding_period;
         use crate::amm::math::amm::sanitize_new_price;
         use crate::math::casting::Cast;
         use crate::math::constants::{FIVE_MINUTE, ONE_MINUTE};
@@ -1514,7 +1512,6 @@ impl MarketStats {
         precomputed_trade_price: Option<u64>,
         direction: Option<crate::controller::position::PositionDirection>,
         sanitize_clamp: Option<i64>,
-        funding_period: i64,
         order_tick_size: u64,
     ) -> crate::error::DriftResult<u64> {
         let reserve_price = amm.reserve_price()?;
@@ -1533,7 +1530,6 @@ impl MarketStats {
             precomputed_trade_price,
             direction,
             sanitize_clamp,
-            funding_period,
             order_tick_size,
         )
     }
@@ -1553,7 +1549,6 @@ impl MarketStats {
         precomputed_trade_price: Option<u64>,
         direction: Option<crate::controller::position::PositionDirection>,
         sanitize_clamp: Option<i64>,
-        funding_period: i64,
         order_tick_size: u64,
     ) -> crate::error::DriftResult<u64> {
         let (bid_price, ask_price) = crate::amm::math::amm::estimate_best_bid_ask_price(
@@ -1572,7 +1567,6 @@ impl MarketStats {
             ask_price,
             precomputed_trade_price,
             sanitize_clamp,
-            funding_period,
         )
     }
 
@@ -1588,7 +1582,6 @@ impl MarketStats {
         best_dlob_bid_price: Option<u64>,
         best_dlob_ask_price: Option<u64>,
         sanitize_clamp: Option<i64>,
-        funding_period: i64,
     ) -> crate::error::DriftResult<()> {
         use crate::math::casting::Cast;
         use crate::math::safe_math::SafeMath;
@@ -1626,14 +1619,7 @@ impl MarketStats {
             }
         }
 
-        self.update_mark_twap(
-            now,
-            best_bid_price,
-            best_ask_price,
-            None,
-            sanitize_clamp,
-            funding_period,
-        )?;
+        self.update_mark_twap(now, best_bid_price, best_ask_price, None, sanitize_clamp)?;
         Ok(())
     }
 
@@ -1647,7 +1633,6 @@ impl MarketStats {
         mm_oracle_price_data: &crate::state::oracle::MMOraclePriceData,
         precomputed_reserve_price: Option<u64>,
         sanitize_clamp: Option<i64>,
-        funding_period: i64,
     ) -> crate::error::DriftResult<i64> {
         use crate::amm::math::amm::{
             calculate_new_oracle_price_twap, normalise_oracle_price, sanitize_new_price, TwapPeriod,
@@ -1678,7 +1663,6 @@ impl MarketStats {
                 now,
                 capped_oracle_update_price,
                 TwapPeriod::FundingPeriod,
-                funding_period,
             )?;
 
             let oracle_price_twap_5min = calculate_new_oracle_price_twap(
@@ -1686,7 +1670,6 @@ impl MarketStats {
                 now,
                 capped_oracle_update_price,
                 TwapPeriod::FiveMin,
-                funding_period,
             )?;
 
             self.last_oracle_normalised_price = capped_oracle_update_price;

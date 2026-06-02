@@ -1,12 +1,13 @@
 #[cfg(test)]
 mod test {
-    use crate::amm::math::amm::calculate_price;
-    use crate::amm::math::spread::*;
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION,
-        BID_ASK_SPREAD_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+    use crate::{
+        amm::math::{amm::calculate_price, spread::*},
+        math::constants::{
+            AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION,
+            BID_ASK_SPREAD_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        },
+        state::perp_market::{MarketStats, PerpMarket},
     };
-    use crate::state::perp_market::{MarketStats, PerpMarket};
 
     #[test]
     fn max_spread_tests() {
@@ -1643,10 +1644,4 @@ mod test {
         assert_eq!(long_spread, 11068);
         assert_eq!(short_spread, 135916);
     }
-
-    // The legacy `compute_amm_quote_state_matches_update_spreads_baseline`
-    // parity test (vs. the deleted `update_spreads` mutator) was removed —
-    // its purpose was to guard the field-deletion step that has now
-    // landed. `compute_amm_quote_state` is now the only path; there is no
-    // mutator to compare against.
 }

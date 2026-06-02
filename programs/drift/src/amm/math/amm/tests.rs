@@ -1,12 +1,18 @@
-use crate::amm::math::amm::*;
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64, QUOTE_PRECISION,
+use crate::{
+    amm::math::amm::*,
+    math::{
+        constants::{
+            AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
+            PRICE_PRECISION_U64, QUOTE_PRECISION,
+        },
+        oracle::OracleValidity,
+    },
+    state::{
+        oracle::HistoricalOracleData,
+        perp_market::{MarketStats, PerpMarket},
+        user::PerpPosition,
+    },
 };
-use crate::math::oracle::OracleValidity;
-use crate::state::oracle::HistoricalOracleData;
-use crate::state::perp_market::{MarketStats, PerpMarket};
-use crate::state::user::PerpPosition;
 
 #[test]
 fn calculate_amm_available_guards() {
@@ -509,7 +515,6 @@ fn calc_delayed_mark_twap_tests() {
     let px = 22850 * PRICE_PRECISION as i64;
     market.amm.peg_multiplier = px as u128;
     let trade_direction = PositionDirection::Long;
-    let funding_period = market.market_stats.funding_period;
     market
         .market_stats
         .update_mark_twap_from_estimates(
@@ -519,7 +524,6 @@ fn calc_delayed_mark_twap_tests() {
             Some(px as u64),
             Some(trade_direction),
             None,
-            funding_period,
             market.order_tick_size,
         )
         .unwrap();
@@ -614,23 +618,13 @@ fn calc_mark_std_tests() {
             oracle_price_data,
         )
         .unwrap();
-
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
-            .update_oracle_twap(
-                &market.amm,
-                now,
-                &mm_oracle_price_data,
-                None,
-                None,
-                funding_period,
-            )
+            .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
             .unwrap();
 
         market.amm.peg_multiplier = px as u128;
         let trade_direction = PositionDirection::Long;
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
             .update_mark_twap_from_estimates(
@@ -640,7 +634,6 @@ fn calc_mark_std_tests() {
                 Some(px),
                 Some(trade_direction),
                 None,
-                funding_period,
                 market.order_tick_size,
             )
             .unwrap();
@@ -695,7 +688,6 @@ fn calc_mark_std_tests() {
             assert!(amm_ask_price >= px);
 
             let trade_direction = PositionDirection::Long;
-            let funding_period = market.market_stats.funding_period;
             market
                 .market_stats
                 .update_mark_twap_from_estimates(
@@ -705,7 +697,6 @@ fn calc_mark_std_tests() {
                     Some(px),
                     Some(trade_direction),
                     None,
-                    funding_period,
                     market.order_tick_size,
                 )
                 .unwrap();
@@ -725,7 +716,6 @@ fn calc_mark_std_tests() {
             assert!(amm_ask_price >= px);
 
             let trade_direction = PositionDirection::Short;
-            let funding_period = market.market_stats.funding_period;
             market
                 .market_stats
                 .update_mark_twap_from_estimates(
@@ -735,7 +725,6 @@ fn calc_mark_std_tests() {
                     Some(px),
                     Some(trade_direction),
                     None,
-                    funding_period,
                     market.order_tick_size,
                 )
                 .unwrap();
@@ -756,7 +745,6 @@ fn calc_mark_std_tests() {
 
             market.market_stats.historical_oracle_data.last_oracle_price = (px - 1000000) as i64;
             let trade_direction = PositionDirection::Long;
-            let funding_period = market.market_stats.funding_period;
             market
                 .market_stats
                 .update_mark_twap_from_estimates(
@@ -766,7 +754,6 @@ fn calc_mark_std_tests() {
                     Some(px),
                     Some(trade_direction),
                     None,
-                    funding_period,
                     market.order_tick_size,
                 )
                 .unwrap();
@@ -777,7 +764,6 @@ fn calc_mark_std_tests() {
 
             market.market_stats.historical_oracle_data.last_oracle_price = (px + 1000000) as i64;
             let trade_direction = PositionDirection::Short;
-            let funding_period = market.market_stats.funding_period;
             market
                 .market_stats
                 .update_mark_twap_from_estimates(
@@ -787,7 +773,6 @@ fn calc_mark_std_tests() {
                     Some(px),
                     Some(trade_direction),
                     None,
-                    funding_period,
                     market.order_tick_size,
                 )
                 .unwrap();
@@ -857,20 +842,9 @@ fn update_mark_twap_tests() {
         order_tick_size: 1,
         ..PerpMarket::default()
     };
-
-    let funding_period = market.market_stats.funding_period;
-    let funding_period = market.market_stats.funding_period;
-    let funding_period = market.market_stats.funding_period;
     market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
         .unwrap();
     assert_eq!(
         market.market_stats.historical_oracle_data.last_oracle_price,
@@ -894,7 +868,6 @@ fn update_mark_twap_tests() {
             Some(trade_price),
             Some(trade_direction),
             None,
-            funding_period,
             market.order_tick_size,
         )
         .unwrap();
@@ -910,19 +883,10 @@ fn update_mark_twap_tests() {
 
     while now < 3600 {
         now += 1;
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
-            .update_oracle_twap(
-                &market.amm,
-                now,
-                &mm_oracle_price_data,
-                None,
-                None,
-                funding_period,
-            )
+            .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
             .unwrap();
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
             .update_mark_twap_from_estimates(
@@ -932,7 +896,6 @@ fn update_mark_twap_tests() {
                 Some(trade_price),
                 Some(trade_direction),
                 None,
-                funding_period,
                 market.order_tick_size,
             )
             .unwrap();
@@ -976,20 +939,11 @@ fn update_mark_twap_tests() {
 
     while now <= 3600 * 2 {
         now += 1;
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
-            .update_oracle_twap(
-                &market.amm,
-                now,
-                &mm_oracle_price_data,
-                None,
-                None,
-                funding_period,
-            )
+            .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
             .unwrap();
         if now % 200 == 0 {
-            let funding_period = market.market_stats.funding_period;
             market
                 .market_stats
                 .update_mark_twap_from_estimates(
@@ -999,7 +953,6 @@ fn update_mark_twap_tests() {
                     Some(trade_price_2),
                     Some(trade_direction_2),
                     None,
-                    funding_period,
                     market.order_tick_size,
                 )
                 .unwrap();
@@ -1072,18 +1025,9 @@ fn calc_oracle_twap_tests() {
         oracle_price_data,
     )
     .unwrap();
-
-    let funding_period = market.market_stats.funding_period;
     let _new_oracle_twap = market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
         .unwrap();
     assert_eq!(
         market
@@ -1117,17 +1061,9 @@ fn calc_oracle_twap_tests() {
     .unwrap();
 
     // let old_oracle_twap_2 = amm.historical_oracle_data.last_oracle_price_twap;
-    let funding_period = market.market_stats.funding_period;
     let _new_oracle_twap_2 = market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
         .unwrap();
     assert_eq!(
         market
@@ -1144,18 +1080,9 @@ fn calc_oracle_twap_tests() {
         33392001
     );
     assert_eq!(market.market_stats.oracle_std, 2_990_000);
-
-    let funding_period = market.market_stats.funding_period;
     let _new_oracle_twap_2 = market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now + 60 * 5,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now + 60 * 5, &mm_oracle_price_data, None, None)
         .unwrap();
 
     assert_eq!(
@@ -1189,8 +1116,6 @@ fn calc_oracle_twap_tests() {
         oracle_price_data,
     )
     .unwrap();
-
-    let funding_period = market.market_stats.funding_period;
     let _new_oracle_twap_2 = market
         .market_stats
         .update_oracle_twap(
@@ -1199,7 +1124,6 @@ fn calc_oracle_twap_tests() {
             &mm_oracle_price_data,
             None,
             None,
-            funding_period,
         )
         .unwrap();
     assert_eq!(
@@ -1271,17 +1195,9 @@ fn calc_oracle_twap_clamp_update_tests() {
     .unwrap();
 
     while now < prev + 3600 {
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
-            .update_oracle_twap(
-                &market.amm,
-                now,
-                &mm_oracle_price_data,
-                None,
-                None,
-                funding_period,
-            )
+            .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
             .unwrap();
         now += 1;
     }
@@ -1302,17 +1218,9 @@ fn calc_oracle_twap_clamp_update_tests() {
     assert_eq!(market.market_stats.last_oracle_normalised_price, 24_188_600);
 
     while now < prev + 3600 * 2 {
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
-            .update_oracle_twap(
-                &market.amm,
-                now,
-                &mm_oracle_price_data,
-                None,
-                None,
-                funding_period,
-            )
+            .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
             .unwrap();
         now += 1;
     }
@@ -1334,17 +1242,9 @@ fn calc_oracle_twap_clamp_update_tests() {
     assert_eq!(market.market_stats.last_oracle_normalised_price, 33_760_245);
 
     while now < prev + 3600 * 10 {
-        let funding_period = market.market_stats.funding_period;
         market
             .market_stats
-            .update_oracle_twap(
-                &market.amm,
-                now,
-                &mm_oracle_price_data,
-                None,
-                None,
-                funding_period,
-            )
+            .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
             .unwrap();
         now += 1;
     }
@@ -1418,18 +1318,9 @@ fn test_last_oracle_conf_update() {
         oracle_price_data,
     )
     .unwrap();
-
-    let funding_period = market.market_stats.funding_period;
     market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
         .unwrap();
 
     assert_eq!(market.market_stats.last_oracle_conf_pct, 7692);
@@ -1453,47 +1344,22 @@ fn test_last_oracle_conf_update() {
     .unwrap();
 
     // unchanged if now hasnt changed
-    let funding_period = market.market_stats.funding_period;
     market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now, &mm_oracle_price_data, None, None)
         .unwrap();
     assert_eq!(market.market_stats.last_oracle_conf_pct, 7692);
-
-    let funding_period = market.market_stats.funding_period;
     market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now + 1,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now + 1, &mm_oracle_price_data, None, None)
         .unwrap();
 
     assert_eq!(market.market_stats.last_oracle_conf_pct, 7692 - 7692 / 20); // 7287
 
     // longer time between update means delay is faster
-    let funding_period = market.market_stats.funding_period;
     market
         .market_stats
-        .update_oracle_twap(
-            &market.amm,
-            now + 60,
-            &mm_oracle_price_data,
-            None,
-            None,
-            funding_period,
-        )
+        .update_oracle_twap(&market.amm, now + 60, &mm_oracle_price_data, None, None)
         .unwrap();
 
     assert_eq!(

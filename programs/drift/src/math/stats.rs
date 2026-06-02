@@ -75,3 +75,30 @@ pub fn calculate_new_twap(
 
     calculate_weighted_average(current_price, last_twap, since_last, from_start, None)
 }
+
+/// Update a one-hour rolling-sum estimate of `|price - ewma|` magnitude.
+/// Used by both `MarketStats::update_mark_std` and
+/// `MarketStats::update_oracle_std` — the price-change magnitude is taken
+/// against whichever of `ewma` / `ewma_5min` is farther away.
+pub fn roll_std(
+    prev: u64,
+    last_ts: i64,
+    now: i64,
+    price: u64,
+    ewma: u64,
+    ewma_5min: u64,
+) -> DriftResult<u64> {
+    use crate::math::constants::ONE_HOUR;
+    let since_last = max(1_i64, now.safe_sub(last_ts)?);
+    let price_change_abs = price
+        .cast::<i64>()?
+        .safe_sub(ewma.cast::<i64>()?)?
+        .unsigned_abs()
+        .max(
+            price
+                .cast::<i64>()?
+                .safe_sub(ewma_5min.cast::<i64>()?)?
+                .unsigned_abs(),
+        );
+    calculate_rolling_sum(prev, price_change_abs, max(ONE_HOUR, since_last), ONE_HOUR)
+}

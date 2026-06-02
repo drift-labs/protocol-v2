@@ -240,7 +240,6 @@ pub fn update_funding_rate(
                 &mm_oracle_price_data,
                 Some(reserve_price),
                 sanitize_clamp_denominator,
-                funding_period,
             )?
         };
 
@@ -357,7 +356,6 @@ pub fn update_funding_rate(
             Some(execution_premium_price),
             execution_premium_direction,
             sanitize_clamp_denominator,
-            funding_period,
             order_tick_size,
         )?;
 

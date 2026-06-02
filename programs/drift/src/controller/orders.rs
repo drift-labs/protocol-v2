@@ -2369,7 +2369,6 @@ pub fn fulfill_perp_order_step(
     let safe_oracle = mm_oracle_price_data.get_safe_oracle_price_data();
     let order_tick_size = market.order_tick_size;
     let order_step_size = market.order_step_size;
-    let funding_period_for_twap = market.market_stats.funding_period;
     let total_exchange_fee = market.total_exchange_fee;
     let total_liquidation_fee = market.total_liquidation_fee;
     let market_status_local = market.status;
@@ -2480,7 +2479,6 @@ pub fn fulfill_perp_order_step(
         Some(twap_trade_price),
         Some(taker_direction),
         sanitize_clamp_denom,
-        funding_period_for_twap,
         order_tick_size,
     )?;
 
