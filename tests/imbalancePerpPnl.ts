@@ -591,11 +591,20 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				'lastOraclePrice:',
 				market0.marketStats.historicalOracleData.lastOraclePrice.toString()
 			);
-			console.log('lastOracleValid:', market0.marketStats.lastOracleValid.toString());
+			console.log(
+				'lastOracleValid:',
+				market0.marketStats.lastOracleValid.toString()
+			);
 			console.log('lastUpdateSlot:', market0.amm.lastUpdateSlot.toString());
 
-			console.log('lastAskPriceTwap:', market0.marketStats.lastAskPriceTwap.toString());
-			console.log('lastBidPriceTwap:', market0.marketStats.lastBidPriceTwap.toString());
+			console.log(
+				'lastAskPriceTwap:',
+				market0.marketStats.lastAskPriceTwap.toString()
+			);
+			console.log(
+				'lastBidPriceTwap:',
+				market0.marketStats.lastBidPriceTwap.toString()
+			);
 			console.log(
 				'lastOraclePriceTwap:',
 				market0.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
@@ -629,11 +638,20 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			'lastOraclePrice:',
 			market0.marketStats.historicalOracleData.lastOraclePrice.toString()
 		);
-		console.log('lastOracleValid:', market0.marketStats.lastOracleValid.toString());
+		console.log(
+			'lastOracleValid:',
+			market0.marketStats.lastOracleValid.toString()
+		);
 		console.log('lastUpdateSlot:', market0.amm.lastUpdateSlot.toString());
 
-		console.log('lastAskPriceTwap:', market0.marketStats.lastAskPriceTwap.toString());
-		console.log('lastBidPriceTwap:', market0.marketStats.lastBidPriceTwap.toString());
+		console.log(
+			'lastAskPriceTwap:',
+			market0.marketStats.lastAskPriceTwap.toString()
+		);
+		console.log(
+			'lastBidPriceTwap:',
+			market0.marketStats.lastBidPriceTwap.toString()
+		);
 		console.log(
 			'lastOraclePriceTwap:',
 			market0.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
@@ -715,10 +733,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		console.log(perpMarket.status);
 		assert(isVariant(perpMarket.status, 'active'));
-		console.log(
-			'totalExchangeFee:',
-			perpMarket.totalExchangeFee.toString()
-		);
+		console.log('totalExchangeFee:', perpMarket.totalExchangeFee.toString());
 		console.log('totalFee:', perpMarket.amm.totalFee.toString());
 		console.log('totalMMFee:', perpMarket.amm.totalMmFee.toString());
 		console.log(
@@ -957,10 +972,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		console.log(perpMarket.status);
 		assert(isVariant(perpMarket.status, 'active'));
-		console.log(
-			'totalExchangeFee:',
-			perpMarket.totalExchangeFee.toString()
-		);
+		console.log('totalExchangeFee:', perpMarket.totalExchangeFee.toString());
 		console.log('totalFee:', perpMarket.amm.totalFee.toString());
 		console.log('totalMMFee:', perpMarket.amm.totalMmFee.toString());
 		console.log(

@@ -539,7 +539,9 @@ describe('delist market', () => {
 			market.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		assert(
-			market.marketStats.historicalOracleData.lastOraclePriceTwap.eq(new BN(43133700))
+			market.marketStats.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(43133700)
+			)
 		);
 
 		// should fail
@@ -641,10 +643,14 @@ describe('delist market', () => {
 		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
 		console.log(
 			'market.marketStats.historicalOracleData.lastOraclePriceTwap:',
-			convertToNumber(market.marketStats.historicalOracleData.lastOraclePriceTwap)
+			convertToNumber(
+				market.marketStats.historicalOracleData.lastOraclePriceTwap
+			)
 		);
 		assert(
-			market.marketStats.historicalOracleData.lastOraclePriceTwap.eq(new BN(12780356))
+			market.marketStats.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(12780356)
+			)
 		);
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
@@ -661,11 +667,15 @@ describe('delist market', () => {
 		assert(market.amm.baseAssetAmountWithAmm.lt(ZERO));
 		assert(oraclePriceData.price.lt(market.expiryPrice));
 		assert(
-			market.marketStats.historicalOracleData.lastOraclePriceTwap.lt(market.expiryPrice)
+			market.marketStats.historicalOracleData.lastOraclePriceTwap.lt(
+				market.expiryPrice
+			)
 		);
 		assert(
 			market.expiryPrice.eq(
-				market.marketStats.historicalOracleData.lastOraclePriceTwap.add(new BN(1))
+				market.marketStats.historicalOracleData.lastOraclePriceTwap.add(
+					new BN(1)
+				)
 			)
 		);
 
@@ -776,10 +786,7 @@ describe('delist market', () => {
 		assert(marketAfter.pnlPool.scaledBalance.lt(new BN(969643453000 + 109000)));
 
 		console.log('feePool:', marketAfter.amm.feePool.scaledBalance.toString());
-		console.log(
-			'totalExchangeFee:',
-			marketAfter.totalExchangeFee.toString()
-		);
+		console.log('totalExchangeFee:', marketAfter.totalExchangeFee.toString());
 		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(64700000)));
 
 		// assert(marketAfter.totalExchangeFee.eq(new BN(43134)));

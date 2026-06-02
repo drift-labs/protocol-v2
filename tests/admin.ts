@@ -281,8 +281,7 @@ describe('admin', () => {
 			`oracle does not match \n actual: ${market.oracle} \n expected: ${PublicKey.default}`
 		);
 		assert(
-			JSON.stringify(market.oracleSource) ===
-				JSON.stringify(newOracleSource),
+			JSON.stringify(market.oracleSource) === JSON.stringify(newOracleSource),
 			`oracle source does not match \n actual: ${JSON.stringify(
 				market.oracleSource
 			)} \n expected: ${JSON.stringify(newOracleSource)}`

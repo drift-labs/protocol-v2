@@ -2223,8 +2223,7 @@ export class User {
 	): BN {
 		const market = this.velocityClient.getPerpMarketAccount(marketIndex);
 
-		const oracle =
-			this.velocityClient.getPerpMarketAccount(marketIndex).oracle;
+		const oracle = this.velocityClient.getPerpMarketAccount(marketIndex).oracle;
 
 		const oraclePrice =
 			this.velocityClient.getOracleDataForPerpMarket(marketIndex).price;

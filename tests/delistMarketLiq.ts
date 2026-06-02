@@ -768,10 +768,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		// const ammPnlResult = new BN(0);
 		console.log('feePool:', marketAfter0.amm.feePool.scaledBalance.toString());
-		console.log(
-			'totalExchangeFee:',
-			marketAfter0.totalExchangeFee.toString()
-		);
+		console.log('totalExchangeFee:', marketAfter0.totalExchangeFee.toString());
 		assert(marketAfter0.amm.feePool.scaledBalance.eq(ZERO));
 		assert(marketAfter0.totalExchangeFee.eq(new BN(8712501)));
 		await liquidatorDriftClientUser.unsubscribe();

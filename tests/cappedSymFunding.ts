@@ -58,7 +58,6 @@ async function updateFundingRateHelper(
 		// );
 		await driftClient.fetchAccounts();
 		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
-		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
 			marketData0.oracle
@@ -88,8 +87,7 @@ async function updateFundingRateHelper(
 			priceSpread0
 		);
 
-		const cumulativeFundingRateLongOld =
-			marketData0.cumulativeFundingRateLong;
+		const cumulativeFundingRateLongOld = marketData0.cumulativeFundingRateLong;
 		const cumulativeFundingRateShortOld =
 			marketData0.cumulativeFundingRateShort;
 
@@ -105,7 +103,6 @@ async function updateFundingRateHelper(
 
 		await driftClient.fetchAccounts();
 		const marketData = driftClient.getPerpMarketAccount(marketIndex);
-		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.marketStats.fundingPeriod;
 
 		const lastFundingRate = convertToNumber(
@@ -116,15 +113,9 @@ async function updateFundingRateHelper(
 		console.log('last funding rate:', lastFundingRate);
 		console.log(
 			'cumfunding rate long',
-			convertToNumber(
-				marketData.cumulativeFundingRateLong,
-				CONVERSION_SCALE
-			),
+			convertToNumber(marketData.cumulativeFundingRateLong, CONVERSION_SCALE),
 			'cumfunding rate short',
-			convertToNumber(
-				marketData.cumulativeFundingRateShort,
-				CONVERSION_SCALE
-			)
+			convertToNumber(marketData.cumulativeFundingRateShort, CONVERSION_SCALE)
 		);
 
 		const lastFundingLong = marketData.cumulativeFundingRateLong
@@ -163,7 +154,8 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			marketData.marketStats.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
+			marketData.marketStats.lastMarkPriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber(),
 			'oracleTwap:',
 			marketData.marketStats.historicalOracleData.lastOraclePriceTwap.toNumber() /
 				PRICE_PRECISION.toNumber(),
@@ -174,7 +166,9 @@ async function updateFundingRateHelper(
 			'priceSpread:',
 			priceSpread
 		);
-		const s = new Date(marketData.marketStats.lastMarkPriceTwapTs.toNumber() * 1000);
+		const s = new Date(
+			marketData.marketStats.lastMarkPriceTwapTs.toNumber() * 1000
+		);
 		const sdate = s.toLocaleDateString('en-US');
 		const stime = s.toLocaleTimeString('en-US');
 

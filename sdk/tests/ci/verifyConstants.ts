@@ -192,8 +192,7 @@ describe('Verify Constants', function () {
 			}
 
 			if (
-				correspondingConfigMarket.oracle.toBase58() !==
-				market.oracle.toBase58()
+				correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()
 			) {
 				errors.push(
 					`Oracle mismatch for mainnet perp market ${
@@ -225,9 +224,7 @@ describe('Verify Constants', function () {
 				});
 			}
 
-			const lutHasMarketOracle = lutAccounts.includes(
-				market.oracle.toBase58()
-			);
+			const lutHasMarketOracle = lutAccounts.includes(market.oracle.toBase58());
 			if (!lutHasMarketOracle) {
 				missingLutAddresses.push({
 					type: 'perp',
@@ -352,8 +349,7 @@ describe('Verify Constants', function () {
 			}
 
 			if (
-				correspondingConfigMarket.oracle.toBase58() !==
-				market.oracle.toBase58()
+				correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()
 			) {
 				errors.push(
 					`Oracle mismatch for devnet perp market ${

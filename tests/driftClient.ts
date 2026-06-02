@@ -181,7 +181,9 @@ describe('drift client', () => {
 		assert.ok(market.lastFundingRate.eq(new BN(0)));
 		assert.ok(!market.lastFundingRateTs.eq(new BN(0)));
 		assert.ok(
-			!market.marketStats.historicalOracleData.lastOraclePriceTwapTs.eq(new BN(0))
+			!market.marketStats.historicalOracleData.lastOraclePriceTwapTs.eq(
+				new BN(0)
+			)
 		);
 	});
 

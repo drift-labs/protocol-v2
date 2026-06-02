@@ -47,7 +47,6 @@ async function updateFundingRateHelper(
 		setFeedPriceNoProgram(context, newprice, priceFeedAddress);
 
 		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
-		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedDataNoProgram(
 			// @ts-ignore
 			context.connection,
@@ -79,8 +78,7 @@ async function updateFundingRateHelper(
 			priceSpread0
 		);
 
-		const cumulativeFundingRateLongOld =
-			marketData0.cumulativeFundingRateLong;
+		const cumulativeFundingRateLongOld = marketData0.cumulativeFundingRateLong;
 		const cumulativeFundingRateShortOld =
 			marketData0.cumulativeFundingRateShort;
 		try {
@@ -109,15 +107,9 @@ async function updateFundingRateHelper(
 			'cumfunding rate:',
 			convertToNumber(ammAccountState.cumulativeFundingRate, CONVERSION_SCALE),
 			'cumfunding rate long',
-			convertToNumber(
-				marketData.cumulativeFundingRateLong,
-				CONVERSION_SCALE
-			),
+			convertToNumber(marketData.cumulativeFundingRateLong, CONVERSION_SCALE),
 			'cumfunding rate short',
-			convertToNumber(
-				marketData.cumulativeFundingRateShort,
-				CONVERSION_SCALE
-			)
+			convertToNumber(marketData.cumulativeFundingRateShort, CONVERSION_SCALE)
 		);
 
 		const lastFundingLong = marketData.cumulativeFundingRateLong
@@ -141,7 +133,8 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			marketData.marketStats.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
+			marketData.marketStats.lastMarkPriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			marketData.marketStats.lastMarkPriceTwap.toNumber(),
 			'oracleTwap(vamm):',
@@ -149,7 +142,9 @@ async function updateFundingRateHelper(
 			'priceSpread:',
 			priceSpread
 		);
-		const s = new Date(marketData.marketStats.lastMarkPriceTwapTs.toNumber() * 1000);
+		const s = new Date(
+			marketData.marketStats.lastMarkPriceTwapTs.toNumber() * 1000
+		);
 		const sdate = s.toLocaleDateString('en-US');
 		const stime = s.toLocaleTimeString('en-US');
 
