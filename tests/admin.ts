@@ -472,8 +472,8 @@ describe('admin', () => {
 	it('mm oracle step cap rejects too large jump', async () => {
 		await driftClient.fetchAccounts();
 		const before = driftClient.getPerpMarketAccount(0);
-		const baselinePrice = before.amm.mmOraclePrice;
-		const baselineSeqId = before.amm.mmOracleSequenceId;
+		const baselinePrice = before.marketStats.mmOraclePrice;
+		const baselineSeqId = before.marketStats.mmOracleSequenceId;
 
 		// 5% jump from the last accepted price exceeds the 1% step cap.
 		const tooLargePrice = baselinePrice.muln(105).divn(100);
@@ -485,11 +485,11 @@ describe('admin', () => {
 
 		const after = driftClient.getPerpMarketAccount(0);
 		assert(
-			after.amm.mmOraclePrice.eq(baselinePrice),
+			after.marketStats.mmOraclePrice.eq(baselinePrice),
 			'mm oracle price should be unchanged after step-cap reject'
 		);
 		assert(
-			after.amm.mmOracleSequenceId.eq(baselineSeqId),
+			after.marketStats.mmOracleSequenceId.eq(baselineSeqId),
 			'mm oracle sequence id should be unchanged after step-cap reject'
 		);
 	});
