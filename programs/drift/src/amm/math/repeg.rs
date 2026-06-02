@@ -449,3 +449,195 @@ pub fn get_total_fee_lower_bound(market: &PerpMarket) -> DriftResult<u128> {
 
     Ok(total_fee_lower_bound)
 }
+
+/// PerpMarket-level scalars `project_post_refresh` needs but the AMM
+/// itself doesn't own. Copied out of `PerpMarket` once at the setup phase,
+/// then handed to the AMM-side computation so the projection runs without
+/// holding a `&PerpMarket` borrow. In the future CPI architecture these
+/// scalars are what Drift sends as inputs to each AMM-program call.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ProjectionInputs {
+    pub total_exchange_fee: u128,
+    pub total_liquidation_fee: u128,
+    pub market_status: crate::state::market_status::MarketStatus,
+    /// Raw `market_config` byte — checked against `MarketConfigFlag` bits
+    /// inside `adjust_amm` (e.g. `DisableFormulaicKUpdate`).
+    pub market_config: u8,
+}
+
+impl ProjectionInputs {
+    pub fn from_market(market: &PerpMarket) -> Self {
+        Self {
+            total_exchange_fee: market.total_exchange_fee,
+            total_liquidation_fee: market.total_liquidation_fee,
+            market_status: market.status,
+            market_config: market.market_config,
+        }
+    }
+}
+
+/// Scalar-input variant of `project_post_refresh`. Internally constructs a
+/// synthetic `PerpMarket` (since `calculate_optimal_peg_and_budget` /
+/// `adjust_amm` take `&PerpMarket` today). Keeps the math primitives
+/// unchanged while letting callers project from a `&AMM` + the few
+/// PerpMarket-level scalars they actually need.
+pub fn project_post_refresh_scalar(
+    amm: &AMM,
+    inputs: &ProjectionInputs,
+    mm_oracle_price_data: &MMOraclePriceData,
+    oracle_validity: Option<OracleValidity>,
+) -> DriftResult<ProjectedAmmState> {
+    let synthetic = PerpMarket {
+        amm: *amm,
+        total_exchange_fee: inputs.total_exchange_fee,
+        total_liquidation_fee: inputs.total_liquidation_fee,
+        status: inputs.market_status,
+        market_config: inputs.market_config,
+        ..PerpMarket::default()
+    };
+    project_post_refresh(&synthetic, mm_oracle_price_data, oracle_validity)
+}
+
+/// Pure snapshot of the AMM state that `project_post_refresh` would write if
+/// it were a mutating refresh. `applied = false` means the projection is a
+/// passthrough of current state (oracle not valid for curve update,
+/// curve_update_intensity == 0, or the affordability check rejected the
+/// debit) — in that case `cost == 0` and the four state fields equal the
+/// AMM's current values.
+#[derive(Debug, Clone, Copy)]
+pub struct ProjectedAmmState {
+    pub peg_multiplier: u128,
+    pub base_asset_reserve: u128,
+    pub quote_asset_reserve: u128,
+    pub sqrt_k: u128,
+    pub cost: i128,
+    pub applied: bool,
+}
+
+impl ProjectedAmmState {
+    /// Passthrough projection mirroring an AMM's current state. Used by
+    /// callers that need an `AmmQuoter` without forcing a refresh
+    /// computation (tests, JIT-auction quoters that work against a
+    /// pre-frozen AMM snapshot, etc.).
+    pub fn noop(amm: &AMM) -> Self {
+        Self {
+            peg_multiplier: amm.peg_multiplier,
+            base_asset_reserve: amm.base_asset_reserve,
+            quote_asset_reserve: amm.quote_asset_reserve,
+            sqrt_k: amm.sqrt_k,
+            cost: 0,
+            applied: false,
+        }
+    }
+
+    /// Build an AMM clone with the projection's curve fields written. Used
+    /// by quote-side functions to materialise post-refresh reserves without
+    /// touching the real AMM. The clone has `terminal_quote_asset_reserve`,
+    /// `min_base_asset_reserve`, and `max_base_asset_reserve` recomputed via
+    /// `apply_k_update`, so it's a complete projected snapshot suitable for
+    /// `compute_amm_quote_state` etc.
+    pub fn projected_amm(&self, amm: &AMM) -> DriftResult<AMM> {
+        let mut clone = *amm;
+        if !self.applied {
+            return Ok(clone);
+        }
+        clone.apply_k_update(&cp_curve::UpdateKResult {
+            sqrt_k: self.sqrt_k,
+            base_asset_reserve: self.base_asset_reserve,
+            quote_asset_reserve: self.quote_asset_reserve,
+        })?;
+        clone.peg_multiplier = self.peg_multiplier;
+        Ok(clone)
+    }
+
+    /// Write the projection to a mutable AMM, debiting `cost` from
+    /// `total_fee_minus_distributions` / `net_revenue_since_last_funding`.
+    /// No-op when `applied == false`. Used by `commit_fill` (atomically
+    /// with a swap) and `snap_to_oracle` (explicit keeper crank).
+    pub fn apply_to(&self, amm: &mut AMM) -> DriftResult<()> {
+        if !self.applied {
+            return Ok(());
+        }
+        amm.apply_k_update(&cp_curve::UpdateKResult {
+            sqrt_k: self.sqrt_k,
+            base_asset_reserve: self.base_asset_reserve,
+            quote_asset_reserve: self.quote_asset_reserve,
+        })?;
+        amm.peg_multiplier = self.peg_multiplier;
+        amm.total_fee_minus_distributions =
+            amm.total_fee_minus_distributions.safe_sub(self.cost)?;
+        amm.net_revenue_since_last_funding = amm
+            .net_revenue_since_last_funding
+            .safe_sub(self.cost.cast::<i64>()?)?;
+        Ok(())
+    }
+}
+
+/// Pure projection of "what (peg, reserves, sqrt_k) would the AMM be at if it
+/// refreshed right now?" — no mutation. Composes the existing
+/// `calculate_optimal_peg_and_budget` + `adjust_amm` pipeline and resolves
+/// the affordability check (`check_lower_bound` against `protocol_floor`) so
+/// callers receive the final values that would be written. Used by quote
+/// functions (read-only) and by `commit_fill` / `snap_to_oracle` (apply).
+pub fn project_post_refresh(
+    market: &PerpMarket,
+    mm_oracle_price_data: &MMOraclePriceData,
+    oracle_validity: Option<OracleValidity>,
+) -> DriftResult<ProjectedAmmState> {
+    let noop = ProjectedAmmState {
+        peg_multiplier: market.amm.peg_multiplier,
+        base_asset_reserve: market.amm.base_asset_reserve,
+        quote_asset_reserve: market.amm.quote_asset_reserve,
+        sqrt_k: market.amm.sqrt_k,
+        cost: 0,
+        applied: false,
+    };
+
+    let Some(validity) = oracle_validity else {
+        return Ok(noop);
+    };
+    if !oracle::is_oracle_valid_for_action(validity, Some(oracle::DriftAction::UpdateAMMCurve))? {
+        return Ok(noop);
+    }
+
+    let curve_update_intensity = min(market.amm.curve_update_intensity, 100_u8);
+    if curve_update_intensity == 0 {
+        return Ok(noop);
+    }
+
+    let (optimal_peg, fee_budget, check_lower_bound) =
+        calculate_optimal_peg_and_budget(market, mm_oracle_price_data)?;
+    let (repegged, cost) = adjust_amm(
+        market,
+        optimal_peg,
+        fee_budget,
+        curve_update_intensity >= 100,
+    )?;
+    let total_fee_floor = market
+        .amm
+        .protocol_floor(market.total_exchange_fee, market.total_liquidation_fee)?;
+
+    // Affordability: positive cost debits `total_fee_minus_distributions`;
+    // if `check_lower_bound` is set and the debit would push below the floor,
+    // the refresh is rejected. Matches `handle_refresh` / legacy
+    // `apply_cost_to_market` semantics.
+    let applied = if cost > 0 {
+        let new_tfmd = market.amm.total_fee_minus_distributions.safe_sub(cost)?;
+        !(check_lower_bound && new_tfmd < total_fee_floor)
+    } else {
+        true
+    };
+
+    if applied {
+        Ok(ProjectedAmmState {
+            peg_multiplier: repegged.amm.peg_multiplier,
+            base_asset_reserve: repegged.amm.base_asset_reserve,
+            quote_asset_reserve: repegged.amm.quote_asset_reserve,
+            sqrt_k: repegged.amm.sqrt_k,
+            cost,
+            applied: true,
+        })
+    } else {
+        Ok(noop)
+    }
+}

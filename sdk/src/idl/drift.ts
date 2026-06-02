@@ -14088,16 +14088,16 @@ export type Drift = {
       ]
     },
     {
-      "name": "curveRecord",
+      "name": "ammCurveChanged",
       "discriminator": [
-        101,
-        238,
-        40,
-        228,
-        70,
-        46,
-        61,
-        117
+        116,
+        12,
+        114,
+        18,
+        175,
+        31,
+        153,
+        5
       ]
     },
     {
@@ -16317,6 +16317,25 @@ export type Drift = {
             "type": "i64"
           },
           {
+            "name": "lastCumulativeFundingRateLong",
+            "docs": [
+              "AMM's last-seen cumulative funding rates. Mirrors",
+              "`PerpPosition::last_cumulative_funding_rate` on user positions —",
+              "the AMM settles its own funding payment from",
+              "`(market.cumulative_funding_rate_* − own_last) ×",
+              "counterparty_position`, same math shape user positions use. The",
+              "AMM is the counterparty for the net imbalance, so the relevant",
+              "cum rate is the LONG one when the AMM is net long",
+              "(base_asset_amount_with_amm < 0, i.e. users net short) and the",
+              "SHORT one when the AMM is net short."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "lastCumulativeFundingRateShort",
+            "type": "i64"
+          },
+          {
             "name": "baseSpread",
             "docs": [
               "the minimum spread the AMM can quote. also used as step size for some spread logic increases."
@@ -16555,6 +16574,84 @@ export type Drift = {
                 }
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ammCurveChanged",
+      "docs": [
+        "AMM-side curve change: peg / reserves / sqrt_k moved, and the AMM",
+        "debited the adjustment cost from its books. Emitted by the AMM itself",
+        "(from `on_market_event(FundingUpdated)`'s k-update branch, from",
+        "`snap_to_oracle`, and from the admin `repeg` ix). PerpMarket-side",
+        "state at the time of the change (`base_asset_amount_long/short`,",
+        "`number_of_users`) lives on a separate `FundingRateRecord` or can be",
+        "queried by consumers correlating on `(ts, market_index)`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "pegMultiplierBefore",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetReserveBefore",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetReserveBefore",
+            "type": "u128"
+          },
+          {
+            "name": "sqrtKBefore",
+            "type": "u128"
+          },
+          {
+            "name": "pegMultiplierAfter",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetReserveAfter",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetReserveAfter",
+            "type": "u128"
+          },
+          {
+            "name": "sqrtKAfter",
+            "type": "u128"
+          },
+          {
+            "name": "adjustmentCost",
+            "docs": [
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "totalFeeMinusDistributionsAfter",
+            "docs": [
+              "precision: QUOTE_PRECISION — AMM's TFMD after the change."
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "oraclePrice",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
           }
         ]
       }
@@ -17157,115 +17254,6 @@ export type Drift = {
       }
     },
     {
-      "name": "curveRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "recordId",
-            "type": "u64"
-          },
-          {
-            "name": "pegMultiplierBefore",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetReserveBefore",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetReserveBefore",
-            "type": "u128"
-          },
-          {
-            "name": "sqrtKBefore",
-            "type": "u128"
-          },
-          {
-            "name": "pegMultiplierAfter",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetReserveAfter",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetReserveAfter",
-            "type": "u128"
-          },
-          {
-            "name": "sqrtKAfter",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountLong",
-            "docs": [
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountShort",
-            "docs": [
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountWithAmm",
-            "docs": [
-              "precision: BASE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "totalFee",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "totalFeeMinusDistributions",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "adjustmentCost",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "oraclePrice",
-            "docs": [
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "fillRecord",
-            "type": "u128"
-          },
-          {
-            "name": "numberOfUsers",
-            "type": "u32"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          }
-        ]
-      }
-    },
-    {
       "name": "deleteUserRecord",
       "type": {
         "kind": "struct",
@@ -17670,13 +17658,6 @@ export type Drift = {
               "precision: PRICE_PRECISION"
             ],
             "type": "u64"
-          },
-          {
-            "name": "periodRevenue",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i64"
           },
           {
             "name": "baseAssetAmountWithAmm",
@@ -20878,13 +20859,6 @@ export type Drift = {
             "type": "u64"
           },
           {
-            "name": "nextCurveRecordId",
-            "docs": [
-              "Every amm k updated has a record id. This is the next id to be used"
-            ],
-            "type": "u64"
-          },
-          {
             "name": "imfFactor",
             "docs": [
               "The initial margin fraction factor. Used to increase margin ratio for large positions",
@@ -21109,14 +21083,15 @@ export type Drift = {
           {
             "name": "padding",
             "docs": [
-              "Trailing 28 bytes (was 27 + 1 compiler-inserted gap) so the IDL",
-              "records every byte and `market_stats` lands at the same offset Rust",
-              "computes via repr(C) alignment."
+              "Trailing padding so `market_stats` lands at the offset Rust naturally",
+              "computes via `repr(C)` alignment and the `(SIZE - 8) % 16 == 0`",
+              "invariant holds. Bumped to 36 bytes (was 28) when `next_curve_record_id`",
+              "was removed."
             ],
             "type": {
               "array": [
                 "u8",
-                28
+                36
               ]
             }
           },

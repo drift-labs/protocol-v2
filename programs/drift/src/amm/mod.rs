@@ -13,4 +13,4 @@ pub mod refresh;
 pub mod state;
 
 pub use quoter::{AmmJitQuoter, AmmQuoter};
-pub use state::{AmmCurveRecordMetrics, AmmFeePoolSnapshot, AMM};
+pub use state::{AmmFeePoolSnapshot, AMM};

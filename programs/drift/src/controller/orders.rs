@@ -1145,6 +1145,25 @@ pub fn fill_perp_order(
                 .validity
                 .slots_before_stale_for_margin;
 
+        // No AMM mutation here — `fulfill_perp_order_step` constructs an
+        // `AmmQuoter` and calls `Quoter::setup` before quoting, which is
+        // the sole non-admin AMM-refresh entrypoint. PerpMarket-level
+        // oracle bookkeeping (TWAPs, reference-price-offset,
+        // last_oracle_valid) is PerpMarket's own concern and stays here
+        // (no AMM reacharound — PerpMarket reading its own AMM field).
+        let amm_refresh_validity =
+            crate::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
+                market,
+                &mm_oracle_price_data,
+                &state.oracle_guard_rails.validity,
+            )?;
+        market.update_oracle_derived_stats(
+            &mm_oracle_price_data,
+            amm_refresh_validity,
+            now,
+            slot,
+        )?;
+
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = mm_oracle_price_data.get_price();
         oracle_twap_5min = market
@@ -2296,7 +2315,10 @@ pub fn fulfill_perp_order_step(
     filler_key: &Pubkey,
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
-    reserve_price_before: u64,
+    // AmmQuoter::setup is what materialises the pre-quote reserves now;
+    // this orchestrator-supplied value is informational only. Kept on the
+    // signature to avoid churning all call sites.
+    _reserve_price_before: u64,
     valid_oracle_price: Option<i64>,
     taker_limit_price: Option<u64>,
     now: i64,
@@ -2333,24 +2355,46 @@ pub fn fulfill_perp_order_step(
         market.get_mm_oracle_price_data(oracle_pd, slot, validity_guard_rails)?;
     let sanitize_clamp_denom = market.get_sanitize_clamp_denominator()?;
 
-    // Materialise AMM-derived state once (in the future-AMM-as-its-own-program
-    // model this is one CPI call). The orchestrator threads the result into
-    // the mark-TWAP update AND into the quoter constructors; the AMM is
-    // *not* re-read mid-step.
-    let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
+    // Construct the AMM-side `Quoter` and run setup once. `Quoter::setup`
+    // is the sole non-admin AMM-refresh path. The quoter lives until the
+    // end of this function — the AMM-match arm uses it directly; the
+    // DLOB-Match arm explicitly drops it before constructing an
+    // `AmmJitQuoter` over the same `&mut market`.
+    let amm_refresh_validity = crate::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
+        market,
         &mm_oracle_price_data,
-        reserve_price_before,
+        validity_guard_rails,
+    )?;
+    let market_stats_snapshot = market.market_stats;
+    let safe_oracle = mm_oracle_price_data.get_safe_oracle_price_data();
+    let order_tick_size = market.order_tick_size;
+    let order_step_size = market.order_step_size;
+    let funding_period_for_twap = market.market_stats.funding_period;
+    let total_exchange_fee = market.total_exchange_fee;
+    let total_liquidation_fee = market.total_liquidation_fee;
+    let market_status_local = market.status;
+    let market_config_local = market.market_config;
+    let setup_ctx = crate::state::quoter::QuoteContext {
+        stats: &market_stats_snapshot,
+        oracle: &safe_oracle,
+        mm_oracle: Some(&mm_oracle_price_data),
+        oracle_validity: amm_refresh_validity,
+        fee_budget: 0,
+        tick: order_tick_size,
+        step_size: order_step_size,
         slot,
-    )?;
-    let (amm_bid_price, amm_ask_price) = market.amm.bid_ask_price(
-        reserve_price_before,
-        amm_quote_state.long_spread,
-        amm_quote_state.short_spread,
-        amm_quote_state.reference_price_offset,
-    )?;
-    let amm_base_spread = market.amm.base_spread;
+        base_precision: BASE_PRECISION_U64,
+        total_exchange_fee,
+        total_liquidation_fee,
+        market_status: market_status_local,
+        market_config: market_config_local,
+    };
+    let mut amm_quoter = crate::amm::AmmQuoter::for_amm(&mut market.amm);
+    <crate::amm::AmmQuoter as crate::state::quoter::Quoter>::setup(&mut amm_quoter, &setup_ctx)?;
+    let reserve_after_setup = amm_quoter.amm.reserve_price()?;
+    let (amm_bid_price, amm_ask_price) = amm_quoter.amm_bid_ask(reserve_after_setup)?;
+    let amm_base_spread = amm_quoter.amm_base_spread();
+    let amm_quote_state = amm_quoter.quote_state;
 
     // ---- 2. Per-fill validate / event metadata. ----
     let taker_base_unfilled = taker.orders[taker_order_index]
@@ -2380,19 +2424,25 @@ pub fn fulfill_perp_order_step(
             let taker_price = match taker_limit_price {
                 Some(p) => p,
                 None => {
+                    // Reborrow `amm_quoter.amm` immutably to read AMM-side
+                    // fields without dropping the quoter (it still owns the
+                    // &mut for the matcher below). `market.market_stats` is
+                    // a disjoint PerpMarket field.
+                    let amm_ref: &crate::amm::AMM = amm_quoter.amm;
                     let amm_available = calculate_amm_available_liquidity(
-                        &market.amm,
+                        amm_ref,
                         &taker_direction,
-                        market.order_step_size,
+                        order_step_size,
                     )?;
-                    market.amm.get_fallback_price(
+                    let min_order_size = market.market_stats.min_order_size;
+                    amm_ref.get_fallback_price(
                         &market.market_stats,
                         &amm_quote_state,
                         &taker_direction,
                         amm_available,
                         oracle_price,
                         taker.orders[taker_order_index].seconds_til_expiry(now),
-                        market.market_stats.min_order_size,
+                        min_order_size,
                     )?
                 }
             };
@@ -2430,20 +2480,28 @@ pub fn fulfill_perp_order_step(
         Some(twap_trade_price),
         Some(taker_direction),
         sanitize_clamp_denom,
-        market.market_stats.funding_period,
-        market.order_tick_size,
+        funding_period_for_twap,
+        order_tick_size,
     )?;
 
-    // ---- 4. Build QuoteContext. ----
+    // ---- 4. Build QuoteContext for the matcher. AMM-projection fields
+    // not needed here — setup has already run on amm_quoter.
     let stats_snapshot = market.market_stats;
     let oracle_stub = OraclePriceData::default();
     let ctx = crate::state::quoter::QuoteContext {
         stats: &stats_snapshot,
         oracle: &oracle_stub,
+        mm_oracle: None,
+        oracle_validity: None,
         fee_budget: 0,
-        tick: market.order_tick_size,
+        tick: order_tick_size,
+        step_size: order_step_size,
         slot,
         base_precision: BASE_PRECISION_U64,
+        total_exchange_fee: 0,
+        total_liquidation_fee: 0,
+        market_status: crate::state::market_status::MarketStatus::default(),
+        market_config: 0,
     };
 
     // ---- 5. Build quoters + match_take. ----
@@ -2463,11 +2521,8 @@ pub fn fulfill_perp_order_step(
                 market.fee_adjustment,
                 market.order_tick_size,
             )?;
-            let mut amm_quoter = crate::amm::AmmQuoter::new(
-                &mut market.amm,
-                amm_quote_state,
-                market.order_step_size,
-            );
+            // Reuse the `amm_quoter` constructed at the top of this fn —
+            // it's already been setup and holds &mut market.amm.
             amm_quoter.validate_for_fill(taker_direction)?;
             let mut quoters: Vec<&mut dyn crate::state::quoter::QuoterCommit> =
                 vec![&mut amm_quoter];
@@ -2480,6 +2535,11 @@ pub fn fulfill_perp_order_step(
             )?
         }
         PerpFulfillmentMethod::Match(_, m_idx, maker_price) => {
+            // Drop the AMM-only quoter so `AmmJitQuoter::from_match_context`
+            // can take `&mut market` (`amm_quoter` holds `&mut market.amm`).
+            // The AMM has already been refreshed by `amm_quoter`'s setup; the
+            // JIT quoter doesn't re-refresh.
+            drop(amm_quoter);
             let m_idx = m_idx as usize;
             let maker_user = maker
                 .as_deref_mut()

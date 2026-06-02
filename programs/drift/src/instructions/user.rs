@@ -1647,13 +1647,10 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    crate::amm::refresh::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &*ctx.accounts.state.load()?,
-        &clock,
-    )?;
+    // No `update_amm` here: settle_funding_payment reads only the market's
+    // stored `cumulative_funding_rate_long/short`, not AMM peg or reserves.
+    // The funding-rate accumulators are updated by `update_funding_rate`;
+    // refreshing the AMM here was cargo-cult.
 
     settle_funding_payment(
         from_user,
@@ -2590,13 +2587,9 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let is_immediate_or_cancel = params.is_immediate_or_cancel();
 
-    crate::amm::refresh::update_amm(
-        params.market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &*ctx.accounts.state.load()?,
-        &Clock::get()?,
-    )?;
+    // No `update_amm` here: `fill_perp_order` (called below) snaps the AMM
+    // and refreshes PerpMarket-level oracle stats internally before
+    // reading peg / reserves.
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2717,13 +2710,9 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
-    crate::amm::refresh::update_amm(
-        params.market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &state,
-        clock,
-    )?;
+    // No `update_amm` here: place_and_make posts a passive IOC post-only
+    // maker order. `place_perp_order` doesn't fill against the AMM, so
+    // peg/reserves freshness isn't required.
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2831,13 +2820,9 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
-    crate::amm::refresh::update_amm(
-        params.market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &state,
-        clock,
-    )?;
+    // No `update_amm` here: place_and_make posts a passive IOC post-only
+    // maker order. `place_perp_order` doesn't fill against the AMM, so
+    // peg/reserves freshness isn't required.
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -3912,13 +3897,8 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    crate::amm::refresh::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &*ctx.accounts.state.load()?,
-        &clock,
-    )?;
+    // No `update_amm` here: settle_funding_payment reads only stored
+    // cumulative funding rates. Same rationale as transfer_perp_position.
 
     settle_funding_payment(
         &mut user,

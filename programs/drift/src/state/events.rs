@@ -140,16 +140,21 @@ pub struct FundingRateRecord {
     pub oracle_price_twap: i64,
     /// precision: PRICE_PRECISION
     pub mark_price_twap: u64,
-    /// precision: QUOTE_PRECISION
-    pub period_revenue: i64,
     /// precision: BASE_PRECISION
     pub base_asset_amount_with_amm: i128,
 }
 
+/// AMM-side curve change: peg / reserves / sqrt_k moved, and the AMM
+/// debited the adjustment cost from its books. Emitted by the AMM itself
+/// (from `on_market_event(FundingUpdated)`'s k-update branch, from
+/// `snap_to_oracle`, and from the admin `repeg` ix). PerpMarket-side
+/// state at the time of the change (`base_asset_amount_long/short`,
+/// `number_of_users`) lives on a separate `FundingRateRecord` or can be
+/// queried by consumers correlating on `(ts, market_index)`.
 #[event]
-pub struct CurveRecord {
+pub struct AmmCurveChanged {
     pub ts: i64,
-    pub record_id: u64,
+    pub market_index: u16,
     pub peg_multiplier_before: u128,
     pub base_asset_reserve_before: u128,
     pub quote_asset_reserve_before: u128,
@@ -158,23 +163,12 @@ pub struct CurveRecord {
     pub base_asset_reserve_after: u128,
     pub quote_asset_reserve_after: u128,
     pub sqrt_k_after: u128,
-    /// precision: BASE_PRECISION
-    pub base_asset_amount_long: u128,
-    /// precision: BASE_PRECISION
-    pub base_asset_amount_short: u128,
-    /// precision: BASE_PRECISION
-    pub base_asset_amount_with_amm: i128,
-    /// precision: QUOTE_PRECISION
-    pub total_fee: i128,
-    /// precision: QUOTE_PRECISION
-    pub total_fee_minus_distributions: i128,
     /// precision: QUOTE_PRECISION
     pub adjustment_cost: i128,
+    /// precision: QUOTE_PRECISION — AMM's TFMD after the change.
+    pub total_fee_minus_distributions_after: i128,
     /// precision: PRICE_PRECISION
     pub oracle_price: i64,
-    pub fill_record: u128,
-    pub number_of_users: u32,
-    pub market_index: u16,
 }
 
 #[event]

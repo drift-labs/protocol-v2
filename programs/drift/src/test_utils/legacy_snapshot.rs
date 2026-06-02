@@ -202,7 +202,8 @@ pub fn regenerate_perp_market_snapshot(old_b64: &str) -> String {
     pm.expiry_price = legacy.expiry_price;
     pm.next_fill_record_id = legacy.next_fill_record_id;
     pm.next_funding_rate_record_id = legacy.next_funding_rate_record_id;
-    pm.next_curve_record_id = legacy.next_curve_record_id;
+    // legacy.next_curve_record_id is intentionally dropped — the auto-increment
+    // ID was removed alongside the `CurveRecord` event.
     pm.imf_factor = legacy.imf_factor;
     pm.unrealized_pnl_imf_factor = legacy.unrealized_pnl_imf_factor;
     pm.liquidator_fee = legacy.liquidator_fee;
@@ -358,10 +359,12 @@ mod tests {
     /// New PerpMarket is the size the tests will write into.
     #[test]
     fn current_perp_market_size_unchanged() {
-        // Documented invariant in Size::SIZE: 1112 with 8-byte discriminator,
-        // i.e. struct is 1104 bytes.
-        assert_eq!(std::mem::size_of::<PerpMarket>(), 1104);
-        assert_eq!(PerpMarket::SIZE, 1112);
+        // SIZE bumped from 1112→1128 to make room for two i64 fields on AMM
+        // (`last_cumulative_funding_rate_long/short`) — the AMM settles its
+        // own funding payment from cum-rate deltas now. Struct is 1120
+        // bytes; +8 for the Anchor discriminator = 1128.
+        assert_eq!(std::mem::size_of::<PerpMarket>(), 1120);
+        assert_eq!(PerpMarket::SIZE, 1128);
     }
 
     /// One-shot regeneration helper. Run with:

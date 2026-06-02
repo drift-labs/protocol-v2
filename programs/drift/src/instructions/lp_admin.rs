@@ -107,7 +107,7 @@ pub fn handle_initialize_lp_pool(
     let consituent_correlations = &mut ctx.accounts.constituent_correlations;
     consituent_correlations.lp_pool = ctx.accounts.lp_pool.key();
     consituent_correlations.bump = ctx.bumps.constituent_correlations;
-    consituent_correlations.correlations.resize(0_usize, 0);
+    consituent_correlations.correlations.clear();
     consituent_correlations.validate()?;
 
     Ok(())

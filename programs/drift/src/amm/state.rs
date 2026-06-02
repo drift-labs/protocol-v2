@@ -4,8 +4,6 @@
 //! - [`AMM`]: the constant-product vAMM state. See the doc-comment on the
 //!   struct for the write-access policy that keeps mutations funneled through
 //!   `AmmContract` / `QuoterCommit` rather than direct field writes.
-//! - [`AmmCurveRecordMetrics`]: snapshot returned by [`AMM::curve_record_metrics`]
-//!   so event-emitting code stays off direct field access.
 
 use anchor_lang::prelude::*;
 
@@ -64,16 +62,6 @@ use crate::{
 /// `instructions/admin.rs`) or it's a non-admin write — in which case it
 /// belongs in `state/quoter.rs` (extend `AmmContract` or `Quoter::on_market_event`)
 /// rather than reaching into fields.
-/// Snapshot of AMM-side fields used by `CurveRecord` and `FundingRateRecord`
-/// event payloads. Returned by [`AMM::curve_record_metrics`] so the
-/// event-emitting code can stay off direct field access.
-#[derive(Debug, Clone, Copy)]
-pub struct AmmCurveRecordMetrics {
-    pub base_asset_amount_with_amm: i128,
-    pub total_fee: i128,
-    pub total_fee_minus_distributions: i128,
-}
-
 /// Snapshot of the AMM's fee pool returned by [`AMM::fee_pool_snapshot`].
 /// Pure query — for event logging and cache writes.
 #[derive(Debug, Clone, Copy)]
@@ -134,6 +122,17 @@ pub struct AMM {
     /// the total_fee_minus_distribution change since the last funding update
     /// precision: QUOTE_PRECISION
     pub net_revenue_since_last_funding: i64,
+    /// AMM's last-seen cumulative funding rates. Mirrors
+    /// `PerpPosition::last_cumulative_funding_rate` on user positions —
+    /// the AMM settles its own funding payment from
+    /// `(market.cumulative_funding_rate_* − own_last) ×
+    /// counterparty_position`, same math shape user positions use. The
+    /// AMM is the counterparty for the net imbalance, so the relevant
+    /// cum rate is the LONG one when the AMM is net long
+    /// (base_asset_amount_with_amm < 0, i.e. users net short) and the
+    /// SHORT one when the AMM is net short.
+    pub last_cumulative_funding_rate_long: i64,
+    pub last_cumulative_funding_rate_short: i64,
     /// the minimum spread the AMM can quote. also used as step size for some spread logic increases.
     pub base_spread: u32,
     /// the maximum spread the AMM can quote
@@ -334,17 +333,6 @@ impl AMM {
             .safe_add(total_liquidation_fee)?
             .cast::<i128>()?
             .safe_sub(self.total_fee_withdrawn.cast::<i128>()?)
-    }
-
-    /// Snapshot of the AMM-side fields needed by `CurveRecord` and
-    /// `FundingRateRecord` event payloads. Lets the event-emitting code
-    /// avoid reaching into AMM fields directly.
-    pub fn curve_record_metrics(&self) -> AmmCurveRecordMetrics {
-        AmmCurveRecordMetrics {
-            base_asset_amount_with_amm: self.base_asset_amount_with_amm,
-            total_fee: self.total_fee,
-            total_fee_minus_distributions: self.total_fee_minus_distributions,
-        }
     }
 
     /// AMM's net counterparty position (i.e. users' net long minus net

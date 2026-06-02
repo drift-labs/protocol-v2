@@ -388,10 +388,17 @@ pub fn update_position_with_base_asset_amount(
     let ctx = crate::state::quoter::QuoteContext {
         stats: &stats_snapshot,
         oracle: &oracle_stub,
+        mm_oracle: None,
+        oracle_validity: None,
         fee_budget: 0,
         tick: market.order_tick_size,
+        step_size: market.order_step_size,
         slot: 0,
         base_precision: BASE_PRECISION_U64,
+        total_exchange_fee: 0,
+        total_liquidation_fee: 0,
+        market_status: crate::state::market_status::MarketStatus::default(),
+        market_config: 0,
     };
 
     let match_result = crate::controller::matching::fill_perp_market_against_amm(

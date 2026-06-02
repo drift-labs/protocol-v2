@@ -172,13 +172,8 @@ fn fill_order<'c: 'info, 'info>(
         None
     };
 
-    crate::amm::refresh::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &*ctx.accounts.state.load()?,
-        clock,
-    )?;
+    // No `update_amm` here: `fill_perp_order` snaps the AMM and refreshes
+    // PerpMarket-level oracle stats internally before quoting.
 
     controller::orders::fill_perp_order(
         order_id,
@@ -932,13 +927,11 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
 
         user.update_last_active_slot(clock.slot);
     } else {
-        crate::amm::refresh::update_amm(
-            market_index,
-            &perp_market_map,
-            &mut oracle_map,
-            &state,
-            &clock,
-        )?;
+        // No `update_amm` here: settle_pnl reads the live oracle and falls
+        // back to the AMM's slot-fresh check only when the live oracle is
+        // degraded. Either path is satisfied without an in-ix AMM refresh;
+        // the keeper's `update_amms` crank or any prior fill in the same
+        // slot provides the freshness when needed.
 
         controller::pnl::settle_pnl(
             market_index,
@@ -1062,13 +1055,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
 
             user.update_last_active_slot(clock.slot);
         } else {
-            crate::amm::refresh::update_amm(
-                *market_index,
-                &perp_market_map,
-                &mut oracle_map,
-                &state,
-                &clock,
-            )?;
+            // See `handle_settle_pnl` for the no-refresh rationale.
 
             controller::pnl::settle_pnl(
                 *market_index,
@@ -1977,13 +1964,8 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
 
     let mint = get_token_mint(remaining_accounts_iter)?;
 
-    crate::amm::refresh::update_amm(
-        perp_market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &state,
-        &clock,
-    )?;
+    // No `update_amm` here: this handler moves spot/IF balances and does
+    // not read perp AMM peg or reserves. Refreshing the AMM was cargo-cult.
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
@@ -2375,24 +2357,14 @@ pub fn handle_update_funding_rate(
         clock_slot,
         &state.oracle_guard_rails.validity,
     )?;
+    // Refresh PerpMarket-level oracle stats. AMM refresh happens inside
+    // `update_funding_rate` via the AmmQuoter's setup phase — not here.
     let validity = crate::amm::refresh::compute_amm_refresh_validity(
         perp_market,
         &mm_oracle_price_data,
         &state,
     )?;
-    crate::amm::refresh::dispatch_amm_refresh(
-        perp_market,
-        &mm_oracle_price_data,
-        validity,
-        clock_slot,
-    )?;
-    crate::amm::refresh::refresh_perp_market_stats_from_oracle(
-        perp_market,
-        &mm_oracle_price_data,
-        validity,
-        now,
-        clock_slot,
-    )?;
+    perp_market.update_oracle_derived_stats(&mm_oracle_price_data, validity, now, clock_slot)?;
 
     validate!(
         matches!(
@@ -2492,19 +2464,17 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         slot,
         &state.oracle_guard_rails.validity,
     )?;
+    // PerpMarket-level oracle stats only — this ix walks DLOB makers to
+    // estimate bid/ask TWAP and does not read AMM peg or reserves. The
+    // AMM snap_to_oracle that used to fire here was cargo-cult and is
+    // dropped; oracle TWAP / reference-price-offset bookkeeping still
+    // happens via refresh_perp_market_stats_from_oracle.
     let validity = crate::amm::refresh::compute_amm_refresh_validity(
         perp_market,
         &mm_oracle_price_data,
         &state,
     )?;
-    crate::amm::refresh::dispatch_amm_refresh(perp_market, &mm_oracle_price_data, validity, slot)?;
-    crate::amm::refresh::refresh_perp_market_stats_from_oracle(
-        perp_market,
-        &mm_oracle_price_data,
-        validity,
-        now,
-        slot,
-    )?;
+    perp_market.update_oracle_derived_stats(&mm_oracle_price_data, validity, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let makers = load_user_map(remaining_accounts_iter, false)?;

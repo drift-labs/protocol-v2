@@ -647,7 +647,6 @@ pub fn handle_initialize_perp_market(
         imf_factor,
         next_fill_record_id: 1,
         next_funding_rate_record_id: 1,
-        next_curve_record_id: 1,
         pnl_pool: PoolBalance::default(),
         insurance_claim: InsuranceClaim {
             max_revenue_withdraw_per_period,
@@ -698,7 +697,7 @@ pub fn handle_initialize_perp_market(
         quote_break_even_amount_long: 0,
         quote_break_even_amount_short: 0,
         max_open_interest,
-        padding: [0; 28],
+        padding: [0; 36],
         market_stats: MarketStats {
             last_oracle_normalised_price: oracle_price,
             last_mark_price_twap: init_reserve_price,
@@ -749,6 +748,8 @@ pub fn handle_initialize_perp_market(
             amm_spread_adjustment: 0,
             amm_inventory_spread_adjustment: 0,
             reference_price_offset_deadband_pct: 0,
+            last_cumulative_funding_rate_long: 0,
+            last_cumulative_funding_rate_short: 0,
             padding_post_amm: [0; 10],
         },
     };
@@ -2972,13 +2973,30 @@ pub fn handle_settle_expired_market<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    crate::amm::refresh::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &state,
-        &clock,
-    )?;
+    // Refresh PerpMarket-level oracle stats only — settle_expired_market
+    // reads `market.market_stats.historical_oracle_data` for the expiry
+    // price, not AMM peg or reserves. The AMM refresh that used to fire
+    // here was cargo-cult.
+    {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+        let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+            *oracle_price_data,
+            clock.slot,
+            &state.oracle_guard_rails.validity,
+        )?;
+        let validity = crate::amm::refresh::compute_amm_refresh_validity(
+            &perp_market,
+            &mm_oracle_price_data,
+            &state,
+        )?;
+        perp_market.update_oracle_derived_stats(
+            &mm_oracle_price_data,
+            validity,
+            clock.unix_timestamp,
+            clock.slot,
+        )?;
+    }
 
     crate::amm::refresh::settle_expired_market(
         market_index,

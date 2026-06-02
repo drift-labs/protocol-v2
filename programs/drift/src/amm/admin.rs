@@ -18,7 +18,7 @@ use crate::{
     controller,
     controller::spot_balance::execute_transfer_between_pools,
     error::ErrorCode,
-    get_then_update_id, load, load_mut,
+    load, load_mut,
     math::{
         bn,
         casting::Cast,
@@ -31,7 +31,7 @@ use crate::{
     msg,
     state::{
         amm_cache::{AmmCache, CacheInfo, AMM_POSITIONS_CACHE},
-        events::{CurveRecord, TransferFeeAndPnlPoolDirection, TransferFeeAndPnlPoolRecord},
+        events::{TransferFeeAndPnlPoolDirection, TransferFeeAndPnlPoolRecord},
         oracle::{get_oracle_price, OraclePriceData},
         perp_market::{PerpMarket, PoolBalance},
         spot_market::{SpotBalanceType, SpotMarket},
@@ -527,9 +527,8 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         sqrt_k_after
     );
 
-    emit!(CurveRecord {
+    emit!(crate::state::events::AmmCurveChanged {
         ts: now,
-        record_id: get_then_update_id!(perp_market, next_curve_record_id),
         market_index: perp_market.market_index,
         peg_multiplier_before,
         base_asset_reserve_before,
@@ -539,15 +538,9 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         base_asset_reserve_after,
         quote_asset_reserve_after,
         sqrt_k_after,
-        base_asset_amount_long: perp_market.base_asset_amount_long.unsigned_abs(),
-        base_asset_amount_short: perp_market.base_asset_amount_short.unsigned_abs(),
-        base_asset_amount_with_amm: perp_market.amm.base_asset_amount_with_amm,
-        number_of_users: perp_market.number_of_users,
-        total_fee: perp_market.amm.total_fee,
-        total_fee_minus_distributions: perp_market.amm.total_fee_minus_distributions,
         adjustment_cost,
+        total_fee_minus_distributions_after: perp_market.amm.total_fee_minus_distributions,
         oracle_price,
-        fill_record: 0,
     });
 
     Ok(())
@@ -672,10 +665,6 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     msg!("updating k for perp market {}", perp_market.market_index);
-    let base_asset_amount_long = perp_market.base_asset_amount_long.unsigned_abs();
-    let base_asset_amount_short = perp_market.base_asset_amount_short.unsigned_abs();
-    let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm;
-    let number_of_users = perp_market.number_of_users_with_base;
 
     let price_before = crate::amm::math::amm::calculate_price(
         perp_market.amm.quote_asset_reserve,
@@ -808,7 +797,6 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         sqrt_k_after
     );
 
-    let total_fee = amm.total_fee;
     let total_fee_minus_distributions = amm.total_fee_minus_distributions;
 
     let OraclePriceData {
@@ -816,9 +804,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         ..
     } = get_oracle_price(&perp_market.oracle_source, &ctx.accounts.oracle, clock.slot)?;
 
-    emit!(CurveRecord {
+    emit!(crate::state::events::AmmCurveChanged {
         ts: now,
-        record_id: get_then_update_id!(perp_market, next_curve_record_id),
         market_index: perp_market.market_index,
         peg_multiplier_before,
         base_asset_reserve_before,
@@ -828,15 +815,9 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         base_asset_reserve_after,
         quote_asset_reserve_after,
         sqrt_k_after,
-        base_asset_amount_long,
-        base_asset_amount_short,
-        base_asset_amount_with_amm,
-        number_of_users,
         adjustment_cost,
-        total_fee,
-        total_fee_minus_distributions,
+        total_fee_minus_distributions_after: total_fee_minus_distributions,
         oracle_price,
-        fill_record: 0,
     });
 
     Ok(())
@@ -1144,7 +1125,7 @@ pub fn handle_update_amm_spread_adjustment_native(
         );
     }
     let mut perp_market = accounts[0].data.borrow_mut();
-    perp_market[1094..1095].copy_from_slice(&[data[0]]); // amm_spread_adjustment
+    perp_market[1110..1111].copy_from_slice(&[data[0]]); // amm_spread_adjustment
 
     Ok(())
 }

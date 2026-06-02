@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use crate::math::oracle::LogMode;
 use crate::msg;
 use crate::state::oracle::MMOraclePriceData;
@@ -122,22 +120,15 @@ pub fn update_amms(
             &state.oracle_guard_rails.validity,
         )?;
 
-        // Explicit two-step refresh, both via the public interface:
-        //   1. dispatch_amm_refresh: fires `MarketEvent::Refresh` at the AMM
-        //   2. refresh_perp_market_stats_from_oracle: updates PerpMarket-level
-        //      oracle-derived state (TWAPs, last_reference_price_offset,
-        //      last_oracle_valid). PerpMarket-level work is distinct from AMM
-        //      work; both happen here because this keeper crank is the one
-        //      place that touches both.
+        // Explicit two-step refresh:
+        //   1. snap_to_oracle: AMM-side projection + apply + last_update_slot.
+        //   2. PerpMarket::update_oracle_derived_stats: PerpMarket-level
+        //      oracle bookkeeping (TWAPs, last_reference_price_offset,
+        //      last_oracle_valid). Distinct concerns; both happen here
+        //      because this keeper crank is the one place that touches both.
         let validity = compute_amm_refresh_validity(market, &mm_oracle_price_data, state)?;
-        dispatch_amm_refresh(market, &mm_oracle_price_data, validity, clock_slot)?;
-        refresh_perp_market_stats_from_oracle(
-            market,
-            &mm_oracle_price_data,
-            validity,
-            now,
-            clock_slot,
-        )?;
+        snap_to_oracle(market, &mm_oracle_price_data, validity, clock_slot)?;
+        market.update_oracle_derived_stats(&mm_oracle_price_data, validity, now, clock_slot)?;
     }
 
     Ok(updated)
@@ -160,16 +151,15 @@ pub fn update_amm(
 
     // Same explicit two-step refresh as `update_amms`. See doc there.
     let validity = compute_amm_refresh_validity(market, &mm_oracle_price_data, state)?;
-    let cost_of_update = dispatch_amm_refresh(market, &mm_oracle_price_data, validity, clock.slot)?;
-    refresh_perp_market_stats_from_oracle(
-        market,
+    let outcome: i128 = snap_to_oracle(market, &mm_oracle_price_data, validity, clock.slot)?;
+    market.update_oracle_derived_stats(
         &mm_oracle_price_data,
         validity,
         clock.unix_timestamp,
         clock.slot,
     )?;
 
-    Ok(cost_of_update)
+    Ok(outcome)
 }
 
 /// Test-only convenience: composes the explicit three-step refresh
@@ -186,9 +176,9 @@ pub fn _update_amm(
     clock_slot: u64,
 ) -> DriftResult<i128> {
     let validity = compute_amm_refresh_validity(market, mm_oracle_price_data, state)?;
-    let cost = dispatch_amm_refresh(market, mm_oracle_price_data, validity, clock_slot)?;
-    refresh_perp_market_stats_from_oracle(market, mm_oracle_price_data, validity, now, clock_slot)?;
-    Ok(cost)
+    let outcome: i128 = snap_to_oracle(market, mm_oracle_price_data, validity, clock_slot)?;
+    market.update_oracle_derived_stats(mm_oracle_price_data, validity, now, clock_slot)?;
+    Ok(outcome)
 }
 
 /// Compute oracle validity for an AMM refresh, or return `None` if the
@@ -197,6 +187,21 @@ pub fn compute_amm_refresh_validity(
     market: &PerpMarket,
     mm_oracle_price_data: &MMOraclePriceData,
     state: &State,
+) -> DriftResult<Option<OracleValidity>> {
+    compute_amm_refresh_validity_with_guard_rails(
+        market,
+        mm_oracle_price_data,
+        &state.oracle_guard_rails.validity,
+    )
+}
+
+/// Same as `compute_amm_refresh_validity` but takes the guard-rail config
+/// directly. Use this when you only have a `&ValidityGuardRails` available
+/// (e.g. inside `fulfill_perp_order_step`, which doesn't carry `&State`).
+pub fn compute_amm_refresh_validity_with_guard_rails(
+    market: &PerpMarket,
+    mm_oracle_price_data: &MMOraclePriceData,
+    validity_guard_rails: &crate::state::state::ValidityGuardRails,
 ) -> DriftResult<Option<OracleValidity>> {
     if matches!(
         market.status,
@@ -213,7 +218,7 @@ pub fn compute_amm_refresh_validity(
             .historical_oracle_data
             .last_oracle_price_twap,
         oracle_data,
-        &state.oracle_guard_rails.validity,
+        validity_guard_rails,
         market.get_max_confidence_interval_multiplier()?,
         &market.oracle_source,
         oracle::LogMode::SafeMMOracle,
@@ -223,148 +228,68 @@ pub fn compute_amm_refresh_validity(
     Ok(Some(validity))
 }
 
-/// Dispatch a `MarketEvent::Refresh` at the AMM. Pre-computes the optimal
-/// peg + budget here (the optimization helpers read PerpMarket-level inputs
-/// the AMM trait surface can't see), then fires the event so the AMM
-/// applies the result via `on_market_event`. Returns the cost the AMM
-/// applied (positive = AMM paid for the curve change).
+/// Apply a projection to the AMM and bump `last_update_slot`. The single
+/// explicit AMM-refresh entrypoint surviving in the target architecture —
+/// invoked by the `update_amms` keeper crank to align stored peg with
+/// oracle on quiet markets. Quote/fill paths refresh the AMM atomically
+/// inside `QuoterCommit::commit_fill` instead.
 ///
-/// Pure AMM-side: this function only mutates AMM fields, via the trait. It
-/// does NOT touch PerpMarket-level state — that's
-/// `refresh_perp_market_stats_from_oracle`'s job.
-pub fn dispatch_amm_refresh(
+/// Pure AMM-side: writes only AMM fields (peg, reserves, sqrt_k,
+/// total_fee_minus_distributions, net_revenue_since_last_funding,
+/// last_update_slot). PerpMarket-level oracle bookkeeping (oracle TWAPs,
+/// last_reference_price_offset) is the orchestrator's job — call
+/// `refresh_perp_market_stats_from_oracle` separately when needed.
+pub fn snap_to_oracle(
     market: &mut PerpMarket,
     mm_oracle_price_data: &MMOraclePriceData,
     oracle_validity: Option<OracleValidity>,
     slot: u64,
 ) -> DriftResult<i128> {
-    let Some(oracle_validity) = oracle_validity else {
-        return Ok(0);
-    };
+    let projection = repeg::project_post_refresh(market, mm_oracle_price_data, oracle_validity)?;
 
-    let mut repeg_result: Option<crate::state::quoter::RepegResult> = None;
-    if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateAMMCurve))? {
-        let curve_update_intensity =
-            min(market.amm.curve_update_intensity, 100_u8).cast::<i128>()?;
+    let peg_before = market.amm.peg_multiplier;
+    let base_before = market.amm.base_asset_reserve;
+    let quote_before = market.amm.quote_asset_reserve;
+    let sqrt_k_before = market.amm.sqrt_k;
+    let market_index = market.market_index;
+    let now = mm_oracle_price_data.get_exchange_oracle_price_data().delay;
 
-        if curve_update_intensity > 0 {
-            let (optimal_peg, fee_budget, check_lower_bound) =
-                repeg::calculate_optimal_peg_and_budget(market, mm_oracle_price_data)?;
+    projection.apply_to(&mut market.amm)?;
 
-            let (repegged_market, repegged_cost) = repeg::adjust_amm(
-                market,
-                optimal_peg,
-                fee_budget,
-                curve_update_intensity >= 100,
-            )?;
+    if projection.applied {
+        emit!(crate::state::events::AmmCurveChanged {
+            ts: now,
+            market_index,
+            peg_multiplier_before: peg_before,
+            base_asset_reserve_before: base_before,
+            quote_asset_reserve_before: quote_before,
+            sqrt_k_before,
+            peg_multiplier_after: market.amm.peg_multiplier,
+            base_asset_reserve_after: market.amm.base_asset_reserve,
+            quote_asset_reserve_after: market.amm.quote_asset_reserve,
+            sqrt_k_after: market.amm.sqrt_k,
+            adjustment_cost: projection.cost,
+            total_fee_minus_distributions_after: market.amm.total_fee_minus_distributions,
+            oracle_price: mm_oracle_price_data.get_safe_oracle_price_data().price,
+        });
+    }
 
-            let total_fee_floor = market
-                .amm
-                .protocol_floor(market.total_exchange_fee, market.total_liquidation_fee)?;
-
-            repeg_result = Some(crate::state::quoter::RepegResult {
-                new_peg: repegged_market.amm.peg_multiplier,
-                new_sqrt_k: repegged_market.amm.sqrt_k,
-                new_base_asset_reserve: repegged_market.amm.base_asset_reserve,
-                new_quote_asset_reserve: repegged_market.amm.quote_asset_reserve,
-                cost: repegged_cost,
-                check_lower_bound,
-                total_fee_floor,
-            });
+    // Match `_update_amm`: only bump `last_update_slot` when the oracle is
+    // fresh enough for low-risk fills AND the curve update wasn't rejected
+    // by the affordability floor (mirrors the
+    // `!amm_not_successfully_updated` gate). `last_oracle_valid` is a
+    // PerpMarket-stats field — the orchestrator updates it via
+    // `refresh_perp_market_stats_from_oracle` alongside this call.
+    if let Some(validity) = oracle_validity {
+        if is_oracle_valid_for_action(validity, Some(DriftAction::FillOrderAmmLowRisk))? {
+            let suppress = projection.cost > 0 && !projection.applied;
+            if !suppress {
+                market.amm.last_update_slot = slot;
+            }
         }
     }
 
-    let bump_last_update_slot =
-        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmmLowRisk))?;
-    let event = crate::state::quoter::MarketEvent::Refresh {
-        repeg_result,
-        bump_last_update_slot,
-        slot,
-    };
-    let amm_quote_state_pre = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        mm_oracle_price_data,
-        market.amm.reserve_price()?,
-        slot,
-    )?;
-    let oracle_data = &mm_oracle_price_data.get_safe_oracle_price_data();
-    let ctx = crate::state::quoter::QuoteContext {
-        stats: &market.market_stats,
-        oracle: oracle_data,
-        fee_budget: 0,
-        tick: market.order_tick_size,
-        slot,
-        base_precision: crate::math::constants::BASE_PRECISION_U64,
-    };
-    let effects = {
-        let mut amm_maker = crate::amm::AmmQuoter::new(
-            &mut market.amm,
-            amm_quote_state_pre,
-            market.order_step_size,
-        );
-        <crate::amm::AmmQuoter as crate::state::quoter::QuoterCommit>::on_market_event(
-            &mut amm_maker,
-            &ctx,
-            &event,
-        )?
-    };
-    if repeg_result.is_some() && effects.curve_record.is_none() {
-        msg!("amm_not_successfully_updated = true (repeg cost not applied for check_lower_bound)");
-    }
-    Ok(effects.refresh_cost)
-}
-
-/// Update PerpMarket-level oracle-derived state: oracle TWAPs (via
-/// `update_oracle_price_twap`), `last_reference_price_offset` (cached for
-/// the next quote's smoothing branch), and `last_oracle_valid`. Pure
-/// PerpMarket-side: does not write any AMM fields.
-pub fn refresh_perp_market_stats_from_oracle(
-    market: &mut PerpMarket,
-    mm_oracle_price_data: &MMOraclePriceData,
-    oracle_validity: Option<OracleValidity>,
-    now: i64,
-    clock_slot: u64,
-) -> DriftResult<()> {
-    let Some(oracle_validity) = oracle_validity else {
-        return Ok(());
-    };
-
-    let reserve_price_after = market.amm.reserve_price()?;
-
-    if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateTwap))? {
-        let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-        let funding_period = market.market_stats.funding_period;
-        let crate::state::perp_market::PerpMarket {
-            amm, market_stats, ..
-        } = market;
-        market_stats.update_oracle_twap(
-            amm,
-            now,
-            mm_oracle_price_data,
-            Some(reserve_price_after),
-            sanitize_clamp_denominator,
-            funding_period,
-        )?;
-    }
-
-    // Cache the fresh reference_price_offset so the next quote can
-    // smooth-transition off the previous value. Spread reserves themselves
-    // are still computed on demand via `compute_amm_quote_state`; we only
-    // persist the single integer needed by the smoothing branch.
-    let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        mm_oracle_price_data,
-        reserve_price_after,
-        clock_slot,
-    )?;
-    market.market_stats.last_reference_price_offset = amm_quote_state.reference_price_offset;
-
-    market.market_stats.last_oracle_valid =
-        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmmLowRisk))?;
-
-    Ok(())
+    Ok(projection.cost)
 }
 
 pub fn update_amm_and_check_validity(
@@ -375,10 +300,11 @@ pub fn update_amm_and_check_validity(
     clock_slot: u64,
     action: Option<DriftAction>,
 ) -> DriftResult {
-    // Explicit two-step refresh — see `update_amms` for the rationale.
+    // PerpMarket-stats refresh + one-hour-EMA validity gate against the
+    // requested action. AMM mutation happens later in the liquidation
+    // fill flow via `Quoter::setup` — not here.
     let validity = compute_amm_refresh_validity(market, mm_oracle_price_data, state)?;
-    dispatch_amm_refresh(market, mm_oracle_price_data, validity, clock_slot)?;
-    refresh_perp_market_stats_from_oracle(market, mm_oracle_price_data, validity, now, clock_slot)?;
+    market.update_oracle_derived_stats(mm_oracle_price_data, validity, now, clock_slot)?;
 
     // 1 hour EMA
     let risk_ema_price = market

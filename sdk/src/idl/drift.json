@@ -14082,16 +14082,16 @@
       ]
     },
     {
-      "name": "CurveRecord",
+      "name": "AmmCurveChanged",
       "discriminator": [
-        101,
-        238,
-        40,
-        228,
-        70,
-        46,
-        61,
-        117
+        116,
+        12,
+        114,
+        18,
+        175,
+        31,
+        153,
+        5
       ]
     },
     {
@@ -16311,6 +16311,25 @@
             "type": "i64"
           },
           {
+            "name": "last_cumulative_funding_rate_long",
+            "docs": [
+              "AMM's last-seen cumulative funding rates. Mirrors",
+              "`PerpPosition::last_cumulative_funding_rate` on user positions —",
+              "the AMM settles its own funding payment from",
+              "`(market.cumulative_funding_rate_* − own_last) ×",
+              "counterparty_position`, same math shape user positions use. The",
+              "AMM is the counterparty for the net imbalance, so the relevant",
+              "cum rate is the LONG one when the AMM is net long",
+              "(base_asset_amount_with_amm < 0, i.e. users net short) and the",
+              "SHORT one when the AMM is net short."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_cumulative_funding_rate_short",
+            "type": "i64"
+          },
+          {
             "name": "base_spread",
             "docs": [
               "the minimum spread the AMM can quote. also used as step size for some spread logic increases."
@@ -16549,6 +16568,84 @@
                 }
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmCurveChanged",
+      "docs": [
+        "AMM-side curve change: peg / reserves / sqrt_k moved, and the AMM",
+        "debited the adjustment cost from its books. Emitted by the AMM itself",
+        "(from `on_market_event(FundingUpdated)`'s k-update branch, from",
+        "`snap_to_oracle`, and from the admin `repeg` ix). PerpMarket-side",
+        "state at the time of the change (`base_asset_amount_long/short`,",
+        "`number_of_users`) lives on a separate `FundingRateRecord` or can be",
+        "queried by consumers correlating on `(ts, market_index)`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "market_index",
+            "type": "u16"
+          },
+          {
+            "name": "peg_multiplier_before",
+            "type": "u128"
+          },
+          {
+            "name": "base_asset_reserve_before",
+            "type": "u128"
+          },
+          {
+            "name": "quote_asset_reserve_before",
+            "type": "u128"
+          },
+          {
+            "name": "sqrt_k_before",
+            "type": "u128"
+          },
+          {
+            "name": "peg_multiplier_after",
+            "type": "u128"
+          },
+          {
+            "name": "base_asset_reserve_after",
+            "type": "u128"
+          },
+          {
+            "name": "quote_asset_reserve_after",
+            "type": "u128"
+          },
+          {
+            "name": "sqrt_k_after",
+            "type": "u128"
+          },
+          {
+            "name": "adjustment_cost",
+            "docs": [
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "total_fee_minus_distributions_after",
+            "docs": [
+              "precision: QUOTE_PRECISION — AMM's TFMD after the change."
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "oracle_price",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
           }
         ]
       }
@@ -17151,115 +17248,6 @@
       }
     },
     {
-      "name": "CurveRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "record_id",
-            "type": "u64"
-          },
-          {
-            "name": "peg_multiplier_before",
-            "type": "u128"
-          },
-          {
-            "name": "base_asset_reserve_before",
-            "type": "u128"
-          },
-          {
-            "name": "quote_asset_reserve_before",
-            "type": "u128"
-          },
-          {
-            "name": "sqrt_k_before",
-            "type": "u128"
-          },
-          {
-            "name": "peg_multiplier_after",
-            "type": "u128"
-          },
-          {
-            "name": "base_asset_reserve_after",
-            "type": "u128"
-          },
-          {
-            "name": "quote_asset_reserve_after",
-            "type": "u128"
-          },
-          {
-            "name": "sqrt_k_after",
-            "type": "u128"
-          },
-          {
-            "name": "base_asset_amount_long",
-            "docs": [
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "base_asset_amount_short",
-            "docs": [
-              "precision: BASE_PRECISION"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "base_asset_amount_with_amm",
-            "docs": [
-              "precision: BASE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "total_fee",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "total_fee_minus_distributions",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "adjustment_cost",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i128"
-          },
-          {
-            "name": "oracle_price",
-            "docs": [
-              "precision: PRICE_PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "fill_record",
-            "type": "u128"
-          },
-          {
-            "name": "number_of_users",
-            "type": "u32"
-          },
-          {
-            "name": "market_index",
-            "type": "u16"
-          }
-        ]
-      }
-    },
-    {
       "name": "DeleteUserRecord",
       "type": {
         "kind": "struct",
@@ -17664,13 +17652,6 @@
               "precision: PRICE_PRECISION"
             ],
             "type": "u64"
-          },
-          {
-            "name": "period_revenue",
-            "docs": [
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "i64"
           },
           {
             "name": "base_asset_amount_with_amm",
@@ -20872,13 +20853,6 @@
             "type": "u64"
           },
           {
-            "name": "next_curve_record_id",
-            "docs": [
-              "Every amm k updated has a record id. This is the next id to be used"
-            ],
-            "type": "u64"
-          },
-          {
             "name": "imf_factor",
             "docs": [
               "The initial margin fraction factor. Used to increase margin ratio for large positions",
@@ -21103,14 +21077,15 @@
           {
             "name": "padding",
             "docs": [
-              "Trailing 28 bytes (was 27 + 1 compiler-inserted gap) so the IDL",
-              "records every byte and `market_stats` lands at the same offset Rust",
-              "computes via repr(C) alignment."
+              "Trailing padding so `market_stats` lands at the offset Rust naturally",
+              "computes via `repr(C)` alignment and the `(SIZE - 8) % 16 == 0`",
+              "invariant holds. Bumped to 36 bytes (was 28) when `next_curve_record_id`",
+              "was removed."
             ],
             "type": {
               "array": [
                 "u8",
-                28
+                36
               ]
             }
           },

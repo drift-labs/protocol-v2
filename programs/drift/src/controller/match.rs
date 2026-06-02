@@ -706,11 +706,8 @@ pub fn fill_perp_market_against_amm(
     target_size: u64,
 ) -> DriftResult<Match> {
     let result = {
-        let mut amm_maker = crate::amm::AmmQuoter::new(
-            &mut perp_market.amm,
-            quote_state,
-            perp_market.order_step_size,
-        );
+        let mut amm_maker = crate::amm::AmmQuoter::for_amm(&mut perp_market.amm);
+        amm_maker.quote_state = quote_state;
         let mut makers: Vec<&mut dyn QuoterCommit> = vec![&mut amm_maker];
         match_take(&mut makers, ctx, side, target_size, None)?
     };
@@ -827,10 +824,17 @@ mod tests {
         QuoteContext {
             stats,
             oracle,
+            mm_oracle: None,
+            oracle_validity: None,
             fee_budget: 0,
             tick,
+            step_size: 1,
             slot: 0,
             base_precision: 1,
+            total_exchange_fee: 0,
+            total_liquidation_fee: 0,
+            market_status: crate::state::market_status::MarketStatus::default(),
+            market_config: 0,
         }
     }
 

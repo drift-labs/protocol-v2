@@ -9,6 +9,8 @@
 //!   non-matching subsystems (insurance, revenue-pool transfers, settlement)
 //!   so they don't reach into AMM fields directly.
 
+use anchor_lang::prelude::*;
+
 use crate::amm::controller as amm_controller;
 use crate::amm::controller::SwapDirection;
 use crate::amm::math::amm as amm_math;
@@ -22,8 +24,7 @@ use crate::state::oracle::OraclePriceData;
 #[cfg(test)]
 use crate::state::perp_market::MarketStats;
 use crate::state::quoter::{
-    CurveSnapshot, FillFeePolicy, MarketEvent, MarketEventEffects, QuoteContext, Quoter,
-    QuoterCommit, QuoterFill, RepegResult,
+    FillFeePolicy, MarketEvent, QuoteContext, Quoter, QuoterCommit, QuoterFill,
 };
 
 /// The future-architecture interface to the AMM smart contract.
@@ -289,20 +290,22 @@ impl AMM {
 
 pub struct AmmQuoter<'a> {
     pub amm: &'a mut AMM,
+    /// Spread/reference-price-offset/spread-reserves snapshot. Set by
+    /// `Quoter::setup` against the post-refresh AMM; quote methods read it.
+    /// Pre-setup it's a zero-spread placeholder.
     pub quote_state: AmmQuoteState,
-    /// Base step size the AMM uses to standardise fill amounts. Threaded
-    /// in at construction so `cumulative_size` returns step-aligned values
-    /// (positions track in step-size multiples).
-    pub step_size: u64,
 }
 
 impl<'a> AmmQuoter<'a> {
-    pub fn new(amm: &'a mut AMM, quote_state: AmmQuoteState, step_size: u64) -> Self {
-        AmmQuoter {
-            amm,
-            quote_state,
-            step_size,
-        }
+    /// Construct an AMM quoter wrapping `&mut amm`. The AMM has no
+    /// projection / spread state baked in — those come from
+    /// `QuoteContext` when `Quoter::setup` runs. Pre-setup quotes are
+    /// not meaningful; callers that won't run setup (e.g. funding-event
+    /// dispatch) can assign `amm_quoter.quote_state` directly with the
+    /// quote-time snapshot they want the event handler to see.
+    pub fn for_amm(amm: &'a mut AMM) -> Self {
+        let quote_state = AmmQuoteState::no_spread(amm);
+        AmmQuoter { amm, quote_state }
     }
 
     /// Pre-fill `validate_for_fill` on the underlying AMM. Orchestrator
@@ -348,11 +351,7 @@ impl<'a> AmmQuoter<'a> {
     #[cfg(test)]
     pub fn new_no_spread(amm: &'a mut AMM) -> Self {
         let quote_state = AmmQuoteState::no_spread(amm);
-        AmmQuoter {
-            amm,
-            quote_state,
-            step_size: 1,
-        }
+        AmmQuoter { amm, quote_state }
     }
 
     /// Swap direction the AMM uses to fill a take on the given side.
@@ -391,6 +390,83 @@ impl<'a> AmmQuoter<'a> {
 }
 
 impl<'a> Quoter for AmmQuoter<'a> {
+    /// Apply the AMM's post-refresh projection to `self.amm` and compute
+    /// the spread snapshot against the refreshed state. This is the
+    /// AMM-side analogue of the legacy `update_amm` keeper-style refresh:
+    /// "repeg + k-update + apply cost", inlined into the quote-prep phase
+    /// so subsequent quote calls read the refreshed `self.amm` directly.
+    ///
+    /// Reads `ctx.mm_oracle`, `ctx.oracle_validity`, `ctx.stats`, `ctx.slot`
+    /// plus `self.projection_inputs`. Mutates `self.amm` (peg, reserves,
+    /// sqrt_k, terminal, bounds, `total_fee_minus_distributions`,
+    /// `net_revenue_since_last_funding`, `last_update_slot`). Writes
+    /// `self.quote_state`.
+    ///
+    /// Returns an error if `ctx.mm_oracle` is not provided.
+    fn setup(&mut self, ctx: &QuoteContext) -> DriftResult<()> {
+        let mm_oracle = ctx.mm_oracle.ok_or_else(|| {
+            crate::msg!("AmmQuoter::setup requires ctx.mm_oracle");
+            ErrorCode::DefaultError
+        })?;
+        // Slot-idempotency: a prior `setup` (or admin `snap_to_oracle`)
+        // already bumped `last_update_slot` to the current slot, which
+        // means the AMM has already been projected against this slot's
+        // oracle. Re-running `project_post_refresh_scalar` is the
+        // expensive part of `setup` (peg / reserves / k-budget math) —
+        // skip it. Subsequent fills in the same slot move reserves along
+        // the curve but don't trigger another oracle-driven refresh, so
+        // leaving the curve fundamentals as the prior setup left them is
+        // correct. `quote_state` is still recomputed below because
+        // `ctx.stats` / `mm_oracle` may have ticked between setups.
+        let already_refreshed_this_slot = self.amm.last_update_slot >= ctx.slot;
+        let projection = if already_refreshed_this_slot {
+            crate::amm::math::repeg::ProjectedAmmState::noop(self.amm)
+        } else {
+            // Pull the PerpMarket-level scalars the projection needs from
+            // ctx. The orchestrator populates these once when building the
+            // context; the AMM never reaches back into PerpMarket itself.
+            let projection_inputs = crate::amm::math::repeg::ProjectionInputs {
+                total_exchange_fee: ctx.total_exchange_fee,
+                total_liquidation_fee: ctx.total_liquidation_fee,
+                market_status: ctx.market_status,
+                market_config: ctx.market_config,
+            };
+            crate::amm::math::repeg::project_post_refresh_scalar(
+                self.amm,
+                &projection_inputs,
+                mm_oracle,
+                ctx.oracle_validity,
+            )?
+        };
+        projection.apply_to(self.amm)?;
+        // Match legacy `_update_amm`: bump `last_update_slot` when the
+        // oracle is fresh enough for low-risk fills and the affordability
+        // gate didn't reject the curve update. Skip when we already
+        // short-circuited above (the slot is already at ctx.slot).
+        if !already_refreshed_this_slot {
+            if let Some(validity) = ctx.oracle_validity {
+                if crate::math::oracle::is_oracle_valid_for_action(
+                    validity,
+                    Some(crate::math::oracle::DriftAction::FillOrderAmmLowRisk),
+                )? {
+                    let suppress = projection.cost > 0 && !projection.applied;
+                    if !suppress {
+                        self.amm.last_update_slot = ctx.slot;
+                    }
+                }
+            }
+        }
+        let reserve_price = self.amm.reserve_price()?;
+        self.quote_state = crate::amm::math::spread::compute_amm_quote_state(
+            self.amm,
+            ctx.stats,
+            mm_oracle,
+            reserve_price,
+            ctx.slot,
+        )?;
+        Ok(())
+    }
+
     fn best_price(&self, _ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64> {
         let reserve_price = self.amm.reserve_price()?;
         match side {
@@ -409,7 +485,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
 
     fn cumulative_size(
         &self,
-        _ctx: &QuoteContext,
+        ctx: &QuoteContext,
         side: PositionDirection,
         price: u64,
     ) -> DriftResult<u64> {
@@ -454,7 +530,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
         // the taker's side (taker Long → AMM sells → trade direction Long).
         let (amount, dir_result) =
             crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
-                self.amm,
+                &self.amm,
                 &self.quote_state,
                 price,
                 side,
@@ -472,7 +548,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
         // so the matcher's fill must too).
         let max = self.max_fillable(side)?;
         let bounded = amount.min(max);
-        crate::math::orders::standardize_base_asset_amount(bounded, self.step_size.max(1))
+        crate::math::orders::standardize_base_asset_amount(bounded, ctx.step_size.max(1))
     }
 
     fn is_prio(&self) -> bool {
@@ -500,7 +576,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
         }
         let direction = Self::swap_direction(side);
         let swap = amm_controller::calculate_base_swap_output_with_quote_state(
-            self.amm,
+            &self.amm,
             &self.quote_state,
             base,
             direction,
@@ -532,6 +608,9 @@ impl<'a> Quoter for AmmQuoter<'a> {
 
 impl<'a> QuoterCommit for AmmQuoter<'a> {
     fn commit_fill(&mut self, _ctx: &QuoteContext, fill: &QuoterFill) -> DriftResult<()> {
+        // Projection has already been applied by `Quoter::setup` — quotes
+        // and fills both read post-refresh `self.amm`. Commit just runs
+        // the swap.
         if fill.base_filled == 0 {
             return Ok(());
         }
@@ -561,43 +640,65 @@ impl<'a> QuoterCommit for AmmQuoter<'a> {
         Ok(())
     }
 
-    fn on_market_event(
-        &mut self,
-        ctx: &QuoteContext,
-        event: &MarketEvent,
-    ) -> DriftResult<MarketEventEffects> {
+    fn on_market_event(&mut self, _ctx: &QuoteContext, event: &MarketEvent) -> DriftResult<()> {
         match event {
-            MarketEvent::Refresh {
-                repeg_result,
-                bump_last_update_slot,
-                slot,
-            } => self.handle_refresh(*repeg_result, *bump_last_update_slot, *slot),
-            MarketEvent::FundingApplied {
-                funding_imbalance_cost,
+            MarketEvent::FundingUpdated {
+                market_index,
+                cumulative_funding_rate_long,
+                cumulative_funding_rate_short,
+                base_asset_amount_long,
+                base_asset_amount_short,
+                funding_rate: _,
                 oracle_price_data,
-                now: _,
+                now,
                 total_fee_floor,
+                long_spread,
+                short_spread,
                 k_update_eligible,
                 market_status,
+                min_order_size,
             } => {
-                let mut effects = if *k_update_eligible {
+                // ---- 1. AMM-as-user funding settlement ----
+                // Settle the AMM's own funding payment from cum-rate deltas,
+                // same math shape `settle_funding_payment` uses for user
+                // positions. `calculate_amm_funding_payment` decomposes the
+                // AMM's counterparty exposure across the long and short
+                // sides so the math matches master's asymmetric-cap flows.
+                let payment = crate::math::funding::calculate_amm_funding_payment(
+                    *base_asset_amount_long,
+                    *base_asset_amount_short,
+                    *cumulative_funding_rate_long,
+                    *cumulative_funding_rate_short,
+                    self.amm.last_cumulative_funding_rate_long,
+                    self.amm.last_cumulative_funding_rate_short,
+                )?;
+                self.amm.record_amm_pnl(payment)?;
+                self.amm.last_cumulative_funding_rate_long =
+                    cumulative_funding_rate_long.cast::<i64>()?;
+                self.amm.last_cumulative_funding_rate_short =
+                    cumulative_funding_rate_short.cast::<i64>()?;
+
+                // ---- 2. Eager k-update — emits `AmmCurveChanged` itself
+                //         when the curve actually moves. ----
+                if *k_update_eligible {
+                    let funding_imbalance_cost = -payment;
                     self.handle_funding_applied(
-                        ctx,
-                        *funding_imbalance_cost,
+                        _ctx,
+                        funding_imbalance_cost,
                         oracle_price_data,
                         *total_fee_floor,
+                        *long_spread,
+                        *short_spread,
                         *market_status,
-                    )?
-                } else {
-                    MarketEventEffects::default()
-                };
-                // Rolling-window reset: the AMM owns `net_revenue_since_last_funding`
-                // and is the only entity that should know when to roll it over.
-                // Snapshot the post-cost-application value for the orchestrator's
-                // FundingRateRecord, then zero the counter for the new window.
-                effects.period_revenue_snapshot = self.amm.net_revenue_since_last_funding;
+                        *min_order_size,
+                        *market_index,
+                        *now,
+                    )?;
+                }
+
+                // ---- 3. Rolling-window reset ----
                 self.amm.net_revenue_since_last_funding = 0;
-                Ok(effects)
+                Ok(())
             }
         }
     }
@@ -615,22 +716,25 @@ impl<'a> AmmQuoter<'a> {
     /// `total_exchange_fee` + `total_liquidation_fee` − AMM's
     /// `total_fee_withdrawn`). If applying the cost would push the AMM below
     /// this floor, the k-update is skipped.
-    fn handle_funding_applied(
+    pub(crate) fn handle_funding_applied(
         &mut self,
-        ctx: &QuoteContext,
+        _ctx: &QuoteContext,
         funding_imbalance_cost: i128,
-        _oracle_price_data: &OraclePriceData,
+        oracle_price_data: &OraclePriceData,
         total_fee_floor: i128,
+        long_spread: u32,
+        short_spread: u32,
         market_status: crate::state::market_status::MarketStatus,
-    ) -> DriftResult<MarketEventEffects> {
+        min_order_size: u64,
+        market_index: u16,
+        now: i64,
+    ) -> DriftResult<()> {
         let funding_imbalance_cost_i64 = funding_imbalance_cost.cast::<i64>()?;
 
         let budget = if funding_imbalance_cost_i64 < 0 {
             // negative cost is period revenue, if spread is low give back
             // half in k increase
-            if core::cmp::max(self.quote_state.long_spread, self.quote_state.short_spread)
-                <= self.amm.base_spread
-            {
+            if core::cmp::max(long_spread, short_spread) <= self.amm.base_spread {
                 funding_imbalance_cost_i64.safe_div(2)?.abs()
             } else {
                 0
@@ -645,10 +749,10 @@ impl<'a> AmmQuoter<'a> {
         };
 
         let k_eligible = (budget > 0 && self.amm.sqrt_k < crate::math::constants::MAX_SQRT_K)
-            || (budget < 0 && self.amm.can_lower_k(ctx.stats.min_order_size)?);
+            || (budget < 0 && self.amm.can_lower_k(min_order_size)?);
 
         if !k_eligible {
-            return Ok(MarketEventEffects::default());
+            return Ok(());
         }
 
         let peg_multiplier_before = self.amm.peg_multiplier;
@@ -691,123 +795,28 @@ impl<'a> AmmQuoter<'a> {
             crate::amm::math::cp_curve::adjust_k_cost(self.amm, &update_k_result)?;
 
         if !self.apply_cost_to_amm(adjustment_cost, total_fee_floor)? {
-            return Ok(MarketEventEffects::default());
+            return Ok(());
         }
 
         self.amm.apply_k_update(&update_k_result)?;
 
-        Ok(MarketEventEffects {
-            curve_record: Some(CurveSnapshot {
-                peg_multiplier_before,
-                base_asset_reserve_before,
-                quote_asset_reserve_before,
-                sqrt_k_before,
-                peg_multiplier_after: self.amm.peg_multiplier,
-                base_asset_reserve_after: self.amm.base_asset_reserve,
-                quote_asset_reserve_after: self.amm.quote_asset_reserve,
-                sqrt_k_after: self.amm.sqrt_k,
-                adjustment_cost,
-                oracle_price: _oracle_price_data.price,
-            }),
-            period_revenue_snapshot: 0,
-            refresh_cost: 0,
-        })
-    }
+        emit!(crate::state::events::AmmCurveChanged {
+            ts: now,
+            market_index,
+            peg_multiplier_before,
+            base_asset_reserve_before,
+            quote_asset_reserve_before,
+            sqrt_k_before,
+            peg_multiplier_after: self.amm.peg_multiplier,
+            base_asset_reserve_after: self.amm.base_asset_reserve,
+            quote_asset_reserve_after: self.amm.quote_asset_reserve,
+            sqrt_k_after: self.amm.sqrt_k,
+            adjustment_cost,
+            total_fee_minus_distributions_after: self.amm.total_fee_minus_distributions,
+            oracle_price: oracle_price_data.price,
+        });
 
-    /// Handler for [`MarketEvent::Refresh`] — applies the orchestrator's
-    /// pre-computed `RepegResult` to AMM internal state (cost, peg, sqrt_k,
-    /// reserves) and bumps `last_update_slot` if the oracle was fresh
-    /// enough. The market-stats writes that legacy `_update_amm` did
-    /// (oracle TWAPs, `last_reference_price_offset`, `last_oracle_valid`)
-    /// stay in the orchestrator since those are PerpMarket-level concerns.
-    fn handle_refresh(
-        &mut self,
-        repeg_result: Option<RepegResult>,
-        bump_last_update_slot: bool,
-        slot: u64,
-    ) -> DriftResult<MarketEventEffects> {
-        let mut effects = MarketEventEffects::default();
-        let mut applied_cost = 0i128;
-        let mut curve_changed = false;
-
-        if let Some(repeg) = repeg_result {
-            let peg_multiplier_before = self.amm.peg_multiplier;
-            let base_asset_reserve_before = self.amm.base_asset_reserve;
-            let quote_asset_reserve_before = self.amm.quote_asset_reserve;
-            let sqrt_k_before = self.amm.sqrt_k;
-
-            // Affordability check: only enforce the floor when the
-            // orchestrator's `check_lower_bound` flag is set (the same flag
-            // legacy `apply_cost_to_market` honored).
-            let cost_applied = if repeg.cost > 0 {
-                let new_tfmd = self
-                    .amm
-                    .total_fee_minus_distributions
-                    .safe_sub(repeg.cost)?;
-                if repeg.check_lower_bound && new_tfmd < repeg.total_fee_floor {
-                    false
-                } else {
-                    self.amm.total_fee_minus_distributions = new_tfmd;
-                    self.amm.net_revenue_since_last_funding = self
-                        .amm
-                        .net_revenue_since_last_funding
-                        .safe_sub(repeg.cost.cast::<i64>()?)?;
-                    true
-                }
-            } else if repeg.cost < 0 {
-                self.amm.total_fee_minus_distributions = self
-                    .amm
-                    .total_fee_minus_distributions
-                    .safe_add(repeg.cost.abs())?;
-                self.amm.net_revenue_since_last_funding = self
-                    .amm
-                    .net_revenue_since_last_funding
-                    .safe_sub(repeg.cost.cast::<i64>()?)?;
-                true
-            } else {
-                true
-            };
-
-            if cost_applied {
-                self.amm
-                    .apply_k_update(&crate::amm::math::cp_curve::UpdateKResult {
-                        sqrt_k: repeg.new_sqrt_k,
-                        base_asset_reserve: repeg.new_base_asset_reserve,
-                        quote_asset_reserve: repeg.new_quote_asset_reserve,
-                    })?;
-                self.amm.peg_multiplier = repeg.new_peg;
-                applied_cost = repeg.cost;
-                curve_changed = true;
-
-                effects.curve_record = Some(CurveSnapshot {
-                    peg_multiplier_before,
-                    base_asset_reserve_before,
-                    quote_asset_reserve_before,
-                    sqrt_k_before,
-                    peg_multiplier_after: self.amm.peg_multiplier,
-                    base_asset_reserve_after: self.amm.base_asset_reserve,
-                    quote_asset_reserve_after: self.amm.quote_asset_reserve,
-                    sqrt_k_after: self.amm.sqrt_k,
-                    adjustment_cost: repeg.cost,
-                    // No oracle price emitted with Refresh curve records;
-                    // `_update_amm` doesn't emit a CurveRecord for repegs
-                    // either, so this field is unused today. Leave at 0
-                    // for forward-compat.
-                    oracle_price: 0,
-                });
-            }
-        }
-
-        // Only bump last_update_slot when the curve was either left intact
-        // or successfully updated (the legacy code suppressed the bump when
-        // the cost failed the lower-bound check).
-        let curve_intact = repeg_result.is_none_or(|_| curve_changed);
-        if bump_last_update_slot && curve_intact {
-            self.amm.last_update_slot = slot;
-        }
-
-        effects.refresh_cost = applied_cost;
-        Ok(effects)
+        Ok(())
     }
 
     /// Apply a cost (positive = AMM pays) to the AMM's bookkeeping. Returns
@@ -1153,10 +1162,17 @@ mod amm_maker_tests {
         QuoteContext {
             stats,
             oracle,
+            mm_oracle: None,
+            oracle_validity: None,
             fee_budget: 0,
             tick: 1,
+            step_size: 1,
             slot: 0,
             base_precision: crate::math::constants::BASE_PRECISION as u64,
+            total_exchange_fee: 0,
+            total_liquidation_fee: 0,
+            market_status: crate::state::market_status::MarketStatus::default(),
+            market_config: 0,
         }
     }
 
@@ -1172,7 +1188,9 @@ mod amm_maker_tests {
             short_spread: 100,
             ..AmmQuoteState::no_spread(&amm)
         };
-        let maker = AmmQuoter::new(&mut amm, quote_state, 1);
+        let mut maker = AmmQuoter::for_amm(&mut amm);
+        maker.quote_state = quote_state;
+        let maker = maker;
 
         let ask = maker.best_price(&ctx, PositionDirection::Long).unwrap();
         let bid = maker.best_price(&ctx, PositionDirection::Short).unwrap();
@@ -1469,10 +1487,17 @@ mod amm_jit_maker_tests {
         QuoteContext {
             stats,
             oracle,
+            mm_oracle: None,
+            oracle_validity: None,
             fee_budget: 0,
             tick: 1,
+            step_size: 1,
             slot: 0,
             base_precision: BASE_PRECISION as u64,
+            total_exchange_fee: 0,
+            total_liquidation_fee: 0,
+            market_status: crate::state::market_status::MarketStatus::default(),
+            market_config: 0,
         }
     }
 

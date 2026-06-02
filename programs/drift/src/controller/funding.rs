@@ -20,7 +20,7 @@ use crate::math::stats::calculate_new_twap;
 
 use crate::math::oracle;
 
-use crate::state::events::{CurveRecord, FundingPaymentRecord, FundingRateRecord};
+use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -161,6 +161,50 @@ pub fn update_funding_rate(
         Some(reserve_price) => reserve_price,
         None => market.amm.reserve_price()?,
     };
+
+    // ---- Pre-refresh: bring the AMM up to date for `slot` BEFORE the
+    // `block_operation` gate runs. `block_operation` rejects funding when
+    // `slots_since_amm_update > market_stats.funding_period`; with a tiny
+    // funding_period (e.g. the bankrun `pyth.ts` tests use 0) a stale
+    // `last_update_slot` would otherwise lock funding out for the rest of
+    // the slot. Matches the legacy `handle_update_funding_rate` flow
+    // (master called `_update_amm` here). The consolidated `AmmQuoter`
+    // further down inside this function reuses the post-refresh AMM via
+    // slot-idempotency, so the projection only runs once. ----
+    {
+        let oracle_price_data = *oracle_map.get_price_data(&market.oracle_id())?;
+        let mm_oracle_price_data =
+            market.get_mm_oracle_price_data(oracle_price_data, slot, &guard_rails.validity)?;
+        let amm_refresh_validity =
+            crate::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
+                market,
+                &mm_oracle_price_data,
+                &guard_rails.validity,
+            )?;
+        let market_stats_snap = market.market_stats;
+        let safe_oracle = mm_oracle_price_data.get_safe_oracle_price_data();
+        let setup_ctx = crate::state::quoter::QuoteContext {
+            stats: &market_stats_snap,
+            oracle: &safe_oracle,
+            mm_oracle: Some(&mm_oracle_price_data),
+            oracle_validity: amm_refresh_validity,
+            fee_budget: 0,
+            tick: market.order_tick_size,
+            step_size: market.order_step_size,
+            slot,
+            base_precision: crate::math::constants::BASE_PRECISION_U64,
+            total_exchange_fee: market.total_exchange_fee,
+            total_liquidation_fee: market.total_liquidation_fee,
+            market_status: market.status,
+            market_config: market.market_config,
+        };
+        let mut amm_quoter = crate::amm::AmmQuoter::for_amm(&mut market.amm);
+        <crate::amm::AmmQuoter as crate::state::quoter::Quoter>::setup(
+            &mut amm_quoter,
+            &setup_ctx,
+        )?;
+    }
+
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
     let block_funding_rate_update = oracle::block_operation(
         market,
@@ -200,22 +244,83 @@ pub fn update_funding_rate(
             )?
         };
 
-        // Materialise the AMM's current spread / spread-reserves state on
-        // demand (no longer cached on AMM). Threaded into `AmmQuoter` for the
-        // funding event handler below.
-        let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-            &market.amm,
-            &market.market_stats,
-            &mm_oracle_price_data,
-            reserve_price,
-            slot,
-        )?;
+        // ---- Snapshot every PerpMarket-level scalar / sub-struct the
+        // rest of this branch needs, while we still hold `&PerpMarket`.
+        // Once we destructure for the disjoint &mut borrows that let one
+        // AmmQuoter span setup → math → on_market_event, we can't call
+        // `&self` methods on `market` again. ----
+        let amm_refresh_validity =
+            crate::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
+                market,
+                &mm_oracle_price_data,
+                &guard_rails.validity,
+            )?;
+        let max_price_spread =
+            market.get_max_price_divergence_for_funding_rate(oracle_price_twap)?;
+        let k_update_eligible = market.amm.is_curve_update_enabled()
+            && !market.has_market_config_flag(
+                crate::state::perp_market::MarketConfigFlag::DisableFormulaicKUpdate,
+            );
+        let market_stats_snap = market.market_stats;
+        let market_index = market.market_index;
+        let market_status = market.status;
+        let market_config = market.market_config;
+        let order_tick_size = market.order_tick_size;
+        let order_step_size = market.order_step_size;
+        let total_exchange_fee = market.total_exchange_fee;
+        let total_liquidation_fee = market.total_liquidation_fee;
+        let min_order_size = market.market_stats.min_order_size;
+        let funding_inputs = crate::math::funding::FundingMarketInputs::from_market(market);
+        let safe_oracle = mm_oracle_price_data.get_safe_oracle_price_data();
 
-        // price relates to execution premium / direction
+        let setup_ctx = crate::state::quoter::QuoteContext {
+            stats: &market_stats_snap,
+            oracle: &safe_oracle,
+            mm_oracle: Some(&mm_oracle_price_data),
+            oracle_validity: amm_refresh_validity,
+            fee_budget: 0,
+            tick: order_tick_size,
+            step_size: order_step_size,
+            slot,
+            base_precision: crate::math::constants::BASE_PRECISION_U64,
+            total_exchange_fee,
+            total_liquidation_fee,
+            market_status,
+            market_config,
+        };
+
+        // ---- Disjoint-field destructure so a single AmmQuoter can hold
+        // `&mut amm` across setup → AMM reads → cum-rate writes →
+        // on_market_event, while we still mutate `market_stats` and the
+        // various `last_funding_*` fields through their own &mut refs. ----
+        let crate::state::perp_market::PerpMarket {
+            amm,
+            market_stats,
+            cumulative_funding_rate_long,
+            cumulative_funding_rate_short,
+            last_funding_rate,
+            last_funding_oracle_twap,
+            last_funding_rate_long,
+            last_funding_rate_short,
+            last_funding_rate_ts,
+            net_unsettled_funding_pnl,
+            next_funding_rate_record_id,
+            ..
+        } = &mut *market;
+
+        let mut amm_quoter = crate::amm::AmmQuoter::for_amm(amm);
+        <crate::amm::AmmQuoter as crate::state::quoter::Quoter>::setup(
+            &mut amm_quoter,
+            &setup_ctx,
+        )?;
+        let amm_quote_state = amm_quoter.quote_state;
+
+        // ---- Post-refresh AMM reads via the live quoter. ----
+        let reserve_price = amm_quoter.amm.reserve_price()?;
         let (execution_premium_price, execution_premium_direction) =
             if amm_quote_state.long_spread > amm_quote_state.short_spread {
                 (
-                    market.amm.ask_price(
+                    amm_quoter.amm.ask_price(
                         reserve_price,
                         amm_quote_state.long_spread,
                         amm_quote_state.reference_price_offset,
@@ -224,7 +329,7 @@ pub fn update_funding_rate(
                 )
             } else if amm_quote_state.long_spread < amm_quote_state.short_spread {
                 (
-                    market.amm.bid_price(
+                    amm_quoter.amm.bid_price(
                         reserve_price,
                         amm_quote_state.short_spread,
                         amm_quote_state.reference_price_offset,
@@ -234,17 +339,16 @@ pub fn update_funding_rate(
             } else {
                 (reserve_price, None)
             };
-
-        let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-        let order_tick_size = market.order_tick_size;
-        let (amm_bid_price, amm_ask_price) = market.amm.bid_ask_price(
+        let (amm_bid_price, amm_ask_price) = amm_quoter.amm.bid_ask_price(
             reserve_price,
             amm_quote_state.long_spread,
             amm_quote_state.short_spread,
             amm_quote_state.reference_price_offset,
         )?;
-        let amm_base_spread = market.amm.base_spread;
-        let mid_price_twap = market.market_stats.update_mark_twap_with_amm_bid_ask(
+        let amm_base_spread = amm_quoter.amm.base_spread;
+
+        // ---- Mark TWAP (disjoint market_stats borrow). ----
+        let mid_price_twap = market_stats.update_mark_twap_with_amm_bid_ask(
             amm_bid_price,
             amm_ask_price,
             amm_base_spread,
@@ -257,10 +361,10 @@ pub fn update_funding_rate(
             order_tick_size,
         )?;
 
-        let period_adjustment = (24_i128).safe_mul(ONE_HOUR_I128)?.safe_div(max(
-            ONE_HOUR_I128,
-            market.market_stats.funding_period as i128,
-        ))?;
+        // ---- Pure funding-rate math. ----
+        let period_adjustment = (24_i128)
+            .safe_mul(ONE_HOUR_I128)?
+            .safe_div(max(ONE_HOUR_I128, funding_period as i128))?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
         let price_spread = mid_price_twap.cast::<i64>()?.safe_sub(oracle_price_twap)?;
@@ -281,127 +385,113 @@ pub fn update_funding_rate(
             price_spread.safe_add(funding_rate_offset)?
         };
 
-        // clamp price divergence based on contract tier for funding rate calculation
-        let max_price_spread =
-            market.get_max_price_divergence_for_funding_rate(oracle_price_twap)?;
         let clamped_price_spread =
             price_spread_with_offset.clamp(-max_price_spread, max_price_spread);
-
         let funding_rate = clamped_price_spread
             .cast::<i128>()?
             .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
             .safe_div(period_adjustment.cast()?)?
             .cast::<i64>()?;
 
-        let (funding_rate_long, funding_rate_short, funding_imbalance_revenue) =
-            calculate_funding_rate_long_short(market, funding_rate.cast()?)?;
+        let (funding_rate_long_value, funding_rate_short_value, funding_imbalance_revenue) =
+            calculate_funding_rate_long_short(&funding_inputs, funding_rate.cast()?)?;
 
-        // Fire `FundingApplied` to the AMM. This is the only path that lets
-        // the AMM update its books (k-update + window reset) — controller
-        // code never reaches into AMM fields here.
-        let total_fee_floor = market
+        // `calculate_funding_rate_long_short` is pure. Enforce the
+        // protocol-floor profitability check before mutating; the AMM
+        // settles its own PnL from cum-rate deltas inside the event
+        // handler below.
+        crate::math::funding::validate_funding_pnl_profitability(
+            &funding_inputs,
+            funding_imbalance_revenue,
+        )?;
+
+        // ---- Apply cum-rate updates BEFORE dispatching FundingUpdated
+        // so the AMM settles against post-update values (same as user
+        // positions settle against current cum rates). ----
+        *cumulative_funding_rate_long =
+            cumulative_funding_rate_long.safe_add(funding_rate_long_value)?;
+        *cumulative_funding_rate_short =
+            cumulative_funding_rate_short.safe_add(funding_rate_short_value)?;
+
+        let total_fee_floor = amm_quoter
             .amm
-            .protocol_floor(market.total_exchange_fee, market.total_liquidation_fee)?;
-        let funding_imbalance_cost = -funding_imbalance_revenue;
-        let k_update_eligible = market.amm.is_curve_update_enabled()
-            && !market.has_market_config_flag(
-                crate::state::perp_market::MarketConfigFlag::DisableFormulaicKUpdate,
-            );
-        let market_status = market.status;
-        let event = crate::state::quoter::MarketEvent::FundingApplied {
-            funding_imbalance_cost,
+            .protocol_floor(total_exchange_fee, total_liquidation_fee)?;
+        let event = crate::state::quoter::MarketEvent::FundingUpdated {
+            market_index,
+            cumulative_funding_rate_long: *cumulative_funding_rate_long,
+            cumulative_funding_rate_short: *cumulative_funding_rate_short,
+            base_asset_amount_long: funding_inputs.base_asset_amount_long,
+            base_asset_amount_short: funding_inputs.base_asset_amount_short,
+            funding_rate: funding_rate.cast()?,
             oracle_price_data,
             now,
             total_fee_floor,
+            long_spread: amm_quote_state.long_spread,
+            short_spread: amm_quote_state.short_spread,
             k_update_eligible,
             market_status,
+            min_order_size,
         };
-        let ctx = crate::state::quoter::QuoteContext {
-            stats: &market.market_stats,
+        let event_ctx = crate::state::quoter::QuoteContext {
+            stats: market_stats,
             oracle: oracle_price_data,
+            mm_oracle: None,
+            oracle_validity: None,
             fee_budget: 0,
-            tick: market.order_tick_size,
+            tick: order_tick_size,
+            step_size: order_step_size,
             slot,
             base_precision: crate::math::constants::BASE_PRECISION_U64,
+            total_exchange_fee: 0,
+            total_liquidation_fee: 0,
+            market_status: crate::state::market_status::MarketStatus::default(),
+            market_config: 0,
         };
-        let effects = {
-            let mut amm_maker = crate::amm::AmmQuoter::new(
-                &mut market.amm,
-                amm_quote_state,
-                market.order_step_size,
-            );
-            <crate::amm::AmmQuoter as crate::state::quoter::QuoterCommit>::on_market_event(
-                &mut amm_maker,
-                &ctx,
-                &event,
-            )?
-        };
-        let period_revenue_snapshot = effects.period_revenue_snapshot;
-        let amm_metrics = market.amm.curve_record_metrics();
-        if let Some(curve) = effects.curve_record {
-            emit!(CurveRecord {
-                ts: now,
-                record_id: get_then_update_id!(market, next_curve_record_id),
-                market_index: market.market_index,
-                peg_multiplier_before: curve.peg_multiplier_before,
-                base_asset_reserve_before: curve.base_asset_reserve_before,
-                quote_asset_reserve_before: curve.quote_asset_reserve_before,
-                sqrt_k_before: curve.sqrt_k_before,
-                peg_multiplier_after: curve.peg_multiplier_after,
-                base_asset_reserve_after: curve.base_asset_reserve_after,
-                quote_asset_reserve_after: curve.quote_asset_reserve_after,
-                sqrt_k_after: curve.sqrt_k_after,
-                base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
-                base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
-                base_asset_amount_with_amm: amm_metrics.base_asset_amount_with_amm,
-                number_of_users: market.number_of_users,
-                adjustment_cost: curve.adjustment_cost,
-                total_fee: amm_metrics.total_fee,
-                total_fee_minus_distributions: amm_metrics.total_fee_minus_distributions,
-                oracle_price: market.market_stats.historical_oracle_data.last_oracle_price,
-                fill_record: market.next_fill_record_id as u128,
-            });
-        }
+        <crate::amm::AmmQuoter as crate::state::quoter::QuoterCommit>::on_market_event(
+            &mut amm_quoter,
+            &event_ctx,
+            &event,
+        )?;
+        // `AmmCurveChanged` (AMM-side) is emitted by the AMM directly from
+        // inside the FundingUpdated handler when the k-update fires. No
+        // joint `CurveRecord` emission here.
 
-        market.cumulative_funding_rate_long = market
-            .cumulative_funding_rate_long
-            .safe_add(funding_rate_long)?;
-
-        market.cumulative_funding_rate_short = market
-            .cumulative_funding_rate_short
-            .safe_add(funding_rate_short)?;
-
-        market.last_funding_rate = funding_rate;
-        market.last_funding_oracle_twap = oracle_price_twap;
-        market.last_funding_rate_long = funding_rate_long.cast()?;
-        market.last_funding_rate_short = funding_rate_short.cast()?;
-        market.market_stats.last_24h_avg_funding_rate = calculate_new_twap(
+        // ---- Remaining PerpMarket-level updates via the disjoint refs. ----
+        *last_funding_rate = funding_rate;
+        *last_funding_oracle_twap = oracle_price_twap;
+        *last_funding_rate_long = funding_rate_long_value.cast()?;
+        *last_funding_rate_short = funding_rate_short_value.cast()?;
+        market_stats.last_24h_avg_funding_rate = calculate_new_twap(
             funding_rate,
             now,
-            market.market_stats.last_24h_avg_funding_rate,
-            market.last_funding_rate_ts,
+            market_stats.last_24h_avg_funding_rate,
+            *last_funding_rate_ts,
             TWENTY_FOUR_HOUR,
         )?;
+        *net_unsettled_funding_pnl =
+            net_unsettled_funding_pnl.safe_sub(funding_imbalance_revenue.cast()?)?;
+        *last_funding_rate_ts = now;
 
-        market.net_unsettled_funding_pnl = market
-            .net_unsettled_funding_pnl
-            .safe_sub(funding_imbalance_revenue.cast()?)?;
-
-        market.last_funding_rate_ts = now;
-
+        let record_id = {
+            let current = *next_funding_rate_record_id;
+            *next_funding_rate_record_id = current.checked_add(1).unwrap_or(1);
+            current
+        };
+        let base_asset_amount_with_amm = amm_quoter.amm.base_asset_amount_with_amm;
+        let cum_long_after = *cumulative_funding_rate_long;
+        let cum_short_after = *cumulative_funding_rate_short;
         emit!(FundingRateRecord {
             ts: now,
-            record_id: get_then_update_id!(market, next_funding_rate_record_id),
+            record_id,
             market_index,
             funding_rate,
-            funding_rate_long,
-            funding_rate_short,
-            cumulative_funding_rate_long: market.cumulative_funding_rate_long,
-            cumulative_funding_rate_short: market.cumulative_funding_rate_short,
+            funding_rate_long: funding_rate_long_value,
+            funding_rate_short: funding_rate_short_value,
+            cumulative_funding_rate_long: cum_long_after,
+            cumulative_funding_rate_short: cum_short_after,
             mark_price_twap: mid_price_twap,
             oracle_price_twap,
-            period_revenue: period_revenue_snapshot,
-            base_asset_amount_with_amm: amm_metrics.base_asset_amount_with_amm,
+            base_asset_amount_with_amm,
         });
     } else {
         return Ok(false);

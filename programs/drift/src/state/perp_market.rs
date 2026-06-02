@@ -200,8 +200,6 @@ pub struct PerpMarket {
     pub next_fill_record_id: u64,
     /// Every funding rate update has a record id. This is the next id to be used
     pub next_funding_rate_record_id: u64,
-    /// Every amm k updated has a record id. This is the next id to be used
-    pub next_curve_record_id: u64,
     /// The initial margin fraction factor. Used to increase margin ratio for large positions
     /// precision: MARGIN_PRECISION
     pub imf_factor: u32,
@@ -270,10 +268,11 @@ pub struct PerpMarket {
     /// the override for the state.min_perp_auction_duration
     /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
     pub oracle_low_risk_slot_delay_override: i8,
-    /// Trailing 28 bytes (was 27 + 1 compiler-inserted gap) so the IDL
-    /// records every byte and `market_stats` lands at the same offset Rust
-    /// computes via repr(C) alignment.
-    pub padding: [u8; 28],
+    /// Trailing padding so `market_stats` lands at the offset Rust naturally
+    /// computes via `repr(C)` alignment and the `(SIZE - 8) % 16 == 0`
+    /// invariant holds. Bumped to 36 bytes (was 28) when `next_curve_record_id`
+    /// was removed.
+    pub padding: [u8; 36],
     /// Market-wide stats shared across all makers: mark/oracle TWAPs, std,
     /// volume, intensity, mm-oracle snapshot, `historical_oracle_data`,
     /// `last_oracle_normalised_price`, `last_oracle_valid`. Writers (e.g.
@@ -326,7 +325,6 @@ impl Default for PerpMarket {
             expiry_price: 0,
             next_fill_record_id: 0,
             next_funding_rate_record_id: 0,
-            next_curve_record_id: 0,
             imf_factor: 0,
             unrealized_pnl_imf_factor: 0,
             liquidator_fee: 0,
@@ -357,7 +355,7 @@ impl Default for PerpMarket {
             oracle_source: OracleSource::default(),
             oracle_slot_delay_override: -1,
             oracle_low_risk_slot_delay_override: 0,
-            padding: [0; 28],
+            padding: [0; 36],
             market_stats: MarketStats::default(),
             _padding_align_amm: [0; 8],
             amm: AMM::default(),
@@ -371,7 +369,7 @@ impl Size for PerpMarket {
     // last_oracle_reserve_price_spread_pct, 2×u32 long/short_spread, 1×i32
     // reference_price_offset) — 80 bytes of cache that's now computed on
     // demand via `math::amm_spread::compute_amm_quote_state`.
-    const SIZE: usize = 1112;
+    const SIZE: usize = 1128;
 }
 
 impl MarketIndexOffset for PerpMarket {
@@ -441,6 +439,64 @@ impl PerpMarket {
             ContractTier::HighlySpeculative => 50, // 100%
             ContractTier::Isolated => 50,          // 100%
         })
+    }
+
+    /// PerpMarket-level oracle bookkeeping: refresh the oracle TWAPs,
+    /// cache the latest reference-price-offset (used by the next quote's
+    /// smoothing branch), and stamp `last_oracle_valid`. Called from the
+    /// `update_amms` keeper crank and the funding-rate / bid-ask-twap
+    /// keeper ixs. This is a PerpMarket-side concern — it does NOT
+    /// mutate AMM fields. It does read the AMM (for `reserve_price` and
+    /// the spread snapshot used to derive the offset).
+    pub fn update_oracle_derived_stats(
+        &mut self,
+        mm_oracle_price_data: &crate::state::oracle::MMOraclePriceData,
+        oracle_validity: Option<crate::math::oracle::OracleValidity>,
+        now: i64,
+        clock_slot: u64,
+    ) -> DriftResult<()> {
+        let Some(oracle_validity) = oracle_validity else {
+            return Ok(());
+        };
+
+        let reserve_price_after = self.amm.reserve_price()?;
+
+        if crate::math::oracle::is_oracle_valid_for_action(
+            oracle_validity,
+            Some(crate::math::oracle::DriftAction::UpdateTwap),
+        )? {
+            let sanitize_clamp_denominator = self.get_sanitize_clamp_denominator()?;
+            let funding_period = self.market_stats.funding_period;
+            let PerpMarket {
+                amm, market_stats, ..
+            } = self;
+            market_stats.update_oracle_twap(
+                amm,
+                now,
+                mm_oracle_price_data,
+                Some(reserve_price_after),
+                sanitize_clamp_denominator,
+                funding_period,
+            )?;
+        }
+
+        // Cache the fresh reference_price_offset so the next quote can
+        // smooth-transition off the previous value.
+        let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
+            &self.amm,
+            &self.market_stats,
+            mm_oracle_price_data,
+            reserve_price_after,
+            clock_slot,
+        )?;
+        self.market_stats.last_reference_price_offset = amm_quote_state.reference_price_offset;
+
+        self.market_stats.last_oracle_valid = crate::math::oracle::is_oracle_valid_for_action(
+            oracle_validity,
+            Some(crate::math::oracle::DriftAction::FillOrderAmmLowRisk),
+        )?;
+
+        Ok(())
     }
 
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
@@ -1663,4 +1719,4 @@ impl MarketStats {
     }
 }
 
-pub use crate::amm::state::{AmmCurveRecordMetrics, AMM};
+pub use crate::amm::state::AMM;

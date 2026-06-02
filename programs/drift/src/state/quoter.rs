@@ -39,7 +39,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_math::SafeMath;
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{MMOraclePriceData, OraclePriceData};
 use crate::state::perp_market::MarketStats;
 
 /// Inputs the matcher shares with every maker during a single match.
@@ -55,13 +55,29 @@ pub struct QuoteContext<'a> {
     pub stats: &'a MarketStats,
     /// Current oracle reading for the market.
     pub oracle: &'a OraclePriceData,
+    /// MM-wrapped oracle reading. Required for makers whose `setup` derives
+    /// post-refresh state from the same MM oracle the orchestrator's keeper
+    /// crank uses (the AMM); `None` for callers that only need the plain
+    /// `OraclePriceData` (DLOB, JIT) or that aren't invoking setup.
+    pub mm_oracle: Option<&'a MMOraclePriceData>,
+    /// Oracle validity classification, computed by the orchestrator. Threaded
+    /// here so `setup` can decide whether to apply a curve update (AMM) or
+    /// skip it. `None` mirrors the Settlement/Delisted passthrough.
+    pub oracle_validity: Option<crate::math::oracle::OracleValidity>,
     /// Available protocol fee budget the AMM can consume for repeg / k-update.
     /// The fill controller reads this off the AMM's bookkeeping and passes
     /// it in as a scalar — the AMM itself does not reach into PerpMarket
     /// state.
     pub fee_budget: u64,
-    /// The market's tick size, used for bisection precision.
+    /// The market's price tick — minimum **price** increment. Used by the
+    /// matcher's price-bisection (segment walk, marginal-tick search).
+    /// Sourced from `PerpMarket::order_tick_size`.
     pub tick: u64,
+    /// The market's base step — minimum **base-amount** increment a fill
+    /// can take. Used by AMM `cumulative_size` to standardise its
+    /// analytic-inverse output into valid lot sizes. Sourced from
+    /// `PerpMarket::order_step_size`.
+    pub step_size: u64,
     /// Current slot. Used by DLOB-order makers to determine auction state
     /// (an order in active auction prices differently than the same order
     /// resting post-auction).
@@ -76,6 +92,19 @@ pub struct QuoteContext<'a> {
     /// they compute quote via the AMM's own swap math, which is already
     /// precision-correct.
     pub base_precision: u64,
+    /// PerpMarket-level fees the AMM needs to compute its projection (the
+    /// `protocol_floor` for affordability checks, plus the cost budget).
+    /// AMM-only; other quoter impls ignore these.
+    pub total_exchange_fee: u128,
+    pub total_liquidation_fee: u128,
+    /// PerpMarket status — threaded to the AMM's projection so the curve
+    /// update can relax its k-down precondition when the market is
+    /// `ReduceOnly` (matching legacy behaviour). AMM-only.
+    pub market_status: crate::state::market_status::MarketStatus,
+    /// Raw `PerpMarket::market_config` byte — the AMM tests
+    /// `MarketConfigFlag::DisableFormulaicKUpdate` against it during k
+    /// adjustment. AMM-only.
+    pub market_config: u8,
 }
 
 /// The result of a single maker's portion of a match. Constructed either by
@@ -179,6 +208,23 @@ pub enum FillFeePolicy {
 /// during bisection. Settlement happens after the match resolves, via
 /// `commit_fill`.
 pub trait Quoter {
+    /// Setup phase — called once per matching session before any quote
+    /// query. Implementations that derive transient state from `ctx` (e.g.
+    /// the AMM materialising a post-refresh projection + spread snapshot)
+    /// compute it here and store it on `self`. Quote methods (`best_price`,
+    /// `cumulative_size`, `try_fill_solo`) then read that prepared state.
+    ///
+    /// Setup writes only to the quoter's own session-scoped fields. It
+    /// does NOT mutate any backing account state — peg/reserves on the
+    /// AMM only change inside `QuoterCommit::commit_fill`.
+    ///
+    /// Default is no-op: makers that quote from their constant-at-
+    /// construction inputs (DLOB orders, JIT participants) don't need
+    /// setup.
+    fn setup(&mut self, _ctx: &QuoteContext) -> DriftResult<()> {
+        Ok(())
+    }
+
     /// First nonzero offer on this side. Pure function of `(self, ctx)`.
     /// `cumulative_size(ctx, side, p) == 0` for all `p < best_price(side)`,
     /// and is positive for some `p ≥ best_price(side)`.
@@ -247,43 +293,10 @@ pub trait Quoter {
     }
 }
 
-/// Snapshot of an AMM curve change. Returned by a maker via
-/// [`MarketEventEffects::curve_record`] when handling an event that triggered
-/// a repeg / k-update. The orchestrator stamps the record id (a PerpMarket
-/// counter) and emits the `CurveRecord` Anchor event.
-#[derive(Debug, Clone, Copy)]
-pub struct CurveSnapshot {
-    pub peg_multiplier_before: u128,
-    pub base_asset_reserve_before: u128,
-    pub quote_asset_reserve_before: u128,
-    pub sqrt_k_before: u128,
-    pub peg_multiplier_after: u128,
-    pub base_asset_reserve_after: u128,
-    pub quote_asset_reserve_after: u128,
-    pub sqrt_k_after: u128,
-    pub adjustment_cost: i128,
-    pub oracle_price: i64,
-}
-
-/// Effects the orchestrator must apply on behalf of a maker after an event.
-///
-/// Anything writable only by the orchestrator (PerpMarket-level counters,
-/// Anchor event emission) flows out via this struct. Maker-internal mutation
-/// (the AMM's reserves, its own fee bookkeeping) is performed by the maker
-/// directly during `on_market_event` and is NOT represented here.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct MarketEventEffects {
-    pub curve_record: Option<CurveSnapshot>,
-    /// For `FundingApplied`: the AMM's `net_revenue_since_last_funding`
-    /// captured immediately before the rolling-window reset, so the
-    /// orchestrator can stamp the right value into the emitted
-    /// `FundingRateRecord` without reading AMM fields after the reset.
-    pub period_revenue_snapshot: i64,
-    /// For `Refresh`: the cost the AMM applied (zero if the refresh did
-    /// not trigger a curve change). The orchestrator returns this from
-    /// `_update_amm` as the AMM update cost.
-    pub refresh_cost: i128,
-}
+// `CurveSnapshot`, `MarketEventEffects`, and `SnapOutcome` were deleted.
+// `on_market_event` returns `()`; AMM-side Anchor records
+// (`AmmCurveChanged`) are emitted by the AMM directly. `snap_to_oracle`
+// returns just the cost (`i128`).
 
 /// A market-level signal a maker may want to react to.
 ///
@@ -294,55 +307,52 @@ pub struct MarketEventEffects {
 /// orchestrator and threaded through the event.
 #[derive(Debug, Clone, Copy)]
 pub enum MarketEvent<'a> {
-    /// Funding has just been applied to the market. Carries the funding
-    /// imbalance cost (positive = the AMM owes; negative = revenue for the
-    /// AMM), the oracle reading the funding update used, the timestamp, and
-    /// the protocol's lower-bound on AMM `total_fee_minus_distributions` so
-    /// the AMM can decide whether a k-update is affordable without reading
-    /// PerpMarket-level fee state.
-    FundingApplied {
-        funding_imbalance_cost: i128,
+    /// Funding has just been applied to the market — cumulative rates have
+    /// been bumped on `PerpMarket`. Carries everything a position-holding
+    /// participant needs to settle its own funding payment from cum-rate
+    /// deltas (`(market_cum_rate − own_last_cum_rate) × position`) and,
+    /// for the AMM, to run its eager k-update.
+    FundingUpdated {
+        /// PerpMarket index — threaded through so the AMM can emit
+        /// `AmmCurveChanged` (which carries market_index) from inside the
+        /// handler.
+        market_index: u16,
+        /// Post-update cumulative funding rates from `PerpMarket`. The AMM
+        /// settles against `(new − own_last) × counterparty_position` —
+        /// same math shape user positions use via `settle_funding_payment`.
+        cumulative_funding_rate_long: i128,
+        cumulative_funding_rate_short: i128,
+        /// User-position aggregates so the AMM can decompose its
+        /// counterparty exposure (long-side vs short-side). Lets the AMM
+        /// match master's asymmetric-cap behaviour without reaching back
+        /// into PerpMarket. Snapshot copied at dispatch time.
+        base_asset_amount_long: i128,
+        base_asset_amount_short: i128,
+        /// This period's funding_rate scalar — used by the k-update
+        /// affordability / direction logic. Cum-rate deltas alone don't
+        /// recover it (capping splits long vs short asymmetrically).
+        funding_rate: i128,
         oracle_price_data: &'a OraclePriceData,
         now: i64,
+        /// Protocol's lower-bound on AMM `total_fee_minus_distributions`
+        /// (computed from PerpMarket-level fees). Threaded so the AMM's
+        /// k-update can gate its cost debit without reading PerpMarket.
         total_fee_floor: i128,
-        /// Whether the formulaic k-update is enabled for this market. The
-        /// orchestrator pre-computes this from PerpMarket-level state
-        /// (curve update intensity + `DisableFormulaicKUpdate` config flag);
-        /// if `false`, the AMM still does its rolling-window reset but skips
-        /// the k-update entirely.
+        /// AMM bid/ask spread snapshot at the moment funding was computed.
+        /// The k-update branch compares these against the AMM's base spread.
+        long_spread: u32,
+        short_spread: u32,
+        /// Formulaic k-update enabled (curve_update_intensity + the
+        /// `DisableFormulaicKUpdate` config flag). If false, AMM still
+        /// settles funding + resets the rolling window but skips k-update.
         k_update_eligible: bool,
-        /// `market.status` at the time of the funding update. Threaded
-        /// through so `get_update_k_result` can relax its k-down precondition
-        /// when the market is `ReduceOnly` (matching master's behavior).
+        /// `market.status` — threaded so `get_update_k_result` can relax
+        /// its k-down precondition when the market is `ReduceOnly`.
         market_status: crate::state::market_status::MarketStatus,
+        /// `market_stats.min_order_size` — used by the AMM's `can_lower_k`
+        /// check during k-update.
+        min_order_size: u64,
     },
-    /// Periodic AMM-state refresh from oracle conditions. Carries the
-    /// pre-computed repeg result (orchestrator runs the
-    /// `calculate_optimal_peg_and_budget` + `repeg::adjust_amm` compute
-    /// pipeline because those helpers read PerpMarket-level state the AMM
-    /// doesn't have direct access to). The handler applies the result to
-    /// AMM internal state: cost → `total_fee_minus_distributions` /
-    /// `net_revenue_since_last_funding`, peg + reserves → curve, slot →
-    /// `last_update_slot`.
-    Refresh {
-        repeg_result: Option<RepegResult>,
-        bump_last_update_slot: bool,
-        slot: u64,
-    },
-}
-
-/// Pre-computed repeg parameters threaded into [`MarketEvent::Refresh`]. The
-/// orchestrator runs the optimization pipeline (it reads PerpMarket-level
-/// inputs the AMM doesn't); the AMM applies the result.
-#[derive(Debug, Clone, Copy)]
-pub struct RepegResult {
-    pub new_peg: u128,
-    pub new_sqrt_k: u128,
-    pub new_base_asset_reserve: u128,
-    pub new_quote_asset_reserve: u128,
-    pub cost: i128,
-    pub check_lower_bound: bool,
-    pub total_fee_floor: i128,
 }
 
 // `AmmContract` trait moved to `crate::amm::quoter` so the AMM-side contract
@@ -368,12 +378,8 @@ pub struct RepegResult {
 pub trait QuoterCommit: Quoter {
     fn commit_fill(&mut self, ctx: &QuoteContext, fill: &QuoterFill) -> DriftResult<()>;
 
-    fn on_market_event(
-        &mut self,
-        _ctx: &QuoteContext,
-        _event: &MarketEvent,
-    ) -> DriftResult<MarketEventEffects> {
-        Ok(MarketEventEffects::default())
+    fn on_market_event(&mut self, _ctx: &QuoteContext, _event: &MarketEvent) -> DriftResult<()> {
+        Ok(())
     }
 }
 
@@ -570,10 +576,17 @@ mod dlob_order_maker_tests {
         QuoteContext {
             stats,
             oracle,
+            mm_oracle: None,
+            oracle_validity: None,
             fee_budget: 0,
             tick: 1,
+            step_size: 1,
             slot: 100,
             base_precision: crate::math::constants::BASE_PRECISION as u64,
+            total_exchange_fee: 0,
+            total_liquidation_fee: 0,
+            market_status: crate::state::market_status::MarketStatus::default(),
+            market_config: 0,
         }
     }
 

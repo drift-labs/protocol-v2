@@ -385,9 +385,8 @@ export type SpotInterestRecord = {
 	maxBorrowRate: number;
 };
 
-export type CurveRecord = {
+export type AmmCurveChanged = {
 	ts: BN;
-	recordId: BN;
 	marketIndex: number;
 	pegMultiplierBefore: BN;
 	baseAssetReserveBefore: BN;
@@ -397,15 +396,9 @@ export type CurveRecord = {
 	baseAssetReserveAfter: BN;
 	quoteAssetReserveAfter: BN;
 	sqrtKAfter: BN;
-	baseAssetAmountLong: BN;
-	baseAssetAmountShort: BN;
-	baseAssetAmountWithAmm: BN;
-	totalFee: BN;
-	totalFeeMinusDistributions: BN;
 	adjustmentCost: BN;
-	numberOfUsers: BN;
+	totalFeeMinusDistributionsAfter: BN;
 	oraclePrice: BN;
-	fillRecord: BN;
 };
 
 export declare type InsuranceFundRecord = {
@@ -447,7 +440,6 @@ export type FundingRateRecord = {
 	cumulativeFundingRateShort: BN;
 	oraclePriceTwap: BN;
 	markPriceTwap: BN;
-	periodRevenue: BN;
 	baseAssetAmountWithAmm: BN;
 };
 
@@ -823,7 +815,6 @@ export type PerpMarketAccount = {
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
 	nextFundingRateRecordId: BN;
-	nextCurveRecordId: BN;
 	pnlPool: PoolBalance;
 	liquidatorFee: number;
 	ifLiquidationFee: number;
@@ -1004,6 +995,8 @@ export type AMM = {
 	totalFeeWithdrawn: BN;
 	lastUpdateSlot: BN;
 	netRevenueSinceLastFunding: BN;
+	lastCumulativeFundingRateLong: BN;
+	lastCumulativeFundingRateShort: BN;
 	baseSpread: number;
 	maxSpread: number;
 	maxFillReserveFraction: number;

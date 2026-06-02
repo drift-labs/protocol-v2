@@ -158,47 +158,64 @@ pub(crate) fn calculate_base_swap_output_with_quote_state(
 // AMM-mutating helpers (`update_concentration_coef`, `move_price`, `recenter`)
 // live as methods on `AMM` in `crate::amm::state`. Callers go through those.
 
-/// Test-only convenience wrapper that fires a
-/// [`MarketEvent::FundingApplied`](crate::state::quoter::MarketEvent) at the
-/// AMM and discards the returned [`CurveSnapshot`](crate::state::quoter::CurveSnapshot).
-/// Production code uses the event path directly (see
-/// `controller/funding.rs::update_funding_rate`).
+/// Test-only convenience wrapper that exercises the AMM's eager k-update
+/// path directly, bypassing the FundingUpdated event dispatch (which
+/// would also do the AMM-as-user settle from cum-rate deltas — orthogonal
+/// to what these tests cover). Production code goes through the event
+/// path (see `controller/funding.rs::update_funding_rate`).
 #[cfg(test)]
 pub fn formulaic_update_k(
     market: &mut PerpMarket,
     oracle_price_data: &OraclePriceData,
     funding_imbalance_cost: i128,
-    now: i64,
+    _now: i64,
     amm_quote_state: &AmmQuoteState,
 ) -> DriftResult {
     use crate::amm::AmmQuoter;
-    use crate::math::casting::Cast;
-    use crate::state::quoter::{MarketEvent, QuoteContext, QuoterCommit};
+    use crate::state::quoter::QuoteContext;
 
     let k_update_eligible =
         !market.has_market_config_flag(MarketConfigFlag::DisableFormulaicKUpdate);
+    if !k_update_eligible {
+        return Ok(());
+    }
     let total_fee_floor = market
         .amm
         .protocol_floor(market.total_exchange_fee, market.total_liquidation_fee)?;
     let market_status = market.status;
-    let event = MarketEvent::FundingApplied {
-        funding_imbalance_cost,
-        oracle_price_data,
-        now,
-        total_fee_floor,
-        k_update_eligible,
-        market_status,
-    };
+    let min_order_size = market.market_stats.min_order_size;
+    let stats_snapshot = market.market_stats;
     let ctx = QuoteContext {
-        stats: &market.market_stats,
+        stats: &stats_snapshot,
         oracle: oracle_price_data,
+        mm_oracle: None,
+        oracle_validity: None,
         fee_budget: 0,
         tick: market.order_tick_size,
+        step_size: market.order_step_size,
         slot: 0,
         base_precision: crate::math::constants::BASE_PRECISION_U64,
+        total_exchange_fee: 0,
+        total_liquidation_fee: 0,
+        market_status: crate::state::market_status::MarketStatus::default(),
+        market_config: 0,
     };
-    let mut amm_maker = AmmQuoter::new(&mut market.amm, *amm_quote_state, market.order_step_size);
-    <AmmQuoter as QuoterCommit>::on_market_event(&mut amm_maker, &ctx, &event)?;
+    let long_spread = amm_quote_state.long_spread;
+    let short_spread = amm_quote_state.short_spread;
+    let market_index = market.market_index;
+    let mut amm_maker = AmmQuoter::for_amm(&mut market.amm);
+    amm_maker.handle_funding_applied(
+        &ctx,
+        funding_imbalance_cost,
+        oracle_price_data,
+        total_fee_floor,
+        long_spread,
+        short_spread,
+        market_status,
+        min_order_size,
+        market_index,
+        _now,
+    )?;
     Ok(())
 }
 

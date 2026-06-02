@@ -317,6 +317,195 @@ fn calculate_optimal_peg_and_budget_2_test() {
     assert_eq!(market.amm.last_update_slot, 1337);
 }
 
+/// Equivalence between the pure `project_post_refresh` projection and the
+/// mutating `dispatch_amm_refresh` orchestrator path. Applying the projection
+/// to a market should produce the same `(peg, reserves, sqrt_k,
+/// total_fee_minus_distributions, net_revenue_since_last_funding)` as running
+/// the orchestrator's mutation directly.
+///
+/// Reuses the `calculate_optimal_peg_and_budget_2_test` fixture which exercises
+/// the realistic post-fee-floor / check_lower_bound = false branch.
+#[test]
+fn project_post_refresh_matches_dispatch_amm_refresh() {
+    use crate::amm::math::cp_curve::UpdateKResult;
+
+    let make_market = || {
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 2270516211133,
+                quote_asset_reserve: 2270925669621,
+                terminal_quote_asset_reserve: 2270688451627,
+                sqrt_k: 2270720931148,
+                peg_multiplier: 17723081263,
+                base_asset_amount_with_amm: 237200000,
+                base_spread: 250,
+                curve_update_intensity: 100,
+                max_spread: 500 * 100,
+                total_fee_minus_distributions: -242668966,
+                total_fee_withdrawn: 124247717,
+                net_revenue_since_last_funding: 1_000,
+                concentration_coef: 1020710,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 500,
+            total_exchange_fee: 298628987,
+            market_stats: MarketStats {
+                mark_std: 43112524,
+                last_mark_price_twap_ts: 0,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: 17765940050,
+                    last_oracle_price_twap_5min: 17763317077,
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
+            ..PerpMarket::default()
+        };
+        let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+            amm::calculate_terminal_reserves(&market.amm).unwrap();
+        market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+        let (min_base_asset_reserve, max_base_asset_reserve) =
+            amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+                .unwrap();
+        market.amm.min_base_asset_reserve = min_base_asset_reserve;
+        market.amm.max_base_asset_reserve = max_base_asset_reserve;
+        market
+    };
+
+    let oracle_price_data = OraclePriceData {
+        price: (17_800 * PRICE_PRECISION) as i64,
+        confidence: 10233,
+        delay: 0,
+        has_sufficient_number_of_data_points: true,
+        sequence_id: None,
+    };
+    let mm_oracle_price_data = MMOraclePriceData::new(
+        oracle_price_data.price,
+        oracle_price_data.delay + 1,
+        0,
+        OracleValidity::default(),
+        oracle_price_data,
+    )
+    .unwrap();
+
+    // Side A: orchestrator path (mutating, via snap_to_oracle).
+    let mut market_a = make_market();
+    let validity = OracleValidity::Valid;
+    let outcome = crate::amm::refresh::snap_to_oracle(
+        &mut market_a,
+        &mm_oracle_price_data,
+        Some(validity),
+        1337,
+    )
+    .unwrap();
+    let cost_via_dispatch = outcome;
+
+    // Side B: project_post_refresh, then apply manually as commit_fill /
+    // snap_to_oracle would.
+    let mut market_b = make_market();
+    let projection =
+        project_post_refresh(&market_b, &mm_oracle_price_data, Some(validity)).unwrap();
+    if projection.applied {
+        market_b
+            .amm
+            .apply_k_update(&UpdateKResult {
+                sqrt_k: projection.sqrt_k,
+                base_asset_reserve: projection.base_asset_reserve,
+                quote_asset_reserve: projection.quote_asset_reserve,
+            })
+            .unwrap();
+        market_b.amm.peg_multiplier = projection.peg_multiplier;
+        market_b.amm.total_fee_minus_distributions = market_b
+            .amm
+            .total_fee_minus_distributions
+            .checked_sub(projection.cost)
+            .unwrap();
+        market_b.amm.net_revenue_since_last_funding = market_b
+            .amm
+            .net_revenue_since_last_funding
+            .checked_sub(projection.cost as i64)
+            .unwrap();
+    }
+
+    assert_eq!(cost_via_dispatch, projection.cost);
+    assert_eq!(market_a.amm.peg_multiplier, market_b.amm.peg_multiplier);
+    assert_eq!(market_a.amm.sqrt_k, market_b.amm.sqrt_k);
+    assert_eq!(
+        market_a.amm.base_asset_reserve,
+        market_b.amm.base_asset_reserve
+    );
+    assert_eq!(
+        market_a.amm.quote_asset_reserve,
+        market_b.amm.quote_asset_reserve
+    );
+    assert_eq!(
+        market_a.amm.total_fee_minus_distributions,
+        market_b.amm.total_fee_minus_distributions
+    );
+    assert_eq!(
+        market_a.amm.net_revenue_since_last_funding,
+        market_b.amm.net_revenue_since_last_funding
+    );
+    assert_eq!(
+        market_a.amm.terminal_quote_asset_reserve,
+        market_b.amm.terminal_quote_asset_reserve
+    );
+}
+
+/// When oracle validity is `None` (Settlement/Delisted) or invalid for
+/// curve update, `project_post_refresh` returns a passthrough projection
+/// with the AMM's current state, `cost == 0`, and `applied == false`.
+#[test]
+fn project_post_refresh_noop_when_oracle_invalid() {
+    let market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 63015384615,
+            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
+            sqrt_k: 64 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 19_400_000_000,
+            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
+            curve_update_intensity: 100,
+            ..AMM::default()
+        },
+        ..PerpMarket::default()
+    };
+
+    let oracle_price_data = OraclePriceData {
+        price: (18_000 * PRICE_PRECISION) as i64,
+        confidence: 0,
+        delay: 2,
+        has_sufficient_number_of_data_points: true,
+        sequence_id: None,
+    };
+    let mm_oracle_price_data = MMOraclePriceData::new(
+        oracle_price_data.price,
+        oracle_price_data.delay + 1,
+        0,
+        OracleValidity::default(),
+        oracle_price_data,
+    )
+    .unwrap();
+
+    // Settlement/Delisted markets surface as None — passthrough.
+    let p = project_post_refresh(&market, &mm_oracle_price_data, None).unwrap();
+    assert!(!p.applied);
+    assert_eq!(p.cost, 0);
+    assert_eq!(p.peg_multiplier, market.amm.peg_multiplier);
+    assert_eq!(p.sqrt_k, market.amm.sqrt_k);
+
+    // Invalid (e.g. NonPositive, TooVolatile) blocks `UpdateAMMCurve` action.
+    let p = project_post_refresh(
+        &market,
+        &mm_oracle_price_data,
+        Some(OracleValidity::NonPositive),
+    )
+    .unwrap();
+    assert!(!p.applied);
+    assert_eq!(p.cost, 0);
+    assert_eq!(p.peg_multiplier, market.amm.peg_multiplier);
+}
+
 #[test]
 fn calc_adjust_amm_tests_repeg_in_favour() {
     // btc-esque market
@@ -377,7 +566,6 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
 
             ..AMM::default()
         },
-        next_curve_record_id: 1,
         next_fill_record_id: 4,
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
