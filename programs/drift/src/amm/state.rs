@@ -314,23 +314,31 @@ impl AMM {
         self.curve_update_intensity > 0
     }
 
-    /// Protocol's reserved-fee floor for the AMM's `total_fee_minus_distributions`.
-    /// Callers pass in the PerpMarket-level fees they own; the AMM subtracts
-    /// its own `total_fee_withdrawn` and applies the protocol's
-    /// distribution-share split.
-    pub fn protocol_floor(
-        &self,
-        total_exchange_fee: u128,
-        total_liquidation_fee: u128,
-    ) -> DriftResult<i128> {
+    /// Gross share of AMM-collected fees the protocol retains (before
+    /// netting against `total_fee_withdrawn`). AMM-only since the
+    /// AMM-decoupling work — non-AMM (DLOB / liquidation) flow no longer
+    /// inflates this. Use [`Self::protocol_floor`] for the floor that
+    /// includes the netting.
+    pub fn total_fee_lower_bound(&self) -> DriftResult<u128> {
         use crate::math::constants::{
             SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR,
             SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR,
         };
-        total_exchange_fee
+        self.total_fee
+            .max(0)
+            .cast::<u128>()?
             .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR)?
-            .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?
-            .safe_add(total_liquidation_fee)?
+            .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)
+    }
+
+    /// Protocol's reserved-fee floor for the AMM's `total_fee_minus_distributions`:
+    /// the share of AMM-collected fees the protocol retains, less what has
+    /// already been transferred to the revenue pool. Fully self-contained —
+    /// the AMM doesn't peek at non-AMM (DLOB or liquidation) flow the way the
+    /// pre-DLOB formula did. Admin's `transfer_fee_and_pnl_pool` ix is the
+    /// explicit lever when cross-pool rebalancing is needed.
+    pub fn protocol_floor(&self) -> DriftResult<i128> {
+        self.total_fee_lower_bound()?
             .cast::<i128>()?
             .safe_sub(self.total_fee_withdrawn.cast::<i128>()?)
     }

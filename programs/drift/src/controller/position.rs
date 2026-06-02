@@ -1,6 +1,7 @@
 use crate::msg;
 use anchor_lang::prelude::*;
 
+use crate::amm::math::spread::AmmQuoteState;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{BASE_PRECISION_U64, MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS};
@@ -15,6 +16,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math_error;
 use crate::safe_increment;
 use crate::state::perp_market::PerpMarket;
+use crate::state::quoter::QuoteContext;
 use crate::state::user::{PerpPosition, PerpPositions, User};
 use crate::validate;
 
@@ -365,7 +367,7 @@ pub fn update_position_with_base_asset_amount(
     base_asset_amount: u64,
     direction: PositionDirection,
     market: &mut PerpMarket,
-    amm_quote_state: crate::amm::math::spread::AmmQuoteState,
+    amm_quote_state: AmmQuoteState,
     user: &mut User,
     position_index: usize,
     fill_price: Option<u64>,
@@ -385,7 +387,7 @@ pub fn update_position_with_base_asset_amount(
     // future AmmQuoter method needs them.
     let stats_snapshot = market.market_stats;
     let oracle_stub = crate::state::oracle::OraclePriceData::default();
-    let ctx = crate::state::quoter::QuoteContext {
+    let ctx = QuoteContext {
         stats: &stats_snapshot,
         oracle: &oracle_stub,
         mm_oracle: None,
@@ -395,8 +397,6 @@ pub fn update_position_with_base_asset_amount(
         step_size: market.order_step_size,
         slot: 0,
         base_precision: BASE_PRECISION_U64,
-        total_exchange_fee: 0,
-        total_liquidation_fee: 0,
         market_status: crate::state::market_status::MarketStatus::default(),
         market_config: 0,
     };

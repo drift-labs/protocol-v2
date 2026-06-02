@@ -92,11 +92,6 @@ pub struct QuoteContext<'a> {
     /// they compute quote via the AMM's own swap math, which is already
     /// precision-correct.
     pub base_precision: u64,
-    /// PerpMarket-level fees the AMM needs to compute its projection (the
-    /// `protocol_floor` for affordability checks, plus the cost budget).
-    /// AMM-only; other quoter impls ignore these.
-    pub total_exchange_fee: u128,
-    pub total_liquidation_fee: u128,
     /// PerpMarket status — threaded to the AMM's projection so the curve
     /// update can relax its k-down precondition when the market is
     /// `ReduceOnly` (matching legacy behaviour). AMM-only.
@@ -583,8 +578,6 @@ mod dlob_order_maker_tests {
             step_size: 1,
             slot: 100,
             base_precision: crate::math::constants::BASE_PRECISION as u64,
-            total_exchange_fee: 0,
-            total_liquidation_fee: 0,
             market_status: crate::state::market_status::MarketStatus::default(),
             market_config: 0,
         }

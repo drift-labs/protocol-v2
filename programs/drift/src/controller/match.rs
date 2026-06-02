@@ -21,10 +21,12 @@
 //! convergence — multiple calls during a single match must produce consistent
 //! answers.
 
+use crate::amm::math::spread::AmmQuoteState;
+use crate::amm::AmmQuoter;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_math::SafeMath;
-use crate::state::quoter::{QuoteContext, QuoterCommit, QuoterFill};
+use crate::state::quoter::{FillFeePolicy, QuoteContext, QuoterCommit, QuoterFill};
 
 /// Index into the `makers` slice passed to [`match_take`].
 pub type QuoterId = u16;
@@ -700,13 +702,13 @@ pub fn apply_match_to_perp_market(
 /// function returns.
 pub fn fill_perp_market_against_amm(
     perp_market: &mut crate::state::perp_market::PerpMarket,
-    quote_state: crate::amm::math::spread::AmmQuoteState,
-    ctx: &crate::state::quoter::QuoteContext,
+    quote_state: AmmQuoteState,
+    ctx: &QuoteContext,
     side: PositionDirection,
     target_size: u64,
 ) -> DriftResult<Match> {
     let result = {
-        let mut amm_maker = crate::amm::AmmQuoter::for_amm(&mut perp_market.amm);
+        let mut amm_maker = AmmQuoter::for_amm(&mut perp_market.amm);
         amm_maker.quote_state = quote_state;
         let mut makers: Vec<&mut dyn QuoterCommit> = vec![&mut amm_maker];
         match_take(&mut makers, ctx, side, target_size, None)?
@@ -799,7 +801,7 @@ mod tests {
                 clearing_price: self.price,
                 refresh_cost: 0,
                 is_fee_exempt: self.is_fee_exempt,
-                fee_policy: crate::state::quoter::FillFeePolicy::DlobMatch,
+                fee_policy: FillFeePolicy::DlobMatch,
                 quote_asset_amount_surplus: 0,
             }))
         }
@@ -831,8 +833,6 @@ mod tests {
             step_size: 1,
             slot: 0,
             base_precision: 1,
-            total_exchange_fee: 0,
-            total_liquidation_fee: 0,
             market_status: crate::state::market_status::MarketStatus::default(),
             market_config: 0,
         }
@@ -937,7 +937,7 @@ mod tests {
         };
         let starting_reserve = perp_market.amm.base_asset_reserve;
 
-        let quote_state = crate::amm::math::spread::AmmQuoteState::no_spread(&perp_market.amm);
+        let quote_state = AmmQuoteState::no_spread(&perp_market.amm);
         let result = fill_perp_market_against_amm(
             &mut perp_market,
             quote_state,

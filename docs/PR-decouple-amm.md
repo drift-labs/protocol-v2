@@ -44,6 +44,32 @@ Every cross-module mutation of AMM state now goes through an explicit interface 
 
 **Operational note.** The protocol still collects the full fee on every fill. What changed is that DLOB-vs-DLOB fees no longer auto-flow into the AMM's spendable budget — they sit in `pnl_pool` until admin moves them. If the AMM is the dominant counterparty, the difference is small; if DLOB volume dominates, the AMM will require periodic admin top-ups to keep repegs / k-ups affordable.
 
+### 3. `AMM::protocol_floor` is now AMM-only (was implicitly market-wide)
+
+**Before.** `AMM::protocol_floor(total_exchange_fee, total_liquidation_fee)` computed the AMM's reserved-fee floor from two *market-level* accumulators:
+
+```
+floor = (market.total_exchange_fee × 50%) + market.total_liquidation_fee
+        - amm.total_fee_withdrawn
+```
+
+The 50% term included taker fees from DLOB-vs-DLOB fills (which the AMM never earned) and the liquidation-fee term was IF revenue (which never flowed to the AMM at all). The floor was used to size the AMM's spending budget for funding rebates and formulaic k-updates via `repeg::calculate_fee_pool`. Pre-DLOB this was coherent (every fill was AMM-vs-user, `amm.total_fee == market.total_exchange_fee`). Post-DLOB it just shrunk the AMM's spendable cap by fees the AMM never received.
+
+**After.** `AMM::protocol_floor()` takes no arguments and computes purely from AMM-internal state:
+
+```
+floor = (amm.total_fee × 50%) - amm.total_fee_withdrawn
+```
+
+`ProjectionInputs` (the `Quoter::setup` payload) and `FundingMarketInputs` (the funding-math snapshot) both lose their `total_exchange_fee` / `total_liquidation_fee` fields — the AMM no longer needs them. The on-chain math now matches what an isolated AMM (future-CPI world) would compute with no visibility into market-level numbers.
+
+**Consequences.**
+
+- The AMM's spending budget for funding rebates / formulaic k-ups goes **up** by `(0.5 × DLOB-fill exchange fees) + total_liquidation_fee`. The old floor was artificially banking those amounts against the AMM; under the new model they're not phantom-retained.
+- `controller::perp_pools::calculate_revenue_pool_transfer` (the IF settlement path) still uses the market-wide formula via `get_total_fee_lower_bound(&PerpMarket)`. That caller legitimately sizes the IF claim against *all* market fees, not just AMM ones — explicitly different semantics, intentionally kept market-wide.
+
+**Operational lever.** If the AMM ever needs a top-up from the broader market, the existing `handle_transfer_fee_and_pnl_pool(direction: PnlToFeePool)` ix is the explicit path — moves SPL balance from `pnl_pool` to `amm.fee_pool` *and* bumps `amm.total_fee_minus_distributions`. No implicit borrowing through floor accounting.
+
 ## Architecture
 
 ### Struct partition

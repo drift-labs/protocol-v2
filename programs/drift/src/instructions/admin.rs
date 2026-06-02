@@ -648,6 +648,8 @@ pub fn handle_initialize_perp_market(
         imf_factor,
         next_fill_record_id: 1,
         next_funding_rate_record_id: 1,
+        total_exchange_fee: 0,
+        total_liquidation_fee: 0,
         pnl_pool: PoolBalance::default(),
         insurance_claim: InsuranceClaim {
             max_revenue_withdraw_per_period,
@@ -680,8 +682,6 @@ pub fn handle_initialize_perp_market(
         cumulative_funding_rate_long: 0,
         cumulative_funding_rate_short: 0,
         total_social_loss: 0,
-        total_exchange_fee: 0,
-        total_liquidation_fee: 0,
         last_funding_rate: 0,
         last_funding_rate_long: 0,
         last_funding_rate_short: 0,

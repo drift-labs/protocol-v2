@@ -179,9 +179,7 @@ pub fn formulaic_update_k(
     if !k_update_eligible {
         return Ok(());
     }
-    let total_fee_floor = market
-        .amm
-        .protocol_floor(market.total_exchange_fee, market.total_liquidation_fee)?;
+    let total_fee_floor = market.amm.protocol_floor()?;
     let market_status = market.status;
     let min_order_size = market.market_stats.min_order_size;
     let stats_snapshot = market.market_stats;
@@ -195,8 +193,6 @@ pub fn formulaic_update_k(
         step_size: market.order_step_size,
         slot: 0,
         base_precision: crate::math::constants::BASE_PRECISION_U64,
-        total_exchange_fee: 0,
-        total_liquidation_fee: 0,
         market_status: crate::state::market_status::MarketStatus::default(),
         market_config: 0,
     };

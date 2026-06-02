@@ -414,7 +414,7 @@ pub fn update_amm_larg_conf_test() {
         sequence_id: None,
     };
 
-    let fee_budget = calculate_fee_pool(&market).unwrap();
+    let fee_budget = calculate_fee_pool(&market.amm).unwrap();
     assert_eq!(market.amm.total_fee_minus_distributions, 42992787);
     assert_eq!(fee_budget, 42992787);
 
@@ -656,7 +656,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
 
-    let fee_budget = calculate_fee_pool(&market).unwrap();
+    let fee_budget = calculate_fee_pool(&market.amm).unwrap();
     assert_eq!(market.amm.total_fee_minus_distributions, -9957007213);
     assert_eq!(fee_budget, 0);
 

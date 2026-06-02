@@ -707,7 +707,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let max_cost = perp_market
             .amm
             .total_fee_minus_distributions
-            .safe_sub(get_total_fee_lower_bound(perp_market)?.cast()?)?
+            .safe_sub(perp_market.amm.total_fee_lower_bound()?.cast()?)?
             .safe_sub(perp_market.amm.total_fee_withdrawn.cast()?)?;
 
         validate!(

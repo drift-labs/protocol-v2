@@ -49,6 +49,9 @@ fn calculate_optimal_peg_and_budget_test() {
             curve_update_intensity: 100,
             max_spread: 500 * 100,
             total_fee_minus_distributions: (40 * QUOTE_PRECISION) as i128,
+            // Floor is now AMM-only; mirror what `total_exchange_fee` used
+            // to seed before the protocol_floor cleanup.
+            total_fee: QUOTE_PRECISION as i128,
             ..AMM::default()
         },
         margin_ratio_initial: 500,
@@ -561,7 +564,10 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
             curve_update_intensity: 100,
             base_spread: 1000,
             total_fee_minus_distributions: 304289,
-            total_fee: 607476,
+            // AMM-only floor: was `market.total_exchange_fee: 0` previously to
+            // zero out the lower bound. Mirror that by keeping `total_fee: 0`
+            // here so the floor remains 0 and the entire TFMD is the budget.
+            total_fee: 0,
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
 
             ..AMM::default()
@@ -571,7 +577,6 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
         margin_ratio_maintenance: 500,
 
         order_step_size: 1000,
-        total_exchange_fee: 0, // new fee pool lowerbound
         market_stats: MarketStats {
             funding_period: 3600,
             last_mark_price_twap: 34128370,
@@ -597,7 +602,7 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
     )
     .unwrap();
     assert!(optimal_peg > market.amm.peg_multiplier);
-    let fee_budget = calculate_fee_pool(&market).unwrap();
+    let fee_budget = calculate_fee_pool(&market.amm).unwrap();
     assert!(fee_budget > 0);
     let (repegged_market, _amm_update_cost) =
         adjust_amm(&market, optimal_peg, fee_budget, true).unwrap();

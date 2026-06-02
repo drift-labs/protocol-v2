@@ -4,6 +4,7 @@ use anchor_lang::prelude::{
 };
 
 use super::oracle_map::OracleIdentifier;
+use crate::amm::math::spread::AmmQuoteState;
 #[cfg(test)]
 use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::{
@@ -1507,7 +1508,7 @@ impl MarketStats {
     pub fn update_mark_twap_from_estimates(
         &mut self,
         amm: &AMM,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         now: i64,
         precomputed_trade_price: Option<u64>,
         direction: Option<crate::controller::position::PositionDirection>,
@@ -1544,7 +1545,7 @@ impl MarketStats {
         amm_bid_price: u64,
         amm_ask_price: u64,
         amm_base_spread: u32,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         now: i64,
         precomputed_trade_price: Option<u64>,
         direction: Option<crate::controller::position::PositionDirection>,
@@ -1578,7 +1579,7 @@ impl MarketStats {
         amm: &AMM,
         now: i64,
         oracle_price_data: &crate::state::oracle::OraclePriceData,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         best_dlob_bid_price: Option<u64>,
         best_dlob_ask_price: Option<u64>,
         sanitize_clamp: Option<i64>,

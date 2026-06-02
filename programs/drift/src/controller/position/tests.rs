@@ -27,8 +27,6 @@ fn run_amm_swap_for_test(
         step_size: 1,
         slot: 0,
         base_precision: BASE_PRECISION as u64,
-        total_exchange_fee: 0,
-        total_liquidation_fee: 0,
         market_status: crate::state::market_status::MarketStatus::default(),
         market_config: 0,
     };
@@ -621,6 +619,14 @@ fn amm_pred_market_example() {
     assert_eq!(max_asks, -5_241_195_799_744); // -5000 shares
 
     assert_eq!(perp_market.amm.sqrt_k, 56_649_660_613_272);
+
+    // Floor is now AMM-only; the snapshot's populated `amm.total_fee` would
+    // push the new floor above this market's TFMD. Set `total_fee` to
+    // `2 × old_floor` so `0.5 × total_fee` matches what the pre-cleanup
+    // (market-wide) floor used to compute (`0.5 × total_exchange_fee +
+    // total_liquidation_fee` for this snapshot ≈ 554527) — keeps the
+    // downstream assertions on the same numbers.
+    perp_market.amm.total_fee = 1_109_054;
 
     let (optimal_peg, fee_budget, _check_lower_bound) =
         repeg::calculate_optimal_peg_and_budget(&perp_market, &mm_oracle_price_data).unwrap();

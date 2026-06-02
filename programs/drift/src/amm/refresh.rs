@@ -347,10 +347,7 @@ pub fn apply_cost_to_market(
     // (fields the AMM trait surface can't see), then dispatch the actual
     // bookkeeping to the AMM's `apply_cost` method. No direct AMM field
     // writes happen at this layer.
-    let total_fee_floor = repeg::get_total_fee_lower_bound(market)?
-        .safe_add(market.total_liquidation_fee)?
-        .safe_sub(market.amm.total_fee_withdrawn)?
-        .cast::<i128>()?;
+    let total_fee_floor = market.amm.protocol_floor()?;
     market
         .amm
         .apply_cost(cost, check_lower_bound, total_fee_floor)
@@ -382,10 +379,7 @@ pub fn settle_expired_market(
     )?;
 
     let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
-    let fee_reserved_for_protocol = repeg::get_total_fee_lower_bound(market)?
-        .safe_add(market.total_liquidation_fee)?
-        .safe_sub(market.amm.total_fee_withdrawn)?
-        .cast::<i128>()?;
+    let fee_reserved_for_protocol = market.amm.protocol_floor()?;
     let budget = market
         .amm
         .total_fee_minus_distributions

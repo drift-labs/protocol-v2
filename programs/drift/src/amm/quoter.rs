@@ -426,8 +426,6 @@ impl<'a> Quoter for AmmQuoter<'a> {
             // ctx. The orchestrator populates these once when building the
             // context; the AMM never reaches back into PerpMarket itself.
             let projection_inputs = crate::amm::math::repeg::ProjectionInputs {
-                total_exchange_fee: ctx.total_exchange_fee,
-                total_liquidation_fee: ctx.total_liquidation_fee,
                 market_status: ctx.market_status,
                 market_config: ctx.market_config,
             };
@@ -1169,8 +1167,6 @@ mod amm_maker_tests {
             step_size: 1,
             slot: 0,
             base_precision: crate::math::constants::BASE_PRECISION as u64,
-            total_exchange_fee: 0,
-            total_liquidation_fee: 0,
             market_status: crate::state::market_status::MarketStatus::default(),
             market_config: 0,
         }
@@ -1494,8 +1490,6 @@ mod amm_jit_maker_tests {
             step_size: 1,
             slot: 0,
             base_precision: BASE_PRECISION as u64,
-            total_exchange_fee: 0,
-            total_liquidation_fee: 0,
             market_status: crate::state::market_status::MarketStatus::default(),
             market_config: 0,
         }

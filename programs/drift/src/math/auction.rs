@@ -1,3 +1,4 @@
+use crate::amm::math::spread::AmmQuoteState;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -223,7 +224,7 @@ pub fn calculate_auction_params_for_trigger_order(
     oracle_price_data: &OraclePriceData,
     min_auction_duration: u8,
     perp_market: Option<&PerpMarket>,
-    amm_quote_state: Option<&crate::amm::math::spread::AmmQuoteState>,
+    amm_quote_state: Option<&AmmQuoteState>,
 ) -> DriftResult<(u8, i64, i64)> {
     let auction_duration = min_auction_duration;
 

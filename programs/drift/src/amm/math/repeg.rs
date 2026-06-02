@@ -366,7 +366,7 @@ pub fn calculate_optimal_peg_and_budget(
 ) -> DriftResult<(u128, u128, bool)> {
     let reserve_price_before = market.amm.reserve_price()?;
 
-    let mut fee_budget = calculate_fee_pool(market)?;
+    let mut fee_budget = calculate_fee_pool(&market.amm)?;
 
     let target_price_i64 = mm_oracle_price_data.get_price();
     let target_price = target_price_i64.cast()?;
@@ -419,35 +419,29 @@ pub fn calculate_optimal_peg_and_budget(
     Ok((optimal_peg, fee_budget, check_lower_bound))
 }
 
-pub fn calculate_fee_pool(market: &PerpMarket) -> DriftResult<u128> {
-    let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?
-        .safe_add(market.total_liquidation_fee)?
-        .safe_sub(market.amm.total_fee_withdrawn)?
-        .cast::<i128>()
-        .unwrap_or(0);
-
-    let fee_pool =
-        if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
-            market
-                .amm
-                .total_fee_minus_distributions
-                .safe_sub(total_fee_minus_distributions_lower_bound)?
-                .cast()?
-        } else {
-            0
-        };
-
+/// Surplus the AMM can spend before hitting `protocol_floor`. AMM-only;
+/// see [`AMM::protocol_floor`] for the floor semantics.
+pub fn calculate_fee_pool(amm: &AMM) -> DriftResult<u128> {
+    let floor = amm.protocol_floor()?;
+    let fee_pool = if amm.total_fee_minus_distributions > floor {
+        amm.total_fee_minus_distributions.safe_sub(floor)?.cast()?
+    } else {
+        0
+    };
     Ok(fee_pool)
 }
 
+/// Gross share of *all market-wide* fees the protocol retains for the
+/// insurance fund (before netting against AMM withdrawals). Distinct from
+/// `AMM::protocol_floor` / `AMM::total_fee_lower_bound` which are AMM-only
+/// and feed the AMM's own spending budget — this market-wide variant is
+/// what `controller::perp_pools::calculate_revenue_pool_transfer` uses to
+/// size the IF claim, which legitimately includes DLOB-fill fees too.
 pub fn get_total_fee_lower_bound(market: &PerpMarket) -> DriftResult<u128> {
-    // market to retain half of exchange fees
-    let total_fee_lower_bound = market
+    market
         .total_exchange_fee
         .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR)?
-        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?;
-
-    Ok(total_fee_lower_bound)
+        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)
 }
 
 /// PerpMarket-level scalars `project_post_refresh` needs but the AMM
@@ -457,8 +451,6 @@ pub fn get_total_fee_lower_bound(market: &PerpMarket) -> DriftResult<u128> {
 /// scalars are what Drift sends as inputs to each AMM-program call.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProjectionInputs {
-    pub total_exchange_fee: u128,
-    pub total_liquidation_fee: u128,
     pub market_status: crate::state::market_status::MarketStatus,
     /// Raw `market_config` byte — checked against `MarketConfigFlag` bits
     /// inside `adjust_amm` (e.g. `DisableFormulaicKUpdate`).
@@ -468,8 +460,6 @@ pub struct ProjectionInputs {
 impl ProjectionInputs {
     pub fn from_market(market: &PerpMarket) -> Self {
         Self {
-            total_exchange_fee: market.total_exchange_fee,
-            total_liquidation_fee: market.total_liquidation_fee,
             market_status: market.status,
             market_config: market.market_config,
         }
@@ -489,8 +479,6 @@ pub fn project_post_refresh_scalar(
 ) -> DriftResult<ProjectedAmmState> {
     let synthetic = PerpMarket {
         amm: *amm,
-        total_exchange_fee: inputs.total_exchange_fee,
-        total_liquidation_fee: inputs.total_liquidation_fee,
         status: inputs.market_status,
         market_config: inputs.market_config,
         ..PerpMarket::default()
@@ -613,9 +601,7 @@ pub fn project_post_refresh(
         fee_budget,
         curve_update_intensity >= 100,
     )?;
-    let total_fee_floor = market
-        .amm
-        .protocol_floor(market.total_exchange_fee, market.total_liquidation_fee)?;
+    let total_fee_floor = market.amm.protocol_floor()?;
 
     // Affordability: positive cost debits `total_fee_minus_distributions`;
     // if `check_lower_bound` is set and the debit would push below the floor,

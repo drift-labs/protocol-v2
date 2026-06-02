@@ -4,6 +4,7 @@ use std::ops::Sub;
 use crate::msg;
 
 use crate::amm::math::amm::calculate_amm_available_liquidity;
+use crate::amm::math::spread::AmmQuoteState;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
@@ -44,7 +45,7 @@ mod tests;
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
     market: &PerpMarket,
-    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+    amm_quote_state: &AmmQuoteState,
     limit_price: Option<u64>,
     override_fill_price: Option<u64>,
     existing_base_asset_amount: i64,
@@ -161,7 +162,7 @@ pub fn calculate_limit_price_with_buffer(
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
-    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+    amm_quote_state: &AmmQuoteState,
     limit_price: Option<u64>,
     existing_base_asset_amount: Option<i64>,
 ) -> DriftResult<u64> {
@@ -316,7 +317,7 @@ pub fn get_price_for_perp_order(
     direction: PositionDirection,
     post_only: PostOnlyParam,
     amm: &AMM,
-    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+    amm_quote_state: &AmmQuoteState,
     order_tick_size: u64,
 ) -> DriftResult<u64> {
     let mut limit_price = standardize_price(price, order_tick_size, direction)?;

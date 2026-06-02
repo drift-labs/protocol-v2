@@ -17,6 +17,8 @@ use anchor_lang::prelude::*;
 
 use crate::amm::math::amm::calculate_amm_available_liquidity;
 use crate::amm::math::jit::calculate_amm_jit_liquidity;
+use crate::amm::math::spread::AmmQuoteState;
+use crate::amm::AmmQuoter;
 use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
@@ -62,6 +64,7 @@ use crate::state::order_params::{
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::quoter::{DlobOrderQuoter, FillFeePolicy, QuoteContext, Quoter, QuoterCommit};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
@@ -2373,7 +2376,7 @@ pub fn fulfill_perp_order_step(
     let total_liquidation_fee = market.total_liquidation_fee;
     let market_status_local = market.status;
     let market_config_local = market.market_config;
-    let setup_ctx = crate::state::quoter::QuoteContext {
+    let setup_ctx = QuoteContext {
         stats: &market_stats_snapshot,
         oracle: &safe_oracle,
         mm_oracle: Some(&mm_oracle_price_data),
@@ -2383,13 +2386,11 @@ pub fn fulfill_perp_order_step(
         step_size: order_step_size,
         slot,
         base_precision: BASE_PRECISION_U64,
-        total_exchange_fee,
-        total_liquidation_fee,
         market_status: market_status_local,
         market_config: market_config_local,
     };
-    let mut amm_quoter = crate::amm::AmmQuoter::for_amm(&mut market.amm);
-    <crate::amm::AmmQuoter as crate::state::quoter::Quoter>::setup(&mut amm_quoter, &setup_ctx)?;
+    let mut amm_quoter = AmmQuoter::for_amm(&mut market.amm);
+    <AmmQuoter as Quoter>::setup(&mut amm_quoter, &setup_ctx)?;
     let reserve_after_setup = amm_quoter.amm.reserve_price()?;
     let (amm_bid_price, amm_ask_price) = amm_quoter.amm_bid_ask(reserve_after_setup)?;
     let amm_base_spread = amm_quoter.amm_base_spread();
@@ -2486,7 +2487,7 @@ pub fn fulfill_perp_order_step(
     // not needed here — setup has already run on amm_quoter.
     let stats_snapshot = market.market_stats;
     let oracle_stub = OraclePriceData::default();
-    let ctx = crate::state::quoter::QuoteContext {
+    let ctx = QuoteContext {
         stats: &stats_snapshot,
         oracle: &oracle_stub,
         mm_oracle: None,
@@ -2496,9 +2497,7 @@ pub fn fulfill_perp_order_step(
         step_size: order_step_size,
         slot,
         base_precision: BASE_PRECISION_U64,
-        total_exchange_fee: 0,
-        total_liquidation_fee: 0,
-        market_status: crate::state::market_status::MarketStatus::default(),
+        market_status: MarketStatus::default(),
         market_config: 0,
     };
 
@@ -2522,8 +2521,7 @@ pub fn fulfill_perp_order_step(
             // Reuse the `amm_quoter` constructed at the top of this fn —
             // it's already been setup and holds &mut market.amm.
             amm_quoter.validate_for_fill(taker_direction)?;
-            let mut quoters: Vec<&mut dyn crate::state::quoter::QuoterCommit> =
-                vec![&mut amm_quoter];
+            let mut quoters: Vec<&mut dyn QuoterCommit> = vec![&mut amm_quoter];
             crate::controller::matching::match_take(
                 &mut quoters,
                 &ctx,
@@ -2558,10 +2556,8 @@ pub fn fulfill_perp_order_step(
                 maker_unfilled,
                 taker_has_limit_price,
             )?;
-            let mut dlob =
-                crate::state::quoter::DlobOrderQuoter::new(&mut maker_user.orders[m_idx]);
-            let mut quoters: Vec<&mut dyn crate::state::quoter::QuoterCommit> =
-                vec![&mut amm_jit, &mut dlob];
+            let mut dlob = DlobOrderQuoter::new(&mut maker_user.orders[m_idx]);
+            let mut quoters: Vec<&mut dyn QuoterCommit> = vec![&mut amm_jit, &mut dlob];
             crate::controller::matching::match_take(
                 &mut quoters,
                 &ctx,
@@ -2591,7 +2587,7 @@ pub fn fulfill_perp_order_step(
             continue;
         }
         match fill.fee_policy {
-            crate::state::quoter::FillFeePolicy::AmmHouse => {
+            FillFeePolicy::AmmHouse => {
                 // For sole-AMM steps with a post_only taker, override the
                 // fill's quote at the order's limit price (the taker, acting
                 // as maker, transacts at limit; the AMM captures the curve
@@ -2869,7 +2865,7 @@ pub fn fulfill_perp_order_step(
                 total_base_filled = total_base_filled.safe_add(fill.base_filled)?;
                 total_quote_filled = total_quote_filled.safe_add(taker_quote)?;
             }
-            crate::state::quoter::FillFeePolicy::DlobMatch => {
+            FillFeePolicy::DlobMatch => {
                 // DlobMatch fills only land from a Match step, which always
                 // populates `match_maker_price`.
                 let match_maker_price =
@@ -3533,7 +3529,7 @@ fn update_trigger_order_params(
     slot: u64,
     min_auction_duration: u8,
     perp_market: Option<&PerpMarket>,
-    amm_quote_state: Option<&crate::amm::math::spread::AmmQuoteState>,
+    amm_quote_state: Option<&AmmQuoteState>,
 ) -> DriftResult {
     order.trigger_condition = match order.trigger_condition {
         OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,

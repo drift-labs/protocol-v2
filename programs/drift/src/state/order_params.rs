@@ -1,3 +1,4 @@
+use crate::amm::math::spread::AmmQuoteState;
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
@@ -71,7 +72,7 @@ impl OrderParams {
     pub fn update_perp_auction_params_limit_orders(
         &mut self,
         perp_market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         oracle_price: i64,
         is_signed_msg: bool,
     ) -> DriftResult<bool> {
@@ -332,7 +333,7 @@ impl OrderParams {
     pub fn update_perp_auction_params_market_and_oracle_orders(
         &mut self,
         perp_market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         oracle_price: i64,
         is_market_order: bool,
         is_signed_msg: bool,
@@ -511,7 +512,7 @@ impl OrderParams {
 
     pub fn derive_market_order_auction_params(
         perp_market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         direction: PositionDirection,
         oracle_price: i64,
         limit_price: u64,
@@ -588,7 +589,7 @@ impl OrderParams {
 
     pub fn derive_oracle_order_auction_params(
         perp_market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         direction: PositionDirection,
         oracle_price: i64,
         oracle_price_offset: Option<i64>,
@@ -658,7 +659,7 @@ impl OrderParams {
     pub fn update_perp_auction_params(
         &mut self,
         perp_market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         oracle_price: i64,
         is_signed_msg: bool,
     ) -> DriftResult<bool> {
@@ -688,7 +689,7 @@ impl OrderParams {
 
     pub fn get_perp_baseline_start_price_offset(
         perp_market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         direction: PositionDirection,
     ) -> DriftResult<i64> {
         if perp_market
@@ -779,7 +780,7 @@ impl OrderParams {
 
     pub fn get_perp_baseline_start_end_price_offset(
         perp_market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         direction: PositionDirection,
         end_buffer_scalar: u64,
     ) -> DriftResult<(i64, i64)> {
@@ -851,7 +852,7 @@ impl OrderParams {
 
     pub fn get_close_perp_params(
         market: &PerpMarket,
-        amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+        amm_quote_state: &AmmQuoteState,
         direction_to_close: PositionDirection,
         base_asset_amount: u64,
     ) -> DriftResult<OrderParams> {
