@@ -24,7 +24,10 @@
 		"eslint-config-prettier": "8.3.0",
 		"eslint-plugin-prettier": "3.4.0",
 		"husky": "7.0.4",
+		"mocha": "11.7.5",
 		"prettier": "3.0.1",
+		"ts-mocha": "^11.1.0",
+		"ts-node": "^10.9.2",
 		"typedoc": "0.23.23",
 		"typescript": "5.4.5"
 	},
@@ -48,6 +51,7 @@
 		"prettify:fix": "prettier --write './sdk/src/**/*.ts' './tests/**.ts'",
 		"lint": "eslint . --ext ts --quiet --format unix",
 		"lint:fix": "eslint . --ext ts --fix",
+		"bench:native-cu": "RUST_LOG=error ts-mocha -t 1000000 ./tests/nativeCuBench.ts",
 		"update-idl": "anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json"
 	},
 	"engines": {

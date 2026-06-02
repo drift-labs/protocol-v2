@@ -1124,8 +1124,10 @@ pub fn handle_update_amm_spread_adjustment_native(
             hot_key
         );
     }
-    let mut perp_market = accounts[0].data.borrow_mut();
-    perp_market[1110..1111].copy_from_slice(&[data[0]]); // amm_spread_adjustment
+    let mut perp_market_data = accounts[0].data.borrow_mut();
+    let perp_market: &mut PerpMarket =
+        bytemuck::from_bytes_mut(&mut perp_market_data[8..8 + std::mem::size_of::<PerpMarket>()]);
+    perp_market.amm.amm_spread_adjustment = data[0] as i8;
 
     Ok(())
 }

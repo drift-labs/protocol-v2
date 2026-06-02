@@ -156,6 +156,14 @@ pub mod drift {
         handle_transfer_deposit(ctx, market_index, amount)
     }
 
+    pub fn transfer_deposit_by_delegate<'c: 'info, 'info>(
+        ctx: Context<'info, TransferDepositByDelegate<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> anchor_lang::Result<()> {
+        handle_transfer_deposit_by_delegate(ctx, market_index, amount)
+    }
+
     pub fn transfer_pools<'c: 'info, 'info>(
         ctx: Context<'info, TransferPools<'info>>,
         deposit_from_market_index: u16,
@@ -406,6 +414,13 @@ pub mod drift {
         delegate: Pubkey,
     ) -> Result<()> {
         handle_update_user_delegate(ctx, _sub_account_id, delegate)
+    }
+
+    pub fn update_user_allow_delegate_transfer(
+        ctx: Context<UpdateUserStats>,
+        allow_delegate_transfer: bool,
+    ) -> Result<()> {
+        handle_update_user_allow_delegate_transfer(ctx, allow_delegate_transfer)
     }
 
     pub fn update_user_reduce_only(

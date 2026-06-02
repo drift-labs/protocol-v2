@@ -33,10 +33,11 @@ use crate::{
             DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, EPOCH_DURATION, FEE_ADJUSTMENT_MAX,
             FEE_POOL_TO_REVENUE_POOL_THRESHOLD, GOV_SPOT_MARKET_INDEX, IF_FACTOR_PRECISION,
             INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX,
-            LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PERCENTAGE_PRECISION,
-            PERCENTAGE_PRECISION_I64, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX,
-            SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
-            SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+            LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+            MM_ORACLE_MAX_STEP_PCT_PRECISION, MM_ORACLE_MIN_SLOT_GAP, PERCENTAGE_PRECISION,
+            PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION_I64,
+            QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+            SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
         },
         orders::is_multiple_of_step_size,
         safe_math::SafeMath,
@@ -3236,26 +3237,62 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
         );
     }
 
-    let mut perp_market = accounts[0].data.borrow_mut();
-    // Account offsets verified by `native_instruction_offsets::amm_zero_copy_offsets`
-    // — offsets are 8 (discriminator) + offset_of!(PerpMarket, market_stats)
-    // + offset_of!(MarketStats, mm_oracle_*).
-    let perp_market_sequence_id = u64::from_le_bytes(perp_market[736..744].try_into().unwrap());
-    let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
-
     if data[0..8] == [0u8; 8] {
         msg!("MM oracle price is zero, not updating");
         return Err(ErrorCode::DefaultError.into());
     }
 
-    if incoming_sequence_id > perp_market_sequence_id {
-        let clock_account = &accounts[2];
-        let clock_data = clock_account.data.borrow();
-
-        perp_market[728..736].copy_from_slice(&clock_data[0..8]); // mm_oracle_slot
-        perp_market[720..728].copy_from_slice(&data[0..8]); // mm_oracle_price
-        perp_market[736..744].copy_from_slice(&data[8..16]); // mm_oracle_sequence_id
+    let mut perp_market_data = accounts[0].data.borrow_mut();
+    let perp_market: &mut PerpMarket =
+        bytemuck::from_bytes_mut(&mut perp_market_data[8..8 + std::mem::size_of::<PerpMarket>()]);
+    // Sequence-id check uses only seq fields. Defer the rest.
+    let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
+    if incoming_sequence_id <= perp_market.market_stats.mm_oracle_sequence_id {
+        return Ok(());
     }
+
+    let clock_data = accounts[2].data.borrow();
+    let current_slot = u64::from_le_bytes(clock_data[0..8].try_into().unwrap());
+    let perp_market_slot = perp_market.market_stats.mm_oracle_slot;
+
+    if current_slot <= perp_market_slot {
+        msg!(
+            "mm oracle reject: stale slot {} <= {}",
+            current_slot,
+            perp_market_slot
+        );
+        return Ok(());
+    }
+    let slot_gap = current_slot - perp_market_slot;
+    if slot_gap < MM_ORACLE_MIN_SLOT_GAP {
+        msg!(
+            "mm oracle reject: re-crank gap {} < {}",
+            slot_gap,
+            MM_ORACLE_MIN_SLOT_GAP
+        );
+        return Ok(());
+    }
+
+    // Step cap vs last accepted price. Bootstrap when prev == 0.
+    let perp_market_price = perp_market.market_stats.mm_oracle_price;
+    let incoming_price = i64::from_le_bytes(data[0..8].try_into().unwrap());
+    if perp_market_price != 0 {
+        let prev_abs = (perp_market_price as i128).abs();
+        let diff_abs = ((incoming_price as i128) - (perp_market_price as i128)).abs();
+        // Cross-multiply form of (diff_abs / prev_abs) > MAX_STEP / PCT
+        if diff_abs * PERCENTAGE_PRECISION_I128 > MM_ORACLE_MAX_STEP_PCT_PRECISION * prev_abs {
+            msg!(
+                "mm oracle reject: step too large, incoming={} prev={}",
+                incoming_price,
+                perp_market_price
+            );
+            return Ok(());
+        }
+    }
+
+    perp_market.market_stats.mm_oracle_slot = current_slot;
+    perp_market.market_stats.mm_oracle_price = incoming_price;
+    perp_market.market_stats.mm_oracle_sequence_id = incoming_sequence_id;
 
     Ok(())
 }

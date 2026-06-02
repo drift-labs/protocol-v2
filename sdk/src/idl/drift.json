@@ -8173,6 +8173,86 @@
       ]
     },
     {
+      "name": "transfer_deposit_by_delegate",
+      "discriminator": [
+        141,
+        171,
+        241,
+        161,
+        17,
+        31,
+        135,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "from_user",
+          "writable": true
+        },
+        {
+          "name": "to_user",
+          "writable": true
+        },
+        {
+          "name": "user_stats"
+        },
+        {
+          "name": "delegate",
+          "signer": true,
+          "relations": [
+            "from_user",
+            "to_user"
+          ]
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "spot_market_vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "market_index",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "transfer_fee_and_pnl_pool",
       "discriminator": [
         167,
@@ -12563,6 +12643,61 @@
         {
           "name": "settlement_duration",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "update_user_allow_delegate_transfer",
+      "discriminator": [
+        235,
+        106,
+        172,
+        39,
+        223,
+        238,
+        167,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "user_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "user_stats"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "allow_delegate_transfer",
+          "type": "bool"
         }
       ]
     },
@@ -23838,11 +23973,18 @@
             "type": "u64"
           },
           {
+            "name": "delegate_permissions",
+            "docs": [
+              "Delegate permissions across all sub accounts"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                40
+                39
               ]
             }
           }
