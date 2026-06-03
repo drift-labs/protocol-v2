@@ -256,11 +256,19 @@ pub fn regenerate_perp_market_snapshot(old_b64: &str) -> String {
     amm.total_mm_fee = la.total_mm_fee;
     amm.total_fee_minus_distributions = la.total_fee_minus_distributions;
     amm.total_fee_withdrawn = la.total_fee_withdrawn;
-    // The cached spread state on AMM (`ask/bid_*_asset_reserve`,
-    // `last_oracle_reserve_price_spread_pct`, `long_spread`, `short_spread`,
-    // `reference_price_offset`) was removed in the AMM-decoupling refactor.
-    // Snapshot regeneration drops those values from the legacy layout — the
-    // new layout doesn't carry them.
+    // The cached spread state stays on AMM (same fields as the legacy
+    // layout). `last_spread_update_slot` has no legacy counterpart; seed it
+    // from `last_update_slot` so a freshly-migrated account reports the
+    // cache as refreshed at the same slot the curve was.
+    amm.ask_base_asset_reserve = la.ask_base_asset_reserve;
+    amm.ask_quote_asset_reserve = la.ask_quote_asset_reserve;
+    amm.bid_base_asset_reserve = la.bid_base_asset_reserve;
+    amm.bid_quote_asset_reserve = la.bid_quote_asset_reserve;
+    amm.last_oracle_reserve_price_spread_pct = la.last_oracle_reserve_price_spread_pct;
+    amm.long_spread = la.long_spread;
+    amm.short_spread = la.short_spread;
+    amm.reference_price_offset = la.reference_price_offset;
+    amm.last_spread_update_slot = la.last_update_slot;
     amm.last_update_slot = la.last_update_slot;
     amm.net_revenue_since_last_funding = la.net_revenue_since_last_funding;
     amm.base_spread = la.base_spread;
@@ -359,12 +367,12 @@ mod tests {
     /// New PerpMarket is the size the tests will write into.
     #[test]
     fn current_perp_market_size_unchanged() {
-        // SIZE bumped from 1112→1128 to make room for two i64 fields on AMM
-        // (`last_cumulative_funding_rate_long/short`) — the AMM settles its
-        // own funding payment from cum-rate deltas now. Struct is 1120
-        // bytes; +8 for the Anchor discriminator = 1128.
-        assert_eq!(std::mem::size_of::<PerpMarket>(), 1120);
-        assert_eq!(PerpMarket::SIZE, 1128);
+        // Cached spread state lives back on AMM: 4×u128 spread reserves,
+        // i64 last_oracle_reserve_price_spread_pct, u64 last_spread_update_slot,
+        // 2×u32 long/short_spread, i32 reference_price_offset. Struct is 1200
+        // bytes; +8 for the Anchor discriminator = 1208.
+        assert_eq!(std::mem::size_of::<PerpMarket>(), 1200);
+        assert_eq!(PerpMarket::SIZE, 1208);
     }
 
     /// One-shot regeneration helper. Run with:

@@ -3754,21 +3754,19 @@ pub mod get_price_for_perp_order {
 
     #[test]
     fn bid_crosses_vamm_ask() {
-        let amm = AMM {
+        let mut amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             ..AMM::default()
         };
+        // 1% short spread → bid = reserve * 0.99 = $99.
+        amm.seed_no_spread_quote_state();
+        amm.short_spread = 10000;
 
         let amm_reserve_price = amm.reserve_price().unwrap();
-        // Quote state with a 1% short spread → bid = reserve * 0.99 = $99.
-        let qs = crate::amm::math::spread::AmmQuoteState {
-            short_spread: 10000,
-            ..crate::amm::math::spread::AmmQuoteState::default()
-        };
         let amm_bid_price = amm
-            .bid_price(amm_reserve_price, qs.short_spread, 0)
+            .bid_price(amm_reserve_price, amm.short_spread, 0)
             .unwrap();
 
         assert_eq!(amm_bid_price, 99000000); // $99
@@ -3777,36 +3775,32 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Short;
 
         let limit_price =
-            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm, &qs, 100000)
-                .unwrap();
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm, 100000).unwrap();
 
         assert_eq!(limit_price, 99100000); // $99.1
 
         let ask = amm_bid_price;
         let limit_price =
-            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm, &qs, 100000)
-                .unwrap();
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm, 100000).unwrap();
 
         assert_eq!(limit_price, 99100000); // $99.1
     }
 
     #[test]
     fn bid_doesnt_cross_vamm_ask() {
-        let amm = AMM {
+        let mut amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             ..AMM::default()
         };
+        // 1% short spread → bid = reserve * 0.99 = $99.
+        amm.seed_no_spread_quote_state();
+        amm.short_spread = 10000;
 
         let amm_reserve_price = amm.reserve_price().unwrap();
-        // Quote state with a 1% short spread → bid = reserve * 0.99 = $99.
-        let qs = crate::amm::math::spread::AmmQuoteState {
-            short_spread: 10000,
-            ..crate::amm::math::spread::AmmQuoteState::default()
-        };
         let amm_bid_price = amm
-            .bid_price(amm_reserve_price, qs.short_spread, 0)
+            .bid_price(amm_reserve_price, amm.short_spread, 0)
             .unwrap();
 
         assert_eq!(amm_bid_price, 99000000); // $99
@@ -3815,28 +3809,27 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Short;
 
         let limit_price =
-            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm, &qs, 100000)
-                .unwrap();
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm, 100000).unwrap();
 
         assert_eq!(limit_price, ask); // $99.1
     }
 
     #[test]
     fn ask_crosses_vamm_ask() {
-        let amm = AMM {
+        let mut amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             ..AMM::default()
         };
+        // 1% long spread → ask = reserve * 1.01 = $101.
+        amm.seed_no_spread_quote_state();
+        amm.long_spread = 10000;
 
         let amm_reserve_price = amm.reserve_price().unwrap();
-        // Quote state with a 1% long spread → ask = reserve * 1.01 = $101.
-        let qs = crate::amm::math::spread::AmmQuoteState {
-            long_spread: 10000,
-            ..crate::amm::math::spread::AmmQuoteState::default()
-        };
-        let amm_ask_price = amm.ask_price(amm_reserve_price, qs.long_spread, 0).unwrap();
+        let amm_ask_price = amm
+            .ask_price(amm_reserve_price, amm.long_spread, 0)
+            .unwrap();
 
         assert_eq!(amm_ask_price, 101000000); // $101
 
@@ -3844,35 +3837,33 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Long;
 
         let limit_price =
-            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm, &qs, 100000)
-                .unwrap();
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm, 100000).unwrap();
 
         assert_eq!(limit_price, 100900000); // $100.9
 
         let bid = amm_ask_price;
         let limit_price =
-            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm, &qs, 100000)
-                .unwrap();
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm, 100000).unwrap();
 
         assert_eq!(limit_price, 100900000); // $100.9
     }
 
     #[test]
     fn ask_doesnt_cross_vamm_ask() {
-        let amm = AMM {
+        let mut amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             ..AMM::default()
         };
+        // 1% long spread → ask = reserve * 1.01 = $101.
+        amm.seed_no_spread_quote_state();
+        amm.long_spread = 10000;
 
         let amm_reserve_price = amm.reserve_price().unwrap();
-        // Quote state with a 1% long spread → ask = reserve * 1.01 = $101.
-        let qs = crate::amm::math::spread::AmmQuoteState {
-            long_spread: 10000,
-            ..crate::amm::math::spread::AmmQuoteState::default()
-        };
-        let amm_ask_price = amm.ask_price(amm_reserve_price, qs.long_spread, 0).unwrap();
+        let amm_ask_price = amm
+            .ask_price(amm_reserve_price, amm.long_spread, 0)
+            .unwrap();
 
         assert_eq!(amm_ask_price, 101000000); // $101
 
@@ -3880,8 +3871,7 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Long;
 
         let limit_price =
-            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm, &qs, 100000)
-                .unwrap();
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm, 100000).unwrap();
 
         assert_eq!(limit_price, bid); // $100.1
     }
@@ -4508,7 +4498,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Long,
                 0,
                 2012 * PRICE_PRECISION_I64 / 100,
@@ -4522,7 +4511,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Short,
                 0,
                 2012 * PRICE_PRECISION_I64 / 100,
@@ -4541,7 +4529,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Long,
                 0,
                 2012 * PRICE_PRECISION_I64 / 100,
@@ -4555,7 +4542,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Short,
                 0,
                 2012 * PRICE_PRECISION_I64 / 100,
@@ -4570,7 +4556,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Long,
                 1000000000,
                 2012 * PRICE_PRECISION_I64 / 100,
@@ -4584,7 +4569,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Short,
                 1000000000,
                 2012 * PRICE_PRECISION_I64 / 100,
@@ -4600,7 +4584,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Long,
                 1000000000,
                 2012 * PRICE_PRECISION_I64 / 100,
@@ -4614,7 +4597,6 @@ mod fallback_price_logic {
             .amm
             .get_fallback_price(
                 &market.market_stats,
-                &Default::default(),
                 &PositionDirection::Short,
                 1000000000,
                 2012 * PRICE_PRECISION_I64 / 100,

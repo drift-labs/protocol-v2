@@ -4255,8 +4255,8 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
             "base_asset_amount_with_amm exceeds max"
         )?;
 
-        // Spread reserves are no longer cached on the AMM; computed on
-        // demand via `math::amm_spread::compute_amm_quote_state`.
+        // Spread reserves are cached on the AMM, refreshed by
+        // `crate::amm::math::spread::update_amm_quote_state` on each crank/fill.
     }
 
     let user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance);

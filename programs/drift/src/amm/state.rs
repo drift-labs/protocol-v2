@@ -120,6 +120,20 @@ pub struct AMM {
     /// sum of all fees from fee pool withdrawn to revenue pool
     /// precision: QUOTE_PRECISION
     pub total_fee_withdrawn: u128,
+    /// Cached spread-adjusted reserves for the ask (long-take) side, derived
+    /// from `long_spread` + `reference_price_offset`. Refreshed by
+    /// [`crate::amm::math::spread::update_amm_quote_state`] on every AMM crank
+    /// / fill `setup`; quote/fill paths read these directly instead of
+    /// recomputing per quote. Also surfaced to dashboards/tracking.
+    /// precision: AMM_RESERVE_PRECISION
+    pub ask_base_asset_reserve: u128,
+    /// precision: AMM_RESERVE_PRECISION
+    pub ask_quote_asset_reserve: u128,
+    /// Cached spread-adjusted reserves for the bid (short-take) side.
+    /// precision: AMM_RESERVE_PRECISION
+    pub bid_base_asset_reserve: u128,
+    /// precision: AMM_RESERVE_PRECISION
+    pub bid_quote_asset_reserve: u128,
     /// the last blockchain slot the amm was updated
     pub last_update_slot: u64,
     /// the total_fee_minus_distribution change since the last funding update
@@ -136,10 +150,29 @@ pub struct AMM {
     /// SHORT one when the AMM is net short.
     pub last_cumulative_funding_rate_long: i64,
     pub last_cumulative_funding_rate_short: i64,
+    /// Cached oracle-vs-reserve price spread (signed, BID_ASK_SPREAD_PRECISION),
+    /// the spread input that seeds `calculate_spread`. Refreshed alongside the
+    /// other cached spread fields by `update_amm_quote_state`.
+    pub last_oracle_reserve_price_spread_pct: i64,
+    /// Blockchain slot at which the cached spread state (`long_spread`,
+    /// `short_spread`, `reference_price_offset`, the ask/bid reserves, and
+    /// `last_oracle_reserve_price_spread_pct`) was last refreshed. Lets
+    /// quote paths skip recompute within a slot and lets dashboards reason
+    /// about cache staleness independently of `last_update_slot`.
+    pub last_spread_update_slot: u64,
     /// the minimum spread the AMM can quote. also used as step size for some spread logic increases.
     pub base_spread: u32,
     /// the maximum spread the AMM can quote
     pub max_spread: u32,
+    /// Cached spread applied to the ask (long-take) side, in
+    /// BID_ASK_SPREAD_PRECISION. Refreshed by `update_amm_quote_state`.
+    pub long_spread: u32,
+    /// Cached spread applied to the bid (short-take) side, in
+    /// BID_ASK_SPREAD_PRECISION. Refreshed by `update_amm_quote_state`.
+    pub short_spread: u32,
+    /// Cached reference-price offset (signed, PRICE_PRECISION) applied to both
+    /// sides' quotes. Refreshed by `update_amm_quote_state`.
+    pub reference_price_offset: i32,
     /// the fraction of total available liquidity a single fill on the AMM can consume
     pub max_fill_reserve_fraction: u16,
     /// the maximum slippage a single fill on the AMM can push
@@ -154,7 +187,7 @@ pub struct AMM {
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_inventory_spread_adjustment: i8,
     pub reference_price_offset_deadband_pct: u8,
-    pub padding_post_amm: [u8; 10],
+    pub padding_post_amm: [u8; 3],
 }
 
 impl AMM {
@@ -525,7 +558,6 @@ impl AMM {
     pub fn get_fallback_price(
         &self,
         market_stats: &MarketStats,
-        quote_state: &crate::amm::math::spread::AmmQuoteState,
         direction: &PositionDirection,
         amm_available_liquidity: u64,
         oracle_price: i64,
@@ -539,11 +571,7 @@ impl AMM {
             if amm_available_liquidity >= min_order_size {
                 let reserve_price = self.reserve_price()?;
                 let amm_ask_price: i64 = self
-                    .ask_price(
-                        reserve_price,
-                        quote_state.long_spread,
-                        quote_state.reference_price_offset,
-                    )?
+                    .ask_price(reserve_price, self.long_spread, self.reference_price_offset)?
                     .cast()?;
                 amm_ask_price
                     .safe_add(amm_ask_price / (seconds_til_order_expiry * 20).clamp(100, 200))?
@@ -568,8 +596,8 @@ impl AMM {
                 let amm_bid_price: i64 = self
                     .bid_price(
                         reserve_price,
-                        quote_state.short_spread,
-                        quote_state.reference_price_offset,
+                        self.short_spread,
+                        self.reference_price_offset,
                     )?
                     .cast()?;
                 amm_bid_price
@@ -669,11 +697,28 @@ impl AMM {
         )
     }
 
+    /// Test helper: reset the cached spread state to a balanced no-spread
+    /// snapshot — zero spreads / reference offset and ask/bid reserves equal
+    /// to the underlying reserves. Mirrors the legacy `AmmQuoteState::no_spread`
+    /// constructor now that the spread cache lives on the AMM. Production
+    /// code populates these via `crate::amm::math::spread::update_amm_quote_state`.
+    #[cfg(test)]
+    pub fn seed_no_spread_quote_state(&mut self) {
+        self.long_spread = 0;
+        self.short_spread = 0;
+        self.reference_price_offset = 0;
+        self.last_oracle_reserve_price_spread_pct = 0;
+        self.ask_base_asset_reserve = self.base_asset_reserve;
+        self.ask_quote_asset_reserve = self.quote_asset_reserve;
+        self.bid_base_asset_reserve = self.base_asset_reserve;
+        self.bid_quote_asset_reserve = self.quote_asset_reserve;
+    }
+
     /// Bid price given an externally-supplied spread + reference price
-    /// offset. Used to be derived from `self.short_spread` /
-    /// `self.reference_price_offset`; those fields were removed in the
-    /// AMM-decoupling refactor. Callers obtain the inputs from
-    /// [`crate::amm::math::spread::compute_amm_quote_state`].
+    /// offset. Takes them as explicit args so callers can quote a
+    /// hypothetical spread; production callers pass the cached
+    /// `self.short_spread` / `self.reference_price_offset` (refreshed by
+    /// [`crate::amm::math::spread::update_amm_quote_state`]).
     pub fn bid_price(
         &self,
         reserve_price: u64,
@@ -724,33 +769,21 @@ impl AMM {
         Ok((bid_price, ask_price))
     }
 
-    pub fn last_ask_premium(
-        &self,
-        market_stats: &MarketStats,
-        quote_state: &crate::amm::math::spread::AmmQuoteState,
-    ) -> DriftResult<i64> {
+    pub fn last_ask_premium(&self, market_stats: &MarketStats) -> DriftResult<i64> {
         let reserve_price = self.reserve_price()?;
         let ask_price = self
-            .ask_price(
-                reserve_price,
-                quote_state.long_spread,
-                quote_state.reference_price_offset,
-            )?
+            .ask_price(reserve_price, self.long_spread, self.reference_price_offset)?
             .cast::<i64>()?;
         ask_price.safe_sub(market_stats.historical_oracle_data.last_oracle_price)
     }
 
-    pub fn last_bid_discount(
-        &self,
-        market_stats: &MarketStats,
-        quote_state: &crate::amm::math::spread::AmmQuoteState,
-    ) -> DriftResult<i64> {
+    pub fn last_bid_discount(&self, market_stats: &MarketStats) -> DriftResult<i64> {
         let reserve_price = self.reserve_price()?;
         let bid_price = self
             .bid_price(
                 reserve_price,
-                quote_state.short_spread,
-                quote_state.reference_price_offset,
+                self.short_spread,
+                self.reference_price_offset,
             )?
             .cast::<i64>()?;
         market_stats

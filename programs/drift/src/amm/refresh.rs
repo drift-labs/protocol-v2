@@ -4,8 +4,9 @@ use crate::state::oracle::MMOraclePriceData;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 
-// `update_spreads` removed in the AMM-decoupling refactor; spread state is
-// computed on demand via `math::amm_spread::compute_amm_quote_state`.
+// `update_spreads`/`update_spread_reserves` folded into
+// `math::spread::update_amm_quote_state`, which refreshes the AMM's cached
+// spread state in place on each crank.
 use crate::amm::math::amm;
 use crate::amm::math::cp_curve;
 use crate::amm::math::cp_curve::get_update_k_result;

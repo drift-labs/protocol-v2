@@ -519,7 +519,6 @@ fn calc_delayed_mark_twap_tests() {
         .market_stats
         .update_mark_twap_from_estimates(
             &market.amm,
-            &Default::default(),
             now,
             Some(px as u64),
             Some(trade_direction),
@@ -629,7 +628,6 @@ fn calc_mark_std_tests() {
             .market_stats
             .update_mark_twap_from_estimates(
                 &market.amm,
-                &Default::default(),
                 now,
                 Some(px),
                 Some(trade_direction),
@@ -692,7 +690,6 @@ fn calc_mark_std_tests() {
                 .market_stats
                 .update_mark_twap_from_estimates(
                     &market.amm,
-                    &Default::default(),
                     now,
                     Some(px),
                     Some(trade_direction),
@@ -720,7 +717,6 @@ fn calc_mark_std_tests() {
                 .market_stats
                 .update_mark_twap_from_estimates(
                     &market.amm,
-                    &Default::default(),
                     now,
                     Some(px),
                     Some(trade_direction),
@@ -749,7 +745,6 @@ fn calc_mark_std_tests() {
                 .market_stats
                 .update_mark_twap_from_estimates(
                     &market.amm,
-                    &Default::default(),
                     now,
                     Some(px),
                     Some(trade_direction),
@@ -768,7 +763,6 @@ fn calc_mark_std_tests() {
                 .market_stats
                 .update_mark_twap_from_estimates(
                     &market.amm,
-                    &Default::default(),
                     now,
                     Some(px),
                     Some(trade_direction),
@@ -863,7 +857,6 @@ fn update_mark_twap_tests() {
         .market_stats
         .update_mark_twap_from_estimates(
             &market.amm,
-            &Default::default(),
             now,
             Some(trade_price),
             Some(trade_direction),
@@ -891,7 +884,6 @@ fn update_mark_twap_tests() {
             .market_stats
             .update_mark_twap_from_estimates(
                 &market.amm,
-                &Default::default(),
                 now,
                 Some(trade_price),
                 Some(trade_direction),
@@ -948,7 +940,6 @@ fn update_mark_twap_tests() {
                 .market_stats
                 .update_mark_twap_from_estimates(
                     &market.amm,
-                    &Default::default(),
                     now,
                     Some(trade_price_2),
                     Some(trade_direction_2),

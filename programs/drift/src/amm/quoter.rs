@@ -14,12 +14,7 @@ use anchor_lang::prelude::*;
 #[cfg(test)]
 use crate::state::perp_market::MarketStats;
 use crate::{
-    amm::{
-        controller as amm_controller,
-        controller::SwapDirection,
-        math::{amm as amm_math, spread::AmmQuoteState},
-        AMM,
-    },
+    amm::{controller as amm_controller, controller::SwapDirection, math::amm as amm_math, AMM},
     controller::position::PositionDirection,
     error::{DriftResult, ErrorCode},
     math::{casting::Cast, safe_math::SafeMath},
@@ -127,14 +122,13 @@ pub trait AmmContract {
     ) -> DriftResult<()>;
 }
 
-// `AmmQuoter` (the matcher-facing materialised view, defined further down in
-// this file) used to hold only `&mut AMM`; after the AMM-decoupling refactor,
-// spread / reference-offset / spread-reserves are no longer cached on AMM —
-// callers materialise an `AmmQuoteState` via
-// `crate::amm::math::spread::compute_amm_quote_state` before constructing
-// `AmmQuoter`, and the matcher reuses the same `quote_state` across all
-// `best_price` / `cumulative_size` / `try_fill_solo` calls within a single
-// match.
+// `AmmQuoter` (the matcher-facing view, defined further down in this file)
+// wraps `&mut AMM`. The spread / reference-offset / spread-reserve state it
+// quotes against is cached on the AMM itself, refreshed by
+// `crate::amm::math::spread::update_amm_quote_state` in `Quoter::setup` (once
+// per slot) and on the keeper crank. Every `best_price` / `cumulative_size` /
+// `try_fill_solo` call within a match reads those cached fields, so all fills
+// in a refresh window quote against byte-identical spread state.
 
 // ============================================================================
 // AmmContract impl — the only struct that satisfies this trait is the AMM
@@ -296,22 +290,17 @@ impl AMM {
 
 pub struct AmmQuoter<'a> {
     pub amm: &'a mut AMM,
-    /// Spread/reference-price-offset/spread-reserves snapshot. Set by
-    /// `Quoter::setup` against the post-refresh AMM; quote methods read it.
-    /// Pre-setup it's a zero-spread placeholder.
-    pub quote_state: AmmQuoteState,
 }
 
 impl<'a> AmmQuoter<'a> {
-    /// Construct an AMM quoter wrapping `&mut amm`. The AMM has no
-    /// projection / spread state baked in — those come from
-    /// `QuoteContext` when `Quoter::setup` runs. Pre-setup quotes are
-    /// not meaningful; callers that won't run setup (e.g. funding-event
-    /// dispatch) can assign `amm_quoter.quote_state` directly with the
-    /// quote-time snapshot they want the event handler to see.
+    /// Construct an AMM quoter wrapping `&mut amm`. Quote methods read the
+    /// spread / reference-offset / spread-reserve state cached on the AMM.
+    /// `Quoter::setup` refreshes that cache once per slot; callers that
+    /// won't run setup (e.g. funding-event dispatch) quote against whatever
+    /// the last crank/setup left cached on the AMM — exactly the value
+    /// dashboards see.
     pub fn for_amm(amm: &'a mut AMM) -> Self {
-        let quote_state = AmmQuoteState::no_spread(amm);
-        AmmQuoter { amm, quote_state }
+        AmmQuoter { amm }
     }
 
     /// Pre-fill `validate_for_fill` on the underlying AMM. Orchestrator
@@ -330,9 +319,9 @@ impl<'a> AmmQuoter<'a> {
     pub fn amm_bid_ask(&self, reserve_price: u64) -> DriftResult<(u64, u64)> {
         self.amm.bid_ask_price(
             reserve_price,
-            self.quote_state.long_spread,
-            self.quote_state.short_spread,
-            self.quote_state.reference_price_offset,
+            self.amm.long_spread,
+            self.amm.short_spread,
+            self.amm.reference_price_offset,
         )
     }
 
@@ -342,22 +331,15 @@ impl<'a> AmmQuoter<'a> {
         self.amm.base_spread
     }
 
-    /// The materialised quote state used by this quoter — exposed so the
-    /// orchestrator can pass it to market-stats helpers without
-    /// recomputing.
-    pub fn quote_state(&self) -> &AmmQuoteState {
-        &self.quote_state
-    }
-
-    /// Test/dev convenience: construct an `AmmQuoter` whose quote state has
-    /// zero spread and ask/bid reserves matching the underlying AMM, with
-    /// unit step size. Used from tests that want to exercise the matcher
-    /// without standing up an MM-oracle-driven `compute_amm_quote_state`
-    /// call.
+    /// Test/dev convenience: construct an `AmmQuoter` whose AMM has its
+    /// cached spread state zeroed and ask/bid reserves matched to the
+    /// underlying reserves, with unit step size. Used from tests that want
+    /// to exercise the matcher without an MM-oracle-driven
+    /// `update_amm_quote_state` refresh.
     #[cfg(test)]
     pub fn new_no_spread(amm: &'a mut AMM) -> Self {
-        let quote_state = AmmQuoteState::no_spread(amm);
-        AmmQuoter { amm, quote_state }
+        amm.seed_no_spread_quote_state();
+        AmmQuoter { amm }
     }
 
     /// Swap direction the AMM uses to fill a take on the given side.
@@ -398,8 +380,10 @@ impl<'a> Quoter for AmmQuoter<'a> {
     /// Reads `ctx.mm_oracle`, `ctx.oracle_validity`, `ctx.stats`, `ctx.slot`
     /// plus `self.projection_inputs`. Mutates `self.amm` (peg, reserves,
     /// sqrt_k, terminal, bounds, `total_fee_minus_distributions`,
-    /// `net_revenue_since_last_funding`, `last_update_slot`). Writes
-    /// `self.quote_state`.
+    /// `net_revenue_since_last_funding`, `last_update_slot`) and refreshes
+    /// the AMM's cached spread state via `update_amm_quote_state` (long/short
+    /// spread, reference offset, oracle-reserve spread pct, ask/bid reserves,
+    /// `last_spread_update_slot`).
     ///
     /// Returns an error if `ctx.mm_oracle` is not provided.
     fn setup(&mut self, ctx: &QuoteContext) -> DriftResult<()> {
@@ -407,20 +391,15 @@ impl<'a> Quoter for AmmQuoter<'a> {
             crate::msg!("AmmQuoter::setup requires ctx.mm_oracle");
             ErrorCode::DefaultError
         })?;
-        // Slot-idempotency: a prior `setup` (or admin `snap_to_oracle`)
-        // already bumped `last_update_slot` to the current slot, which
-        // means the AMM has already been projected against this slot's
-        // oracle. Re-running `project_post_refresh_scalar` is the
-        // expensive part of `setup` (peg / reserves / k-budget math) —
-        // skip it. Subsequent fills in the same slot move reserves along
-        // the curve but don't trigger another oracle-driven refresh, so
-        // leaving the curve fundamentals as the prior setup left them is
-        // correct. `quote_state` is still recomputed below because
-        // `ctx.stats` / `mm_oracle` may have ticked between setups.
-        let already_refreshed_this_slot = self.amm.last_update_slot >= ctx.slot;
-        let projection = if already_refreshed_this_slot {
-            crate::amm::math::repeg::ProjectedAmmState::noop(self.amm)
-        } else {
+        // Slot-idempotency for the curve projection: a prior `setup` (or the
+        // keeper crank) already bumped `last_update_slot` to this slot, which
+        // means the AMM was already projected against this slot's oracle.
+        // Re-running `project_post_refresh_scalar` (peg / reserves / k-budget
+        // math) is the expensive part of `setup` — skip it. Subsequent fills
+        // in the same slot move reserves along the curve but don't trigger
+        // another oracle-driven refresh.
+        let projection_current = self.amm.last_update_slot >= ctx.slot;
+        if !projection_current {
             // Pull the PerpMarket-level scalars the projection needs from
             // ctx. The orchestrator populates these once when building the
             // context; the AMM never reaches back into PerpMarket itself.
@@ -428,19 +407,16 @@ impl<'a> Quoter for AmmQuoter<'a> {
                 market_status: ctx.market_status,
                 market_config: ctx.market_config,
             };
-            crate::amm::math::repeg::project_post_refresh_scalar(
+            let projection = crate::amm::math::repeg::project_post_refresh_scalar(
                 self.amm,
                 &projection_inputs,
                 mm_oracle,
                 ctx.oracle_validity,
-            )?
-        };
-        projection.apply_to(self.amm)?;
-        // Match legacy `_update_amm`: bump `last_update_slot` when the
-        // oracle is fresh enough for low-risk fills and the affordability
-        // gate didn't reject the curve update. Skip when we already
-        // short-circuited above (the slot is already at ctx.slot).
-        if !already_refreshed_this_slot {
+            )?;
+            projection.apply_to(self.amm)?;
+            // Match legacy `_update_amm`: bump `last_update_slot` when the
+            // oracle is fresh enough for low-risk fills and the affordability
+            // gate didn't reject the curve update.
             if let Some(validity) = ctx.oracle_validity {
                 if crate::math::oracle::is_oracle_valid_for_action(
                     validity,
@@ -453,8 +429,12 @@ impl<'a> Quoter for AmmQuoter<'a> {
                 }
             }
         }
+        // Refresh the cached spread state against the just-projected AMM.
+        // Runs after the (projection-idempotent) block above so the cached
+        // ask/bid reserves stay consistent with the post-projection curve.
+        // All quote/fill reads in this match then see the one cached value.
         let reserve_price = self.amm.reserve_price()?;
-        self.quote_state = crate::amm::math::spread::compute_amm_quote_state(
+        crate::amm::math::spread::update_amm_quote_state(
             self.amm,
             ctx.stats,
             mm_oracle,
@@ -469,13 +449,13 @@ impl<'a> Quoter for AmmQuoter<'a> {
         match side {
             PositionDirection::Long => self.amm.ask_price(
                 reserve_price,
-                self.quote_state.long_spread,
-                self.quote_state.reference_price_offset,
+                self.amm.long_spread,
+                self.amm.reference_price_offset,
             ),
             PositionDirection::Short => self.amm.bid_price(
                 reserve_price,
-                self.quote_state.short_spread,
-                self.quote_state.reference_price_offset,
+                self.amm.short_spread,
+                self.amm.reference_price_offset,
             ),
         }
     }
@@ -494,13 +474,13 @@ impl<'a> Quoter for AmmQuoter<'a> {
         let best = match side {
             PositionDirection::Long => self.amm.ask_price(
                 reserve_price,
-                self.quote_state.long_spread,
-                self.quote_state.reference_price_offset,
+                self.amm.long_spread,
+                self.amm.reference_price_offset,
             )?,
             PositionDirection::Short => self.amm.bid_price(
                 reserve_price,
-                self.quote_state.short_spread,
-                self.quote_state.reference_price_offset,
+                self.amm.short_spread,
+                self.amm.reference_price_offset,
             )?,
         };
         let crosses = match side {
@@ -527,10 +507,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
         // the taker's side (taker Long → AMM sells → trade direction Long).
         let (amount, dir_result) =
             crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
-                self.amm,
-                &self.quote_state,
-                price,
-                side,
+                self.amm, price, side,
             )?;
 
         if dir_result != side {
@@ -572,12 +549,7 @@ impl<'a> Quoter for AmmQuoter<'a> {
             return Ok(None);
         }
         let direction = Self::swap_direction(side);
-        let swap = amm_controller::calculate_base_swap_output_with_quote_state(
-            self.amm,
-            &self.quote_state,
-            base,
-            direction,
-        )?;
+        let swap = amm_controller::calculate_base_swap_output(self.amm, base, direction)?;
 
         // For try_fill_solo's clearing_price we use the marginal *reserve*
         // price after the swap (no spread). This is the price the AMM's
@@ -612,12 +584,8 @@ impl<'a> QuoterCommit for AmmQuoter<'a> {
             return Ok(());
         }
         let direction = Self::swap_direction(fill.side);
-        let swap = amm_controller::calculate_base_swap_output_with_quote_state(
-            self.amm,
-            &self.quote_state,
-            fill.base_filled,
-            direction,
-        )?;
+        let swap =
+            amm_controller::calculate_base_swap_output(self.amm, fill.base_filled, direction)?;
         self.amm.base_asset_reserve = swap.new_base_asset_reserve;
         self.amm.quote_asset_reserve = swap.new_quote_asset_reserve;
 
@@ -873,7 +841,6 @@ impl<'a> AmmQuoter<'a> {
 
 pub struct AmmJitQuoter<'a> {
     pub amm: &'a mut AMM,
-    pub quote_state: AmmQuoteState,
     /// The DLOB maker price (or auction price) at which the AMM is willing
     /// to JIT-make. The taker pays this price; the AMM's reserves move per
     /// curve math, and the gap is recorded as `quote_asset_amount_surplus`.
@@ -885,26 +852,20 @@ pub struct AmmJitQuoter<'a> {
 }
 
 impl<'a> AmmJitQuoter<'a> {
-    pub fn new(
-        amm: &'a mut AMM,
-        quote_state: AmmQuoteState,
-        jit_price: u64,
-        max_jit_base: u64,
-    ) -> Self {
+    pub fn new(amm: &'a mut AMM, jit_price: u64, max_jit_base: u64) -> Self {
         AmmJitQuoter {
             amm,
-            quote_state,
             jit_price,
             max_jit_base,
         }
     }
 
     /// Construct an AMM JIT quoter for a DLOB Match step. Owns every
-    /// AMM-internal decision the orchestrator otherwise would: materialise
-    /// the `AmmQuoteState`, run the JIT throttle
-    /// (`calculate_amm_jit_liquidity` — oracle proximity, intensity,
-    /// inventory bias, "AMM fills next round anyway" short-circuit), and
-    /// `validate_for_fill` if the AMM will participate.
+    /// AMM-internal decision the orchestrator otherwise would: run the JIT
+    /// throttle (`calculate_amm_jit_liquidity` — oracle proximity, intensity,
+    /// inventory bias, "AMM fills next round anyway" short-circuit, reading
+    /// the AMM's cached spreads) and `validate_for_fill` if the AMM will
+    /// participate.
     ///
     /// If the throttled cap is zero the quoter still constructs cleanly;
     /// its `cumulative_size` will report zero on every query and the
@@ -917,7 +878,6 @@ impl<'a> AmmJitQuoter<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn from_match_context(
         market: &'a mut crate::state::perp_market::PerpMarket,
-        quote_state: AmmQuoteState,
         jit_price: u64,
         taker_direction: PositionDirection,
         valid_oracle_price: Option<i64>,
@@ -931,7 +891,6 @@ impl<'a> AmmJitQuoter<'a> {
         let initial_base = core::cmp::min(taker_unfilled, maker_unfilled);
         let max_jit_base = crate::amm::math::jit::calculate_amm_jit_liquidity(
             market,
-            &quote_state,
             taker_direction,
             jit_price,
             valid_oracle_price,
@@ -945,7 +904,6 @@ impl<'a> AmmJitQuoter<'a> {
         }
         Ok(AmmJitQuoter {
             amm: &mut market.amm,
-            quote_state,
             jit_price,
             max_jit_base,
         })
@@ -955,9 +913,9 @@ impl<'a> AmmJitQuoter<'a> {
     pub fn amm_bid_ask(&self, reserve_price: u64) -> DriftResult<(u64, u64)> {
         self.amm.bid_ask_price(
             reserve_price,
-            self.quote_state.long_spread,
-            self.quote_state.short_spread,
-            self.quote_state.reference_price_offset,
+            self.amm.long_spread,
+            self.amm.short_spread,
+            self.amm.reference_price_offset,
         )
     }
 
@@ -966,18 +924,13 @@ impl<'a> AmmJitQuoter<'a> {
         self.amm.base_spread
     }
 
-    /// The materialised quote state used by this quoter.
-    pub fn quote_state(&self) -> &AmmQuoteState {
-        &self.quote_state
-    }
-
-    /// Test/dev convenience: zero-spread quote state matched to the AMM.
+    /// Test/dev convenience: seed the AMM's cached spread state to zero-spread
+    /// (ask/bid reserves matched to the underlying reserves) and wrap it.
     #[cfg(test)]
     pub fn new_no_spread(amm: &'a mut AMM, jit_price: u64, max_jit_base: u64) -> Self {
-        let quote_state = AmmQuoteState::no_spread(amm);
+        amm.seed_no_spread_quote_state();
         AmmJitQuoter {
             amm,
-            quote_state,
             jit_price,
             max_jit_base,
         }
@@ -1060,12 +1013,7 @@ impl<'a> Quoter for AmmJitQuoter<'a> {
         }
         let direction = Self::swap_direction(side);
         // AMM reserves move per natural curve. The taker pays jit_price.
-        let swap = amm_controller::calculate_base_swap_output_with_quote_state(
-            self.amm,
-            &self.quote_state,
-            base,
-            direction,
-        )?;
+        let swap = amm_controller::calculate_base_swap_output(self.amm, base, direction)?;
 
         let base_precision = crate::math::constants::BASE_PRECISION;
         let jit_quote_u128 = (base as u128)
@@ -1112,12 +1060,8 @@ impl<'a> QuoterCommit for AmmJitQuoter<'a> {
             return Ok(());
         }
         let direction = Self::swap_direction(fill.side);
-        let swap = amm_controller::calculate_base_swap_output_with_quote_state(
-            self.amm,
-            &self.quote_state,
-            fill.base_filled,
-            direction,
-        )?;
+        let swap =
+            amm_controller::calculate_base_swap_output(self.amm, fill.base_filled, direction)?;
         self.amm.base_asset_reserve = swap.new_base_asset_reserve;
         self.amm.quote_asset_reserve = swap.new_quote_asset_reserve;
 
@@ -1176,15 +1120,11 @@ mod amm_maker_tests {
         let oracle = OraclePriceData::default();
         let ctx = make_ctx(&stats, &oracle);
         let mut amm = make_amm();
-        // Build a quote state with an explicit non-zero spread so ask > bid.
-        let quote_state = AmmQuoteState {
-            long_spread: 100,
-            short_spread: 100,
-            ..AmmQuoteState::no_spread(&amm)
-        };
-        let mut maker = AmmQuoter::for_amm(&mut amm);
-        maker.quote_state = quote_state;
-        let maker = maker;
+        // Seed an explicit non-zero cached spread so ask > bid.
+        amm.seed_no_spread_quote_state();
+        amm.long_spread = 100;
+        amm.short_spread = 100;
+        let maker = AmmQuoter::for_amm(&mut amm);
 
         let ask = maker.best_price(&ctx, PositionDirection::Long).unwrap();
         let bid = maker.best_price(&ctx, PositionDirection::Short).unwrap();

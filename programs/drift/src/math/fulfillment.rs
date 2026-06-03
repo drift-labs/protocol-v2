@@ -1,4 +1,3 @@
-use crate::amm::math::spread::AmmQuoteState;
 use crate::amm::AMM;
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
@@ -17,7 +16,6 @@ pub fn determine_perp_fulfillment_methods(
     order: &Order,
     maker_orders_info: &[(Pubkey, usize, u64)],
     amm: &AMM,
-    amm_quote_state: &AmmQuoteState,
     amm_reserve_price: u64,
     limit_price: Option<u64>,
     amm_is_available: bool,
@@ -26,7 +24,6 @@ pub fn determine_perp_fulfillment_methods(
         return determine_perp_fulfillment_methods_for_maker(
             order,
             amm,
-            amm_quote_state,
             amm_reserve_price,
             limit_price,
             amm_is_available,
@@ -40,13 +37,13 @@ pub fn determine_perp_fulfillment_methods(
     let mut amm_price = match maker_direction {
         PositionDirection::Long => amm.bid_price(
             amm_reserve_price,
-            amm_quote_state.short_spread,
-            amm_quote_state.reference_price_offset,
+            amm.short_spread,
+            amm.reference_price_offset,
         )?,
         PositionDirection::Short => amm.ask_price(
             amm_reserve_price,
-            amm_quote_state.long_spread,
-            amm_quote_state.reference_price_offset,
+            amm.long_spread,
+            amm.reference_price_offset,
         )?,
     };
 
@@ -111,7 +108,6 @@ pub fn determine_perp_fulfillment_methods(
 fn determine_perp_fulfillment_methods_for_maker(
     order: &Order,
     amm: &AMM,
-    amm_quote_state: &AmmQuoteState,
     amm_reserve_price: u64,
     limit_price: Option<u64>,
     amm_is_available: bool,
@@ -125,13 +121,13 @@ fn determine_perp_fulfillment_methods_for_maker(
     let amm_price = match maker_direction {
         PositionDirection::Long => amm.ask_price(
             amm_reserve_price,
-            amm_quote_state.long_spread,
-            amm_quote_state.reference_price_offset,
+            amm.long_spread,
+            amm.reference_price_offset,
         )?,
         PositionDirection::Short => amm.bid_price(
             amm_reserve_price,
-            amm_quote_state.short_spread,
-            amm_quote_state.reference_price_offset,
+            amm.short_spread,
+            amm.reference_price_offset,
         )?,
     };
 

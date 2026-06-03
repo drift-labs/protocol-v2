@@ -1,53 +1,40 @@
 mod amm {
-    use crate::amm::math::spread::AmmQuoteState;
     use crate::state::perp_market::{MarketStats, AMM};
     use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64};
 
-    /// Quote state with a non-trivial long_spread / short_spread so the
-    /// premium / discount helpers compute non-zero values. Spread of 10000
-    /// (1%) on a $100 ask gives $1 of premium relative to oracle.
-    fn quote_state_with_10bps_spread() -> AmmQuoteState {
-        AmmQuoteState {
+    /// AMM with a non-trivial long_spread / short_spread so the premium /
+    /// discount helpers compute non-zero values. Spread of 100000 (1%) on a
+    /// $100 ask gives $1 of premium relative to oracle.
+    fn amm_with_10bps_spread() -> AMM {
+        AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
             long_spread: 100000,
             short_spread: 100000,
-            ..AmmQuoteState::default()
+            ..AMM::default()
         }
     }
 
     #[test]
     fn last_ask_premium() {
-        let amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
-            ..AMM::default()
-        };
+        let amm = amm_with_10bps_spread();
         let mut market_stats = MarketStats::default();
         market_stats.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
 
-        let premium = amm
-            .last_ask_premium(&market_stats, &quote_state_with_10bps_spread())
-            .unwrap();
+        let premium = amm.last_ask_premium(&market_stats).unwrap();
 
         assert_eq!(premium, 10000000); // $1
     }
 
     #[test]
     fn last_bid_discount() {
-        let amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
-            ..AMM::default()
-        };
+        let amm = amm_with_10bps_spread();
         let mut market_stats = MarketStats::default();
         market_stats.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
 
-        let discount = amm
-            .last_bid_discount(&market_stats, &quote_state_with_10bps_spread())
-            .unwrap();
+        let discount = amm.last_bid_discount(&market_stats).unwrap();
 
         assert_eq!(discount, 10000000); // $1
     }

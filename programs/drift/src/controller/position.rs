@@ -1,7 +1,6 @@
 use crate::msg;
 use anchor_lang::prelude::*;
 
-use crate::amm::math::spread::AmmQuoteState;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{BASE_PRECISION_U64, MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS};
@@ -367,7 +366,6 @@ pub fn update_position_with_base_asset_amount(
     base_asset_amount: u64,
     direction: PositionDirection,
     market: &mut PerpMarket,
-    amm_quote_state: AmmQuoteState,
     user: &mut User,
     position_index: usize,
     fill_price: Option<u64>,
@@ -377,9 +375,9 @@ pub fn update_position_with_base_asset_amount(
     // `AmmQuoter::commit_fill` (mutates reserves + AMM's net counterparty
     // position).
     //
-    // The caller is responsible for materialising the `AmmQuoteState` from
-    // durable inputs (`compute_amm_quote_state`) and passing it in — spread /
-    // reference-offset / spread-reserves are no longer cached on AMM.
+    // Quote / fill prices read the AMM's cached spread state (refreshed by the
+    // keeper crank / fill setup); the caller is responsible for ensuring it's
+    // current for this slot.
     //
     // `AmmQuoter::try_fill_solo` only reads the AMM's own state and
     // `ctx.base_precision`, so the oracle/slot/fee_budget fields are stubs
@@ -403,7 +401,6 @@ pub fn update_position_with_base_asset_amount(
 
     let match_result = crate::controller::matching::fill_perp_market_against_amm(
         market,
-        amm_quote_state,
         &ctx,
         direction,
         base_asset_amount,

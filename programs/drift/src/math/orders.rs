@@ -4,7 +4,6 @@ use std::ops::Sub;
 use crate::msg;
 
 use crate::amm::math::amm::calculate_amm_available_liquidity;
-use crate::amm::math::spread::AmmQuoteState;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
@@ -45,7 +44,6 @@ mod tests;
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
     market: &PerpMarket,
-    amm_quote_state: &AmmQuoteState,
     limit_price: Option<u64>,
     override_fill_price: Option<u64>,
     existing_base_asset_amount: i64,
@@ -79,7 +77,6 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     let base_asset_amount = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
         market,
-        amm_quote_state,
         limit_price_with_buffer,
         Some(existing_base_asset_amount),
     )?;
@@ -162,7 +159,6 @@ pub fn calculate_limit_price_with_buffer(
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
-    amm_quote_state: &AmmQuoteState,
     limit_price: Option<u64>,
     existing_base_asset_amount: Option<i64>,
 ) -> DriftResult<u64> {
@@ -179,7 +175,6 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
 
         crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
-            amm_quote_state,
             adjusted_limit_price,
             order.direction,
         )?
@@ -317,7 +312,6 @@ pub fn get_price_for_perp_order(
     direction: PositionDirection,
     post_only: PostOnlyParam,
     amm: &AMM,
-    amm_quote_state: &AmmQuoteState,
     order_tick_size: u64,
 ) -> DriftResult<u64> {
     let mut limit_price = standardize_price(price, order_tick_size, direction)?;
@@ -326,21 +320,15 @@ pub fn get_price_for_perp_order(
         let reserve_price = amm.reserve_price()?;
         match direction {
             PositionDirection::Long => {
-                let amm_ask = amm.ask_price(
-                    reserve_price,
-                    amm_quote_state.long_spread,
-                    amm_quote_state.reference_price_offset,
-                )?;
+                let amm_ask =
+                    amm.ask_price(reserve_price, amm.long_spread, amm.reference_price_offset)?;
                 if limit_price >= amm_ask {
                     limit_price = amm_ask.safe_sub(order_tick_size)?;
                 }
             }
             PositionDirection::Short => {
-                let amm_bid = amm.bid_price(
-                    reserve_price,
-                    amm_quote_state.short_spread,
-                    amm_quote_state.reference_price_offset,
-                )?;
+                let amm_bid =
+                    amm.bid_price(reserve_price, amm.short_spread, amm.reference_price_offset)?;
                 if limit_price <= amm_bid {
                     limit_price = amm_bid.safe_add(order_tick_size)?;
                 }

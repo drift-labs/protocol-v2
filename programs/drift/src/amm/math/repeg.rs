@@ -523,7 +523,7 @@ impl ProjectedAmmState {
     /// touching the real AMM. The clone has `terminal_quote_asset_reserve`,
     /// `min_base_asset_reserve`, and `max_base_asset_reserve` recomputed via
     /// `apply_k_update`, so it's a complete projected snapshot suitable for
-    /// `compute_amm_quote_state` etc.
+    /// `update_amm_quote_state` etc.
     pub fn projected_amm(&self, amm: &AMM) -> DriftResult<AMM> {
         let mut clone = *amm;
         if !self.applied {

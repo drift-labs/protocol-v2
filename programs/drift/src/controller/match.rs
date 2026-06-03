@@ -21,7 +21,6 @@
 //! convergence — multiple calls during a single match must produce consistent
 //! answers.
 
-use crate::amm::math::spread::AmmQuoteState;
 use crate::amm::AmmQuoter;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
@@ -702,14 +701,12 @@ pub fn apply_match_to_perp_market(
 /// function returns.
 pub fn fill_perp_market_against_amm(
     perp_market: &mut crate::state::perp_market::PerpMarket,
-    quote_state: AmmQuoteState,
     ctx: &QuoteContext,
     side: PositionDirection,
     target_size: u64,
 ) -> DriftResult<Match> {
     let result = {
         let mut amm_maker = AmmQuoter::for_amm(&mut perp_market.amm);
-        amm_maker.quote_state = quote_state;
         let mut makers: Vec<&mut dyn QuoterCommit> = vec![&mut amm_maker];
         match_take(&mut makers, ctx, side, target_size, None)?
     };
@@ -935,10 +932,9 @@ mod tests {
         };
         let starting_reserve = perp_market.amm.base_asset_reserve;
 
-        let quote_state = AmmQuoteState::no_spread(&perp_market.amm);
+        perp_market.amm.seed_no_spread_quote_state();
         let result = fill_perp_market_against_amm(
             &mut perp_market,
-            quote_state,
             &ctx,
             PositionDirection::Long,
             AMM_RESERVE_PRECISION as u64,

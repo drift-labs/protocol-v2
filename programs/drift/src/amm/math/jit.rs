@@ -12,7 +12,6 @@ mod tests;
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_jit_make)
 pub fn calculate_jit_base_asset_amount(
     market: &PerpMarket,
-    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
     maker_base_asset_amount: u64,
     auction_price: u64,
     valid_oracle_price: Option<i64>,
@@ -36,13 +35,15 @@ pub fn calculate_jit_base_asset_amount(
         {
             // shrink by at least 50% based on distance from oracle
             let opposite_spread_price = if taker_direction == PositionDirection::Long {
-                amm_quote_state
+                market
+                    .amm
                     .short_spread
                     .cast::<u64>()?
                     .safe_mul(baseline_price_u64)?
                     .safe_div(PERCENTAGE_PRECISION_U64)?
             } else {
-                amm_quote_state
+                market
+                    .amm
                     .long_spread
                     .cast::<u64>()?
                     .safe_mul(baseline_price_u64)?
@@ -142,7 +143,6 @@ pub fn calculate_clamped_jit_base_asset_amount(
 
 pub fn calculate_amm_jit_liquidity(
     market: &PerpMarket,
-    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
     taker_direction: PositionDirection,
     maker_price: u64,
     valid_oracle_price: Option<i64>,
@@ -168,7 +168,6 @@ pub fn calculate_amm_jit_liquidity(
     if amm_wants_to_jit_make {
         jit_base_asset_amount = calculate_jit_base_asset_amount(
             market,
-            amm_quote_state,
             base_asset_amount,
             maker_price,
             valid_oracle_price,

@@ -300,26 +300,30 @@ pub fn update_funding_rate(
 
         let mut amm_quoter = AmmQuoter::for_amm(amm);
         <AmmQuoter as Quoter>::setup(&mut amm_quoter, &setup_ctx)?;
-        let amm_quote_state = amm_quoter.quote_state;
+        // Snapshot the just-refreshed cached spreads for the funding event +
+        // mark-twap update (the latter takes scalars, not an `&AMM` borrow).
+        let amm_long_spread = amm_quoter.amm.long_spread;
+        let amm_short_spread = amm_quoter.amm.short_spread;
+        let amm_reference_price_offset = amm_quoter.amm.reference_price_offset;
 
         // ---- Post-refresh AMM reads via the live quoter. ----
         let reserve_price = amm_quoter.amm.reserve_price()?;
         let (execution_premium_price, execution_premium_direction) =
-            if amm_quote_state.long_spread > amm_quote_state.short_spread {
+            if amm_long_spread > amm_short_spread {
                 (
                     amm_quoter.amm.ask_price(
                         reserve_price,
-                        amm_quote_state.long_spread,
-                        amm_quote_state.reference_price_offset,
+                        amm_long_spread,
+                        amm_reference_price_offset,
                     )?,
                     Some(PositionDirection::Long),
                 )
-            } else if amm_quote_state.long_spread < amm_quote_state.short_spread {
+            } else if amm_long_spread < amm_short_spread {
                 (
                     amm_quoter.amm.bid_price(
                         reserve_price,
-                        amm_quote_state.short_spread,
-                        amm_quote_state.reference_price_offset,
+                        amm_short_spread,
+                        amm_reference_price_offset,
                     )?,
                     Some(PositionDirection::Short),
                 )
@@ -328,9 +332,9 @@ pub fn update_funding_rate(
             };
         let (amm_bid_price, amm_ask_price) = amm_quoter.amm.bid_ask_price(
             reserve_price,
-            amm_quote_state.long_spread,
-            amm_quote_state.short_spread,
-            amm_quote_state.reference_price_offset,
+            amm_long_spread,
+            amm_short_spread,
+            amm_reference_price_offset,
         )?;
         let amm_base_spread = amm_quoter.amm.base_spread;
 
@@ -339,7 +343,8 @@ pub fn update_funding_rate(
             amm_bid_price,
             amm_ask_price,
             amm_base_spread,
-            &amm_quote_state,
+            amm_long_spread,
+            amm_short_spread,
             now,
             Some(execution_premium_price),
             execution_premium_direction,
@@ -407,8 +412,8 @@ pub fn update_funding_rate(
             oracle_price_data,
             now,
             total_fee_floor,
-            long_spread: amm_quote_state.long_spread,
-            short_spread: amm_quote_state.short_spread,
+            long_spread: amm_long_spread,
+            short_spread: amm_short_spread,
             k_update_eligible,
             market_status,
             min_order_size,

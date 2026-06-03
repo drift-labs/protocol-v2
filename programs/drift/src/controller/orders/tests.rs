@@ -8309,7 +8309,6 @@ pub mod update_trigger_order_params {
             slot,
             min_auction_duration,
             None,
-            None,
         )
         .unwrap();
 
@@ -8334,7 +8333,6 @@ pub mod update_trigger_order_params {
             &oracle_price_data,
             slot,
             min_auction_duration,
-            None,
             None,
         )
         .unwrap();
@@ -8361,7 +8359,6 @@ pub mod update_trigger_order_params {
             slot,
             min_auction_duration,
             None,
-            None,
         );
         assert!(err.is_err());
 
@@ -8377,7 +8374,6 @@ pub mod update_trigger_order_params {
             &oracle_price_data,
             slot,
             min_auction_duration,
-            None,
             None,
         );
         assert!(err.is_err());

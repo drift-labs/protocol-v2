@@ -7,7 +7,7 @@ use crate::state::oracle::OraclePriceData;
 #[cfg(test)]
 use crate::state::perp_market::{MarketConfigFlag, PerpMarket};
 use crate::{
-    amm::math::{amm, amm::calculate_quote_asset_amount_swapped, spread::AmmQuoteState},
+    amm::math::{amm, amm::calculate_quote_asset_amount_swapped},
     error::DriftResult,
     math::{casting::Cast, quote_asset::*, safe_math::SafeMath, spot_balance::get_token_amount},
     state::{
@@ -81,26 +81,18 @@ pub struct AmmSwapOutput {
 /// AMM/maker modules needs it — fills go through the matcher and
 /// `AmmQuoter`.
 ///
-/// Takes an explicit [`AmmQuoteState`] (spread + spread reserves) rather
-/// than reading from the AMM struct: those fields were removed in the
-/// AMM-decoupling refactor. Callers materialise the quote state via
-/// [`crate::amm::math::spread::compute_amm_quote_state`].
-pub(crate) fn calculate_base_swap_output_with_quote_state(
+/// Reads the spread-adjusted ask/bid reserves cached on the AMM (refreshed by
+/// [`crate::amm::math::spread::update_amm_quote_state`] on each crank / fill
+/// `setup`).
+pub(crate) fn calculate_base_swap_output(
     amm: &AMM,
-    quote_state: &AmmQuoteState,
     base_asset_swap_amount: u64,
     direction: SwapDirection,
 ) -> DriftResult<AmmSwapOutput> {
     // first do the swap with spread reserves to figure out how much base asset is acquired
     let (base_asset_reserve_with_spread, quote_asset_reserve_with_spread) = match direction {
-        SwapDirection::Add => (
-            quote_state.bid_base_asset_reserve,
-            quote_state.bid_quote_asset_reserve,
-        ),
-        SwapDirection::Remove => (
-            quote_state.ask_base_asset_reserve,
-            quote_state.ask_quote_asset_reserve,
-        ),
+        SwapDirection::Add => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
+        SwapDirection::Remove => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
     };
 
     let (new_quote_asset_reserve_with_spread, _) = amm::calculate_swap_output(
@@ -144,13 +136,10 @@ pub(crate) fn calculate_base_swap_output_with_quote_state(
     })
 }
 
-// `update_spreads` and `update_spread_reserves` have been removed: those
-// mutators wrote into cached AMM fields (`long_spread`, `short_spread`,
-// `reference_price_offset`, `ask/bid_*_asset_reserve`,
-// `last_oracle_reserve_price_spread_pct`) which no longer exist. Callers
-// that need a spread / spread-reserve view of the AMM materialise an
-// [`crate::amm::math::spread::AmmQuoteState`] on demand via
-// [`crate::amm::math::spread::compute_amm_quote_state`].
+// The legacy `update_spreads` / `update_spread_reserves` mutators are now a
+// single [`crate::amm::math::spread::update_amm_quote_state`] that refreshes
+// all the cached spread fields on the AMM in one pass. Callers that need a
+// spread / spread-reserve view read the cached fields directly off the AMM.
 
 // AMM-mutating helpers (`update_concentration_coef`, `move_price`, `recenter`)
 // live as methods on `AMM` in `crate::amm::state`. Callers go through those.
@@ -166,7 +155,6 @@ pub fn formulaic_update_k(
     oracle_price_data: &OraclePriceData,
     funding_imbalance_cost: i128,
     now: i64,
-    amm_quote_state: &AmmQuoteState,
 ) -> DriftResult {
     use crate::amm::AmmQuoter;
 
@@ -178,8 +166,8 @@ pub fn formulaic_update_k(
     let total_fee_floor = market.amm.protocol_floor()?;
     let market_status = market.status;
     let min_order_size = market.market_stats.min_order_size;
-    let long_spread = amm_quote_state.long_spread;
-    let short_spread = amm_quote_state.short_spread;
+    let long_spread = market.amm.long_spread;
+    let short_spread = market.amm.short_spread;
     let market_index = market.market_index;
     let mut amm_maker = AmmQuoter::for_amm(&mut market.amm);
     amm_maker.handle_funding_applied(

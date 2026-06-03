@@ -15,7 +15,6 @@ use crate::state::revenue_share::{
 use anchor_lang::prelude::*;
 
 use crate::amm::math::amm::calculate_amm_available_liquidity;
-use crate::amm::math::spread::AmmQuoteState;
 use crate::amm::AmmQuoter;
 use crate::controller;
 use crate::controller::funding::settle_funding_payment;
@@ -218,31 +217,16 @@ pub fn place_perp_order(
 
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
 
-    // Materialise the AMM quote-time state on demand. Spread / reference
-    // offset are no longer cached on AMM; this is the durable-input compute
-    // used everywhere downstream in this function.
-    let amm_quote_state = {
-        let reserve_price = market.amm.reserve_price()?;
-        let mm_oracle_pd = market.get_mm_oracle_price_data(
-            *oracle_price_data,
-            slot,
-            &state.oracle_guard_rails.validity,
-        )?;
-        crate::amm::math::spread::compute_amm_quote_state(
-            &market.amm,
-            &market.market_stats,
-            &mm_oracle_pd,
-            reserve_price,
-            slot,
-        )?
-    };
+    // Downstream auction-param / price / validation logic reads the AMM's
+    // cached spread state directly (refreshed by the keeper crank / fill
+    // setup), matching pre-decoupling behaviour where order placement quoted
+    // off the last-cranked spread rather than recomputing it here.
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
     if !options.is_liquidation() {
         params.update_perp_auction_params(
             market,
-            &amm_quote_state,
             oracle_price_data.price,
             options.is_signed_msg_order(),
         )?;
@@ -316,7 +300,6 @@ pub fn place_perp_order(
             params.direction,
             params.post_only,
             &market.amm,
-            &amm_quote_state,
             market.order_tick_size,
         )?,
         existing_position_direction,
@@ -344,13 +327,7 @@ pub fn place_perp_order(
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);
-    match validate_order(
-        &new_order,
-        market,
-        &amm_quote_state,
-        valid_oracle_price,
-        slot,
-    ) {
+    match validate_order(&new_order, market, valid_oracle_price, slot) {
         Ok(()) => {}
         Err(ErrorCode::PlacePostOnlyLimitFailure)
             if params.post_only == PostOnlyParam::TryPostOnly =>
@@ -1791,24 +1768,30 @@ fn fulfill_perp_order(
     drop(perp_market);
 
     let fulfillment_methods = {
-        let market = perp_market_map.get_ref(&market_index)?;
-        // Materialise the AMM quote-time state on demand (spread + reference
-        // offset are no longer cached on AMM).
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
+        // Refresh the AMM's cached spread state (off the current reserves)
+        // before routing so fulfillment decisions quote off live spread —
+        // even on the very first fill of a slot before any keeper crank. The
+        // matcher's `setup` re-refreshes against the post-projection curve.
         let oracle_pd = *oracle_map.get_price_data(&market.oracle_id())?;
         let mm_oracle_pd =
             market.get_mm_oracle_price_data(oracle_pd, slot, validity_guard_rails)?;
-        let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-            &market.amm,
-            &market.market_stats,
-            &mm_oracle_pd,
-            reserve_price_before,
-            slot,
-        )?;
+        {
+            let crate::state::perp_market::PerpMarket {
+                amm, market_stats, ..
+            } = &mut *market;
+            crate::amm::math::spread::update_amm_quote_state(
+                amm,
+                market_stats,
+                &mm_oracle_pd,
+                reserve_price_before,
+                slot,
+            )?;
+        }
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
             maker_orders_info,
             &market.amm,
-            &amm_quote_state,
             reserve_price_before,
             limit_price,
             amm_is_available,
@@ -2390,7 +2373,10 @@ pub fn fulfill_perp_order_step(
     let reserve_after_setup = amm_quoter.amm.reserve_price()?;
     let (amm_bid_price, amm_ask_price) = amm_quoter.amm_bid_ask(reserve_after_setup)?;
     let amm_base_spread = amm_quoter.amm_base_spread();
-    let amm_quote_state = amm_quoter.quote_state;
+    // Snapshot the just-refreshed cached spreads for the mark-twap update
+    // below (which takes scalars, not an `&AMM` borrow).
+    let amm_long_spread = amm_quoter.amm.long_spread;
+    let amm_short_spread = amm_quoter.amm.short_spread;
 
     // ---- 2. Per-fill validate / event metadata. ----
     let taker_base_unfilled = taker.orders[taker_order_index]
@@ -2433,7 +2419,6 @@ pub fn fulfill_perp_order_step(
                     let min_order_size = market.market_stats.min_order_size;
                     amm_ref.get_fallback_price(
                         &market.market_stats,
-                        &amm_quote_state,
                         &taker_direction,
                         amm_available,
                         oracle_price,
@@ -2472,7 +2457,8 @@ pub fn fulfill_perp_order_step(
         amm_bid_price,
         amm_ask_price,
         amm_base_spread,
-        &amm_quote_state,
+        amm_long_spread,
+        amm_short_spread,
         now,
         Some(twap_trade_price),
         Some(taker_direction),
@@ -2546,7 +2532,6 @@ pub fn fulfill_perp_order_step(
             let taker_has_limit_price = taker.orders[taker_order_index].has_limit_price(slot)?;
             let mut amm_jit = crate::amm::AmmJitQuoter::from_match_context(
                 market,
-                amm_quote_state,
                 maker_price,
                 taker_direction,
                 valid_oracle_price,
@@ -3396,27 +3381,14 @@ pub fn trigger_order(
 
     let mut bit_flags = 0;
     {
-        // Materialise the AMM quote-time state on demand.
-        let reserve_price = perp_market.amm.reserve_price()?;
-        let mm_oracle_pd = perp_market.get_mm_oracle_price_data(
-            *oracle_price_data,
-            slot,
-            &state.oracle_guard_rails.validity,
-        )?;
-        let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-            &perp_market.amm,
-            &perp_market.market_stats,
-            &mm_oracle_pd,
-            reserve_price,
-            slot,
-        )?;
+        // Trigger-order auction params quote off the AMM's cached spread
+        // state (refreshed by the keeper crank / fill setup for this slot).
         update_trigger_order_params(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
             20,
             Some(&perp_market),
-            Some(&amm_quote_state),
         )?;
 
         if user.orders[order_index].has_auction() {
@@ -3527,7 +3499,6 @@ fn update_trigger_order_params(
     slot: u64,
     min_auction_duration: u8,
     perp_market: Option<&PerpMarket>,
-    amm_quote_state: Option<&AmmQuoteState>,
 ) -> DriftResult {
     order.trigger_condition = match order.trigger_condition {
         OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
@@ -3549,7 +3520,6 @@ fn update_trigger_order_params(
             oracle_price_data,
             min_auction_duration,
             perp_market,
-            amm_quote_state,
         )?;
 
     msg!(

@@ -180,14 +180,7 @@ fn formualic_k_tests() {
 
     // zero funding cost
     let funding_cost: i128 = 0;
-    formulaic_update_k(
-        &mut market,
-        &oracle_price_data,
-        funding_cost,
-        now,
-        &Default::default(),
-    )
-    .unwrap();
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
     assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
     assert_eq!(
         market.amm.total_fee_minus_distributions,
@@ -196,42 +189,21 @@ fn formualic_k_tests() {
 
     // positive means amm supossedly paid $500 in funding payments for interval
     let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
-    formulaic_update_k(
-        &mut market,
-        &oracle_price_data,
-        funding_cost_2,
-        now,
-        &Default::default(),
-    )
-    .unwrap();
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
     assert_eq!(market.amm.sqrt_k, 499500000000); // max k decrease (.1%)
     assert!(prev_sqrt_k > market.amm.sqrt_k);
     assert_eq!(market.amm.total_fee_minus_distributions, 1000014768); //$.014768 acquired from slippage increase
 
     // negative means amm recieved $500 in funding payments for interval
     let funding_cost_2: i128 = -((500 * QUOTE_PRECISION) as i128);
-    formulaic_update_k(
-        &mut market,
-        &oracle_price_data,
-        funding_cost_2,
-        now,
-        &Default::default(),
-    )
-    .unwrap();
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
     assert_eq!(market.amm.sqrt_k, 499999500000); // max k increase (.1%)
     assert_eq!(market.amm.total_fee_minus_distributions, 1000000013); //almost full spent from slippage decrease
 
     // negative means amm recieved $.001 in funding payments for interval
     let funding_cost_2: i128 = -((QUOTE_PRECISION / 1000) as i128);
-    formulaic_update_k(
-        &mut market,
-        &oracle_price_data,
-        funding_cost_2,
-        now,
-        &Default::default(),
-    )
-    .unwrap();
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
     // new numbers bc of increased sqrt_k precision
     assert_eq!(market.amm.sqrt_k, 500015999983); // increase k by 1.000033x
@@ -277,14 +249,7 @@ fn formulaic_k_skip_with_market_config_flag() {
 
     // zero funding cost
     let funding_cost: i128 = 0;
-    formulaic_update_k(
-        &mut market,
-        &oracle_price_data,
-        funding_cost,
-        now,
-        &Default::default(),
-    )
-    .unwrap();
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
     assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
     assert_eq!(
         market.amm.total_fee_minus_distributions,
@@ -297,27 +262,13 @@ fn formulaic_k_skip_with_market_config_flag() {
     // set bit flag to skip formulaic update
     market.market_config = MarketConfigFlag::DisableFormulaicKUpdate as u8;
 
-    formulaic_update_k(
-        &mut market,
-        &oracle_price_data,
-        funding_cost_2,
-        now,
-        &Default::default(),
-    )
-    .unwrap();
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
     assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
 
     // disable bit flag
     market.market_config = 0u8;
 
-    formulaic_update_k(
-        &mut market,
-        &oracle_price_data,
-        funding_cost_2,
-        now,
-        &Default::default(),
-    )
-    .unwrap();
+    formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
     assert!(prev_sqrt_k > market.amm.sqrt_k);
 }
 
@@ -356,14 +307,7 @@ fn iterative_bounds_formualic_k_tests() {
     while prev_k != new_k && count < 10000 {
         let funding_cost = -(QUOTE_PRECISION as i128);
         prev_k = market.amm.sqrt_k;
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost,
-            now,
-            &Default::default(),
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
         new_k = market.amm.sqrt_k;
         count += 1
     }
@@ -408,14 +352,7 @@ fn iterative_no_bounds_formualic_k_tests() {
     while prev_k != new_k && count < 100000 && prev_k < MAX_SQRT_K * 99 / 100 {
         let funding_cost = -((QUOTE_PRECISION * 100000) as i128);
         prev_k = market.amm.sqrt_k;
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost,
-            now,
-            &Default::default(),
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
         new_k = market.amm.sqrt_k;
         count += 1
     }

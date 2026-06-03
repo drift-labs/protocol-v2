@@ -178,30 +178,35 @@ pub fn update_amm_test() {
     assert_eq!(profit, -6158609264);
 
     let reserve_price = market.amm.reserve_price().unwrap();
-    // Spread / ref-offset are no longer cached on AMM — materialize them
-    // via the pure helper, then call `bid_ask_price` with the result.
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        reserve_price,
-        slot,
-    )
-    .unwrap();
+    // Spread / ref-offset are cached on AMM — refresh them in place via the
+    // helper, then call `bid_ask_price` with the cached fields.
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            reserve_price,
+            slot,
+        )
+        .unwrap();
+    }
     let (bid, ask) = market
         .amm
         .bid_ask_price(
             reserve_price,
-            quote_state.long_spread,
-            quote_state.short_spread,
-            quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )
         .unwrap();
     assert!(bid < reserve_price);
     assert!(bid < ask);
     assert!(reserve_price <= ask);
     assert_eq!(
-        quote_state.long_spread + quote_state.short_spread,
+        market.amm.long_spread + market.amm.short_spread,
         453312 // (market.margin_ratio_initial * 100) as u32
     );
 
@@ -344,20 +349,24 @@ pub fn update_amm_larg_conf_test() {
         _update_amm(&mut market, &mm_oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, -42992787); // amm wins when price increases
 
-    // Spread / ref-offset values used to live on AMM; rematerialize via the
-    // pure helper and assert on it (legacy assertions were on the cached
-    // fields).
+    // Spread / ref-offset values are cached on AMM; refresh in place and
+    // assert on the cached fields.
     let reserve_price_after = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        reserve_price_after,
-        slot,
-    )
-    .unwrap();
-    assert_eq!(quote_state.long_spread, 125);
-    assert_eq!(quote_state.short_spread, 12576);
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            reserve_price_after,
+            slot,
+        )
+        .unwrap();
+    }
+    assert_eq!(market.amm.long_spread, 125);
+    assert_eq!(market.amm.short_spread, 12576);
 
     assert_eq!(reserve_price_after, 18849999999);
     assert_eq!(reserve_price_before < reserve_price_after, true);
@@ -379,21 +388,26 @@ pub fn update_amm_larg_conf_test() {
     assert_eq!(cost_of_update, 0);
 
     let mrk = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        mrk,
-        slot,
-    )
-    .unwrap();
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            mrk,
+            slot,
+        )
+        .unwrap();
+    }
     let (bid, ask) = market
         .amm
         .bid_ask_price(
             mrk,
-            quote_state.long_spread,
-            quote_state.short_spread,
-            quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )
         .unwrap();
 
@@ -401,9 +415,9 @@ pub fn update_amm_larg_conf_test() {
     assert_eq!(bid, 18351342099);
     assert_eq!(mrk, 18849999999);
 
-    assert_eq!(quote_state.long_spread, 2237);
+    assert_eq!(market.amm.long_spread, 2237);
     assert_eq!(market.amm.peg_multiplier, 19443664550);
-    assert_eq!(quote_state.short_spread, 26454);
+    assert_eq!(market.amm.short_spread, 26454);
 
     // add move lower
     let oracle_price_data = OraclePriceData {
@@ -438,24 +452,29 @@ pub fn update_amm_larg_conf_test() {
     assert_eq!(cost_of_update, 30468749);
 
     let mrk = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        mrk,
-        slot,
-    )
-    .unwrap();
-    assert_eq!(quote_state.long_spread, 1888);
-    assert_eq!(quote_state.short_spread, 28443);
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            mrk,
+            slot,
+        )
+        .unwrap();
+    }
+    assert_eq!(market.amm.long_spread, 1888);
+    assert_eq!(market.amm.short_spread, 28443);
 
     let (bid, ask) = market
         .amm
         .bid_ask_price(
             mrk,
-            quote_state.long_spread,
-            quote_state.short_spread,
-            quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )
         .unwrap();
 
@@ -482,24 +501,29 @@ pub fn update_amm_larg_conf_test() {
     assert_eq!(cost_of_update, -3046875);
 
     let mrk = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        mrk,
-        slot,
-    )
-    .unwrap();
-    assert_eq!(quote_state.long_spread, 1877);
-    assert_eq!(quote_state.short_spread, 28289);
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            mrk,
+            slot,
+        )
+        .unwrap();
+    }
+    assert_eq!(market.amm.long_spread, 1877);
+    assert_eq!(market.amm.short_spread, 28289);
 
     let (bid, ask) = market
         .amm
         .bid_ask_price(
             mrk,
-            quote_state.long_spread,
-            quote_state.short_spread,
-            quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )
         .unwrap();
 
@@ -578,15 +602,20 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     assert_eq!(market.amm.last_update_slot, slot);
 
     let reserve_price_after = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        reserve_price_after,
-        slot,
-    )
-    .unwrap();
-    assert_eq!(quote_state.long_spread, 1250);
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            reserve_price_after,
+            slot,
+        )
+        .unwrap();
+    }
+    assert_eq!(market.amm.long_spread, 1250);
     let max_target_spread = calculate_max_target_spread(
         0i64,
         market.amm.reserve_price().unwrap(),
@@ -597,7 +626,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     )
     .unwrap();
     assert_eq!(max_target_spread, 29177);
-    assert_eq!(quote_state.short_spread, 16020);
+    assert_eq!(market.amm.short_spread, 16020);
     assert_eq!(reserve_price_after, 18849999999);
     assert_eq!(reserve_price_before < reserve_price_after, true);
 
@@ -618,21 +647,26 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     assert_eq!(cost_of_update, 0);
 
     let mrk = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        mrk,
-        slot,
-    )
-    .unwrap();
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            mrk,
+            slot,
+        )
+        .unwrap();
+    }
     let (bid, ask) = market
         .amm
         .bid_ask_price(
             mrk,
-            quote_state.long_spread,
-            quote_state.short_spread,
-            quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )
         .unwrap();
 
@@ -640,8 +674,8 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     assert_eq!(mrk, 18849999999);
     assert_eq!(ask, 19065775948);
 
-    assert_eq!(quote_state.long_spread, 11447);
-    assert_eq!(quote_state.short_spread, 17244);
+    assert_eq!(market.amm.long_spread, 11447);
+    assert_eq!(market.amm.short_spread, 17244);
 
     // add move lower
     msg!("SHOULD LOWER K");
@@ -695,24 +729,29 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     assert_eq!(market.amm.last_update_slot, slot);
 
     let mrk = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        mrk,
-        slot,
-    )
-    .unwrap();
-    assert_eq!(quote_state.long_spread, 11397);
-    assert_eq!(quote_state.short_spread, 18698);
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            mrk,
+            slot,
+        )
+        .unwrap();
+    }
+    assert_eq!(market.amm.long_spread, 11397);
+    assert_eq!(market.amm.short_spread, 18698);
 
     let (bid, ask) = market
         .amm
         .bid_ask_price(
             mrk,
-            quote_state.long_spread,
-            quote_state.short_spread,
-            quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )
         .unwrap();
 
@@ -754,24 +793,29 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     assert_eq!(cost_of_update, 299367);
 
     let mrk = market.amm.reserve_price().unwrap();
-    let quote_state = crate::amm::math::spread::compute_amm_quote_state(
-        &market.amm,
-        &market.market_stats,
-        &mm_oracle_price_data,
-        mrk,
-        slot,
-    )
-    .unwrap();
-    assert_eq!(quote_state.long_spread, 11685);
-    assert_eq!(quote_state.short_spread, 18426);
+    {
+        let PerpMarket {
+            amm, market_stats, ..
+        } = &mut market;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            mrk,
+            slot,
+        )
+        .unwrap();
+    }
+    assert_eq!(market.amm.long_spread, 11685);
+    assert_eq!(market.amm.short_spread, 18426);
 
     let (bid, ask) = market
         .amm
         .bid_ask_price(
             mrk,
-            quote_state.long_spread,
-            quote_state.short_spread,
-            quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )
         .unwrap();
 

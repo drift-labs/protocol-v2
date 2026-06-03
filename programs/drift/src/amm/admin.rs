@@ -959,8 +959,9 @@ pub fn handle_update_perp_market_base_spread(
     );
 
     perp_market.amm.base_spread = base_spread;
-    // `long_spread` / `short_spread` are no longer cached — they are
-    // computed on demand via `crate::amm::math::spread::compute_amm_quote_state`.
+    // `long_spread` / `short_spread` are cached on the AMM and refreshed from
+    // this new `base_spread` by `crate::amm::math::spread::update_amm_quote_state`
+    // on the next crank / fill setup.
     Ok(())
 }
 
@@ -1094,11 +1095,12 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
 
     perp_market.amm.amm_inventory_spread_adjustment = amm_inventory_spread_adjustment;
 
-    // The `reference_price_offset` parameter is now ignored: the offset is
-    // computed on demand from MarketStats via
-    // `crate::amm::math::spread::compute_amm_quote_state` instead of being stored on
-    // the AMM. The parameter is retained for IDL/wire-protocol stability;
-    // operators should remove it once the SDK is updated.
+    // The `reference_price_offset` parameter is ignored: the cached
+    // `amm.reference_price_offset` is a per-crank output, recomputed by
+    // `crate::amm::math::spread::update_amm_quote_state` from inventory +
+    // MarketStats rather than set by admin. The parameter is retained for
+    // IDL/wire-protocol stability; operators should remove it once the SDK
+    // is updated.
     let _ = reference_price_offset;
 
     Ok(())

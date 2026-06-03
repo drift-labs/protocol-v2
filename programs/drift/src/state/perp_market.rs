@@ -4,7 +4,6 @@ use anchor_lang::prelude::{
 };
 
 use super::oracle_map::OracleIdentifier;
-use crate::amm::math::spread::AmmQuoteState;
 use crate::{
     amm::math::amm::{self},
     error::{DriftResult, ErrorCode},
@@ -365,12 +364,13 @@ impl Default for PerpMarket {
 }
 
 impl Size for PerpMarket {
-    // 1104-byte struct + 8-byte discriminator. AMM-decoupling Step A2
-    // deleted 8 cached/derived AMM fields (4×u128 spread reserves, 1×i64
-    // last_oracle_reserve_price_spread_pct, 2×u32 long/short_spread, 1×i32
-    // reference_price_offset) — 80 bytes of cache that's now computed on
-    // demand via `math::amm_spread::compute_amm_quote_state`.
-    const SIZE: usize = 1128;
+    // 1200-byte struct + 8-byte discriminator. The cached spread state
+    // (4×u128 spread reserves, i64 last_oracle_reserve_price_spread_pct,
+    // 2×u32 long/short_spread, i32 reference_price_offset) plus a dedicated
+    // u64 last_spread_update_slot live back on AMM — refreshed by
+    // `math::spread::update_amm_quote_state` on each crank/fill `setup` and
+    // read directly by quote/fill paths and dashboards.
+    const SIZE: usize = 1208;
 }
 
 impl MarketIndexOffset for PerpMarket {
@@ -479,18 +479,23 @@ impl PerpMarket {
             )?;
         }
 
-        // Cache the fresh reference_price_offset so the next quote can
-        // smooth-transition off the previous value.
-        let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-            &self.amm,
-            &self.market_stats,
+        // Refresh the AMM's cached spread state (long/short spread, reference
+        // offset, oracle-reserve spread pct, ask/bid reserves) in place, then
+        // mirror the fresh reference offset into market_stats so the next
+        // refresh can smooth-transition off it.
+        let PerpMarket {
+            amm, market_stats, ..
+        } = self;
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
             mm_oracle_price_data,
             reserve_price_after,
             clock_slot,
         )?;
-        self.market_stats.last_reference_price_offset = amm_quote_state.reference_price_offset;
+        market_stats.last_reference_price_offset = amm.reference_price_offset;
 
-        self.market_stats.last_oracle_valid = crate::math::oracle::is_oracle_valid_for_action(
+        market_stats.last_oracle_valid = crate::math::oracle::is_oracle_valid_for_action(
             oracle_validity,
             Some(crate::math::oracle::DriftAction::FillOrderAmmLowRisk),
         )?;
@@ -1174,7 +1179,7 @@ pub struct MarketStats {
     /// after normalisation (any quoter's view, not AMM-specific).
     pub last_oracle_normalised_price: i64,
     /// Previous reference price offset, written by `_update_amm` after a
-    /// successful repeg/k_update. Read by `compute_amm_quote_state` to
+    /// successful repeg/k_update. Read by `update_amm_quote_state` to
     /// implement the legacy time-decayed reference-price-offset smoothing
     /// transition — when the freshly computed offset's sign flips relative
     /// to this cached value AND `curve_update_intensity > 100`, the
@@ -1509,7 +1514,6 @@ impl MarketStats {
     pub fn update_mark_twap_from_estimates(
         &mut self,
         amm: &AMM,
-        amm_quote_state: &AmmQuoteState,
         now: i64,
         precomputed_trade_price: Option<u64>,
         direction: Option<crate::controller::position::PositionDirection>,
@@ -1519,15 +1523,16 @@ impl MarketStats {
         let reserve_price = amm.reserve_price()?;
         let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(
             reserve_price,
-            amm_quote_state.long_spread,
-            amm_quote_state.short_spread,
-            amm_quote_state.reference_price_offset,
+            amm.long_spread,
+            amm.short_spread,
+            amm.reference_price_offset,
         )?;
         self.update_mark_twap_with_amm_bid_ask(
             amm_bid_price,
             amm_ask_price,
             amm.base_spread,
-            amm_quote_state,
+            amm.long_spread,
+            amm.short_spread,
             now,
             precomputed_trade_price,
             direction,
@@ -1547,7 +1552,8 @@ impl MarketStats {
         amm_bid_price: u64,
         amm_ask_price: u64,
         amm_base_spread: u32,
-        amm_quote_state: &AmmQuoteState,
+        amm_long_spread: u32,
+        amm_short_spread: u32,
         now: i64,
         precomputed_trade_price: Option<u64>,
         direction: Option<crate::controller::position::PositionDirection>,
@@ -1558,7 +1564,8 @@ impl MarketStats {
             amm_bid_price,
             amm_ask_price,
             amm_base_spread,
-            amm_quote_state,
+            amm_long_spread,
+            amm_short_spread,
             &self.historical_oracle_data,
             precomputed_trade_price,
             direction,
@@ -1581,7 +1588,6 @@ impl MarketStats {
         amm: &AMM,
         now: i64,
         oracle_price_data: &crate::state::oracle::OraclePriceData,
-        amm_quote_state: &AmmQuoteState,
         best_dlob_bid_price: Option<u64>,
         best_dlob_ask_price: Option<u64>,
         sanitize_clamp: Option<i64>,
@@ -1592,9 +1598,9 @@ impl MarketStats {
         let amm_reserve_price = amm.reserve_price()?;
         let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(
             amm_reserve_price,
-            amm_quote_state.long_spread,
-            amm_quote_state.short_spread,
-            amm_quote_state.reference_price_offset,
+            amm.long_spread,
+            amm.short_spread,
+            amm.reference_price_offset,
         )?;
 
         let mut best_bid_price = match best_dlob_bid_price {

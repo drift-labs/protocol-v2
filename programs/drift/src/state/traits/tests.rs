@@ -105,7 +105,7 @@ mod native_instruction_offsets {
         );
         assert_eq!(
             amm_start + std::mem::offset_of!(AMM, amm_spread_adjustment),
-            1110,
+            1202,
             "amm_spread_adjustment offset changed — update handle_update_amm_spread_adjustment_native"
         );
     }

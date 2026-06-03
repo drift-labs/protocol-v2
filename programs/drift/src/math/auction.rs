@@ -1,4 +1,3 @@
-use crate::amm::math::spread::AmmQuoteState;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -224,15 +223,10 @@ pub fn calculate_auction_params_for_trigger_order(
     oracle_price_data: &OraclePriceData,
     min_auction_duration: u8,
     perp_market: Option<&PerpMarket>,
-    amm_quote_state: Option<&AmmQuoteState>,
 ) -> DriftResult<(u8, i64, i64)> {
     let auction_duration = min_auction_duration;
 
     if let Some(perp_market) = perp_market {
-        // The quote-state-aware path requires a quote state matched to the
-        // perp market. Callers passing `Some(perp_market)` must also pass
-        // `Some(quote_state)`.
-        let amm_quote_state = amm_quote_state.ok_or(crate::error::ErrorCode::DefaultError)?;
         // negative buffer is crossing
         let auction_start_buffer = if perp_market
             .contract_tier
@@ -247,7 +241,6 @@ pub fn calculate_auction_params_for_trigger_order(
             if matches!(order.order_type, OrderType::TriggerMarket) {
                 OrderParams::derive_oracle_order_auction_params(
                     perp_market,
-                    amm_quote_state,
                     order.direction,
                     oracle_price_data.price,
                     None,
@@ -256,7 +249,6 @@ pub fn calculate_auction_params_for_trigger_order(
             } else {
                 OrderParams::derive_market_order_auction_params(
                     perp_market,
-                    amm_quote_state,
                     order.direction,
                     oracle_price_data.price,
                     order.price,

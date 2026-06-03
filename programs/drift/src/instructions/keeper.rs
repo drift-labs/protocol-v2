@@ -2505,21 +2505,22 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     {
         let reserve_price = perp_market.amm.reserve_price()?;
-        let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-            &perp_market.amm,
-            &perp_market.market_stats,
+        let crate::state::perp_market::PerpMarket {
+            amm, market_stats, ..
+        } = &mut **perp_market;
+        // Refresh the AMM's cached spread state against this slot's oracle,
+        // then fold it (plus DLOB liquidity) into the mark TWAP.
+        crate::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
             &mm_oracle_price_data,
             reserve_price,
             slot,
         )?;
-        let crate::state::perp_market::PerpMarket {
-            amm, market_stats, ..
-        } = &mut **perp_market;
         market_stats.update_mark_twap_crank(
             amm,
             now,
             oracle_price_data,
-            &amm_quote_state,
             estimated_bid,
             estimated_ask,
             sanitize_clamp_denominator,
@@ -2760,24 +2761,14 @@ pub fn view_amm_liquidity<'c: 'info, 'info>(
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
 
+        // `update_amms` above refreshed each AMM's cached spread state; read
+        // it back for the dlog.
         let reserve_price = market.amm.reserve_price()?;
-        let mm_oracle_pd = market.get_mm_oracle_price_data(
-            **oracle_price_data,
-            clock.slot,
-            &state.oracle_guard_rails.validity,
-        )?;
-        let amm_quote_state = crate::amm::math::spread::compute_amm_quote_state(
-            &market.amm,
-            &market.market_stats,
-            &mm_oracle_pd,
-            reserve_price,
-            clock.slot,
-        )?;
         let (bid, ask) = market.amm.bid_ask_price(
             reserve_price,
-            amm_quote_state.long_spread,
-            amm_quote_state.short_spread,
-            amm_quote_state.reference_price_offset,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
         )?;
         crate::dlog!(bid, ask, oracle_price_data.price);
     }

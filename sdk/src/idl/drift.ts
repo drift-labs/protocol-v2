@@ -16437,6 +16437,40 @@ export type Drift = {
             "type": "u128"
           },
           {
+            "name": "askBaseAssetReserve",
+            "docs": [
+              "Cached spread-adjusted reserves for the ask (long-take) side, derived",
+              "from `long_spread` + `reference_price_offset`. Refreshed by",
+              "[`crate::amm::math::spread::update_amm_quote_state`] on every AMM crank",
+              "/ fill `setup`; quote/fill paths read these directly instead of",
+              "recomputing per quote. Also surfaced to dashboards/tracking.",
+              "precision: AMM_RESERVE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "askQuoteAssetReserve",
+            "docs": [
+              "precision: AMM_RESERVE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "bidBaseAssetReserve",
+            "docs": [
+              "Cached spread-adjusted reserves for the bid (short-take) side.",
+              "precision: AMM_RESERVE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "bidQuoteAssetReserve",
+            "docs": [
+              "precision: AMM_RESERVE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
             "name": "lastUpdateSlot",
             "docs": [
               "the last blockchain slot the amm was updated"
@@ -16471,6 +16505,26 @@ export type Drift = {
             "type": "i64"
           },
           {
+            "name": "lastOracleReservePriceSpreadPct",
+            "docs": [
+              "Cached oracle-vs-reserve price spread (signed, BID_ASK_SPREAD_PRECISION),",
+              "the spread input that seeds `calculate_spread`. Refreshed alongside the",
+              "other cached spread fields by `update_amm_quote_state`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "lastSpreadUpdateSlot",
+            "docs": [
+              "Blockchain slot at which the cached spread state (`long_spread`,",
+              "`short_spread`, `reference_price_offset`, the ask/bid reserves, and",
+              "`last_oracle_reserve_price_spread_pct`) was last refreshed. Lets",
+              "quote paths skip recompute within a slot and lets dashboards reason",
+              "about cache staleness independently of `last_update_slot`."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "baseSpread",
             "docs": [
               "the minimum spread the AMM can quote. also used as step size for some spread logic increases."
@@ -16483,6 +16537,30 @@ export type Drift = {
               "the maximum spread the AMM can quote"
             ],
             "type": "u32"
+          },
+          {
+            "name": "longSpread",
+            "docs": [
+              "Cached spread applied to the ask (long-take) side, in",
+              "BID_ASK_SPREAD_PRECISION. Refreshed by `update_amm_quote_state`."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "shortSpread",
+            "docs": [
+              "Cached spread applied to the bid (short-take) side, in",
+              "BID_ASK_SPREAD_PRECISION. Refreshed by `update_amm_quote_state`."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "referencePriceOffset",
+            "docs": [
+              "Cached reference-price offset (signed, PRICE_PRECISION) applied to both",
+              "sides' quotes. Refreshed by `update_amm_quote_state`."
+            ],
+            "type": "i32"
           },
           {
             "name": "maxFillReserveFraction",
@@ -16536,7 +16614,7 @@ export type Drift = {
             "type": {
               "array": [
                 "u8",
-                10
+                3
               ]
             }
           }
@@ -19480,7 +19558,7 @@ export type Drift = {
             "name": "lastReferencePriceOffset",
             "docs": [
               "Previous reference price offset, written by `_update_amm` after a",
-              "successful repeg/k_update. Read by `compute_amm_quote_state` to",
+              "successful repeg/k_update. Read by `update_amm_quote_state` to",
               "implement the legacy time-decayed reference-price-offset smoothing",
               "transition — when the freshly computed offset's sign flips relative",
               "to this cached value AND `curve_update_intensity > 100`, the",
@@ -21263,10 +21341,12 @@ export type Drift = {
           {
             "name": "amm",
             "docs": [
-              "The automated market maker. Last field so a future excision into a",
-              "dedicated AMM program is a clean truncate at this offset — `PerpMarket`",
-              "minus the trailing `AMM` bytes equals the future \"orderbook-only\"",
-              "account layout."
+              "The automated market maker. Last field so future quoter modules can",
+              "land in the trailing region without disturbing earlier byte offsets",
+              "— in the target architecture this account holds back-to-back",
+              "per-quoter state slices (AMM, DLOB-maker state, future propAMM-style",
+              "participants, …) and each module owns a contiguous span starting at",
+              "a known offset."
             ],
             "type": {
               "defined": {

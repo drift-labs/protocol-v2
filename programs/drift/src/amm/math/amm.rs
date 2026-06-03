@@ -116,7 +116,8 @@ pub fn estimate_best_bid_ask_price(
     amm_bid_price: u64,
     amm_ask_price: u64,
     amm_base_spread: u32,
-    amm_quote_state: &crate::amm::math::spread::AmmQuoteState,
+    amm_long_spread: u32,
+    amm_short_spread: u32,
     historical_oracle_data: &crate::state::oracle::HistoricalOracleData,
     precomputed_trade_price: Option<u64>,
     direction: Option<PositionDirection>,
@@ -143,10 +144,7 @@ pub fn estimate_best_bid_ask_price(
 
     // trade is a long
     let best_bid_estimate = if trade_premium > 0 {
-        let discount = min(
-            base_spread_u64,
-            amm_quote_state.short_spread.cast::<u64>()? / 2,
-        );
+        let discount = min(base_spread_u64, amm_short_spread.cast::<u64>()? / 2);
         last_oracle_price_u64
             .saturating_sub(discount.min(trade_premium.unsigned_abs()))
             .max(order_tick_size)
@@ -157,10 +155,7 @@ pub fn estimate_best_bid_ask_price(
 
     // trade is a short
     let best_ask_estimate = if trade_premium < 0 {
-        let premium: u64 = min(
-            base_spread_u64,
-            amm_quote_state.long_spread.cast::<u64>()? / 2,
-        );
+        let premium: u64 = min(base_spread_u64, amm_long_spread.cast::<u64>()? / 2);
         last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price

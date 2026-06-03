@@ -23,62 +23,21 @@ use crate::validate;
 #[cfg(test)]
 mod tests;
 
-/// Materialised quote-time state for the AMM.
+/// Refresh the AMM's cached quote-time state (spreads, reference-price
+/// offset, oracle-reserve spread pct, and spread-adjusted ask/bid reserves)
+/// in place from durable inputs, stamping `last_spread_update_slot = slot`.
 ///
-/// **Not stored on-chain.** This is the on-demand result of running the
-/// spread / reference-price-offset / spread-reserves pipeline against
-/// durable AMM state + `MarketStats`. Callers that need to quote against the
-/// AMM (matcher, validation, settlement) build this once per quote/fill via
-/// [`compute_amm_quote_state`].
-///
-/// Previously the equivalent fields were cached on `AMM` and refreshed by
-/// `_update_amm`'s call to `update_spreads`/`update_spread_reserves`. After
-/// the AMM-decoupling refactor those fields are gone — there's no
-/// "current spread"; spread is a function of current oracle, stats, and
-/// reserves.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct AmmQuoteState {
-    pub long_spread: u32,
-    pub short_spread: u32,
-    pub reference_price_offset: i32,
-    pub last_oracle_reserve_price_spread_pct: i64,
-    pub ask_base_asset_reserve: u128,
-    pub ask_quote_asset_reserve: u128,
-    pub bid_base_asset_reserve: u128,
-    pub bid_quote_asset_reserve: u128,
-}
-
-impl AmmQuoteState {
-    /// Test/dev helper: build a zero-spread quote state where the ask/bid
-    /// reserves match the underlying AMM reserves. Equivalent to running
-    /// [`compute_amm_quote_state`] against an AMM with `base_spread == 0`,
-    /// `curve_update_intensity == 0`, and a zero reference offset — useful
-    /// in tests that need a quote state matched to a specific AMM but
-    /// don't care about its spread.
-    pub fn no_spread(amm: &AMM) -> Self {
-        Self {
-            long_spread: 0,
-            short_spread: 0,
-            reference_price_offset: 0,
-            last_oracle_reserve_price_spread_pct: 0,
-            ask_base_asset_reserve: amm.base_asset_reserve,
-            ask_quote_asset_reserve: amm.quote_asset_reserve,
-            bid_base_asset_reserve: amm.base_asset_reserve,
-            bid_quote_asset_reserve: amm.quote_asset_reserve,
-        }
-    }
-}
-
-/// Pure compute of the AMM's quote-time state from durable inputs.
-///
-/// Lifts the spread / reference-price-offset / spread-reserves logic that
-/// used to live in `crate::amm::controller::update_spreads` +
-/// `crate::amm::controller::update_spread_reserves` into a pure function. Reads
-/// `&AMM`, `&MarketStats`, and the latest oracle reading; writes nothing.
+/// Restores the legacy `update_spreads` + `update_spread_reserves` mutators
+/// that the AMM-decoupling refactor had briefly turned into a returns-only
+/// `compute_amm_quote_state`. The cache lives back on `AMM`: it's refreshed
+/// here on each AMM crank (`update_oracle_derived_stats`) and each fill
+/// `setup`, then read directly by every quote/fill path — so two quotes in
+/// the same refresh window see byte-identical spread state, and dashboards
+/// can read the values straight off the account.
 ///
 /// `reserve_price` is taken as an input (rather than re-derived from the
-/// AMM) so callers can quote against a hypothetical AMM state without
-/// re-computing the price each time.
+/// AMM) so callers can refresh against a just-projected AMM without
+/// re-computing the price.
 ///
 /// # Reference-price-offset smoothing
 ///
@@ -86,15 +45,15 @@ impl AmmQuoteState {
 /// of `market_stats.last_reference_price_offset` AND
 /// `amm.curve_update_intensity > 100`, the transition is smoothed across
 /// slots rather than snapping. `market_stats.last_reference_price_offset`
-/// is written by `_update_amm` after every admin crank and seeds the
-/// smoothing for the next quote.
-pub fn compute_amm_quote_state(
-    amm: &AMM,
+/// is written by the crank after every refresh (from `amm.reference_price_offset`)
+/// and seeds the smoothing for the next refresh.
+pub fn update_amm_quote_state(
+    amm: &mut AMM,
     market_stats: &MarketStats,
     mm_oracle_price_data: &MMOraclePriceData,
     reserve_price: u64,
     slot: u64,
-) -> DriftResult<AmmQuoteState> {
+) -> DriftResult<()> {
     // ---- last_oracle_reserve_price_spread_pct -----------------------------
     let last_oracle_reserve_price_spread_pct =
         crate::amm::math::amm::calculate_oracle_reserve_price_spread_pct(
@@ -274,87 +233,81 @@ pub fn compute_amm_quote_state(
         )
     };
 
-    let quote_state = AmmQuoteState {
-        long_spread,
-        short_spread,
-        reference_price_offset: final_reference_price_offset,
-        last_oracle_reserve_price_spread_pct,
-        ask_base_asset_reserve,
-        ask_quote_asset_reserve,
-        bid_base_asset_reserve,
-        bid_quote_asset_reserve,
-    };
-    quote_state.validate(amm)?;
-    Ok(quote_state)
+    amm.long_spread = long_spread;
+    amm.short_spread = short_spread;
+    amm.reference_price_offset = final_reference_price_offset;
+    amm.last_oracle_reserve_price_spread_pct = last_oracle_reserve_price_spread_pct;
+    amm.ask_base_asset_reserve = ask_base_asset_reserve;
+    amm.ask_quote_asset_reserve = ask_quote_asset_reserve;
+    amm.bid_base_asset_reserve = bid_base_asset_reserve;
+    amm.bid_quote_asset_reserve = bid_quote_asset_reserve;
+    amm.last_spread_update_slot = slot;
+
+    validate_amm_quote_state(amm)?;
+    Ok(())
 }
 
-impl AmmQuoteState {
-    /// Self-check the invariants master enforced inside `validate_perp_market`
-    /// before the AMM-decoupling refactor moved the spread/reserve cache off
-    /// the `AMM` struct and into this per-quote computation. Running here
-    /// catches a corrupted compute result at the source — the only way bad
-    /// spread state can now reach a fill is through this function.
-    pub fn validate(&self, amm: &AMM) -> DriftResult<()> {
-        use crate::math::constants::BID_ASK_SPREAD_PRECISION;
+/// Self-check the cached spread/reserve invariants master enforced inside
+/// `validate_perp_market`. Run at the tail of [`update_amm_quote_state`] so a
+/// corrupted refresh result is caught at the source — the only way bad spread
+/// state can reach a fill is through that refresh.
+pub fn validate_amm_quote_state(amm: &AMM) -> DriftResult<()> {
+    use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 
-        // long+short never exceeds the precision ceiling (== 100%).
+    // long+short never exceeds the precision ceiling (== 100%).
+    validate!(
+        amm.long_spread.safe_add(amm.short_spread)?.cast::<u64>()? <= BID_ASK_SPREAD_PRECISION,
+        ErrorCode::InvalidAmmDetected,
+        "amm long_spread {} + short_spread {} > BID_ASK_SPREAD_PRECISION ({}); max_spread {}",
+        amm.long_spread,
+        amm.short_spread,
+        BID_ASK_SPREAD_PRECISION,
+        amm.max_spread,
+    )?;
+
+    // When both adjustments are non-negative, the post-spread bid/ask
+    // can't be tighter than `base_spread - 2` (the -2 absorbs i32→u32
+    // signed rounding from the spread builders).
+    if amm.amm_spread_adjustment >= 0 && amm.amm_inventory_spread_adjustment >= 0 {
         validate!(
-            self.long_spread
-                .safe_add(self.short_spread)?
-                .cast::<u64>()?
-                <= BID_ASK_SPREAD_PRECISION,
+            amm.long_spread.safe_add(amm.short_spread)? >= amm.base_spread.saturating_sub(2),
             ErrorCode::InvalidAmmDetected,
-            "amm long_spread {} + short_spread {} > BID_ASK_SPREAD_PRECISION ({}); max_spread {}",
-            self.long_spread,
-            self.short_spread,
-            BID_ASK_SPREAD_PRECISION,
-            amm.max_spread,
+            "amm long_spread {} + short_spread {} < base_spread {} - 2",
+            amm.long_spread,
+            amm.short_spread,
+            amm.base_spread,
         )?;
-
-        // When both adjustments are non-negative, the post-spread bid/ask
-        // can't be tighter than `base_spread - 2` (the -2 absorbs i32→u32
-        // signed rounding from the spread builders).
-        if amm.amm_spread_adjustment >= 0 && amm.amm_inventory_spread_adjustment >= 0 {
-            validate!(
-                self.long_spread.safe_add(self.short_spread)? >= amm.base_spread.saturating_sub(2),
-                ErrorCode::InvalidAmmDetected,
-                "amm long_spread {} + short_spread {} < base_spread {} - 2",
-                self.long_spread,
-                self.short_spread,
-                amm.base_spread,
-            )?;
-        }
-
-        // Spread-reserve bounds — used by `swap_base_asset` to price a fill.
-        // `reference_price_offset` direction picks which side's bound is
-        // checked (the bound on the side that fills first).
-        if self.reference_price_offset <= 0 {
-            validate!(
-                self.bid_base_asset_reserve >= amm.base_asset_reserve
-                    && self.bid_quote_asset_reserve <= amm.quote_asset_reserve,
-                ErrorCode::InvalidAmmDetected,
-                "amm bid reserves invalid: base {} -> {}, quote {} -> {}",
-                self.bid_base_asset_reserve,
-                amm.base_asset_reserve,
-                self.bid_quote_asset_reserve,
-                amm.quote_asset_reserve,
-            )?;
-        }
-        if self.reference_price_offset >= 0 {
-            validate!(
-                self.ask_base_asset_reserve <= amm.base_asset_reserve
-                    && self.ask_quote_asset_reserve >= amm.quote_asset_reserve,
-                ErrorCode::InvalidAmmDetected,
-                "amm ask reserves invalid: base {} -> {}, quote {} -> {}",
-                self.ask_base_asset_reserve,
-                amm.base_asset_reserve,
-                self.ask_quote_asset_reserve,
-                amm.quote_asset_reserve,
-            )?;
-        }
-
-        Ok(())
     }
+
+    // Spread-reserve bounds — used by `swap_base_asset` to price a fill.
+    // `reference_price_offset` direction picks which side's bound is
+    // checked (the bound on the side that fills first).
+    if amm.reference_price_offset <= 0 {
+        validate!(
+            amm.bid_base_asset_reserve >= amm.base_asset_reserve
+                && amm.bid_quote_asset_reserve <= amm.quote_asset_reserve,
+            ErrorCode::InvalidAmmDetected,
+            "amm bid reserves invalid: base {} -> {}, quote {} -> {}",
+            amm.bid_base_asset_reserve,
+            amm.base_asset_reserve,
+            amm.bid_quote_asset_reserve,
+            amm.quote_asset_reserve,
+        )?;
+    }
+    if amm.reference_price_offset >= 0 {
+        validate!(
+            amm.ask_base_asset_reserve <= amm.base_asset_reserve
+                && amm.ask_quote_asset_reserve >= amm.quote_asset_reserve,
+            ErrorCode::InvalidAmmDetected,
+            "amm ask reserves invalid: base {} -> {}, quote {} -> {}",
+            amm.ask_base_asset_reserve,
+            amm.base_asset_reserve,
+            amm.ask_quote_asset_reserve,
+            amm.quote_asset_reserve,
+        )?;
+    }
+
+    Ok(())
 }
 
 /// Pure form of the legacy `calculate_spread_reserves` mutator: takes the
@@ -402,7 +355,6 @@ pub(crate) fn compute_spread_reserves_for_direction(
 
 pub fn calculate_base_asset_amount_to_trade_to_price(
     amm: &AMM,
-    quote_state: &AmmQuoteState,
     limit_price: u64,
     direction: PositionDirection,
 ) -> DriftResult<(u64, PositionDirection)> {
@@ -427,8 +379,8 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
 
     let base_asset_reserve_before = if amm.base_spread > 0 {
         match direction {
-            PositionDirection::Long => quote_state.ask_base_asset_reserve,
-            PositionDirection::Short => quote_state.bid_base_asset_reserve,
+            PositionDirection::Long => amm.ask_base_asset_reserve,
+            PositionDirection::Short => amm.bid_base_asset_reserve,
         }
     } else {
         amm.base_asset_reserve
@@ -898,19 +850,18 @@ pub fn calculate_spread(
     Ok((long_spread.cast::<u32>()?, short_spread.cast::<u32>()?))
 }
 
-// `get_spread_reserves` and the AMM-mutating `update_spread_reserves`
-// removed: ask/bid spread reserves are no longer cached on the AMM.
-// Callers materialise an [`AmmQuoteState`] via [`compute_amm_quote_state`]
-// and read `ask_*_asset_reserve` / `bid_*_asset_reserve` off it. The pure
-// per-direction computation lives in `compute_spread_reserves_for_direction`.
+// The legacy `get_spread_reserves` / `update_spread_reserves` mutators folded
+// into [`update_amm_quote_state`], which writes the cached
+// `ask_*_asset_reserve` / `bid_*_asset_reserve` onto the AMM. Callers read
+// those fields directly off the AMM. The pure per-direction computation lives
+// in `compute_spread_reserves_for_direction`.
 
 #[cfg(test)]
 /// Test-only convenience: materialise the spread reserves for one
-/// direction from a `PerpMarket`, using a default (zero-spread, zero-offset)
-/// quote state. Production code never assumes a default quote state — it
-/// always materialises one via `compute_amm_quote_state`. Tests use this
-/// shim where they previously called the deleted `calculate_spread_reserves`
-/// mutator path and don't need a real spread.
+/// direction from a `PerpMarket`, using a zero-spread / zero-offset quote.
+/// Production code refreshes the cached reserves via `update_amm_quote_state`.
+/// Tests use this shim where they previously called the deleted
+/// `calculate_spread_reserves` mutator path and don't need a real spread.
 pub fn calculate_spread_reserves(
     market: &crate::state::perp_market::PerpMarket,
     direction: PositionDirection,

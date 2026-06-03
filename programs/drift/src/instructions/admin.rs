@@ -751,7 +751,20 @@ pub fn handle_initialize_perp_market(
             reference_price_offset_deadband_pct: 0,
             last_cumulative_funding_rate_long: 0,
             last_cumulative_funding_rate_short: 0,
-            padding_post_amm: [0; 10],
+            // Cached spread state: seed to a balanced no-spread snapshot
+            // (ask/bid reserves == base/quote reserves, zero spreads). The
+            // first `update_amms` keeper crank — or the first fill `setup` —
+            // refreshes it with the real oracle-driven values.
+            ask_base_asset_reserve: amm_base_asset_reserve,
+            ask_quote_asset_reserve: amm_quote_asset_reserve,
+            bid_base_asset_reserve: amm_base_asset_reserve,
+            bid_quote_asset_reserve: amm_quote_asset_reserve,
+            last_oracle_reserve_price_spread_pct: 0,
+            last_spread_update_slot: clock_slot,
+            long_spread: 0,
+            short_spread: 0,
+            reference_price_offset: 0,
+            padding_post_amm: [0; 3],
         },
     };
 
@@ -765,15 +778,13 @@ pub fn handle_initialize_perp_market(
     let (amm_bid_size, amm_ask_size) = amm::calculate_market_open_bids_asks(&perp_market.amm)?;
     crate::dlog!(amm_bid_size, amm_ask_size);
 
-    // Compute on-demand spread state for the dlog (spread/reference offset
-    // are no longer cached on AMM).
+    // dlog the seeded (no-spread) bid/ask off the AMM's cached spread fields.
     let mrk = perp_market.amm.reserve_price()?;
-    let init_quote_state = crate::amm::math::spread::AmmQuoteState::default();
     let (amm_bid_price, amm_ask_price) = perp_market.amm.bid_ask_price(
         mrk,
-        init_quote_state.long_spread,
-        init_quote_state.short_spread,
-        init_quote_state.reference_price_offset,
+        perp_market.amm.long_spread,
+        perp_market.amm.short_spread,
+        perp_market.amm.reference_price_offset,
     )?;
     crate::dlog!(amm_bid_price, amm_ask_price);
 
