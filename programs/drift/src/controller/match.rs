@@ -184,99 +184,90 @@ pub fn match_take(
         PositionDirection::Long => u64::MAX,
         PositionDirection::Short => 0,
     });
-    let in_bounds = |price: u64| -> bool {
-        match side {
-            PositionDirection::Long => price <= price_cap,
-            PositionDirection::Short => price >= price_cap,
-        }
-    };
-
-    // Materialise each maker's single price level. `capacity` is its full
-    // fillable base at `best_price` (cheap, non-mutating — never runs the
-    // actual fill). Drop makers that don't quote this side, sit past the
-    // taker's limit, or have zero capacity.
-    let mut levels: Vec<DiscreteLevel> = Vec::with_capacity(makers.len());
-    for (idx, maker) in makers.iter().enumerate() {
-        let price = maker.best_price(ctx, side)?;
-        let quotes_on_side = match side {
-            PositionDirection::Long => price < u64::MAX,
-            PositionDirection::Short => price > 0,
-        };
-        if !quotes_on_side || !in_bounds(price) {
-            continue;
-        }
-        let capacity = maker.level_capacity(ctx, side)?;
-        if capacity == 0 {
-            continue;
-        }
-        levels.push(DiscreteLevel {
-            maker_id: idx as QuoterId,
-            price,
-            is_prio: maker.is_prio(),
-            capacity,
-        });
-    }
+    // Materialise each maker as one discrete level (dropping non-quoting,
+    // out-of-limit, or zero-capacity makers), best price first. `sort_by` is
+    // stable, so price ties keep the makers' original order — deterministic
+    // pro-rata. Priority makers sort ahead within a tie.
+    let mut levels: Vec<DiscreteLevel> = makers
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, maker)| {
+            discrete_level(idx as QuoterId, &**maker, ctx, side, price_cap).transpose()
+        })
+        .collect::<DriftResult<_>>()?;
     if levels.is_empty() {
         return Ok(Match::empty());
     }
+    levels.sort_by(|a, b| {
+        let by_price = match side {
+            PositionDirection::Long => a.price.cmp(&b.price),
+            PositionDirection::Short => b.price.cmp(&a.price),
+        };
+        by_price.then(b.is_prio.cmp(&a.is_prio))
+    });
 
-    // Best price first; priority makers win ties for the marginal slice.
-    // `sort_by` is stable, so equal-key order (the makers' original order) is
-    // preserved — pro-rata distribution is deterministic.
-    match side {
-        PositionDirection::Long => {
-            levels.sort_by(|a, b| a.price.cmp(&b.price).then(b.is_prio.cmp(&a.is_prio)))
-        }
-        PositionDirection::Short => {
-            levels.sort_by(|a, b| b.price.cmp(&a.price).then(b.is_prio.cmp(&a.is_prio)))
-        }
-    }
-
-    // Walk levels best-first in price-tied groups. A group fully consumed adds
-    // its whole capacity; the group that crosses `target_size` is the clearing
-    // level — split its residual priority-first then pro-rata.
+    // Walk price-tied groups best-first: fully-crossed groups take their whole
+    // capacity; the group that crosses `target_size` is the clearing level —
+    // split its residual priority-first then pro-rata. Falling off the end
+    // without crossing is a partial fill (clearing_price stays None).
     let mut per_maker_base: Vec<u64> = vec![0; makers.len()];
     let mut cumulative: u64 = 0;
     let mut clearing_price: Option<u64> = None;
 
-    let mut i = 0;
-    while i < levels.len() {
-        let group_price = levels[i].price;
-        let mut end = i + 1;
-        while end < levels.len() && levels[end].price == group_price {
-            end += 1;
-        }
-        let group = &levels[i..end];
-
-        let mut group_supply: u64 = 0;
-        for lvl in group {
-            group_supply = group_supply.safe_add(lvl.capacity)?;
-        }
+    for group in levels.chunk_by(|a, b| a.price == b.price) {
+        let group_supply = group
+            .iter()
+            .try_fold(0u64, |acc, l| acc.safe_add(l.capacity))?;
 
         if cumulative.safe_add(group_supply)? <= target_size {
-            // Entire tie group consumed.
             for lvl in group {
-                per_maker_base[lvl.maker_id as usize] =
-                    per_maker_base[lvl.maker_id as usize].safe_add(lvl.capacity)?;
+                let slot = &mut per_maker_base[lvl.maker_id as usize];
+                *slot = slot.safe_add(lvl.capacity)?;
             }
             cumulative = cumulative.safe_add(group_supply)?;
             if cumulative == target_size {
-                clearing_price = Some(group_price);
+                clearing_price = Some(group[0].price);
                 break;
             }
         } else {
-            // Clearing level: distribute the residual across the tie group.
-            let residual = target_size.safe_sub(cumulative)?;
-            distribute_marginal(group, residual, &mut per_maker_base)?;
-            clearing_price = Some(group_price);
+            distribute_marginal(
+                group,
+                target_size.safe_sub(cumulative)?,
+                &mut per_maker_base,
+            )?;
+            clearing_price = Some(group[0].price);
             break;
         }
-        i = end;
     }
-    // Falling through with clearing_price == None means a partial fill — the
-    // per-maker buckets already hold the fully-walked levels.
 
     commit_fills(makers, ctx, side, &per_maker_base, clearing_price)
+}
+
+/// Materialise a maker's single discrete level — its `best_price` and full
+/// `level_capacity`. `None` if the maker doesn't quote this side, sits past
+/// `price_cap`, or has zero capacity.
+fn discrete_level(
+    maker_id: QuoterId,
+    maker: &dyn QuoterCommit,
+    ctx: &QuoteContext,
+    side: PositionDirection,
+    price_cap: u64,
+) -> DriftResult<Option<DiscreteLevel>> {
+    let price = maker.best_price(ctx, side)?;
+    let quotes_in_bounds = match side {
+        PositionDirection::Long => price < u64::MAX && price <= price_cap,
+        PositionDirection::Short => price > 0 && price >= price_cap,
+    };
+    if !quotes_in_bounds {
+        return Ok(None);
+    }
+    let capacity = maker.level_capacity(ctx, side)?;
+    Ok((capacity > 0).then_some(DiscreteLevel {
+        maker_id,
+        price,
+        is_prio: maker.is_prio(),
+        capacity,
+    }))
 }
 
 /// Split the marginal `residual` across a price-tied `group`: priority makers
@@ -355,16 +346,12 @@ fn commit_fills(
 ) -> DriftResult<Match> {
     let mut result = Match::empty();
     result.clearing_price = clearing_price;
-    let mut total_refresh_cost: u64 = 0;
-    let mut total_base: u64 = 0;
-    let mut total_quote: u64 = 0;
 
-    for idx in 0..makers.len() {
-        let base = per_maker_base[idx];
+    for (idx, (maker, &base)) in makers.iter_mut().zip(per_maker_base).enumerate() {
         if base == 0 {
             continue;
         }
-        let solo = makers[idx]
+        let solo = maker
             .try_fill_solo(ctx, side, base)?
             .ok_or(ErrorCode::DefaultError)?;
         let fill = QuoterFill {
@@ -373,20 +360,17 @@ fn commit_fills(
             quote_filled: solo.quote_filled,
             clearing_price: clearing_price.unwrap_or(solo.clearing_price),
             refresh_cost: solo.refresh_cost,
-            is_fee_exempt: makers[idx].is_fee_exempt(),
-            fee_policy: makers[idx].fee_policy(),
+            is_fee_exempt: maker.is_fee_exempt(),
+            fee_policy: maker.fee_policy(),
             quote_asset_amount_surplus: solo.quote_asset_amount_surplus,
         };
-        makers[idx].commit_fill(ctx, &fill)?;
-        total_refresh_cost = total_refresh_cost.safe_add(fill.refresh_cost)?;
-        total_base = total_base.safe_add(base)?;
-        total_quote = total_quote.safe_add(fill.quote_filled)?;
+        maker.commit_fill(ctx, &fill)?;
+        result.total_refresh_cost = result.total_refresh_cost.safe_add(fill.refresh_cost)?;
+        result.total_base_filled = result.total_base_filled.safe_add(base)?;
+        result.total_quote_filled = result.total_quote_filled.safe_add(fill.quote_filled)?;
         result.fills.push((idx as QuoterId, fill));
     }
 
-    result.total_base_filled = total_base;
-    result.total_quote_filled = total_quote;
-    result.total_refresh_cost = total_refresh_cost;
     Ok(result)
 }
 
