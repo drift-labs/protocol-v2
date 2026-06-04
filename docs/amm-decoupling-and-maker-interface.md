@@ -28,8 +28,8 @@
 
 **AMM struct cleanup (Task 3 aggressive, landed):**
 - 18 dead stats fields deleted from AMM.
-- `PerpMarket::SIZE`: 1368 → **1192** at the time of the stats-field removal. (Later restored to **1208** when the cached spread state — long/short spread, reference offset, oracle-reserve spread pct, the ask/bid spread reserves, + `last_spread_update_slot` — was re-added to AMM so dashboards can read it off the account; refreshed in place by `math::spread::update_amm_quote_state`. See `docs/PR-decouple-amm.md` §1.)
-- Native handler byte offsets recomputed: `mm_oracle_price` 1096, `mm_oracle_slot` 1104, `mm_oracle_sequence_id` 1112, `amm_spread_adjustment` 704. Regression test updated.
+- `PerpMarket::SIZE` is **1208 bytes** (1200 struct + 8 discriminator). AMM retains the cached spread state (long/short spread, reference offset, oracle-reserve spread pct, ask/bid spread reserves, `last_spread_update_slot`), refreshed in place by `math::spread::update_amm_quote_state`.
+- Native handler byte offsets pinned by the regression test: `mm_oracle_price` 720, `mm_oracle_slot` 728, `mm_oracle_sequence_id` 736 (MarketStats), `amm_spread_adjustment` 1202 (AMM).
 - 21 base64 PerpMarket snapshots regenerated via byte surgery (excise dead-field ranges, copy values into corresponding MarketStats positions, zero-extend to new SIZE).
 - Sync helpers + auto-mirror test hook deleted; nothing left to mirror.
 
