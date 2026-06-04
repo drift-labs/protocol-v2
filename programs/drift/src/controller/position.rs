@@ -441,8 +441,9 @@ pub fn update_position_with_base_asset_amount(
         amm_net_counterparty_position
     )?;
 
-    // update_spread_reserves was called inside apply_match_to_perp_market
-    // (triggered by AmmQuoter's is_fee_exempt=true on its QuoterFill).
+    // The cached ask/bid spread reserves were re-derived inside
+    // `AmmQuoter::commit_fill` (via `refresh_cached_spread_reserves`) right
+    // after the curve reserves moved.
 
     Ok((quote_asset_amount, quote_asset_amount_surplus, pnl))
 }

@@ -10,25 +10,19 @@ Every cross-module mutation of AMM state now goes through an explicit interface 
 
 ## Behavior changes (read carefully)
 
-**This branch is mostly a structural refactor, but two changes have real on-chain consequences. Both are deliberate; both deserve explicit sign-off from anyone reviewing.**
+**This branch is mostly a structural refactor. Section 1 (spread cache) is behavior-preserving vs master — the cache was briefly removed and then restored, so it's documented here mainly to record the round-trip. The two changes with real on-chain consequences are §2 (DLOB-vs-DLOB fee bucketing) and §3 (`protocol_floor`). Both are deliberate; both deserve explicit sign-off from anyone reviewing.**
 
-### 1. Spread / reference-offset are no longer cached on `AMM` — recomputed per quote
+### 1. Spread / reference-offset stay cached on `AMM`; refresh consolidated into one in-place mutator
 
-**Before (master).** `AMM` held `long_spread`, `short_spread`, `reference_price_offset`, `last_oracle_reserve_price_spread_pct`, `ask_base_asset_reserve`, `ask_quote_asset_reserve`, `bid_base_asset_reserve`, `bid_quote_asset_reserve`, `last_oracle_conf_pct` as cached fields. They were updated only by `_update_amm` (the explicit refresh crank). Between cranks, two consecutive fills saw byte-identical spread / reserves.
+> An earlier iteration of this branch *removed* the cached spread fields and recomputed them on demand per quote (returning an `AmmQuoteState` value). That was reversed: the team reads `long_spread` / `short_spread` / `reference_price_offset` / the spread reserves straight off the account for tracking and dashboards, and master's "fills in a refresh window see the same quote" stability is worth keeping. The `AmmQuoteState` struct is deleted; the fields live on `AMM` again.
 
-**After.** Those fields are gone from `AMM`. Every quote (fill, funding tick, auction-param compute, JIT eligibility) calls `compute_amm_quote_state(&AMM, &MarketStats, &MMOraclePriceData, reserve_price, slot)` and materialises the same struct on the stack. Two consecutive fills within one refresh window now see *different* spreads — because the recompute inputs (`base_asset_amount_with_amm`, reserves, `total_fee_minus_distributions`) are themselves mutated by every fill.
+**State.** `AMM` retains `long_spread`, `short_spread`, `reference_price_offset`, `last_oracle_reserve_price_spread_pct`, and the spread-adjusted reserves `ask_base_asset_reserve` / `ask_quote_asset_reserve` / `bid_base_asset_reserve` / `bid_quote_asset_reserve` as cached fields (as on master), plus a new **`last_spread_update_slot: u64`** recording when the cache was last refreshed. (`last_oracle_conf_pct` lives on `MarketStats`, written by `MarketStats::update_oracle_conf_pct`.)
 
-**Consequences.** The per-call math is byte-equivalent to what master's `update_spreads` would have produced at that moment, but several code paths now react to "live" spread state where they previously locked in the most recent crank's value:
+**Writer.** The legacy `update_spreads` + `update_spread_reserves` mutators are consolidated into one `update_amm_quote_state(&mut AMM, &MarketStats, &MMOraclePriceData, reserve_price, slot)` (`amm/math/spread.rs`) that recomputes all the cached fields and writes them back in place, stamping `last_spread_update_slot`. It is the only writer; every quote/fill/funding/auction/JIT path **reads** the cached fields off `AMM` (no per-quote recompute, no struct threaded through call sites).
 
-- `formulaic_update_k` budget gate: master tested `max(long_spread, short_spread) <= base_spread` against the cached value. The branch tests against the just-recomputed value.
-- AMM-JIT shrink (`amm/math/jit.rs`): `jit_base_asset_amount` is computed against fresh spreads.
-- AMM bid/ask price quoted per fill reflects the just-recomputed spread.
+**Refresh points.** The cache is refreshed by (a) the keeper crank (`PerpMarket::update_oracle_derived_stats`), (b) the fill `Quoter::setup` against the post-projection curve, (c) `update_funding_rate`, (d) the mark-twap crank, and (e) the fulfillment-routing step in `fulfill_perp_order_step` (off the current reserves, before `setup` re-refreshes post-projection). Within a single fill, `setup` writes the cache once and every maker-match in that fill reads the same value — preserving master's promise that quotes are stable within a refresh window.
 
-**Why it's defensible.** The cached spread *was* a snapshot of "what `compute_amm_quote_state` would return right now"; we just stopped persisting it. The on-chain compute itself is byte-equivalent to master's `update_spreads` body.
-
-**Why it might not be.** Master's caching was a deliberate stability mechanism: two fills atomically queued in the same slot saw the same quote. The branch breaks that promise.
-
-**Verification needed.** Run integration fixtures (or replay mainnet fills) and confirm fill prices match master ± a documented tolerance. If they don't, decide whether to (a) accept the new behavior and document it, or (b) re-introduce the cache (post-compute, write the result back onto `AMM`).
+**vs master.** Master refreshed the cache only in the explicit `_update_amm` crank; the keeper cranked each market before fills. This branch additionally refreshes at fill `setup` (post-projection) so a fill quotes against the curve state it is about to trade on, but the per-fill recompute is the same `update_spreads` / `update_spread_reserves` body master ran, and within-fill stability is unchanged. `formulaic_update_k`, AMM-JIT shrink (`amm/math/jit.rs`), and the per-fill AMM bid/ask all read the cached `amm.long_spread` / `amm.short_spread` again, exactly as on master.
 
 ### 2. DLOB-vs-DLOB fills no longer credit AMM-side fee accumulators
 
@@ -100,13 +94,9 @@ floor = (amm.total_fee × 50%) - amm.total_fee_withdrawn
 - AMM's net counterparty position: `base_asset_amount_with_amm`
 - AMM-private oracle snapshot: `last_update_slot`
 - AMM's books: `fee_pool`, `total_fee`, `total_mm_fee`, `total_fee_minus_distributions`, `total_fee_withdrawn`, `net_revenue_since_last_funding`
-- Spread params: `base_spread`, `max_spread`, `max_fill_reserve_fraction`, `max_slippage_ratio`, `amm_spread_adjustment`, `amm_inventory_spread_adjustment`, `reference_price_offset_deadband_pct`
+- Spread config: `base_spread`, `max_spread`, `max_fill_reserve_fraction`, `max_slippage_ratio`, `amm_spread_adjustment`, `amm_inventory_spread_adjustment`, `reference_price_offset_deadband_pct`
+- Cached spread state (refreshed in place by `update_amm_quote_state`): `long_spread`, `short_spread`, `reference_price_offset`, `last_oracle_reserve_price_spread_pct`, `ask_base_asset_reserve`, `ask_quote_asset_reserve`, `bid_base_asset_reserve`, `bid_quote_asset_reserve`, `last_spread_update_slot`
 - Behavior: `curve_update_intensity`, `amm_jit_intensity`
-
-**Removed entirely (no replacement; computed on demand via `compute_amm_quote_state`):**
-- `long_spread`, `short_spread`, `reference_price_offset`
-- `last_oracle_reserve_price_spread_pct`
-- `ask_base_asset_reserve`, `ask_quote_asset_reserve`, `bid_base_asset_reserve`, `bid_quote_asset_reserve`
 
 ### Maker interface
 
@@ -146,20 +136,20 @@ New module `programs/drift/src/state/maker.rs` defines the matcher-facing interf
 
 ### Layout
 
-`PerpMarket` size unchanged (1112 bytes including 8-byte discriminator) by adding three explicit `_padding_align_*` fields that absorb Rust's implicit `repr(C)` alignment padding. This makes the IDL byte-for-byte match `repr(C)` so the JS borsh decoder (which reads sequentially after the variable-span `MarketStatus` enum) doesn't drift.
+`PerpMarket::SIZE` is **1208 bytes** (1200-byte struct + 8-byte discriminator), with explicit `_padding_align_*` fields absorbing Rust's implicit `repr(C)` alignment padding so the IDL matches `repr(C)` byte-for-byte (the JS borsh decoder reads sequentially after the variable-span `MarketStatus` enum and would otherwise drift). Re-adding the cached spread state to `AMM` grew the struct by 80 bytes vs. the cache-removed iteration; the `(SIZE − 8) % 16 == 0` zero-copy invariant holds, and the four `u128` spread reserves are placed in the contiguous `u128` block to keep 16-byte alignment.
 
-Native-handler offsets (`mm_oracle_price=720`, `mm_oracle_slot=728`, `mm_oracle_sequence_id=736`, `amm_spread_adjustment=1094`) are pinned by regression tests in `state/traits/tests.rs`.
+Native-handler offsets are pinned by regression tests in `state/traits/tests.rs`: `mm_oracle_price=720`, `mm_oracle_slot=728`, `mm_oracle_sequence_id=736` (in `MarketStats`, unchanged), and `amm_spread_adjustment=1202` (in `AMM`, shifted by the re-added cache fields). The `amm_spread_adjustment` native handler deserializes the full `PerpMarket` via `bytemuck` and writes the field by name, so it is layout-agnostic — only the guard test's literal updates.
 
 ## Bug fixes that landed in the same branch
 
 - **H1**: `controller/orders.rs` fulfill helpers no longer hard-code `OracleGuardRails::default()`; they receive `&state.oracle_guard_rails.validity` from `fill_perp_order`.
 - **H4**: `MarketEvent::FundingApplied` now carries `market_status` so `get_update_k_result` can relax its k-down precondition on `ReduceOnly` markets (matching master).
-- **H5**: `compute_amm_quote_state` calls `quote_state.validate(amm)` before returning. Catches a corrupted spread/reserve compute at the source. Master's equivalent invariants ran in `validate_perp_market`; the branch removed them from there (the fields they checked no longer exist on `AMM`) and re-introduced them inside the AMM via `AmmQuoteState::validate`.
+- **H5**: `update_amm_quote_state` calls `validate_amm_quote_state(amm)` after writing the cache. Catches a corrupted spread/reserve refresh at the source — the only way bad spread state can reach a fill is through that refresh. Master's equivalent invariants ran in `validate_perp_market`; this keeps them adjacent to the writer.
 
 ## Test changes
 
-- 829 Rust unit tests green (added new tests around `AmmMaker`, `AmmQuoteState`, matcher, `apply_fill_fees` atomicity).
-- 281 TypeScript integration tests green (entire `tests/` suite).
+- 844 Rust unit tests green (added tests around the AMM quoter, the in-place `update_amm_quote_state` cache refresh + `validate_amm_quote_state`, matcher, `apply_fill_fees` atomicity).
+- 286 TypeScript integration tests green (the enabled `tests/` suite; a handful of files remain disabled for unrelated layout/feature reasons — see `test-scripts/run-anchor-tests.sh`).
 
 ## Out of scope
 

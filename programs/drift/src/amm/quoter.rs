@@ -331,6 +331,70 @@ impl<'a> AmmQuoter<'a> {
         self.amm.base_spread
     }
 
+    /// Base the AMM can fill before its marginal price reaches `price` (the
+    /// analytical inverse of its constant-product curve), clamped to reserve
+    /// bounds and standardised to `ctx.step_size`. Used by
+    /// [`crate::controller::matching::fill_amm_only`] to cap a take at the
+    /// taker's limit price. Inherent to the AMM — continuous-curve depth is
+    /// not part of the generic discrete `Quoter` interface.
+    pub fn cumulative_size(
+        &self,
+        ctx: &QuoteContext,
+        side: PositionDirection,
+        price: u64,
+    ) -> DriftResult<u64> {
+        let reserve_price = self.amm.reserve_price()?;
+        let best = match side {
+            PositionDirection::Long => self.amm.ask_price(
+                reserve_price,
+                self.amm.long_spread,
+                self.amm.reference_price_offset,
+            )?,
+            PositionDirection::Short => self.amm.bid_price(
+                reserve_price,
+                self.amm.short_spread,
+                self.amm.reference_price_offset,
+            )?,
+        };
+        let crosses = match side {
+            PositionDirection::Long => price >= best,
+            PositionDirection::Short => price <= best,
+        };
+        if !crosses {
+            return Ok(0);
+        }
+
+        // Sentinel ("infinitely permissive") price — `u64::MAX` for Long and
+        // `0` for Short mean "no upper bound". Avoid the analytical inverse
+        // (it diverges at the limit); we just want the AMM's max fillable base.
+        let is_sentinel = match side {
+            PositionDirection::Long => price == u64::MAX,
+            PositionDirection::Short => price == 0,
+        };
+        if is_sentinel {
+            return self.max_fillable(side);
+        }
+
+        // The trade direction the AMM uses to fill this side is the same as
+        // the taker's side (taker Long → AMM sells → trade direction Long).
+        let (amount, dir_result) =
+            crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
+                self.amm, price, side,
+            )?;
+
+        if dir_result != side {
+            // The math says the AMM would have to go the other way to reach
+            // this price — treat as no liquidity here.
+            return Ok(0);
+        }
+
+        // Clamp to the AMM's hard reserve bounds, then standardise to the
+        // market's base step size.
+        let max = self.max_fillable(side)?;
+        let bounded = amount.min(max);
+        crate::math::orders::standardize_base_asset_amount(bounded, ctx.step_size.max(1))
+    }
+
     /// Test/dev convenience: construct an `AmmQuoter` whose AMM has its
     /// cached spread state zeroed and ask/bid reserves matched to the
     /// underlying reserves, with unit step size. Used from tests that want
@@ -460,69 +524,11 @@ impl<'a> Quoter for AmmQuoter<'a> {
         }
     }
 
-    fn cumulative_size(
-        &self,
-        ctx: &QuoteContext,
-        side: PositionDirection,
-        price: u64,
-    ) -> DriftResult<u64> {
-        // Analytical inverse of the AMM's constant-product curve, via the
-        // existing `calculate_base_asset_amount_to_trade_to_price` helper in
-        // math::amm_spread. Given a target marginal price, returns how much
-        // base the AMM can fill before its marginal price reaches that target.
-        let reserve_price = self.amm.reserve_price()?;
-        let best = match side {
-            PositionDirection::Long => self.amm.ask_price(
-                reserve_price,
-                self.amm.long_spread,
-                self.amm.reference_price_offset,
-            )?,
-            PositionDirection::Short => self.amm.bid_price(
-                reserve_price,
-                self.amm.short_spread,
-                self.amm.reference_price_offset,
-            )?,
-        };
-        let crosses = match side {
-            PositionDirection::Long => price >= best,
-            PositionDirection::Short => price <= best,
-        };
-        if !crosses {
-            return Ok(0);
-        }
-
-        // Sentinel ("infinitely permissive") price — the matcher uses
-        // `u64::MAX` for Long and `0` for Short to mean "no upper bound".
-        // Avoid the analytical inverse here: at the limit it diverges, and
-        // we just want the AMM's max fillable base anyway.
-        let is_sentinel = match side {
-            PositionDirection::Long => price == u64::MAX,
-            PositionDirection::Short => price == 0,
-        };
-        if is_sentinel {
-            return self.max_fillable(side);
-        }
-
-        // The trade direction the AMM uses to fill this side is the same as
-        // the taker's side (taker Long → AMM sells → trade direction Long).
-        let (amount, dir_result) =
-            crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
-                self.amm, price, side,
-            )?;
-
-        if dir_result != side {
-            // The math says the AMM would have to go the other way to reach
-            // this price (e.g. taker Long but AMM would need to buy base to
-            // reach a price below current ask). Treat as no liquidity here.
-            return Ok(0);
-        }
-
-        // Clamp to the AMM's hard reserve bounds, then standardise to the
-        // market's base step size (positions track in step-size multiples,
-        // so the matcher's fill must too).
-        let max = self.max_fillable(side)?;
-        let bounded = amount.min(max);
-        crate::math::orders::standardize_base_asset_amount(bounded, ctx.step_size.max(1))
+    /// The AMM is the sole *continuous* maker and fills via the dedicated
+    /// `fill_amm_only` path, never the discrete level walk — so this is only
+    /// here to satisfy the trait. Reports the reserve-bounded max fillable.
+    fn level_capacity(&self, _ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64> {
+        self.max_fillable(side)
     }
 
     fn is_prio(&self) -> bool {
@@ -602,6 +608,12 @@ impl<'a> QuoterCommit for AmmQuoter<'a> {
         };
         self.amm.base_asset_amount_with_amm =
             self.amm.base_asset_amount_with_amm.safe_add(delta)?;
+
+        // The fill moved the curve reserves; re-derive the cached ask/bid
+        // spread reserves off the (unchanged) cached spreads so the cache
+        // dashboards read stays consistent — mirrors master's post-swap
+        // `update_spread_reserves`.
+        crate::amm::math::spread::refresh_cached_spread_reserves(self.amm)?;
         Ok(())
     }
 
@@ -958,28 +970,14 @@ impl<'a> Quoter for AmmJitQuoter<'a> {
         Ok(self.jit_price)
     }
 
-    fn cumulative_size(
-        &self,
-        _ctx: &QuoteContext,
-        side: PositionDirection,
-        price: u64,
-    ) -> DriftResult<u64> {
+    /// The JIT level's size: the throttled cap clamped to the reserve-bounded
+    /// max fillable. Analytic — does not run the swap (unlike `try_fill_solo`,
+    /// which would diverge at the reserve boundary).
+    fn level_capacity(&self, _ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64> {
         if self.max_jit_base == 0 {
             return Ok(0);
         }
-        // Crosses entirely off `price` and `side`: don't add a `price == 0`
-        // short-circuit — the matcher uses `price = 0` as the sentinel for
-        // "everything crosses" on the Short side, and an early-return here
-        // breaks the tail-segment monotonicity check.
-        let crosses = match side {
-            PositionDirection::Long => price >= self.jit_price,
-            PositionDirection::Short => price <= self.jit_price,
-        };
-        if !crosses {
-            return Ok(0);
-        }
-        let max_curve = self.max_fillable(side)?;
-        Ok(self.max_jit_base.min(max_curve))
+        Ok(self.max_jit_base.min(self.max_fillable(side)?))
     }
 
     /// AMM JIT participation is priority at the clearing tick: the vAMM
@@ -1074,6 +1072,12 @@ impl<'a> QuoterCommit for AmmJitQuoter<'a> {
         };
         self.amm.base_asset_amount_with_amm =
             self.amm.base_asset_amount_with_amm.safe_add(delta)?;
+
+        // The fill moved the curve reserves; re-derive the cached ask/bid
+        // spread reserves off the (unchanged) cached spreads so the cache
+        // dashboards read stays consistent — mirrors master's post-swap
+        // `update_spread_reserves`.
+        crate::amm::math::spread::refresh_cached_spread_reserves(self.amm)?;
         Ok(())
     }
 }
@@ -1450,7 +1454,7 @@ mod amm_jit_maker_tests {
     }
 
     #[test]
-    fn cumulative_size_returns_max_jit_when_price_crosses() {
+    fn jit_level_price_and_capacity() {
         let mut amm = make_amm();
         let jit_price: u64 = 99_500_000;
         let max_jit_base = 5 * AMM_RESERVE_PRECISION as u64;
@@ -1458,19 +1462,20 @@ mod amm_jit_maker_tests {
         let stats = MarketStats::default();
         let oracle = OraclePriceData::default();
         let ctx = make_ctx(&stats, &oracle);
-        // Long crosses if price >= jit_price.
-        let above = jit_maker
-            .cumulative_size(&ctx, PositionDirection::Long, jit_price + 1000)
+        // The JIT maker presents a single discrete level: price = jit_price,
+        // level_capacity = max_jit_base (curve allows it).
+        assert_eq!(
+            jit_maker.best_price(&ctx, PositionDirection::Long).unwrap(),
+            jit_price
+        );
+        let capacity = jit_maker
+            .level_capacity(&ctx, PositionDirection::Long)
             .unwrap();
-        assert_eq!(above, max_jit_base);
-        let below = jit_maker
-            .cumulative_size(&ctx, PositionDirection::Long, jit_price - 1000)
-            .unwrap();
-        assert_eq!(below, 0);
+        assert_eq!(capacity, max_jit_base);
     }
 
     #[test]
-    fn cumulative_size_clamped_by_curve_bounds() {
+    fn jit_capacity_clamped_by_curve_bounds() {
         let mut amm = make_amm();
         // max_base_asset_reserve - current = 100 BASE. max_jit_base larger.
         let jit_price: u64 = 99_500_000;
@@ -1479,11 +1484,11 @@ mod amm_jit_maker_tests {
         let stats = MarketStats::default();
         let oracle = OraclePriceData::default();
         let ctx = make_ctx(&stats, &oracle);
-        let depth = jit_maker
-            .cumulative_size(&ctx, PositionDirection::Long, jit_price)
+        let capacity = jit_maker
+            .level_capacity(&ctx, PositionDirection::Long)
             .unwrap();
-        // Curve bound (100 BASE in u64 = 100e9) is smaller than max_jit_base (1000e9).
-        assert_eq!(depth, 100 * AMM_RESERVE_PRECISION as u64);
+        // Curve bound (100 BASE) is smaller than max_jit_base (1000 BASE).
+        assert_eq!(capacity, 100 * AMM_RESERVE_PRECISION as u64);
     }
 
     #[test]

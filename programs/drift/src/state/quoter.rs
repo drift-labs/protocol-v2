@@ -8,28 +8,29 @@
 //! two-participant matcher with bespoke pairwise rules.
 //!
 //! The shape this code uses going forward: every liquidity source implements
-//! [`Quoter`]. The matcher (`controller/match.rs`) walks them uniformly via
-//! [`Quoter::best_price`] and [`Quoter::cumulative_size`], sorts by price,
-//! walks price segments between maker entry points, bisects within the
-//! clearing segment (or takes the [`Quoter::try_fill_solo`] shortcut when a
-//! single maker has a closed-form inverse), and pro-ratas at the marginal
-//! tick. Priority makers (`is_prio = true` — the vAMM) take their full
-//! marginal size before non-priority makers pro-rata the residual.
+//! [`Quoter`], exposing its single quoted price ([`Quoter::best_price`]) and
+//! its closed-form fill ([`Quoter::try_fill_solo`]). The fill engine
+//! (`controller/match.rs`) has two explicit paths: the sole continuous vAMM
+//! curve (`fill_amm_only`), and a discrete level walk over single-price makers
+//! (`match_take`) that sorts by price, fills best-first, and pro-ratas the
+//! clearing level. Priority makers (`is_prio = true` — the JIT vAMM) take
+//! their full marginal size before non-priority makers pro-rata the residual.
 //! Fee-exempt makers (`is_fee_exempt = true` — the vAMM) skip the protocol
 //! maker-fee schedule; standard makers (DLOB / JIT) pay/receive maker fees
 //! per protocol rules.
 //!
 //! Settlement happens via per-maker [`QuoterCommit::commit_fill`]. The maker
-//! is the sole authority on how its bytes mutate; the matcher just hands it
+//! is the sole authority on how its bytes mutate; the engine just hands it
 //! the fill it won. Refresh cost (e.g. AMM repeg) flows out via
-//! [`QuoterFill::refresh_cost`] and is summed into the matcher's result for
-//! the fill controller to apply to PerpMarket.
+//! [`QuoterFill::refresh_cost`] and is summed into the result for the fill
+//! controller to apply to PerpMarket.
 //!
-//! The vAMM is one `Quoter` impl. DLOB resting orders are another (each
-//! single resting order is a maker with a single-price-step
-//! `cumulative_size` function). JIT participants are a third. Future
-//! parametric-curve quoters (Phoenix-style spline liquidity) will land as
-//! additional impls without matcher changes.
+//! The vAMM is one `Quoter` impl (continuous, via `fill_amm_only`). DLOB
+//! resting orders are another (each a single discrete price level). JIT
+//! participants are a third. When off-chain market makers push Phoenix-style
+//! spline regions, the program materialises them into discrete levels that
+//! feed the same `match_take` walk — and the continuous-curve path is deleted
+//! with the vAMM.
 //!
 //! See `docs/amm-decoupling-and-maker-interface.md` for the full design,
 //! including matching pseudocode, pro-rata policy, snapshot consistency
@@ -69,14 +70,13 @@ pub struct QuoteContext<'a> {
     /// it in as a scalar — the AMM itself does not reach into PerpMarket
     /// state.
     pub fee_budget: u64,
-    /// The market's price tick — minimum **price** increment. Used by the
-    /// matcher's price-bisection (segment walk, marginal-tick search).
-    /// Sourced from `PerpMarket::order_tick_size`.
+    /// The market's price tick — minimum **price** increment. Sourced from
+    /// `PerpMarket::order_tick_size`.
     pub tick: u64,
     /// The market's base step — minimum **base-amount** increment a fill
-    /// can take. Used by AMM `cumulative_size` to standardise its
-    /// analytic-inverse output into valid lot sizes. Sourced from
-    /// `PerpMarket::order_step_size`.
+    /// can take. Used by the AMM's `cumulative_size` (the `fill_amm_only`
+    /// limit cap) to standardise its analytic-inverse output into valid lot
+    /// sizes. Sourced from `PerpMarket::order_step_size`.
     pub step_size: u64,
     /// Current slot. Used by DLOB-order makers to determine auction state
     /// (an order in active auction prices differently than the same order
@@ -128,7 +128,7 @@ pub struct QuoterFill {
     /// costs (DLOB orders, JIT participants).
     pub refresh_cost: u64,
     /// Maker's fee-exempt flag at fill time, copied from `Quoter::is_fee_exempt`.
-    /// `apply_match_to_perp_market` reads this to decide whether to apply the
+    /// The fill controller reads this to decide whether to apply the
     /// protocol's maker-fee schedule. AMM = true; DLOB/JIT = false.
     pub is_fee_exempt: bool,
     /// Per-fill fee schedule selector, copied from `Quoter::fee_policy()`.
@@ -179,35 +179,28 @@ pub enum FillFeePolicy {
 
 /// A liquidity source on the shared orderbook.
 ///
-/// # Matching algorithm (the contract this trait must satisfy)
+/// # Fill algorithm (the contract this trait must satisfy)
 ///
-/// Given an incoming take of size `T` on side `S`, with makers `m_1..m_n`:
+/// The fill engine (`controller/match.rs`) has two explicit paths:
 ///
-/// 1. Sort makers by `best_price(ctx, S)` ascending. Each maker's entry
-///    creates a segment boundary.
-/// 2. Walk segments left to right. For each segment `[p_lo, p_hi]`:
-///    1. Segment supply = Σ over active makers of
-///       `cumulative_size(ctx, S, p_hi) − cumulative_size(ctx, S, p_lo)`.
-///    2. If cumulative_filled + segment_supply < T: every active maker fills
-///       their segment contribution. Advance.
-///    3. Else: clearing happens here. If exactly one maker is active AND
-///       `try_fill_solo` returns `Some`, take the analytical result.
-///       Otherwise bisect for `p*` in `[p_lo, p_hi]` where Σ cumulative_size
-///       crosses demand. Apply inframarginal portions to all active makers.
-///       Distribute marginal slice at `p*`: priority makers (`is_prio` =
-///       true) take full marginal first; non-priority pro-rata the residual.
-/// 3. If sweep drains without clearing: partial fill, `p* = None`.
+/// - **Sole continuous vAMM** (`fill_amm_only`): ask the AMM for its
+///   closed-form `try_fill_solo`, capped at the taker limit by the AMM's
+///   `cumulative_size` (an inherent `AmmQuoter` method, not on this trait).
+/// - **Discrete makers** (`match_take`): each maker is a single price level —
+///   its `best_price` and its full fillable size (unbounded `try_fill_solo`).
+///   Sort levels best-first, fill fully-crossed levels, and at the level that
+///   crosses demand distribute the residual priority-first (`is_prio`) then
+///   pro-rata by capacity. No price search.
 ///
-/// Bisection precision = `ctx.tick`. Quote methods must be pure functions of
-/// `(self, ctx)` so the matcher gets consistent answers across many calls
-/// during bisection. Settlement happens after the match resolves, via
-/// `commit_fill`.
+/// Quote methods must be pure functions of `(self, ctx)` so the engine gets
+/// consistent answers across the (few) calls in a single fill. Settlement
+/// happens after the fill resolves, via `commit_fill`.
 pub trait Quoter {
     /// Setup phase — called once per matching session before any quote
     /// query. Implementations that derive transient state from `ctx` (e.g.
     /// the AMM materialising a post-refresh projection + spread snapshot)
     /// compute it here and store it on `self`. Quote methods (`best_price`,
-    /// `cumulative_size`, `try_fill_solo`) then read that prepared state.
+    /// `try_fill_solo`) then read that prepared state.
     ///
     /// Setup writes only to the quoter's own session-scoped fields. It
     /// does NOT mutate any backing account state — peg/reserves on the
@@ -220,20 +213,19 @@ pub trait Quoter {
         Ok(())
     }
 
-    /// First nonzero offer on this side. Pure function of `(self, ctx)`.
-    /// `cumulative_size(ctx, side, p) == 0` for all `p < best_price(side)`,
-    /// and is positive for some `p ≥ best_price(side)`.
+    /// First nonzero offer on this side — the maker's single quoted price for
+    /// the discrete level walk. Pure function of `(self, ctx)`. Returns the
+    /// no-quote sentinel (`u64::MAX` for Long, `0` for Short) when the maker
+    /// doesn't quote this side.
     fn best_price(&self, ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64>;
 
-    /// Total size offered at marginal price `≤ p`. Monotone non-decreasing
-    /// in `p`. Pure function of `(self, ctx)`. Hides all piecewise behavior
-    /// (CLOB step jumps, AMM curves, kinks, regime changes) inside the maker.
-    fn cumulative_size(
-        &self,
-        ctx: &QuoteContext,
-        side: PositionDirection,
-        price: u64,
-    ) -> DriftResult<u64>;
+    /// Full fillable base at this maker's level (`best_price`). The discrete
+    /// walk in `controller::matching::match_take` reads this to size the
+    /// level, so it must be *cheap and non-mutating* — compute it analytically
+    /// (DLOB: remaining size; JIT vAMM: `min(throttle, reserve-bounded max)`),
+    /// NOT by running the actual fill. `0` means "no liquidity on this side".
+    /// Pure function of `(self, ctx)`.
+    fn level_capacity(&self, ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64>;
 
     /// Priority flag. At the clearing marginal tick, priority makers take
     /// their full marginal size *before* pro-rata distributes the remainder
@@ -262,22 +254,17 @@ pub trait Quoter {
         FillFeePolicy::DlobMatch
     }
 
-    /// Optional closed-form shortcut for the sole-maker-in-clearing-segment
-    /// case. The matcher invokes this when exactly one maker is active in
-    /// the clearing segment to skip bisection.
+    /// Closed-form fill of `target_size` base at this maker's price.
     ///
-    /// Two cases trigger this shortcut:
-    /// 1. Single-maker market (e.g. today's keeper → AMM path; the matcher
-    ///    isn't even invoked, the fill controller calls this directly).
-    /// 2. Multi-maker, but the take clears entirely within this maker's
-    ///    current segment (its `cumulative_size` at the clearing price
-    ///    crosses demand before the next-best maker's `best_price` enters).
+    /// Used two ways:
+    /// 1. The sole-AMM path (`fill_amm_only`) calls it to fill the whole take.
+    /// 2. The discrete walk (`match_take`) calls it with `u64::MAX` to read a
+    ///    maker's full level capacity, and again with the maker's allocated
+    ///    base to produce the committed fill.
     ///
-    /// Returning `None` is always safe — the matcher falls back to bisecting
-    /// `cumulative_size`. Implementations with closed-form inverses (AMMs)
-    /// implement it. Piecewise/discrete liquidity (DLOB orders, JIT
-    /// participants) can implement it trivially as `Some(QuoterFill { ... })`
-    /// or return `None`.
+    /// Every `Quoter` in this crate implements it (the AMM via swap math;
+    /// discrete makers as `min(target, remaining)` at their price). Returning
+    /// `None` means "no fill on this side / zero capacity".
     fn try_fill_solo(
         &self,
         _ctx: &QuoteContext,
@@ -390,8 +377,8 @@ use crate::state::user::Order;
 /// the book it offers liquidity on; a maker offers liquidity to the *opposite*
 /// taker side. `best_price` returns the order's effective limit price (from
 /// `Order::get_limit_price`, accounting for oracle-offset orders). The order
-/// presents as a single price step: `cumulative_size` returns the order's
-/// remaining size at any price crossing the limit, zero otherwise.
+/// presents as a single discrete level: its `best_price` and its remaining
+/// size (the `try_fill_solo` capacity).
 ///
 /// DLOB makers do not implement `is_prio` or `is_fee_exempt` (defaults of
 /// `false`). The matcher sorts them with the vAMM by price; at tied prices
@@ -447,24 +434,11 @@ impl<'a> Quoter for DlobOrderQuoter<'a> {
         Ok(self.effective_price(ctx)?.unwrap_or(Self::no_quote(side)))
     }
 
-    fn cumulative_size(
-        &self,
-        ctx: &QuoteContext,
-        side: PositionDirection,
-        price: u64,
-    ) -> DriftResult<u64> {
-        if !self.quotes_on(side) {
+    fn level_capacity(&self, ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64> {
+        if !self.quotes_on(side) || self.effective_price(ctx)?.is_none() {
             return Ok(0);
         }
-        let limit_price = match self.effective_price(ctx)? {
-            Some(p) => p,
-            None => return Ok(0),
-        };
-        let crosses = match side {
-            PositionDirection::Long => price >= limit_price,
-            PositionDirection::Short => price <= limit_price,
-        };
-        Ok(if crosses { self.remaining() } else { 0 })
+        Ok(self.remaining())
     }
 
     fn try_fill_solo(
@@ -655,7 +629,7 @@ mod dlob_order_maker_tests {
     }
 
     #[test]
-    fn cumulative_size_is_step_at_price() {
+    fn discrete_level_is_price_and_remaining() {
         let stats = MarketStats::default();
         let oracle = OraclePriceData::default();
         let ctx = make_ctx(&stats, &oracle);
@@ -663,25 +637,23 @@ mod dlob_order_maker_tests {
         let mut order = make_ask_order(100, 50);
         let maker = DlobOrderQuoter::new(&mut order);
 
-        // Below the ask: 0.
+        // The order presents as a single discrete level: price = the ask, and
+        // level_capacity = full remaining size.
+        assert_eq!(
+            maker.best_price(&ctx, PositionDirection::Long).unwrap(),
+            100
+        );
+        assert_eq!(
+            maker.level_capacity(&ctx, PositionDirection::Long).unwrap(),
+            50
+        );
+        // Doesn't quote the bid side.
+        assert_eq!(maker.best_price(&ctx, PositionDirection::Short).unwrap(), 0);
         assert_eq!(
             maker
-                .cumulative_size(&ctx, PositionDirection::Long, 99)
+                .level_capacity(&ctx, PositionDirection::Short)
                 .unwrap(),
             0
-        );
-        // At the ask and above: full remaining.
-        assert_eq!(
-            maker
-                .cumulative_size(&ctx, PositionDirection::Long, 100)
-                .unwrap(),
-            50
-        );
-        assert_eq!(
-            maker
-                .cumulative_size(&ctx, PositionDirection::Long, 200)
-                .unwrap(),
-            50
         );
     }
 

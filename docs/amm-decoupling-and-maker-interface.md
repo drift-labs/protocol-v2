@@ -1,4 +1,4 @@
-# AMM Decoupling and Maker Interface
+# AMM Decoupling and Quoter Interface
 
 ## Implementation status (resumption guide for in-flight work)
 
@@ -8,14 +8,14 @@
 
 ### Done
 
-**Maker trait + matcher (state/maker.rs, controller/match.rs):**
-- `Maker` + `MakerCommit` traits with full doc comments. `QuoteContext { stats: &MarketStats, oracle, fee_budget, tick, slot, base_precision }`. `MakerFill { side, base_filled, quote_filled, clearing_price, refresh_cost, is_fee_exempt, quote_asset_amount_surplus }`.
-- Single quote method: `try_fill_solo`. The earlier `quote_for_size` was collapsed in — both AmmMaker variants called the same `calculate_base_swap_output_with_spread`, so the duplication was removed. Each maker fills at its OWN price (standard CLOB), not uniform-price-at-clearing.
+**Quoter trait + fill engine (state/quoter.rs, controller/match.rs):**
+- `Quoter` + `QuoterCommit` traits with full doc comments. `QuoteContext` carries `stats`, `oracle`, `mm_oracle`/`oracle_validity` (AMM setup), `fee_budget`, `tick`, `step_size`, `slot`, `base_precision`, `market_status`/`market_config` (AMM). `QuoterFill { side, base_filled, quote_filled, clearing_price, refresh_cost, is_fee_exempt, fee_policy, quote_asset_amount_surplus }`.
+- Quote surface: `best_price` (the maker's single price), `level_capacity` (cheap, non-mutating full size at that price), `try_fill_solo` (closed-form fill). Each maker fills at its OWN price (standard CLOB), not uniform-price-at-clearing.
 - Three impls:
-  - `DlobOrderMaker<'a>` — single resting `Order`; transparently handles both resting DLOB orders and in-auction JIT participants via `Order::get_limit_price`. No separate `JitParticipantMaker` needed.
-  - `AmmMaker<'a>` — natural-curve quoting via `calculate_base_swap_output_with_spread`. `is_prio=true`, `is_fee_exempt=true`. `cumulative_size` uses the analytical inverse `math::amm_spread::calculate_base_asset_amount_to_trade_to_price`.
-  - `AmmJitMaker<'a>` — AMM in JIT-making mode. Construction (`new(amm, jit_price, max_jit_base)`) makes the policy explicit. `best_price = jit_price`, `cumulative_size = min(max_jit_base, curve_max)` at the JIT price. `is_prio=false` — DLOB takes priority. `quote_asset_amount_surplus` captures the gap between `jit_price × base` and the AMM curve's natural quote (negative when AMM subsidises the fill).
-- Full matcher (`controller/match.rs`): segment walk by `best_price`, tie groups, `try_fill_solo` shortcut for sole-maker clearing, bisection on `cumulative_size` otherwise, priority-first then pro-rata at the marginal tick. The matcher tracks only base in the segment walk (`SegmentClearing { clearing_price, per_maker: Vec<MakerBaseFill> }`) and computes quote ONCE per winning maker via `try_fill_solo` against its total filled base — avoids sum-of-slices inflation for AMMs. 17+ unit tests covering empty/sole/multi-maker/priority-ties/partial-fills/AMM+DLOB/JIT-with-DLOB scenarios.
+  - `DlobOrderQuoter<'a>` — single resting `Order`; transparently handles both resting DLOB orders and in-auction JIT participants via `Order::get_limit_price`. Discrete single level.
+  - `AmmQuoter<'a>` — the continuous constant-product curve. Matched **solo** via `fill_amm_only`. `is_prio=true`, `is_fee_exempt=true`, `fee_policy=AmmHouse`. Keeps an inherent `cumulative_size` (analytical inverse, `math::spread::calculate_base_asset_amount_to_trade_to_price`) used only to cap a take at the taker's limit — not on the `Quoter` trait.
+  - `AmmJitQuoter<'a>` — AMM in JIT-making mode; a **discrete** single-price level. `best_price = jit_price`, `level_capacity = min(max_jit_base, reserve-bounded max)`. `is_prio=true`. `quote_asset_amount_surplus` captures the gap between `jit_price × base` and the AMM curve's natural quote (negative when the AMM subsidises the fill).
+- Two-path fill engine (`controller/match.rs`): `fill_amm_only` (sole continuous AMM — analytical `try_fill_solo` capped by `cumulative_size`) and `match_take` (discrete level walk over single-price makers: sort best-first, fill fully-crossed levels, distribute the clearing level priority-first then pro-rata). No bisection, no continuous-curve search. Quote is computed ONCE per winning maker via `try_fill_solo` on its total filled base (avoids sum-of-slices inflation for the JIT AMM). Unit tests cover empty/sole-AMM/discrete-walk/priority-ties/partial-fills/JIT-with-DLOB scenarios.
 
 **Stats migration (15+ fields fully moved from AMM to MarketStats):**
 - mark TWAPs + std (`last_mark_price_twap`, `_5min`, `_ts`, `last_bid_price_twap`, `last_ask_price_twap`, `mark_std`).
@@ -28,7 +28,7 @@
 
 **AMM struct cleanup (Task 3 aggressive, landed):**
 - 18 dead stats fields deleted from AMM.
-- `PerpMarket::SIZE`: 1368 → **1192**. AMM size: 880 → **704**. `MARKET_INDEX_OFFSET`: 1112 → **936**.
+- `PerpMarket::SIZE`: 1368 → **1192** at the time of the stats-field removal. (Later restored to **1208** when the cached spread state — long/short spread, reference offset, oracle-reserve spread pct, the ask/bid spread reserves, + `last_spread_update_slot` — was re-added to AMM so dashboards can read it off the account; refreshed in place by `math::spread::update_amm_quote_state`. See `docs/PR-decouple-amm.md` §1.)
 - Native handler byte offsets recomputed: `mm_oracle_price` 1096, `mm_oracle_slot` 1104, `mm_oracle_sequence_id` 1112, `amm_spread_adjustment` 704. Regression test updated.
 - 21 base64 PerpMarket snapshots regenerated via byte surgery (excise dead-field ranges, copy values into corresponding MarketStats positions, zero-extend to new SIZE).
 - Sync helpers + auto-mirror test hook deleted; nothing left to mirror.
@@ -36,19 +36,17 @@
 **Other infra:**
 - `controller/perp_pools.rs`: hosts `update_pool_balances`, `update_pnl_pool_and_user_balance`, `calculate_revenue_pool_transfer` (moved out of `controller/amm.rs`).
 - `math/perp_market.rs`: hosts `calculate_perp_market_amm_summary_stats` (moved out of `controller/amm.rs`).
-- `controller::matching::apply_match_to_perp_market` — post-match wrapper. v1 scope: refreshes AMM spread reserves when AMM was a counterparty (detected via any `MakerFill::is_fee_exempt=true`). Future scope (Task 10's residual): position counters, fee accumulation per maker's `is_fee_exempt`, social loss.
-- `controller::matching::fill_perp_market_against_amm` — sole-AMM fill helper. Drop-in replacement for legacy `swap_base_asset` + manual bookkeeping. Used by `controller/position.rs::update_position_with_base_asset_amount` — **no production `swap_base_asset` callers remain** (only the parity test).
-- Tuple-return cleanup: `calculate_base_swap_output_with_spread` returns `AmmSwapOutput { new_base_asset_reserve, new_quote_asset_reserve, quote_asset_amount, quote_asset_amount_surplus }`; matcher helpers return `SegmentClearing` + `MakerBaseFill`. No `DriftResult<(_, _, _)>` in branch-authored code.
+- `controller::matching::fill_perp_market_against_amm` — sole-AMM fill helper wrapping `fill_amm_only`. Drop-in replacement for legacy `swap_base_asset` + manual bookkeeping. The post-fill AMM bookkeeping (reserves, net counterparty position, cached spread-reserve refresh) lives in `AmmQuoter::commit_fill`; no separate post-match wrapper is needed. (The old `apply_match_to_perp_market` was a no-op once the spread cache moved into `commit_fill`, and was deleted.)
+- Tuple-return cleanup: `calculate_base_swap_output` returns `AmmSwapOutput { new_base_asset_reserve, new_quote_asset_reserve, quote_asset_amount, quote_asset_amount_surplus }`. No `DriftResult<(_, _, _)>` in branch-authored code.
 
 ### Soft spots (deferred)
 
-- **AmmMaker repeg / k-update folding.** Not folded into the quoting formula yet — v1 assumes no pending repeg. `try_fill_solo` reflects current reserves only. Folding the conditional branches in is its own piece of work.
-- **`refresh_cost` plumbing.** `try_fill_solo` sets `MakerFill::refresh_cost`; the multi-maker path through `apply_clearing` doesn't surface it. Sole-maker is the only path used in production today, so this is dormant. Revisit when wiring multi-maker AMM scenarios.
-- **Matcher uses `Vec` for per-match scratch.** For CU budget, `SmallVec<[T; 4]>` would be better for the common case. Optimise after profiling.
+- **`refresh_cost` plumbing.** `fill_amm_only` and `match_take`'s commit loop both surface `QuoterFill::refresh_cost` into `Match.total_refresh_cost`. Only the AMM produces a non-zero refresh cost today (repeg / k-update during `setup`); discrete makers report zero.
+- **`match_take` uses `Vec` for per-fill scratch (the level list).** For CU budget, `SmallVec<[T; 4]>` would be better for the common (≤2-maker) case. Optimise after profiling.
 
 ### What's next (in execution order)
 
-1. **Task 10 fulfill_perp_order migration.** Replace `math::amm_jit::calculate_amm_jit_liquidity + controller::orders::fulfill_perp_order_with_amm(jit_amount)` with `match_take([DlobOrderMaker, AmmJitMaker::new(amm, maker_price, jit_amount)])`. The matcher owns AMM-side reserve mutation via `AmmJitMaker::commit_fill`. The outer `fulfill_perp_order_with_match` keeps taker-side updates (margin, fees, social loss, builder referrals) driven off `Match.fills`. **Multi-session work** — `fulfill_perp_order_with_amm` is 420 lines tangled with margin/fee accounting; needs careful unraveling.
+1. **Task 10 fulfill_perp_order migration.** Replace `math::amm_jit::calculate_amm_jit_liquidity + controller::orders::fulfill_perp_order_with_amm(jit_amount)` with `match_take([DlobOrderQuoter, AmmJitQuoter::new(amm, maker_price, jit_amount)])`. The matcher owns AMM-side reserve mutation via `AmmJitQuoter::commit_fill`. The outer `fulfill_perp_order_with_match` keeps taker-side updates (margin, fees, social loss, builder referrals) driven off `Match.fills`. **Multi-session work** — `fulfill_perp_order_with_amm` is 420 lines tangled with margin/fee accounting; needs careful unraveling.
 2. **AMM struct split into `AmmQuoteState` + `AmmBookkeeping`.** Not yet started. `AMM { quote: AmmQuoteState, books: AmmBookkeeping }` shape per the design below. AMM-side fee field split (`total_fee`, `total_fee_minus_distributions`, `net_revenue_since_last_funding`) — protocol portion → PerpMarket fields, AMM portion stays in `AmmBookkeeping`. **Behavioural change**, not just a move. Defer the placeholder types — define `AmmQuoteState` / `AmmBookkeeping` when the split actually happens.
 3. **Move AMM-stays fields per design.** Position counters, protocol fees (split half), funding state, oracle identity, order parameters move from AMM to PerpMarket. ~1,605 reach-through `market.amm.X` accesses to mass-substitute.
 4. **Move AMM to the tail of PerpMarket.** Forces future excision to be a clean truncate.
@@ -76,7 +74,7 @@ This blocks two things:
 This refactor fixes both. After it lands:
 
 - `PerpMarket` is self-sufficient: every consumer outside the AMM module reads and writes `PerpMarket` fields directly. No code outside `state/amm.rs` references AMM internals.
-- The AMM is one `Maker` implementation. DLOB resting orders are another. JIT auction participants are a third. A real matcher in `controller/match.rs` walks them via the trait.
+- The AMM is one `Quoter` implementation. DLOB resting orders are another. JIT auction participants are a third. A real matcher in `controller/match.rs` walks them via the trait.
 - The AMM struct is split into two explicit sub-structs (`AmmQuoteState` — the small fast-mutating part; `AmmBookkeeping` — the accounting layer) so the future excision is a clean cut along an existing line.
 - The `amm` field is the last field of `PerpMarket`, so excising it later doesn't disturb any other field offset.
 
@@ -86,7 +84,7 @@ The future system is a shared orderbook that takes liquidity from `n` interchang
 
 1. **Some bytes of internal state.** Opaque to everyone outside the maker. The vAMM's bytes are reserves, peg, sqrt_k, spreads, AMM-private oracle snapshots, inventory. A DLOB-order maker's bytes are the resting `Order`. A future maker decides for itself what to store.
 
-2. **A quoting formula plus a fill-effect formula.** Both are pure functions of `(self.bytes, ctx)`. The quoting formula computes `best_price` and `cumulative_size`; the fill-effect formula (`commit_fill`) defines how the maker's bytes change when a fill lands. `ctx` carries the inputs the matcher shares across all makers — `MarketStats`, oracle data, available fee budget, tick size.
+2. **A quoting formula plus a fill-effect formula.** Both are pure functions of `(self.bytes, ctx)`. The quoting formula computes `best_price`, `level_capacity`, and the closed-form `try_fill_solo`; the fill-effect formula (`commit_fill`) defines how the maker's bytes change when a fill lands. `ctx` carries the inputs the fill engine shares across all makers — `MarketStats`, oracle data, available fee budget, tick/step size.
 
 The matcher walks makers via this uniform interface and computes the optimal blended fill. Settlement happens via per-maker `commit_fill` after the matcher decides who won which slice.
 
@@ -198,180 +196,146 @@ The AMM's bookkeeping is never read by the matcher to produce a quote. `total_fe
 
 User-direct vAMM-LP was removed in earlier commits (`e1e22230bf`, `e1c92f5789`, `7435cddb38`). Seven AMM padding fields and three `PerpPosition` padding fields remain as dead bytes. Since devnet uses wipe-and-reinit, this padding is removed outright instead of preserved.
 
-## The `Maker` interface
+## The `Quoter` interface
 
-A new module `state/maker.rs` defines the trait every liquidity source implements. The module-level doc comment carries the future architectural narrative; the trait-level doc carries the matching-algorithm spec.
+The module `state/quoter.rs` defines the trait every liquidity source implements. The module-level doc comment carries the architectural narrative; the trait-level doc carries the fill-algorithm spec.
 
 ```rust
 pub struct QuoteContext<'a> {
     pub stats: &'a MarketStats,
     pub oracle: &'a OraclePriceData,
+    pub mm_oracle: Option<&'a MMOraclePriceData>,  // AMM setup only
+    pub oracle_validity: Option<OracleValidity>,   // AMM setup only
     pub fee_budget: u64,
     pub tick: u64,
+    pub step_size: u64,
+    pub slot: u64,
+    pub base_precision: u64,
+    pub market_status: MarketStatus,               // AMM only
+    pub market_config: u8,                          // AMM only
 }
 
-pub struct MakerFill {
-    pub side: Side,
+pub struct QuoterFill {
+    pub side: PositionDirection,
     pub base_filled: u64,
     pub quote_filled: u64,
     pub clearing_price: u64,
     pub refresh_cost: u64,
+    pub is_fee_exempt: bool,
+    pub fee_policy: FillFeePolicy,
+    pub quote_asset_amount_surplus: i64,
 }
 
-pub trait Maker {
-    fn best_price(&self, ctx: &QuoteContext, side: Side) -> DriftResult<u64>;
+pub trait Quoter {
+    fn setup(&mut self, _ctx: &QuoteContext) -> DriftResult<()> { Ok(()) }
 
-    fn cumulative_size(
-        &self,
-        ctx: &QuoteContext,
-        side: Side,
-        price: u64,
-    ) -> DriftResult<u64>;
+    /// The maker's single quoted price on this side (no-quote sentinel
+    /// otherwise: u64::MAX for Long, 0 for Short).
+    fn best_price(&self, ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64>;
+
+    /// Full fillable base at `best_price`. Cheap and non-mutating — analytic,
+    /// never runs the actual fill. The discrete walk sizes each level with it.
+    fn level_capacity(&self, ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64>;
 
     fn is_prio(&self) -> bool { false }
     fn is_fee_exempt(&self) -> bool { false }
+    fn fee_policy(&self) -> FillFeePolicy { FillFeePolicy::DlobMatch }
 
+    /// Closed-form fill of `target_size` base at this maker's price.
     fn try_fill_solo(
         &self,
         ctx: &QuoteContext,
-        side: Side,
+        side: PositionDirection,
         target_size: u64,
-    ) -> DriftResult<Option<MakerFill>> {
+    ) -> DriftResult<Option<QuoterFill>> {
         Ok(None)
     }
 }
 
-pub trait MakerCommit: Maker {
-    fn commit_fill(&mut self, ctx: &QuoteContext, fill: &MakerFill) -> DriftResult<()>;
+pub trait QuoterCommit: Quoter {
+    fn commit_fill(&mut self, ctx: &QuoteContext, fill: &QuoterFill) -> DriftResult<()>;
+    fn on_market_event(&mut self, _ctx: &QuoteContext, _event: &MarketEvent) -> DriftResult<()> { Ok(()) }
 }
 ```
 
-Quote methods are pure functions of `(self, ctx)`. `commit_fill` is the only mutation hook. The maker is the sole authority on how its bytes change; the matcher just hands it the fill it won.
+Quote methods are pure functions of `(self, ctx)`. `commit_fill` is the only mutation hook. The maker is the sole authority on how its bytes change; the fill engine just hands it the fill it won.
 
-**`is_prio` semantics.** Priority makers take their full marginal size at the clearing tick before pro-rata distributes the remainder to non-priority makers. Priority does *not* override price priority — a better `best_price` still wins regardless of `is_prio`. The vAMM is prio; DLOB orders and JIT participants are not. This preserves "vAMM front-runs DLOB at same price" without requiring matcher special cases.
+> **Note on the continuous AMM.** The constant-product vAMM is the one *continuous* maker. It is matched solo via `fill_amm_only` (below), which uses an inherent `AmmQuoter::cumulative_size` (the analytical inverse of its curve) to cap a take at the taker's limit — `cumulative_size` is **not** on the `Quoter` trait, because the discrete level walk never needs it. When the vAMM participates alongside DLOB orders it does so as `AmmJitQuoter`, which quotes a single fixed `jit_price` — i.e. it's discrete, like a DLOB order.
 
-**`is_fee_exempt` semantics.** Fee-exempt makers don't pay/receive maker fees. The vAMM is exempt — it earns from spread, not from rebates. DLOB-order and JIT-participant makers follow the standard maker-fee schedule. The fill controller checks this per maker when applying fees from a `Match`.
+**`level_capacity` semantics.** The full base a maker can fill at its level. It must be cheap and non-mutating: compute it analytically (DLOB: remaining size; JIT vAMM: `min(throttle, reserve-bounded max)`), never by running the swap — probing capacity by swapping the AMM-JIT to its reserve boundary errors.
 
-**`try_fill_solo`** is an optional shortcut for the sole-maker-in-clearing-segment case. The matcher uses it when exactly one maker is active in the clearing segment AND it returns `Some` — skipping bisection. Implementations with closed-form inverses of `cumulative_size` (AMMs) implement it; piecewise/discrete liquidity (DLOB orders) can implement it trivially too. `None` is always safe.
+**`is_prio` semantics.** Priority makers take their full level capacity at the clearing price before pro-rata distributes the remainder to non-priority makers. Priority does *not* override price priority — a better `best_price` still wins regardless of `is_prio`. The JIT vAMM is prio; DLOB orders are not.
 
-## Matching algorithm
+**`is_fee_exempt` / `fee_policy` semantics.** Fee-exempt makers don't pay/receive maker fees (the vAMM earns from spread, not rebates). `fee_policy` selects the fill controller's fee path (`AmmHouse` for AMM-side fills, `DlobMatch` for DLOB). Both are copied into each `QuoterFill`.
 
-The matcher in `controller/match.rs` runs this algorithm. Quoted from the design discussion:
+**`try_fill_solo`** computes a maker's closed-form fill at its price. `fill_amm_only` calls it to fill the whole take; the discrete walk calls it per winning maker on its allocated base. Every `Quoter` in the crate implements it.
+
+## Fill algorithm
+
+`controller/match.rs` has **two explicit fill paths** — there is no general continuous-curve clearing algorithm (no bisection, no price-domain search). The split reflects that the only continuous maker (the constant-product vAMM) is always matched solo; every multi-maker fill is over discrete single-price makers.
+
+### Path 1 — `fill_amm_only` (sole continuous vAMM)
 
 ```text
-match_take(makers, ctx, side, T):
-    sort makers by best_price(ctx, side) ascending
-    active = []
-    cumulative = 0
-    last_p = -infinity
-    fills = {m: 0 for m in makers}
-
-    for mm in makers (sorted):
-        p_event = mm.best_price(ctx, side)
-
-        if active:
-            seg_cap = Σ over j in active of
-                      cumulative_size(ctx, side, p_event) -
-                      cumulative_size(ctx, side, last_p)
-
-            if cumulative + seg_cap >= T:
-                # clearing inside [last_p, p_event]
-                if |active| == 1 and active[0].try_fill_solo(...) returns Some(f):
-                    fills[active[0]] += f
-                else:
-                    p_star = bisect_for_clearing(last_p, p_event,
-                                                 T - cumulative, active)
-                    apply_clearing(p_star, last_p, T - cumulative, active, fills)
-                return fills, p_star
-
-            cumulative += seg_cap
-            for j in active:
-                fills[j] += cumulative_size(ctx, side, p_event) -
-                            cumulative_size(ctx, side, last_p)
-
-        active.append(mm)
-        last_p = p_event
-
-    # Tail segment [last_p, +infinity)
-    if cumulative < T:
-        repeat segment logic with hi = +infinity
-        else: partial fill, p_star = None
-
-bisect_for_clearing(p_low, p_high, demand_remaining, active):
-    lo, hi = p_low, p_high
-    while hi - lo > ctx.tick:
-        mid = midpoint on tick grid between lo and hi
-        supply_to_mid = Σ over j in active of
-                        cumulative_size(ctx, side, mid) -
-                        cumulative_size(ctx, side, p_low)
-        if supply_to_mid >= demand_remaining:
-            hi = mid
-        else:
-            lo = mid
-    return hi   # smallest tick where supply >= demand
-
-apply_clearing(p_star, p_seg, demand_remaining, active, fills):
-    # inframarginal: every active maker fully fills up to p_star - tick
-    inframarginal_total = 0
-    for j in active:
-        inf = cumulative_size(ctx, side, p_star - ctx.tick) -
-              cumulative_size(ctx, side, p_seg)
-        fills[j] += inf
-        inframarginal_total += inf
-
-    # residual at the marginal tick
-    residual = demand_remaining - inframarginal_total
-
-    # marginal supply per maker at p_star
-    marginal = {j: cumulative_size(ctx, side, p_star) -
-                   cumulative_size(ctx, side, p_star - ctx.tick)
-                for j in active}
-
-    # priority makers fill first
-    prio = [j for j in active if j.is_prio()]
-    non_prio = [j for j in active if !j.is_prio()]
-
-    for j in prio:
-        take = min(marginal[j], residual)
-        fills[j] += take
-        residual -= take
-        if residual == 0: break
-
-    # then pro-rata across non-priority makers by their marginal supply
-    if residual > 0 and non_prio:
-        total_non_prio_marginal = sum(marginal[j] for j in non_prio)
-        for j in non_prio:
-            fills[j] += residual * marginal[j] / total_non_prio_marginal
+fill_amm_only(amm, ctx, side, T, taker_limit):
+    if amm.best_price(side) is no-quote or worse than taker_limit: empty
+    cap = amm.cumulative_size(side, taker_limit)   # analytic curve inverse, clamps to the limit
+    fill = amm.try_fill_solo(side, min(T, cap))    # closed-form swap
+    amm.commit_fill(fill)
+    return fill   # clearing_price = None on a partial
 ```
 
-Properties:
-- Each maker that doesn't compete (its `best_price` is worse than the clearing price) costs exactly one `best_price` query.
-- Each maker active in a fully-consumed segment costs two `cumulative_size` queries (segment endpoints).
-- The clearing segment costs ~log queries per active maker for bisection plus two for marginal sizes — *unless* it's a single-maker clearing segment with `try_fill_solo`, in which case the matcher takes the analytical result.
-- No tick-walking. Maker piecewise structure (DLOB level steps, AMM curves) stays inside the maker.
+This is the only path that touches the curve. `cumulative_size` is an inherent `AmmQuoter` method (one call, not a loop) used purely to cap the take at the taker's limit. Byte-exact with the legacy `swap_base_asset`.
+
+### Path 2 — `match_take` (discrete level walk)
+
+```text
+match_take(makers, ctx, side, T, taker_limit):
+    # Each maker is one level: best_price + level_capacity (cheap, no swap).
+    levels = [(id, best_price, is_prio, level_capacity)
+              for each maker quoting on side within taker_limit, capacity > 0]
+    sort levels best-first (price; prio wins ties)
+
+    cumulative = 0
+    for tie_group in levels grouped by equal price:
+        group_supply = Σ capacity in tie_group
+        if cumulative + group_supply <= T:
+            fill each member its full capacity; cumulative += group_supply
+            if cumulative == T: clearing_price = group.price; break
+        else:
+            # clearing level — distribute the residual across the tie group:
+            residual = T - cumulative
+            prio members take full capacity first;
+            non-prio split the rest pro-rata by capacity (last absorbs rounding)
+            clearing_price = group.price; break
+    # fell through without clearing => partial fill, clearing_price = None
+
+    # commit once per winning maker against its TOTAL allocated base
+    for maker with base > 0:
+        fill = maker.try_fill_solo(side, base)   # quote computed once, not per slice
+        maker.commit_fill(fill)
+```
+
+No bisection, no tick-walking, no `cumulative_size`. Quote is computed once per maker on its total base (not summed per slice) so the reported `quote_filled` equals what `commit_fill` actually moved — this matters for the JIT vAMM, whose underlying swap is non-linear.
+
+Cost: one `best_price` + one `level_capacity` per maker, plus one `try_fill_solo` + `commit_fill` per *winning* maker. For the dominant sole-AMM case (`fill_amm_only`) it's a single analytical fill.
 
 ### AMM-side details
 
-The AMM's `Maker` impl reads only from `AmmQuoteState` and `ctx`. Repeg and k-update are folded into the quoting formula as conditional branches: if the trigger fires against `(quote, ctx.stats, ctx.oracle, ctx.fee_budget)` AND budget covers it, prices reflect the post-update curve; otherwise the current curve. The decision is deterministic in inputs, so bisection sees a consistent answer across many `cumulative_size` calls.
+`fill_amm_only` runs on `AmmQuoter`, whose `Quoter::setup` (called by the orchestrator before the fill) folds the conditional repeg / k-update into the AMM via `project_post_refresh_scalar` and refreshes the cached spread state (`update_amm_quote_state`). `setup` is slot-idempotent — re-running it in the same slot is a no-op on the curve. `commit_fill` applies the swap to the reserves, updates `base_asset_amount_with_amm`, and re-derives the cached ask/bid spread reserves (`refresh_cached_spread_reserves`). It reports `refresh_cost` via `QuoterFill` for the fill controller to apply to PerpMarket.
 
-`commit_fill` re-evaluates the same triggers (same inputs → same conclusions), applies repeg/k-update to `quote`, applies the fill amounts to `quote` (reserves change, `base_asset_amount_with_amm` changes), and applies bookkeeping deltas to `books` (fee accounting via a private `apply_fill_to_books` helper). It reports `refresh_cost` via `MakerFill` so the fill controller can deduct it from `AmmBookkeeping.total_fee_minus_distributions` (via the AMM module's own bookkeeping helper, not by the fill controller reaching into AMM bytes).
-
-If no fill lands on the AMM in a given match, no bytes change. The "what would have repegged" is purely a quote-time computation; only realized fills cause state mutation.
+The JIT vAMM (`AmmJitQuoter`) participates in `match_take` as a discrete level: `best_price = jit_price`, `level_capacity = min(max_jit_base, reserve-bounded max)`. Its `commit_fill` moves reserves per the curve while the taker pays `jit_price`; the gap is `quote_asset_amount_surplus` (negative when the AMM subsidises the fill).
 
 ### Snapshot consistency
 
-Quote methods (`best_price`, `cumulative_size`, `try_fill_solo`) must be pure functions of `(self, ctx)`. The matcher calls `cumulative_size` many times per maker during bisection; if the answers diverge across calls (with the same `ctx`), bisection breaks. No mutation, no global side effects, no clock reads not already in `ctx`.
-
-`commit_fill` is the only place state changes. The matcher does not mutate maker state during the segment walk — settlement happens after the match resolves.
+Quote methods (`best_price`, `level_capacity`, `try_fill_solo`) must be pure functions of `(self, ctx)` — no mutation, no global side effects, no clock reads not already in `ctx`. `commit_fill` is the only place state changes, after the fill resolves.
 
 ## Fill paths after the refactor
 
-Every existing AMM call site goes through `match_take`:
-
-- **Pure AMM fill** — no DLOB / JIT liquidity. `match_take(&mut [&mut amm_maker], ctx, side, T)`. Sole-maker case; matcher uses AMM's `try_fill_solo`, no bisection.
-- **AMM JIT (vAMM front-running a DLOB cross)** — `match_take(&mut [&mut amm_maker, &mut dlob_maker], ctx, side, T)`. AMM front-runs naturally when its `best_price` is better than the DLOB order. JIT intensity / inventory throttling moves into `AmmMaker::cumulative_size` (the AMM declares how much depth it's willing to offer).
-- **JIT auction** — participants get wrapped as `JitParticipantMaker`s; `match_take(&mut [&mut amm_maker, &mut jit_1, &mut jit_2, ...], ctx, side, T)`. "Residual goes to AMM" disappears; it's the matcher walking past JIT prices into the AMM's segment.
-- **Settlement / liquidation forced fills** — `match_take(&mut [&mut amm_maker], ctx, side, T)`. Sole-maker case.
+- **Pure AMM fill** (settlement, liquidation, the keeper/AMM order path) — `fill_amm_only(amm_quoter, ctx, side, T, limit)`. The dominant production case.
+- **AMM JIT alongside a DLOB cross** — `match_take(&mut [&mut amm_jit, &mut dlob_quoter], ctx, side, T, limit)`. Both are discrete single-price levels; the walk routes by price (prio JIT vAMM wins ties).
+- **DLOB-only** — `match_take` over the DLOB order levels (the AMM-JIT contributes zero when it declines). Today this is the AMM-JIT-declines case; later it's spline levels.
+- **Future spline liquidity** — off-chain MMs push compact spline regions; the program materialises them into discrete levels (a `SplineQuoter`) that feed the same `match_take` walk. At that point `fill_amm_only` and the constant-product math are deleted with the vAMM, and the discrete walk is the whole engine.
 
 After the match, the fill controller applies the aggregate `Match`: position counters on PerpMarket, protocol fees (per each maker's `is_fee_exempt` flag), pnl_pool, social loss, funding state if a funding update is due, `MarketStats` updates via `controller/market_stats.rs`, and `total_refresh_cost` deducted from AMM bookkeeping via the AMM module's helper.
 
@@ -379,7 +343,7 @@ The hard-coded pairwise matching rules in `controller/amm_jit.rs` and the DLOB-f
 
 ## Boundary enforcement
 
-AMM field visibility is `pub(crate)` scoped to `state/amm.rs` and submodules. Trait impls and `commit_fill` helpers live inside that module. External callers reach AMM state only through the `Maker` interface or through AMM-defined methods on `&PerpMarket` for AMM-specific operations that don't fit the trait (admin withdrawals from `fee_pool` to revenue pool, operator-forced repegs).
+AMM field visibility is `pub(crate)` scoped to `state/amm.rs` and submodules. Trait impls and `commit_fill` helpers live inside that module. External callers reach AMM state only through the `Quoter` interface or through AMM-defined methods on `&PerpMarket` for AMM-specific operations that don't fit the trait (admin withdrawals from `fee_pool` to revenue pool, operator-forced repegs).
 
 Post-refactor litmus tests:
 
@@ -389,10 +353,10 @@ Post-refactor litmus tests:
 
 ## Out of scope
 
-- **Cross-program `Maker`** (CPI to maker programs in other on-chain programs). For now the trait is in-program Rust polymorphism. The cross-program form would require serialized-curve returns + read-only CPI; design when needed.
+- **Cross-program `Quoter`** (CPI to maker programs in other on-chain programs). For now the trait is in-program Rust polymorphism. The cross-program form would require serialized-curve returns + read-only CPI; design when needed.
 - **Tolerance-band pro-rata** (distributing pro-rata across makers whose prices are within ε of each other rather than exactly tied). The matcher ships with strict price priority and pro-rata only at exactly-tied ticks. Tolerance-band is a future policy knob.
 - **Cross-program AMM excision itself.** This refactor structures the code along the future split line but keeps everything in `programs/drift`. The actual move to a separate AMM program is a follow-up.
-- **Parametric-curve quoters** (Phoenix-style spline liquidity). These will land as additional `Maker` impls without matcher changes.
+- **Parametric-curve quoters** (Phoenix-style spline liquidity). These will land as additional `Quoter` impls without matcher changes.
 
 ## File layout after the refactor
 
@@ -404,9 +368,9 @@ docs/
 programs/drift/src/
   state/
     perp_market.rs       PerpMarket; market_stats: MarketStats; amm: AMM (tail)
-    amm.rs               new: AMM { quote, books }, AmmMaker, AmmMakerMut impls
+    amm.rs               new: AMM { quote, books }, AmmQuoter, AmmMakerMut impls
     market_stats.rs      new: MarketStats struct
-    maker.rs             new: Maker trait, QuoteContext, MakerFill, MakerCommit
+    maker.rs             new: Quoter trait, QuoteContext, QuoterFill, QuoterCommit
   controller/
     match.rs             new: matcher
     market_stats.rs      new: writers callable from every fill path

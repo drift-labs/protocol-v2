@@ -2502,11 +2502,12 @@ pub fn fulfill_perp_order_step(
                 market.order_tick_size,
             )?;
             // Reuse the `amm_quoter` constructed at the top of this fn —
-            // it's already been setup and holds &mut market.amm.
+            // it's already been setup and holds &mut market.amm. The AMM is
+            // the sole continuous maker, so it takes the dedicated analytical
+            // fill path rather than the discrete level walk.
             amm_quoter.validate_for_fill(taker_direction)?;
-            let mut quoters: Vec<&mut dyn QuoterCommit> = vec![&mut amm_quoter];
-            crate::controller::matching::match_take(
-                &mut quoters,
+            crate::controller::matching::fill_amm_only(
+                &mut amm_quoter,
                 &ctx,
                 taker_direction,
                 target_size,

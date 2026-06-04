@@ -196,54 +196,54 @@ pub fn update_amm_quote_state(
         reference_price_offset
     };
 
-    // ---- spread reserves (calculate_spread_reserves) ---------------------
-    let (ask_base_asset_reserve, ask_quote_asset_reserve) = compute_spread_reserves_for_direction(
-        amm,
-        long_spread,
-        final_reference_price_offset,
-        PositionDirection::Long,
-    )?;
-    let (bid_base_asset_reserve, bid_quote_asset_reserve) = compute_spread_reserves_for_direction(
-        amm,
-        short_spread,
-        final_reference_price_offset,
-        PositionDirection::Short,
-    )?;
-
-    // Mirror the clamp from `update_spread_reserves`: when there's no
-    // reference offset, asks stay >= reserve and bids stay <= reserve.
-    let (
-        ask_base_asset_reserve,
-        ask_quote_asset_reserve,
-        bid_base_asset_reserve,
-        bid_quote_asset_reserve,
-    ) = if final_reference_price_offset == 0 {
-        (
-            ask_base_asset_reserve.min(amm.base_asset_reserve),
-            ask_quote_asset_reserve.max(amm.quote_asset_reserve),
-            bid_base_asset_reserve.max(amm.base_asset_reserve),
-            bid_quote_asset_reserve.min(amm.quote_asset_reserve),
-        )
-    } else {
-        (
-            ask_base_asset_reserve,
-            ask_quote_asset_reserve,
-            bid_base_asset_reserve,
-            bid_quote_asset_reserve,
-        )
-    };
-
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
     amm.reference_price_offset = final_reference_price_offset;
     amm.last_oracle_reserve_price_spread_pct = last_oracle_reserve_price_spread_pct;
-    amm.ask_base_asset_reserve = ask_base_asset_reserve;
-    amm.ask_quote_asset_reserve = ask_quote_asset_reserve;
-    amm.bid_base_asset_reserve = bid_base_asset_reserve;
-    amm.bid_quote_asset_reserve = bid_quote_asset_reserve;
     amm.last_spread_update_slot = slot;
 
+    // Derive the spread-adjusted ask/bid reserves from the just-written
+    // spreads + current curve reserves.
+    refresh_cached_spread_reserves(amm)?;
+
     validate_amm_quote_state(amm)?;
+    Ok(())
+}
+
+/// Recompute the cached ask/bid spread reserves from the AMM's currently-cached
+/// `long_spread` / `short_spread` / `reference_price_offset` and its live
+/// `base`/`quote` reserves + `sqrt_k`. Restores the legacy `update_spread_reserves`
+/// mutator: [`update_amm_quote_state`] runs it after recomputing the spreads, and
+/// `QuoterCommit::commit_fill` runs it after a fill moves the reserves so the
+/// cached projections (which dashboards read) stay consistent with the curve.
+/// Leaves the spreads themselves untouched.
+pub fn refresh_cached_spread_reserves(amm: &mut AMM) -> DriftResult<()> {
+    let (ask_base_asset_reserve, ask_quote_asset_reserve) = compute_spread_reserves_for_direction(
+        amm,
+        amm.long_spread,
+        amm.reference_price_offset,
+        PositionDirection::Long,
+    )?;
+    let (bid_base_asset_reserve, bid_quote_asset_reserve) = compute_spread_reserves_for_direction(
+        amm,
+        amm.short_spread,
+        amm.reference_price_offset,
+        PositionDirection::Short,
+    )?;
+
+    // Mirror the clamp from the legacy `update_spread_reserves`: with no
+    // reference offset, asks stay >= reserve and bids stay <= reserve.
+    if amm.reference_price_offset == 0 {
+        amm.ask_base_asset_reserve = ask_base_asset_reserve.min(amm.base_asset_reserve);
+        amm.ask_quote_asset_reserve = ask_quote_asset_reserve.max(amm.quote_asset_reserve);
+        amm.bid_base_asset_reserve = bid_base_asset_reserve.max(amm.base_asset_reserve);
+        amm.bid_quote_asset_reserve = bid_quote_asset_reserve.min(amm.quote_asset_reserve);
+    } else {
+        amm.ask_base_asset_reserve = ask_base_asset_reserve;
+        amm.ask_quote_asset_reserve = ask_quote_asset_reserve;
+        amm.bid_base_asset_reserve = bid_base_asset_reserve;
+        amm.bid_quote_asset_reserve = bid_quote_asset_reserve;
+    }
     Ok(())
 }
 
