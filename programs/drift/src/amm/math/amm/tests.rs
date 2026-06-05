@@ -8,7 +8,7 @@ use crate::{
         oracle::OracleValidity,
     },
     state::{
-        oracle::HistoricalOracleData,
+        oracle::{HistoricalOracleData, OraclePriceData},
         perp_market::{MarketStats, PerpMarket},
         user::PerpPosition,
     },

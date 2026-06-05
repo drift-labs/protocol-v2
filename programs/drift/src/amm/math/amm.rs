@@ -1,27 +1,28 @@
 use std::cmp::{max, min};
 
-use crate::msg;
-
-use crate::amm::controller::SwapDirection;
-use crate::amm::AMM;
-use crate::controller::position::PositionDirection;
-use crate::error::{DriftResult, ErrorCode};
-use crate::math::bn::U192;
-use crate::math::casting::Cast;
-use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
-    DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO,
+use crate::{
+    amm::{controller::SwapDirection, AMM},
+    controller::position::PositionDirection,
+    error::{DriftResult, ErrorCode},
+    math::{
+        bn::U192,
+        casting::Cast,
+        constants::{
+            BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
+            DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE,
+            PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+            PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
+        },
+        helpers::get_proportion_u128,
+        orders::standardize_base_asset_amount,
+        quote_asset::reserve_to_asset_amount,
+        safe_math::SafeMath,
+        stats::calculate_weighted_average,
+    },
+    msg,
+    state::oracle::MMOraclePriceData,
+    validate,
 };
-use crate::math::orders::standardize_base_asset_amount;
-use crate::math::quote_asset::reserve_to_asset_amount;
-use crate::math::stats::calculate_weighted_average;
-use crate::state::oracle::{MMOraclePriceData, OraclePriceData};
-use crate::validate;
-
-use crate::math::helpers::get_proportion_u128;
-use crate::math::safe_math::SafeMath;
 
 #[cfg(test)]
 mod tests;
@@ -398,36 +399,6 @@ pub fn calculate_oracle_reserve_price_spread(
     Ok((oracle_price, price_spread))
 }
 
-pub fn normalise_oracle_price(
-    oracle_price_data: &OraclePriceData,
-    reserve_price: u64,
-) -> DriftResult<i64> {
-    let oracle_price = oracle_price_data.price;
-    let reserve_price = reserve_price.cast::<i64>()?;
-
-    // 2.5 bps of the mark price
-    let reserve_price_2p5_bps = reserve_price.safe_div(4000)?;
-    let conf_int = oracle_price_data.confidence.cast::<i64>()?;
-
-    //  normalises oracle toward mark price based on the oracle’s confidence interval
-    //  if mark above oracle: use oracle+conf unless it exceeds .99975 * mark price
-    //  if mark below oracle: use oracle-conf unless it less than 1.00025 * mark price
-    //  (this guarantees more reasonable funding rates in volatile periods)
-    let normalised_price = if reserve_price > oracle_price {
-        min(
-            max(reserve_price.safe_sub(reserve_price_2p5_bps)?, oracle_price),
-            oracle_price.safe_add(conf_int)?,
-        )
-    } else {
-        max(
-            min(reserve_price.safe_add(reserve_price_2p5_bps)?, oracle_price),
-            oracle_price.safe_sub(conf_int)?,
-        )
-    };
-
-    Ok(normalised_price)
-}
-
 pub fn calculate_oracle_reserve_price_spread_pct(
     amm: &AMM,
     mm_oracle_price_data: &MMOraclePriceData,
@@ -446,10 +417,6 @@ pub fn calculate_oracle_reserve_price_spread_pct(
         .safe_div(reserve_price.cast::<i128>()?)? // todo? better for spread logic
         .cast()
 }
-
-// Moved out of the AMM math crate: `calculate_oracle_twap_5min_price_spread_pct`
-// → `HistoricalOracleData::twap_5min_spread_pct` (it had no AMM dependency).
-// `is_oracle_mark_too_divergent` → `crate::math::oracle::is_mark_oracle_too_divergent`.
 
 pub fn calculate_amm_available_liquidity(
     amm: &AMM,
@@ -482,11 +449,9 @@ pub fn calculate_amm_available_liquidity(
 }
 
 pub fn calculate_net_user_cost_basis(
-    amm: &AMM,
     quote_asset_amount: i128,
     net_unsettled_funding_pnl: i64,
 ) -> DriftResult<i128> {
-    let _ = amm;
     quote_asset_amount.safe_add(net_unsettled_funding_pnl.cast()?)
 }
 
@@ -508,7 +473,6 @@ pub fn calculate_net_user_pnl(
         .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO.cast()?)?;
 
     net_user_base_asset_value.safe_add(calculate_net_user_cost_basis(
-        amm,
         quote_asset_amount,
         net_unsettled_funding_pnl,
     )?)

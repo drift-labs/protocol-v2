@@ -1,3 +1,5 @@
+use std::cmp::{max, min};
+
 use anchor_lang::prelude::{
     borsh::{BorshDeserialize, BorshSerialize},
     *,
@@ -5,7 +7,9 @@ use anchor_lang::prelude::{
 
 use super::oracle_map::OracleIdentifier;
 use crate::{
-    amm::math::amm::{self},
+    amm::math::amm::{
+        calculate_new_oracle_price_twap, sanitize_new_price, TwapPeriod, {self},
+    },
     error::{DriftResult, ErrorCode},
     math::{
         casting::Cast,
@@ -1235,6 +1239,36 @@ impl crate::state::traits::Size for MarketStats {
     const SIZE: usize = 216;
 }
 
+pub fn normalise_oracle_price(
+    oracle_price_data: &OraclePriceData,
+    reserve_price: u64,
+) -> DriftResult<i64> {
+    let oracle_price = oracle_price_data.price;
+    let reserve_price = reserve_price.cast::<i64>()?;
+
+    // 2.5 bps of the mark price
+    let reserve_price_2p5_bps = reserve_price.safe_div(4000)?;
+    let conf_int = oracle_price_data.confidence.cast::<i64>()?;
+
+    //  normalises oracle toward mark price based on the oracle’s confidence interval
+    //  if mark above oracle: use oracle+conf unless it exceeds .99975 * mark price
+    //  if mark below oracle: use oracle-conf unless it less than 1.00025 * mark price
+    //  (this guarantees more reasonable funding rates in volatile periods)
+    let normalised_price = if reserve_price > oracle_price {
+        min(
+            max(reserve_price.safe_sub(reserve_price_2p5_bps)?, oracle_price),
+            oracle_price.safe_add(conf_int)?,
+        )
+    } else {
+        max(
+            min(reserve_price.safe_add(reserve_price_2p5_bps)?, oracle_price),
+            oracle_price.safe_sub(conf_int)?,
+        )
+    };
+
+    Ok(normalised_price)
+}
+
 impl MarketStats {
     /// Update the mark-price rolling-std estimate.
     pub fn update_mark_std(
@@ -1282,8 +1316,7 @@ impl MarketStats {
         reserve_price: u64,
         now: i64,
     ) -> crate::error::DriftResult<()> {
-        use crate::math::constants::BID_ASK_SPREAD_PRECISION;
-        use crate::math::safe_math::SafeMath;
+        use crate::math::{constants::BID_ASK_SPREAD_PRECISION, safe_math::SafeMath};
         let upper_bound_divisor = 21_u64;
         let lower_bound_divisor = 5_u64;
         let since_last = now
@@ -1316,9 +1349,11 @@ impl MarketStats {
         position_direction: crate::controller::position::PositionDirection,
         now: i64,
     ) -> crate::error::DriftResult<()> {
-        use crate::math::constants::{ONE_HOUR, TWENTY_FOUR_HOUR};
-        use crate::math::safe_math::SafeMath;
-        use crate::math::stats;
+        use crate::math::{
+            constants::{ONE_HOUR, TWENTY_FOUR_HOUR},
+            safe_math::SafeMath,
+            stats,
+        };
 
         let since_last = core::cmp::max(1_i64, now.safe_sub(self.last_trade_ts)?);
 
@@ -1368,13 +1403,18 @@ impl MarketStats {
         sanitize_clamp: Option<i64>,
     ) -> crate::error::DriftResult<u64> {
         let funding_period = self.funding_period;
-        use crate::amm::math::amm::sanitize_new_price;
-        use crate::math::casting::Cast;
-        use crate::math::constants::{FIVE_MINUTE, ONE_MINUTE};
-        use crate::math::safe_math::SafeMath;
-        use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
-        use crate::validate;
         use core::cmp::max;
+
+        use crate::{
+            amm::math::amm::sanitize_new_price,
+            math::{
+                casting::Cast,
+                constants::{FIVE_MINUTE, ONE_MINUTE},
+                safe_math::SafeMath,
+                stats::{calculate_new_twap, calculate_weighted_average},
+            },
+            validate,
+        };
 
         let (bid_price_capped_update, ask_price_capped_update) = (
             sanitize_new_price(
@@ -1592,9 +1632,6 @@ impl MarketStats {
         best_dlob_ask_price: Option<u64>,
         sanitize_clamp: Option<i64>,
     ) -> crate::error::DriftResult<()> {
-        use crate::math::casting::Cast;
-        use crate::math::safe_math::SafeMath;
-
         let amm_reserve_price = amm.reserve_price()?;
         let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(
             amm_reserve_price,
@@ -1643,11 +1680,6 @@ impl MarketStats {
         precomputed_reserve_price: Option<u64>,
         sanitize_clamp: Option<i64>,
     ) -> crate::error::DriftResult<i64> {
-        use crate::amm::math::amm::{
-            calculate_new_oracle_price_twap, normalise_oracle_price, sanitize_new_price, TwapPeriod,
-        };
-        use crate::math::casting::Cast;
-
         let reserve_price = match precomputed_reserve_price {
             Some(reserve_price) => reserve_price,
             None => amm.reserve_price()?,

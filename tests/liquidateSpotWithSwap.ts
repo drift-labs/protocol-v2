@@ -310,8 +310,6 @@ describe('spot swap', () => {
 				liabilityTokenAccount: takerWSOL,
 				userAccount: makerDriftClient.getUserAccount(),
 				userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
-				userStatsAccountPublicKey:
-					makerDriftClient.getUserStatsAccountPublicKey(),
 			});
 
 		// @ts-ignore

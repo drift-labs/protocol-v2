@@ -17,7 +17,6 @@ use crate::math::constants::{
 };
 use crate::math::oracle;
 use crate::math::oracle::OracleValidity;
-use crate::math::position::calculate_base_asset_value_and_pnl;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::oracle::get_oracle_price;
@@ -185,19 +184,13 @@ pub fn adjust_peg_cost(
 
     let cost = if new_peg_candidate != market_clone.amm.peg_multiplier {
         // Find the net market value before adjusting peg
-        let (current_net_market_value, _) = calculate_base_asset_value_and_pnl(
-            market_clone.amm.base_asset_amount_with_amm,
-            0,
-            &market_clone.amm,
-        )?;
+        let (current_net_market_value, _) = market_clone.amm.inventory_value_and_pnl(0)?;
 
         market_clone.amm.peg_multiplier = new_peg_candidate;
 
-        let (_new_net_market_value, cost) = calculate_base_asset_value_and_pnl(
-            market_clone.amm.base_asset_amount_with_amm,
-            current_net_market_value,
-            &market_clone.amm,
-        )?;
+        let (_new_net_market_value, cost) = market_clone
+            .amm
+            .inventory_value_and_pnl(current_net_market_value)?;
         cost
     } else {
         0_i128

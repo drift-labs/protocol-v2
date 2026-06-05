@@ -61,7 +61,9 @@ use crate::state::order_params::{
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::quoter::{DlobOrderQuoter, FillFeePolicy, QuoteContext, Quoter, QuoterCommit};
+use crate::state::quoter::{
+    DlobOrderQuoter, FillFeePolicy, QuoteContext, Quoter, QuoterCommit, QuoterFill,
+};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
@@ -2274,6 +2276,607 @@ fn emit_perp_action_record(
     emit_stack::<_, { OrderActionRecord::SIZE }>(record)
 }
 
+#[allow(clippy::too_many_arguments)]
+/// Settle a single `AmmHouse` fill (sole-AMM step, or a JIT slice inside a
+/// Match step). Returns `(base_filled, quote_filled)` to accumulate.
+fn settle_amm_house_fill(
+    fill: &QuoterFill,
+    market: &mut PerpMarket,
+    taker: &mut User,
+    taker_stats: &mut UserStats,
+    taker_position_index: usize,
+    taker_order_index: usize,
+    taker_key: &Pubkey,
+    taker_direction: PositionDirection,
+    taker_existing_position_params_before: Option<(u64, u64)>,
+    order_post_only: bool,
+    order_slot: u64,
+    order_id: u32,
+    taker_limit_price: Option<u64>,
+    is_jit_within_match: bool,
+    is_liquidation: bool,
+    maker: &mut Option<&mut User>,
+    maker_stats: &mut Option<&mut UserStats>,
+    filler: &mut Option<&mut User>,
+    filler_stats: &mut Option<&mut UserStats>,
+    filler_key: &Pubkey,
+    referrer: &mut Option<&mut User>,
+    referrer_stats: &mut Option<&mut UserStats>,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
+    fee_structure: &FeeStructure,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+) -> DriftResult<(u64, u64)> {
+    // For sole-AMM steps with a post_only taker, override the
+    // fill's quote at the order's limit price (the taker, acting
+    // as maker, transacts at limit; the AMM captures the curve
+    // ↔ limit gap as spread surplus). For JIT slices inside a
+    // Match step, `AmmJitQuoter::try_fill_solo` already returns
+    // the jit-price quote + curve↔jit surplus — pass through.
+    let (taker_quote, taker_surplus) =
+        if !is_jit_within_match && order_post_only && taker_limit_price.is_some() {
+            crate::controller::position::calculate_quote_asset_amount_surplus(
+                taker_direction,
+                fill.quote_filled,
+                fill.base_filled,
+                taker_limit_price.unwrap(),
+            )?
+        } else {
+            (fill.quote_filled, fill.quote_asset_amount_surplus)
+        };
+
+    let reward_referrer = can_reward_user_with_referral_reward(
+        referrer,
+        market.market_index,
+        rev_share_escrow,
+        builder_referral_feature_enabled,
+    );
+    let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index)
+        || (!is_jit_within_match && can_reward_user_with_perp_pnl(maker, market.market_index));
+
+    let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
+        get_builder_escrow_info(
+            rev_share_escrow,
+            taker.sub_account_id,
+            order_id,
+            market.market_index,
+            builder_referral_feature_enabled,
+        );
+
+    let FillFees {
+        user_fee,
+        fee_to_market,
+        filler_reward,
+        referee_discount,
+        referrer_reward,
+        fee_to_market_for_lp: _fee_to_market_for_lp,
+        maker_rebate,
+        builder_fee: builder_fee_option,
+    } = fees::calculate_fee_for_fulfillment_with_amm(
+        taker_stats,
+        taker_quote,
+        fee_structure,
+        order_slot,
+        slot,
+        reward_filler,
+        reward_referrer,
+        referrer_stats,
+        taker_surplus,
+        order_post_only,
+        market.fee_adjustment,
+        builder_order_fee_bps,
+    )?;
+    let builder_fee = builder_fee_option.unwrap_or(0);
+
+    if builder_fee != 0 {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
+            let order = escrow.get_order_mut(idx)?;
+            order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
+        } else {
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
+        }
+    }
+
+    let taker_pd = get_position_delta_for_fill(fill.base_filled, taker_quote, taker_direction)?;
+    update_position_and_market(
+        &mut taker.perp_positions[taker_position_index],
+        market,
+        &taker_pd,
+    )?;
+
+    market.total_exchange_fee = market.total_exchange_fee.safe_add(user_fee.cast()?)?;
+    <crate::amm::AMM as crate::amm::quoter::AmmContract>::apply_fill_fees(
+        &mut market.amm,
+        fee_to_market,
+        taker_surplus,
+    )?;
+
+    taker_stats.increment_total_fees(user_fee)?;
+    taker_stats.increment_total_rebate(maker_rebate)?;
+    taker_stats.increment_total_referee_discount(referee_discount)?;
+
+    if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, rev_share_escrow.as_mut()) {
+        let order = escrow.get_order_mut(idx)?;
+        order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
+    } else if let (Some(referrer_user), Some(referrer_stats_ref)) =
+        (referrer.as_mut(), referrer_stats.as_mut())
+    {
+        if let Ok(referrer_position) =
+            referrer_user.force_get_perp_position_mut(market.market_index)
+        {
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
+            }
+            referrer_stats_ref.increment_total_referrer_reward(referrer_reward, now)?;
+        }
+    }
+
+    if user_fee != 0 || builder_fee != 0 {
+        controller::position::update_quote_asset_and_break_even_amount(
+            &mut taker.perp_positions[taker_position_index],
+            market,
+            -(user_fee.safe_add(builder_fee)?).cast()?,
+        )?;
+    }
+    if maker_rebate != 0 {
+        controller::position::update_quote_asset_and_break_even_amount(
+            &mut taker.perp_positions[taker_position_index],
+            market,
+            maker_rebate.cast()?,
+        )?;
+    }
+
+    if order_post_only {
+        taker_stats.update_maker_volume_30d(taker_quote, now)?;
+    } else {
+        taker_stats.update_taker_volume_30d(taker_quote, now)?;
+    }
+
+    if let Some(filler_user) = filler.as_mut() {
+        credit_filler_perp_pnl(
+            filler_user,
+            filler_stats,
+            market,
+            filler_reward,
+            taker_quote,
+            now,
+            slot,
+        )?;
+    } else if !is_jit_within_match {
+        if let Some(maker_user) = maker.as_mut() {
+            credit_filler_perp_pnl(
+                maker_user,
+                maker_stats,
+                market,
+                filler_reward,
+                taker_quote,
+                now,
+                slot,
+            )?;
+        }
+    }
+
+    // Update taker order BEFORE event emit.
+    let is_taker_filled_after_this = update_order_after_fill(
+        &mut taker.orders[taker_order_index],
+        fill.base_filled,
+        taker_quote,
+    )?;
+    if is_taker_filled_after_this {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
+            let _ = escrow
+                .get_order_mut(idx)
+                .map(|o| o.add_bit_flag(RevenueShareOrderBitFlag::Completed));
+        }
+    }
+    decrease_open_bids_and_asks(
+        &mut taker.perp_positions[taker_position_index],
+        &taker_direction,
+        fill.base_filled,
+        taker.orders[taker_order_index].update_open_bids_and_asks(),
+    )?;
+
+    let (taker_record_key, taker_record_order, maker_record_key, maker_record_order) =
+        get_taker_and_maker_for_order_record(taker_key, &taker.orders[taker_order_index]);
+
+    let order_action_explanation = if is_liquidation {
+        OrderActionExplanation::Liquidation
+    } else if is_jit_within_match {
+        OrderActionExplanation::OrderFilledWithAMMJit
+    } else {
+        OrderActionExplanation::OrderFilledWithAMM
+    };
+    let mut order_action_bit_flags: u8 = 0;
+    order_action_bit_flags = set_order_bit_flag(
+        order_action_bit_flags,
+        taker.orders[taker_order_index].is_signed_msg(),
+        OrderBitFlag::SignedMessage,
+    );
+    if taker.perp_positions[taker_position_index].is_isolated() {
+        order_action_bit_flags = set_order_bit_flag(
+            order_action_bit_flags,
+            true,
+            OrderBitFlag::IsIsolatedPosition,
+        );
+    }
+
+    let (
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
+    ) = {
+        let (existing_quote_entry_amount, existing_base_asset_amount) =
+            calculate_existing_position_fields_for_order_action(
+                fill.base_filled,
+                taker_existing_position_params_before,
+            )?;
+        if taker_record_key.is_some() {
+            (
+                existing_quote_entry_amount,
+                existing_base_asset_amount,
+                None,
+                None,
+            )
+        } else {
+            (
+                None,
+                None,
+                existing_quote_entry_amount,
+                existing_base_asset_amount,
+            )
+        }
+    };
+
+    emit_perp_action_record(
+        market,
+        oracle_map,
+        now,
+        order_action_explanation,
+        filler_key,
+        filler_reward,
+        fill.base_filled,
+        taker_quote,
+        user_fee.safe_add(builder_fee)?,
+        if maker_rebate != 0 {
+            Some(maker_rebate)
+        } else {
+            None
+        },
+        referrer_reward,
+        Some(taker_surplus),
+        taker_record_key,
+        taker_record_order,
+        maker_record_key,
+        maker_record_order,
+        order_action_bit_flags,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
+        builder_idx,
+        builder_fee_option,
+    )?;
+
+    Ok((fill.base_filled, taker_quote))
+}
+
+#[allow(clippy::too_many_arguments)]
+/// Settle a single `DlobMatch` fill (taker vs a resting DLOB maker order).
+/// Returns `(base_filled, quote_filled, maker_base_filled)` to accumulate.
+fn settle_dlob_match_fill(
+    fill: &QuoterFill,
+    market: &mut PerpMarket,
+    taker: &mut User,
+    taker_stats: &mut UserStats,
+    taker_position_index: usize,
+    taker_order_index: usize,
+    taker_key: &Pubkey,
+    taker_direction: PositionDirection,
+    taker_existing_position_params_before: Option<(u64, u64)>,
+    maker: &mut Option<&mut User>,
+    maker_stats: &mut Option<&mut UserStats>,
+    maker_order_index: Option<usize>,
+    maker_key_opt: Option<&Pubkey>,
+    maker_existing_position_params: Option<(u64, u64)>,
+    match_maker_price: Option<u64>,
+    taker_price_for_match: Option<u64>,
+    oracle_price: i64,
+    filler: &mut Option<&mut User>,
+    filler_stats: &mut Option<&mut UserStats>,
+    filler_key: &Pubkey,
+    referrer: &mut Option<&mut User>,
+    referrer_stats: &mut Option<&mut UserStats>,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
+    fee_structure: &FeeStructure,
+    oracle_map: &mut OracleMap,
+    is_liquidation: bool,
+    now: i64,
+    slot: u64,
+) -> DriftResult<(u64, u64, u64)> {
+    // DlobMatch fills only land from a Match step, which always
+    // populates `match_maker_price`.
+    let match_maker_price = match_maker_price.ok_or_else(print_error!(ErrorCode::DefaultError))?;
+    let m_idx = maker_order_index.ok_or_else(print_error!(ErrorCode::DefaultError))?;
+    let m_key = maker_key_opt.ok_or_else(print_error!(ErrorCode::DefaultError))?;
+    let maker_user = maker
+        .as_deref_mut()
+        .ok_or_else(print_error!(ErrorCode::DefaultError))?;
+    let maker_position_index = get_position_index(&maker_user.perp_positions, market.market_index)?;
+    let maker_direction = maker_user.orders[m_idx].direction;
+    let maker_order_has_jit_flag = maker_user.orders[m_idx].is_jit_maker();
+
+    let taker_price_validate =
+        taker_price_for_match.ok_or_else(print_error!(ErrorCode::DefaultError))?;
+    validate_fill_price(
+        fill.quote_filled,
+        fill.base_filled,
+        BASE_PRECISION_U64,
+        taker_direction,
+        taker_price_validate,
+        true,
+    )?;
+    validate_fill_price(
+        fill.quote_filled,
+        fill.base_filled,
+        BASE_PRECISION_U64,
+        maker_direction,
+        match_maker_price,
+        false,
+    )?;
+
+    let maker_pd =
+        get_position_delta_for_fill(fill.base_filled, fill.quote_filled, maker_direction)?;
+    update_position_and_market(
+        &mut maker_user.perp_positions[maker_position_index],
+        market,
+        &maker_pd,
+    )?;
+
+    if let Some(ms) = maker_stats.as_mut() {
+        ms.update_maker_volume_30d(fill.quote_filled, now)?;
+    } else {
+        taker_stats.update_maker_volume_30d(fill.quote_filled, now)?;
+    }
+
+    let taker_pd =
+        get_position_delta_for_fill(fill.base_filled, fill.quote_filled, taker_direction)?;
+    update_position_and_market(
+        &mut taker.perp_positions[taker_position_index],
+        market,
+        &taker_pd,
+    )?;
+    taker_stats.update_taker_volume_30d(fill.quote_filled, now)?;
+
+    let reward_referrer = can_reward_user_with_referral_reward(
+        referrer,
+        market.market_index,
+        rev_share_escrow,
+        builder_referral_feature_enabled,
+    );
+    let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
+
+    let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
+        get_builder_escrow_info(
+            rev_share_escrow,
+            taker.sub_account_id,
+            taker.orders[taker_order_index].order_id,
+            market.market_index,
+            builder_referral_feature_enabled,
+        );
+
+    let filler_multiplier = if reward_filler {
+        calculate_filler_multiplier_for_matched_orders(
+            match_maker_price,
+            maker_direction,
+            oracle_price,
+        )?
+    } else {
+        0
+    };
+
+    let FillFees {
+        user_fee: taker_fee,
+        maker_rebate,
+        fee_to_market,
+        filler_reward,
+        referrer_reward,
+        referee_discount,
+        builder_fee: builder_fee_option,
+        ..
+    } = fees::calculate_fee_for_fulfillment_with_match(
+        taker_stats,
+        maker_stats,
+        fill.quote_filled,
+        fee_structure,
+        taker.orders[taker_order_index].slot,
+        slot,
+        filler_multiplier,
+        reward_referrer,
+        referrer_stats,
+        &MarketType::Perp,
+        market.fee_adjustment,
+        builder_order_fee_bps,
+    )?;
+    let builder_fee = builder_fee_option.unwrap_or(0);
+
+    if builder_fee != 0 {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_deref_mut()) {
+            let order = escrow.get_order_mut(idx)?;
+            order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
+        } else {
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
+        }
+    }
+
+    market.total_exchange_fee = market.total_exchange_fee.safe_add(fee_to_market.cast()?)?;
+
+    controller::position::update_quote_asset_and_break_even_amount(
+        &mut taker.perp_positions[taker_position_index],
+        market,
+        -(taker_fee.safe_add(builder_fee)?).cast()?,
+    )?;
+
+    taker_stats.increment_total_fees(taker_fee)?;
+    taker_stats.increment_total_referee_discount(referee_discount)?;
+
+    controller::position::update_quote_asset_and_break_even_amount(
+        &mut maker_user.perp_positions[maker_position_index],
+        market,
+        maker_rebate.cast()?,
+    )?;
+
+    if let Some(ms) = maker_stats.as_mut() {
+        ms.increment_total_rebate(maker_rebate)?;
+    } else {
+        taker_stats.increment_total_rebate(maker_rebate)?;
+    }
+
+    if let Some(filler_user) = filler.as_mut() {
+        if filler_reward > 0 {
+            let filler_position_index =
+                get_position_index(&filler_user.perp_positions, market.market_index).or_else(
+                    |_| add_new_position(&mut filler_user.perp_positions, market.market_index),
+                )?;
+            controller::position::update_quote_asset_amount(
+                &mut filler_user.perp_positions[filler_position_index],
+                market,
+                filler_reward.cast()?,
+            )?;
+            filler_stats
+                .as_mut()
+                .safe_unwrap()?
+                .update_filler_volume(fill.quote_filled, now)?;
+        }
+        filler_user.update_last_active_slot(slot);
+    }
+
+    if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, rev_share_escrow.as_deref_mut())
+    {
+        let order = escrow.get_order_mut(idx)?;
+        order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
+    } else if let (Some(referrer_user), Some(referrer_stats_ref)) =
+        (referrer.as_mut(), referrer_stats.as_mut())
+    {
+        if let Ok(referrer_position) =
+            referrer_user.force_get_perp_position_mut(market.market_index)
+        {
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
+            }
+            referrer_stats_ref.increment_total_referrer_reward(referrer_reward, now)?;
+        }
+    }
+
+    // Update taker order BEFORE event emit.
+    let is_taker_filled_after_this = update_order_after_fill(
+        &mut taker.orders[taker_order_index],
+        fill.base_filled,
+        fill.quote_filled,
+    )?;
+    if is_taker_filled_after_this {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_deref_mut()) {
+            let _ = escrow
+                .get_order_mut(idx)
+                .map(|o| o.add_bit_flag(RevenueShareOrderBitFlag::Completed));
+        }
+    }
+    decrease_open_bids_and_asks(
+        &mut taker.perp_positions[taker_position_index],
+        &taker_direction,
+        fill.base_filled,
+        taker.orders[taker_order_index].update_open_bids_and_asks(),
+    )?;
+
+    // Maker open-bids/asks bookkeeping. commit_fill already
+    // updated maker order's filled counters; we only need open
+    // bids/asks decrement + status flip.
+    decrease_open_bids_and_asks(
+        &mut maker_user.perp_positions[maker_position_index],
+        &maker_direction,
+        fill.base_filled,
+        maker_user.orders[m_idx].update_open_bids_and_asks(),
+    )?;
+    if maker_user.orders[m_idx].get_base_asset_amount_unfilled(None)? == 0 {
+        maker_user.orders[m_idx].status = OrderStatus::Filled;
+    }
+
+    let order_action_explanation = if is_liquidation {
+        OrderActionExplanation::Liquidation
+    } else if maker_order_has_jit_flag {
+        OrderActionExplanation::OrderFilledWithMatchJit
+    } else {
+        OrderActionExplanation::OrderFilledWithMatch
+    };
+    let mut order_action_bit_flags: u8 = 0;
+    order_action_bit_flags = set_order_bit_flag(
+        order_action_bit_flags,
+        taker.orders[taker_order_index].is_signed_msg(),
+        OrderBitFlag::SignedMessage,
+    );
+    if taker.perp_positions[taker_position_index].is_isolated()
+        || maker_user.perp_positions[maker_position_index].is_isolated()
+    {
+        order_action_bit_flags = set_order_bit_flag(
+            order_action_bit_flags,
+            true,
+            OrderBitFlag::IsIsolatedPosition,
+        );
+    }
+
+    let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
+        calculate_existing_position_fields_for_order_action(
+            fill.base_filled,
+            taker_existing_position_params_before,
+        )?;
+    let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) =
+        calculate_existing_position_fields_for_order_action(
+            fill.base_filled,
+            maker_existing_position_params,
+        )?;
+    let taker_order_for_record = taker.orders[taker_order_index];
+    let maker_order_for_record = maker_user.orders[m_idx];
+    let m_key_owned = *m_key;
+    emit_perp_action_record(
+        market,
+        oracle_map,
+        now,
+        order_action_explanation,
+        filler_key,
+        filler_reward,
+        fill.base_filled,
+        fill.quote_filled,
+        taker_fee.safe_add(builder_fee)?,
+        Some(maker_rebate),
+        referrer_reward,
+        None,
+        Some(*taker_key),
+        Some(taker_order_for_record),
+        Some(m_key_owned),
+        Some(maker_order_for_record),
+        order_action_bit_flags,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
+        builder_idx,
+        builder_fee_option,
+    )?;
+
+    Ok((fill.base_filled, fill.quote_filled, fill.base_filled))
+}
+
 /// Unified fulfill step. Replaces `fulfill_perp_order_with_amm` and
 /// `fulfill_perp_order_with_match` with a single matcher-driven path: build
 /// the right quoter set from the `PerpFulfillmentMethod`, run `match_take`
@@ -2572,586 +3175,74 @@ pub fn fulfill_perp_order_step(
         }
         match fill.fee_policy {
             FillFeePolicy::AmmHouse => {
-                // For sole-AMM steps with a post_only taker, override the
-                // fill's quote at the order's limit price (the taker, acting
-                // as maker, transacts at limit; the AMM captures the curve
-                // ↔ limit gap as spread surplus). For JIT slices inside a
-                // Match step, `AmmJitQuoter::try_fill_solo` already returns
-                // the jit-price quote + curve↔jit surplus — pass through.
-                let (taker_quote, taker_surplus) =
-                    if !is_jit_within_match && order_post_only && taker_limit_price.is_some() {
-                        crate::controller::position::calculate_quote_asset_amount_surplus(
-                            taker_direction,
-                            fill.quote_filled,
-                            fill.base_filled,
-                            taker_limit_price.unwrap(),
-                        )?
-                    } else {
-                        (fill.quote_filled, fill.quote_asset_amount_surplus)
-                    };
-
-                let reward_referrer = can_reward_user_with_referral_reward(
-                    referrer,
-                    market.market_index,
-                    rev_share_escrow,
-                    builder_referral_feature_enabled,
-                );
-                let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index)
-                    || (!is_jit_within_match
-                        && can_reward_user_with_perp_pnl(maker, market.market_index));
-
-                let (
-                    builder_order_idx,
-                    referrer_builder_order_idx,
-                    builder_order_fee_bps,
-                    builder_idx,
-                ) = get_builder_escrow_info(
-                    rev_share_escrow,
-                    taker.sub_account_id,
-                    order_id,
-                    market.market_index,
-                    builder_referral_feature_enabled,
-                );
-
-                let FillFees {
-                    user_fee,
-                    fee_to_market,
-                    filler_reward,
-                    referee_discount,
-                    referrer_reward,
-                    fee_to_market_for_lp: _fee_to_market_for_lp,
-                    maker_rebate,
-                    builder_fee: builder_fee_option,
-                } = fees::calculate_fee_for_fulfillment_with_amm(
+                let (base_filled, quote_filled) = settle_amm_house_fill(
+                    fill,
+                    market,
+                    taker,
                     taker_stats,
-                    taker_quote,
-                    fee_structure,
-                    order_slot,
-                    slot,
-                    reward_filler,
-                    reward_referrer,
-                    referrer_stats,
-                    taker_surplus,
+                    taker_position_index,
+                    taker_order_index,
+                    taker_key,
+                    taker_direction,
+                    taker_existing_position_params_before,
                     order_post_only,
-                    market.fee_adjustment,
-                    builder_order_fee_bps,
-                )?;
-                let builder_fee = builder_fee_option.unwrap_or(0);
-
-                if builder_fee != 0 {
-                    if let (Some(idx), Some(escrow)) =
-                        (builder_order_idx, rev_share_escrow.as_mut())
-                    {
-                        let order = escrow.get_order_mut(idx)?;
-                        order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
-                    } else {
-                        validate!(
-                            false,
-                            ErrorCode::UnableToLoadRevenueShareAccount,
-                            "Order has builder fee but no escrow account found"
-                        )?;
-                    }
-                }
-
-                let taker_pd =
-                    get_position_delta_for_fill(fill.base_filled, taker_quote, taker_direction)?;
-                update_position_and_market(
-                    &mut taker.perp_positions[taker_position_index],
-                    market,
-                    &taker_pd,
-                )?;
-
-                market.total_exchange_fee = market.total_exchange_fee.safe_add(user_fee.cast()?)?;
-                <crate::amm::AMM as crate::amm::quoter::AmmContract>::apply_fill_fees(
-                    &mut market.amm,
-                    fee_to_market,
-                    taker_surplus,
-                )?;
-
-                taker_stats.increment_total_fees(user_fee)?;
-                taker_stats.increment_total_rebate(maker_rebate)?;
-                taker_stats.increment_total_referee_discount(referee_discount)?;
-
-                if let (Some(idx), Some(escrow)) =
-                    (referrer_builder_order_idx, rev_share_escrow.as_mut())
-                {
-                    let order = escrow.get_order_mut(idx)?;
-                    order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
-                } else if let (Some(referrer_user), Some(referrer_stats_ref)) =
-                    (referrer.as_mut(), referrer_stats.as_mut())
-                {
-                    if let Ok(referrer_position) =
-                        referrer_user.force_get_perp_position_mut(market.market_index)
-                    {
-                        if referrer_reward > 0 {
-                            update_quote_asset_amount(
-                                referrer_position,
-                                market,
-                                referrer_reward.cast()?,
-                            )?;
-                        }
-                        referrer_stats_ref.increment_total_referrer_reward(referrer_reward, now)?;
-                    }
-                }
-
-                if user_fee != 0 || builder_fee != 0 {
-                    controller::position::update_quote_asset_and_break_even_amount(
-                        &mut taker.perp_positions[taker_position_index],
-                        market,
-                        -(user_fee.safe_add(builder_fee)?).cast()?,
-                    )?;
-                }
-                if maker_rebate != 0 {
-                    controller::position::update_quote_asset_and_break_even_amount(
-                        &mut taker.perp_positions[taker_position_index],
-                        market,
-                        maker_rebate.cast()?,
-                    )?;
-                }
-
-                if order_post_only {
-                    taker_stats.update_maker_volume_30d(taker_quote, now)?;
-                } else {
-                    taker_stats.update_taker_volume_30d(taker_quote, now)?;
-                }
-
-                if let Some(filler_user) = filler.as_mut() {
-                    credit_filler_perp_pnl(
-                        filler_user,
-                        filler_stats,
-                        market,
-                        filler_reward,
-                        taker_quote,
-                        now,
-                        slot,
-                    )?;
-                } else if !is_jit_within_match {
-                    if let Some(maker_user) = maker.as_mut() {
-                        credit_filler_perp_pnl(
-                            maker_user,
-                            maker_stats,
-                            market,
-                            filler_reward,
-                            taker_quote,
-                            now,
-                            slot,
-                        )?;
-                    }
-                }
-
-                // Update taker order BEFORE event emit.
-                let is_taker_filled_after_this = update_order_after_fill(
-                    &mut taker.orders[taker_order_index],
-                    fill.base_filled,
-                    taker_quote,
-                )?;
-                if is_taker_filled_after_this {
-                    if let (Some(idx), Some(escrow)) =
-                        (builder_order_idx, rev_share_escrow.as_mut())
-                    {
-                        let _ = escrow
-                            .get_order_mut(idx)
-                            .map(|o| o.add_bit_flag(RevenueShareOrderBitFlag::Completed));
-                    }
-                }
-                decrease_open_bids_and_asks(
-                    &mut taker.perp_positions[taker_position_index],
-                    &taker_direction,
-                    fill.base_filled,
-                    taker.orders[taker_order_index].update_open_bids_and_asks(),
-                )?;
-
-                let (taker_record_key, taker_record_order, maker_record_key, maker_record_order) =
-                    get_taker_and_maker_for_order_record(
-                        taker_key,
-                        &taker.orders[taker_order_index],
-                    );
-
-                let order_action_explanation = if is_liquidation {
-                    OrderActionExplanation::Liquidation
-                } else if is_jit_within_match {
-                    OrderActionExplanation::OrderFilledWithAMMJit
-                } else {
-                    OrderActionExplanation::OrderFilledWithAMM
-                };
-                let mut order_action_bit_flags: u8 = 0;
-                order_action_bit_flags = set_order_bit_flag(
-                    order_action_bit_flags,
-                    taker.orders[taker_order_index].is_signed_msg(),
-                    OrderBitFlag::SignedMessage,
-                );
-                if taker.perp_positions[taker_position_index].is_isolated() {
-                    order_action_bit_flags = set_order_bit_flag(
-                        order_action_bit_flags,
-                        true,
-                        OrderBitFlag::IsIsolatedPosition,
-                    );
-                }
-
-                let (
-                    taker_existing_quote_entry_amount,
-                    taker_existing_base_asset_amount,
-                    maker_existing_quote_entry_amount,
-                    maker_existing_base_asset_amount,
-                ) = {
-                    let (existing_quote_entry_amount, existing_base_asset_amount) =
-                        calculate_existing_position_fields_for_order_action(
-                            fill.base_filled,
-                            taker_existing_position_params_before,
-                        )?;
-                    if taker_record_key.is_some() {
-                        (
-                            existing_quote_entry_amount,
-                            existing_base_asset_amount,
-                            None,
-                            None,
-                        )
-                    } else {
-                        (
-                            None,
-                            None,
-                            existing_quote_entry_amount,
-                            existing_base_asset_amount,
-                        )
-                    }
-                };
-
-                emit_perp_action_record(
-                    market,
+                    order_slot,
+                    order_id,
+                    taker_limit_price,
+                    is_jit_within_match,
+                    is_liquidation,
+                    maker,
+                    maker_stats,
+                    filler,
+                    filler_stats,
+                    filler_key,
+                    referrer,
+                    referrer_stats,
+                    rev_share_escrow,
+                    builder_referral_feature_enabled,
+                    fee_structure,
                     oracle_map,
                     now,
-                    order_action_explanation,
-                    filler_key,
-                    filler_reward,
-                    fill.base_filled,
-                    taker_quote,
-                    user_fee.safe_add(builder_fee)?,
-                    if maker_rebate != 0 {
-                        Some(maker_rebate)
-                    } else {
-                        None
-                    },
-                    referrer_reward,
-                    Some(taker_surplus),
-                    taker_record_key,
-                    taker_record_order,
-                    maker_record_key,
-                    maker_record_order,
-                    order_action_bit_flags,
-                    taker_existing_quote_entry_amount,
-                    taker_existing_base_asset_amount,
-                    maker_existing_quote_entry_amount,
-                    maker_existing_base_asset_amount,
-                    builder_idx,
-                    builder_fee_option,
+                    slot,
                 )?;
-
-                total_base_filled = total_base_filled.safe_add(fill.base_filled)?;
-                total_quote_filled = total_quote_filled.safe_add(taker_quote)?;
+                total_base_filled = total_base_filled.safe_add(base_filled)?;
+                total_quote_filled = total_quote_filled.safe_add(quote_filled)?;
             }
             FillFeePolicy::DlobMatch => {
-                // DlobMatch fills only land from a Match step, which always
-                // populates `match_maker_price`.
-                let match_maker_price =
-                    match_maker_price.ok_or_else(print_error!(ErrorCode::DefaultError))?;
-                let m_idx = maker_order_index.ok_or_else(print_error!(ErrorCode::DefaultError))?;
-                let m_key = maker_key_opt.ok_or_else(print_error!(ErrorCode::DefaultError))?;
-                let maker_user = maker
-                    .as_deref_mut()
-                    .ok_or_else(print_error!(ErrorCode::DefaultError))?;
-                let maker_position_index =
-                    get_position_index(&maker_user.perp_positions, market.market_index)?;
-                let maker_direction = maker_user.orders[m_idx].direction;
-                let maker_order_has_jit_flag = maker_user.orders[m_idx].is_jit_maker();
-
-                let taker_price_validate =
-                    taker_price_for_match.ok_or_else(print_error!(ErrorCode::DefaultError))?;
-                validate_fill_price(
-                    fill.quote_filled,
-                    fill.base_filled,
-                    BASE_PRECISION_U64,
-                    taker_direction,
-                    taker_price_validate,
-                    true,
-                )?;
-                validate_fill_price(
-                    fill.quote_filled,
-                    fill.base_filled,
-                    BASE_PRECISION_U64,
-                    maker_direction,
-                    match_maker_price,
-                    false,
-                )?;
-
-                let maker_pd = get_position_delta_for_fill(
-                    fill.base_filled,
-                    fill.quote_filled,
-                    maker_direction,
-                )?;
-                update_position_and_market(
-                    &mut maker_user.perp_positions[maker_position_index],
+                let (base_filled, quote_filled, maker_filled) = settle_dlob_match_fill(
+                    fill,
                     market,
-                    &maker_pd,
-                )?;
-
-                if let Some(ms) = maker_stats.as_mut() {
-                    ms.update_maker_volume_30d(fill.quote_filled, now)?;
-                } else {
-                    taker_stats.update_maker_volume_30d(fill.quote_filled, now)?;
-                }
-
-                let taker_pd = get_position_delta_for_fill(
-                    fill.base_filled,
-                    fill.quote_filled,
-                    taker_direction,
-                )?;
-                update_position_and_market(
-                    &mut taker.perp_positions[taker_position_index],
-                    market,
-                    &taker_pd,
-                )?;
-                taker_stats.update_taker_volume_30d(fill.quote_filled, now)?;
-
-                let reward_referrer = can_reward_user_with_referral_reward(
-                    referrer,
-                    market.market_index,
-                    rev_share_escrow,
-                    builder_referral_feature_enabled,
-                );
-                let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
-
-                let (
-                    builder_order_idx,
-                    referrer_builder_order_idx,
-                    builder_order_fee_bps,
-                    builder_idx,
-                ) = get_builder_escrow_info(
-                    rev_share_escrow,
-                    taker.sub_account_id,
-                    taker.orders[taker_order_index].order_id,
-                    market.market_index,
-                    builder_referral_feature_enabled,
-                );
-
-                let filler_multiplier = if reward_filler {
-                    calculate_filler_multiplier_for_matched_orders(
-                        match_maker_price,
-                        maker_direction,
-                        oracle_price,
-                    )?
-                } else {
-                    0
-                };
-
-                let FillFees {
-                    user_fee: taker_fee,
-                    maker_rebate,
-                    fee_to_market,
-                    filler_reward,
-                    referrer_reward,
-                    referee_discount,
-                    builder_fee: builder_fee_option,
-                    ..
-                } = fees::calculate_fee_for_fulfillment_with_match(
+                    taker,
                     taker_stats,
+                    taker_position_index,
+                    taker_order_index,
+                    taker_key,
+                    taker_direction,
+                    taker_existing_position_params_before,
+                    maker,
                     maker_stats,
-                    fill.quote_filled,
-                    fee_structure,
-                    taker.orders[taker_order_index].slot,
-                    slot,
-                    filler_multiplier,
-                    reward_referrer,
-                    referrer_stats,
-                    &MarketType::Perp,
-                    market.fee_adjustment,
-                    builder_order_fee_bps,
-                )?;
-                let builder_fee = builder_fee_option.unwrap_or(0);
-
-                if builder_fee != 0 {
-                    if let (Some(idx), Some(escrow)) =
-                        (builder_order_idx, rev_share_escrow.as_deref_mut())
-                    {
-                        let order = escrow.get_order_mut(idx)?;
-                        order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
-                    } else {
-                        validate!(
-                            false,
-                            ErrorCode::UnableToLoadRevenueShareAccount,
-                            "Order has builder fee but no escrow account found"
-                        )?;
-                    }
-                }
-
-                market.total_exchange_fee =
-                    market.total_exchange_fee.safe_add(fee_to_market.cast()?)?;
-
-                controller::position::update_quote_asset_and_break_even_amount(
-                    &mut taker.perp_positions[taker_position_index],
-                    market,
-                    -(taker_fee.safe_add(builder_fee)?).cast()?,
-                )?;
-
-                taker_stats.increment_total_fees(taker_fee)?;
-                taker_stats.increment_total_referee_discount(referee_discount)?;
-
-                controller::position::update_quote_asset_and_break_even_amount(
-                    &mut maker_user.perp_positions[maker_position_index],
-                    market,
-                    maker_rebate.cast()?,
-                )?;
-
-                if let Some(ms) = maker_stats.as_mut() {
-                    ms.increment_total_rebate(maker_rebate)?;
-                } else {
-                    taker_stats.increment_total_rebate(maker_rebate)?;
-                }
-
-                if let Some(filler_user) = filler.as_mut() {
-                    if filler_reward > 0 {
-                        let filler_position_index =
-                            get_position_index(&filler_user.perp_positions, market.market_index)
-                                .or_else(|_| {
-                                    add_new_position(
-                                        &mut filler_user.perp_positions,
-                                        market.market_index,
-                                    )
-                                })?;
-                        controller::position::update_quote_asset_amount(
-                            &mut filler_user.perp_positions[filler_position_index],
-                            market,
-                            filler_reward.cast()?,
-                        )?;
-                        filler_stats
-                            .as_mut()
-                            .safe_unwrap()?
-                            .update_filler_volume(fill.quote_filled, now)?;
-                    }
-                    filler_user.update_last_active_slot(slot);
-                }
-
-                if let (Some(idx), Some(escrow)) =
-                    (referrer_builder_order_idx, rev_share_escrow.as_deref_mut())
-                {
-                    let order = escrow.get_order_mut(idx)?;
-                    order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
-                } else if let (Some(referrer_user), Some(referrer_stats_ref)) =
-                    (referrer.as_mut(), referrer_stats.as_mut())
-                {
-                    if let Ok(referrer_position) =
-                        referrer_user.force_get_perp_position_mut(market.market_index)
-                    {
-                        if referrer_reward > 0 {
-                            update_quote_asset_amount(
-                                referrer_position,
-                                market,
-                                referrer_reward.cast()?,
-                            )?;
-                        }
-                        referrer_stats_ref.increment_total_referrer_reward(referrer_reward, now)?;
-                    }
-                }
-
-                // Update taker order BEFORE event emit.
-                let is_taker_filled_after_this = update_order_after_fill(
-                    &mut taker.orders[taker_order_index],
-                    fill.base_filled,
-                    fill.quote_filled,
-                )?;
-                if is_taker_filled_after_this {
-                    if let (Some(idx), Some(escrow)) =
-                        (builder_order_idx, rev_share_escrow.as_deref_mut())
-                    {
-                        let _ = escrow
-                            .get_order_mut(idx)
-                            .map(|o| o.add_bit_flag(RevenueShareOrderBitFlag::Completed));
-                    }
-                }
-                decrease_open_bids_and_asks(
-                    &mut taker.perp_positions[taker_position_index],
-                    &taker_direction,
-                    fill.base_filled,
-                    taker.orders[taker_order_index].update_open_bids_and_asks(),
-                )?;
-
-                // Maker open-bids/asks bookkeeping. commit_fill already
-                // updated maker order's filled counters; we only need open
-                // bids/asks decrement + status flip.
-                decrease_open_bids_and_asks(
-                    &mut maker_user.perp_positions[maker_position_index],
-                    &maker_direction,
-                    fill.base_filled,
-                    maker_user.orders[m_idx].update_open_bids_and_asks(),
-                )?;
-                if maker_user.orders[m_idx].get_base_asset_amount_unfilled(None)? == 0 {
-                    maker_user.orders[m_idx].status = OrderStatus::Filled;
-                }
-
-                let order_action_explanation = if is_liquidation {
-                    OrderActionExplanation::Liquidation
-                } else if maker_order_has_jit_flag {
-                    OrderActionExplanation::OrderFilledWithMatchJit
-                } else {
-                    OrderActionExplanation::OrderFilledWithMatch
-                };
-                let mut order_action_bit_flags: u8 = 0;
-                order_action_bit_flags = set_order_bit_flag(
-                    order_action_bit_flags,
-                    taker.orders[taker_order_index].is_signed_msg(),
-                    OrderBitFlag::SignedMessage,
-                );
-                if taker.perp_positions[taker_position_index].is_isolated()
-                    || maker_user.perp_positions[maker_position_index].is_isolated()
-                {
-                    order_action_bit_flags = set_order_bit_flag(
-                        order_action_bit_flags,
-                        true,
-                        OrderBitFlag::IsIsolatedPosition,
-                    );
-                }
-
-                let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
-                    calculate_existing_position_fields_for_order_action(
-                        fill.base_filled,
-                        taker_existing_position_params_before,
-                    )?;
-                let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) =
-                    calculate_existing_position_fields_for_order_action(
-                        fill.base_filled,
-                        maker_existing_position_params,
-                    )?;
-                let taker_order_for_record = taker.orders[taker_order_index];
-                let maker_order_for_record = maker_user.orders[m_idx];
-                let m_key_owned = *m_key;
-                emit_perp_action_record(
-                    market,
-                    oracle_map,
-                    now,
-                    order_action_explanation,
+                    maker_order_index,
+                    maker_key_opt,
+                    maker_existing_position_params,
+                    match_maker_price,
+                    taker_price_for_match,
+                    oracle_price,
+                    filler,
+                    filler_stats,
                     filler_key,
-                    filler_reward,
-                    fill.base_filled,
-                    fill.quote_filled,
-                    taker_fee.safe_add(builder_fee)?,
-                    Some(maker_rebate),
-                    referrer_reward,
-                    None,
-                    Some(*taker_key),
-                    Some(taker_order_for_record),
-                    Some(m_key_owned),
-                    Some(maker_order_for_record),
-                    order_action_bit_flags,
-                    taker_existing_quote_entry_amount,
-                    taker_existing_base_asset_amount,
-                    maker_existing_quote_entry_amount,
-                    maker_existing_base_asset_amount,
-                    builder_idx,
-                    builder_fee_option,
+                    referrer,
+                    referrer_stats,
+                    rev_share_escrow,
+                    builder_referral_feature_enabled,
+                    fee_structure,
+                    oracle_map,
+                    is_liquidation,
+                    now,
+                    slot,
                 )?;
-
-                total_base_filled = total_base_filled.safe_add(fill.base_filled)?;
-                total_quote_filled = total_quote_filled.safe_add(fill.quote_filled)?;
-                maker_base_filled = maker_base_filled.safe_add(fill.base_filled)?;
+                total_base_filled = total_base_filled.safe_add(base_filled)?;
+                total_quote_filled = total_quote_filled.safe_add(quote_filled)?;
+                maker_base_filled = maker_base_filled.safe_add(maker_filled)?;
             }
         }
     }

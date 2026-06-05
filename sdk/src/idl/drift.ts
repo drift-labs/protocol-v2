@@ -5007,15 +5007,7 @@ export type Drift = {
           "writable": true
         },
         {
-          "name": "liquidatorStats",
-          "writable": true
-        },
-        {
           "name": "user",
-          "writable": true
-        },
-        {
-          "name": "userStats",
           "writable": true
         }
       ],
@@ -5065,15 +5057,7 @@ export type Drift = {
           "writable": true
         },
         {
-          "name": "liquidatorStats",
-          "writable": true
-        },
-        {
           "name": "user",
-          "writable": true
-        },
-        {
-          "name": "userStats",
           "writable": true
         },
         {
@@ -5206,15 +5190,7 @@ export type Drift = {
           "writable": true
         },
         {
-          "name": "liquidatorStats",
-          "writable": true
-        },
-        {
           "name": "user",
-          "writable": true
-        },
-        {
-          "name": "userStats",
           "writable": true
         },
         {

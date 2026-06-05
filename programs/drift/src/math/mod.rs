@@ -25,7 +25,6 @@ pub mod matching;
 pub mod oracle;
 pub mod orders;
 pub mod perp_market;
-pub mod pnl;
 pub mod position;
 pub mod quote_asset;
 pub mod safe_math;

@@ -1124,7 +1124,6 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 
     validate!(
         crate::amm::math::amm::calculate_net_user_cost_basis(
-            &perp_market.amm,
             perp_market.quote_asset_amount,
             perp_market.net_unsettled_funding_pnl,
         )? == 0,

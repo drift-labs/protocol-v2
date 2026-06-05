@@ -1050,6 +1050,53 @@ impl AMM {
         Ok(())
     }
 
+    /// Value of unwinding the AMM's entire net inventory
+    /// (`base_asset_amount_with_amm`) back against its own constant-product
+    /// curve — the AMM's terminal market value. Pure AMM math (reserves /
+    /// `sqrt_k` / `peg`); used by repeg / k-update cost accounting.
+    pub fn inventory_close_value(&self) -> DriftResult<u128> {
+        let base_asset_amount = self.base_asset_amount_with_amm;
+        if base_asset_amount == 0 {
+            return Ok(0);
+        }
+        let swap_direction = if base_asset_amount >= 0 {
+            crate::amm::controller::SwapDirection::Add
+        } else {
+            crate::amm::controller::SwapDirection::Remove
+        };
+        let (new_quote_asset_reserve, _) = amm::calculate_swap_output(
+            base_asset_amount.unsigned_abs(),
+            self.base_asset_reserve,
+            swap_direction,
+            self.sqrt_k,
+        )?;
+        amm::calculate_quote_asset_amount_swapped(
+            self.quote_asset_reserve,
+            new_quote_asset_reserve,
+            swap_direction,
+            self.peg_multiplier,
+        )
+    }
+
+    /// [`Self::inventory_close_value`] plus the PnL of closing the inventory
+    /// relative to `prior_value`. Passing the pre-adjustment value as
+    /// `prior_value` gives the cost of a repeg / k-update as
+    /// `value_after − value_before`.
+    pub fn inventory_value_and_pnl(&self, prior_value: u128) -> DriftResult<(u128, i128)> {
+        if self.base_asset_amount_with_amm == 0 {
+            return Ok((0, 0));
+        }
+        let value = self.inventory_close_value()?;
+        // Long inventory (closed by adding base back) profits when the exit
+        // value exceeds entry; short inventory profits when it's lower.
+        let pnl = if self.base_asset_amount_with_amm >= 0 {
+            value.cast::<i128>()?.safe_sub(prior_value.cast()?)?
+        } else {
+            prior_value.cast::<i128>()?.safe_sub(value.cast()?)?
+        };
+        Ok((value, pnl))
+    }
+
     /// Adjust k and return the protocol cost of doing so.
     ///
     /// The cost compares the AMM's notional position value before/after the k
@@ -1060,17 +1107,10 @@ impl AMM {
         &mut self,
         update: &crate::amm::math::cp_curve::UpdateKResult,
     ) -> DriftResult<i128> {
-        use crate::math::position::{
-            calculate_base_asset_value, calculate_base_asset_value_and_pnl,
-        };
-        let current_net_market_value =
-            calculate_base_asset_value(self.base_asset_amount_with_amm, self)?;
+        let current_net_market_value = self.inventory_close_value()?;
         self.apply_k_update(update)?;
-        let (_new_net_market_value, cost) = calculate_base_asset_value_and_pnl(
-            self.base_asset_amount_with_amm,
-            current_net_market_value,
-            self,
-        )?;
+        let (_new_net_market_value, cost) =
+            self.inventory_value_and_pnl(current_net_market_value)?;
         Ok(cost)
     }
 }

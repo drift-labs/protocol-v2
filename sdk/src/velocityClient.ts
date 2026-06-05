@@ -8396,7 +8396,6 @@ export class VelocityClient {
 		quote,
 		userAccount,
 		userAccountPublicKey,
-		userStatsAccountPublicKey,
 		liquidatorSubAccountId,
 		maxAccounts,
 	}: {
@@ -8412,7 +8411,6 @@ export class VelocityClient {
 		quote?: QuoteResponse;
 		userAccount: UserAccount;
 		userAccountPublicKey: PublicKey;
-		userStatsAccountPublicKey: PublicKey;
 		liquidatorSubAccountId?: number;
 		maxAccounts?: number;
 	}): Promise<{
@@ -8506,7 +8504,6 @@ export class VelocityClient {
 			liabilityTokenAccount,
 			userAccount,
 			userAccountPublicKey,
-			userStatsAccountPublicKey,
 			liquidatorSubAccountId,
 		});
 
@@ -8530,7 +8527,6 @@ export class VelocityClient {
 	 * @param liabilityTokenAccount the token account to receive the tokens being bought
 	 * @param userAccount
 	 * @param userAccountPublicKey
-	 * @param userStatsAccountPublicKey
 	 */
 	public async getLiquidateSpotWithSwapIx({
 		liabilityMarketIndex,
@@ -8540,7 +8536,6 @@ export class VelocityClient {
 		liabilityTokenAccount,
 		userAccount,
 		userAccountPublicKey,
-		userStatsAccountPublicKey,
 		liquidatorSubAccountId,
 	}: {
 		liabilityMarketIndex: number;
@@ -8550,7 +8545,6 @@ export class VelocityClient {
 		liabilityTokenAccount: PublicKey;
 		userAccount: UserAccount;
 		userAccountPublicKey: PublicKey;
-		userStatsAccountPublicKey: PublicKey;
 		liquidatorSubAccountId?: number;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
@@ -8559,7 +8553,6 @@ export class VelocityClient {
 		const liquidatorAccountPublicKey = await this.getUserAccountPublicKey(
 			liquidatorSubAccountId
 		);
-		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const userAccounts = [userAccount];
 		const remainingAccounts = this.getRemainingAccounts({
@@ -8621,9 +8614,7 @@ export class VelocityClient {
 					accounts: {
 						state: await this.getStatePublicKey(),
 						user: userAccountPublicKey,
-						userStats: userStatsAccountPublicKey,
 						liquidator: liquidatorAccountPublicKey,
-						liquidatorStats: liquidatorStatsPublicKey,
 						authority: this.wallet.publicKey,
 						liabilitySpotMarketVault: liabilitySpotMarket.vault,
 						assetSpotMarketVault: assetSpotMarket.vault,
@@ -8644,9 +8635,7 @@ export class VelocityClient {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKey,
-					userStats: userStatsAccountPublicKey,
 					liquidator: liquidatorAccountPublicKey,
-					liquidatorStats: liquidatorStatsPublicKey,
 					authority: this.wallet.publicKey,
 					liabilitySpotMarketVault: liabilitySpotMarket.vault,
 					assetSpotMarketVault: assetSpotMarket.vault,

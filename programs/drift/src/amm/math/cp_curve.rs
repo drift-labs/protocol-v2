@@ -8,7 +8,6 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TO_QUOTE_PRECISION_RATIO_I128, K_BPS_UPDATE_SCALE,
     MAX_K_BPS_DECREASE, MAX_SQRT_K, PEG_PRECISION, PERCENTAGE_PRECISION_I128, QUOTE_PRECISION,
 };
-use crate::math::position::calculate_base_asset_value_and_pnl;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::market_status::MarketStatus;
@@ -172,16 +171,12 @@ pub fn adjust_k_cost(amm: &AMM, update_k_result: &UpdateKResult) -> DriftResult<
     let mut amm_clone = *amm;
 
     // Find the net market value before adjusting k
-    let (current_net_market_value, _) =
-        calculate_base_asset_value_and_pnl(amm_clone.base_asset_amount_with_amm, 0, &amm_clone)?;
+    let (current_net_market_value, _) = amm_clone.inventory_value_and_pnl(0)?;
 
     amm_clone.apply_k_update(update_k_result)?;
 
-    let (_new_net_market_value, cost) = calculate_base_asset_value_and_pnl(
-        amm_clone.base_asset_amount_with_amm,
-        current_net_market_value,
-        &amm_clone,
-    )?;
+    let (_new_net_market_value, cost) =
+        amm_clone.inventory_value_and_pnl(current_net_market_value)?;
 
     Ok(cost)
 }

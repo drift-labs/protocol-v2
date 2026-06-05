@@ -1,6 +1,4 @@
 use crate::amm::controller::SwapDirection;
-use crate::amm::math::amm;
-use crate::amm::math::amm::calculate_quote_asset_amount_swapped;
 use crate::controller::position::PositionDelta;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
@@ -8,53 +6,9 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
 };
-use crate::math::pnl::calculate_pnl;
 use crate::math::safe_math::SafeMath;
 
-use crate::amm::AMM;
 use crate::state::user::PerpPosition;
-
-pub fn calculate_base_asset_value_and_pnl(
-    base_asset_amount: i128,
-    quote_asset_amount: u128,
-    amm: &AMM,
-) -> DriftResult<(u128, i128)> {
-    if base_asset_amount == 0 {
-        return Ok((0, 0));
-    }
-    let swap_direction = swap_direction_to_close_position(base_asset_amount);
-    let base_asset_value = calculate_base_asset_value(base_asset_amount, amm)?;
-    let pnl = calculate_pnl(base_asset_value, quote_asset_amount, swap_direction)?;
-
-    Ok((base_asset_value, pnl))
-}
-
-pub fn calculate_base_asset_value(base_asset_amount: i128, amm: &AMM) -> DriftResult<u128> {
-    if base_asset_amount == 0 {
-        return Ok(0);
-    }
-
-    let swap_direction = swap_direction_to_close_position(base_asset_amount);
-
-    let (base_asset_reserve, quote_asset_reserve) =
-        (amm.base_asset_reserve, amm.quote_asset_reserve);
-
-    let (new_quote_asset_reserve, _new_base_asset_reserve) = amm::calculate_swap_output(
-        base_asset_amount.unsigned_abs(),
-        base_asset_reserve,
-        swap_direction,
-        amm.sqrt_k,
-    )?;
-
-    let base_asset_value = calculate_quote_asset_amount_swapped(
-        quote_asset_reserve,
-        new_quote_asset_reserve,
-        swap_direction,
-        amm.peg_multiplier,
-    )?;
-
-    Ok(base_asset_value)
-}
 
 pub fn calculate_base_asset_value_with_oracle_price(
     base_asset_amount: i128,

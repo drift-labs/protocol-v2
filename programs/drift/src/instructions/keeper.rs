@@ -1280,9 +1280,7 @@ pub fn handle_liquidate_spot<'c: 'info, 'info>(
     )?;
 
     let user = &mut load_mut!(ctx.accounts.user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
-    let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
     let AccountMaps {
         perp_market_map,
@@ -1303,10 +1301,8 @@ pub fn handle_liquidate_spot<'c: 'info, 'info>(
         limit_price,
         user,
         &user_key,
-        user_stats,
         liquidator,
         &liquidator_key,
-        liquidator_stats,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1340,9 +1336,7 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
     )?;
 
     let user = &mut load_mut!(ctx.accounts.user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
-    let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
@@ -1412,10 +1406,8 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
         swap_amount,
         user,
         &user_key,
-        user_stats,
         liquidator,
         &liquidator_key,
-        liquidator_stats,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -1635,11 +1627,8 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(&ctx.accounts.user)?;
-    let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
 
     let liquidator_key = ctx.accounts.liquidator.key();
-    let mut liquidator = load_mut!(&ctx.accounts.liquidator)?;
-    let mut liquidator_stats = load_mut!(&ctx.accounts.liquidator_stats)?;
 
     let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 
@@ -1741,10 +1730,7 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
         liability_market_index,
         &mut user,
         &user_key,
-        &mut user_stats,
-        &mut liquidator,
         &liquidator_key,
-        &mut liquidator_stats,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -3603,18 +3589,8 @@ pub struct LiquidateSpot<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
-    )]
-    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -3681,18 +3657,8 @@ pub struct LiquidateSpotWithSwap<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
-    )]
-    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
         seeds = [b"spot_market_vault".as_ref(), liability_market_index.to_le_bytes().as_ref()],

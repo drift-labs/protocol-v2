@@ -5001,15 +5001,7 @@
           "writable": true
         },
         {
-          "name": "liquidator_stats",
-          "writable": true
-        },
-        {
           "name": "user",
-          "writable": true
-        },
-        {
-          "name": "user_stats",
           "writable": true
         }
       ],
@@ -5059,15 +5051,7 @@
           "writable": true
         },
         {
-          "name": "liquidator_stats",
-          "writable": true
-        },
-        {
           "name": "user",
-          "writable": true
-        },
-        {
-          "name": "user_stats",
           "writable": true
         },
         {
@@ -5200,15 +5184,7 @@
           "writable": true
         },
         {
-          "name": "liquidator_stats",
-          "writable": true
-        },
-        {
           "name": "user",
-          "writable": true
-        },
-        {
-          "name": "user_stats",
           "writable": true
         },
         {
