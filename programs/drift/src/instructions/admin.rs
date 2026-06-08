@@ -3399,27 +3399,6 @@ pub fn handle_update_feature_bit_flags_builder_codes(
     Ok(())
 }
 
-pub fn handle_update_feature_bit_flags_builder_referral(
-    ctx: Context<HotAdminUpdateState>,
-    enable: bool,
-) -> Result<()> {
-    let mut state = ctx.accounts.state.load_mut()?;
-    if enable {
-        validate!(
-            ctx.accounts.admin.key().eq(&state.cold_admin),
-            ErrorCode::DefaultError,
-            "Only state admin can enable feature bit flags"
-        )?;
-
-        msg!("Setting 4th bit to 1, enabling builder referral");
-        state.feature_bit_flags |= FeatureBitFlags::BuilderReferral as u8;
-    } else {
-        msg!("Setting 4th bit to 0, disabling builder referral");
-        state.feature_bit_flags &= !(FeatureBitFlags::BuilderReferral as u8);
-    }
-    Ok(())
-}
-
 pub fn handle_update_feature_bit_flags_settle_lp_pool(
     ctx: Context<HotAdminUpdateState>,
     enable: bool,

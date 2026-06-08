@@ -2549,27 +2549,36 @@ export class VelocityClient {
 		remainingAccounts: AccountMeta[]
 	): void {
 		for (const builder of builders) {
-			// Add User account for the builder
+			// Add User account for the builder. Dedupe by pubkey: an authority may be
+			// both a builder and the referrer, in which case its User + RevenueShare
+			// accounts would otherwise be pushed twice. On-chain `load_revenue_share_map`
+			// rejects duplicates, which would silently abort the entire sweep.
 			const builderUserAccount = getUserAccountPublicKeySync(
 				this.program.programId,
 				builder,
 				0 // subAccountId 0 for builder user account
 			);
-			remainingAccounts.push({
-				pubkey: builderUserAccount,
-				isSigner: false,
-				isWritable: true,
-			});
+			if (
+				!remainingAccounts.find((a) => a.pubkey.equals(builderUserAccount))
+			) {
+				remainingAccounts.push({
+					pubkey: builderUserAccount,
+					isSigner: false,
+					isWritable: true,
+				});
+			}
 
 			const builderAccount = getRevenueShareAccountPublicKey(
 				this.program.programId,
 				builder
 			);
-			remainingAccounts.push({
-				pubkey: builderAccount,
-				isSigner: false,
-				isWritable: true,
-			});
+			if (!remainingAccounts.find((a) => a.pubkey.equals(builderAccount))) {
+				remainingAccounts.push({
+					pubkey: builderAccount,
+					isSigner: false,
+					isWritable: true,
+				});
+			}
 		}
 	}
 
@@ -4395,7 +4404,6 @@ export class VelocityClient {
 			undefined,
 			undefined,
 			undefined,
-			undefined,
 			subAccountId
 		);
 	}
@@ -4421,7 +4429,6 @@ export class VelocityClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
 		positionMaxLev?: number,
@@ -4502,7 +4509,6 @@ export class VelocityClient {
 					marketIndex,
 				},
 				makerInfo,
-				referrerInfo,
 				userAccount.subAccountId
 			);
 		}
@@ -4543,7 +4549,6 @@ export class VelocityClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean
 	): Promise<{
@@ -4559,7 +4564,6 @@ export class VelocityClient {
 			makerInfo,
 			txParams,
 			bracketOrdersParams,
-			referrerInfo,
 			cancelExistingOrders,
 			settlePnl
 		);
@@ -5300,7 +5304,6 @@ export class VelocityClient {
 		user: UserAccount,
 		order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		fillerSubAccountId?: number,
 		fillerAuthority?: PublicKey,
@@ -5313,7 +5316,6 @@ export class VelocityClient {
 					user,
 					order,
 					makerInfo,
-					referrerInfo,
 					fillerSubAccountId,
 					undefined,
 					fillerAuthority,
@@ -5332,7 +5334,6 @@ export class VelocityClient {
 		userAccount: UserAccount,
 		order: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		fillerSubAccountId?: number,
 		isSignedMsg?: boolean,
 		fillerAuthority?: PublicKey,
@@ -5398,24 +5399,6 @@ export class VelocityClient {
 				isWritable: true,
 				isSigner: false,
 			});
-		}
-
-		if (referrerInfo) {
-			const referrerIsMaker =
-				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
-				undefined;
-			if (!referrerIsMaker) {
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrer,
-					isWritable: true,
-					isSigner: false,
-				});
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrerStats,
-					isWritable: true,
-					isSigner: false,
-				});
-			}
 		}
 
 		let withBuilder = false;
@@ -5510,7 +5493,6 @@ export class VelocityClient {
 		_order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo | MakerInfo[],
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams
 	): Promise<TransactionSignature> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -5522,7 +5504,6 @@ export class VelocityClient {
 		_order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo | MakerInfo[],
-		_referrerInfo?: ReferrerInfo,
 		_fillerPublicKey?: PublicKey
 	): Promise<TransactionInstruction> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -6520,7 +6501,6 @@ export class VelocityClient {
 	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		auctionDurationPercentage?: number,
 		txParams?: TxParams,
@@ -6531,7 +6511,6 @@ export class VelocityClient {
 				await this.getPlaceAndTakePerpOrderIx(
 					orderParams,
 					makerInfo,
-					referrerInfo,
 					successCondition,
 					auctionDurationPercentage,
 					subAccountId
@@ -6547,7 +6526,6 @@ export class VelocityClient {
 	public async preparePlaceAndTakePerpOrderWithAdditionalOrders(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		txParams?: TxParams,
 		subAccountId?: number,
@@ -6584,7 +6562,6 @@ export class VelocityClient {
 			const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
 				orderParams,
 				makerInfo,
-				referrerInfo,
 				undefined,
 				auctionDurationPercentage,
 				subAccountId
@@ -6743,7 +6720,6 @@ export class VelocityClient {
 	public async placeAndTakePerpWithAdditionalOrders(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		txParams?: TxParams,
 		subAccountId?: number,
@@ -6759,7 +6735,6 @@ export class VelocityClient {
 			await this.preparePlaceAndTakePerpOrderWithAdditionalOrders(
 				orderParams,
 				makerInfo,
-				referrerInfo,
 				bracketOrdersParams,
 				txParams,
 				subAccountId,
@@ -6800,7 +6775,6 @@ export class VelocityClient {
 	public async getPlaceAndTakePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		auctionDurationPercentage?: number,
 		subAccountId?: number,
@@ -6842,24 +6816,6 @@ export class VelocityClient {
 			});
 		}
 
-		if (referrerInfo) {
-			const referrerIsMaker =
-				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
-				undefined;
-			if (!referrerIsMaker) {
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrer,
-					isWritable: true,
-					isSigner: false,
-				});
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrerStats,
-					isWritable: true,
-					isSigner: false,
-				});
-			}
-		}
-
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6883,7 +6839,6 @@ export class VelocityClient {
 	public async placeAndMakePerpOrder(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -6892,7 +6847,6 @@ export class VelocityClient {
 				await this.getPlaceAndMakePerpOrderIx(
 					orderParams,
 					takerInfo,
-					referrerInfo,
 					subAccountId
 				),
 				txParams
@@ -6909,7 +6863,6 @@ export class VelocityClient {
 	public async getPlaceAndMakePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -6924,19 +6877,6 @@ export class VelocityClient {
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
-
-		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
 
 		const takerOrderId = takerInfo.order.orderId;
 		if (hasBuilder(takerInfo.order)) {
@@ -7187,7 +7127,6 @@ export class VelocityClient {
 			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
-		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
@@ -7198,7 +7137,6 @@ export class VelocityClient {
 			signedMsgOrderUuid,
 			takerInfo,
 			orderParams,
-			referrerInfo,
 			subAccountId,
 			precedingIxs,
 			overrideCustomIxIndex
@@ -7223,7 +7161,6 @@ export class VelocityClient {
 			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
-		referrerInfo?: ReferrerInfo,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number
@@ -7249,19 +7186,6 @@ export class VelocityClient {
 			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
-
-		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
 
 		const isDelegateSigner = takerInfo.signingAuthority.equals(
 			takerInfo.takerUserAccount.delegate
@@ -7321,7 +7245,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo,
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams,
 		_subAccountId?: number
 	) {
@@ -7332,7 +7255,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo,
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams,
 		_subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -7342,7 +7264,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo,
-		_referrerInfo?: ReferrerInfo,
 		_subAccountId?: number
 	): Promise<TransactionInstruction> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -7352,7 +7273,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_takerInfo: TakerInfo,
 		_fulfillmentConfig?: unknown,
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams,
 		_subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -7363,7 +7283,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_takerInfo: TakerInfo,
 		_fulfillmentConfig?: unknown,
-		_referrerInfo?: ReferrerInfo,
 		_subAccountId?: number
 	): Promise<TransactionInstruction> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -7392,7 +7311,6 @@ export class VelocityClient {
 				reduceOnly: true,
 				price: limitPrice,
 			},
-			undefined,
 			undefined,
 			undefined,
 			undefined,

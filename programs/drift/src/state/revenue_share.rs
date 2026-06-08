@@ -189,11 +189,7 @@ pub struct RevenueShareEscrow {
     /// the owner of this account, a user
     pub authority: Pubkey,
     pub referrer: Pubkey,
-    pub referrer_boost_expire_ts: u32,
-    pub referrer_reward_offset: i8,
-    pub referee_fee_numerator_offset: i8,
-    pub referrer_boost_numerator: i8,
-    pub reserved_fixed: [u8; 17],
+    pub reserved_fixed: [u8; 24],
     pub padding0: u32, // align with [`RevenueShareEscrow::orders`] 4 bytes len prefix
     pub orders: Vec<RevenueShareOrder>,
     pub padding1: u32, // align with [`RevenueShareEscrow::approved_builders`] 4 bytes len prefix
@@ -229,11 +225,7 @@ impl RevenueShareEscrow {
 pub struct RevenueShareEscrowFixed {
     pub authority: Pubkey,
     pub referrer: Pubkey,
-    pub referrer_boost_expire_ts: u32,
-    pub referrer_reward_offset: i8,
-    pub referee_fee_numerator_offset: i8,
-    pub referrer_boost_numerator: i8,
-    pub reserved_fixed: [u8; 17],
+    pub reserved_fixed: [u8; 24],
 }
 
 unsafe impl bytemuck::Pod for RevenueShareEscrowFixed {}

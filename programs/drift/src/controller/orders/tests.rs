@@ -140,8 +140,6 @@ pub mod fulfill_order_with_maker_order {
         filler: &mut Option<&mut User>,
         filler_stats: &mut Option<&mut UserStats>,
         filler_key: &Pubkey,
-        referrer: &mut Option<&mut User>,
-        referrer_stats: &mut Option<&mut UserStats>,
         reserve_price_before: u64,
         valid_oracle_price: Option<i64>,
         taker_limit_price: Option<u64>,
@@ -153,7 +151,6 @@ pub mod fulfill_order_with_maker_order {
         oracle_map: &mut OracleMap,
         is_liquidation: bool,
         rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
-        builder_referral_feature_enabled: bool,
     ) -> DriftResult<(u64, u64, u64)> {
         let method =
             PerpFulfillmentMethod::Match(*maker_key, maker_order_index as u16, maker_price);
@@ -184,8 +181,6 @@ pub mod fulfill_order_with_maker_order {
             filler,
             filler_stats,
             filler_key,
-            referrer,
-            referrer_stats,
             effective_reserve_price,
             valid_oracle_price,
             taker_limit_price,
@@ -196,7 +191,6 @@ pub mod fulfill_order_with_maker_order {
             oracle_map,
             is_liquidation,
             rev_share_escrow,
-            builder_referral_feature_enabled,
         );
         // Restore caller's `maker_stats` so the test can keep using it after.
         *maker_stats = maker_stats_opt;
@@ -276,8 +270,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -289,7 +281,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -403,8 +394,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -416,7 +405,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -530,8 +518,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -543,7 +529,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -657,8 +642,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -670,7 +653,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -783,8 +765,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -796,7 +776,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -875,8 +854,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -888,7 +865,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -968,8 +944,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -981,7 +955,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1061,8 +1034,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1074,7 +1045,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1154,8 +1124,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1167,7 +1135,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1267,8 +1234,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1280,7 +1245,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1385,8 +1349,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1398,7 +1360,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1509,8 +1470,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1522,7 +1481,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1634,8 +1592,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1647,7 +1603,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1777,8 +1732,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1790,7 +1743,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1900,8 +1852,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -1913,7 +1863,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2040,8 +1989,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             Some(oracle_price),
             taker_limit_price,
@@ -2053,7 +2000,6 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2196,8 +2142,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             Some(oracle_price),
             taker_price,
@@ -2209,7 +2153,6 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2345,8 +2288,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -2358,7 +2299,6 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2500,8 +2440,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_price,
@@ -2513,7 +2451,6 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2635,8 +2572,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -2648,7 +2583,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2769,8 +2703,6 @@ pub mod fulfill_order_with_maker_order {
             &mut None,
             &mut None,
             &filler_key,
-            &mut None,
-            &mut None,
             0,
             None,
             taker_limit_price,
@@ -2782,7 +2714,6 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -3171,7 +3102,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -3185,7 +3115,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -3418,7 +3347,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -3432,7 +3360,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -3623,7 +3550,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -3637,7 +3563,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -3839,7 +3764,6 @@ pub mod fulfill_order {
             &mut None,
             &filler_key,
             &mut None,
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -3853,7 +3777,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -4021,7 +3944,6 @@ pub mod fulfill_order {
             &mut None,
             &filler_key,
             &mut None,
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -4035,7 +3957,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -4234,7 +4155,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -4248,7 +4168,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         );
 
         assert!(result.is_ok());
@@ -4436,7 +4355,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -4450,7 +4368,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -4591,7 +4508,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -4605,7 +4521,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -4773,7 +4688,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -4787,7 +4701,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -4964,7 +4877,6 @@ pub mod fulfill_order {
             &clock,
             FillMode::Fill,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -4991,7 +4903,6 @@ pub mod fulfill_order {
             &clock,
             FillMode::Fill,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -5130,7 +5041,6 @@ pub mod fulfill_order {
     //         &filler_key,
     //         &mut None,
     //         &mut None,
-    //         &mut None,
     //         &spot_market_map,
     //         &market_map,
     //         &mut oracle_map,
@@ -5142,8 +5052,7 @@ pub mod fulfill_order {
     //         false,
     //         true,
     //         &mut None,
-    //         false,
-    //     )
+    //         false)
     //     .unwrap();
     //
     //     assert_eq!(base_asset_amount, 0);
@@ -5376,7 +5285,6 @@ pub mod fulfill_order {
             &mut None,
             &filler_key,
             &mut None,
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -5390,7 +5298,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -5636,7 +5543,6 @@ pub mod fulfill_order {
             &mut None,
             &maker_key,
             &mut None,
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -5650,7 +5556,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -5819,7 +5724,6 @@ pub mod fulfill_order {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -5833,7 +5737,6 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -6062,7 +5965,6 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -6263,7 +6165,6 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -6393,7 +6294,6 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -6554,7 +6454,6 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
-            false,
         );
 
         assert_eq!(err, Err(ErrorCode::MaxOpenInterest));
