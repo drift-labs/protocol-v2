@@ -2558,9 +2558,7 @@ export class VelocityClient {
 				builder,
 				0 // subAccountId 0 for builder user account
 			);
-			if (
-				!remainingAccounts.find((a) => a.pubkey.equals(builderUserAccount))
-			) {
+			if (!remainingAccounts.find((a) => a.pubkey.equals(builderUserAccount))) {
 				remainingAccounts.push({
 					pubkey: builderUserAccount,
 					isSigner: false,
