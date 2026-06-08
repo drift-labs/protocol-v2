@@ -16,8 +16,6 @@ pub mod delisting_test {
 
     use crate::controller::liquidation::{liquidate_perp, liquidate_perp_pnl_for_deposit};
     // use crate::controller::orders::fill_order;
-    use crate::amm::math::amm::calculate_net_user_pnl;
-    use crate::amm::refresh::settle_expired_market;
     use crate::controller::liquidation::resolve_perp_bankruptcy;
     use crate::controller::orders::cancel_order;
     use crate::controller::pnl::settle_expired_position;
@@ -48,6 +46,8 @@ pub mod delisting_test {
     use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::vlp::amm::math::amm::calculate_net_user_pnl;
+    use crate::vlp::amm::refresh::settle_expired_market;
 
     use super::*;
 

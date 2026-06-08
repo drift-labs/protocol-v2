@@ -21,16 +21,12 @@ use crate::{
         insurance::update_user_stats_if_stake_amount,
         isolated_position::transfer_isolated_perp_position_deposit,
         liquidation::{liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end},
-        orders::{
-            cancel_orders, validate_market_within_price_band,
-            validate_spot_dlob_trading_enabled_for_market_type,
-        },
+        orders::{cancel_orders, validate_spot_dlob_trading_enabled_for_market_type},
         position::{get_position_index, PositionDirection},
         spot_balance::update_spot_balances,
         token::{receive, send_from_program_vault},
     },
     error::ErrorCode,
-    get_then_update_id,
     ids::{
         dflow_mainnet_aggregator_4, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6,
         serum_program, titan_mainnet_argos_v1,
@@ -46,7 +42,6 @@ use crate::{
             BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT, GOV_SPOT_MARKET_INDEX,
             QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
         },
-        lp_pool::perp_lp_pool_settlement,
         margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement},
         orders::{
             estimate_price_from_side, filter_bids_asks_by_oracle_divergence,
@@ -54,19 +49,15 @@ use crate::{
         },
         position::calculate_base_asset_value_and_pnl_with_oracle_price,
         safe_math::SafeMath,
-        spot_balance::get_token_amount,
         spot_withdraw::validate_spot_market_vault_amount,
     },
     math_error,
     optional_accounts::{get_token_mint, update_prelaunch_oracle},
     print_error, safe_decrement,
-    signer::get_signer_seeds,
     state::{
-        amm_cache::CacheInfo,
-        events::{DeleteUserRecord, LPSettleRecord, OrderActionExplanation, SignedMsgOrderRecord},
+        events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord},
         fill_mode::FillMode,
         insurance_fund_stake::InsuranceFundStake,
-        lp_pool::{Constituent, LPPool, CONSTITUENT_PDA_SEED, SETTLE_AMM_ORACLE_MAX_DELAY},
         market_status::MarketStatus,
         oracle_map::OracleMap,
         order_params::{OrderParams, PlaceOrderOptions},
@@ -100,6 +91,7 @@ use crate::{
         sig_verification::verify_and_decode_ed25519_msg,
         user::{validate_user_deletion, validate_user_is_idle},
     },
+    vlp::amm_cache::CacheInfo,
     OracleSource, ID,
 };
 
@@ -2345,7 +2337,7 @@ pub fn handle_update_funding_rate(
     )?;
     // Refresh PerpMarket-level oracle stats. AMM refresh happens inside
     // `update_funding_rate` via the AmmQuoter's setup phase — not here.
-    let validity = crate::amm::refresh::compute_amm_refresh_validity(
+    let validity = crate::vlp::amm::refresh::compute_amm_refresh_validity(
         perp_market,
         &mm_oracle_price_data,
         &state,
@@ -2455,7 +2447,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     // AMM snap_to_oracle that used to fire here was cargo-cult and is
     // dropped; oracle TWAP / reference-price-offset bookkeeping still
     // happens via refresh_perp_market_stats_from_oracle.
-    let validity = crate::amm::refresh::compute_amm_refresh_validity(
+    let validity = crate::vlp::amm::refresh::compute_amm_refresh_validity(
         perp_market,
         &mm_oracle_price_data,
         &state,
@@ -2496,7 +2488,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         } = &mut **perp_market;
         // Refresh the AMM's cached spread state against this slot's oracle,
         // then fold it (plus DLOB liquidity) into the mark TWAP.
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             &mm_oracle_price_data,
@@ -2712,7 +2704,7 @@ pub fn handle_update_amms<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    crate::amm::refresh::update_amms(&mut perp_market_map, &mut oracle_map, &state, &clock)?;
+    crate::vlp::amm::refresh::update_amms(&mut perp_market_map, &mut oracle_map, &state, &clock)?;
 
     Ok(())
 }
@@ -2741,7 +2733,7 @@ pub fn view_amm_liquidity<'c: 'info, 'info>(
         remaining_accounts_iter,
     )?;
 
-    crate::amm::refresh::update_amms(market_map, oracle_map, &state, &clock)?;
+    crate::vlp::amm::refresh::update_amms(market_map, oracle_map, &state, &clock)?;
 
     for (_key, market_account_loader) in market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
@@ -3046,255 +3038,6 @@ pub fn handle_pause_spot_market_deposit_withdraw(
     Ok(())
 }
 
-pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
-    ctx: Context<'info, SettleAmmPnlToLp<'info>>,
-) -> Result<()> {
-    use perp_lp_pool_settlement::*;
-
-    let slot = Clock::get()?.slot;
-    let state = ctx.accounts.state.load()?;
-    let now = Clock::get()?.unix_timestamp;
-
-    if !state.allow_settle_lp_pool() {
-        msg!("settle lp pool disabled");
-        return Err(ErrorCode::SettleLpPoolDisabled.into());
-    }
-
-    let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
-        ctx.accounts.amm_cache.load_zc_mut()?;
-    let quote_market = &mut ctx.accounts.quote_market.load_mut()?;
-    let mut quote_constituent = ctx.accounts.constituent.load_mut()?;
-    let lp_pool_key = ctx.accounts.lp_pool.key();
-    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
-
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut *quote_market,
-        None,
-        now,
-    )?;
-
-    let tvl_before = quote_market
-        .get_tvl()?
-        .safe_add(quote_constituent.vault_token_balance as u128)?;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map: _,
-        oracle_map: _,
-    } = load_maps(
-        remaining_accounts_iter,
-        &MarketSet::new(),
-        &MarketSet::new(),
-        slot,
-        None,
-    )?;
-
-    for (_, perp_market_loader) in perp_market_map.0.iter() {
-        let mut perp_market = perp_market_loader.load_mut()?;
-        if lp_pool.lp_pool_id != perp_market.lp_pool_id {
-            msg!(
-                "Perp market {} does not have the same lp pool id as the lp pool being settled to: {} != {}",
-                perp_market.market_index,
-                perp_market.lp_pool_id,
-                lp_pool.lp_pool_id
-            );
-            return Err(ErrorCode::InvalidLpPoolId.into());
-        }
-
-        if perp_market.lp_status == 0
-            || PerpLpOperation::is_operation_paused(
-                perp_market.lp_paused_operations,
-                PerpLpOperation::SettleQuoteOwed,
-            )
-        {
-            continue;
-        }
-
-        let cached_info = amm_cache.get_for_market_index_mut(perp_market.market_index)?;
-
-        // Early validation checks
-        if slot.saturating_sub(cached_info.oracle_slot) > SETTLE_AMM_ORACLE_MAX_DELAY {
-            msg!(
-                "Skipping settling perp market {} to dlp because oracle slot is not up to date",
-                perp_market.market_index
-            );
-            continue;
-        }
-
-        validate_market_within_price_band(&perp_market, &state, cached_info.oracle_price)?;
-
-        if perp_market.is_operation_paused(PerpOperation::SettlePnl) {
-            msg!(
-                "Cannot settle pnl under current market = {} status",
-                perp_market.market_index
-            );
-            continue;
-        }
-
-        if cached_info.slot != slot {
-            msg!("Skipping settling perp market {} to lp pool because amm cache was not updated in the same slot",
-                perp_market.market_index);
-            return Err(ErrorCode::AMMCacheStale.into());
-        }
-
-        quote_constituent.sync_token_balance(ctx.accounts.constituent_quote_token_account.amount);
-
-        // Create settlement context
-        let settlement_ctx = SettlementContext {
-            quote_owed_from_lp: cached_info.quote_owed_from_lp_pool,
-            quote_constituent_token_balance: quote_constituent.vault_token_balance,
-            fee_pool_balance: perp_market.amm.fee_pool_token_amount(quote_market)?,
-            pnl_pool_balance: get_token_amount(
-                perp_market.pnl_pool.scaled_balance,
-                quote_market,
-                &SpotBalanceType::Deposit,
-            )?,
-            quote_market,
-            max_settle_quote_amount: lp_pool.max_settle_quote_amount,
-        };
-
-        // Calculate settlement
-        let settlement_result = calculate_settlement_amount(&settlement_ctx)?;
-        validate_settlement_amount(
-            &settlement_ctx,
-            &settlement_result,
-            &perp_market,
-            quote_market,
-        )?;
-
-        if settlement_result.direction == SettlementDirection::None {
-            continue;
-        }
-
-        // Execute token transfer
-        match settlement_result.direction {
-            SettlementDirection::FromLpPool => {
-                execute_token_transfer(
-                    &ctx.accounts.token_program,
-                    &ctx.accounts.constituent_quote_token_account,
-                    &ctx.accounts.quote_token_vault,
-                    &ctx.accounts
-                        .constituent_quote_token_account
-                        .to_account_info(),
-                    &Constituent::get_vault_signer_seeds(
-                        &quote_constituent.lp_pool,
-                        &quote_constituent.spot_market_index,
-                        &quote_constituent.vault_bump,
-                    ),
-                    settlement_result.amount_transferred,
-                    Some(remaining_accounts_iter),
-                )?;
-            }
-            SettlementDirection::ToLpPool => {
-                execute_token_transfer(
-                    &ctx.accounts.token_program,
-                    &ctx.accounts.quote_token_vault,
-                    &ctx.accounts.constituent_quote_token_account,
-                    &ctx.accounts.drift_signer,
-                    &get_signer_seeds(&state.signer_nonce),
-                    settlement_result.amount_transferred,
-                    Some(remaining_accounts_iter),
-                )?;
-            }
-            SettlementDirection::None => unreachable!(),
-        }
-
-        // Update market pools
-        update_perp_market_pools_and_quote_market_balance(
-            &mut perp_market,
-            &settlement_result,
-            quote_market,
-        )?;
-
-        // Emit settle event
-        let record_id = get_then_update_id!(lp_pool, settle_id);
-        emit!(LPSettleRecord {
-            record_id,
-            last_ts: cached_info.last_settle_ts,
-            last_slot: cached_info.last_settle_slot,
-            slot,
-            ts: now,
-            perp_market_index: perp_market.market_index,
-            settle_to_lp_amount: match settlement_result.direction {
-                SettlementDirection::FromLpPool => settlement_result
-                    .amount_transferred
-                    .cast::<i64>()?
-                    .saturating_mul(-1),
-                SettlementDirection::ToLpPool =>
-                    settlement_result.amount_transferred.cast::<i64>()?,
-                SettlementDirection::None => unreachable!(),
-            },
-            perp_amm_pnl_delta: cached_info
-                .last_net_pnl_pool_token_amount
-                .safe_sub(cached_info.last_settle_amm_pnl)?
-                .cast::<i64>()?,
-            perp_amm_ex_fee_delta: cached_info
-                .last_exchange_fees
-                .safe_sub(cached_info.last_settle_amm_ex_fees)?
-                .cast::<i64>()?,
-            lp_aum: lp_pool.last_aum,
-            lp_price: lp_pool.get_price(lp_pool.token_supply)?,
-            lp_pool: lp_pool_key,
-        });
-
-        // Calculate new quote owed amount
-        let new_quote_owed = match settlement_result.direction {
-            SettlementDirection::FromLpPool => cached_info
-                .quote_owed_from_lp_pool
-                .safe_sub(settlement_result.amount_transferred as i64)?,
-            SettlementDirection::ToLpPool => cached_info
-                .quote_owed_from_lp_pool
-                .safe_add(settlement_result.amount_transferred as i64)?,
-            SettlementDirection::None => cached_info.quote_owed_from_lp_pool,
-        };
-
-        // Update cache info
-        update_cache_info(cached_info, &settlement_result, new_quote_owed, slot, now)?;
-
-        // Update LP pool stats
-        match settlement_result.direction {
-            SettlementDirection::FromLpPool => {
-                lp_pool.cumulative_quote_sent_to_perp_markets = lp_pool
-                    .cumulative_quote_sent_to_perp_markets
-                    .saturating_add(settlement_result.amount_transferred as u128);
-            }
-            SettlementDirection::ToLpPool => {
-                lp_pool.cumulative_quote_received_from_perp_markets = lp_pool
-                    .cumulative_quote_received_from_perp_markets
-                    .saturating_add(settlement_result.amount_transferred as u128);
-            }
-            SettlementDirection::None => {}
-        }
-
-        // Sync constituent token balance
-        let constituent_token_account = &mut ctx.accounts.constituent_quote_token_account;
-        constituent_token_account.reload()?;
-        quote_constituent.sync_token_balance(constituent_token_account.amount);
-    }
-
-    // Final validation
-    ctx.accounts.quote_token_vault.reload()?;
-    math::spot_withdraw::validate_spot_market_vault_amount(
-        quote_market,
-        ctx.accounts.quote_token_vault.amount,
-    )?;
-
-    let tvl_after = quote_market
-        .get_tvl()?
-        .safe_add(quote_constituent.vault_token_balance as u128)?;
-
-    validate!(
-        tvl_before.safe_sub(tvl_after)? <= 10,
-        ErrorCode::LpPoolSettleInvariantBreached,
-        "LP pool settlement would decrease TVL: {} -> {}",
-        tvl_before,
-        tvl_after
-    )?;
-
-    Ok(())
-}
-
 pub fn handle_update_amm_cache<'c: 'info, 'info>(
     ctx: Context<'info, UpdateAmmCache<'info>>,
 ) -> Result<()> {
@@ -3355,50 +3098,6 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     }
 
     Ok(())
-}
-
-#[derive(Accounts)]
-pub struct SettleAmmPnlToLp<'info> {
-    pub state: AccountLoader<'info, State>,
-    #[account(mut)]
-    pub lp_pool: AccountLoader<'info, LPPool>,
-    #[account(
-        mut,
-        constraint = check_hot(&keeper.key(), &state, HotRole::LpSettle)?,
-    )]
-    pub keeper: Signer<'info>,
-    /// CHECK: checked in AmmCacheZeroCopy checks
-    #[account(mut)]
-    pub amm_cache: AccountInfo<'info>,
-    #[account(
-        mut,
-        owner = crate::ID,
-        seeds = [b"spot_market", QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub quote_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        owner = crate::ID,
-        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
-        bump = constituent.load()?.bump,
-        constraint = constituent.load()?.mint.eq(&quote_market.load()?.mint)
-    )]
-    pub constituent: AccountLoader<'info, Constituent>,
-    #[account(
-        mut,
-        address = constituent.load()?.vault,
-    )]
-    pub constituent_quote_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        mut,
-        address = quote_market.load()?.vault,
-        token::authority = drift_signer,
-    )]
-    pub quote_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    pub token_program: Interface<'info, TokenInterface>,
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

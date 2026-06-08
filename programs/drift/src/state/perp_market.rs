@@ -7,9 +7,6 @@ use anchor_lang::prelude::{
 
 use super::oracle_map::OracleIdentifier;
 use crate::{
-    amm::math::amm::{
-        calculate_new_oracle_price_twap, sanitize_new_price, TwapPeriod, {self},
-    },
     error::{DriftResult, ErrorCode},
     math::{
         casting::Cast,
@@ -39,6 +36,9 @@ use crate::{
         state::{State, ValidityGuardRails},
         traits::{MarketIndexOffset, Size},
         user::{MarketType, Order},
+    },
+    vlp::amm::math::amm::{
+        calculate_new_oracle_price_twap, sanitize_new_price, TwapPeriod, {self},
     },
 };
 
@@ -490,7 +490,7 @@ impl PerpMarket {
         let PerpMarket {
             amm, market_stats, ..
         } = self;
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             mm_oracle_price_data,
@@ -1406,7 +1406,6 @@ impl MarketStats {
         use core::cmp::max;
 
         use crate::{
-            amm::math::amm::sanitize_new_price,
             math::{
                 casting::Cast,
                 constants::{FIVE_MINUTE, ONE_MINUTE},
@@ -1414,6 +1413,7 @@ impl MarketStats {
                 stats::{calculate_new_twap, calculate_weighted_average},
             },
             validate,
+            vlp::amm::math::amm::sanitize_new_price,
         };
 
         let (bid_price_capped_update, ask_price_capped_update) = (
@@ -1600,7 +1600,7 @@ impl MarketStats {
         sanitize_clamp: Option<i64>,
         order_tick_size: u64,
     ) -> crate::error::DriftResult<u64> {
-        let (bid_price, ask_price) = crate::amm::math::amm::estimate_best_bid_ask_price(
+        let (bid_price, ask_price) = crate::vlp::amm::math::amm::estimate_best_bid_ask_price(
             amm_bid_price,
             amm_ask_price,
             amm_base_spread,
@@ -1743,4 +1743,4 @@ impl MarketStats {
     }
 }
 
-pub use crate::amm::state::AMM;
+pub use crate::vlp::amm::state::AMM;

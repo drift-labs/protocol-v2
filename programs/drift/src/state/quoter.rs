@@ -337,7 +337,7 @@ pub enum MarketEvent<'a> {
     },
 }
 
-// `AmmContract` trait moved to `crate::amm::quoter` so the AMM-side contract
+// `AmmContract` trait moved to `crate::vlp::amm::quoter` so the AMM-side contract
 // definition co-locates with the only impl (`impl AmmContract for AMM`).
 // Callers import it from there directly.
 

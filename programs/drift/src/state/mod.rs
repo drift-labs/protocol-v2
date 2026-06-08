@@ -6,8 +6,6 @@
 //! `events.rs` = all emitted program events (OrderRecord, FillRecord, LiquidationRecord, etc.).
 //! `margin_calculation.rs` = margin calculation context and result types.
 
-pub mod amm_cache;
-pub mod constituent_map;
 pub mod events;
 pub mod fill_mode;
 pub mod fulfillment;
@@ -16,7 +14,6 @@ pub mod if_rebalance_config;
 pub mod insurance_fund_stake;
 pub mod liquidation_mode;
 pub mod load_ref;
-pub mod lp_pool;
 pub mod margin_calculation;
 pub mod market_status;
 pub mod oracle;

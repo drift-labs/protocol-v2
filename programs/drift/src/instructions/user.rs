@@ -4244,7 +4244,7 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
 
         update_position_and_market(position, &mut market, &position_delta)?;
 
-        <crate::amm::AMM as crate::amm::quoter::AmmContract>::apply_settlement_counterparty(
+        <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::apply_settlement_counterparty(
             &mut market.amm,
             position_delta.base_asset_amount.cast()?,
         )?;
@@ -4256,7 +4256,7 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
         )?;
 
         // Spread reserves are cached on the AMM, refreshed by
-        // `crate::amm::math::spread::update_amm_quote_state` on each crank/fill.
+        // `crate::vlp::amm::math::spread::update_amm_quote_state` on each crank/fill.
     }
 
     let user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance);

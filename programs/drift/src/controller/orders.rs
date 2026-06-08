@@ -14,8 +14,6 @@ use crate::state::revenue_share::{
 };
 use anchor_lang::prelude::*;
 
-use crate::amm::math::amm::calculate_amm_available_liquidity;
-use crate::amm::AmmQuoter;
 use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
@@ -77,6 +75,8 @@ use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation;
 use crate::validation::order::{validate_order, validate_order_for_force_reduce_only};
+use crate::vlp::amm::math::amm::calculate_amm_available_liquidity;
+use crate::vlp::amm::AmmQuoter;
 
 #[cfg(test)]
 mod tests;
@@ -1132,7 +1132,7 @@ pub fn fill_perp_order(
         // last_oracle_valid) is PerpMarket's own concern and stays here
         // (no AMM reacharound — PerpMarket reading its own AMM field).
         let amm_refresh_validity =
-            crate::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
+            crate::vlp::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
                 market,
                 &mm_oracle_price_data,
                 &state.oracle_guard_rails.validity,
@@ -1782,7 +1782,7 @@ fn fulfill_perp_order(
             let crate::state::perp_market::PerpMarket {
                 amm, market_stats, ..
             } = &mut *market;
-            crate::amm::math::spread::update_amm_quote_state(
+            crate::vlp::amm::math::spread::update_amm_quote_state(
                 amm,
                 market_stats,
                 &mm_oracle_pd,
@@ -2391,7 +2391,7 @@ fn settle_amm_house_fill(
     )?;
 
     market.total_exchange_fee = market.total_exchange_fee.safe_add(user_fee.cast()?)?;
-    <crate::amm::AMM as crate::amm::quoter::AmmContract>::apply_fill_fees(
+    <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::apply_fill_fees(
         &mut market.amm,
         fee_to_market,
         taker_surplus,
@@ -2947,11 +2947,12 @@ pub fn fulfill_perp_order_step(
     // end of this function — the AMM-match arm uses it directly; the
     // DLOB-Match arm explicitly drops it before constructing an
     // `AmmJitQuoter` over the same `&mut market`.
-    let amm_refresh_validity = crate::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
-        market,
-        &mm_oracle_price_data,
-        validity_guard_rails,
-    )?;
+    let amm_refresh_validity =
+        crate::vlp::amm::refresh::compute_amm_refresh_validity_with_guard_rails(
+            market,
+            &mm_oracle_price_data,
+            validity_guard_rails,
+        )?;
     let market_stats_snapshot = market.market_stats;
     let safe_oracle = mm_oracle_price_data.get_safe_oracle_price_data();
     let order_tick_size = market.order_tick_size;
@@ -3013,7 +3014,7 @@ pub fn fulfill_perp_order_step(
                     // fields without dropping the quoter (it still owns the
                     // &mut for the matcher below). `market.market_stats` is
                     // a disjoint PerpMarket field.
-                    let amm_ref: &crate::amm::AMM = amm_quoter.amm;
+                    let amm_ref: &crate::vlp::amm::AMM = amm_quoter.amm;
                     let amm_available = calculate_amm_available_liquidity(
                         amm_ref,
                         &taker_direction,
@@ -3134,7 +3135,7 @@ pub fn fulfill_perp_order_step(
                     .base_asset_amount,
             ))?;
             let taker_has_limit_price = taker.orders[taker_order_index].has_limit_price(slot)?;
-            let mut amm_jit = crate::amm::AmmJitQuoter::from_match_context(
+            let mut amm_jit = crate::vlp::amm::AmmJitQuoter::from_match_context(
                 market,
                 maker_price,
                 taker_direction,

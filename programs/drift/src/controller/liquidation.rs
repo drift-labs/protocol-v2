@@ -9,8 +9,6 @@ use crate::msg;
 use crate::state::liquidation_mode::{get_perp_liquidation_mode, LiquidatePerpMode};
 use anchor_lang::prelude::*;
 
-use crate::amm::controller::get_fee_pool_tokens;
-use crate::amm::refresh::update_amm_and_check_validity;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders;
 use crate::controller::orders::{cancel_order, fill_perp_order, place_perp_order};
@@ -54,6 +52,8 @@ use crate::math::orders::{
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
+use crate::vlp::amm::controller::get_fee_pool_tokens;
+use crate::vlp::amm::refresh::update_amm_and_check_validity;
 
 use crate::math::constants::LST_POOL_ID;
 use crate::math::spot_balance::get_token_value;
@@ -3405,7 +3405,7 @@ pub fn resolve_perp_bankruptcy(
         let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
         msg!("fee_pool_payment={:?}", fee_pool_payment);
-        <crate::amm::AMM as crate::amm::quoter::AmmContract>::withdraw_from_fee_pool(
+        <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::withdraw_from_fee_pool(
             &mut perp_market.amm,
             fee_pool_payment.unsigned_abs(),
             spot_market,

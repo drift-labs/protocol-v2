@@ -3747,8 +3747,8 @@ pub mod is_new_order_risk_increasing {
 pub mod get_price_for_perp_order {
     use crate::math::orders::get_price_for_perp_order;
 
-    use crate::amm::AMM;
     use crate::state::order_params::PostOnlyParam;
+    use crate::vlp::amm::AMM;
     use crate::PositionDirection;
     use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION};
 

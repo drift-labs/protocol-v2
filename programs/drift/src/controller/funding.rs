@@ -3,8 +3,6 @@ use std::cmp::max;
 use anchor_lang::prelude::*;
 use solana_program::clock::UnixTimestamp;
 
-use crate::amm::refresh::compute_amm_refresh_validity_with_guard_rails;
-use crate::amm::AmmQuoter;
 use crate::controller::position::{
     get_position_index, update_quote_asset_and_break_even_amount, PositionDirection,
 };
@@ -22,6 +20,8 @@ use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
 use crate::math::safe_math::SafeMath;
 use crate::math::stats::calculate_new_twap;
+use crate::vlp::amm::refresh::compute_amm_refresh_validity_with_guard_rails;
+use crate::vlp::amm::AmmQuoter;
 
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
 use crate::state::market_status::MarketStatus;

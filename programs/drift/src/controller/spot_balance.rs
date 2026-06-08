@@ -6,7 +6,6 @@ use std::cmp::max; //, OracleValidity};
 use crate::msg;
 use anchor_lang::prelude::*;
 
-use crate::amm::math::amm::sanitize_new_price;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -18,6 +17,7 @@ use crate::math::spot_balance::{
     get_spot_balance, get_token_amount, InterestAccumulated,
 };
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
+use crate::vlp::amm::math::amm::sanitize_new_price;
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;

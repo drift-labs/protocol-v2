@@ -1,4 +1,3 @@
-use crate::amm::AMM;
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
@@ -7,6 +6,7 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::msg;
 use crate::state::fulfillment::PerpFulfillmentMethod;
 use crate::state::user::Order;
+use crate::vlp::amm::AMM;
 use solana_program::pubkey::Pubkey;
 
 #[cfg(test)]

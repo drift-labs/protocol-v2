@@ -15,7 +15,6 @@ use anchor_spl::{
 };
 
 use crate::{
-    amm::math::amm,
     auth::{check_hot, check_pause, check_warm, require_pause_only_added},
     controller,
     controller::token::{close_vault, initialize_immutable_owner, initialize_token_account},
@@ -48,7 +47,6 @@ use crate::{
     optional_accounts::get_token_mint,
     safe_decrement, safe_increment,
     state::{
-        amm_cache::{AmmCache, AMM_POSITIONS_CACHE},
         events::{
             DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
         },
@@ -82,6 +80,8 @@ use crate::{
         margin::{validate_margin, validate_margin_weights},
         spot_market::validate_borrow_rate,
     },
+    vlp::amm::math::amm,
+    vlp::amm_cache::{AmmCache, AMM_POSITIONS_CACHE},
     FeatureBitFlags,
 };
 
@@ -1123,7 +1123,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     validate!(
-        crate::amm::math::amm::calculate_net_user_cost_basis(
+        crate::vlp::amm::math::amm::calculate_net_user_cost_basis(
             perp_market.quote_asset_amount,
             perp_market.net_unsettled_funding_pnl,
         )? == 0,
@@ -1164,7 +1164,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         &SpotBalanceType::Deposit,
     )?;
 
-    <crate::amm::AMM as crate::amm::quoter::AmmContract>::withdraw_from_fee_pool(
+    <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::withdraw_from_fee_pool(
         &mut perp_market.amm,
         fee_pool_token_amount,
         spot_market,
@@ -2996,7 +2996,7 @@ pub fn handle_settle_expired_market<'c: 'info, 'info>(
             clock.slot,
             &state.oracle_guard_rails.validity,
         )?;
-        let validity = crate::amm::refresh::compute_amm_refresh_validity(
+        let validity = crate::vlp::amm::refresh::compute_amm_refresh_validity(
             &perp_market,
             &mm_oracle_price_data,
             &state,
@@ -3009,7 +3009,7 @@ pub fn handle_settle_expired_market<'c: 'info, 'info>(
         )?;
     }
 
-    crate::amm::refresh::settle_expired_market(
+    crate::vlp::amm::refresh::settle_expired_market(
         market_index,
         &perp_market_map,
         &mut oracle_map,

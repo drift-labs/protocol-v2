@@ -6,14 +6,13 @@
 //! `total_fee_withdrawn`) but the operations themselves are pool plumbing, not
 //! AMM pricing — no reserves, spreads, or curve state touched.
 //!
-//! Re-exported from `crate::amm::controller::*` so `use crate::amm::controller::*`
+//! Re-exported from `crate::vlp::amm::controller::*` so `use crate::vlp::amm::controller::*`
 //! still resolves these symbols.
 
 use std::cmp::{min, Ordering};
 
 use anchor_lang::prelude::*;
 
-use crate::amm::math::repeg::get_total_fee_lower_bound;
 use crate::controller::spot_balance::{transfer_spot_balances, update_spot_balances};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -29,6 +28,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::User;
 use crate::validate;
+use crate::vlp::amm::math::repeg::get_total_fee_lower_bound;
 
 pub(crate) fn calculate_revenue_pool_transfer(
     market: &PerpMarket,
@@ -164,7 +164,7 @@ pub fn update_pool_balances(
 
         match revenue_pool_transfer.cmp(&0) {
             Ordering::Greater => {
-                <crate::amm::AMM as crate::amm::quoter::AmmContract>::transfer_revenue_to_pool(
+                <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::transfer_revenue_to_pool(
                     &mut market.amm,
                     revenue_pool_transfer.unsigned_abs(),
                     spot_market,

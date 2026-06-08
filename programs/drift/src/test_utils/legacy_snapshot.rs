@@ -424,11 +424,11 @@ mod tests {
                 ORDER_PARAMS_DEFAULT_STARTS,
             ),
             (
-                "crate::amm::controller::perp_market_transfer_fee_and_pnl_pool::sol",
+                "crate::vlp::amm::controller::perp_market_transfer_fee_and_pnl_pool::sol",
                 PMTFPP_SOL,
             ),
             (
-                "crate::amm::controller::perp_market_transfer_fee_and_pnl_pool::eth",
+                "crate::vlp::amm::controller::perp_market_transfer_fee_and_pnl_pool::eth",
                 PMTFPP_ETH,
             ),
         ];

@@ -1,4 +1,3 @@
-use crate::amm::controller::SwapDirection;
 use crate::controller::position::PositionDelta;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
@@ -7,6 +6,7 @@ use crate::math::constants::{
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
 };
 use crate::math::safe_math::SafeMath;
+use crate::vlp::amm::controller::SwapDirection;
 
 use crate::state::user::PerpPosition;
 

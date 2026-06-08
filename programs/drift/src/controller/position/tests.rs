@@ -1,8 +1,8 @@
-use crate::amm::controller::SwapDirection;
-use crate::amm::refresh::_update_amm;
 use crate::controller::matching::fill_perp_market_against_amm;
 use crate::controller::position::{update_position_and_market, PositionDelta, PositionDirection};
 use crate::state::quoter::QuoteContext;
+use crate::vlp::amm::controller::SwapDirection;
+use crate::vlp::amm::refresh::_update_amm;
 
 /// Replacement for the deleted `swap_base_asset` test-only entry point.
 /// Runs the matcher's sole-AMM path against a zero-spread quote state
@@ -51,10 +51,6 @@ fn quote_amm_swap_for_test(
     run_amm_swap_for_test(&mut clone, base_amount, swap_direction)
 }
 
-use crate::amm::controller::update_pool_balances;
-use crate::amm::math::amm::calculate_market_open_bids_asks;
-use crate::amm::math::cp_curve::{adjust_k_cost, get_update_k_result};
-use crate::amm::math::repeg;
 use crate::bn::U192;
 use crate::create_anchor_account_info;
 use crate::math::constants::{
@@ -79,6 +75,10 @@ use crate::state::user::PerpPosition;
 use crate::state::user::SpotPosition;
 use crate::test_utils::create_account_info;
 use crate::test_utils::get_pyth_price_mantissa;
+use crate::vlp::amm::controller::update_pool_balances;
+use crate::vlp::amm::math::amm::calculate_market_open_bids_asks;
+use crate::vlp::amm::math::cp_curve::{adjust_k_cost, get_update_k_result};
+use crate::vlp::amm::math::repeg;
 use anchor_lang::prelude::{AccountLoader, Clock};
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
@@ -143,7 +143,7 @@ fn amm_pool_balance_liq_fees_example() {
         assert_eq!(perp_market.amm.total_fee_minus_distributions, 1276488252050);
 
         let new_total_fee_minus_distributions =
-            crate::amm::controller::calculate_perp_market_amm_summary_stats(
+            crate::vlp::amm::controller::calculate_perp_market_amm_summary_stats(
                 &perp_market,
                 &spot_market,
                 prelaunch_oracle_price.price,
@@ -314,7 +314,7 @@ fn amm_pred_expiry_price_yes_market_example() {
         assert_eq!(perp_market.expiry_price, -152558652); // needs to be updated/corrected
     }
 
-    crate::amm::refresh::update_amm(
+    crate::vlp::amm::refresh::update_amm(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -323,7 +323,7 @@ fn amm_pred_expiry_price_yes_market_example() {
     )
     .unwrap();
 
-    crate::amm::refresh::settle_expired_market(
+    crate::vlp::amm::refresh::settle_expired_market(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -436,7 +436,7 @@ fn amm_pred_expiry_price_market_example() {
         assert_eq!(perp_market.expiry_price, -152558652); // needs to be updated/corrected
     }
 
-    crate::amm::refresh::update_amm(
+    crate::vlp::amm::refresh::update_amm(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -445,7 +445,7 @@ fn amm_pred_expiry_price_market_example() {
     )
     .unwrap();
 
-    crate::amm::refresh::settle_expired_market(
+    crate::vlp::amm::refresh::settle_expired_market(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -550,7 +550,7 @@ fn amm_pred_settle_market_example() {
         assert_eq!(perp_market.expiry_ts, 1725559200);
     }
 
-    crate::amm::refresh::update_amm(
+    crate::vlp::amm::refresh::update_amm(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -559,7 +559,7 @@ fn amm_pred_settle_market_example() {
     )
     .unwrap();
 
-    crate::amm::refresh::settle_expired_market(
+    crate::vlp::amm::refresh::settle_expired_market(
         market_index,
         &perp_market_map,
         &mut oracle_map,
@@ -715,7 +715,7 @@ fn amm_ref_price_decay_tail_test() {
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
     assert_eq!(max_ref_offset, 10000);
 
-    let liquidity_ratio = crate::amm::math::spread::calculate_inventory_liquidity_ratio(
+    let liquidity_ratio = crate::vlp::amm::math::spread::calculate_inventory_liquidity_ratio(
         perp_market.amm.base_asset_amount_with_amm,
         perp_market.amm.base_asset_reserve,
         perp_market.amm.max_base_asset_reserve,
@@ -733,7 +733,7 @@ fn amm_ref_price_decay_tail_test() {
         )
         .unwrap();
 
-    let res = crate::amm::math::spread::calculate_reference_price_offset(
+    let res = crate::vlp::amm::math::spread::calculate_reference_price_offset(
         reserve_price,
         perp_market.market_stats.last_24h_avg_funding_rate,
         signed_liquidity_ratio,
@@ -820,7 +820,7 @@ fn amm_ref_price_decay_tail_test() {
         let PerpMarket {
             amm, market_stats, ..
         } = &mut *perp_market;
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             &mm_oracle_price_data,
@@ -887,7 +887,7 @@ fn amm_ref_price_offset_decay_logic() {
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
-    let liquidity_ratio = crate::amm::math::spread::calculate_inventory_liquidity_ratio(
+    let liquidity_ratio = crate::vlp::amm::math::spread::calculate_inventory_liquidity_ratio(
         perp_market.amm.base_asset_amount_with_amm,
         perp_market.amm.base_asset_reserve,
         perp_market.amm.max_base_asset_reserve,
@@ -905,7 +905,7 @@ fn amm_ref_price_offset_decay_logic() {
         )
         .unwrap();
 
-    let res = crate::amm::math::spread::calculate_reference_price_offset(
+    let res = crate::vlp::amm::math::spread::calculate_reference_price_offset(
         reserve_price,
         perp_market.market_stats.last_24h_avg_funding_rate,
         signed_liquidity_ratio,
@@ -997,7 +997,7 @@ fn amm_ref_price_offset_decay_logic() {
         let PerpMarket {
             amm, market_stats, ..
         } = &mut *perp_market;
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             &mm_oracle_price_data,
@@ -1067,7 +1067,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
-    let liquidity_ratio = crate::amm::math::spread::calculate_inventory_liquidity_ratio(
+    let liquidity_ratio = crate::vlp::amm::math::spread::calculate_inventory_liquidity_ratio(
         perp_market.amm.base_asset_amount_with_amm,
         perp_market.amm.base_asset_reserve,
         perp_market.amm.max_base_asset_reserve,
@@ -1085,7 +1085,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
         )
         .unwrap();
 
-    let res = crate::amm::math::spread::calculate_reference_price_offset(
+    let res = crate::vlp::amm::math::spread::calculate_reference_price_offset(
         reserve_price,
         perp_market.market_stats.last_24h_avg_funding_rate,
         signed_liquidity_ratio,
@@ -1177,7 +1177,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
         let PerpMarket {
             amm, market_stats, ..
         } = &mut *perp_market;
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             &mm_oracle_price_data,
@@ -1253,7 +1253,7 @@ fn amm_perp_ref_offset() {
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
-    let liquidity_ratio = crate::amm::math::spread::calculate_inventory_liquidity_ratio(
+    let liquidity_ratio = crate::vlp::amm::math::spread::calculate_inventory_liquidity_ratio(
         perp_market.amm.base_asset_amount_with_amm,
         perp_market.amm.base_asset_reserve,
         perp_market.amm.max_base_asset_reserve,
@@ -1271,7 +1271,7 @@ fn amm_perp_ref_offset() {
         )
         .unwrap();
 
-    let res = crate::amm::math::spread::calculate_reference_price_offset(
+    let res = crate::vlp::amm::math::spread::calculate_reference_price_offset(
         reserve_price,
         perp_market.market_stats.last_24h_avg_funding_rate,
         signed_liquidity_ratio,
@@ -1330,7 +1330,7 @@ fn amm_perp_ref_offset() {
         let PerpMarket {
             amm, market_stats, ..
         } = &mut *perp_market;
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             &mm_oracle_price_data,
@@ -1387,7 +1387,7 @@ fn amm_perp_ref_offset() {
         let PerpMarket {
             amm, market_stats, ..
         } = &mut *perp_market;
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             &mm_oracle_price_data,
@@ -1427,7 +1427,7 @@ fn amm_perp_ref_offset() {
         let PerpMarket {
             amm, market_stats, ..
         } = &mut *perp_market;
-        crate::amm::math::spread::update_amm_quote_state(
+        crate::vlp::amm::math::spread::update_amm_quote_state(
             amm,
             market_stats,
             &mm_oracle_price,

@@ -5,7 +5,6 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use std::iter::Peekable;
 use std::slice::Iter;
 
-use crate::amm::math::amm::calculate_net_user_pnl;
 use crate::controller::spot_balance::{
     update_revenue_pool_balances, update_spot_balances, update_spot_market_cumulative_interest,
 };
@@ -39,6 +38,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
+use crate::vlp::amm::math::amm::calculate_net_user_pnl;
 use crate::{emit, validate};
 
 #[cfg(test)]
@@ -906,7 +906,7 @@ pub fn resolve_perp_pnl_deficit(
         excess_user_pnl_imbalance
     )?;
 
-    <crate::amm::AMM as crate::amm::quoter::AmmContract>::record_credit(
+    <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::record_credit(
         &mut market.amm,
         insurance_withdraw.cast::<u64>()?,
     )?;

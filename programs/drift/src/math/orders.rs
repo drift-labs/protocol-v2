@@ -3,7 +3,6 @@ use std::ops::Sub;
 
 use crate::msg;
 
-use crate::amm::math::amm::calculate_amm_available_liquidity;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
@@ -14,6 +13,7 @@ use crate::math::constants::{
     PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
 use crate::state::user::OrderBitFlag;
+use crate::vlp::amm::math::amm::calculate_amm_available_liquidity;
 use crate::{load, FeeTier};
 
 use crate::math::margin::{
@@ -173,7 +173,7 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
             PositionDirection::Short => limit_price.safe_add(market.order_tick_size)?,
         };
 
-        crate::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
+        crate::vlp::amm::math::spread::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
             adjusted_limit_price,
             order.direction,
