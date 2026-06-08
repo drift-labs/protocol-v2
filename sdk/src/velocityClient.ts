@@ -11111,7 +11111,7 @@ export class VelocityClient {
 			...(await this.getAllSettlePerpToLpPoolIxs(
 				lpPool.lpPoolId,
 				this.getPerpMarketAccounts()
-					.filter((marketAccount) => marketAccount.lpStatus > 0)
+					.filter((marketAccount) => marketAccount.hedgeConfig.status > 0)
 					.map((marketAccount) => marketAccount.marketIndex)
 			))
 		);

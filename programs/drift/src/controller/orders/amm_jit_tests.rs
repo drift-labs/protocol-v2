@@ -153,15 +153,21 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Short,
+            )
+            .unwrap();
 
         // shouldnt throw an error when bids/asks are zero
         market.amm.seed_no_spread_quote_state();
-        crate::amm::math::jit::calculate_jit_base_asset_amount(
+        crate::vlp::amm::math::jit::calculate_jit_base_asset_amount(
             &market,
             BASE_PRECISION_U64,
             PRICE_PRECISION_U64,
@@ -1257,11 +1263,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Short,
+            )
+            .unwrap();
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -1474,11 +1486,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Short,
+            )
+            .unwrap();
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -1674,11 +1692,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Short,
+            )
+            .unwrap();
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2306,11 +2330,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Short,
+            )
+            .unwrap();
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2581,11 +2611,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (_new_ask_base_asset_reserve, _new_ask_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Long)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (_new_bid_base_asset_reserve, _new_bid_quote_asset_reserve) =
-            crate::amm::math::spread::calculate_spread_reserves(&market, PositionDirection::Short)
-                .unwrap();
+            crate::vlp::amm::math::spread::calculate_spread_reserves(
+                &market,
+                PositionDirection::Short,
+            )
+            .unwrap();
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();

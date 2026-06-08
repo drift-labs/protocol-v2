@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/drift.json`.
  */
 export type Drift = {
-  "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
+  "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P",
   "metadata": {
     "name": "drift",
     "version": "2.162.0",
@@ -2883,6 +2883,59 @@ export type Drift = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "forceWipeAccountsDevnet",
+      "docs": [
+        "Devnet-only escape hatch: cleans up accounts stranded by a layout-breaking",
+        "program upgrade (or by a partial re-init). For each account passed via",
+        "`remaining_accounts`:",
+        "- drift-owned PDA → drain lamports (runtime GCs at end of tx)",
+        "- token-program owned vault (drift_signer close-authority) → CPI",
+        "`close_account`, rent refunded to admin",
+        "Admin gate reads State's first pubkey field at raw offset 8..40 so it",
+        "works regardless of the State layout currently on chain. `drift_signer_nonce`",
+        "must match `State.signer_nonce`; mismatch fails the token CPI signature.",
+        "Stripped from mainnet builds via `mainnet-beta`."
+      ],
+      "discriminator": [
+        105,
+        74,
+        87,
+        6,
+        166,
+        227,
+        138,
+        215
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "state",
+          "docs": [
+            "(cold-)admin pubkey at offset 8..40."
+          ]
+        },
+        {
+          "name": "driftSigner",
+          "docs": [
+            "at CPI time when closing token vaults; ignored otherwise."
+          ]
+        },
+        {
+          "name": "tokenProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "driftSignerNonce",
+          "type": "u8"
+        }
+      ]
     },
     {
       "name": "initialize",
@@ -16417,7 +16470,7 @@ export type Drift = {
             "docs": [
               "Cached spread-adjusted reserves for the ask (long-take) side, derived",
               "from `long_spread` + `reference_price_offset`. Refreshed by",
-              "[`crate::amm::math::spread::update_amm_quote_state`] on every AMM crank",
+              "[`crate::vlp::amm::math::spread::update_amm_quote_state`] on every AMM crank",
               "/ fill `setup`; quote/fill paths read these directly instead of",
               "recomputing per quote. Also surfaced to dashboards/tracking.",
               "precision: AMM_RESERVE_PRECISION"
@@ -17854,6 +17907,69 @@ export type Drift = {
               "precision: BASE_PRECISION"
             ],
             "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "hedgeConfig",
+      "docs": [
+        "Per-market configuration of a perp market's relationship to its hedge (LP)",
+        "pool: which pool it routes to, whether hedging is enabled, which hedge",
+        "operations are paused, and the fee-routing scalars. Admin-set; never mutated",
+        "per fill. Embedded at the tail of `PerpMarket` next to `amm` so the whole VLP",
+        "region is contiguous."
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "poolId",
+            "docs": [
+              "The LP pool this market hedges into (`LPPool.pool_id`)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Hedging enabled for this market; 0 disables it."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "pausedOperations",
+            "docs": [
+              "Bitflags of paused `ConstituentLpOperation`s."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "exchangeFeeExclusionScalar",
+            "docs": [
+              "Scalar excluding a share of exchange fees from hedge routing."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "feeTransferScalar",
+            "docs": [
+              "Scalar for the share of fees transferred to the hedge pool."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                11
+              ]
+            }
           }
         ]
       }
@@ -21220,24 +21336,19 @@ export type Drift = {
             }
           },
           {
-            "name": "lpFeeTransferScalar",
-            "type": "u8"
-          },
-          {
-            "name": "lpStatus",
-            "type": "u8"
-          },
-          {
-            "name": "lpPausedOperations",
-            "type": "u8"
-          },
-          {
-            "name": "lpExchangeFeeExcluscionScalar",
-            "type": "u8"
-          },
-          {
-            "name": "lpPoolId",
-            "type": "u8"
+            "name": "paddingHedge",
+            "docs": [
+              "Was `lp_fee_transfer_scalar`, `lp_status`, `lp_paused_operations`,",
+              "`lp_exchange_fee_excluscion_scalar`, `lp_pool_id` (5×u8). Relocated into",
+              "`hedge_config` at the tail; kept as reserved bytes so existing account",
+              "byte offsets (and snapshots) are undisturbed."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
           },
           {
             "name": "marketConfig",
@@ -21327,6 +21438,18 @@ export type Drift = {
             "type": {
               "defined": {
                 "name": "amm"
+              }
+            }
+          },
+          {
+            "name": "hedgeConfig",
+            "docs": [
+              "This market's hedge (LP pool) configuration. Sits immediately after `amm`",
+              "so the trailing `[amm, hedge_config]` span is the contiguous VLP region."
+            ],
+            "type": {
+              "defined": {
+                "name": "hedgeConfig"
               }
             }
           }

@@ -15,7 +15,6 @@ use anchor_spl::{
 };
 
 use crate::{
-    amm::math::amm,
     auth::{check_hot, check_pause, check_warm, require_pause_only_added},
     controller,
     controller::token::{close_vault, initialize_immutable_owner, initialize_token_account},
@@ -48,7 +47,6 @@ use crate::{
     optional_accounts::get_token_mint,
     safe_decrement, safe_increment,
     state::{
-        amm_cache::{AmmCache, AMM_POSITIONS_CACHE},
         events::{
             DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
         },
@@ -63,8 +61,8 @@ use crate::{
         oracle_map::OracleMap,
         paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation},
         perp_market::{
-            ContractTier, ContractType, InsuranceClaim, MarketConfigFlag, MarketStats, PerpMarket,
-            PoolBalance, AMM,
+            ContractTier, ContractType, HedgeConfig, InsuranceClaim, MarketConfigFlag, MarketStats,
+            PerpMarket, PoolBalance, AMM,
         },
         perp_market_map::{get_writable_perp_market_set, MarketSet},
         pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED},
@@ -82,6 +80,8 @@ use crate::{
         margin::{validate_margin, validate_margin_weights},
         spot_market::validate_borrow_rate,
     },
+    vlp::amm::math::amm,
+    vlp::amm_cache::{AmmCache, AMM_POSITIONS_CACHE},
     FeatureBitFlags,
 };
 
@@ -668,13 +668,17 @@ pub fn handle_initialize_perp_market(
         _padding_align_lfp: [0; 6],
         pool_id: 0,
         _padding_pmm: [0; 2],
-        lp_fee_transfer_scalar: 1,
-        lp_status: 0,
-        lp_exchange_fee_excluscion_scalar: 0,
-        lp_paused_operations: 0,
+        _padding_hedge: [0; 5],
         last_fill_price: 0,
-        lp_pool_id,
         market_config: 0,
+        hedge_config: HedgeConfig {
+            pool_id: lp_pool_id,
+            status: 0,
+            paused_operations: 0,
+            exchange_fee_exclusion_scalar: 0,
+            fee_transfer_scalar: 1,
+            padding: [0; 11],
+        },
         oracle: *ctx.accounts.oracle.key,
         oracle_source,
         oracle_slot_delay_override: -1,
@@ -1123,7 +1127,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     validate!(
-        crate::amm::math::amm::calculate_net_user_cost_basis(
+        crate::vlp::amm::math::amm::calculate_net_user_cost_basis(
             perp_market.quote_asset_amount,
             perp_market.net_unsettled_funding_pnl,
         )? == 0,
@@ -1164,7 +1168,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         &SpotBalanceType::Deposit,
     )?;
 
-    <crate::amm::AMM as crate::amm::quoter::AmmContract>::withdraw_from_fee_pool(
+    <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::withdraw_from_fee_pool(
         &mut perp_market.amm,
         fee_pool_token_amount,
         spot_market,
@@ -1534,10 +1538,10 @@ pub fn handle_update_perp_lp_pool_id(
     msg!(
         "updating perp market {} lp pool id: {} -> {}",
         perp_market.market_index,
-        perp_market.lp_pool_id,
+        perp_market.hedge_config.pool_id,
         lp_pool_id
     );
-    perp_market.lp_pool_id = lp_pool_id;
+    perp_market.hedge_config.pool_id = lp_pool_id;
     Ok(())
 }
 
@@ -2629,11 +2633,11 @@ pub fn handle_update_perp_market_lp_pool_paused_operations(
     require_pause_only_added(
         &signer,
         &state,
-        perp_market.lp_paused_operations,
+        perp_market.hedge_config.paused_operations,
         lp_paused_operations,
     )?;
     drop(state);
-    perp_market.lp_paused_operations = lp_paused_operations;
+    perp_market.hedge_config.paused_operations = lp_paused_operations;
     Ok(())
 }
 
@@ -2996,7 +3000,7 @@ pub fn handle_settle_expired_market<'c: 'info, 'info>(
             clock.slot,
             &state.oracle_guard_rails.validity,
         )?;
-        let validity = crate::amm::refresh::compute_amm_refresh_validity(
+        let validity = crate::vlp::amm::refresh::compute_amm_refresh_validity(
             &perp_market,
             &mm_oracle_price_data,
             &state,
@@ -3009,7 +3013,7 @@ pub fn handle_settle_expired_market<'c: 'info, 'info>(
         )?;
     }
 
-    crate::amm::refresh::settle_expired_market(
+    crate::vlp::amm::refresh::settle_expired_market(
         market_index,
         &perp_market_map,
         &mut oracle_map,

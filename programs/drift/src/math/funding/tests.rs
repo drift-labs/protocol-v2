@@ -1,8 +1,8 @@
-use crate::amm::refresh::_update_amm;
 use crate::controller::funding::update_funding_rate;
 use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle::{block_operation, OracleValidity};
 use crate::state::perp_market::MarketStats;
+use crate::vlp::amm::refresh::_update_amm;
 
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, ONE_HOUR_I128, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
@@ -243,7 +243,7 @@ fn capped_sym_funding_test() {
 
     // `calculate_funding_rate_long_short` is pure now; the caller records
     // the AMM's PnL explicitly so this test does so too.
-    use crate::amm::quoter::AmmContract;
+    use crate::vlp::amm::quoter::AmmContract;
     market.amm.record_amm_pnl(capped_pnl).unwrap();
 
     assert_eq!(long_funding, balanced_funding);

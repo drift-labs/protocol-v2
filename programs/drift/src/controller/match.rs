@@ -21,11 +21,11 @@
 //! quote is recomputed ONCE against each maker's total filled base via
 //! `try_fill_solo` (never summed per slice).
 
-use crate::amm::AmmQuoter;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_math::SafeMath;
 use crate::state::quoter::{QuoteContext, Quoter, QuoterCommit, QuoterFill};
+use crate::vlp::amm::AmmQuoter;
 
 /// Index into the `makers` slice passed to [`match_take`].
 pub type QuoterId = u16;
@@ -627,9 +627,9 @@ mod tests {
         // Full architecture exercised: construct a PerpMarket, wrap its AMM
         // as a Quoter, run match_take. Verify the AMM curve mutated and the
         // MarketStats fields are left untouched by the fill.
-        use crate::amm::AmmQuoter;
         use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::perp_market::{PerpMarket, AMM};
+        use crate::vlp::amm::AmmQuoter;
 
         let stats = MarketStats::default();
         let oracle = OraclePriceData::default();
@@ -736,13 +736,13 @@ mod tests {
         // Expected: DLOB takes the priority slice (is_prio: false on
         // AmmJitQuoter), but at the same price both contribute pro-rata.
         // The AMM caps at its throttled max_jit_base.
-        use crate::amm::AmmJitQuoter;
-        use crate::amm::AMM;
         use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::quoter::DlobOrderQuoter;
         use crate::state::user::{
             MarketType, Order, OrderStatus, OrderTriggerCondition, OrderType,
         };
+        use crate::vlp::amm::AmmJitQuoter;
+        use crate::vlp::amm::AMM;
 
         let stats = MarketStats::default();
         let oracle = OraclePriceData::default();
@@ -841,9 +841,9 @@ mod tests {
 
     #[test]
     fn matcher_works_with_amm_maker() {
-        use crate::amm::AmmQuoter;
-        use crate::amm::AMM;
         use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
+        use crate::vlp::amm::AmmQuoter;
+        use crate::vlp::amm::AMM;
 
         let stats = MarketStats::default();
         let oracle = OraclePriceData::default();

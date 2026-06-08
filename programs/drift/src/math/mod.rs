@@ -4,7 +4,7 @@
 //! `orders.rs` / `matching.rs` = order price validation and maker/taker matching logic.
 //! `funding.rs` = funding rate calculation. `oracle.rs` = oracle validity and TWAP divergence checks.
 //! `liquidation.rs` = liquidation fee and amount math. `fees.rs` = taker/maker fee tiers.
-//! AMM pricing math lives in `crate::amm::math`.
+//! AMM pricing math lives in `crate::vlp::amm::math`.
 
 pub mod auction;
 pub mod bankruptcy;
@@ -19,7 +19,6 @@ pub mod funding;
 pub mod helpers;
 pub mod insurance;
 pub mod liquidation;
-pub mod lp_pool;
 pub mod margin;
 pub mod matching;
 pub mod oracle;

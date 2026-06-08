@@ -1,5 +1,4 @@
 mod get_claimable_pnl {
-    use crate::amm::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, MAX_CONCENTRATION_COEFFICIENT,
         PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
@@ -13,6 +12,7 @@ mod get_claimable_pnl {
     use crate::state::spot_market::{SpotBalance, SpotMarket};
     use crate::state::user::{PerpPosition, User};
     use crate::test_utils::get_positions;
+    use crate::vlp::amm::math::amm::calculate_net_user_pnl;
 
     #[test]
     fn long_negative_unrealized_pnl() {

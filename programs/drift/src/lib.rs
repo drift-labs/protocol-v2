@@ -27,7 +27,6 @@ use crate::state::spot_market::AssetTier;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
-pub mod amm;
 pub mod auth;
 pub mod controller;
 pub mod error;
@@ -42,6 +41,7 @@ pub mod state;
 #[cfg(test)]
 mod test_utils;
 mod validation;
+pub mod vlp;
 
 // main program entrypoint
 // anchor `#[program]` entrypoint is compiled out by `no-entrypoint`

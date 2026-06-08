@@ -1,16 +1,16 @@
 //! Pure math over `PerpMarket` state — no account I/O, no mutation.
 //!
 //! Cross-cutting computations that read both AMM and PerpMarket fields. For
-//! pure-AMM curve math (reserves, spread, swap) see `crate::amm::math`; for
-//! AMM account-level mutations see `crate::amm::controller`.
+//! pure-AMM curve math (reserves, spread, swap) see `crate::vlp::amm::math`; for
+//! AMM account-level mutations see `crate::vlp::amm::controller`.
 
-use crate::amm::math::amm::calculate_net_user_pnl;
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotMarket};
+use crate::vlp::amm::math::amm::calculate_net_user_pnl;
 
 /// Recompute the AMM's `total_fee_minus_distributions` summary value from
 /// underlying pool balances, the AMM's net counterparty PnL, and accumulated

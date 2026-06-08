@@ -1,5 +1,3 @@
-use crate::amm::controller::{update_pnl_pool_and_user_balance, update_pool_balances};
-use crate::amm::math::amm::calculate_net_user_pnl;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
@@ -11,6 +9,8 @@ use crate::controller::spot_balance::{
 };
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::vlp::amm::controller::{update_pnl_pool_and_user_balance, update_pool_balances};
+use crate::vlp::amm::math::amm::calculate_net_user_pnl;
 
 use crate::math::casting::Cast;
 use crate::math::margin::{
@@ -601,7 +601,7 @@ pub fn settle_expired_position(
 
     update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
-    <crate::amm::AMM as crate::amm::quoter::AmmContract>::apply_settlement_counterparty(
+    <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::apply_settlement_counterparty(
         &mut perp_market.amm,
         position_delta.base_asset_amount.cast()?,
     )?;
