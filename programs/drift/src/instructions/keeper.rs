@@ -3063,7 +3063,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let perp_market = perp_market_loader.load()?;
-        if perp_market.lp_status == 0 {
+        if perp_market.hedge_config.status == 0 {
             continue;
         }
         let cached_info = amm_cache.get_for_market_index_mut(perp_market.market_index)?;
@@ -3087,9 +3087,9 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
             &state.oracle_guard_rails,
         )?;
 
-        if perp_market.lp_status != 0
+        if perp_market.hedge_config.status != 0
             && !PerpLpOperation::is_operation_paused(
-                perp_market.lp_paused_operations,
+                perp_market.hedge_config.paused_operations,
                 PerpLpOperation::TrackAmmRevenue,
             )
         {

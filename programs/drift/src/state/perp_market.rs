@@ -257,11 +257,11 @@ pub struct PerpMarket {
     pub last_fill_price: u64,
     pub pool_id: u8,
     pub _padding_pmm: [u8; 2],
-    pub lp_fee_transfer_scalar: u8,
-    pub lp_status: u8,
-    pub lp_paused_operations: u8,
-    pub lp_exchange_fee_excluscion_scalar: u8,
-    pub lp_pool_id: u8,
+    /// Was `lp_fee_transfer_scalar`, `lp_status`, `lp_paused_operations`,
+    /// `lp_exchange_fee_excluscion_scalar`, `lp_pool_id` (5×u8). Relocated into
+    /// `hedge_config` at the tail; kept as reserved bytes so existing account
+    /// byte offsets (and snapshots) are undisturbed.
+    pub _padding_hedge: [u8; 5],
     pub market_config: u8,
     /// the oracle provider information. used to decode/scale the oracle public key
     pub oracle_source: OracleSource,
@@ -293,6 +293,9 @@ pub struct PerpMarket {
     /// participants, …) and each module owns a contiguous span starting at
     /// a known offset.
     pub amm: AMM,
+    /// This market's hedge (LP pool) configuration. Sits immediately after `amm`
+    /// so the trailing `[amm, hedge_config]` span is the contiguous VLP region.
+    pub hedge_config: HedgeConfig,
 }
 
 impl Default for PerpMarket {
@@ -349,12 +352,8 @@ impl Default for PerpMarket {
             _padding_align_lfp: [0; 6],
             pool_id: 0,
             _padding_pmm: [0; 2],
-            lp_fee_transfer_scalar: 0,
-            lp_status: 0,
-            lp_exchange_fee_excluscion_scalar: 0,
-            lp_paused_operations: 0,
+            _padding_hedge: [0; 5],
             last_fill_price: 0,
-            lp_pool_id: 0,
             market_config: 0,
             oracle_source: OracleSource::default(),
             oracle_slot_delay_override: -1,
@@ -363,6 +362,7 @@ impl Default for PerpMarket {
             market_stats: MarketStats::default(),
             _padding_align_amm: [0; 8],
             amm: AMM::default(),
+            hedge_config: HedgeConfig::default(),
         }
     }
 }
@@ -374,7 +374,7 @@ impl Size for PerpMarket {
     // u64 last_spread_update_slot live back on AMM — refreshed by
     // `math::spread::update_amm_quote_state` on each crank/fill `setup` and
     // read directly by quote/fill paths and dashboards.
-    const SIZE: usize = 1208;
+    const SIZE: usize = 1224;
 }
 
 impl MarketIndexOffset for PerpMarket {
@@ -1744,3 +1744,4 @@ impl MarketStats {
 }
 
 pub use crate::vlp::amm::state::AMM;
+pub use crate::vlp::hedge::state::HedgeConfig;

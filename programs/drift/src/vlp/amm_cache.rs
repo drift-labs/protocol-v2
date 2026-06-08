@@ -116,7 +116,7 @@ impl CacheInfo {
             .amm
             .get_protocol_owned_position()?
             .safe_mul(-1)?;
-        self.lp_status_for_perp_market = perp_market.lp_status;
+        self.lp_status_for_perp_market = perp_market.hedge_config.status;
         Ok(())
     }
 
@@ -348,12 +348,12 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
 
         let amount_to_send_to_lp_pool = amm_amount_available
             .safe_sub(cached_info.get_last_available_amm_token_amount()?)?
-            .safe_mul(perp_market.lp_fee_transfer_scalar as i128)?
+            .safe_mul(perp_market.hedge_config.fee_transfer_scalar as i128)?
             .safe_div_ceil(100)?
             .safe_sub(
                 exchange_fee_delta
                     .cast::<i128>()?
-                    .safe_mul(perp_market.lp_exchange_fee_excluscion_scalar as i128)?
+                    .safe_mul(perp_market.hedge_config.exchange_fee_exclusion_scalar as i128)?
                     .safe_div_ceil(100)?,
             )?;
 

@@ -17912,6 +17912,69 @@ export type Drift = {
       }
     },
     {
+      "name": "hedgeConfig",
+      "docs": [
+        "Per-market configuration of a perp market's relationship to its hedge (LP)",
+        "pool: which pool it routes to, whether hedging is enabled, which hedge",
+        "operations are paused, and the fee-routing scalars. Admin-set; never mutated",
+        "per fill. Embedded at the tail of `PerpMarket` next to `amm` so the whole VLP",
+        "region is contiguous."
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "poolId",
+            "docs": [
+              "The LP pool this market hedges into (`LPPool.pool_id`)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Hedging enabled for this market; 0 disables it."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "pausedOperations",
+            "docs": [
+              "Bitflags of paused `ConstituentLpOperation`s."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "exchangeFeeExclusionScalar",
+            "docs": [
+              "Scalar excluding a share of exchange fees from hedge routing."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "feeTransferScalar",
+            "docs": [
+              "Scalar for the share of fees transferred to the hedge pool."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                11
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "historicalIndexData",
       "type": {
         "kind": "struct",
@@ -21273,24 +21336,19 @@ export type Drift = {
             }
           },
           {
-            "name": "lpFeeTransferScalar",
-            "type": "u8"
-          },
-          {
-            "name": "lpStatus",
-            "type": "u8"
-          },
-          {
-            "name": "lpPausedOperations",
-            "type": "u8"
-          },
-          {
-            "name": "lpExchangeFeeExcluscionScalar",
-            "type": "u8"
-          },
-          {
-            "name": "lpPoolId",
-            "type": "u8"
+            "name": "paddingHedge",
+            "docs": [
+              "Was `lp_fee_transfer_scalar`, `lp_status`, `lp_paused_operations`,",
+              "`lp_exchange_fee_excluscion_scalar`, `lp_pool_id` (5×u8). Relocated into",
+              "`hedge_config` at the tail; kept as reserved bytes so existing account",
+              "byte offsets (and snapshots) are undisturbed."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
           },
           {
             "name": "marketConfig",
@@ -21380,6 +21438,18 @@ export type Drift = {
             "type": {
               "defined": {
                 "name": "amm"
+              }
+            }
+          },
+          {
+            "name": "hedgeConfig",
+            "docs": [
+              "This market's hedge (LP pool) configuration. Sits immediately after `amm`",
+              "so the trailing `[amm, hedge_config]` span is the contiguous VLP region."
+            ],
+            "type": {
+              "defined": {
+                "name": "hedgeConfig"
               }
             }
           }

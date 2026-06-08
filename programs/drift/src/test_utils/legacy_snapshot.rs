@@ -232,11 +232,11 @@ pub fn regenerate_perp_market_snapshot(old_b64: &str) -> String {
     pm.last_fill_price = legacy.last_fill_price;
     pm.pool_id = legacy.pool_id;
     pm._padding_pmm = legacy._padding_pmm;
-    pm.lp_fee_transfer_scalar = legacy.lp_fee_transfer_scalar;
-    pm.lp_status = legacy.lp_status;
-    pm.lp_paused_operations = legacy.lp_paused_operations;
-    pm.lp_exchange_fee_excluscion_scalar = legacy.lp_exchange_fee_excluscion_scalar;
-    pm.lp_pool_id = legacy.lp_pool_id;
+    pm.hedge_config.fee_transfer_scalar = legacy.lp_fee_transfer_scalar;
+    pm.hedge_config.status = legacy.lp_status;
+    pm.hedge_config.paused_operations = legacy.lp_paused_operations;
+    pm.hedge_config.exchange_fee_exclusion_scalar = legacy.lp_exchange_fee_excluscion_scalar;
+    pm.hedge_config.pool_id = legacy.lp_pool_id;
     pm.market_config = legacy.market_config;
 
     // ---- AMM fields that didn't move stay on AMM. ------------------
@@ -369,10 +369,12 @@ mod tests {
     fn current_perp_market_size_unchanged() {
         // Cached spread state lives back on AMM: 4×u128 spread reserves,
         // i64 last_oracle_reserve_price_spread_pct, u64 last_spread_update_slot,
-        // 2×u32 long/short_spread, i32 reference_price_offset. Struct is 1200
-        // bytes; +8 for the Anchor discriminator = 1208.
-        assert_eq!(std::mem::size_of::<PerpMarket>(), 1200);
-        assert_eq!(PerpMarket::SIZE, 1208);
+        // 2×u32 long/short_spread, i32 reference_price_offset. The 5 former
+        // lp_* config bytes moved into the 16-byte `hedge_config` at the tail,
+        // growing the struct from 1200 to 1216 bytes; +8 for the Anchor
+        // discriminator = 1224.
+        assert_eq!(std::mem::size_of::<PerpMarket>(), 1216);
+        assert_eq!(PerpMarket::SIZE, 1224);
     }
 
     /// One-shot regeneration helper. Run with:

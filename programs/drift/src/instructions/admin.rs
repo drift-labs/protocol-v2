@@ -61,8 +61,8 @@ use crate::{
         oracle_map::OracleMap,
         paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation},
         perp_market::{
-            ContractTier, ContractType, InsuranceClaim, MarketConfigFlag, MarketStats, PerpMarket,
-            PoolBalance, AMM,
+            ContractTier, ContractType, HedgeConfig, InsuranceClaim, MarketConfigFlag, MarketStats,
+            PerpMarket, PoolBalance, AMM,
         },
         perp_market_map::{get_writable_perp_market_set, MarketSet},
         pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED},
@@ -668,13 +668,17 @@ pub fn handle_initialize_perp_market(
         _padding_align_lfp: [0; 6],
         pool_id: 0,
         _padding_pmm: [0; 2],
-        lp_fee_transfer_scalar: 1,
-        lp_status: 0,
-        lp_exchange_fee_excluscion_scalar: 0,
-        lp_paused_operations: 0,
+        _padding_hedge: [0; 5],
         last_fill_price: 0,
-        lp_pool_id,
         market_config: 0,
+        hedge_config: HedgeConfig {
+            pool_id: lp_pool_id,
+            status: 0,
+            paused_operations: 0,
+            exchange_fee_exclusion_scalar: 0,
+            fee_transfer_scalar: 1,
+            padding: [0; 11],
+        },
         oracle: *ctx.accounts.oracle.key,
         oracle_source,
         oracle_slot_delay_override: -1,
@@ -1534,10 +1538,10 @@ pub fn handle_update_perp_lp_pool_id(
     msg!(
         "updating perp market {} lp pool id: {} -> {}",
         perp_market.market_index,
-        perp_market.lp_pool_id,
+        perp_market.hedge_config.pool_id,
         lp_pool_id
     );
-    perp_market.lp_pool_id = lp_pool_id;
+    perp_market.hedge_config.pool_id = lp_pool_id;
     Ok(())
 }
 
@@ -2629,11 +2633,11 @@ pub fn handle_update_perp_market_lp_pool_paused_operations(
     require_pause_only_added(
         &signer,
         &state,
-        perp_market.lp_paused_operations,
+        perp_market.hedge_config.paused_operations,
         lp_paused_operations,
     )?;
     drop(state);
-    perp_market.lp_paused_operations = lp_paused_operations;
+    perp_market.hedge_config.paused_operations = lp_paused_operations;
     Ok(())
 }
 

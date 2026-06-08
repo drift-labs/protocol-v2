@@ -254,21 +254,21 @@ pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
     if let Some(lp_fee_transfer_scalar) = optional_lp_fee_transfer_scalar {
         msg!(
             "perp_market.: {:?} -> {:?}",
-            perp_market.lp_fee_transfer_scalar,
+            perp_market.hedge_config.fee_transfer_scalar,
             lp_fee_transfer_scalar
         );
 
-        perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
+        perp_market.hedge_config.fee_transfer_scalar = lp_fee_transfer_scalar;
     }
 
     if let Some(lp_net_pnl_transfer_scalar) = optional_lp_net_pnl_transfer_scalar {
         msg!(
             "perp_market.: {:?} -> {:?}",
-            perp_market.lp_exchange_fee_excluscion_scalar,
+            perp_market.hedge_config.exchange_fee_exclusion_scalar,
             lp_net_pnl_transfer_scalar
         );
 
-        perp_market.lp_exchange_fee_excluscion_scalar = lp_net_pnl_transfer_scalar;
+        perp_market.hedge_config.exchange_fee_exclusion_scalar = lp_net_pnl_transfer_scalar;
     }
 
     Ok(())
@@ -896,7 +896,7 @@ pub fn handle_update_perp_market_lp_pool_status(
     let amm_cache = &mut ctx.accounts.amm_cache;
 
     msg!("perp market {}", perp_market.market_index);
-    perp_market.lp_status = lp_status;
+    perp_market.hedge_config.status = lp_status;
     amm_cache.update_perp_market_fields(perp_market)?;
 
     Ok(())

@@ -58,6 +58,45 @@ pub const MAX_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10u64;
 #[cfg(test)]
 mod tests;
 
+/// Per-market configuration of a perp market's relationship to its hedge (LP)
+/// pool: which pool it routes to, whether hedging is enabled, which hedge
+/// operations are paused, and the fee-routing scalars. Admin-set; never mutated
+/// per fill. Embedded at the tail of `PerpMarket` next to `amm` so the whole VLP
+/// region is contiguous.
+#[zero_copy(unsafe)]
+#[derive(Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct HedgeConfig {
+    /// The LP pool this market hedges into (`LPPool.pool_id`).
+    pub pool_id: u8,
+    /// Hedging enabled for this market; 0 disables it.
+    pub status: u8,
+    /// Bitflags of paused `ConstituentLpOperation`s.
+    pub paused_operations: u8,
+    /// Scalar excluding a share of exchange fees from hedge routing.
+    pub exchange_fee_exclusion_scalar: u8,
+    /// Scalar for the share of fees transferred to the hedge pool.
+    pub fee_transfer_scalar: u8,
+    pub padding: [u8; 11],
+}
+
+impl Default for HedgeConfig {
+    fn default() -> Self {
+        Self {
+            pool_id: 0,
+            status: 0,
+            paused_operations: 0,
+            exchange_fee_exclusion_scalar: 0,
+            fee_transfer_scalar: 0,
+            padding: [0; 11],
+        }
+    }
+}
+
+impl Size for HedgeConfig {
+    const SIZE: usize = 16;
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Debug)]
 #[repr(C)]

@@ -836,11 +836,13 @@ export type PerpMarketAccount = {
 
 	lastFillPrice: BN;
 
-	lpPoolId: number;
-	lpFeeTransferScalar: number;
-	lpExchangeFeeExcluscionScalar: number;
-	lpStatus: number;
-	lpPausedOperations: number;
+	hedgeConfig: {
+		poolId: number;
+		status: number;
+		pausedOperations: number;
+		exchangeFeeExclusionScalar: number;
+		feeTransferScalar: number;
+	};
 	marketConfig: number;
 
 	// Fields migrated off AMM to top-level PerpMarket
