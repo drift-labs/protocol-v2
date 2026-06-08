@@ -1715,13 +1715,6 @@ pub mod drift {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 
-    // pub fn update_feature_bit_flags_builder_referral(
-    //     ctx: Context<HotAdminUpdateState>,
-    //     enable: bool,
-    // ) -> Result<()> {
-    //     handle_update_feature_bit_flags_builder_referral(ctx, enable)
-    // }
-
     pub fn update_feature_bit_flags_builder_codes(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,

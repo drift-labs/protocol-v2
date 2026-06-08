@@ -1068,8 +1068,6 @@ export type UserStatsAccount = {
 		totalFeeRebate: BN;
 		totalTokenDiscount: BN;
 		totalRefereeDiscount: BN;
-		totalReferrerReward: BN;
-		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
 	referrerStatus: number;
@@ -1564,10 +1562,6 @@ export type RevenueShareAccount = {
 export type RevenueShareEscrowAccount = {
 	authority: PublicKey;
 	referrer: PublicKey;
-	referrerBoostExpireTs: number;
-	referrerRewardOffset: number;
-	refereeFeeNumeratorOffset: number;
-	referrerBoostNumerator: number;
 	reservedFixed: number[];
 	orders: RevenueShareOrder[];
 	approvedBuilders: BuilderInfo[];

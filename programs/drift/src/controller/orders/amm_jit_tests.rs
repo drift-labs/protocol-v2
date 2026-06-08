@@ -349,7 +349,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -363,7 +362,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -553,7 +551,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -567,7 +564,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -765,7 +761,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -779,7 +774,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -973,7 +967,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -987,7 +980,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1173,7 +1165,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1187,7 +1178,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1399,7 +1389,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1413,7 +1402,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1608,7 +1596,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1622,7 +1609,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -1824,7 +1810,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -1838,7 +1823,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2026,7 +2010,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -2040,7 +2023,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2240,7 +2222,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -2254,7 +2235,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 
@@ -2492,7 +2472,6 @@ pub mod amm_jit {
                 &mut Some(&mut filler),
                 &filler_key,
                 &mut Some(&mut filler_stats),
-                None,
                 &spot_market_map,
                 &market_map,
                 &mut oracle_map,
@@ -2506,7 +2485,6 @@ pub mod amm_jit {
                 FillMode::Fill,
                 false,
                 &mut None,
-                false,
             )
             .unwrap();
 
@@ -2790,7 +2768,6 @@ pub mod amm_jit {
                 &mut Some(&mut filler),
                 &filler_key,
                 &mut Some(&mut filler_stats),
-                None,
                 &spot_market_map,
                 &market_map,
                 &mut oracle_map,
@@ -2804,7 +2781,6 @@ pub mod amm_jit {
                 FillMode::Fill,
                 false,
                 &mut None,
-                false,
             )
             .unwrap();
 
@@ -3035,7 +3011,6 @@ pub mod amm_jit {
             &mut Some(&mut filler),
             &filler_key,
             &mut Some(&mut filler_stats),
-            None,
             &spot_market_map,
             &market_map,
             &mut oracle_map,
@@ -3049,7 +3024,6 @@ pub mod amm_jit {
             FillMode::Fill,
             false,
             &mut None,
-            false,
         )
         .unwrap();
 

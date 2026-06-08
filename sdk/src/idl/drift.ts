@@ -17723,11 +17723,16 @@ export type Drift = {
             }
           },
           {
-            "name": "referrerRewardEpochUpperBound",
+            "name": "flatFillerFee",
             "type": "u64"
           },
           {
-            "name": "flatFillerFee",
+            "name": "padding",
+            "docs": [
+              "Reserved padding. Kept so `size_of::<FeeStructure>()` stays a multiple of 16",
+              "(OrderFillerRewardStructure's u128 forces 16-byte alignment on host x86_64);",
+              "removing it would diverge host vs. SBF layout."
+            ],
             "type": "u64"
           }
         ]
@@ -21860,27 +21865,11 @@ export type Drift = {
             "type": "pubkey"
           },
           {
-            "name": "referrerBoostExpireTs",
-            "type": "u32"
-          },
-          {
-            "name": "referrerRewardOffset",
-            "type": "i8"
-          },
-          {
-            "name": "refereeFeeNumeratorOffset",
-            "type": "i8"
-          },
-          {
-            "name": "referrerBoostNumerator",
-            "type": "i8"
-          },
-          {
             "name": "reservedFixed",
             "type": {
               "array": [
                 "u8",
-                17
+                24
               ]
             }
           },
@@ -24004,22 +23993,6 @@ export type Drift = {
               "precision: QUOTE_PRECISION"
             ],
             "type": "u64"
-          },
-          {
-            "name": "totalReferrerReward",
-            "docs": [
-              "Total reward to referrer",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "currentEpochReferrerReward",
-            "docs": [
-              "Total reward to referrer this epoch",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "u64"
           }
         ]
       }
@@ -24057,14 +24030,6 @@ export type Drift = {
                 "name": "userFees"
               }
             }
-          },
-          {
-            "name": "nextEpochTs",
-            "docs": [
-              "The timestamp of the next epoch",
-              "Epoch is used to limit referrer rewards earned in single epoch"
-            ],
-            "type": "i64"
           },
           {
             "name": "makerVolume30d",
@@ -24169,7 +24134,7 @@ export type Drift = {
             "type": {
               "array": [
                 "u8",
-                39
+                63
               ]
             }
           }

@@ -4,7 +4,6 @@
 //! `place_perp_order` / `place_spot_order` = user-facing placement with auction parameter derivation.
 //! `cancel_order` / `cancel_orders_by_*` = cancellation paths (user-initiated and expiry).
 
-use std::cell::RefMut;
 use std::collections::BTreeMap;
 use std::ops::DerefMut;
 
@@ -19,7 +18,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, update_quote_asset_amount, PositionDirection,
+    update_position_and_market, PositionDirection,
 };
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::decrease_spot_open_bids_and_asks;
@@ -985,7 +984,6 @@ pub fn fill_perp_order(
     clock: &Clock,
     fill_mode: FillMode,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
-    builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1198,19 +1196,6 @@ pub fn fill_perp_order(
         slot,
     )?;
 
-    // no referrer bonus for liquidations
-    let referrer_info = if !fill_mode.is_liquidation() {
-        get_referrer_info(
-            user_stats,
-            &user_key,
-            makers_and_referrer,
-            makers_and_referrer_stats,
-            slot,
-        )?
-    } else {
-        None
-    };
-
     let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
         oracle_price,
         oracle_twap_5min,
@@ -1286,7 +1271,6 @@ pub fn fill_perp_order(
         &mut filler.as_deref_mut(),
         &filler_key,
         &mut filler_stats.as_deref_mut(),
-        referrer_info,
         spot_market_map,
         perp_market_map,
         oracle_map,
@@ -1300,7 +1284,6 @@ pub fn fill_perp_order(
         fill_mode,
         oracle_stale_for_margin,
         rev_share_escrow,
-        builder_referral_feature_enabled,
     )?;
 
     if base_asset_amount != 0 {
@@ -1646,70 +1629,16 @@ fn insert_maker_order_info(
     }
 }
 
-fn get_referrer_info(
-    user_stats: &UserStats,
-    user_key: &Pubkey,
-    makers_and_referrer: &UserMap,
-    makers_and_referrer_stats: &UserStatsMap,
-    slot: u64,
-) -> DriftResult<Option<(Pubkey, Pubkey)>> {
-    if user_stats.referrer.eq(&Pubkey::default()) {
-        return Ok(None);
-    }
-
-    validate!(
-        makers_and_referrer_stats
-            .0
-            .contains_key(&user_stats.referrer),
-        ErrorCode::ReferrerStatsNotFound
-    )?;
-
-    let referrer_authority_key = user_stats.referrer;
-    let mut referrer_user_key = Pubkey::default();
-    for (referrer_key, referrer) in makers_and_referrer.0.iter() {
-        // if user is in makers and referrer map, skip to avoid invalid borrow
-        if referrer_key == user_key {
-            continue;
-        }
-
-        let mut referrer = load_mut!(referrer)?;
-        if referrer.authority != referrer_authority_key {
-            continue;
-        }
-
-        if referrer.sub_account_id == 0 {
-            if referrer.pool_id != 0 {
-                return Ok(None);
-            }
-
-            referrer.update_last_active_slot(slot);
-            referrer_user_key = *referrer_key;
-            break;
-        }
-    }
-
-    if referrer_user_key == Pubkey::default() {
-        return Err(ErrorCode::ReferrerNotFound);
-    }
-
-    Ok(Some((referrer_authority_key, referrer_user_key)))
-}
-
 #[inline(always)]
 fn get_builder_escrow_info(
     escrow_opt: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
     sub_account_id: u16,
     order_id: u32,
     market_index: u16,
-    builder_referral_feature_enabled: bool,
 ) -> (Option<u32>, Option<u32>, Option<u16>, Option<u8>) {
     if let Some(escrow) = escrow_opt {
         let builder_order_idx = escrow.find_order_index(sub_account_id, order_id);
-        let referrer_builder_order_idx = if builder_referral_feature_enabled {
-            escrow.find_or_create_referral_index(market_index)
-        } else {
-            None
-        };
+        let referrer_builder_order_idx = escrow.find_or_create_referral_index(market_index);
 
         let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
         let builder_order_fee_bps = builder_order.map(|order| order.fee_tenth_bps);
@@ -1737,7 +1666,6 @@ fn fulfill_perp_order(
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_stats: &mut Option<&mut UserStats>,
-    referrer_info: Option<(Pubkey, Pubkey)>,
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
@@ -1751,7 +1679,6 @@ fn fulfill_perp_order(
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
-    builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1818,13 +1745,6 @@ fn fulfill_perp_order(
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM(maker_price) => {
-                let (mut referrer, mut referrer_stats) = get_referrer(
-                    &referrer_info,
-                    makers_and_referrer,
-                    makers_and_referrer_stats,
-                    None,
-                )?;
-
                 // maker may try to fill their own order (e.g. via jit)
                 // if amm takes fill, give maker filler reward
                 let (mut maker, mut maker_stats) =
@@ -1855,8 +1775,6 @@ fn fulfill_perp_order(
                     filler,
                     filler_stats,
                     filler_key,
-                    &mut referrer.as_deref_mut(),
-                    &mut referrer_stats.as_deref_mut(),
                     reserve_price_before,
                     valid_oracle_price,
                     limit_price,
@@ -1867,7 +1785,6 @@ fn fulfill_perp_order(
                     oracle_map,
                     fill_mode.is_liquidation(),
                     rev_share_escrow,
-                    builder_referral_feature_enabled,
                 )?;
                 (fill_base, fill_quote)
             }
@@ -1880,13 +1797,6 @@ fn fulfill_perp_order(
                 } else {
                     Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
                 };
-
-                let (mut referrer, mut referrer_stats) = get_referrer(
-                    &referrer_info,
-                    makers_and_referrer,
-                    makers_and_referrer_stats,
-                    Some(&maker),
-                )?;
 
                 let mut maker_opt: Option<&mut User> = Some(&mut *maker);
                 let mut maker_stats_opt: Option<&mut UserStats> = maker_stats.as_deref_mut();
@@ -1904,8 +1814,6 @@ fn fulfill_perp_order(
                     filler,
                     filler_stats,
                     filler_key,
-                    &mut referrer.as_deref_mut(),
-                    &mut referrer_stats.as_deref_mut(),
                     reserve_price_before,
                     valid_oracle_price,
                     limit_price,
@@ -1916,7 +1824,6 @@ fn fulfill_perp_order(
                     oracle_map,
                     fill_mode.is_liquidation(),
                     rev_share_escrow,
-                    builder_referral_feature_enabled,
                 )?;
 
                 if maker_fill_base != 0 {
@@ -2118,30 +2025,6 @@ fn fulfill_perp_order(
     Ok((base_asset_amount, quote_asset_amount))
 }
 
-#[allow(clippy::type_complexity)]
-fn get_referrer<'a>(
-    referrer_info: &'a Option<(Pubkey, Pubkey)>,
-    makers_and_referrer: &'a UserMap,
-    makers_and_referrer_stats: &'a UserStatsMap,
-    maker: Option<&User>,
-) -> DriftResult<(Option<RefMut<'a, User>>, Option<RefMut<'a, UserStats>>)> {
-    let (referrer_authority_key, referrer_user_key) = match referrer_info {
-        Some(referrer_keys) => referrer_keys,
-        None => return Ok((None, None)),
-    };
-
-    if let Some(maker) = maker {
-        if &maker.authority == referrer_authority_key {
-            return Ok((None, None));
-        }
-    }
-
-    let referrer = makers_and_referrer.get_ref_mut(referrer_user_key)?;
-    let referrer_stats = makers_and_referrer_stats.get_ref_mut(referrer_authority_key)?;
-
-    Ok((Some(referrer), Some(referrer_stats)))
-}
-
 #[inline(always)]
 fn update_maker_fills_map(
     map: &mut BTreeMap<Pubkey, (i64, bool)>,
@@ -2300,10 +2183,7 @@ fn settle_amm_house_fill(
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
     filler_key: &Pubkey,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
-    builder_referral_feature_enabled: bool,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     now: i64,
@@ -2327,12 +2207,8 @@ fn settle_amm_house_fill(
             (fill.quote_filled, fill.quote_asset_amount_surplus)
         };
 
-    let reward_referrer = can_reward_user_with_referral_reward(
-        referrer,
-        market.market_index,
-        rev_share_escrow,
-        builder_referral_feature_enabled,
-    );
+    let reward_referrer =
+        can_reward_user_with_referral_reward(market.market_index, rev_share_escrow);
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index)
         || (!is_jit_within_match && can_reward_user_with_perp_pnl(maker, market.market_index));
 
@@ -2342,7 +2218,6 @@ fn settle_amm_house_fill(
             taker.sub_account_id,
             order_id,
             market.market_index,
-            builder_referral_feature_enabled,
         );
 
     let FillFees {
@@ -2362,7 +2237,6 @@ fn settle_amm_house_fill(
         slot,
         reward_filler,
         reward_referrer,
-        referrer_stats,
         taker_surplus,
         order_post_only,
         market.fee_adjustment,
@@ -2404,17 +2278,6 @@ fn settle_amm_house_fill(
     if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, rev_share_escrow.as_mut()) {
         let order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
-    } else if let (Some(referrer_user), Some(referrer_stats_ref)) =
-        (referrer.as_mut(), referrer_stats.as_mut())
-    {
-        if let Ok(referrer_position) =
-            referrer_user.force_get_perp_position_mut(market.market_index)
-        {
-            if referrer_reward > 0 {
-                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-            }
-            referrer_stats_ref.increment_total_referrer_reward(referrer_reward, now)?;
-        }
     }
 
     if user_fee != 0 || builder_fee != 0 {
@@ -2591,10 +2454,7 @@ fn settle_dlob_match_fill(
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
     filler_key: &Pubkey,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
-    builder_referral_feature_enabled: bool,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
@@ -2655,12 +2515,8 @@ fn settle_dlob_match_fill(
     )?;
     taker_stats.update_taker_volume_30d(fill.quote_filled, now)?;
 
-    let reward_referrer = can_reward_user_with_referral_reward(
-        referrer,
-        market.market_index,
-        rev_share_escrow,
-        builder_referral_feature_enabled,
-    );
+    let reward_referrer =
+        can_reward_user_with_referral_reward(market.market_index, rev_share_escrow);
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
 
     let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
@@ -2669,7 +2525,6 @@ fn settle_dlob_match_fill(
             taker.sub_account_id,
             taker.orders[taker_order_index].order_id,
             market.market_index,
-            builder_referral_feature_enabled,
         );
 
     let filler_multiplier = if reward_filler {
@@ -2700,7 +2555,6 @@ fn settle_dlob_match_fill(
         slot,
         filler_multiplier,
         reward_referrer,
-        referrer_stats,
         &MarketType::Perp,
         market.fee_adjustment,
         builder_order_fee_bps,
@@ -2766,17 +2620,6 @@ fn settle_dlob_match_fill(
     {
         let order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
-    } else if let (Some(referrer_user), Some(referrer_stats_ref)) =
-        (referrer.as_mut(), referrer_stats.as_mut())
-    {
-        if let Ok(referrer_position) =
-            referrer_user.force_get_perp_position_mut(market.market_index)
-        {
-            if referrer_reward > 0 {
-                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-            }
-            referrer_stats_ref.increment_total_referrer_reward(referrer_reward, now)?;
-        }
     }
 
     // Update taker order BEFORE event emit.
@@ -2900,8 +2743,6 @@ pub fn fulfill_perp_order_step(
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
     filler_key: &Pubkey,
-    referrer: &mut Option<&mut User>,
-    referrer_stats: &mut Option<&mut UserStats>,
     // AmmQuoter::setup is what materialises the pre-quote reserves now;
     // this orchestrator-supplied value is informational only. Kept on the
     // signature to avoid churning all call sites.
@@ -2915,7 +2756,6 @@ pub fn fulfill_perp_order_step(
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
-    builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64, u64)> {
     // ---- 1. Capture taker order fields. ----
     let market_index = market.market_index;
@@ -3197,10 +3037,7 @@ pub fn fulfill_perp_order_step(
                     filler,
                     filler_stats,
                     filler_key,
-                    referrer,
-                    referrer_stats,
                     rev_share_escrow,
-                    builder_referral_feature_enabled,
                     fee_structure,
                     oracle_map,
                     now,
@@ -3231,10 +3068,7 @@ pub fn fulfill_perp_order_step(
                     filler,
                     filler_stats,
                     filler_key,
-                    referrer,
-                    referrer_stats,
                     rev_share_escrow,
-                    builder_referral_feature_enabled,
                     fee_structure,
                     oracle_map,
                     is_liquidation,
@@ -3774,18 +3608,13 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
 }
 
 pub fn can_reward_user_with_referral_reward(
-    user: &mut Option<&mut User>,
     market_index: u16,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
-    builder_referral_feature_enabled: bool,
 ) -> bool {
-    if builder_referral_feature_enabled {
-        if let Some(escrow) = rev_share_escrow {
-            return escrow.find_or_create_referral_index(market_index).is_some();
-        }
-        false
+    if let Some(escrow) = rev_share_escrow {
+        escrow.find_or_create_referral_index(market_index).is_some()
     } else {
-        can_reward_user_with_perp_pnl(user, market_index)
+        false
     }
 }
 

@@ -17717,11 +17717,16 @@
             }
           },
           {
-            "name": "referrer_reward_epoch_upper_bound",
+            "name": "flat_filler_fee",
             "type": "u64"
           },
           {
-            "name": "flat_filler_fee",
+            "name": "padding",
+            "docs": [
+              "Reserved padding. Kept so `size_of::<FeeStructure>()` stays a multiple of 16",
+              "(OrderFillerRewardStructure's u128 forces 16-byte alignment on host x86_64);",
+              "removing it would diverge host vs. SBF layout."
+            ],
             "type": "u64"
           }
         ]
@@ -21854,27 +21859,11 @@
             "type": "pubkey"
           },
           {
-            "name": "referrer_boost_expire_ts",
-            "type": "u32"
-          },
-          {
-            "name": "referrer_reward_offset",
-            "type": "i8"
-          },
-          {
-            "name": "referee_fee_numerator_offset",
-            "type": "i8"
-          },
-          {
-            "name": "referrer_boost_numerator",
-            "type": "i8"
-          },
-          {
             "name": "reserved_fixed",
             "type": {
               "array": [
                 "u8",
-                17
+                24
               ]
             }
           },
@@ -23998,22 +23987,6 @@
               "precision: QUOTE_PRECISION"
             ],
             "type": "u64"
-          },
-          {
-            "name": "total_referrer_reward",
-            "docs": [
-              "Total reward to referrer",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "current_epoch_referrer_reward",
-            "docs": [
-              "Total reward to referrer this epoch",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "u64"
           }
         ]
       }
@@ -24051,14 +24024,6 @@
                 "name": "UserFees"
               }
             }
-          },
-          {
-            "name": "next_epoch_ts",
-            "docs": [
-              "The timestamp of the next epoch",
-              "Epoch is used to limit referrer rewards earned in single epoch"
-            ],
-            "type": "i64"
           },
           {
             "name": "maker_volume_30d",
@@ -24163,7 +24128,7 @@
             "type": {
               "array": [
                 "u8",
-                39
+                63
               ]
             }
           }

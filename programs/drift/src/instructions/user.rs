@@ -408,12 +408,9 @@ pub fn handle_initialize_revenue_share_escrow<'c: 'info, 'info>(
         .orders
         .resize_with(num_orders as usize, RevenueShareOrder::default);
 
-    let state = ctx.accounts.state.load()?;
-    if state.builder_referral_enabled() {
-        let mut user_stats = ctx.accounts.user_stats.load_mut()?;
-        escrow.referrer = user_stats.referrer;
-        user_stats.update_builder_referral_status();
-    }
+    let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+    escrow.referrer = user_stats.referrer;
+    user_stats.update_builder_referral_status();
 
     escrow.validate()?;
     Ok(())
@@ -422,14 +419,6 @@ pub fn handle_initialize_revenue_share_escrow<'c: 'info, 'info>(
 pub fn handle_migrate_referrer<'c: 'info, 'info>(
     ctx: Context<'info, MigrateReferrer<'info>>,
 ) -> Result<()> {
-    let state = ctx.accounts.state.load()?;
-    if !state.builder_referral_enabled() && state.cold_admin != ctx.accounts.payer.key() {
-        msg!(
-            "Only state.cold_admin can migrate referrer until builder referral feature is enabled"
-        );
-        return Err(anchor_lang::error::ErrorCode::ConstraintSigner.into());
-    }
-
     let escrow = &mut ctx.accounts.escrow;
     let mut user_stats = ctx.accounts.user_stats.load_mut()?;
     escrow.referrer = user_stats.referrer;
@@ -2823,9 +2812,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
 
-    let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut escrow = if builder_codes_enabled {
         get_revenue_share_escrow_account(remaining_accounts_iter, &load!(user)?.authority)?
     } else {
         None
@@ -2850,7 +2838,6 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             auction_duration_percentage,
         ),
         &mut escrow.as_mut(),
-        builder_referral_enabled,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2947,9 +2934,8 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut escrow = if builder_codes_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
             &load!(ctx.accounts.taker)?.authority,
@@ -2974,7 +2960,6 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -3057,9 +3042,8 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut escrow = if builder_codes_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
             &load!(ctx.accounts.taker)?.authority,
@@ -3091,7 +3075,6 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?

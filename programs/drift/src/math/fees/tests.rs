@@ -27,7 +27,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             false,
-            &None,
             &MarketType::Perp,
             0,
             None,
@@ -71,7 +70,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             1,
             false,
-            &None,
             &MarketType::Perp,
             0,
             None,
@@ -114,7 +112,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             1,
             false,
-            &None,
             &MarketType::Perp,
             0,
             None,
@@ -157,7 +154,6 @@ mod calculate_fee_for_taker_and_maker {
             60,
             1,
             false,
-            &None,
             &MarketType::Perp,
             0,
             None,
@@ -198,7 +194,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             true,
-            &None,
             &MarketType::Perp,
             0,
             None,
@@ -236,7 +231,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             false,
-            &None,
             &MarketType::Perp,
             -50,
             None,
@@ -267,7 +261,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             false,
-            &None,
             &MarketType::Perp,
             50,
             None,
@@ -299,7 +292,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             true,
-            &None,
             &MarketType::Perp,
             -50,
             None,
@@ -331,7 +323,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             1,
             true,
-            &None,
             &MarketType::Perp,
             -50,
             None,
@@ -369,7 +360,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             false,
-            &None,
             &MarketType::Perp,
             -100,
             None,
@@ -400,7 +390,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             false,
-            &None,
             &MarketType::Perp,
             -100,
             None,
@@ -431,7 +420,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             false,
-            &None,
             &MarketType::Perp,
             -100,
             None,
@@ -463,7 +451,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             0,
             true,
-            &None,
             &MarketType::Perp,
             -100,
             None,
@@ -495,7 +482,6 @@ mod calculate_fee_for_taker_and_maker {
             0,
             1,
             true,
-            &None,
             &MarketType::Perp,
             -100,
             None,
@@ -539,7 +525,6 @@ mod calculate_fee_for_order_fulfill_against_amm {
             60,
             false,
             true,
-            &None,
             0,
             false,
             0,
@@ -576,7 +561,6 @@ mod calculate_fee_for_order_fulfill_against_amm {
             60,
             false,
             false,
-            &None,
             0,
             false,
             -50,
@@ -605,7 +589,6 @@ mod calculate_fee_for_order_fulfill_against_amm {
             60,
             false,
             false,
-            &None,
             0,
             false,
             50,
@@ -635,7 +618,6 @@ mod calculate_fee_for_order_fulfill_against_amm {
             60,
             false,
             true,
-            &None,
             0,
             false,
             -50,
@@ -665,7 +647,6 @@ mod calculate_fee_for_order_fulfill_against_amm {
             60,
             true,
             true,
-            &None,
             0,
             false,
             -50,
@@ -681,173 +662,10 @@ mod calculate_fee_for_order_fulfill_against_amm {
     }
 }
 
-mod calculate_fee_for_fulfillment_with_serum {
-    use crate::math::constants::QUOTE_PRECISION_U64;
-    use crate::math::fees::{calculate_fee_for_fulfillment_with_external_market, ExternalFillFees};
-    use crate::state::state::FeeStructure;
-    use crate::state::user::UserStats;
-
-    #[test]
-    fn no_filler() {
-        let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
-
-        let serum_fee = 32000_u64; // 3.2 bps
-
-        let serum_referrer_rebate = 8000_u64; // .8 bps
-
-        let fee_pool_token_amount = 0_u64;
-
-        let taker_stats = UserStats::default();
-        let fee_structure = FeeStructure::test_default();
-
-        let ExternalFillFees {
-            user_fee,
-            fee_to_market,
-            fee_pool_delta,
-            filler_reward,
-        } = calculate_fee_for_fulfillment_with_external_market(
-            &taker_stats,
-            quote_asset_amount,
-            &fee_structure,
-            0,
-            0,
-            false,
-            serum_fee,
-            serum_referrer_rebate,
-            fee_pool_token_amount,
-            0,
-        )
-        .unwrap();
-
-        assert_eq!(user_fee, 100000);
-        assert_eq!(fee_to_market, 68000);
-        assert_eq!(fee_pool_delta, 60000);
-        assert_eq!(filler_reward, 0);
-    }
-
-    #[test]
-    fn filler_reward_from_excess_user_fee() {
-        let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
-
-        let serum_fee = 32000_u64; // 3.2 bps
-
-        let serum_referrer_rebate = 8000_u64; // .8 bps
-
-        let fee_pool_token_amount = 0_u64;
-
-        let taker_stats = UserStats::default();
-        let fee_structure = FeeStructure::test_default();
-
-        let ExternalFillFees {
-            user_fee,
-            fee_to_market,
-            fee_pool_delta,
-            filler_reward,
-        } = calculate_fee_for_fulfillment_with_external_market(
-            &taker_stats,
-            quote_asset_amount,
-            &fee_structure,
-            0,
-            0,
-            true,
-            serum_fee,
-            serum_referrer_rebate,
-            fee_pool_token_amount,
-            0,
-        )
-        .unwrap();
-
-        assert_eq!(user_fee, 100000);
-        assert_eq!(fee_to_market, 58000);
-        assert_eq!(fee_pool_delta, 50000);
-        assert_eq!(filler_reward, 10000);
-    }
-
-    #[test]
-    fn filler_reward_from_fee_pool() {
-        let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
-
-        let serum_fee = 32000_u64; // 3.2 bps
-
-        let serum_referrer_rebate = 8000_u64; // .8 bps
-
-        let fee_pool_token_amount = 10000_u64;
-
-        let user_stats = UserStats::default();
-        let mut fee_structure = FeeStructure::test_default();
-        fee_structure.fee_tiers[0].fee_numerator = 4;
-
-        let ExternalFillFees {
-            user_fee,
-            fee_to_market,
-            fee_pool_delta,
-            filler_reward,
-        } = calculate_fee_for_fulfillment_with_external_market(
-            &user_stats,
-            quote_asset_amount,
-            &fee_structure,
-            0,
-            0,
-            true,
-            serum_fee,
-            serum_referrer_rebate,
-            fee_pool_token_amount,
-            0,
-        )
-        .unwrap();
-
-        assert_eq!(user_fee, 40000);
-        assert_eq!(fee_to_market, 0);
-        assert_eq!(fee_pool_delta, -8000);
-        assert_eq!(filler_reward, 8000);
-    }
-
-    #[test]
-    fn filler_reward_from_smaller_fee_pool() {
-        let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
-
-        let serum_fee = 32000_u64; // 3.2 bps
-
-        let serum_referrer_rebate = 8000_u64; // .8 bps
-
-        let fee_pool_token_amount = 2000_u64;
-
-        let user_stats = UserStats::default();
-        let mut fee_structure = FeeStructure::test_default();
-        fee_structure.fee_tiers[0].fee_numerator = 4;
-
-        let ExternalFillFees {
-            user_fee,
-            fee_to_market,
-            fee_pool_delta,
-            filler_reward,
-        } = calculate_fee_for_fulfillment_with_external_market(
-            &user_stats,
-            quote_asset_amount,
-            &fee_structure,
-            0,
-            0,
-            true,
-            serum_fee,
-            serum_referrer_rebate,
-            fee_pool_token_amount,
-            0,
-        )
-        .unwrap();
-
-        assert_eq!(user_fee, 40000);
-        assert_eq!(fee_to_market, 6000);
-        assert_eq!(fee_pool_delta, -2000);
-        assert_eq!(filler_reward, 2000);
-    }
-}
-
 mod calcuate_fee_tiers {
 
     use crate::math::constants::QUOTE_PRECISION_U64;
-    use crate::math::constants::{
-        FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
-    };
+    use crate::math::constants::{FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR};
     use crate::math::fees::{determine_user_fee_tier, OrderFillerRewardStructure};
     use crate::state::state::{FeeStructure, FeeTier};
     use crate::state::user::MarketType;
@@ -927,7 +745,7 @@ mod calcuate_fee_tiers {
                 _padding: [0; 8],
             },
             flat_filler_fee: 10_000,
-            referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+            padding: 0,
         };
 
         let res = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp).unwrap();

@@ -39,6 +39,7 @@ import {
 	getLimitOrderParams,
 	SignedMsgOrderParamsMessage,
 	QUOTE_PRECISION,
+	SettlePnlMode,
 } from '../sdk/src';
 
 import {
@@ -640,10 +641,6 @@ describe('builder codes', () => {
 				orderId: 3,
 			},
 			undefined,
-			{
-				referrer: await builderClient.getUserAccountPublicKey(),
-				referrerStats: builderClient.getUserStatsAccountPublicKey(),
-			},
 			undefined,
 			undefined,
 			undefined,
@@ -663,9 +660,15 @@ describe('builder codes', () => {
 		const builderFee = fillEvent.data['builderFee'] as BN | null;
 		const takerFee = fillEvent.data['takerFee'] as BN;
 		const totalFeePaid = takerFee;
-		const referrerReward = new BN(fillEvent.data['referrerReward'] as number);
+		// referrerReward is an Option<u32> on-chain and is emitted as null when 0.
+		const referrerReward = new BN(
+			(fillEvent.data['referrerReward'] as number | null) ?? 0
+		);
 		assert(builderFee === null);
-		assert(referrerReward.gt(ZERO));
+		// user2 has no RevenueShareEscrow, so no referral reward accrues (the
+		// on-chain legacy referral path was removed; rewards flow only through an
+		// escrow now).
+		assert(referrerReward.eq(ZERO));
 
 		await user2Client.fetchAccounts();
 		userOrders = user2Client.getUser().getOpenOrders();
@@ -840,10 +843,6 @@ describe('builder codes', () => {
 				orderId: 3,
 			},
 			undefined,
-			{
-				referrer: await builderClient.getUserAccountPublicKey(),
-				referrerStats: builderClient.getUserStatsAccountPublicKey(),
-			},
 			undefined,
 			undefined,
 			undefined,
@@ -862,7 +861,12 @@ describe('builder codes', () => {
 		const fillQuoteAssetAmount = fillEvent.data['quoteAssetAmountFilled'] as BN;
 		const builderFee = fillEvent.data['builderFee'] as BN;
 		const takerFee = fillEvent.data['takerFee'] as BN;
-		// const referrerReward = fillEvent.data['referrerReward'] as number;
+		// referrerReward is an Option<u32> on-chain, emitted as null when 0. userClient
+		// has a RevenueShareEscrow and is referred by the builder, so this accrues.
+		const referrerReward = new BN(
+			(fillEvent.data['referrerReward'] as number | null) ?? 0
+		);
+		assert(referrerReward.gt(ZERO));
 		assert(
 			builderFee.eq(fillQuoteAssetAmount.muln(builderFeeBps).divn(100000))
 		);
@@ -955,26 +959,28 @@ describe('builder codes', () => {
 			.filter((e) => e.name === 'revenueShareSettleRecord')
 			.map((e) => e.data) as RevenueShareSettleRecord[];
 
-		assert(builderSettleEvents.length === 1);
-		assert(builderSettleEvents[0].builder.equals(builder.publicKey));
-		assert(builderSettleEvents[0].referrer == null);
-		assert(builderSettleEvents[0].feeSettled.eq(builderFee));
-		assert(builderSettleEvents[0].marketIndex === marketIndex);
-		assert(isVariant(builderSettleEvents[0].marketType, 'perp'));
-		assert(builderSettleEvents[0].builderTotalReferrerRewards.eq(ZERO));
-		assert(builderSettleEvents[0].builderTotalBuilderRewards.eq(builderFee));
+		// userClient both pays a builder fee and is referred by the builder, so the
+		// settle sweeps two records: a builder-fee record and a referral-reward
+		// record (both crediting the same authority, the builder).
+		const builderRecord = builderSettleEvents.find((e) => e.builder != null);
+		const referrerRecord = builderSettleEvents.find((e) => e.referrer != null);
+		assert(builderSettleEvents.length === 2);
 
-		// assert(builderSettleEvents[1].builder === null);
-		// assert(builderSettleEvents[1].referrer.equals(builder.publicKey));
-		// assert(builderSettleEvents[1].feeSettled.eq(new BN(referrerReward)));
-		// assert(builderSettleEvents[1].marketIndex === marketIndex);
-		// assert(isVariant(builderSettleEvents[1].marketType, 'spot'));
-		// assert(
-		// 	builderSettleEvents[1].builderTotalReferrerRewards.eq(
-		// 		new BN(referrerReward)
-		// 	)
-		// );
-		// assert(builderSettleEvents[1].builderTotalBuilderRewards.eq(builderFee));
+		assert(builderRecord !== undefined);
+		assert(builderRecord.builder.equals(builder.publicKey));
+		assert(builderRecord.referrer == null);
+		assert(builderRecord.feeSettled.eq(builderFee));
+		assert(builderRecord.marketIndex === marketIndex);
+		assert(isVariant(builderRecord.marketType, 'perp'));
+		assert(builderRecord.builderTotalBuilderRewards.eq(builderFee));
+
+		assert(referrerRecord !== undefined);
+		assert(referrerRecord.builder == null);
+		assert(referrerRecord.referrer.equals(builder.publicKey));
+		assert(referrerRecord.feeSettled.eq(referrerReward));
+		assert(referrerRecord.marketIndex === marketIndex);
+		assert(isVariant(referrerRecord.marketType, 'perp'));
+		assert(referrerRecord.builderTotalReferrerRewards.eq(referrerReward));
 
 		await escrowMap.slowSync();
 		escrow = (await escrowMap.mustGet(
@@ -992,8 +998,12 @@ describe('builder codes', () => {
 			usdcPos.balanceType
 		);
 
-		const finalBuilderFee = builderUsdcAfterSettle.sub(builderUsdcBeforeSettle);
-		// .sub(new BN(referrerReward))
+		// The builder is also the referrer here, so its USDC balance grew by the
+		// builder fee plus the referral reward; back out the referral reward to
+		// isolate the builder fee.
+		const finalBuilderFee = builderUsdcAfterSettle
+			.sub(builderUsdcBeforeSettle)
+			.sub(referrerReward);
 		assert(
 			finalBuilderFee.eq(builderFee),
 			`finalBuilderFee ${finalBuilderFee.toString()} !== builderFee ${builderFee.toString()}`
@@ -1141,10 +1151,6 @@ describe('builder codes', () => {
 			userClient.getUserAccount(),
 			{ marketIndex, orderId: userOrders[0].orderId },
 			undefined,
-			{
-				referrer: await builderClient.getUserAccountPublicKey(),
-				referrerStats: builderClient.getUserStatsAccountPublicKey(),
-			},
 			undefined,
 			undefined,
 			undefined,
@@ -1158,17 +1164,15 @@ describe('builder codes', () => {
 		const fillEventA = eventsA.find((e) => e.name === 'orderActionRecord');
 		assert(fillEventA !== undefined);
 		const builderFeeA = fillEventA.data['builderFee'] as BN;
-		// const referrerRewardA = new BN(fillEventA.data['referrerReward'] as number);
+		const referrerRewardA = new BN(
+			(fillEventA.data['referrerReward'] as number | null) ?? 0
+		);
 
 		const fillTxB = await makerClient.fillPerpOrder(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
 			{ marketIndex, orderId: userOrders[1].orderId },
 			undefined,
-			{
-				referrer: await builderClient.getUserAccountPublicKey(),
-				referrerStats: builderClient.getUserStatsAccountPublicKey(),
-			},
 			undefined,
 			undefined,
 			undefined,
@@ -1182,7 +1186,9 @@ describe('builder codes', () => {
 		const fillEventB = eventsB.find((e) => e.name === 'orderActionRecord');
 		assert(fillEventB !== undefined);
 		const builderFeeB = fillEventB.data['builderFee'] as BN;
-		// const referrerRewardB = new BN(fillEventB.data['referrerReward'] as number);
+		const referrerRewardB = new BN(
+			(fillEventB.data['referrerReward'] as number | null) ?? 0
+		);
 
 		await bankrunContextWrapper.moveTimeForward(100);
 
@@ -1194,9 +1200,12 @@ describe('builder codes', () => {
 			(sum, o) => sum.add(o.feesAccrued ?? ZERO),
 			ZERO
 		);
-		const expectedTotal = builderFeeA.add(builderFeeB);
-		// .add(referrerRewardA)
-		// .add(referrerRewardB);
+		// userClient has an escrow and is referred by the builder, so each fill
+		// accrues both a builder fee and a referral reward into the escrow.
+		const expectedTotal = builderFeeA
+			.add(builderFeeB)
+			.add(referrerRewardA)
+			.add(referrerRewardB);
 		assert(
 			totalFeesAccrued.sub(totalFeesInEscrowStart).eq(expectedTotal),
 			`totalFeesAccrued: ${totalFeesAccrued.toString()}, expectedTotal: ${expectedTotal.toString()}`
@@ -1324,10 +1333,6 @@ describe('builder codes', () => {
 				makerUserAccount: makerClient.getUserAccount(),
 				// order?: Order;
 			},
-			{
-				referrer: await builderClient.getUserAccountPublicKey(),
-				referrerStats: builderClient.getUserStatsAccountPublicKey(),
-			},
 			undefined,
 			undefined,
 			undefined,
@@ -1344,10 +1349,13 @@ describe('builder codes', () => {
 			(sum, e) => sum.add(e.data['builderFee'] as BN),
 			ZERO
 		);
-		// const referrerRewardA = fillEventA.reduce(
-		// 	(sum, e) => sum.add(new BN(e.data['referrerReward'] as number)),
-		// 	ZERO
-		// );
+		// userClient has an escrow and is referred by the builder, so referral
+		// rewards accrue alongside the builder fee.
+		const referrerRewardA = fillEventA.reduce(
+			(sum, e) =>
+				sum.add(new BN((e.data['referrerReward'] as number | null) ?? 0)),
+			ZERO
+		);
 
 		await bankrunContextWrapper.moveTimeForward(100);
 
@@ -1401,10 +1409,13 @@ describe('builder codes', () => {
 			builderClient.getSpotMarketAccount(0),
 			usdcPos.balanceType
 		);
+		// The builder is also the referrer, so its USDC grows by both the builder
+		// fee and the referral reward.
 		assert(
-			builderUsdcAfter.sub(builderUsdcBefore).eq(builderFeeA),
-			// .add(referrerRewardA)
-			`builderUsdcAfter: ${builderUsdcAfter.toString()} !== builderUsdcBefore ${builderUsdcBefore.toString()} + builderFeeA ${builderFeeA.toString()}`
+			builderUsdcAfter
+				.sub(builderUsdcBefore)
+				.eq(builderFeeA.add(referrerRewardA)),
+			`builderUsdcAfter: ${builderUsdcAfter.toString()} !== builderUsdcBefore ${builderUsdcBefore.toString()} + builderFeeA ${builderFeeA.toString()} + referrerRewardA ${referrerRewardA.toString()}`
 		);
 
 		const builderAccountInfoAfter =
@@ -1432,196 +1443,227 @@ describe('builder codes', () => {
 			`builderFeeChange: ${builderFeeChange.toString()}, builderFeeA: ${builderFeeA.toString()}`
 		);
 
-		// const referrerRewardChange = builderAccAfter.totalReferrerRewards.sub(
-		// 	builderAccBefore.totalReferrerRewards
-		// );
-		// assert(referrerRewardChange.eq(referrerRewardA));
+		const referrerRewardChange = builderAccAfter.totalReferrerRewards.sub(
+			builderAccBefore.totalReferrerRewards
+		);
+		assert(
+			referrerRewardChange.eq(referrerRewardA),
+			`referrerRewardChange: ${referrerRewardChange.toString()}, referrerRewardA: ${referrerRewardA.toString()}`
+		);
 	});
 
-	// it('can track referral rewards for 2 markets', async () => {
-	// 	const builderAccountInfoBefore =
-	// 		await bankrunContextWrapper.connection.getAccountInfo(
-	// 			getRevenueShareAccountPublicKey(
-	// 				builderClient.program.programId,
-	// 				builderClient.wallet.publicKey
-	// 			)
-	// 		);
-	// 	const builderAccBefore: RevenueShareAccount =
-	// 		builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-	// 			'RevenueShare',
-	// 			builderAccountInfoBefore.data
-	// 		);
-	// 	// await escrowMap.slowSync();
-	// 	// const escrowBeforeFills = (await escrowMap.mustGet(
-	// 	// 	userClient.wallet.publicKey.toBase58()
-	// 	// )) as RevenueShareEscrowAccount;
+	it('can track referral rewards for 2 markets', async () => {
+		// userClient is referred by the builder (builder == referrer here) and has
+		// a RevenueShareEscrow, so each fill accrues a referral reward into a
+		// Referral-flagged order slot for that market.
+		const builder = builderClient.wallet;
+		const maxFeeBps = 150 * 10;
+		await userClient.changeApprovedBuilder(builder.publicKey, maxFeeBps, true);
 
-	// 	const slot = new BN(
-	// 		await bankrunContextWrapper.connection.toConnection().getSlot()
-	// 	);
+		const builderAccountInfoBefore =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getRevenueShareAccountPublicKey(
+					builderClient.program.programId,
+					builderClient.wallet.publicKey
+				)
+			);
+		const builderAccBefore: RevenueShareAccount =
+			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'revenueShare',
+				builderAccountInfoBefore.data
+			);
 
-	// 	// place 2 orders in different markets
+		// Capture any referral fees already accrued for these markets (earlier
+		// tests share this user's escrow), so we can assert on the delta.
+		await escrowMap.slowSync();
+		const escrowBeforeFills = (await escrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
+		const referralAccruedBefore = (marketIndex: number) =>
+			escrowBeforeFills.orders
+				.filter(
+					(o) => o.marketIndex === marketIndex && isBuilderOrderReferral(o)
+				)
+				.reduce((sum, o) => sum.add(o.feesAccrued ?? ZERO), ZERO);
+		const referralMarket0Before = referralAccruedBefore(0);
+		const referralMarket1Before = referralAccruedBefore(1);
 
-	// 	const signedA = userClient.signSignedMsgOrderParamsMessage(
-	// 		buildMsg(0, BASE_PRECISION, 1, 5, slot),
-	// 		false
-	// 	);
-	// 	await builderClient.placeSignedMsgTakerOrder(
-	// 		signedA,
-	// 		0,
-	// 		{
-	// 			taker: await userClient.getUserAccountPublicKey(),
-	// 			takerUserAccount: userClient.getUserAccount(),
-	// 			takerStats: userClient.getUserStatsAccountPublicKey(),
-	// 			signingAuthority: userClient.wallet.publicKey,
-	// 		},
-	// 		undefined,
-	// 		2
-	// 	);
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
 
-	// 	const signedB = userClient.signSignedMsgOrderParamsMessage(
-	// 		buildMsg(1, BASE_PRECISION, 2, 5, slot),
-	// 		false
-	// 	);
-	// 	await builderClient.placeSignedMsgTakerOrder(
-	// 		signedB,
-	// 		1,
-	// 		{
-	// 			taker: await userClient.getUserAccountPublicKey(),
-	// 			takerUserAccount: userClient.getUserAccount(),
-	// 			takerStats: userClient.getUserStatsAccountPublicKey(),
-	// 			signingAuthority: userClient.wallet.publicKey,
-	// 		},
-	// 		undefined,
-	// 		2
-	// 	);
+		// place 2 orders in different markets
+		const signedA = userClient.signSignedMsgOrderParamsMessage(
+			buildMsg(0, BASE_PRECISION, 20, 5, slot),
+			false
+		);
+		await builderClient.placeSignedMsgTakerOrder(
+			signedA,
+			0,
+			{
+				taker: await userClient.getUserAccountPublicKey(),
+				takerUserAccount: userClient.getUserAccount(),
+				takerStats: userClient.getUserStatsAccountPublicKey(),
+				signingAuthority: userClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
 
-	// 	await userClient.fetchAccounts();
-	// 	const openOrders = userClient.getUser().getOpenOrders();
+		const signedB = userClient.signSignedMsgOrderParamsMessage(
+			buildMsg(1, BASE_PRECISION, 21, 5, slot),
+			false
+		);
+		await builderClient.placeSignedMsgTakerOrder(
+			signedB,
+			1,
+			{
+				taker: await userClient.getUserAccountPublicKey(),
+				takerUserAccount: userClient.getUserAccount(),
+				takerStats: userClient.getUserStatsAccountPublicKey(),
+				signingAuthority: userClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
 
-	// 	const fillTxA = await makerClient.fillPerpOrder(
-	// 		await userClient.getUserAccountPublicKey(),
-	// 		userClient.getUserAccount(),
-	// 		{
-	// 			marketIndex: 0,
-	// 			orderId: openOrders.find(
-	// 				(o) => isVariant(o.status, 'open') && o.marketIndex === 0
-	// 			)!.orderId,
-	// 		},
-	// 		undefined,
-	// 		{
-	// 			referrer: await builderClient.getUserAccountPublicKey(),
-	// 			referrerStats: builderClient.getUserStatsAccountPublicKey(),
-	// 		},
-	// 		undefined,
-	// 		undefined,
-	// 		undefined,
-	// 		true
-	// 	);
-	// 	const logsA = await printTxLogs(
-	// 		bankrunContextWrapper.connection.toConnection(),
-	// 		fillTxA
-	// 	);
-	// 	const eventsA = parseLogs(builderClient.program, logsA);
-	// 	const fillsA = eventsA.filter((e) => e.name === 'orderActionRecord');
-	// 	const fillAReferrerReward = fillsA[0]['data']['referrerReward'] as number;
-	// 	assert(fillsA.length > 0);
-	// 	// debug: fillsA[0]['data']
+		await userClient.fetchAccounts();
+		const openOrders = userClient.getUser().getOpenOrders();
 
-	// 	const fillTxB = await makerClient.fillPerpOrder(
-	// 		await userClient.getUserAccountPublicKey(),
-	// 		userClient.getUserAccount(),
-	// 		{
-	// 			marketIndex: 1,
-	// 			orderId: openOrders.find(
-	// 				(o) => isVariant(o.status, 'open') && o.marketIndex === 1
-	// 			)!.orderId,
-	// 		},
-	// 		undefined,
-	// 		{
-	// 			referrer: await builderClient.getUserAccountPublicKey(),
-	// 			referrerStats: builderClient.getUserStatsAccountPublicKey(),
-	// 		},
-	// 		undefined,
-	// 		undefined,
-	// 		undefined,
-	// 		true
-	// 	);
-	// 	const logsB = await printTxLogs(
-	// 		bankrunContextWrapper.connection.toConnection(),
-	// 		fillTxB
-	// 	);
-	// 	const eventsB = parseLogs(builderClient.program, logsB);
-	// 	const fillsB = eventsB.filter((e) => e.name === 'orderActionRecord');
-	// 	assert(fillsB.length > 0);
-	// 	const fillBReferrerReward = fillsB[0]['data']['referrerReward'] as number;
-	// 	// debug: fillsB[0]['data']
+		const fillTxA = await makerClient.fillPerpOrder(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			{
+				marketIndex: 0,
+				orderId: openOrders.find(
+					(o) => isVariant(o.status, 'open') && o.marketIndex === 0
+				)!.orderId,
+			},
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+		const logsA = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxA
+		);
+		const eventsA = parseLogs(builderClient.program, logsA);
+		const fillsA = eventsA.filter((e) => e.name === 'orderActionRecord');
+		assert(fillsA.length > 0);
+		const fillAReferrerReward = fillsA[0]['data']['referrerReward'] as number;
 
-	// 	await escrowMap.slowSync();
-	// 	const escrowAfterFills = (await escrowMap.mustGet(
-	// 		userClient.wallet.publicKey.toBase58()
-	// 	)) as RevenueShareEscrowAccount;
+		const fillTxB = await makerClient.fillPerpOrder(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			{
+				marketIndex: 1,
+				orderId: openOrders.find(
+					(o) => isVariant(o.status, 'open') && o.marketIndex === 1
+				)!.orderId,
+			},
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+		const logsB = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxB
+		);
+		const eventsB = parseLogs(builderClient.program, logsB);
+		const fillsB = eventsB.filter((e) => e.name === 'orderActionRecord');
+		assert(fillsB.length > 0);
+		const fillBReferrerReward = fillsB[0]['data']['referrerReward'] as number;
 
-	// 	const referrerOrdersMarket0 = escrowAfterFills.orders.filter(
-	// 		(o) => o.marketIndex === 0 && isBuilderOrderReferral(o)
-	// 	);
-	// 	const referrerOrdersMarket1 = escrowAfterFills.orders.filter(
-	// 		(o) => o.marketIndex === 1 && isBuilderOrderReferral(o)
-	// 	);
-	// 	assert(referrerOrdersMarket0[0].marketIndex === 0);
-	// 	assert(
-	// 		referrerOrdersMarket0[0].feesAccrued.eq(new BN(fillAReferrerReward))
-	// 	);
-	// 	assert(referrerOrdersMarket1[0].marketIndex === 1);
-	// 	assert(
-	// 		referrerOrdersMarket1[0].feesAccrued.eq(new BN(fillBReferrerReward))
-	// 	);
+		await bankrunContextWrapper.moveTimeForward(100);
 
-	// 	// settle pnl
-	// 	const settleTxA = await builderClient.settleMultiplePNLs(
-	// 		await userClient.getUserAccountPublicKey(),
-	// 		userClient.getUserAccount(),
-	// 		[0, 1],
-	// 		SettlePnlMode.MUST_SETTLE,
-	// 		escrowMap
-	// 	);
-	// 	await printTxLogs(
-	// 		bankrunContextWrapper.connection.toConnection(),
-	// 		settleTxA
-	// 	);
+		await escrowMap.slowSync();
+		const escrowAfterFills = (await escrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
 
-	// 	await escrowMap.slowSync();
-	// 	const escrowAfterSettle = (await escrowMap.mustGet(
-	// 		userClient.wallet.publicKey.toBase58()
-	// 	)) as RevenueShareEscrowAccount;
-	// 	const referrerOrdersMarket0AfterSettle = escrowAfterSettle.orders.filter(
-	// 		(o) => o.marketIndex === 0 && isBuilderOrderReferral(o)
-	// 	);
-	// 	const referrerOrdersMarket1AfterSettle = escrowAfterSettle.orders.filter(
-	// 		(o) => o.marketIndex === 1 && isBuilderOrderReferral(o)
-	// 	);
-	// 	assert(referrerOrdersMarket0AfterSettle.length === 1);
-	// 	assert(referrerOrdersMarket1AfterSettle.length === 1);
-	// 	assert(referrerOrdersMarket0AfterSettle[0].feesAccrued.eq(ZERO));
-	// 	assert(referrerOrdersMarket1AfterSettle[0].feesAccrued.eq(ZERO));
+		const referrerOrdersMarket0 = escrowAfterFills.orders.filter(
+			(o) => o.marketIndex === 0 && isBuilderOrderReferral(o)
+		);
+		const referrerOrdersMarket1 = escrowAfterFills.orders.filter(
+			(o) => o.marketIndex === 1 && isBuilderOrderReferral(o)
+		);
+		// One referral order per market; its accrued fees grew by exactly this
+		// test's fill reward.
+		assert(referrerOrdersMarket0.length === 1);
+		assert(referrerOrdersMarket0[0].marketIndex === 0);
+		assert(
+			referrerOrdersMarket0[0].feesAccrued
+				.sub(referralMarket0Before)
+				.eq(new BN(fillAReferrerReward))
+		);
+		assert(referrerOrdersMarket1.length === 1);
+		assert(referrerOrdersMarket1[0].marketIndex === 1);
+		assert(
+			referrerOrdersMarket1[0].feesAccrued
+				.sub(referralMarket1Before)
+				.eq(new BN(fillBReferrerReward))
+		);
 
-	// 	const builderAccountInfoAfter =
-	// 		await bankrunContextWrapper.connection.getAccountInfo(
-	// 			getRevenueShareAccountPublicKey(
-	// 				builderClient.program.programId,
-	// 				builderClient.wallet.publicKey
-	// 			)
-	// 		);
-	// 	const builderAccAfter: RevenueShareAccount =
-	// 		builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-	// 			'RevenueShare',
-	// 			builderAccountInfoAfter.data
-	// 		);
-	// 	const referrerRewards = builderAccAfter.totalReferrerRewards.sub(
-	// 		builderAccBefore.totalReferrerRewards
-	// 	);
-	// 	assert(
-	// 		referrerRewards.eq(new BN(fillAReferrerReward + fillBReferrerReward))
-	// 	);
-	// });
+		// Total referral fees sitting in the escrow for these markets, awaiting sweep.
+		const referralMarket0Pending = referrerOrdersMarket0[0].feesAccrued;
+		const referralMarket1Pending = referrerOrdersMarket1[0].feesAccrued;
+
+		// Settle pnl across both markets; the escrowMap drives inclusion of the
+		// referrer's User + RevenueShare accounts so the sweep can credit them.
+		const settleTxA = await builderClient.settleMultiplePNLs(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			[0, 1],
+			SettlePnlMode.MUST_SETTLE,
+			escrowMap
+		);
+		await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			settleTxA
+		);
+
+		await escrowMap.slowSync();
+		const escrowAfterSettle = (await escrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
+		const referrerOrdersMarket0AfterSettle = escrowAfterSettle.orders.filter(
+			(o) => o.marketIndex === 0 && isBuilderOrderReferral(o)
+		);
+		const referrerOrdersMarket1AfterSettle = escrowAfterSettle.orders.filter(
+			(o) => o.marketIndex === 1 && isBuilderOrderReferral(o)
+		);
+		assert(referrerOrdersMarket0AfterSettle.length === 1);
+		assert(referrerOrdersMarket1AfterSettle.length === 1);
+		assert(referrerOrdersMarket0AfterSettle[0].feesAccrued.eq(ZERO));
+		assert(referrerOrdersMarket1AfterSettle[0].feesAccrued.eq(ZERO));
+
+		const builderAccountInfoAfter =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getRevenueShareAccountPublicKey(
+					builderClient.program.programId,
+					builderClient.wallet.publicKey
+				)
+			);
+		const builderAccAfter: RevenueShareAccount =
+			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'revenueShare',
+				builderAccountInfoAfter.data
+			);
+		const referrerRewards = builderAccAfter.totalReferrerRewards.sub(
+			builderAccBefore.totalReferrerRewards
+		);
+		// The sweep credits the referrer with every pending referral fee for the
+		// settled markets (including any accrued by earlier tests).
+		const expectedReferrerRewards = referralMarket0Pending.add(
+			referralMarket1Pending
+		);
+		assert(
+			referrerRewards.eq(expectedReferrerRewards),
+			`referrerRewards ${referrerRewards.toString()} !== ${expectedReferrerRewards.toString()}`
+		);
+	});
 });
