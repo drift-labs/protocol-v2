@@ -163,7 +163,7 @@ pub fn update_amm_quote_state(
         && amm.curve_update_intensity > 100;
 
     let final_reference_price_offset = if do_reference_price_smooth {
-        let slots_passed = slot.saturating_sub(amm.last_update_slot);
+        let slots_passed = slot.saturating_sub(amm.last_spread_update_slot);
         let reference_price_delta = {
             let full_offset_delta = reference_price_offset
                 .cast::<i128>()?
