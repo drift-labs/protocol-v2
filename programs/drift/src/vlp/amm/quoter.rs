@@ -427,10 +427,10 @@ impl<'a> AmmQuoter<'a> {
     fn max_fillable(&self, side: PositionDirection) -> DriftResult<u64> {
         let base = self.amm.base_asset_reserve;
         let raw_u128 = match side {
-            // Taker Long → AMM sells base → max = max_base - current_base.
-            PositionDirection::Long => self.amm.max_base_asset_reserve.saturating_sub(base),
-            // Taker Short → AMM buys base → max = current_base - min_base.
-            PositionDirection::Short => base.saturating_sub(self.amm.min_base_asset_reserve),
+            // Taker Long → AMM sells base → base falls toward min → max = current_base - min_base.
+            PositionDirection::Long => base.saturating_sub(self.amm.min_base_asset_reserve),
+            // Taker Short → AMM buys base → base rises toward max → max = max_base - current_base.
+            PositionDirection::Short => self.amm.max_base_asset_reserve.saturating_sub(base),
         };
         Ok(raw_u128.min(u64::MAX as u128) as u64)
     }
@@ -843,9 +843,8 @@ impl<'a> AmmQuoter<'a> {
 //   natural ask/bid.
 // - `cumulative_size(p)` returns `min(max_jit_base, curve_max)` if `p`
 //   crosses `jit_price`, else 0.
-// - `is_prio = false`. In the AMM+DLOB JIT scenario the DLOB maker takes
-//   the marginal slice first; the AMM's `max_jit_base` is the upper bound
-//   on how much it'll JIT-make alongside.
+// - `is_prio = true`. At the clearing tick the vAMM takes its full
+//   `max_jit_base` allocation first; the DLOB maker fills the residual.
 // - `is_fee_exempt = true` (same as `AmmQuoter`).
 // - `try_fill_solo`/`commit_fill` apply AMM swap math to mutate reserves,
 //   but `QuoterFill.quote_filled = jit_price × base`. The gap between
@@ -960,8 +959,10 @@ impl<'a> AmmJitQuoter<'a> {
     fn max_fillable(&self, side: PositionDirection) -> DriftResult<u64> {
         let base = self.amm.base_asset_reserve;
         let raw_u128 = match side {
-            PositionDirection::Long => self.amm.max_base_asset_reserve.saturating_sub(base),
-            PositionDirection::Short => base.saturating_sub(self.amm.min_base_asset_reserve),
+            // Taker Long → AMM sells base → base falls toward min → max = current_base - min_base.
+            PositionDirection::Long => base.saturating_sub(self.amm.min_base_asset_reserve),
+            // Taker Short → AMM buys base → base rises toward max → max = max_base - current_base.
+            PositionDirection::Short => self.amm.max_base_asset_reserve.saturating_sub(base),
         };
         Ok(raw_u128.min(u64::MAX as u128) as u64)
     }
@@ -1479,7 +1480,8 @@ mod amm_jit_maker_tests {
     #[test]
     fn jit_capacity_clamped_by_curve_bounds() {
         let mut amm = make_amm();
-        // max_base_asset_reserve - current = 100 BASE. max_jit_base larger.
+        // Taker Long → AMM sells base → base falls toward min, so the curve
+        // bound is base - min_base = 100 - 50 = 50 BASE. max_jit_base larger.
         let jit_price: u64 = 99_500_000;
         let max_jit_base = 1_000 * AMM_RESERVE_PRECISION as u64;
         let jit_maker = AmmJitQuoter::new_no_spread(&mut amm, jit_price, max_jit_base);
@@ -1489,8 +1491,8 @@ mod amm_jit_maker_tests {
         let capacity = jit_maker
             .level_capacity(&ctx, PositionDirection::Long)
             .unwrap();
-        // Curve bound (100 BASE) is smaller than max_jit_base (1000 BASE).
-        assert_eq!(capacity, 100 * AMM_RESERVE_PRECISION as u64);
+        // Curve bound (50 BASE) is smaller than max_jit_base (1000 BASE).
+        assert_eq!(capacity, 50 * AMM_RESERVE_PRECISION as u64);
     }
 
     #[test]

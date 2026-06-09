@@ -733,9 +733,9 @@ mod tests {
         //     throttled cap the caller would compute via
         //     `math::amm_jit::calculate_amm_jit_liquidity`).
         //   - Taker Long wants 8 BASE.
-        // Expected: DLOB takes the priority slice (is_prio: false on
-        // AmmJitQuoter), but at the same price both contribute pro-rata.
-        // The AMM caps at its throttled max_jit_base.
+        // Expected: AmmJitQuoter is priority (is_prio: true), so at the tied
+        // price the AMM takes its full throttled max_jit_base first and the
+        // DLOB maker fills the residual.
         use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION};
         use crate::state::quoter::DlobOrderQuoter;
         use crate::state::user::{
@@ -798,9 +798,9 @@ mod tests {
         let (dlob_filled, amm_filled) = {
             let mut amm_jit = AmmJitQuoter::new_no_spread(&mut amm, dlob_price, jit_cap);
             let mut dlob_maker = DlobOrderQuoter::new(&mut dlob);
-            // dlob first so it's prio'd at tied price (is_prio: true overall
-            // would still apply; DlobOrderQuoter has is_prio=false, AmmJitQuoter
-            // is_prio=false too, so they pro-rata at the tied price).
+            // At the tied price AmmJitQuoter (is_prio=true) takes its full cap
+            // first; DlobOrderQuoter (is_prio=false) fills the residual. Vec
+            // order is irrelevant — match_take sorts prio ahead within a tie.
             let mut makers: Vec<&mut dyn QuoterCommit> = vec![&mut dlob_maker, &mut amm_jit];
             let result =
                 match_take(&mut makers, &ctx, PositionDirection::Long, take_size, None).unwrap();

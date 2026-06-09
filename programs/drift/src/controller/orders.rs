@@ -2950,11 +2950,19 @@ pub fn fulfill_perp_order_step(
             // the sole continuous maker, so it takes the dedicated analytical
             // fill path rather than the discrete level walk.
             amm_quoter.validate_for_fill(taker_direction)?;
+            // An AMM fill takes at most the per-fill available liquidity: half
+            // of the side's depth, capped by `max_fill_reserve_fraction`. The
+            // continuous fill below further clamps to the taker's limit price
+            // and the AMM's hard reserve bound.
+            let amm_available = {
+                let amm_ref: &crate::vlp::amm::AMM = amm_quoter.amm;
+                calculate_amm_available_liquidity(amm_ref, &taker_direction, order_step_size)?
+            };
             crate::controller::matching::fill_amm_only(
                 &mut amm_quoter,
                 &ctx,
                 taker_direction,
-                target_size,
+                target_size.min(amm_available),
                 effective_taker_limit,
             )?
         }
