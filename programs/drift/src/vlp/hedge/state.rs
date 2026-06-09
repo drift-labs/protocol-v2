@@ -66,6 +66,7 @@ mod tests;
 #[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
+#[derive(Default)]
 pub struct HedgeConfig {
     /// The LP pool this market hedges into (`LPPool.pool_id`).
     pub pool_id: u8,
@@ -78,19 +79,6 @@ pub struct HedgeConfig {
     /// Scalar for the share of fees transferred to the hedge pool.
     pub fee_transfer_scalar: u8,
     pub padding: [u8; 11],
-}
-
-impl Default for HedgeConfig {
-    fn default() -> Self {
-        Self {
-            pool_id: 0,
-            status: 0,
-            paused_operations: 0,
-            exchange_fee_exclusion_scalar: 0,
-            fee_transfer_scalar: 0,
-            padding: [0; 11],
-        }
-    }
 }
 
 impl Size for HedgeConfig {

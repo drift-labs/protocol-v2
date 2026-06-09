@@ -564,23 +564,21 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
                     ix.accounts[i].pubkey
                 )?;
             }
+        } else if found_end {
+            for meta in ix.accounts.iter() {
+                validate!(
+                    !meta.is_writable,
+                    ErrorCode::InvalidSwap,
+                    "instructions after swap end must not have writable accounts"
+                )?;
+            }
         } else {
-            if found_end {
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        !meta.is_writable,
-                        ErrorCode::InvalidSwap,
-                        "instructions after swap end must not have writable accounts"
-                    )?;
-                }
-            } else {
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        meta.pubkey != crate::id(),
-                        ErrorCode::InvalidSwap,
-                        "instructions between begin and end must not be drift instructions"
-                    )?;
-                }
+            for meta in ix.accounts.iter() {
+                validate!(
+                    meta.pubkey != crate::id(),
+                    ErrorCode::InvalidSwap,
+                    "instructions between begin and end must not be drift instructions"
+                )?;
             }
         }
 
@@ -1001,7 +999,7 @@ pub struct AddInsuranceFundStake<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         token::mint = insurance_fund_vault.mint,
@@ -1070,7 +1068,7 @@ pub struct RemoveInsuranceFundStake<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         token::mint = insurance_fund_vault.mint,
@@ -1153,7 +1151,7 @@ pub struct InsuranceFundSwap<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     /// Instructions Sysvar for instruction introspection
     /// CHECK: fixed instructions sysvar account
     #[account(address = instructions::ID)]
@@ -1191,7 +1189,7 @@ pub struct TransferProtocolIfSharesToRevenuePool<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1237,7 +1235,7 @@ pub struct DepositIntoInsuranceFundStake<'info> {
     pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
 }
 
 pub fn handle_admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
@@ -1372,5 +1370,5 @@ pub struct AdminWithdrawFromInsuranceFundVault<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
 }

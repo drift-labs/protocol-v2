@@ -491,21 +491,19 @@ pub fn handle_change_approved_builder<'c: 'info, 'info>(
             );
             ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps = 0;
         }
+    } else if add {
+        ctx.accounts.escrow.approved_builders.push(BuilderInfo {
+            authority: builder,
+            max_fee_tenth_bps,
+            ..BuilderInfo::default()
+        });
+        msg!(
+            "Added builder: {} with max fee tenth bps: {}",
+            builder,
+            max_fee_tenth_bps
+        );
     } else {
-        if add {
-            ctx.accounts.escrow.approved_builders.push(BuilderInfo {
-                authority: builder,
-                max_fee_tenth_bps,
-                ..BuilderInfo::default()
-            });
-            msg!(
-                "Added builder: {} with max fee tenth bps: {}",
-                builder,
-                max_fee_tenth_bps
-            );
-        } else {
-            msg!("Tried to revoke builder: {}, but it was not found", builder);
-        }
+        msg!("Tried to revoke builder: {}, but it was not found", builder);
     }
 
     Ok(())
@@ -3603,49 +3601,47 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                     ix.accounts[i].pubkey
                 )?;
             }
-        } else {
-            if found_end {
-                if ix.program_id == lighthouse::ID {
-                    continue;
-                }
+        } else if found_end {
+            if ix.program_id == lighthouse::ID {
+                continue;
+            }
 
-                // Allow closing the swap's token accounts after end_swap
-                if is_token_close_account_for_swap_ix(
-                    &ix,
-                    &ctx.accounts.in_token_account.key(),
-                    &ctx.accounts.out_token_account.key(),
-                ) {
-                    continue;
-                }
+            // Allow closing the swap's token accounts after end_swap
+            if is_token_close_account_for_swap_ix(
+                &ix,
+                &ctx.accounts.in_token_account.key(),
+                &ctx.accounts.out_token_account.key(),
+            ) {
+                continue;
+            }
 
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        !meta.is_writable,
-                        ErrorCode::InvalidSwap,
-                        "instructions after swap end must not have writable accounts"
-                    )?;
-                }
-            } else {
-                let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
-                if !delegate_is_signer {
-                    whitelisted_programs.push(AssociatedToken::id());
-                    whitelisted_programs.push(Token::id());
-                    whitelisted_programs.push(Token2022::id());
-                    whitelisted_programs.push(marinade_mainnet::ID);
-                }
+            for meta in ix.accounts.iter() {
                 validate!(
-                    whitelisted_programs.contains(&ix.program_id),
+                    !meta.is_writable,
                     ErrorCode::InvalidSwap,
-                    "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
+                    "instructions after swap end must not have writable accounts"
                 )?;
+            }
+        } else {
+            let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
+            if !delegate_is_signer {
+                whitelisted_programs.push(AssociatedToken::id());
+                whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(Token2022::id());
+                whitelisted_programs.push(marinade_mainnet::ID);
+            }
+            validate!(
+                whitelisted_programs.contains(&ix.program_id),
+                ErrorCode::InvalidSwap,
+                "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
+            )?;
 
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        meta.pubkey != crate::id(),
-                        ErrorCode::InvalidSwap,
-                        "instructions between begin and end must not be drift instructions"
-                    )?;
-                }
+            for meta in ix.accounts.iter() {
+                validate!(
+                    meta.pubkey != crate::id(),
+                    ErrorCode::InvalidSwap,
+                    "instructions between begin and end must not be drift instructions"
+                )?;
             }
         }
 
@@ -4302,7 +4298,7 @@ pub struct InitializeUser<'info> {
     #[account(mut)]
     pub state: AccountLoader<'info, State>,
     /// CHECK: Just a normal authority account
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4322,7 +4318,7 @@ pub struct InitializeUserStats<'info> {
     #[account(mut)]
     pub state: AccountLoader<'info, State>,
     /// CHECK: Just a normal authority account
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4353,7 +4349,7 @@ pub struct InitializeSignedMsgUserOrders<'info> {
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: Just a normal authority account
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4373,7 +4369,7 @@ pub struct ResizeSignedMsgUserOrders<'info> {
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: authority
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(
         has_one = authority
     )]
@@ -4521,7 +4517,7 @@ pub struct Withdraw<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
@@ -4640,7 +4636,7 @@ pub struct TransferPools<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -4760,7 +4756,7 @@ pub struct WithdrawIsolatedPerpPosition<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
@@ -4833,7 +4829,7 @@ pub struct PlaceAndMakeSignedMsg<'info> {
         bump,
     )]
     /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks
-    pub taker_signed_msg_user_orders: AccountInfo<'info>,
+    pub taker_signed_msg_user_orders: UncheckedAccount<'info>,
     pub authority: Signer<'info>,
 }
 
@@ -4853,7 +4849,7 @@ pub struct PlaceAndMatchRFQOrders<'info> {
     /// The Instruction Sysvar has not been implemented
     /// in the Anchor framework yet, so this is the safe approach.
     #[account(address = IX_ID)]
-    pub ix_sysvar: AccountInfo<'info>,
+    pub ix_sysvar: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -4974,7 +4970,7 @@ pub struct Swap<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     /// Instructions Sysvar for instruction introspection
     /// CHECK: fixed instructions sysvar account
     #[account(address = instructions::ID)]
@@ -4993,7 +4989,7 @@ pub struct InitializeRevenueShare<'info> {
     )]
     pub revenue_share: AccountLoader<'info, RevenueShare>,
     /// CHECK: The builder and/or referrer authority, beneficiary of builder/ref fees
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -5012,7 +5008,7 @@ pub struct InitializeRevenueShareEscrow<'info> {
     )]
     pub escrow: Box<Account<'info, RevenueShareEscrow>>,
     /// CHECK: The auth owning this account, payer of builder/ref fees
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(
         mut,
         has_one = authority
@@ -5034,7 +5030,7 @@ pub struct MigrateReferrer<'info> {
     )]
     pub escrow: Box<Account<'info, RevenueShareEscrow>>,
     /// CHECK: The auth owning this account, payer of builder/ref fees
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(
         mut,
         has_one = authority
@@ -5058,7 +5054,7 @@ pub struct ResizeRevenueShareEscrowOrders<'info> {
     )]
     pub escrow: Box<Account<'info, RevenueShareEscrow>>,
     /// CHECK: The owner of RevenueShareEscrow
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,

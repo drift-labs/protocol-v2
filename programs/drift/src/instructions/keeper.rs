@@ -1534,38 +1534,36 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
                     ix.accounts[i].pubkey
                 )?;
             }
-        } else {
-            if found_end {
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        !meta.is_writable,
-                        ErrorCode::InvalidLiquidateSpotWithSwap,
-                        "instructions after swap end must not have writable accounts"
-                    )?;
-                }
-            } else {
-                let whitelisted_programs = [
-                    serum_program::id(),
-                    AssociatedToken::id(),
-                    jupiter_mainnet_3::ID,
-                    jupiter_mainnet_4::ID,
-                    jupiter_mainnet_6::ID,
-                    dflow_mainnet_aggregator_4::ID,
-                    titan_mainnet_argos_v1::ID,
-                ];
+        } else if found_end {
+            for meta in ix.accounts.iter() {
                 validate!(
-                    whitelisted_programs.contains(&ix.program_id),
+                    !meta.is_writable,
                     ErrorCode::InvalidLiquidateSpotWithSwap,
-                    "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
+                    "instructions after swap end must not have writable accounts"
                 )?;
+            }
+        } else {
+            let whitelisted_programs = [
+                serum_program::id(),
+                AssociatedToken::id(),
+                jupiter_mainnet_3::ID,
+                jupiter_mainnet_4::ID,
+                jupiter_mainnet_6::ID,
+                dflow_mainnet_aggregator_4::ID,
+                titan_mainnet_argos_v1::ID,
+            ];
+            validate!(
+                whitelisted_programs.contains(&ix.program_id),
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
+            )?;
 
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        meta.pubkey != crate::id(),
-                        ErrorCode::InvalidLiquidateSpotWithSwap,
-                        "instructions between begin and end must not be drift instructions"
-                    )?;
-                }
+            for meta in ix.accounts.iter() {
+                validate!(
+                    meta.pubkey != crate::id(),
+                    ErrorCode::InvalidLiquidateSpotWithSwap,
+                    "instructions between begin and end must not be drift instructions"
+                )?;
             }
         }
 
@@ -3101,7 +3099,7 @@ pub struct UpdateAmmCache<'info> {
     pub state: AccountLoader<'info, State>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     #[account(mut)]
-    pub amm_cache: AccountInfo<'info>,
+    pub amm_cache: UncheckedAccount<'info>,
     #[account(
         owner = crate::ID,
         seeds = [b"spot_market", QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
@@ -3233,14 +3231,14 @@ pub struct PlaceSignedMsgTakerOrder<'info> {
         bump,
     )]
     /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks
-    pub signed_msg_user_orders: AccountInfo<'info>,
+    pub signed_msg_user_orders: UncheckedAccount<'info>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise
     /// the supplied Sysvar could be anything else.
     /// The Instruction Sysvar has not been implemented
     /// in the Anchor framework yet, so this is the safe approach.
     #[account(address = IX_ID)]
-    pub ix_sysvar: AccountInfo<'info>,
+    pub ix_sysvar: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -3381,7 +3379,7 @@ pub struct LiquidateSpotWithSwap<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     /// Instructions Sysvar for instruction introspection
     /// CHECK: fixed instructions sysvar account
     #[account(address = instructions::ID)]
@@ -3426,7 +3424,7 @@ pub struct ResolveBankruptcy<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -3451,7 +3449,7 @@ pub struct ResolvePerpPnlDeficit<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -3475,7 +3473,7 @@ pub struct SettleRevenueToInsuranceFund<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
@@ -3491,7 +3489,7 @@ pub struct UpdateSpotMarketCumulativeInterest<'info> {
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `update_spot_market_cumulative_interest` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
     #[account(
         seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
         bump,
@@ -3511,7 +3509,7 @@ pub struct UpdateFundingRate<'info> {
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -3520,7 +3518,7 @@ pub struct UpdatePerpBidAskTwap<'info> {
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
     pub keeper_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
 }
@@ -3581,7 +3579,7 @@ pub struct UpdatePrelaunchOracle<'info> {
     pub perp_market: AccountLoader<'info, PerpMarket>,
     #[account(mut)]
     /// CHECK: checked in ix
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -3601,14 +3599,14 @@ pub struct ForceDeleteUser<'info> {
     pub state: AccountLoader<'info, State>,
     /// CHECK: authority
     #[account(mut)]
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(
         mut,
         constraint = check_hot(&keeper.key(), &state, HotRole::UserFlag)?
     )]
     pub keeper: Signer<'info>,
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

@@ -49,7 +49,7 @@ pub mod token_faucet {
         let cpi_accounts = MintTo {
             mint: ctx.accounts.mint_account.to_account_info(),
             to: ctx.accounts.user_token_account.to_account_info(),
-            authority: ctx.accounts.mint_authority.clone(),
+            authority: ctx.accounts.mint_authority.to_account_info(),
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_context = CpiContext::new_with_signer(cpi_program.key(), cpi_accounts, signers);
@@ -116,7 +116,7 @@ pub struct MintToUser<'info> {
     #[account(mut)]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: Checked by spl_token
-    pub mint_authority: AccountInfo<'info>,
+    pub mint_authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -133,7 +133,7 @@ pub struct TransferMintAuthority<'info> {
     #[account(mut)]
     pub mint_account: Box<Account<'info, Mint>>,
     /// CHECK: Checked by spl_token
-    pub mint_authority: AccountInfo<'info>,
+    pub mint_authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 

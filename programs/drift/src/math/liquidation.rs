@@ -1,5 +1,3 @@
-use std::u32;
-
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{

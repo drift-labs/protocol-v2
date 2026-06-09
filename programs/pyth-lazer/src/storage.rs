@@ -53,17 +53,17 @@ pub const STORAGE_SEED: &[u8] = b"storage";
 #[allow(dead_code)]
 pub mod program {}
 
-pub fn verify_message_direct<'a>(
+pub fn verify_message_direct(
     pyth_storage_account: &Storage,
     instruction_sysvar: &AccountInfo,
-    message_data: &'a [u8],
+    message_data: &[u8],
     ed25519_instruction_index: u16,
     signature_index: u8,
 ) -> Result<VerifiedMessage> {
     signature::verify_message(
         pyth_storage_account,
         instruction_sysvar,
-        &message_data,
+        message_data,
         ed25519_instruction_index,
         signature_index,
     )

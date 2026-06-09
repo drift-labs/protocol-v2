@@ -1,8 +1,8 @@
 use {
     crate::storage::Storage,
     anchor_lang::{
-        prelude::{borsh, AccountInfo, Clock, ProgramError, Pubkey, SolanaSysvar},
-        solana_program::{program_memory::sol_memcmp, pubkey::PUBKEY_BYTES, sysvar},
+        prelude::{AccountInfo, Clock, ProgramError, Pubkey, SolanaSysvar},
+        solana_program::{program_memory::sol_memcmp, pubkey::PUBKEY_BYTES},
         AnchorDeserialize, AnchorSerialize,
     },
     bytemuck::{cast_slice, checked::try_cast_slice, Pod, Zeroable},

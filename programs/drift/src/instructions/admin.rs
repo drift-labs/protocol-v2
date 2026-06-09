@@ -2406,8 +2406,7 @@ pub fn handle_update_perp_market_oracle(
     if amm_cache
         .cache
         .iter()
-        .find(|cache_info| cache_info.market_index == perp_market.market_index)
-        .is_some()
+        .any(|cache_info| cache_info.market_index == perp_market.market_index)
     {
         amm_cache.update_perp_market_fields(perp_market)?;
     }
@@ -3553,7 +3552,7 @@ pub struct Initialize<'info> {
     pub state: AccountLoader<'info, State>,
     pub quote_asset_mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked in `initialize`
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
@@ -3597,11 +3596,11 @@ pub struct InitializeSpotMarket<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(mut)]
     pub state: AccountLoader<'info, State>,
     /// CHECK: checked in `initialize_spot_market`
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
     #[account(
         mut,
         constraint = check_warm(&admin.key(), &state)?
@@ -3634,7 +3633,7 @@ pub struct DeleteInitializedSpotMarket<'info> {
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -3656,7 +3655,7 @@ pub struct InitializePerpMarket<'info> {
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `initialize_perp_market`
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
@@ -3778,9 +3777,9 @@ pub struct AdminUpdateSpotMarketOracle<'info> {
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `initialize_spot_market`
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
     /// CHECK: checked in `admin_update_spot_market_oracle` ix constraint
-    pub old_oracle: AccountInfo<'info>,
+    pub old_oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -3791,9 +3790,9 @@ pub struct AdminUpdatePerpMarketOracle<'info> {
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `admin_update_perp_market_oracle` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
     /// CHECK: checked in `admin_update_perp_market_oracle` ix constraint
-    pub old_oracle: AccountInfo<'info>,
+    pub old_oracle: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_bytes()],

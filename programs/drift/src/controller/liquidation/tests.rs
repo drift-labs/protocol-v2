@@ -3310,7 +3310,7 @@ pub mod liquidate_spot {
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::UserStats;
+
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::{get_pyth_price, get_spot_positions};
     use crate::QUOTE_PRECISION_I64;
@@ -5828,7 +5828,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::UserStats;
+
     use crate::state::user::{Order, PerpPosition, SpotPosition, User, UserStatus};
     use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
     #[test]
@@ -8363,7 +8363,7 @@ pub mod liquidate_spot_with_swap {
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::UserStats;
+
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::{get_pyth_price, get_spot_positions};
     use crate::QUOTE_PRECISION_I64;
@@ -8569,7 +8569,7 @@ mod liquidate_dust_spot_market {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::state::State;
-    use crate::state::user::{SpotPosition, User, UserStats};
+    use crate::state::user::{SpotPosition, User};
     use crate::test_utils::{create_account_info, get_pyth_price, get_spot_positions};
     use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
 

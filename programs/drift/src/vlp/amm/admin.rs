@@ -1310,7 +1310,7 @@ pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `admin_update_perp_market_summary_stats` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1330,7 +1330,7 @@ pub struct DepositIntoMarketFeePool<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: withdraw fails if this isn't vault owner
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
@@ -1352,7 +1352,7 @@ pub struct RepegCurve<'info> {
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `repeg_curve` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
     #[account(constraint = check_warm(&admin.key(), &state)?)]
     pub admin: Signer<'info>,
 }
@@ -1365,7 +1365,7 @@ pub struct AdminUpdateK<'info> {
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `admin_update_k` ix constraint
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

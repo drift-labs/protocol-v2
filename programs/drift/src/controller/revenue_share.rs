@@ -97,10 +97,9 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
             let referrer_rev_share =
                 revenue_share_map.get_revenue_share_account_mut(&referrer_authority);
 
-            if referrer_user.is_ok() && referrer_rev_share.is_ok() {
-                let mut referrer_user = referrer_user.unwrap();
-                let mut referrer_rev_share = referrer_rev_share.unwrap();
-
+            if let (Ok(mut referrer_user), Ok(mut referrer_rev_share)) =
+                (referrer_user, referrer_rev_share)
+            {
                 spot_balance::transfer_spot_balances(
                     fees_accrued as i128,
                     quote_spot_market,
@@ -145,10 +144,9 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
             let builder_rev_share =
                 revenue_share_map.get_revenue_share_account_mut(&builder_authority);
 
-            if builder_user.is_ok() && builder_rev_share.is_ok() {
-                let mut builder_user = builder_user.unwrap();
-                let mut builder_revenue_share = builder_rev_share.unwrap();
-
+            if let (Ok(mut builder_user), Ok(mut builder_revenue_share)) =
+                (builder_user, builder_rev_share)
+            {
                 spot_balance::transfer_spot_balances(
                     fees_accrued as i128,
                     quote_spot_market,

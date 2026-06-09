@@ -6775,8 +6775,6 @@ mod fill_perp_order_margin_requirement_with_isolated {
     use crate::test_utils::get_pyth_price;
     use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
 
-    const NOW: i64 = 0;
-
     fn with_sol_eth_setup<F, R>(slot: u64, f: F) -> R
     where
         F: FnOnce(&mut OracleMap, &PerpMarketMap, &SpotMarketMap) -> R,

@@ -96,6 +96,7 @@ fn pyth_pull_oracles_are_rejected() {
     );
 }
 
+#[test]
 fn removed_oracle_source_slots_return_none() {
     assert_eq!(OracleSource::from_u8(1), None);
     assert_eq!(OracleSource::from_u8(7), None);

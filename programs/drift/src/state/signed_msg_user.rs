@@ -140,14 +140,12 @@ impl<'a> SignedMsgUserOrdersZeroCopyMut<'a> {
                     >= current_slot
             {
                 uuid_exists = true;
-            } else {
-                if existing_signed_msg_order_id.max_slot + SIGNED_MSG_SLOT_EVICTION_BUFFER
-                    < current_slot
-                {
-                    existing_signed_msg_order_id.uuid = [0; 8];
-                    existing_signed_msg_order_id.max_slot = 0;
-                    existing_signed_msg_order_id.order_id = 0;
-                }
+            } else if existing_signed_msg_order_id.max_slot + SIGNED_MSG_SLOT_EVICTION_BUFFER
+                < current_slot
+            {
+                existing_signed_msg_order_id.uuid = [0; 8];
+                existing_signed_msg_order_id.max_slot = 0;
+                existing_signed_msg_order_id.order_id = 0;
             }
         }
         uuid_exists

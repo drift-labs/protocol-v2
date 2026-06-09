@@ -311,11 +311,9 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             if user.is_isolated_margin_being_liquidated(perp_market_index)? {
                 user.exit_isolated_margin_liquidation(perp_market_index)?;
             }
-        } else {
-            if get_position_index(&user.perp_positions, perp_market_index).is_ok() {
-                msg!("Cant transfer isolated position deposit without user stats if position is still open");
-                return Err(ErrorCode::DefaultError);
-            }
+        } else if get_position_index(&user.perp_positions, perp_market_index).is_ok() {
+            msg!("Cant transfer isolated position deposit without user stats if position is still open");
+            return Err(ErrorCode::DefaultError);
         }
     }
 

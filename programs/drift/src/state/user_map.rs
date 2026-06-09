@@ -11,7 +11,6 @@ use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
 use std::collections::BTreeMap;
-use std::convert::TryFrom;
 use std::iter::Peekable;
 use std::panic::Location;
 use std::slice::Iter;
@@ -333,7 +332,7 @@ pub fn load_user_maps<'a: 'b, 'b>(
         }
 
         let authority_slice = array_ref![data, 8, 32];
-        let authority = Pubkey::try_from(*authority_slice).safe_unwrap()?;
+        let authority = Pubkey::from(*authority_slice);
 
         let user_stats_account_info = account_info_iter.next().safe_unwrap()?;
 

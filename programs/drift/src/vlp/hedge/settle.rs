@@ -293,7 +293,7 @@ pub struct SettleAmmPnlToLp<'info> {
     pub keeper: Signer<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     #[account(mut)]
-    pub amm_cache: AccountInfo<'info>,
+    pub amm_cache: UncheckedAccount<'info>,
     #[account(
         mut,
         owner = crate::ID,
@@ -322,5 +322,5 @@ pub struct SettleAmmPnlToLp<'info> {
     pub quote_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
     /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
 }

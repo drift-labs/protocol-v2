@@ -1752,7 +1752,7 @@ pub struct DepositProgramVault<'info> {
     )]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked when loading oracle in oracle map
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1764,7 +1764,7 @@ pub struct WithdrawProgramVault<'info> {
     )]
     pub admin: Signer<'info>,
     /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(mut)]
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
@@ -1791,7 +1791,7 @@ pub struct WithdrawProgramVault<'info> {
     )]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked when loading oracle in oracle map
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1807,7 +1807,7 @@ pub struct UpdateConstituentOracleInfo<'info> {
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked when loading oracle in oracle map
-    pub oracle: AccountInfo<'info>,
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1816,12 +1816,12 @@ pub struct UpdateConstituentTargetBase<'info> {
     #[account(mut)]
     pub keeper: Signer<'info>,
     /// CHECK: checked in AmmConstituentMappingZeroCopy checks
-    pub amm_constituent_mapping: AccountInfo<'info>,
+    pub amm_constituent_mapping: UncheckedAccount<'info>,
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     #[account(mut)]
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
-    pub amm_cache: AccountInfo<'info>,
+    pub amm_cache: UncheckedAccount<'info>,
     pub lp_pool: AccountLoader<'info, LPPool>,
 }
 
@@ -1834,10 +1834,10 @@ pub struct UpdateLPPoolAum<'info> {
     pub lp_pool: AccountLoader<'info, LPPool>,
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     #[account(mut)]
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     #[account(mut)]
-    pub amm_cache: AccountInfo<'info>,
+    pub amm_cache: UncheckedAccount<'info>,
 }
 
 /// `in`/`out` is in the program's POV for this swap. So `user_in_token_account` is the user owned token account
@@ -1852,10 +1852,10 @@ pub struct LPPoolSwap<'info> {
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and in ix
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
 
     /// CHECK: checked in ConstituentCorrelationsZeroCopy checks and in ix
-    pub constituent_correlations: AccountInfo<'info>,
+    pub constituent_correlations: UncheckedAccount<'info>,
 
     #[account(
         mut,
@@ -1915,15 +1915,15 @@ pub struct LPPoolSwap<'info> {
 )]
 pub struct ViewLPPoolSwapFees<'info> {
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     pub state: AccountLoader<'info, State>,
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and in ix
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
 
     /// CHECK: checked in ConstituentCorrelationsZeroCopy checks and in ix
-    pub constituent_correlations: AccountInfo<'info>,
+    pub constituent_correlations: UncheckedAccount<'info>,
 
     #[account(
         mut,
@@ -2001,7 +2001,7 @@ pub struct LPPoolAddLiquidity<'info> {
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
 
     #[account(
         mut,
@@ -2033,7 +2033,7 @@ pub struct ViewLPPoolAddLiquidityFees<'info> {
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and address checked in code
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -2046,7 +2046,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
         constraint = drift_signer.key() == state.load()?.signer
     )]
     /// CHECK: drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
     pub authority: Signer<'info>,
@@ -2089,7 +2089,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and address checked in code
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
 
     #[account(
         mut,
@@ -2105,7 +2105,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
         bump,
     )]
     /// CHECK: checked in AmmCacheZeroCopy checks
-    pub amm_cache: AccountInfo<'info>,
+    pub amm_cache: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -2129,5 +2129,5 @@ pub struct ViewLPPoolRemoveLiquidityFees<'info> {
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and address checked in code
-    pub constituent_target_base: AccountInfo<'info>,
+    pub constituent_target_base: UncheckedAccount<'info>,
 }
