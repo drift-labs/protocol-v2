@@ -6,7 +6,7 @@ use crate::{
     math::{
         constants::{
             FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, LAMPORTS_PER_SOL_U64,
-            MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND, PERCENTAGE_PRECISION_U64,
+            PERCENTAGE_PRECISION_U64,
         },
         safe_math::SafeMath,
         safe_unwrap::SafeUnwrap,
@@ -216,10 +216,6 @@ impl State {
         (self.feature_bit_flags & (FeatureBitFlags::BuilderCodes as u8)) > 0
     }
 
-    pub fn builder_referral_enabled(&self) -> bool {
-        (self.feature_bit_flags & (FeatureBitFlags::BuilderReferral as u8)) > 0
-    }
-
     pub fn allow_settle_lp_pool(&self) -> bool {
         (self.lp_pool_feature_bit_flags & (LpPoolFeatureBitFlags::SettleLpPool as u8)) > 0
     }
@@ -297,7 +293,7 @@ impl State {
     pub fn require_cold(&self, signer: &Pubkey) -> DriftResult<()> {
         if !self.is_cold(signer) {
             msg!("signer {} is not cold admin", signer);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }
@@ -305,7 +301,7 @@ impl State {
     pub fn require_warm(&self, signer: &Pubkey) -> DriftResult<()> {
         if !self.is_warm(signer) {
             msg!("signer {} is neither cold nor warm admin", signer);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }
@@ -313,7 +309,7 @@ impl State {
     pub fn require_pause(&self, signer: &Pubkey) -> DriftResult<()> {
         if !self.is_pause(signer) {
             msg!("signer {} is not authorized to flip pause flags", signer);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }
@@ -321,7 +317,7 @@ impl State {
     pub fn require_hot(&self, signer: &Pubkey, role: HotRole) -> DriftResult<()> {
         if !self.is_hot(signer, role) {
             msg!("signer {} is not authorized for role {:?}", signer, role);
-            return Err(crate::error::ErrorCode::Unauthorized.into());
+            return Err(crate::error::ErrorCode::Unauthorized);
         }
         Ok(())
     }
@@ -332,7 +328,6 @@ pub enum FeatureBitFlags {
     MmOracleUpdate = 0b00000001,
     MedianTriggerPrice = 0b00000010,
     BuilderCodes = 0b00000100,
-    BuilderReferral = 0b00001000,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
@@ -408,8 +403,11 @@ pub struct ValidityGuardRails {
 pub struct FeeStructure {
     pub fee_tiers: [FeeTier; 10],
     pub filler_reward_structure: OrderFillerRewardStructure,
-    pub referrer_reward_epoch_upper_bound: u64,
     pub flat_filler_fee: u64,
+    /// Reserved padding. Kept so `size_of::<FeeStructure>()` stays a multiple of 16
+    /// (OrderFillerRewardStructure's u128 forces 16-byte alignment on host x86_64);
+    /// removing it would diverge host vs. SBF layout.
+    pub padding: u64,
 }
 
 impl Default for FeeStructure {
@@ -531,7 +529,7 @@ impl FeeStructure {
                 _padding: [0; 8],
             },
             flat_filler_fee: 10_000,
-            referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+            padding: 0,
         }
     }
 
@@ -556,7 +554,7 @@ impl FeeStructure {
                 _padding: [0; 8],
             },
             flat_filler_fee: 10_000,
-            referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+            padding: 0,
         }
     }
 }

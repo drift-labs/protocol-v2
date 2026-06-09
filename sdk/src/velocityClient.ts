@@ -2509,9 +2509,9 @@ export class VelocityClient {
 			isWritable: writable,
 		});
 		const oracleWritable =
-			writable && isVariant(perpMarketAccount.amm.oracleSource, 'prelaunch');
-		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-			pubkey: perpMarketAccount.amm.oracle,
+			writable && isVariant(perpMarketAccount.oracleSource, 'prelaunch');
+		oracleAccountMap.set(perpMarketAccount.oracle.toString(), {
+			pubkey: perpMarketAccount.oracle,
 			isSigner: false,
 			isWritable: oracleWritable,
 		});
@@ -2549,27 +2549,34 @@ export class VelocityClient {
 		remainingAccounts: AccountMeta[]
 	): void {
 		for (const builder of builders) {
-			// Add User account for the builder
+			// Add User account for the builder. Dedupe by pubkey: an authority may be
+			// both a builder and the referrer, in which case its User + RevenueShare
+			// accounts would otherwise be pushed twice. On-chain `load_revenue_share_map`
+			// rejects duplicates, which would silently abort the entire sweep.
 			const builderUserAccount = getUserAccountPublicKeySync(
 				this.program.programId,
 				builder,
 				0 // subAccountId 0 for builder user account
 			);
-			remainingAccounts.push({
-				pubkey: builderUserAccount,
-				isSigner: false,
-				isWritable: true,
-			});
+			if (!remainingAccounts.find((a) => a.pubkey.equals(builderUserAccount))) {
+				remainingAccounts.push({
+					pubkey: builderUserAccount,
+					isSigner: false,
+					isWritable: true,
+				});
+			}
 
 			const builderAccount = getRevenueShareAccountPublicKey(
 				this.program.programId,
 				builder
 			);
-			remainingAccounts.push({
-				pubkey: builderAccount,
-				isSigner: false,
-				isWritable: true,
-			});
+			if (!remainingAccounts.find((a) => a.pubkey.equals(builderAccount))) {
+				remainingAccounts.push({
+					pubkey: builderAccount,
+					isSigner: false,
+					isWritable: true,
+				});
+			}
 		}
 	}
 
@@ -4395,7 +4402,6 @@ export class VelocityClient {
 			undefined,
 			undefined,
 			undefined,
-			undefined,
 			subAccountId
 		);
 	}
@@ -4421,7 +4427,6 @@ export class VelocityClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
 		positionMaxLev?: number,
@@ -4502,7 +4507,6 @@ export class VelocityClient {
 					marketIndex,
 				},
 				makerInfo,
-				referrerInfo,
 				userAccount.subAccountId
 			);
 		}
@@ -4543,7 +4547,6 @@ export class VelocityClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
-		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean
 	): Promise<{
@@ -4559,7 +4562,6 @@ export class VelocityClient {
 			makerInfo,
 			txParams,
 			bracketOrdersParams,
-			referrerInfo,
 			cancelExistingOrders,
 			settlePnl
 		);
@@ -4693,7 +4695,7 @@ export class VelocityClient {
 				isSigner: false,
 			});
 			oracleAccountInfos.push({
-				pubkey: market.amm.oracle,
+				pubkey: market.oracle,
 				isWritable: false,
 				isSigner: false,
 			});
@@ -4869,7 +4871,7 @@ export class VelocityClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const order = this.getOrderByUserId(userOrderId);
-		const oracle = this.getPerpMarketAccount(order.marketIndex).amm.oracle;
+		const oracle = this.getPerpMarketAccount(order.marketIndex).oracle;
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -5300,7 +5302,6 @@ export class VelocityClient {
 		user: UserAccount,
 		order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		fillerSubAccountId?: number,
 		fillerAuthority?: PublicKey,
@@ -5313,7 +5314,6 @@ export class VelocityClient {
 					user,
 					order,
 					makerInfo,
-					referrerInfo,
 					fillerSubAccountId,
 					undefined,
 					fillerAuthority,
@@ -5332,7 +5332,6 @@ export class VelocityClient {
 		userAccount: UserAccount,
 		order: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		fillerSubAccountId?: number,
 		isSignedMsg?: boolean,
 		fillerAuthority?: PublicKey,
@@ -5398,24 +5397,6 @@ export class VelocityClient {
 				isWritable: true,
 				isSigner: false,
 			});
-		}
-
-		if (referrerInfo) {
-			const referrerIsMaker =
-				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
-				undefined;
-			if (!referrerIsMaker) {
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrer,
-					isWritable: true,
-					isSigner: false,
-				});
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrerStats,
-					isWritable: true,
-					isSigner: false,
-				});
-			}
 		}
 
 		let withBuilder = false;
@@ -5510,7 +5491,6 @@ export class VelocityClient {
 		_order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo | MakerInfo[],
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams
 	): Promise<TransactionSignature> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -5522,7 +5502,6 @@ export class VelocityClient {
 		_order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo | MakerInfo[],
-		_referrerInfo?: ReferrerInfo,
 		_fillerPublicKey?: PublicKey
 	): Promise<TransactionInstruction> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -6520,7 +6499,6 @@ export class VelocityClient {
 	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		auctionDurationPercentage?: number,
 		txParams?: TxParams,
@@ -6531,7 +6509,6 @@ export class VelocityClient {
 				await this.getPlaceAndTakePerpOrderIx(
 					orderParams,
 					makerInfo,
-					referrerInfo,
 					successCondition,
 					auctionDurationPercentage,
 					subAccountId
@@ -6547,7 +6524,6 @@ export class VelocityClient {
 	public async preparePlaceAndTakePerpOrderWithAdditionalOrders(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		txParams?: TxParams,
 		subAccountId?: number,
@@ -6584,7 +6560,6 @@ export class VelocityClient {
 			const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
 				orderParams,
 				makerInfo,
-				referrerInfo,
 				undefined,
 				auctionDurationPercentage,
 				subAccountId
@@ -6743,7 +6718,6 @@ export class VelocityClient {
 	public async placeAndTakePerpWithAdditionalOrders(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		txParams?: TxParams,
 		subAccountId?: number,
@@ -6759,7 +6733,6 @@ export class VelocityClient {
 			await this.preparePlaceAndTakePerpOrderWithAdditionalOrders(
 				orderParams,
 				makerInfo,
-				referrerInfo,
 				bracketOrdersParams,
 				txParams,
 				subAccountId,
@@ -6800,7 +6773,6 @@ export class VelocityClient {
 	public async getPlaceAndTakePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
-		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		auctionDurationPercentage?: number,
 		subAccountId?: number,
@@ -6842,24 +6814,6 @@ export class VelocityClient {
 			});
 		}
 
-		if (referrerInfo) {
-			const referrerIsMaker =
-				makerInfo.find((maker) => maker.maker.equals(referrerInfo.referrer)) !==
-				undefined;
-			if (!referrerIsMaker) {
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrer,
-					isWritable: true,
-					isSigner: false,
-				});
-				remainingAccounts.push({
-					pubkey: referrerInfo.referrerStats,
-					isWritable: true,
-					isSigner: false,
-				});
-			}
-		}
-
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6883,7 +6837,6 @@ export class VelocityClient {
 	public async placeAndMakePerpOrder(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -6892,7 +6845,6 @@ export class VelocityClient {
 				await this.getPlaceAndMakePerpOrderIx(
 					orderParams,
 					takerInfo,
-					referrerInfo,
 					subAccountId
 				),
 				txParams
@@ -6909,7 +6861,6 @@ export class VelocityClient {
 	public async getPlaceAndMakePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -6924,19 +6875,6 @@ export class VelocityClient {
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
-
-		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
 
 		const takerOrderId = takerInfo.order.orderId;
 		if (hasBuilder(takerInfo.order)) {
@@ -7187,7 +7125,6 @@ export class VelocityClient {
 			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
-		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
@@ -7198,7 +7135,6 @@ export class VelocityClient {
 			signedMsgOrderUuid,
 			takerInfo,
 			orderParams,
-			referrerInfo,
 			subAccountId,
 			precedingIxs,
 			overrideCustomIxIndex
@@ -7223,7 +7159,6 @@ export class VelocityClient {
 			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
-		referrerInfo?: ReferrerInfo,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number
@@ -7249,19 +7184,6 @@ export class VelocityClient {
 			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
-
-		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
 
 		const isDelegateSigner = takerInfo.signingAuthority.equals(
 			takerInfo.takerUserAccount.delegate
@@ -7321,7 +7243,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo,
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams,
 		_subAccountId?: number
 	) {
@@ -7332,7 +7253,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo,
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams,
 		_subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -7342,7 +7262,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_fulfillmentConfig?: unknown,
 		_makerInfo?: MakerInfo,
-		_referrerInfo?: ReferrerInfo,
 		_subAccountId?: number
 	): Promise<TransactionInstruction> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -7352,7 +7271,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_takerInfo: TakerInfo,
 		_fulfillmentConfig?: unknown,
-		_referrerInfo?: ReferrerInfo,
 		_txParams?: TxParams,
 		_subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -7363,7 +7281,6 @@ export class VelocityClient {
 		_orderParams: OptionalOrderParams,
 		_takerInfo: TakerInfo,
 		_fulfillmentConfig?: unknown,
-		_referrerInfo?: ReferrerInfo,
 		_subAccountId?: number
 	): Promise<TransactionInstruction> {
 		throw new Error(SPOT_DLOB_TRADING_DISABLED_MSG);
@@ -7392,7 +7309,6 @@ export class VelocityClient {
 				reduceOnly: true,
 				price: limitPrice,
 			},
-			undefined,
 			undefined,
 			undefined,
 			undefined,
@@ -8396,7 +8312,6 @@ export class VelocityClient {
 		quote,
 		userAccount,
 		userAccountPublicKey,
-		userStatsAccountPublicKey,
 		liquidatorSubAccountId,
 		maxAccounts,
 	}: {
@@ -8412,7 +8327,6 @@ export class VelocityClient {
 		quote?: QuoteResponse;
 		userAccount: UserAccount;
 		userAccountPublicKey: PublicKey;
-		userStatsAccountPublicKey: PublicKey;
 		liquidatorSubAccountId?: number;
 		maxAccounts?: number;
 	}): Promise<{
@@ -8506,7 +8420,6 @@ export class VelocityClient {
 			liabilityTokenAccount,
 			userAccount,
 			userAccountPublicKey,
-			userStatsAccountPublicKey,
 			liquidatorSubAccountId,
 		});
 
@@ -8530,7 +8443,6 @@ export class VelocityClient {
 	 * @param liabilityTokenAccount the token account to receive the tokens being bought
 	 * @param userAccount
 	 * @param userAccountPublicKey
-	 * @param userStatsAccountPublicKey
 	 */
 	public async getLiquidateSpotWithSwapIx({
 		liabilityMarketIndex,
@@ -8540,7 +8452,6 @@ export class VelocityClient {
 		liabilityTokenAccount,
 		userAccount,
 		userAccountPublicKey,
-		userStatsAccountPublicKey,
 		liquidatorSubAccountId,
 	}: {
 		liabilityMarketIndex: number;
@@ -8550,7 +8461,6 @@ export class VelocityClient {
 		liabilityTokenAccount: PublicKey;
 		userAccount: UserAccount;
 		userAccountPublicKey: PublicKey;
-		userStatsAccountPublicKey: PublicKey;
 		liquidatorSubAccountId?: number;
 	}): Promise<{
 		beginSwapIx: TransactionInstruction;
@@ -8559,7 +8469,6 @@ export class VelocityClient {
 		const liquidatorAccountPublicKey = await this.getUserAccountPublicKey(
 			liquidatorSubAccountId
 		);
-		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const userAccounts = [userAccount];
 		const remainingAccounts = this.getRemainingAccounts({
@@ -8621,9 +8530,7 @@ export class VelocityClient {
 					accounts: {
 						state: await this.getStatePublicKey(),
 						user: userAccountPublicKey,
-						userStats: userStatsAccountPublicKey,
 						liquidator: liquidatorAccountPublicKey,
-						liquidatorStats: liquidatorStatsPublicKey,
 						authority: this.wallet.publicKey,
 						liabilitySpotMarketVault: liabilitySpotMarket.vault,
 						assetSpotMarketVault: assetSpotMarket.vault,
@@ -8644,9 +8551,7 @@ export class VelocityClient {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					user: userAccountPublicKey,
-					userStats: userStatsAccountPublicKey,
 					liquidator: liquidatorAccountPublicKey,
-					liquidatorStats: liquidatorStatsPublicKey,
 					authority: this.wallet.publicKey,
 					liabilitySpotMarketVault: liabilitySpotMarket.vault,
 					assetSpotMarketVault: assetSpotMarket.vault,
@@ -9104,15 +9009,15 @@ export class VelocityClient {
 	): Promise<TransactionInstruction> {
 		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
 
-		if (!isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
-			throw new Error(`Wrong oracle source ${perpMarket.amm.oracleSource}`);
+		if (!isVariant(perpMarket.oracleSource, 'prelaunch')) {
+			throw new Error(`Wrong oracle source ${perpMarket.oracleSource}`);
 		}
 
 		return await this.program.instruction.updatePrelaunchOracle({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				perpMarket: perpMarket.pubkey,
-				oracle: perpMarket.amm.oracle,
+				oracle: perpMarket.oracle,
 			},
 		});
 	}
@@ -9157,7 +9062,7 @@ export class VelocityClient {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				perpMarket: perpMarket.pubkey,
-				oracle: perpMarket.amm.oracle,
+				oracle: perpMarket.oracle,
 				authority: this.wallet.publicKey,
 				keeperStats: this.getUserStatsAccountPublicKey(),
 			},
@@ -9225,14 +9130,14 @@ export class VelocityClient {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
-		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
-		const pctDiff = perpMarket.amm.mmOraclePrice
+		const isMMOracleActive = !perpMarket.marketStats.mmOracleSlot.eq(ZERO);
+		const pctDiff = perpMarket.marketStats.mmOraclePrice
 			.sub(oracleData.price)
 			.abs()
 			.mul(PERCENTAGE_PRECISION)
 			.div(BN.max(oracleData.price, ONE));
 
-		const mmOracleSequenceId = perpMarket.amm.mmOracleSequenceId;
+		const mmOracleSequenceId = perpMarket.marketStats.mmOracleSequenceId;
 
 		// Do slot check for recency if sequence ids are zero or they're too divergent
 		const doSlotCheckForRecency =
@@ -9240,14 +9145,14 @@ export class VelocityClient {
 			oracleData.sequenceId.eq(ZERO) ||
 			mmOracleSequenceId.eq(ZERO) ||
 			oracleData.sequenceId
-				.sub(perpMarket.amm.mmOracleSequenceId)
+				.sub(perpMarket.marketStats.mmOracleSequenceId)
 				.abs()
 				.gt(oracleData.sequenceId.div(new BN(10_000)));
 
 		let isExchangeOracleMoreRecent = true;
 		if (
 			doSlotCheckForRecency &&
-			oracleData.slot <= perpMarket.amm.mmOracleSlot
+			oracleData.slot <= perpMarket.marketStats.mmOracleSlot
 		) {
 			isExchangeOracleMoreRecent = false;
 		} else if (
@@ -9258,30 +9163,30 @@ export class VelocityClient {
 		}
 
 		const conf = getOracleConfidenceFromMMOracleData(
-			perpMarket.amm.mmOraclePrice,
+			perpMarket.marketStats.mmOraclePrice,
 			oracleData
 		);
 
 		if (
 			isOracleTooDivergent(
-				perpMarket.amm,
+				perpMarket.marketStats,
 				{
-					price: perpMarket.amm.mmOraclePrice,
-					slot: perpMarket.amm.mmOracleSlot,
+					price: perpMarket.marketStats.mmOraclePrice,
+					slot: perpMarket.marketStats.mmOracleSlot,
 					confidence: conf,
 					hasSufficientNumberOfDataPoints: true,
 				},
 				stateAccountAndSlot.data.oracleGuardRails
 			) ||
-			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
+			perpMarket.marketStats.mmOraclePrice.eq(ZERO) ||
 			isExchangeOracleMoreRecent ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
 			return { ...oracleData, isMMOracleActive };
 		} else {
 			return {
-				price: perpMarket.amm.mmOraclePrice,
-				slot: perpMarket.amm.mmOracleSlot,
+				price: perpMarket.marketStats.mmOraclePrice,
+				slot: perpMarket.marketStats.mmOracleSlot,
 				confidence: conf,
 				hasSufficientNumberOfDataPoints: true,
 				isMMOracleActive,
@@ -9957,7 +9862,7 @@ export class VelocityClient {
 
 		const extendedInfo: PerpMarketExtendedInfo = {
 			marketIndex,
-			minOrderSize: marketAccount.amm?.minOrderSize,
+			minOrderSize: marketAccount.marketStats?.minOrderSize,
 			marginMaintenance: marketAccount.marginRatioMaintenance,
 			pnlPoolValue: getTokenAmount(
 				marketAccount.pnlPool?.scaledBalance,
@@ -11122,7 +11027,7 @@ export class VelocityClient {
 			...(await this.getAllSettlePerpToLpPoolIxs(
 				lpPool.lpPoolId,
 				this.getPerpMarketAccounts()
-					.filter((marketAccount) => marketAccount.lpStatus > 0)
+					.filter((marketAccount) => marketAccount.hedgeConfig.status > 0)
 					.map((marketAccount) => marketAccount.marketIndex)
 			))
 		);

@@ -145,10 +145,7 @@ describe('pyth lazer oracles', () => {
 		);
 		await driftClient.fetchAccounts();
 		assert(
-			isVariant(
-				driftClient.getPerpMarketAccount(0).amm.oracleSource,
-				'pythLazer'
-			)
+			isVariant(driftClient.getPerpMarketAccount(0).oracleSource, 'pythLazer')
 		);
 	});
 

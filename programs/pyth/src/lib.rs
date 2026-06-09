@@ -76,12 +76,12 @@ pub mod pyth {
 pub struct SetPrice<'info> {
     /// CHECK: this program is just for testing
     #[account(mut)]
-    pub price: AccountInfo<'info>,
+    pub price: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     /// CHECK: this program is just for testing
     #[account(mut)]
-    pub price: AccountInfo<'info>,
+    pub price: UncheckedAccount<'info>,
 }

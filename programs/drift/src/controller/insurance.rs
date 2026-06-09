@@ -11,7 +11,6 @@ use crate::controller::spot_balance::{
 use crate::controller::token::send_from_program_vault;
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     GOV_SPOT_MARKET_INDEX, MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
@@ -39,6 +38,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
+use crate::vlp::amm::math::amm::calculate_net_user_pnl;
 use crate::{emit, validate};
 
 #[cfg(test)]
@@ -807,7 +807,7 @@ pub fn resolve_perp_pnl_deficit(
     now: i64,
 ) -> DriftResult<u64> {
     validate!(
-        market.amm.total_fee_minus_distributions < 0,
+        market.amm.is_underwater(),
         ErrorCode::NoAmmPerpPnlDeficit,
         "market.amm.total_fee_minus_distributions={} must be negative",
         market.amm.total_fee_minus_distributions
@@ -822,9 +822,11 @@ pub fn resolve_perp_pnl_deficit(
     let net_user_pnl = calculate_net_user_pnl(
         &market.amm,
         market
-            .amm
+            .market_stats
             .historical_oracle_data
             .last_oracle_price_twap_5min,
+        market.quote_asset_amount,
+        market.net_unsettled_funding_pnl,
     )?;
 
     validate!(
@@ -842,7 +844,9 @@ pub fn resolve_perp_pnl_deficit(
     let excess_user_pnl_imbalance = if market.unrealized_pnl_max_imbalance > 0 {
         let net_unsettled_pnl = calculate_net_user_pnl(
             &market.amm,
-            market.amm.historical_oracle_data.last_oracle_price,
+            market.market_stats.historical_oracle_data.last_oracle_price,
+            market.quote_asset_amount,
+            market.net_unsettled_funding_pnl,
         )?;
 
         net_unsettled_pnl.safe_sub(market.unrealized_pnl_max_imbalance.cast()?)?
@@ -902,10 +906,10 @@ pub fn resolve_perp_pnl_deficit(
         excess_user_pnl_imbalance
     )?;
 
-    market.amm.total_fee_minus_distributions = market
-        .amm
-        .total_fee_minus_distributions
-        .safe_add(insurance_withdraw)?;
+    <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::record_credit(
+        &mut market.amm,
+        insurance_withdraw.cast::<u64>()?,
+    )?;
 
     market.insurance_claim.revenue_withdraw_since_last_settle = market
         .insurance_claim

@@ -287,7 +287,6 @@ describe('place and make signedMsg order', () => {
 			undefined,
 			undefined,
 			undefined,
-			undefined,
 			2
 		);
 
@@ -320,7 +319,6 @@ describe('place and make signedMsg order', () => {
 				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			makerOrderParams,
-			undefined,
 			undefined,
 			undefined,
 			undefined,
@@ -466,7 +464,7 @@ describe('place and make signedMsg order', () => {
 					.map((account) => account.pubkey),
 				...makerDriftClient
 					.getPerpMarketAccounts()
-					.map((account) => account.amm.oracle),
+					.map((account) => account.oracle),
 				...makerDriftClient
 					.getSpotMarketAccounts()
 					.map((account) => account.pubkey),
@@ -578,7 +576,6 @@ describe('place and make signedMsg order', () => {
 			signedMsgOrder,
 			undefined,
 			undefined,
-			undefined,
 			true
 		);
 
@@ -639,7 +636,7 @@ describe('place and make signedMsg order', () => {
 					.map((account) => account.pubkey),
 				...makerDriftClient
 					.getPerpMarketAccounts()
-					.map((account) => account.amm.oracle),
+					.map((account) => account.oracle),
 				...makerDriftClient
 					.getSpotMarketAccounts()
 					.map((account) => account.pubkey),
@@ -769,7 +766,6 @@ describe('place and make signedMsg order', () => {
 			takerDriftClientUser.getUserAccountPublicKey(),
 			takerDriftClientUser.getUserAccount(),
 			signedMsgOrder,
-			undefined,
 			undefined,
 			undefined,
 			true
@@ -903,7 +899,6 @@ describe('place and make signedMsg order', () => {
 			makerOrderParams,
 			undefined,
 			undefined,
-			undefined,
 			2
 		);
 
@@ -1009,7 +1004,6 @@ describe('place and make signedMsg order', () => {
 					signingAuthority: takerDriftClient.wallet.publicKey,
 				},
 				makerOrderParams,
-				undefined,
 				undefined,
 				undefined,
 				undefined,
@@ -1178,7 +1172,6 @@ describe('place and make signedMsg order', () => {
 				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			makerOrderParams,
-			undefined,
 			undefined,
 			undefined,
 			undefined,
@@ -1671,7 +1664,6 @@ describe('place and make signedMsg order', () => {
 				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			makerOrderParams,
-			undefined,
 			undefined,
 			undefined,
 			2

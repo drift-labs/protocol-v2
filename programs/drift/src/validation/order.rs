@@ -22,23 +22,27 @@ pub fn validate_order(
     slot: u64,
 ) -> DriftResult {
     match order.order_type {
-        OrderType::Market => {
-            validate_market_order(order, market.amm.order_step_size, market.amm.min_order_size)?
-        }
+        OrderType::Market => validate_market_order(
+            order,
+            market.order_step_size,
+            market.market_stats.min_order_size,
+        )?,
         OrderType::Limit => validate_limit_order(order, market, valid_oracle_price, slot)?,
         OrderType::TriggerMarket => validate_trigger_market_order(
             order,
-            market.amm.order_step_size,
-            market.amm.min_order_size,
+            market.order_step_size,
+            market.market_stats.min_order_size,
         )?,
         OrderType::TriggerLimit => validate_trigger_limit_order(
             order,
-            market.amm.order_step_size,
-            market.amm.min_order_size,
+            market.order_step_size,
+            market.market_stats.min_order_size,
         )?,
-        OrderType::Oracle => {
-            validate_oracle_order(order, market.amm.order_step_size, market.amm.min_order_size)?
-        }
+        OrderType::Oracle => validate_oracle_order(
+            order,
+            market.order_step_size,
+            market.market_stats.min_order_size,
+        )?,
     }
 
     Ok(())
@@ -114,8 +118,8 @@ fn validate_limit_order(
 ) -> DriftResult {
     validate_base_asset_amount(
         order,
-        market.amm.order_step_size,
-        market.amm.min_order_size,
+        market.order_step_size,
+        market.market_stats.min_order_size,
         order.reduce_only || order.is_jit_maker(),
     )?;
 
@@ -189,7 +193,7 @@ fn validate_post_only_order(
     }
 
     let limit_price =
-        order.force_get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?;
+        order.force_get_limit_price(valid_oracle_price, None, slot, market.order_tick_size)?;
 
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
@@ -204,10 +208,10 @@ fn validate_post_only_order(
             base_asset_amount_market_can_fill,
         );
 
-        if market.amm.last_update_slot != slot {
+        if !market.amm.is_fresh_at(slot) {
             msg!(
                 "market.amm.last_update_slot={} behind current slot={}",
-                market.amm.last_update_slot,
+                market.amm.last_update_slot(),
                 slot
             );
         }

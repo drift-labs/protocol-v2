@@ -296,12 +296,12 @@ describe('Reference Price Offset E2E', () => {
 
 		const sdkReferencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
-			perpMarket2.amm.last24HAvgFundingRate,
+			perpMarket2.marketStats.last24HAvgFundingRate,
 			liquidityFractionSigned,
-			perpMarket2.amm.historicalOracleData.lastOraclePriceTwap5Min,
-			perpMarket2.amm.lastMarkPriceTwap5Min,
-			perpMarket2.amm.historicalOracleData.lastOraclePriceTwap,
-			perpMarket2.amm.lastMarkPriceTwap,
+			perpMarket2.marketStats.historicalOracleData.lastOraclePriceTwap5Min,
+			perpMarket2.marketStats.lastMarkPriceTwap5Min,
+			perpMarket2.marketStats.historicalOracleData.lastOraclePriceTwap,
+			perpMarket2.marketStats.lastMarkPriceTwap,
 			maxOffset
 		);
 
@@ -349,12 +349,12 @@ describe('Reference Price Offset E2E', () => {
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 
 		// flip reference price more
-		perpMarket2.amm.lastMarkPriceTwap =
-			perpMarket2.amm.lastMarkPriceTwap.add(PRICE_PRECISION);
-		perpMarket2.amm.lastMarkPriceTwap5Min =
-			perpMarket2.amm.lastMarkPriceTwap5Min.add(PRICE_PRECISION);
-		perpMarket2.amm.last24HAvgFundingRate =
-			perpMarket2.amm.last24HAvgFundingRate.addn(100000);
+		perpMarket2.marketStats.lastMarkPriceTwap =
+			perpMarket2.marketStats.lastMarkPriceTwap.add(PRICE_PRECISION);
+		perpMarket2.marketStats.lastMarkPriceTwap5Min =
+			perpMarket2.marketStats.lastMarkPriceTwap5Min.add(PRICE_PRECISION);
+		perpMarket2.marketStats.last24HAvgFundingRate =
+			perpMarket2.marketStats.last24HAvgFundingRate.addn(100000);
 
 		await overWritePerpMarket(
 			adminClient,
@@ -559,8 +559,8 @@ describe('Reference Price Offset E2E', () => {
 
 		// Set the new mm oracle manually
 		const newOraclePrice = currentOraclePrice.muln(101).divn(100); // 1% higher
-		perpMarket0.amm.mmOraclePrice = newOraclePrice;
-		perpMarket0.amm.mmOracleSlot = currentOracleSlot;
+		perpMarket0.marketStats.mmOraclePrice = newOraclePrice;
+		perpMarket0.marketStats.mmOracleSlot = currentOracleSlot;
 		await overWritePerpMarket(
 			adminClient,
 			bankrunContextWrapper,

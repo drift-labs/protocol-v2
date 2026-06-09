@@ -185,7 +185,11 @@ export function getVammL2Generator({
 	topOfBookQuoteAmounts?: BN[];
 	latestSlot?: BN;
 }): L2OrderBookGenerator {
-	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, mmOraclePriceData);
+	const updatedAmm = calculateUpdatedAMM(
+		marketAccount.amm,
+		marketAccount.totalExchangeFee,
+		mmOraclePriceData
+	);
 	const paused = isOperationPaused(
 		marketAccount.pausedOperations,
 		PerpOperation.AMM_FILL
@@ -196,15 +200,17 @@ export function getVammL2Generator({
 				updatedAmm.baseAssetReserve,
 				updatedAmm.minBaseAssetReserve,
 				updatedAmm.maxBaseAssetReserve,
-				updatedAmm.orderStepSize
+				marketAccount.orderStepSize
 		  );
 
-	if (openBids.lt(marketAccount.amm.minOrderSize.muln(2))) openBids = ZERO;
-	if (openAsks.abs().lt(marketAccount.amm.minOrderSize.muln(2)))
+	if (openBids.lt(marketAccount.marketStats.minOrderSize.muln(2)))
+		openBids = ZERO;
+	if (openAsks.abs().lt(marketAccount.marketStats.minOrderSize.muln(2)))
 		openAsks = ZERO;
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		updatedAmm,
+		marketAccount.marketStats,
 		mmOraclePriceData,
 		now,
 		latestSlot
@@ -215,8 +221,8 @@ export function getVammL2Generator({
 		numOrders,
 		numBaseOrders,
 		mmOraclePriceData,
-		orderTickSize: marketAccount.amm.orderTickSize,
-		orderStepSize: marketAccount.amm.orderStepSize,
+		orderTickSize: marketAccount.orderTickSize,
+		orderStepSize: marketAccount.orderStepSize,
 		pegMultiplier: updatedAmm.pegMultiplier,
 		sqrtK: updatedAmm.sqrtK,
 		topOfBookQuoteAmounts,

@@ -151,8 +151,8 @@ pub struct UpdatePythLazerOracle<'info> {
     #[account(
       address = PYTH_LAZER_STORAGE_ID @ ErrorCode::InvalidPythLazerStorageOwner,
     )]
-    pub pyth_lazer_storage: AccountInfo<'info>,
+    pub pyth_lazer_storage: UncheckedAccount<'info>,
     /// CHECK: checked by ed25519 verify
     #[account(address = solana_program::sysvar::instructions::ID)]
-    pub ix_sysvar: AccountInfo<'info>,
+    pub ix_sysvar: UncheckedAccount<'info>,
 }

@@ -1,6 +1,6 @@
 import {
-	AMM,
 	HistoricalOracleData,
+	MarketStats,
 	OracleGuardRails,
 	OracleSource,
 	OracleValidity,
@@ -64,14 +64,14 @@ export function getOracleValidity(
 	const isNonPositive = oraclePriceData.price.lte(ZERO);
 	const isTooVolatile = BN.max(
 		oraclePriceData.price,
-		market.amm.historicalOracleData.lastOraclePriceTwap
+		market.marketStats.historicalOracleData.lastOraclePriceTwap
 	)
 		.div(
 			BN.max(
 				ONE,
 				BN.min(
 					oraclePriceData.price,
-					market.amm.historicalOracleData.lastOraclePriceTwap
+					market.marketStats.historicalOracleData.lastOraclePriceTwap
 				)
 			)
 		)
@@ -89,16 +89,16 @@ export function getOracleValidity(
 	const oracleDelay = slot.sub(oraclePriceData.slot).sub(oracleStalenessBuffer);
 
 	let isStaleForAmmImmediate = true;
-	if (market.amm.oracleSlotDelayOverride != 0) {
+	if (market.oracleSlotDelayOverride != 0) {
 		isStaleForAmmImmediate = oracleDelay.gt(
-			BN.max(new BN(market.amm.oracleSlotDelayOverride), ZERO)
+			BN.max(new BN(market.oracleSlotDelayOverride), ZERO)
 		);
 	}
 
 	let isStaleForAmmLowRisk = false;
-	if (market.amm.oracleLowRiskSlotDelayOverride != 0) {
+	if (market.oracleLowRiskSlotDelayOverride != 0) {
 		isStaleForAmmLowRisk = oracleDelay.gt(
-			BN.max(new BN(market.amm.oracleLowRiskSlotDelayOverride), ZERO)
+			BN.max(new BN(market.oracleLowRiskSlotDelayOverride), ZERO)
 		);
 	} else {
 		isStaleForAmmLowRisk = oracleDelay.gt(
@@ -109,7 +109,7 @@ export function getOracleValidity(
 	let isStaleForMargin = oracleDelay.gt(
 		new BN(oracleGuardRails.validity.slotsBeforeStaleForMargin)
 	);
-	if (isVariant(market.amm.oracleSource, 'pythLazerStableCoin')) {
+	if (isVariant(market.oracleSource, 'pythLazerStableCoin')) {
 		isStaleForMargin = oracleDelay.gt(
 			new BN(oracleGuardRails.validity.slotsBeforeStaleForMargin).muln(3)
 		);
@@ -142,13 +142,13 @@ export function isOracleValid(
 ): boolean {
 	// checks if oracle is valid for an AMM only fill
 
-	const amm = market.amm;
+	const stats = market.marketStats;
 	const isOraclePriceNonPositive = oraclePriceData.price.lte(ZERO);
 	const isOraclePriceTooVolatile =
 		oraclePriceData.price
-			.div(BN.max(ONE, amm.historicalOracleData.lastOraclePriceTwap))
+			.div(BN.max(ONE, stats.historicalOracleData.lastOraclePriceTwap))
 			.gt(oracleGuardRails.validity.tooVolatileRatio) ||
-		amm.historicalOracleData.lastOraclePriceTwap
+		stats.historicalOracleData.lastOraclePriceTwap
 			.div(BN.max(ONE, oraclePriceData.price))
 			.gt(oracleGuardRails.validity.tooVolatileRatio);
 
@@ -177,14 +177,14 @@ export function isOracleValid(
 }
 
 export function isOracleTooDivergent(
-	amm: AMM,
+	marketStats: MarketStats,
 	oraclePriceData: OraclePriceData,
 	oracleGuardRails: OracleGuardRails
 ): boolean {
 	const oracleSpreadPct = oraclePriceData.price
-		.sub(amm.historicalOracleData.lastOraclePriceTwap5Min)
+		.sub(marketStats.historicalOracleData.lastOraclePriceTwap5Min)
 		.mul(PERCENTAGE_PRECISION)
-		.div(amm.historicalOracleData.lastOraclePriceTwap5Min);
+		.div(marketStats.historicalOracleData.lastOraclePriceTwap5Min);
 	const maxDivergence = BN.max(
 		oracleGuardRails.priceDivergence.oracleTwap5MinPercentDivergence,
 		PERCENTAGE_PRECISION.div(new BN(2))
@@ -230,25 +230,28 @@ export function calculateLiveOracleTwap(
 }
 
 export function calculateLiveOracleStd(
-	amm: AMM,
+	marketStats: MarketStats,
 	oraclePriceData: OraclePriceData,
 	now: BN
 ): BN {
 	const sinceLastUpdate = BN.max(
 		ONE,
-		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
+		now.sub(marketStats.historicalOracleData.lastOraclePriceTwapTs)
 	);
-	const sinceStart = BN.max(ZERO, amm.fundingPeriod.sub(sinceLastUpdate));
+	const sinceStart = BN.max(
+		ZERO,
+		marketStats.fundingPeriod.sub(sinceLastUpdate)
+	);
 
 	const liveOracleTwap = calculateLiveOracleTwap(
-		amm.historicalOracleData,
+		marketStats.historicalOracleData,
 		oraclePriceData,
 		now,
-		amm.fundingPeriod
+		marketStats.fundingPeriod
 	);
 
 	const liveOracleTwap5MIN = calculateLiveOracleTwap(
-		amm.historicalOracleData,
+		marketStats.historicalOracleData,
 		oraclePriceData,
 		now,
 		FIVE_MINUTE
@@ -260,14 +263,14 @@ export function calculateLiveOracleStd(
 	);
 
 	const oracleStd = priceDeltaVsTwap.add(
-		amm.oracleStd.mul(sinceStart).div(sinceStart.add(sinceLastUpdate))
+		marketStats.oracleStd.mul(sinceStart).div(sinceStart.add(sinceLastUpdate))
 	);
 
 	return oracleStd;
 }
 
 export function getNewOracleConfPct(
-	amm: AMM,
+	marketStats: MarketStats,
 	oraclePriceData: OraclePriceData,
 	reservePrice: BN,
 	now: BN
@@ -276,16 +279,16 @@ export function getNewOracleConfPct(
 
 	const sinceLastUpdate = BN.max(
 		ZERO,
-		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
+		now.sub(marketStats.historicalOracleData.lastOraclePriceTwapTs)
 	);
-	let lowerBoundConfPct = amm.lastOracleConfPct;
+	let lowerBoundConfPct = marketStats.lastOracleConfPct;
 	if (sinceLastUpdate.gt(ZERO)) {
 		const lowerBoundConfDivisor = BN.max(
 			new BN(21).sub(sinceLastUpdate),
 			new BN(5)
 		);
-		lowerBoundConfPct = amm.lastOracleConfPct.sub(
-			amm.lastOracleConfPct.div(lowerBoundConfDivisor)
+		lowerBoundConfPct = marketStats.lastOracleConfPct.sub(
+			marketStats.lastOracleConfPct.div(lowerBoundConfDivisor)
 		);
 	}
 	const confIntervalPct = confInterval

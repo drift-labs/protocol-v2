@@ -243,7 +243,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: baseAssetAmount.div(new BN(2)),
 			price: reservePrice2.add(
-				driftClient.getPerpMarketAccount(marketIndex).amm.orderTickSize
+				driftClient.getPerpMarketAccount(marketIndex).orderTickSize
 			),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
@@ -372,13 +372,13 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const perpMarket = fillerDriftClient.getPerpMarketAccount(0);
 		console.log(perpMarket.amm.totalFee.toString());
 		console.log(perpMarket.amm.totalFeeMinusDistributions.toString());
-		console.log(perpMarket.amm.totalExchangeFee.toString());
+		console.log(perpMarket.totalExchangeFee.toString());
 		console.log(perpMarket.amm.totalMmFee.toString());
 		console.log(perpMarket.amm.totalFeeWithdrawn.toString());
 
 		assert(perpMarket.amm.totalFee.eq(new BN(32983)));
 		assert(perpMarket.amm.totalFeeMinusDistributions.eq(new BN(32983)));
-		assert(perpMarket.amm.totalExchangeFee.eq(new BN(28961)));
+		assert(perpMarket.totalExchangeFee.eq(new BN(28961)));
 		assert(perpMarket.amm.totalMmFee.eq(new BN(4022)));
 		assert(perpMarket.amm.totalFeeWithdrawn.eq(ZERO));
 

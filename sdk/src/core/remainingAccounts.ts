@@ -184,9 +184,9 @@ function addPerpMarketToRemainingAccountMaps(
 		isWritable: writable,
 	});
 	const oracleWritable =
-		writable && isVariant(perpMarketAccount.amm.oracleSource, 'prelaunch');
-	oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
-		pubkey: perpMarketAccount.amm.oracle,
+		writable && isVariant(perpMarketAccount.oracleSource, 'prelaunch');
+	oracleAccountMap.set(perpMarketAccount.oracle.toString(), {
+		pubkey: perpMarketAccount.oracle,
 		isSigner: false,
 		isWritable: oracleWritable,
 	});

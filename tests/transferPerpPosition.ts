@@ -27,8 +27,8 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 function getOpenInterest(driftClient: TestClient, marketIndex: number) {
 	const perpMarket = driftClient.getPerpMarketAccount(marketIndex);
 	return BN.max(
-		perpMarket.amm.baseAssetAmountLong,
-		perpMarket.amm.baseAssetAmountShort.abs()
+		perpMarket.baseAssetAmountLong,
+		perpMarket.baseAssetAmountShort.abs()
 	);
 }
 

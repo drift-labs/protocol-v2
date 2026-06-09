@@ -172,7 +172,6 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		liquidatorFee: 0,
 		imfFactor: 0,
 		nextFundingRateRecordId: new BN(0),
-		nextCurveRecordId: new BN(0),
 		unrealizedPnlImfFactor: 0,
 		unrealizedPnlMaxImbalance: ZERO,
 		unrealizedPnlInitialAssetWeight: 0,
@@ -199,7 +198,6 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		lastFillPrice: new BN(0),
 		contractTier: ContractTier.A,
 		nextFundingRateRecordId: new BN(0),
-		nextCurveRecordId: new BN(0),
 		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
@@ -245,7 +243,6 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		lastFillPrice: new BN(0),
 		contractTier: ContractTier.A,
 		nextFundingRateRecordId: new BN(0),
-		nextCurveRecordId: new BN(0),
 		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
@@ -553,7 +550,6 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 ];
 
 export const mockStateAccount: StateAccount = {
-	admin: PublicKey.default,
 	featureBitFlags: 0,
 	defaultMarketOrderTimeInForce: 0,
 	defaultSpotAuctionDuration: 0,

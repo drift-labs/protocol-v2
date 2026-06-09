@@ -28,7 +28,7 @@ pub mod liquidate_perp {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -61,20 +61,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -83,6 +74,14 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -175,20 +174,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -197,6 +187,14 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -301,7 +299,7 @@ pub mod liquidate_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.total_liquidation_fee, 0);
     }
 
     #[test]
@@ -324,21 +322,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -347,6 +335,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: 3600,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -451,7 +448,7 @@ pub mod liquidate_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.total_liquidation_fee, 0);
     }
 
     #[test]
@@ -474,21 +471,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -496,6 +483,15 @@ pub mod liquidate_perp {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: 3600,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -608,21 +604,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -631,6 +617,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -734,7 +729,7 @@ pub mod liquidate_perp {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -49500000);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0)
+        assert_eq!(market_after.total_liquidation_fee, 0)
     }
 
     #[test]
@@ -757,21 +752,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -780,6 +765,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -916,7 +910,7 @@ pub mod liquidate_perp {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -178200000);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 1800000)
+        assert_eq!(market_after.total_liquidation_fee, 1800000)
     }
 
     #[test]
@@ -939,21 +933,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -963,6 +947,15 @@ pub mod liquidate_perp {
             imf_factor: 1000, // SPOT_IMF_PRECISION == 1e6
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1116,7 +1109,7 @@ pub mod liquidate_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, QUOTE_PRECISION);
+        assert_eq!(market_after.total_liquidation_fee, QUOTE_PRECISION);
     }
 
     #[test]
@@ -1139,21 +1132,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1162,6 +1145,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1271,21 +1263,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1294,6 +1276,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1403,21 +1394,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1426,6 +1407,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1523,10 +1513,7 @@ pub mod liquidate_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(
-            market_after.amm.total_liquidation_fee,
-            QUOTE_PRECISION / 100
-        );
+        assert_eq!(market_after.total_liquidation_fee, QUOTE_PRECISION / 100);
     }
 
     #[test]
@@ -1549,21 +1536,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1572,6 +1549,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1826,21 +1812,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1849,6 +1825,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1963,21 +1948,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1986,6 +1961,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2087,21 +2071,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2111,6 +2085,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: 3600,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2192,7 +2175,7 @@ pub mod liquidate_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         // .5% * 100 * .95 =$0.475
-        assert_eq!(market_after.amm.total_liquidation_fee, 475000);
+        assert_eq!(market_after.total_liquidation_fee, 475000);
     }
 
     #[test]
@@ -2215,21 +2198,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2239,6 +2212,15 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: 3600,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2320,7 +2302,7 @@ pub mod liquidate_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         assert!(!user.is_cross_margin_being_liquidated());
-        assert_eq!(market_after.amm.total_liquidation_fee, 41787043);
+        assert_eq!(market_after.total_liquidation_fee, 41787043);
     }
 
     #[test]
@@ -2343,20 +2325,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2365,6 +2338,14 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2373,20 +2354,11 @@ pub mod liquidate_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2395,11 +2367,19 @@ pub mod liquidate_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market2, PerpMarket, market2_account_info);
 
-        let market_account_infos = vec![market_account_info, market2_account_info];
+        let market_account_infos = [market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
         let perp_market_map =
             PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
@@ -2420,7 +2400,7 @@ pub mod liquidate_perp {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
-        let mut spot_positions = [SpotPosition::default(); 8];
+        let spot_positions = [SpotPosition::default(); 8];
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 0,
@@ -2468,7 +2448,7 @@ pub mod liquidate_perp {
             ..Default::default()
         };
 
-        let isolated_position_before = user.perp_positions[1].clone();
+        let isolated_position_before = user.perp_positions[1];
 
         let result = liquidate_perp(
             1,
@@ -2509,7 +2489,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        let isolated_position_after = user.perp_positions[1].clone();
+        let isolated_position_after = user.perp_positions[1];
 
         assert_eq!(isolated_position_before, isolated_position_after);
     }
@@ -2538,7 +2518,7 @@ pub mod liquidate_perp_with_fill {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -2571,21 +2551,11 @@ pub mod liquidate_perp_with_fill {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2594,6 +2564,15 @@ pub mod liquidate_perp_with_fill {
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2756,7 +2735,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3600);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 360000);
+        assert_eq!(market_after.total_liquidation_fee, 360000);
     }
 
     #[test]
@@ -2780,21 +2759,11 @@ pub mod liquidate_perp_with_fill {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2803,6 +2772,15 @@ pub mod liquidate_perp_with_fill {
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2965,7 +2943,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3600);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 360000);
+        assert_eq!(market_after.total_liquidation_fee, 360000);
     }
 
     #[test]
@@ -2990,21 +2968,11 @@ pub mod liquidate_perp_with_fill {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -3013,6 +2981,15 @@ pub mod liquidate_perp_with_fill {
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         market.amm.max_fill_reserve_fraction = 1;
@@ -3135,7 +3112,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3587);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 358708);
+        assert_eq!(market_after.total_liquidation_fee, 358708);
     }
 
     #[test]
@@ -3160,21 +3137,11 @@ pub mod liquidate_perp_with_fill {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                order_tick_size: 1,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: 0,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -3183,6 +3150,15 @@ pub mod liquidate_perp_with_fill {
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            order_tick_size: 1,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         market.amm.max_fill_reserve_fraction = 1;
@@ -3305,7 +3281,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3613);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 361300);
+        assert_eq!(market_after.total_liquidation_fee, 361300);
     }
 }
 
@@ -3334,7 +3310,7 @@ pub mod liquidate_spot {
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::UserStats;
+
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::{get_pyth_price, get_spot_positions};
     use crate::QUOTE_PRECISION_I64;
@@ -3436,9 +3412,6 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
-
         let state = State {
             liquidation_margin_buffer_ratio: 10,
             initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
@@ -3453,10 +3426,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3578,9 +3549,6 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
-
         let state = State {
             liquidation_margin_buffer_ratio: 10,
             initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
@@ -3595,10 +3563,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3623,10 +3589,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3655,9 +3619,6 @@ pub mod liquidate_spot {
     pub fn successful_liquidation_liability_transfer_to_cover_margin_shortage() {
         let now = 0_i64;
         let slot = 0_u64;
-
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
 
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
@@ -3765,10 +3726,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3878,8 +3837,6 @@ pub mod liquidate_spot {
     pub fn failure_due_to_limit_price() {
         let now = 0_i64;
         let slot = 0_u64;
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -3985,10 +3942,8 @@ pub mod liquidate_spot {
             Some(limit_price),
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -4004,8 +3959,6 @@ pub mod liquidate_spot {
     pub fn success_with_to_limit_price() {
         let now = 0_i64;
         let slot = 0_u64;
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -4111,10 +4064,8 @@ pub mod liquidate_spot {
             Some(limit_price),
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -4130,8 +4081,6 @@ pub mod liquidate_spot {
     pub fn successful_liquidation_dust_borrow() {
         let now = 0_i64;
         let slot = 0_u64;
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -4238,10 +4187,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -4355,8 +4302,6 @@ pub mod liquidate_spot {
 
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
             initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
@@ -4373,10 +4318,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -4420,10 +4363,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -4467,10 +4408,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -4611,9 +4550,6 @@ pub mod liquidate_spot {
             ..Default::default()
         };
 
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
-
         liquidate_spot(
             2,
             1,
@@ -4621,10 +4557,8 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -4709,19 +4643,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -4731,6 +4657,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -4864,19 +4794,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -4886,6 +4808,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5067,19 +4993,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5088,6 +5006,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5221,19 +5143,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5243,6 +5157,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5368,19 +5286,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5390,6 +5300,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5515,19 +5429,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5537,6 +5443,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5672,19 +5582,11 @@ pub mod liquidate_borrow_for_perp_pnl {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5694,6 +5596,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5922,7 +5828,7 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::UserStats;
+
     use crate::state::user::{Order, PerpPosition, SpotPosition, User, UserStatus};
     use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
     #[test]
@@ -5945,19 +5851,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -5967,6 +5865,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6100,19 +6002,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6123,6 +6017,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6236,7 +6134,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -25636363);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.total_liquidation_fee, 0);
     }
 
     #[test]
@@ -6259,19 +6157,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6281,6 +6171,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6414,19 +6308,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6436,6 +6322,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6561,19 +6451,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6583,6 +6465,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6708,19 +6594,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6731,6 +6609,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -6864,19 +6746,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -6887,6 +6761,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7080,8 +6958,6 @@ pub mod liquidate_perp_pnl_for_deposit {
     pub fn failure_due_to_asset_tier_violation() {
         let now = 0_i64;
         let slot = 0_u64;
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -7097,19 +6973,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7119,6 +6987,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7245,10 +7117,8 @@ pub mod liquidate_perp_pnl_for_deposit {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -7329,19 +7199,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7353,6 +7215,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             market_index: 0,
             contract_tier: ContractTier::A,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7361,19 +7227,11 @@ pub mod liquidate_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 8000,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7385,6 +7243,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             contract_tier: ContractTier::Speculative,
             market_index: 1,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(bonk_market, PerpMarket, bonk_market_account_info);
@@ -7609,23 +7471,11 @@ pub mod resolve_perp_bankruptcy {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                base_asset_amount_long: 5 * BASE_PRECISION_I128,
-                base_asset_amount_short: -5 * BASE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
-                cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -7633,6 +7483,14 @@ pub mod resolve_perp_bankruptcy {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             number_of_users: 1,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            base_asset_amount_long: 5 * BASE_PRECISION_I128,
+            base_asset_amount_short: -5 * BASE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
+            cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7699,10 +7557,10 @@ pub mod resolve_perp_bankruptcy {
         expected_user.total_social_loss = 100000000;
 
         let mut expected_market = market;
-        expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.total_social_loss = 100000000;
-        expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+        expected_market.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
+        expected_market.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
+        expected_market.total_social_loss = 100000000;
+        expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
 
         resolve_perp_bankruptcy(
@@ -7819,23 +7677,11 @@ pub mod resolve_perp_bankruptcy {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                base_asset_amount_long: 5 * BASE_PRECISION_I128,
-                base_asset_amount_short: -5 * BASE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
-                cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
                 fee_pool: PoolBalance {
                     scaled_balance: 50 * SPOT_BALANCE_PRECISION,
                     market_index: QUOTE_SPOT_MARKET_INDEX,
@@ -7848,6 +7694,14 @@ pub mod resolve_perp_bankruptcy {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             number_of_users: 1,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            base_asset_amount_long: 5 * BASE_PRECISION_I128,
+            base_asset_amount_short: -5 * BASE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
+            cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -7910,10 +7764,10 @@ pub mod resolve_perp_bankruptcy {
         expected_user.total_social_loss = 100000000;
 
         let mut expected_market = market;
-        expected_market.amm.cumulative_funding_rate_long = 1005 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.cumulative_funding_rate_short = -1005 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.total_social_loss = 50000000;
-        expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+        expected_market.cumulative_funding_rate_long = 1005 * FUNDING_RATE_PRECISION_I128;
+        expected_market.cumulative_funding_rate_short = -1005 * FUNDING_RATE_PRECISION_I128;
+        expected_market.total_social_loss = 50000000;
+        expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
         expected_market.amm.fee_pool.scaled_balance = 0;
 
@@ -8061,29 +7915,25 @@ pub mod resolve_spot_bankruptcy {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                base_asset_amount_long: 5 * BASE_PRECISION_I128,
-                base_asset_amount_short: -5 * BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
-                cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            base_asset_amount_long: 5 * BASE_PRECISION_I128,
+            base_asset_amount_short: -5 * BASE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
+            cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -8196,7 +8046,7 @@ pub mod set_user_status_to_being_liquidated {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -8230,20 +8080,11 @@ pub mod set_user_status_to_being_liquidated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -8252,6 +8093,14 @@ pub mod set_user_status_to_being_liquidated {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -8406,20 +8255,11 @@ pub mod set_user_status_to_being_liquidated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -8428,6 +8268,14 @@ pub mod set_user_status_to_being_liquidated {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -8515,7 +8363,7 @@ pub mod liquidate_spot_with_swap {
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::UserStats;
+
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::{get_pyth_price, get_spot_positions};
     use crate::QUOTE_PRECISION_I64;
@@ -8524,9 +8372,6 @@ pub mod liquidate_spot_with_swap {
     pub fn successful_liquidation_liability_transfer_to_cover_margin_shortage() {
         let now = 0_i64;
         let slot = 0_u64;
-
-        let mut user_stats = UserStats::default();
-        let mut liquidator_stats = UserStats::default();
 
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
@@ -8637,10 +8482,8 @@ pub mod liquidate_spot_with_swap {
             asset_transfer + (asset_transfer / 400) + 1,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8657,10 +8500,8 @@ pub mod liquidate_spot_with_swap {
             asset_transfer,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8676,10 +8517,7 @@ pub mod liquidate_spot_with_swap {
             1,
             &mut user,
             &user_key,
-            &mut user_stats,
-            &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8687,7 +8525,7 @@ pub mod liquidate_spot_with_swap {
             slot,
             &state,
             asset_transfer as u128,
-            liability_transfer as u128,
+            liability_transfer,
         )
         .unwrap();
 
@@ -8731,7 +8569,7 @@ mod liquidate_dust_spot_market {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::state::State;
-    use crate::state::user::{SpotPosition, User, UserStats};
+    use crate::state::user::{SpotPosition, User};
     use crate::test_utils::{create_account_info, get_pyth_price, get_spot_positions};
     use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
 
@@ -8834,7 +8672,7 @@ mod liquidate_dust_spot_market {
             btc_oracle_account_info
         );
 
-        let account_infos = vec![
+        let account_infos = [
             btc_oracle_account_info,
             usdc_oracle_account_info,
             sol_oracle_account_info,
@@ -8864,8 +8702,6 @@ mod liquidate_dust_spot_market {
 
         let mut user = user_account_loader.load_mut().unwrap();
 
-        let mut user_stats = UserStats::default();
-
         let mut liquidator = User::default();
         liquidator.spot_positions = get_spot_positions(SpotPosition {
             market_index: 0,
@@ -8874,7 +8710,6 @@ mod liquidate_dust_spot_market {
         });
         let liquidator_key =
             Pubkey::from_str("5smUuFz1ZzW3FVAF2W1GjYWzxsXQaVyPGdFKfvSnPpaL").unwrap();
-        let mut liquidator_stats = UserStats::default();
 
         let result = liquidate_spot(
             1,
@@ -8883,10 +8718,8 @@ mod liquidate_dust_spot_market {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -8923,7 +8756,7 @@ pub mod liquidate_isolated_perp {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -8955,20 +8788,11 @@ pub mod liquidate_isolated_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -8977,6 +8801,14 @@ pub mod liquidate_isolated_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -9082,7 +8914,7 @@ pub mod liquidate_isolated_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.total_liquidation_fee, 0);
     }
 
     #[test]
@@ -9105,21 +8937,11 @@ pub mod liquidate_isolated_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -9128,6 +8950,15 @@ pub mod liquidate_isolated_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: 3600,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -9233,7 +9064,7 @@ pub mod liquidate_isolated_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.total_liquidation_fee, 0);
     }
 
     #[test]
@@ -9256,21 +9087,11 @@ pub mod liquidate_isolated_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -9279,6 +9100,15 @@ pub mod liquidate_isolated_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -9415,7 +9245,7 @@ pub mod liquidate_isolated_perp {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -178200000);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 1800000)
+        assert_eq!(market_after.total_liquidation_fee, 1800000)
     }
 
     #[test]
@@ -9438,21 +9268,11 @@ pub mod liquidate_isolated_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: ONE_HOUR,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -9461,6 +9281,15 @@ pub mod liquidate_isolated_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: ONE_HOUR,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -9568,21 +9397,11 @@ pub mod liquidate_isolated_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -9592,6 +9411,15 @@ pub mod liquidate_isolated_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: 3600,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -9669,7 +9497,7 @@ pub mod liquidate_isolated_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         // .5% * 100 * .95 =$0.475
-        assert_eq!(market_after.amm.total_liquidation_fee, 475000);
+        assert_eq!(market_after.total_liquidation_fee, 475000);
     }
 
     #[test]
@@ -9692,21 +9520,11 @@ pub mod liquidate_isolated_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
-                funding_period: 3600,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -9716,6 +9534,15 @@ pub mod liquidate_isolated_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                funding_period: 3600,
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -9793,7 +9620,7 @@ pub mod liquidate_isolated_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         assert!(!user.is_isolated_margin_being_liquidated(0).unwrap());
-        assert_eq!(market_after.amm.total_liquidation_fee, 41787043);
+        assert_eq!(market_after.total_liquidation_fee, 41787043);
     }
 
     #[test]
@@ -9816,20 +9643,11 @@ pub mod liquidate_isolated_perp {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -9838,15 +9656,23 @@ pub mod liquidate_isolated_perp {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
 
-        let mut market2 = market.clone();
+        let mut market2 = market;
         market2.market_index = 1;
         create_anchor_account_info!(market2, PerpMarket, market2_account_info);
 
-        let market_account_infos = vec![market_account_info, market2_account_info];
+        let market_account_infos = [market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
         let perp_market_map =
             PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
@@ -9870,11 +9696,11 @@ pub mod liquidate_isolated_perp {
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
-        let mut spot_market2 = spot_market.clone();
+        let mut spot_market2 = spot_market;
         spot_market2.market_index = 1;
         create_anchor_account_info!(spot_market2, SpotMarket, spot_market2_account_info);
 
-        let spot_market_account_infos = vec![spot_market_account_info, spot_market2_account_info];
+        let spot_market_account_infos = [spot_market_account_info, spot_market2_account_info];
         let mut spot_market_set = BTreeSet::default();
         spot_market_set.insert(0);
         spot_market_set.insert(1);
@@ -9918,7 +9744,7 @@ pub mod liquidate_isolated_perp {
         user.spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            scaled_balance: 1 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -9979,10 +9805,8 @@ pub mod liquidate_isolated_perp {
             None,
             &mut user,
             &user_key,
-            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
-            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -10014,9 +9838,9 @@ pub mod liquidate_isolated_perp {
             false
         );
 
-        let spot_position_one_before = user.spot_positions[0].clone();
-        let spot_position_two_before = user.spot_positions[1].clone();
-        let perp_position_one_before = user.perp_positions[1].clone();
+        let spot_position_one_before = user.spot_positions[0];
+        let spot_position_two_before = user.spot_positions[1];
+        let perp_position_one_before = user.perp_positions[1];
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -10036,9 +9860,9 @@ pub mod liquidate_isolated_perp {
         )
         .unwrap();
 
-        let spot_position_one_after = user.spot_positions[0].clone();
-        let spot_position_two_after = user.spot_positions[1].clone();
-        let perp_position_one_after = user.perp_positions[1].clone();
+        let spot_position_one_after = user.spot_positions[0];
+        let spot_position_two_after = user.spot_positions[1];
+        let perp_position_one_after = user.perp_positions[1];
 
         assert_eq!(spot_position_one_before, spot_position_one_after);
         assert_eq!(spot_position_two_before, spot_position_two_after);
@@ -10067,7 +9891,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -10094,19 +9918,11 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -10116,6 +9932,10 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -10167,7 +9987,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         let spot_market_map =
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
-        let mut spot_positions = [SpotPosition::default(); 8];
+        let spot_positions = [SpotPosition::default(); 8];
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
@@ -10248,20 +10068,11 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                base_asset_amount_long: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -10272,6 +10083,11 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -10323,7 +10139,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         let spot_market_map =
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
-        let mut spot_positions = [SpotPosition::default(); 8];
+        let spot_positions = [SpotPosition::default(); 8];
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
@@ -10392,7 +10208,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         assert_eq!(calc.meets_margin_requirement(), false);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.total_liquidation_fee, 0);
         drop(market_after);
 
         resolve_perp_bankruptcy(
@@ -10469,19 +10285,11 @@ mod liquidation_mode {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -10491,6 +10299,10 @@ mod liquidation_mode {
             number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -10501,7 +10313,7 @@ mod liquidation_mode {
         };
         create_anchor_account_info!(market2, PerpMarket, market2_account_info);
 
-        let market_account_infos = vec![market_account_info, market2_account_info];
+        let market_account_infos = [market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
         let market_map =
             PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();

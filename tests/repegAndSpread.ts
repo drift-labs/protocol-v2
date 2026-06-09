@@ -324,10 +324,10 @@ describe('repeg and spread amm', () => {
 			baseAssetAmount.toString()
 		);
 		assert(btcPerpAccount.amm.baseAssetAmountWithAmm.eq(new BN('-193100000')));
-		assert(btcPerpAccount.amm.shortIntensityVolume.gt(ZERO));
-		assert(btcPerpAccount.amm.longIntensityVolume.eq(ZERO));
-		assert(btcPerpAccount.amm.markStd.gt(ZERO));
-		assert(btcPerpAccount.amm.oracleStd.gt(ZERO));
+		assert(btcPerpAccount.marketStats.shortIntensityVolume.gt(ZERO));
+		assert(btcPerpAccount.marketStats.longIntensityVolume.eq(ZERO));
+		assert(btcPerpAccount.marketStats.markStd.gt(ZERO));
+		assert(btcPerpAccount.marketStats.oracleStd.gt(ZERO));
 
 		// old oracle price: 21966
 		await setFeedPrice(anchor.workspace.Pyth, 19790, btcUsd);

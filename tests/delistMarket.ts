@@ -315,7 +315,7 @@ describe('delist market', () => {
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
 		assert(
-			market0.amm.quoteAssetAmount.eq(
+			market0.quoteAssetAmount.eq(
 				winnerUser.perpPositions[0].quoteAssetAmount.add(
 					loserUser.perpPositions[0].quoteAssetAmount
 				)
@@ -344,8 +344,8 @@ describe('delist market', () => {
 
 		await driftClient.fetchAccounts();
 		const perpMarket = await driftClient.getPerpMarketAccount(marketIndex);
-		// console.log(perpMarket.amm.cumulativeFundingRateLong.toString());
-		assert(!perpMarket.amm.cumulativeFundingRateLong.eq(ZERO));
+		// console.log(perpMarket.cumulativeFundingRateLong.toString());
+		assert(!perpMarket.cumulativeFundingRateLong.eq(ZERO));
 
 		const marketBefore = driftClient.getPerpMarketAccount(0);
 
@@ -525,7 +525,7 @@ describe('delist market', () => {
 		);
 		assert(market.expiryTs.eq(expiryTs));
 
-		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
+		console.log('totalExchangeFee:', market.totalExchangeFee.toString());
 		console.log('totalFee:', market.amm.totalFee.toString());
 		console.log('totalMMFee:', market.amm.totalMmFee.toString());
 		console.log(
@@ -536,10 +536,12 @@ describe('delist market', () => {
 		await driftClient.fetchAccounts();
 		console.log(
 			'lastOraclePriceTwap:',
-			market.amm.historicalOracleData.lastOraclePriceTwap.toString()
+			market.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		assert(
-			market.amm.historicalOracleData.lastOraclePriceTwap.eq(new BN(43133700))
+			market.marketStats.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(43133700)
+			)
 		);
 
 		// should fail
@@ -571,10 +573,10 @@ describe('delist market', () => {
 		const marketBeforeReduceUser = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'lastOraclePriceTwap:',
-			marketBeforeReduceUser.amm.historicalOracleData.lastOraclePriceTwap.toString()
+			marketBeforeReduceUser.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		assert(
-			marketBeforeReduceUser.amm.historicalOracleData.lastOraclePriceTwap.eq(
+			marketBeforeReduceUser.marketStats.historicalOracleData.lastOraclePriceTwap.eq(
 				new BN(43133700)
 			)
 		);
@@ -590,11 +592,11 @@ describe('delist market', () => {
 		const marketBeforeReduceUser2 = driftClient.getPerpMarketAccount(0);
 		console.log(
 			'lastOraclePriceTwap:',
-			marketBeforeReduceUser2.amm.historicalOracleData.lastOraclePriceTwap.toString()
+			marketBeforeReduceUser2.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
 		);
-		// assert(marketBeforeReduceUser2.amm.historicalOracleData.lastOraclePriceTwap.eq(new BN(28755800)))
+		// assert(marketBeforeReduceUser2.marketStats.historicalOracleData.lastOraclePriceTwap.eq(new BN(28755800)))
 		assert(
-			marketBeforeReduceUser2.amm.historicalOracleData.lastOraclePriceTwap.eq(
+			marketBeforeReduceUser2.marketStats.historicalOracleData.lastOraclePriceTwap.eq(
 				new BN(19170534)
 			)
 		);
@@ -640,11 +642,15 @@ describe('delist market', () => {
 		assert(isVariant(market.status, 'settlement'));
 		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
 		console.log(
-			'market.amm.historicalOracleData.lastOraclePriceTwap:',
-			convertToNumber(market.amm.historicalOracleData.lastOraclePriceTwap)
+			'market.marketStats.historicalOracleData.lastOraclePriceTwap:',
+			convertToNumber(
+				market.marketStats.historicalOracleData.lastOraclePriceTwap
+			)
 		);
 		assert(
-			market.amm.historicalOracleData.lastOraclePriceTwap.eq(new BN(12780356))
+			market.marketStats.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(12780356)
+			)
 		);
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
@@ -661,11 +667,15 @@ describe('delist market', () => {
 		assert(market.amm.baseAssetAmountWithAmm.lt(ZERO));
 		assert(oraclePriceData.price.lt(market.expiryPrice));
 		assert(
-			market.amm.historicalOracleData.lastOraclePriceTwap.lt(market.expiryPrice)
+			market.marketStats.historicalOracleData.lastOraclePriceTwap.lt(
+				market.expiryPrice
+			)
 		);
 		assert(
 			market.expiryPrice.eq(
-				market.amm.historicalOracleData.lastOraclePriceTwap.add(new BN(1))
+				market.marketStats.historicalOracleData.lastOraclePriceTwap.add(
+					new BN(1)
+				)
 			)
 		);
 
@@ -725,15 +735,15 @@ describe('delist market', () => {
 
 		console.log(
 			'lastFundingRateLong:',
-			marketAfter0.amm.lastFundingRateLong.toString()
+			marketAfter0.lastFundingRateLong.toString()
 		);
 		console.log(
 			'lastFundingRateShort:',
-			marketAfter0.amm.lastFundingRateShort.toString()
+			marketAfter0.lastFundingRateShort.toString()
 		);
 
-		assert(marketAfter0.amm.lastFundingRateLong.toString() === '79877208');
-		assert(marketAfter0.amm.lastFundingRateShort.toString() === '79877208');
+		assert(marketAfter0.lastFundingRateLong.toString() === '79877208');
+		assert(marketAfter0.lastFundingRateShort.toString() === '79877208');
 
 		console.log(
 			'marketAfter0 num users with base:',
@@ -776,20 +786,17 @@ describe('delist market', () => {
 		assert(marketAfter.pnlPool.scaledBalance.lt(new BN(969643453000 + 109000)));
 
 		console.log('feePool:', marketAfter.amm.feePool.scaledBalance.toString());
-		console.log(
-			'totalExchangeFee:',
-			marketAfter.amm.totalExchangeFee.toString()
-		);
+		console.log('totalExchangeFee:', marketAfter.totalExchangeFee.toString());
 		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(64700000)));
 
-		// assert(marketAfter.amm.totalExchangeFee.eq(new BN(43134)));
-		assert(marketAfter.amm.totalExchangeFee.eq(new BN(129401)));
+		// assert(marketAfter.totalExchangeFee.eq(new BN(43134)));
+		assert(marketAfter.totalExchangeFee.eq(new BN(129401)));
 	});
 
 	it('put settle market pools to revenue pool', async () => {
 		const marketIndex = 0;
 		const marketBefore = driftClient.getPerpMarketAccount(marketIndex);
-		const userCostBasisBefore = marketBefore.amm.quoteAssetAmount;
+		const userCostBasisBefore = marketBefore.quoteAssetAmount;
 
 		console.log('userCostBasisBefore:', userCostBasisBefore.toString());
 		assert(userCostBasisBefore.eq(new BN(-2))); // from LP burn
@@ -825,7 +832,7 @@ describe('delist market', () => {
 		);
 		console.log('num users with quote:', market.numberOfUsers.toString());
 
-		const userCostBasis = market.amm.quoteAssetAmount;
+		const userCostBasis = market.quoteAssetAmount;
 		console.log('userCostBasis:', userCostBasis.toString());
 		assert(userCostBasis.eq(ZERO)); // ready to settle expiration
 

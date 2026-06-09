@@ -1,18 +1,29 @@
 use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm;
 use crate::math::casting::Cast;
-use crate::math::constants::BID_ASK_SPREAD_PRECISION;
+use crate::math::constants::{BID_ASK_SPREAD_PRECISION, PERCENTAGE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 
 use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
-use crate::state::state::{OracleGuardRails, ValidityGuardRails};
+use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, ValidityGuardRails};
 use crate::state::user::MarketType;
 use std::convert::TryFrom;
 use std::fmt;
+
+/// True when |spread_pct| exceeds the configured divergence threshold (with
+/// a 10% safety floor). Pure decision helper — no AMM, no oracle state.
+pub fn is_mark_oracle_too_divergent(
+    price_spread_pct: i64,
+    guard_rails: &PriceDivergenceGuardRails,
+) -> DriftResult<bool> {
+    let max_divergence = guard_rails
+        .mark_oracle_percent_divergence
+        .max(PERCENTAGE_PRECISION_U64 / 10);
+    Ok(price_spread_pct.unsigned_abs() > max_divergence)
+}
 
 #[cfg(test)]
 mod tests;
@@ -243,12 +254,12 @@ pub fn block_operation(
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
 
-    let slots_since_amm_update = slot.saturating_sub(market.amm.last_update_slot);
+    let slots_since_amm_update = market.amm.slots_since_update(slot);
 
     let funding_paused_on_market = market.is_operation_paused(PerpOperation::UpdateFunding);
 
     // block if amm hasnt been updated since over half the funding period (assuming slot ~= 500ms)
-    let block = slots_since_amm_update > market.amm.funding_period.cast()?
+    let block = slots_since_amm_update > market.market_stats.funding_period.cast()?
         || !is_oracle_valid
         || is_oracle_mark_too_divergent
         || funding_paused_on_market;
@@ -273,18 +284,23 @@ pub fn get_oracle_status(
     let oracle_validity = oracle_validity(
         MarketType::Perp,
         market.market_index,
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market
+            .market_stats
+            .historical_oracle_data
+            .last_oracle_price_twap,
         oracle_price_data,
         &guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
-        &market.amm.oracle_source,
+        &market.oracle_source,
         LogMode::None,
         slot_delay_override,
         slot_delay_override,
     )?;
-    let oracle_reserve_price_spread_pct =
-        amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
-    let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
+    let oracle_reserve_price_spread_pct = market
+        .market_stats
+        .historical_oracle_data
+        .twap_5min_spread_pct(reserve_price)?;
+    let is_oracle_mark_too_divergent = is_mark_oracle_too_divergent(
         oracle_reserve_price_spread_pct,
         &guard_rails.price_divergence,
     )?;

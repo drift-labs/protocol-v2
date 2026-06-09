@@ -1,3 +1,4 @@
+use crate::state::perp_market::MarketStats;
 use anchor_lang::prelude::Pubkey;
 
 use crate::state::oracle_map::OracleMap;
@@ -19,9 +20,7 @@ pub mod delisting_test {
     use crate::controller::orders::cancel_order;
     use crate::controller::pnl::settle_expired_position;
     use crate::controller::position::PositionDirection;
-    use crate::controller::repeg::settle_expired_market;
     use crate::create_anchor_account_info;
-    use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, LIQUIDATION_PCT_PRECISION,
         PEG_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
@@ -47,6 +46,8 @@ pub mod delisting_test {
     use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::vlp::amm::math::amm::calculate_net_user_pnl;
+    use crate::vlp::amm::refresh::settle_expired_market;
 
     use super::*;
 
@@ -78,25 +79,21 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -192,26 +189,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -219,6 +202,19 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -302,26 +298,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -329,6 +311,19 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -380,7 +375,11 @@ pub mod delisting_test {
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.expiry_price > 0, true);
         assert_eq!(
-            market.expiry_price < market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.expiry_price
+                < market
+                    .market_stats
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
             true
         );
         assert_eq!(market.expiry_price, 19999999); // best can do :/
@@ -415,27 +414,13 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-                    ..HistoricalOracleData::default()
-                },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
-                quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -443,6 +428,19 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -494,7 +492,11 @@ pub mod delisting_test {
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.expiry_price > 0, true);
         assert_eq!(
-            market.expiry_price < market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.expiry_price
+                < market
+                    .market_stats
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
             true
         );
         assert_eq!(market.expiry_price, 19999999); // best can do :/
@@ -529,27 +531,13 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION / 2) as i128),
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-                    ..HistoricalOracleData::default()
-                },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 10), //shorts have $20 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -557,6 +545,19 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: (QUOTE_PRECISION_I128 * 10), //shorts have $20 cost basis
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -639,26 +640,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
@@ -674,6 +661,19 @@ pub mod delisting_test {
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -858,27 +858,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
@@ -894,6 +879,20 @@ pub mod delisting_test {
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1081,27 +1080,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION * 2000) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
@@ -1117,6 +1101,20 @@ pub mod delisting_test {
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1285,28 +1283,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: (AMM_RESERVE_PRECISION * 1000) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
-                base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: -(QUOTE_PRECISION_I128 * 20 * 1000 - QUOTE_PRECISION_I128),
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
@@ -1322,6 +1304,21 @@ pub mod delisting_test {
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
+            base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: -(QUOTE_PRECISION_I128 * 20 * 1000 - QUOTE_PRECISION_I128),
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1650,7 +1647,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.number_of_users_with_base, 0);
-        assert_eq!(market.amm.quote_asset_amount, 2000000);
+        assert_eq!(market.quote_asset_amount, 2000000);
         drop(market);
         settle_expired_position(
             0,
@@ -1674,12 +1671,12 @@ pub mod delisting_test {
         assert_eq!(liq.spot_positions[0].scaled_balance > 0, true);
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.amm.base_asset_amount_long, 0);
-        assert_eq!(market.amm.base_asset_amount_short, 0);
+        assert_eq!(market.base_asset_amount_long, 0);
+        assert_eq!(market.base_asset_amount_short, 0);
         assert_eq!(market.number_of_users_with_base, 0);
         assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.quote_asset_amount, 0);
-        assert_eq!(market.amm.total_social_loss, 0);
+        assert_eq!(market.quote_asset_amount, 0);
+        assert_eq!(market.total_social_loss, 0);
         drop(market);
     }
 
@@ -1710,29 +1707,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION * 800) as i128),
-                base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
-                base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 200)
-                    + (QUOTE_PRECISION_I128 * 97 * 1000),
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
@@ -1747,6 +1727,21 @@ pub mod delisting_test {
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
+            base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: (QUOTE_PRECISION_I128 * 200) + (QUOTE_PRECISION_I128 * 97 * 1000),
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -2022,7 +2017,7 @@ pub mod delisting_test {
         //     assert_eq!(shorter.perp_positions[0].base_asset_amount, -10000000000000000);
         //     assert_eq!(shorter.perp_positions[0].quote_asset_amount, 97000000000);
 
-        //     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+        //     let oracle_price_data = oracle_map.get_price_data(&market.oracle).unwrap();
 
         //     let (perp_margin_requirement, weighted_pnl) = calculate_perp_position_value_and_pnl(
         //         &shorter.perp_positions[0],
@@ -2094,28 +2089,12 @@ pub mod delisting_test {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION * 800) as i128),
-                base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
-                base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 amm_jit_intensity: 100,
-                historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
-                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
-
-                    ..HistoricalOracleData::default()
-                },
-                quote_asset_amount: QUOTE_PRECISION_I128 * (97 * 1000 + 200),
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
@@ -2131,6 +2110,21 @@ pub mod delisting_test {
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
+            base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
+            base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
+            order_step_size: 10000000,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            quote_asset_amount: QUOTE_PRECISION_I128 * (97 * 1000 + 200),
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -2383,10 +2377,10 @@ pub mod delisting_test {
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
             assert_eq!(
-                market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
+                market.base_asset_amount_long + market.base_asset_amount_short,
                 -800000000000
             );
-            assert_eq!(market.amm.quote_asset_amount, 97200000000);
+            assert_eq!(market.quote_asset_amount, 97200000000);
 
             drop(market);
 
@@ -2451,17 +2445,17 @@ pub mod delisting_test {
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
-                    market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
+                    market.base_asset_amount_long + market.base_asset_amount_short,
                     -800000000000
                 );
-                assert_eq!(market.amm.quote_asset_amount, 97200000000);
+                assert_eq!(market.quote_asset_amount, 97200000000);
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
                 assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23250001000);
 
                 assert_eq!(
                     liquidator.perp_positions[0].base_asset_amount as i128,
-                    market.amm.base_asset_amount_short
+                    market.base_asset_amount_short
                 );
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
@@ -2471,10 +2465,10 @@ pub mod delisting_test {
 
                 assert_eq!(
                     longer.perp_positions[0].base_asset_amount as i128,
-                    market.amm.base_asset_amount_long
+                    market.base_asset_amount_long
                 );
 
-                assert_eq!(market.amm.quote_asset_amount, 97200000000);
+                assert_eq!(market.quote_asset_amount, 97200000000);
 
                 drop(market);
             }
@@ -2506,10 +2500,10 @@ pub mod delisting_test {
                 let mut market = market_map.get_ref_mut(&0).unwrap();
                 let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
-                assert_eq!(market.amm.quote_asset_amount, 97200000000);
+                assert_eq!(market.quote_asset_amount, 97200000000);
 
-                assert_eq!(market.amm.cumulative_funding_rate_long, 0);
-                assert_eq!(market.amm.cumulative_funding_rate_short, 0);
+                assert_eq!(market.cumulative_funding_rate_long, 0);
+                assert_eq!(market.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
                 let (perp_margin_requirement, weighted_pnl, _, _) =
@@ -2537,17 +2531,17 @@ pub mod delisting_test {
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
-                    market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
+                    market.base_asset_amount_long + market.base_asset_amount_short,
                     -800000000000
                 );
-                assert_eq!(market.amm.quote_asset_amount, 97200000000);
+                assert_eq!(market.quote_asset_amount, 97200000000);
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
                 assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23249001000);
 
                 assert_eq!(
                     liquidator.perp_positions[0].base_asset_amount as i128,
-                    market.amm.base_asset_amount_short
+                    market.base_asset_amount_short
                 );
 
                 assert_eq!(
@@ -2557,11 +2551,11 @@ pub mod delisting_test {
 
                 assert_eq!(
                     longer.perp_positions[0].base_asset_amount as i128,
-                    market.amm.base_asset_amount_long
+                    market.base_asset_amount_long
                 );
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
-                assert_eq!(market.amm.quote_asset_amount, 201000000 + 96999000000);
+                assert_eq!(market.quote_asset_amount, 201000000 + 96999000000);
 
                 // add a liq fee now
                 market.liquidator_fee = 10000;
@@ -2596,10 +2590,10 @@ pub mod delisting_test {
                 let market = market_map.get_ref_mut(&0).unwrap();
                 let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
-                assert_eq!(market.amm.quote_asset_amount, 20000010000 + 77199990000);
+                assert_eq!(market.quote_asset_amount, 20000010000 + 77199990000);
 
-                assert_eq!(market.amm.cumulative_funding_rate_long, 0);
-                assert_eq!(market.amm.cumulative_funding_rate_short, 0);
+                assert_eq!(market.cumulative_funding_rate_long, 0);
+                assert_eq!(market.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
                 let (perp_margin_requirement, weighted_pnl, _, _) =
@@ -2627,17 +2621,17 @@ pub mod delisting_test {
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
-                    market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
+                    market.base_asset_amount_long + market.base_asset_amount_short,
                     -800000000000
                 );
-                assert_eq!(market.amm.quote_asset_amount, 97200000000);
+                assert_eq!(market.quote_asset_amount, 97200000000);
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
                 assert_eq!(shorter.perp_positions[0].quote_asset_amount, -3449991000);
 
                 assert_eq!(
                     liquidator.perp_positions[0].base_asset_amount as i128,
-                    market.amm.base_asset_amount_short
+                    market.base_asset_amount_short
                 );
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
@@ -2646,12 +2640,12 @@ pub mod delisting_test {
 
                 assert_eq!(
                     longer.perp_positions[0].base_asset_amount as i128,
-                    market.amm.base_asset_amount_long
+                    market.base_asset_amount_long
                 );
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000,);
 
-                assert_eq!(market.amm.quote_asset_amount, 20000010000 + 77199990000);
-                assert_eq!(market.amm.total_social_loss, 0);
+                assert_eq!(market.quote_asset_amount, 20000010000 + 77199990000);
+                assert_eq!(market.total_social_loss, 0);
 
                 drop(market);
             }
@@ -2725,13 +2719,13 @@ pub mod delisting_test {
             assert_eq!(shorter_loss, 20000000000000); //$16629 loss
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.amm.total_social_loss, 3449991000);
-            assert_eq!(market.amm.base_asset_amount_long, 200000000000);
-            assert_eq!(market.amm.base_asset_amount_short, 0);
+            assert_eq!(market.total_social_loss, 3449991000);
+            assert_eq!(market.base_asset_amount_long, 200000000000);
+            assert_eq!(market.base_asset_amount_short, 0);
             assert_eq!(market.amm.base_asset_amount_with_amm, 200000000000);
 
-            assert_eq!(market.amm.cumulative_funding_rate_long, 17249955000);
-            assert_eq!(market.amm.cumulative_funding_rate_short, -17249955000);
+            assert_eq!(market.cumulative_funding_rate_long, 17249955000);
+            assert_eq!(market.cumulative_funding_rate_short, -17249955000);
 
             assert_eq!(market.pnl_pool.scaled_balance, 20920260001000); //$20920
             assert_eq!(market.amm.fee_pool.scaled_balance, 0);
@@ -2791,16 +2785,16 @@ pub mod delisting_test {
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
             assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
 
-            assert_eq!(market.amm.cumulative_funding_rate_long, 17249955000);
+            assert_eq!(market.cumulative_funding_rate_long, 17249955000);
             let longer_funding_payment = calculate_funding_payment(
-                market.amm.cumulative_funding_rate_long,
+                market.cumulative_funding_rate_long,
                 &longer.perp_positions[0],
             )
             .unwrap();
             assert_eq!(longer_funding_payment, -3449991000);
 
-            assert_eq!(market.amm.quote_asset_amount, 200000000);
-            assert_eq!(market.amm.total_social_loss, 3449991000);
+            assert_eq!(market.quote_asset_amount, 200000000);
+            assert_eq!(market.total_social_loss, 3449991000);
 
             drop(market);
 
@@ -2827,20 +2821,26 @@ pub mod delisting_test {
             assert_eq!(market.amm.fee_pool.scaled_balance, 0);
 
             assert_eq!(market.number_of_users_with_base, 0);
-            assert_eq!(market.amm.base_asset_amount_long, 0);
-            assert_eq!(market.amm.base_asset_amount_short, 0);
+            assert_eq!(market.base_asset_amount_long, 0);
+            assert_eq!(market.base_asset_amount_short, 0);
 
             assert_eq!(market.amm.base_asset_amount_with_amm, 0);
 
-            assert_eq!(market.amm.quote_asset_amount, 0);
+            assert_eq!(market.quote_asset_amount, 0);
 
-            assert_eq!(market.amm.total_social_loss, 3449991000);
+            assert_eq!(market.total_social_loss, 3449991000);
 
             let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
             assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I64);
-            let net_pnl = calculate_net_user_pnl(&market.amm, oracle_price_data.price).unwrap();
+            let net_pnl = calculate_net_user_pnl(
+                &market.amm,
+                oracle_price_data.price,
+                market.quote_asset_amount,
+                market.net_unsettled_funding_pnl,
+            )
+            .unwrap();
             assert_eq!(net_pnl, 3449991000);
-            assert_eq!(market.amm.net_unsettled_funding_pnl, 3449991000); //todo?
+            assert_eq!(market.net_unsettled_funding_pnl, 3449991000); //todo?
 
             drop(market);
 

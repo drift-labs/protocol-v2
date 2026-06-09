@@ -294,7 +294,7 @@ describe('prepeg', () => {
 		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-49924334)));
 		assert.ok(
 			acquiredQuoteAssetAmount.eq(
-				position0.quoteBreakEvenAmount.add(market.amm.totalExchangeFee).abs()
+				position0.quoteBreakEvenAmount.add(market.totalExchangeFee).abs()
 			)
 		);
 
@@ -308,15 +308,15 @@ describe('prepeg', () => {
 		);
 
 		console.log('sqrtK:', market.amm.sqrtK.toString());
-		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
+		console.log('totalExchangeFee:', market.totalExchangeFee.toString());
 
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(49745050000)));
-		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(49745050000)));
-		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
+		assert.ok(market.baseAssetAmountLong.eq(new BN(49745050000)));
+		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.numberOfUsersWithBase === 1);
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
-		assert.ok(market.amm.totalExchangeFee.eq(new BN(49875)));
+		assert.ok(market.totalExchangeFee.eq(new BN(49875)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
@@ -325,13 +325,13 @@ describe('prepeg', () => {
 		assert.ok(orderRecord.marketIndex === 0);
 
 		// console.log(orderRecord);
-		console.log(market.amm.totalExchangeFee.toNumber());
+		console.log(market.totalExchangeFee.toNumber());
 		console.log(position0.quoteAssetAmount.toNumber());
 
 		assert.ok(position0.quoteAssetAmount.eq(new BN(-49874459 - 49875)));
 		assert.ok(
 			position0.quoteAssetAmount.eq(
-				position0.quoteEntryAmount.sub(market.amm.totalExchangeFee)
+				position0.quoteEntryAmount.sub(market.totalExchangeFee)
 			)
 		);
 		assert.ok(position0.quoteAssetAmount.eq(position0.quoteBreakEvenAmount));

@@ -5,8 +5,8 @@ use crate::math::matching::do_orders_cross;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::msg;
 use crate::state::fulfillment::PerpFulfillmentMethod;
-use crate::state::perp_market::AMM;
 use crate::state::user::Order;
+use crate::vlp::amm::AMM;
 use solana_program::pubkey::Pubkey;
 
 #[cfg(test)]
@@ -35,8 +35,16 @@ pub fn determine_perp_fulfillment_methods(
     let maker_direction = order.direction.opposite();
 
     let mut amm_price = match maker_direction {
-        PositionDirection::Long => amm.bid_price(amm_reserve_price)?,
-        PositionDirection::Short => amm.ask_price(amm_reserve_price)?,
+        PositionDirection::Long => amm.bid_price(
+            amm_reserve_price,
+            amm.short_spread,
+            amm.reference_price_offset,
+        )?,
+        PositionDirection::Short => amm.ask_price(
+            amm_reserve_price,
+            amm.long_spread,
+            amm.reference_price_offset,
+        )?,
     };
 
     for (maker_key, maker_order_index, maker_price) in maker_orders_info.iter() {
@@ -111,8 +119,16 @@ fn determine_perp_fulfillment_methods_for_maker(
     }
 
     let amm_price = match maker_direction {
-        PositionDirection::Long => amm.ask_price(amm_reserve_price)?,
-        PositionDirection::Short => amm.bid_price(amm_reserve_price)?,
+        PositionDirection::Long => amm.ask_price(
+            amm_reserve_price,
+            amm.long_spread,
+            amm.reference_price_offset,
+        )?,
+        PositionDirection::Short => amm.bid_price(
+            amm_reserve_price,
+            amm.short_spread,
+            amm.reference_price_offset,
+        )?,
     };
 
     let maker_price = limit_price.safe_unwrap()?;

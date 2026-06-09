@@ -99,6 +99,23 @@ impl HistoricalOracleData {
             ..HistoricalOracleData::default()
         }
     }
+
+    /// Spread between `other_price` and the 5-minute oracle TWAP, expressed
+    /// in `BID_ASK_SPREAD_PRECISION`. Pure read against `self`; no AMM state.
+    pub fn twap_5min_spread_pct(&self, other_price: u64) -> DriftResult<i64> {
+        use crate::math::casting::Cast;
+        use crate::math::constants::BID_ASK_SPREAD_PRECISION_I128;
+        use crate::math::safe_math::SafeMath;
+
+        let price_spread = other_price
+            .cast::<i64>()?
+            .safe_sub(self.last_oracle_price_twap_5min)?;
+        price_spread
+            .cast::<i128>()?
+            .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
+            .safe_div(other_price.cast::<i128>()?)?
+            .cast()
+    }
 }
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
@@ -469,7 +486,7 @@ pub fn get_pyth_price(
         oracle_conf = price_data.conf;
         oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());
         published_slot = price_data.posted_slot;
-        sequence_id = Some(price_data.publish_time.max(0).cast::<u64>()?);
+        sequence_id = Some(price_data.publish_time.cast::<u64>()?);
     } else {
         return Err(ErrorCode::InvalidOracle);
     }
@@ -636,7 +653,10 @@ impl Size for PrelaunchOracle {
 
 impl PrelaunchOracle {
     pub fn update(&mut self, perp_market: &PerpMarket, slot: u64) -> DriftResult {
-        let last_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
+        let last_twap = perp_market
+            .market_stats
+            .last_mark_price_twap
+            .cast::<i64>()?;
         let new_price = if self.max_price <= last_twap {
             msg!(
                 "mark twap {} >= max price {}, using max",
@@ -651,17 +671,17 @@ impl PrelaunchOracle {
         self.price = new_price;
 
         let spread_twap = perp_market
-            .amm
+            .market_stats
             .last_ask_price_twap
             .cast::<i64>()?
-            .safe_sub(perp_market.amm.last_bid_price_twap.cast()?)?
+            .safe_sub(perp_market.market_stats.last_bid_price_twap.cast()?)?
             .unsigned_abs();
 
-        let mark_std = perp_market.amm.mark_std;
+        let mark_std = perp_market.market_stats.mark_std;
 
         self.confidence = spread_twap.max(mark_std);
 
-        self.amm_last_update_slot = perp_market.amm.last_update_slot;
+        self.amm_last_update_slot = perp_market.amm.last_update_slot();
         self.last_update_slot = slot;
 
         msg!(

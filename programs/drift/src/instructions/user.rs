@@ -12,7 +12,6 @@ use anchor_spl::{
 };
 use solana_program::program::invoke;
 
-use crate::auth::check_hot;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{
     cancel_orders, validate_spot_dlob_trading_enabled_for_market_type, ModifyOrderId,
@@ -95,7 +94,6 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
-use crate::state::state::HotRole;
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::OrderStatus;
@@ -410,12 +408,9 @@ pub fn handle_initialize_revenue_share_escrow<'c: 'info, 'info>(
         .orders
         .resize_with(num_orders as usize, RevenueShareOrder::default);
 
-    let state = ctx.accounts.state.load()?;
-    if state.builder_referral_enabled() {
-        let mut user_stats = ctx.accounts.user_stats.load_mut()?;
-        escrow.referrer = user_stats.referrer;
-        user_stats.update_builder_referral_status();
-    }
+    let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+    escrow.referrer = user_stats.referrer;
+    user_stats.update_builder_referral_status();
 
     escrow.validate()?;
     Ok(())
@@ -424,14 +419,6 @@ pub fn handle_initialize_revenue_share_escrow<'c: 'info, 'info>(
 pub fn handle_migrate_referrer<'c: 'info, 'info>(
     ctx: Context<'info, MigrateReferrer<'info>>,
 ) -> Result<()> {
-    let state = ctx.accounts.state.load()?;
-    if !state.builder_referral_enabled() && state.cold_admin != ctx.accounts.payer.key() {
-        msg!(
-            "Only state.cold_admin can migrate referrer until builder referral feature is enabled"
-        );
-        return Err(anchor_lang::error::ErrorCode::ConstraintSigner.into());
-    }
-
     let escrow = &mut ctx.accounts.escrow;
     let mut user_stats = ctx.accounts.user_stats.load_mut()?;
     escrow.referrer = user_stats.referrer;
@@ -504,21 +491,19 @@ pub fn handle_change_approved_builder<'c: 'info, 'info>(
             );
             ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps = 0;
         }
+    } else if add {
+        ctx.accounts.escrow.approved_builders.push(BuilderInfo {
+            authority: builder,
+            max_fee_tenth_bps,
+            ..BuilderInfo::default()
+        });
+        msg!(
+            "Added builder: {} with max fee tenth bps: {}",
+            builder,
+            max_fee_tenth_bps
+        );
     } else {
-        if add {
-            ctx.accounts.escrow.approved_builders.push(BuilderInfo {
-                authority: builder,
-                max_fee_tenth_bps,
-                ..BuilderInfo::default()
-            });
-            msg!(
-                "Added builder: {} with max fee tenth bps: {}",
-                builder,
-                max_fee_tenth_bps
-            );
-        } else {
-            msg!("Tried to revoke builder: {}, but it was not found", builder);
-        }
+        msg!("Tried to revoke builder: {}, but it was not found", builder);
     }
 
     Ok(())
@@ -697,7 +682,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         None
     };
-    let user_token_amount_after = user.get_total_token_amount(&spot_market)?;
+    let user_token_amount_after = user.get_total_token_amount(spot_market)?;
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -736,7 +721,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 ) -> anchor_lang::Result<()> {
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
-    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
+    let _user_stats = load_mut!(ctx.accounts.user_stats)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -843,7 +828,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
     let is_borrow = user
         .get_spot_position(market_index)
-        .map_or(false, |pos| pos.is_borrow());
+        .is_ok_and(|pos| pos.is_borrow());
     let deposit_explanation = if is_borrow {
         DepositExplanation::Borrow
     } else {
@@ -1022,7 +1007,7 @@ pub fn handle_transfer_deposit_by_delegate<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: Some(signer_key),
-            user_token_amount_after: from_user.get_total_token_amount(&spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1071,7 +1056,7 @@ pub fn handle_transfer_deposit_by_delegate<'c: 'info, 'info>(
             }
         }
 
-        let user_token_amount_after = to_user.get_total_token_amount(&spot_market)?;
+        let user_token_amount_after = to_user.get_total_token_amount(spot_market)?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
@@ -1127,10 +1112,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let _user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
+    let _now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -1245,7 +1230,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user.get_total_token_amount(&spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1294,7 +1279,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             }
         }
 
-        let user_token_amount_after = to_user.get_total_token_amount(&spot_market)?;
+        let user_token_amount_after = to_user.get_total_token_amount(spot_market)?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
@@ -1354,7 +1339,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let _user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
 
@@ -1725,7 +1710,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .remaining_accounts
             .iter()
             .find(|acc| acc.key() == token_program_pubkey)
-            .map(|acc| Interface::try_from(acc))
+            .map(Interface::try_from)
             .unwrap()
             .unwrap();
 
@@ -1755,7 +1740,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .remaining_accounts
             .iter()
             .find(|acc| acc.key() == token_program_pubkey)
-            .map(|acc| Interface::try_from(acc))
+            .map(Interface::try_from)
             .unwrap()
             .unwrap();
 
@@ -1821,8 +1806,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let slot = clock.slot;
 
-    let mut to_user = &mut load_mut!(ctx.accounts.to_user)?;
-    let mut from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let to_user = &mut load_mut!(ctx.accounts.to_user)?;
+    let from_user = &mut load_mut!(ctx.accounts.from_user)?;
 
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -1857,23 +1842,20 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    controller::repeg::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &*ctx.accounts.state.load()?,
-        &clock,
-    )?;
+    // No `update_amm` here: settle_funding_payment reads only the market's
+    // stored `cumulative_funding_rate_long/short`, not AMM peg or reserves.
+    // The funding-rate accumulators are updated by `update_funding_rate`;
+    // refreshing the AMM here was cargo-cult.
 
     settle_funding_payment(
-        &mut from_user,
+        from_user,
         &from_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     settle_funding_payment(
-        &mut to_user,
+        to_user,
         &to_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
@@ -1891,16 +1873,16 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
             market_index,
             &perp_market.oracle_id(),
             perp_market
-                .amm
+                .market_stats
                 .historical_oracle_data
                 .last_oracle_price_twap,
             perp_market.get_max_confidence_interval_multiplier()?,
-            perp_market.amm.oracle_slot_delay_override,
-            perp_market.amm.oracle_low_risk_slot_delay_override,
+            perp_market.oracle_slot_delay_override,
+            perp_market.oracle_low_risk_slot_delay_override,
             Some(LogMode::Margin),
         )?;
-        step_size = perp_market.amm.order_step_size;
-        tick_size = perp_market.amm.order_tick_size;
+        step_size = perp_market.order_step_size;
+        tick_size = perp_market.order_tick_size;
 
         validate!(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
@@ -2024,7 +2006,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
     let from_user_margin_calculation =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &from_user,
+            from_user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -2041,7 +2023,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
     let to_user_margin_requirement =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &to_user,
+            to_user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -2701,7 +2683,7 @@ fn place_orders<'c: 'info, 'info>(
             let order_step_size = match scale_params.market_type {
                 MarketType::Perp => {
                     let market = perp_market_map.get_ref(&scale_params.market_index)?;
-                    market.amm.order_step_size
+                    market.order_step_size
                 }
                 MarketType::Spot => {
                     let market = spot_market_map.get_ref(&scale_params.market_index)?;
@@ -2800,13 +2782,9 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let is_immediate_or_cancel = params.is_immediate_or_cancel();
 
-    controller::repeg::update_amm(
-        params.market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &*ctx.accounts.state.load()?,
-        &Clock::get()?,
-    )?;
+    // No `update_amm` here: `fill_perp_order` (called below) snaps the AMM
+    // and refreshes PerpMarket-level oracle stats internally before
+    // reading peg / reserves.
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2832,9 +2810,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
 
-    let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut escrow = if builder_codes_enabled {
         get_revenue_share_escrow_account(remaining_accounts_iter, &load!(user)?.authority)?
     } else {
         None
@@ -2859,7 +2836,6 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             auction_duration_percentage,
         ),
         &mut escrow.as_mut(),
-        builder_referral_enabled,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2927,13 +2903,9 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
-    controller::repeg::update_amm(
-        params.market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &state,
-        clock,
-    )?;
+    // No `update_amm` here: place_and_make posts a passive IOC post-only
+    // maker order. `place_perp_order` doesn't fill against the AMM, so
+    // peg/reserves freshness isn't required.
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2960,9 +2932,8 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut escrow = if builder_codes_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
             &load!(ctx.accounts.taker)?.authority,
@@ -2987,7 +2958,6 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -3041,13 +3011,9 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
-    controller::repeg::update_amm(
-        params.market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &state,
-        clock,
-    )?;
+    // No `update_amm` here: place_and_make posts a passive IOC post-only
+    // maker order. `place_perp_order` doesn't fill against the AMM, so
+    // peg/reserves freshness isn't required.
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -3074,9 +3040,8 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+    let mut escrow = if builder_codes_enabled {
         get_revenue_share_escrow_account(
             remaining_accounts_iter,
             &load!(ctx.accounts.taker)?.authority,
@@ -3108,7 +3073,6 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -3637,49 +3601,47 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                     ix.accounts[i].pubkey
                 )?;
             }
-        } else {
-            if found_end {
-                if ix.program_id == lighthouse::ID {
-                    continue;
-                }
+        } else if found_end {
+            if ix.program_id == lighthouse::ID {
+                continue;
+            }
 
-                // Allow closing the swap's token accounts after end_swap
-                if is_token_close_account_for_swap_ix(
-                    &ix,
-                    &ctx.accounts.in_token_account.key(),
-                    &ctx.accounts.out_token_account.key(),
-                ) {
-                    continue;
-                }
+            // Allow closing the swap's token accounts after end_swap
+            if is_token_close_account_for_swap_ix(
+                &ix,
+                &ctx.accounts.in_token_account.key(),
+                &ctx.accounts.out_token_account.key(),
+            ) {
+                continue;
+            }
 
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        meta.is_writable == false,
-                        ErrorCode::InvalidSwap,
-                        "instructions after swap end must not have writable accounts"
-                    )?;
-                }
-            } else {
-                let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
-                if !delegate_is_signer {
-                    whitelisted_programs.push(AssociatedToken::id());
-                    whitelisted_programs.push(Token::id());
-                    whitelisted_programs.push(Token2022::id());
-                    whitelisted_programs.push(marinade_mainnet::ID);
-                }
+            for meta in ix.accounts.iter() {
                 validate!(
-                    whitelisted_programs.contains(&ix.program_id),
+                    !meta.is_writable,
                     ErrorCode::InvalidSwap,
-                    "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
+                    "instructions after swap end must not have writable accounts"
                 )?;
+            }
+        } else {
+            let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
+            if !delegate_is_signer {
+                whitelisted_programs.push(AssociatedToken::id());
+                whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(Token2022::id());
+                whitelisted_programs.push(marinade_mainnet::ID);
+            }
+            validate!(
+                whitelisted_programs.contains(&ix.program_id),
+                ErrorCode::InvalidSwap,
+                "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
+            )?;
 
-                for meta in ix.accounts.iter() {
-                    validate!(
-                        meta.pubkey != crate::id(),
-                        ErrorCode::InvalidSwap,
-                        "instructions between begin and end must not be drift instructions"
-                    )?;
-                }
+            for meta in ix.accounts.iter() {
+                validate!(
+                    meta.pubkey != crate::id(),
+                    ErrorCode::InvalidSwap,
+                    "instructions between begin and end must not be drift instructions"
+                )?;
             }
         }
 
@@ -4131,13 +4093,8 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    controller::repeg::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &*ctx.accounts.state.load()?,
-        &clock,
-    )?;
+    // No `update_amm` here: settle_funding_payment reads only stored
+    // cumulative funding rates. Same rationale as transfer_perp_position.
 
     settle_funding_payment(
         &mut user,
@@ -4165,12 +4122,12 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
             market_index,
             &perp_market.oracle_id(),
             perp_market
-                .amm
+                .market_stats
                 .historical_oracle_data
                 .last_oracle_price_twap,
             perp_market.get_max_confidence_interval_multiplier()?,
-            perp_market.amm.oracle_slot_delay_override,
-            perp_market.amm.oracle_low_risk_slot_delay_override,
+            perp_market.oracle_slot_delay_override,
+            perp_market.oracle_low_risk_slot_delay_override,
             Some(LogMode::Margin),
         )?;
 
@@ -4180,8 +4137,8 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
             "oracle is not valid for action"
         )?;
 
-        step_size = perp_market.amm.order_step_size;
-        tick_size = perp_market.amm.order_tick_size;
+        step_size = perp_market.order_step_size;
+        tick_size = perp_market.order_tick_size;
         oracle_price = oracle_price_data.price;
     }
 
@@ -4266,18 +4223,19 @@ pub fn handle_special_transfer_perp_position_to_vamm<'c: 'info, 'info>(
 
         update_position_and_market(position, &mut market, &position_delta)?;
 
-        market.amm.base_asset_amount_with_amm = market
-            .amm
-            .base_asset_amount_with_amm
-            .safe_add(position_delta.base_asset_amount.cast()?)?;
+        <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::apply_settlement_counterparty(
+            &mut market.amm,
+            position_delta.base_asset_amount.cast()?,
+        )?;
 
         validate!(
-            market.amm.base_asset_amount_with_amm.unsigned_abs() <= MAX_BASE_ASSET_AMOUNT_WITH_AMM,
+            market.amm.net_counterparty_position().unsigned_abs() <= MAX_BASE_ASSET_AMOUNT_WITH_AMM,
             ErrorCode::InvalidAmmDetected,
             "base_asset_amount_with_amm exceeds max"
         )?;
 
-        controller::amm::update_spread_reserves(&mut market)?;
+        // Spread reserves are cached on the AMM, refreshed by
+        // `crate::vlp::amm::math::spread::update_amm_quote_state` on each crank/fill.
     }
 
     let user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance);
@@ -4340,7 +4298,7 @@ pub struct InitializeUser<'info> {
     #[account(mut)]
     pub state: AccountLoader<'info, State>,
     /// CHECK: Just a normal authority account
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4360,7 +4318,7 @@ pub struct InitializeUserStats<'info> {
     #[account(mut)]
     pub state: AccountLoader<'info, State>,
     /// CHECK: Just a normal authority account
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4391,7 +4349,7 @@ pub struct InitializeSignedMsgUserOrders<'info> {
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: Just a normal authority account
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4411,7 +4369,7 @@ pub struct ResizeSignedMsgUserOrders<'info> {
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: authority
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(
         has_one = authority
     )]
@@ -4559,7 +4517,7 @@ pub struct Withdraw<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
@@ -4678,7 +4636,7 @@ pub struct TransferPools<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -4798,7 +4756,7 @@ pub struct WithdrawIsolatedPerpPosition<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
@@ -4871,7 +4829,7 @@ pub struct PlaceAndMakeSignedMsg<'info> {
         bump,
     )]
     /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks
-    pub taker_signed_msg_user_orders: AccountInfo<'info>,
+    pub taker_signed_msg_user_orders: UncheckedAccount<'info>,
     pub authority: Signer<'info>,
 }
 
@@ -4891,7 +4849,7 @@ pub struct PlaceAndMatchRFQOrders<'info> {
     /// The Instruction Sysvar has not been implemented
     /// in the Anchor framework yet, so this is the safe approach.
     #[account(address = IX_ID)]
-    pub ix_sysvar: AccountInfo<'info>,
+    pub ix_sysvar: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -5012,7 +4970,7 @@ pub struct Swap<'info> {
         constraint = state.load()?.signer.eq(&drift_signer.key())
     )]
     /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
+    pub drift_signer: UncheckedAccount<'info>,
     /// Instructions Sysvar for instruction introspection
     /// CHECK: fixed instructions sysvar account
     #[account(address = instructions::ID)]
@@ -5031,7 +4989,7 @@ pub struct InitializeRevenueShare<'info> {
     )]
     pub revenue_share: AccountLoader<'info, RevenueShare>,
     /// CHECK: The builder and/or referrer authority, beneficiary of builder/ref fees
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -5050,7 +5008,7 @@ pub struct InitializeRevenueShareEscrow<'info> {
     )]
     pub escrow: Box<Account<'info, RevenueShareEscrow>>,
     /// CHECK: The auth owning this account, payer of builder/ref fees
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(
         mut,
         has_one = authority
@@ -5072,7 +5030,7 @@ pub struct MigrateReferrer<'info> {
     )]
     pub escrow: Box<Account<'info, RevenueShareEscrow>>,
     /// CHECK: The auth owning this account, payer of builder/ref fees
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(
         mut,
         has_one = authority
@@ -5096,7 +5054,7 @@ pub struct ResizeRevenueShareEscrowOrders<'info> {
     )]
     pub escrow: Box<Account<'info, RevenueShareEscrow>>,
     /// CHECK: The owner of RevenueShareEscrow
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,

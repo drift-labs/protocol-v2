@@ -267,7 +267,7 @@ describe('stop limit', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = PRICE_PRECISION;
 		const limitPrice = PRICE_PRECISION.sub(
-			driftClient.getPerpMarketAccount(marketIndex).amm.orderTickSize
+			driftClient.getPerpMarketAccount(marketIndex).orderTickSize
 		);
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
@@ -353,7 +353,7 @@ describe('stop limit', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = PRICE_PRECISION;
 		const limitPrice = PRICE_PRECISION.add(
-			driftClient.getPerpMarketAccount(marketIndex).amm.orderTickSize
+			driftClient.getPerpMarketAccount(marketIndex).orderTickSize
 		);
 		const triggerCondition = OrderTriggerCondition.BELOW;
 

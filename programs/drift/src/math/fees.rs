@@ -41,7 +41,6 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     clock_slot: u64,
     reward_filler: bool,
     reward_referrer: bool,
-    referrer_stats: &Option<&mut UserStats>,
     quote_asset_amount_surplus: i64,
     is_post_only: bool,
     fee_adjustment: i16,
@@ -56,14 +55,13 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let fee = quote_asset_amount_surplus
             .cast::<u64>()?
             .safe_sub(maker_rebate)
-            .map_err(|e| {
+            .inspect_err(|_e| {
                 msg!(
                     "quote_asset_amount_surplus {} quote_asset_amount {} maker_rebate {}",
                     quote_asset_amount_surplus,
                     quote_asset_amount,
                     maker_rebate
                 );
-                e
             })?;
 
         let filler_reward = if !reward_filler {
@@ -94,12 +92,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let fee = calculate_taker_fee(quote_asset_amount, &fee_tier, fee_adjustment)?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
-            calculate_referee_fee_and_referrer_reward(
-                fee,
-                &fee_tier,
-                fee_structure.referrer_reward_epoch_upper_bound,
-                referrer_stats,
-            )?
+            calculate_referee_fee_and_referrer_reward(fee, &fee_tier)?
         } else {
             (fee, 0, 0)
         };
@@ -207,8 +200,6 @@ fn calculate_maker_rebate(
 fn calculate_referee_fee_and_referrer_reward(
     fee: u64,
     fee_tier: &FeeTier,
-    referrer_reward_epoch_upper_bound: u64,
-    referrer_stats: &Option<&mut UserStats>,
 ) -> DriftResult<(u64, u64, u64)> {
     let referee_discount = get_proportion_u128(
         fee as u128,
@@ -217,7 +208,7 @@ fn calculate_referee_fee_and_referrer_reward(
     )?
     .cast::<u64>()?;
 
-    let max_referrer_reward_from_fee = get_proportion_u128(
+    let referrer_reward = get_proportion_u128(
         fee as u128,
         fee_tier.referrer_reward_numerator as u128,
         fee_tier.referrer_reward_denominator as u128,
@@ -226,14 +217,6 @@ fn calculate_referee_fee_and_referrer_reward(
 
     let referee_fee = fee.safe_sub(referee_discount)?;
 
-    let referrer_reward = match referrer_stats {
-        Some(referrer_stats) => {
-            let max_referrer_reward_in_epoch = referrer_reward_epoch_upper_bound
-                .saturating_sub(referrer_stats.fees.current_epoch_referrer_reward);
-            max_referrer_reward_from_fee.min(max_referrer_reward_in_epoch)
-        }
-        None => max_referrer_reward_from_fee,
-    };
     Ok((referee_fee, referee_discount, referrer_reward))
 }
 
@@ -286,7 +269,6 @@ pub fn calculate_fee_for_fulfillment_with_match(
     clock_slot: u64,
     filler_multiplier: u64,
     reward_referrer: bool,
-    referrer_stats: &Option<&mut UserStats>,
     market_type: &MarketType,
     fee_adjustment: i16,
     builder_fee_bps: Option<u16>,
@@ -301,12 +283,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     let taker_fee = calculate_taker_fee(quote_asset_amount, &taker_fee_tier, fee_adjustment)?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
-        calculate_referee_fee_and_referrer_reward(
-            taker_fee,
-            &taker_fee_tier,
-            fee_structure.referrer_reward_epoch_upper_bound,
-            referrer_stats,
-        )?
+        calculate_referee_fee_and_referrer_reward(taker_fee, &taker_fee_tier)?
     } else {
         (taker_fee, 0, 0)
     };
@@ -354,75 +331,9 @@ pub fn calculate_fee_for_fulfillment_with_match(
     })
 }
 
-pub struct ExternalFillFees {
-    pub user_fee: u64,
-    pub fee_to_market: u64,
-    pub fee_pool_delta: i64,
-    pub filler_reward: u64,
-}
-
-pub fn calculate_fee_for_fulfillment_with_external_market(
+pub fn determine_user_fee_tier(
     user_stats: &UserStats,
-    quote_asset_amount: u64,
     fee_structure: &FeeStructure,
-    order_slot: u64,
-    clock_slot: u64,
-    reward_filler: bool,
-    external_market_fee: u64,
-    unsettled_referrer_rebate: u64,
-    fee_pool_amount: u64,
-    fee_adjustment: i16,
-) -> DriftResult<ExternalFillFees> {
-    let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
-
-    let fee = calculate_taker_fee(quote_asset_amount, &taker_fee_tier, fee_adjustment)?;
-
-    let fee_plus_referrer_rebate = external_market_fee.safe_add(unsettled_referrer_rebate)?;
-
-    let user_fee = fee.max(fee_plus_referrer_rebate);
-
-    let filler_reward = if reward_filler {
-        let immediately_available_fee = user_fee.safe_sub(fee_plus_referrer_rebate)?;
-
-        let eventual_available_fee = user_fee.safe_sub(external_market_fee)?;
-
-        // can only pay the filler immediately if
-        // 1. there are fees already in the fee pool
-        // 2. the user_fee is greater than the serum_fee_plus_referrer_rebate
-        let available_fee =
-            eventual_available_fee.min(fee_pool_amount.max(immediately_available_fee));
-
-        calculate_filler_reward(
-            quote_asset_amount,
-            order_slot,
-            clock_slot,
-            0,
-            &fee_structure.filler_reward_structure,
-        )?
-        .min(available_fee)
-    } else {
-        0
-    };
-
-    let fee_to_market = user_fee
-        .safe_sub(external_market_fee)?
-        .safe_sub(filler_reward)?;
-
-    let fee_pool_delta = fee_to_market
-        .cast::<i64>()?
-        .safe_sub(unsettled_referrer_rebate.cast()?)?;
-
-    Ok(ExternalFillFees {
-        user_fee,
-        fee_to_market,
-        filler_reward,
-        fee_pool_delta,
-    })
-}
-
-pub fn determine_user_fee_tier<'a>(
-    user_stats: &UserStats,
-    fee_structure: &'a FeeStructure,
     market_type: &MarketType,
 ) -> DriftResult<FeeTier> {
     match market_type {

@@ -180,8 +180,8 @@ describe('oracle diff sources', () => {
 		const oneKPrice = await driftClient.getOracleDataForSpotMarket(2);
 		assert(oneKPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
-		assert(driftClient.getPerpMarketAccount(0).amm.oracle.equals(solOracle));
-		assert(driftClient.getPerpMarketAccount(1).amm.oracle.equals(solOracle));
+		assert(driftClient.getPerpMarketAccount(0).oracle.equals(solOracle));
+		assert(driftClient.getPerpMarketAccount(1).oracle.equals(solOracle));
 
 		const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(0);
 		assert(normalPerpPrice.price.eq(PRICE_PRECISION.muln(3)));

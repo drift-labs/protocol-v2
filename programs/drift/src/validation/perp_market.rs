@@ -1,246 +1,63 @@
-use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{BID_ASK_SPREAD_PRECISION, MAX_BASE_ASSET_AMOUNT_WITH_AMM};
 use crate::math::safe_math::SafeMath;
 
 use crate::msg;
-use crate::state::market_status::MarketStatus;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::PerpMarket;
 use crate::validate;
 
-#[allow(clippy::comparison_chain)]
 pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
+    // PerpMarket-level invariants: the position counters must standardize
+    // cleanly against the configured tick size, and the rolling insurance
+    // claim must stay within its per-period cap.
     let (_, remainder_base_asset_amount_long) =
         crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-            market.amm.base_asset_amount_long,
-            market.amm.order_step_size.cast()?,
+            market.base_asset_amount_long,
+            market.order_step_size.cast()?,
         )?;
-
     let (_, remainder_base_asset_amount_short) =
         crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-            market.amm.base_asset_amount_short,
-            market.amm.order_step_size.cast()?,
+            market.base_asset_amount_short,
+            market.order_step_size.cast()?,
         )?;
-
     validate!(
         remainder_base_asset_amount_long == 0 && remainder_base_asset_amount_short == 0,
         ErrorCode::InvalidPositionDelta,
         "market {} invalid base_asset_amount_long/short vs order_step_size, remainder={}/{}",
         market.market_index,
         remainder_base_asset_amount_short,
-        market.amm.order_step_size
-    )?;
-    validate!(
-        (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
-            == market.amm.base_asset_amount_with_amm,
-        ErrorCode::InvalidAmmDetected,
-        "Market NET_BAA Error: 
-        market.amm.base_asset_amount_long={}, 
-        + market.amm.base_asset_amount_short={} 
-        != 
-        market.amm.base_asset_amount_with_amm={}",
-        market.amm.base_asset_amount_long,
-        market.amm.base_asset_amount_short,
-        market.amm.base_asset_amount_with_amm,
+        market.order_step_size
     )?;
 
     validate!(
-        market.amm.base_asset_amount_with_amm <= (MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128),
+        market.insurance_claim.max_revenue_withdraw_per_period
+            >= market
+                .insurance_claim
+                .revenue_withdraw_since_last_settle
+                .unsigned_abs(),
         ErrorCode::InvalidAmmDetected,
-        "market {} market.amm.base_asset_amount_with_amm={} is too large",
+        "{} market.insurance_claim.max_revenue_withdraw_per_period={} < |revenue_withdraw_since_last_settle|={}",
         market.market_index,
-        market.amm.base_asset_amount_with_amm
-    )?;
-
-    validate!(
-        market.amm.peg_multiplier > 0,
-        ErrorCode::InvalidAmmDetected,
-        "market {} peg_multiplier out of wack",
-        market.market_index,
-    )?;
-
-    if market.status != MarketStatus::ReduceOnly {
-        validate!(
-            market.amm.sqrt_k > market.amm.base_asset_amount_with_amm.unsigned_abs(),
-            ErrorCode::InvalidAmmDetected,
-            "market {} k out of wack: k={}, net_baa={}",
-            market.market_index,
-            market.amm.sqrt_k,
-            market.amm.base_asset_amount_with_amm
-        )?;
-    }
-
-    validate!(
-        market.amm.sqrt_k >= market.amm.base_asset_reserve
-            || market.amm.sqrt_k >= market.amm.quote_asset_reserve,
-        ErrorCode::InvalidAmmDetected,
-        "market {} k out of wack: k={}, bar={}, qar={}",
-        market.market_index,
-        market.amm.sqrt_k,
-        market.amm.base_asset_reserve,
-        market.amm.quote_asset_reserve
-    )?;
-
-    let invariant_sqrt_u192 = crate::math::bn::U192::from(market.amm.sqrt_k);
-    let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
-    let quote_asset_reserve = invariant
-        .safe_div(crate::math::bn::U192::from(market.amm.base_asset_reserve))?
-        .try_to_u128()?;
-
-    let rounding_diff = quote_asset_reserve
-        .cast::<i128>()?
-        .safe_sub(market.amm.quote_asset_reserve.cast()?)?
-        .abs();
-
-    validate!(
-        rounding_diff <= 15,
-        ErrorCode::InvalidAmmDetected,
-        "market {} amm qar/bar/k invalid: k={}, bar={}, qar={}, qar'={} (rounding: {})",
-        market.market_index,
-        invariant,
-        market.amm.base_asset_reserve,
-        market.amm.quote_asset_reserve,
-        quote_asset_reserve,
-        rounding_diff
-    )?;
-
-    // todo
-    if market.amm.base_spread > 0 {
-        // bid quote/base < reserve q/b
-        if market.amm.reference_price_offset <= 0 {
-            validate!(
-                market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
-                    && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
-                ErrorCode::InvalidAmmDetected,
-                "market {} amm bid reserves invalid: {} -> {}, quote: {} -> {}",
-                market.market_index,
-                market.amm.bid_base_asset_reserve,
-                market.amm.base_asset_reserve,
-                market.amm.bid_quote_asset_reserve,
-                market.amm.quote_asset_reserve
-            )?;
-        }
-
-        if market.amm.reference_price_offset >= 0 {
-            // ask quote/base > reserve q/b
-            validate!(
-                market.amm.ask_base_asset_reserve <= market.amm.base_asset_reserve
-                    && market.amm.ask_quote_asset_reserve >= market.amm.quote_asset_reserve,
-                ErrorCode::InvalidAmmDetected,
-                "market {} amm ask reserves invalid: {} -> {}, quote: {} -> {}",
-                market.market_index,
-                market.amm.ask_base_asset_reserve,
-                market.amm.base_asset_reserve,
-                market.amm.ask_quote_asset_reserve,
-                market.amm.quote_asset_reserve
-            )?;
-        }
-    }
-
-    if market.amm.amm_spread_adjustment >= 0 && market.amm.amm_inventory_spread_adjustment >= 0 {
-        validate!(
-            market.amm.long_spread + market.amm.short_spread
-                >= market.amm.base_spread.saturating_sub(2),
-            ErrorCode::InvalidAmmDetected,
-            "market {} amm long_spread + short_spread < base_spread - 2: {} + {} < {}",
-            market.market_index,
-            market.amm.long_spread,
-            market.amm.short_spread,
-            market.amm.base_spread
-        )?;
-    }
-
-    validate!(
+        market.insurance_claim.max_revenue_withdraw_per_period,
         market
-            .amm
-            .long_spread
-            .safe_add(market.amm.short_spread)?
-            .cast::<u64>()?
-            <= BID_ASK_SPREAD_PRECISION,
-        ErrorCode::InvalidAmmDetected,
-        "market {} amm long_spread {} + short_spread {} > max bid-ask spread precision (max spread = {})",
-        market.market_index,
-        market.amm.long_spread,
-        market.amm.short_spread,
-        market.amm.max_spread,
+            .insurance_claim
+            .revenue_withdraw_since_last_settle
+            .unsigned_abs()
     )?;
 
-    if market.amm.base_asset_amount_with_amm > 0 {
-        // users are long = removed base and added quote = qar increased
-        // bid quote/base < reserve q/b
-        validate!(
-            market.amm.terminal_quote_asset_reserve <= market.amm.quote_asset_reserve,
-            ErrorCode::InvalidAmmDetected,
-            "market {} terminal_quote_asset_reserve out of wack",
-            market.market_index,
-        )?;
-    } else if market.amm.base_asset_amount_with_amm < 0 {
-        validate!(
-            market.amm.terminal_quote_asset_reserve >= market.amm.quote_asset_reserve,
-            ErrorCode::InvalidAmmDetected,
-            "market {} terminal_quote_asset_reserve out of wack (terminal <) {} > {}",
-            market.market_index,
-            market.amm.terminal_quote_asset_reserve,
-            market.amm.quote_asset_reserve
-        )?;
-    } else {
-        validate!(
-            market.amm.terminal_quote_asset_reserve == market.amm.quote_asset_reserve,
-            ErrorCode::InvalidAmmDetected,
-            "market {} terminal_quote_asset_reserve out of wack {}!={}",
-            market.market_index,
-            market.amm.terminal_quote_asset_reserve,
-            market.amm.quote_asset_reserve
-        )?;
-    }
-
-    if market.amm.base_spread > 0 {
-        validate!(
-            market.amm.max_spread > market.amm.base_spread
-                && market.amm.max_spread < market.margin_ratio_initial * 100,
-            ErrorCode::InvalidAmmDetected,
-            "market {} amm invalid max_spread",
-            market.market_index,
-        )?;
-    }
-
-    validate!(market
-        .insurance_claim
-        .max_revenue_withdraw_per_period >= market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs(),
-        ErrorCode::InvalidAmmDetected,
-        "{} market
-        .insurance_claim
-        .max_revenue_withdraw_per_period={} < |market.insurance_claim.revenue_withdraw_since_last_settle|={}",
+    // AMM-internal invariants: delegate to the AMM. Cross-checks that need
+    // PerpMarket-side inputs (the long+short position sum) are threaded in
+    // as parameters; the AMM is otherwise the source of truth on its own
+    // integrity.
+    let net_user_position = market
+        .base_asset_amount_long
+        .safe_add(market.base_asset_amount_short)?;
+    market.amm.validate(
+        market.status,
+        market.margin_ratio_initial,
+        net_user_position,
         market.market_index,
-        market
-        .insurance_claim
-        .max_revenue_withdraw_per_period,
-        market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs()
     )?;
-
-    Ok(())
-}
-
-#[allow(clippy::comparison_chain)]
-pub fn validate_amm_account_for_fill(amm: &AMM, direction: PositionDirection) -> DriftResult {
-    if direction == PositionDirection::Long {
-        validate!(
-            amm.base_asset_reserve >= amm.min_base_asset_reserve,
-            ErrorCode::InvalidAmmForFillDetected,
-            "Market baa below min_base_asset_reserve: {} < {}",
-            amm.base_asset_reserve,
-            amm.min_base_asset_reserve,
-        )?;
-    }
-
-    if direction == PositionDirection::Short {
-        validate!(
-            amm.base_asset_reserve <= amm.max_base_asset_reserve,
-            ErrorCode::InvalidAmmForFillDetected,
-            "Market baa above max_base_asset_reserve"
-        )?;
-    }
 
     Ok(())
 }

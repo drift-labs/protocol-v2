@@ -396,7 +396,6 @@ mod calculate_margin_requirement_and_total_collateral {
 
     use solana_program::pubkey::Pubkey;
 
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
@@ -711,20 +710,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -908,20 +903,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1093,20 +1084,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1221,20 +1208,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1417,20 +1400,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1540,20 +1519,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1805,20 +1780,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1922,20 +1893,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2034,20 +2001,16 @@ mod calculate_margin_requirement_and_total_collateral {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2177,20 +2140,16 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2288,21 +2247,17 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             contract_tier: ContractTier::Isolated,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2396,14 +2351,14 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let user = User {
             orders: get_orders(Order {
                 order_type: OrderType::Limit,
-                base_asset_amount: market.amm.order_step_size,
+                base_asset_amount: market.order_step_size,
                 base_asset_amount_filled: 0,
                 direction: PositionDirection::Short,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: market.amm.order_step_size as i64,
+                base_asset_amount: market.order_step_size as i64,
                 open_orders: 1,
                 ..PerpPosition::default()
             }),
@@ -2445,20 +2400,16 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2898,20 +2849,16 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -3017,20 +2964,16 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -3099,7 +3042,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::liquidation((MARGIN_PRECISION / 100) as u32),
+            MarginContext::liquidation(MARGIN_PRECISION / 100),
         )
         .unwrap();
 
@@ -3931,15 +3874,8 @@ mod validate_spot_margin_trading {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -3947,6 +3883,9 @@ mod validate_spot_margin_trading {
             status: MarketStatus::Initialized,
             contract_tier: ContractTier::Isolated,
 
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -4042,7 +3981,7 @@ mod calculate_user_equity {
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
 
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -4077,19 +4016,21 @@ mod calculate_user_equity {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 1000,
-                order_tick_size: 1,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
+                ..AMM::default()
+            },
+            margin_ratio_initial: 2000,
+            margin_ratio_maintenance: 1000,
+            status: MarketStatus::Initialized,
+            order_step_size: 1000,
+            order_tick_size: 1,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -4097,11 +4038,8 @@ mod calculate_user_equity {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 2000,
-            margin_ratio_maintenance: 1000,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -4175,19 +4113,21 @@ mod calculate_user_equity {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 1000,
-                order_tick_size: 1,
-                oracle: oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 base_spread: 0, // 1 basis point
+                ..AMM::default()
+            },
+            margin_ratio_initial: 2000,
+            margin_ratio_maintenance: 1000,
+            status: MarketStatus::Initialized,
+            order_step_size: 1000,
+            order_tick_size: 1,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -4195,11 +4135,8 @@ mod calculate_user_equity {
 
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
-            margin_ratio_initial: 2000,
-            margin_ratio_maintenance: 1000,
-            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -4438,15 +4375,13 @@ mod pools {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
-            amm: AMM {
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
-                ..AMM::default()
-            },
+            amm: AMM { ..AMM::default() },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pool_id: 1,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -4521,20 +4456,16 @@ mod isolated_position {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -4724,20 +4655,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -4834,20 +4761,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: crate::state::oracle::OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -4922,20 +4845,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5017,20 +4936,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5111,20 +5026,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5204,20 +5115,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5297,20 +5204,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5391,20 +5294,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5495,7 +5394,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -5505,20 +5404,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
 
@@ -5527,20 +5422,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5597,7 +5488,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         };
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // $1000 isolated collateral
@@ -5667,7 +5558,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -5677,20 +5568,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
 
@@ -5700,20 +5587,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5770,7 +5653,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // Isolated ETH-PERP position
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // $200 isolated collateral
@@ -5850,7 +5733,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -5860,20 +5743,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
 
@@ -5883,20 +5762,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -5957,7 +5832,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // but with an open order that increases the worst-case position size
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 110 * SPOT_BALANCE_PRECISION_U64, // $110 isolated collateral
@@ -6044,7 +5919,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![eth_oracle_account_info];
+        let oracle_account_infos = [eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6054,20 +5929,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(eth_perp_market, PerpMarket, eth_perp_market_account_info);
@@ -6107,7 +5978,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // New isolated ETH-PERP position with sufficient collateral
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64, // $150 isolated collateral
@@ -6177,7 +6048,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             eth_oracle_account_info
         );
 
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6187,20 +6058,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
 
@@ -6210,20 +6077,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,    // 10%
             margin_ratio_maintenance: 500, // 5%
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -6280,7 +6143,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         // New isolated ETH-PERP position with sufficient collateral
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+            base_asset_amount: BASE_PRECISION_I64, // 1 ETH long
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // $200 isolated collateral
@@ -6338,7 +6201,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6347,20 +6210,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         let mut eth_perp_market = PerpMarket {
@@ -6368,20 +6227,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -6419,7 +6274,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64, // PI: >= $100 IM
@@ -6462,7 +6317,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![eth_oracle_account_info];
+        let oracle_account_infos = [eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6471,20 +6326,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(eth_perp_market, PerpMarket, eth_perp_market_account_info);
@@ -6517,7 +6368,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 70 * SPOT_BALANCE_PRECISION_U64, // PM: $70 < IM $100
@@ -6558,7 +6409,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![eth_oracle_account_info];
+        let oracle_account_infos = [eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6567,20 +6418,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(eth_perp_market, PerpMarket, eth_perp_market_account_info);
@@ -6613,7 +6460,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         let mut perp_positions = [PerpPosition::default(); 8];
         perp_positions[0] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64, // FM: < $50 MM
@@ -6663,7 +6510,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6672,20 +6519,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         let mut eth_perp_market = PerpMarket {
@@ -6693,20 +6536,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -6750,7 +6589,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         };
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 70 * SPOT_BALANCE_PRECISION_U64, // isolated PM
@@ -6801,7 +6640,7 @@ mod meets_place_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6810,20 +6649,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         let mut eth_perp_market = PerpMarket {
@@ -6831,20 +6666,16 @@ mod meets_place_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -6890,7 +6721,7 @@ mod meets_place_order_margin_requirement_with_isolated {
         };
         perp_positions[1] = PerpPosition {
             market_index: 2,
-            base_asset_amount: 1 * BASE_PRECISION_I64,
+            base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
             position_flag: PositionFlag::IsolatedPosition as u8,
             isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // current PI
@@ -6944,8 +6775,6 @@ mod fill_perp_order_margin_requirement_with_isolated {
     use crate::test_utils::get_pyth_price;
     use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
 
-    const NOW: i64 = 0;
-
     fn with_sol_eth_setup<F, R>(slot: u64, f: F) -> R
     where
         F: FnOnce(&mut OracleMap, &PerpMarketMap, &SpotMarketMap) -> R,
@@ -6968,7 +6797,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             PythLazerOracle,
             eth_oracle_account_info
         );
-        let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+        let oracle_account_infos = [sol_oracle_account_info, eth_oracle_account_info];
         let mut oracle_map =
             OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
 
@@ -6977,20 +6806,16 @@ mod fill_perp_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: sol_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: sol_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         let mut eth_perp_market = PerpMarket {
@@ -6998,20 +6823,16 @@ mod fill_perp_order_margin_requirement_with_isolated {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 1000 * PEG_PRECISION,
-                order_step_size: 10000000,
-                oracle: eth_oracle_price_key,
-                oracle_source: OracleSource::PythLazer,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
+            order_step_size: 10000000,
+            oracle: eth_oracle_price_key,
+            oracle_source: OracleSource::PythLazer,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
@@ -7045,7 +6866,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_passes_when_current_isolated_passes_fill_others_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7057,7 +6878,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64,
@@ -7081,9 +6902,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7097,7 +6918,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_current_isolated_only_passes_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7109,7 +6930,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 7 * SPOT_BALANCE_PRECISION_U64,
@@ -7133,9 +6954,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7149,7 +6970,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_current_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7185,9 +7006,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7201,7 +7022,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_cross_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7213,7 +7034,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64,
@@ -7221,7 +7042,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             };
@@ -7243,9 +7064,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7259,7 +7080,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_increasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7271,7 +7092,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64,
@@ -7279,7 +7100,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7303,9 +7124,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7321,7 +7142,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_decreasing_passes_when_all_pass_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7357,9 +7178,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7373,7 +7194,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_decreasing_fails_when_current_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7409,9 +7230,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7425,7 +7246,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn isolated_fill_decreasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7445,7 +7266,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7469,9 +7290,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7487,7 +7308,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_passes_when_cross_passes_fill_isolated_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7499,7 +7320,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             };
@@ -7519,9 +7340,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7535,7 +7356,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_fails_when_cross_only_passes_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7567,9 +7388,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7583,7 +7404,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_fails_when_cross_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7615,9 +7436,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7631,7 +7452,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_increasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7643,13 +7464,13 @@ mod fill_perp_order_margin_requirement_with_isolated {
             let mut perp_positions = [PerpPosition::default(); 8];
             perp_positions[0] = PerpPosition {
                 market_index: 0,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7671,9 +7492,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7689,7 +7510,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_decreasing_passes_when_all_pass_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7721,9 +7542,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7737,7 +7558,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_decreasing_fails_when_cross_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7769,9 +7590,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();
@@ -7785,7 +7606,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
     #[test]
     fn cross_fill_decreasing_fails_when_other_isolated_fails_maintenance() {
-        with_sol_eth_setup(0, |mut oracle_map, perp_market_map, spot_market_map| {
+        with_sol_eth_setup(0, |oracle_map, perp_market_map, spot_market_map| {
             let mut spot_positions = [SpotPosition::default(); 8];
             spot_positions[0] = SpotPosition {
                 market_index: 0,
@@ -7803,7 +7624,7 @@ mod fill_perp_order_margin_requirement_with_isolated {
             };
             perp_positions[1] = PerpPosition {
                 market_index: 2,
-                base_asset_amount: 1 * BASE_PRECISION_I64,
+                base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -1000 * QUOTE_PRECISION_I64,
                 position_flag: PositionFlag::IsolatedPosition as u8,
                 isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64,
@@ -7825,9 +7646,9 @@ mod fill_perp_order_margin_requirement_with_isolated {
 
             let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
                 context,
             )
             .unwrap();

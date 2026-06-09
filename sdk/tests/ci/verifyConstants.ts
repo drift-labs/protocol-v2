@@ -174,7 +174,7 @@ describe('Verify Constants', function () {
 		perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of perpMarkets) {
-			if (isPullOracleSource(market.amm.oracleSource)) {
+			if (isPullOracleSource(market.oracleSource)) {
 				continue;
 			}
 
@@ -192,26 +192,25 @@ describe('Verify Constants', function () {
 			}
 
 			if (
-				correspondingConfigMarket.oracle.toBase58() !==
-				market.amm.oracle.toBase58()
+				correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()
 			) {
 				errors.push(
 					`Oracle mismatch for mainnet perp market ${
 						market.marketIndex
-					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.amm.oracle.toBase58()}`
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.oracle.toBase58()}`
 				);
 			}
 
 			if (
 				getVariant(correspondingConfigMarket.oracleSource) !==
-				getVariant(market.amm.oracleSource)
+				getVariant(market.oracleSource)
 			) {
 				errors.push(
 					`Oracle source mismatch for mainnet perp market ${
 						market.marketIndex
 					}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(
 						correspondingConfigMarket.oracleSource
-					)}, chain: ${getVariant(market.amm.oracleSource)}`
+					)}, chain: ${getVariant(market.oracleSource)}`
 				);
 			}
 
@@ -225,14 +224,12 @@ describe('Verify Constants', function () {
 				});
 			}
 
-			const lutHasMarketOracle = lutAccounts.includes(
-				market.amm.oracle.toBase58()
-			);
+			const lutHasMarketOracle = lutAccounts.includes(market.oracle.toBase58());
 			if (!lutHasMarketOracle) {
 				missingLutAddresses.push({
 					type: 'perp',
 					marketIndex: market.marketIndex,
-					address: market.amm.oracle.toBase58(),
+					address: market.oracle.toBase58(),
 					description: 'oracle',
 				});
 			}
@@ -334,7 +331,7 @@ describe('Verify Constants', function () {
 		perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of perpMarkets) {
-			if (isPullOracleSource(market.amm.oracleSource)) {
+			if (isPullOracleSource(market.oracleSource)) {
 				continue;
 			}
 
@@ -352,26 +349,25 @@ describe('Verify Constants', function () {
 			}
 
 			if (
-				correspondingConfigMarket.oracle.toBase58() !==
-				market.amm.oracle.toBase58()
+				correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()
 			) {
 				errors.push(
 					`Oracle mismatch for devnet perp market ${
 						market.marketIndex
-					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.amm.oracle.toBase58()}`
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.oracle.toBase58()}`
 				);
 			}
 
 			if (
 				getVariant(correspondingConfigMarket.oracleSource) !==
-				getVariant(market.amm.oracleSource)
+				getVariant(market.oracleSource)
 			) {
 				errors.push(
 					`Oracle source mismatch for devnet perp market ${
 						market.marketIndex
 					}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(
 						correspondingConfigMarket.oracleSource
-					)}, chain: ${getVariant(market.amm.oracleSource)}`
+					)}, chain: ${getVariant(market.oracleSource)}`
 				);
 			}
 		}

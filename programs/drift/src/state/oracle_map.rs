@@ -190,7 +190,7 @@ impl<'a> OracleMap<'a> {
         let mut oracles: BTreeMap<Pubkey, AccountInfo<'a>> = BTreeMap::new();
 
         while let Some(account_info) = account_info_iter.peek() {
-            if EXTERNAL_ORACLE_PROGRAM_IDS.contains(&account_info.owner) {
+            if EXTERNAL_ORACLE_PROGRAM_IDS.contains(account_info.owner) {
                 let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
@@ -230,11 +230,7 @@ impl<'a> OracleMap<'a> {
             break;
         }
 
-        let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
-            o
-        } else {
-            OracleGuardRails::default()
-        };
+        let ogr: OracleGuardRails = oracle_guard_rails.unwrap_or_default();
 
         Ok(OracleMap {
             oracles,
@@ -259,7 +255,7 @@ impl<'a> OracleMap<'a> {
     ) -> DriftResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfo<'a>> = BTreeMap::new();
 
-        if EXTERNAL_ORACLE_PROGRAM_IDS.contains(&account_info.owner) {
+        if EXTERNAL_ORACLE_PROGRAM_IDS.contains(account_info.owner) {
             let pubkey = account_info.key();
 
             oracles.insert(pubkey, account_info.clone());
@@ -295,11 +291,7 @@ impl<'a> OracleMap<'a> {
             return Err(ErrorCode::InvalidOracle);
         }
 
-        let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
-            o
-        } else {
-            OracleGuardRails::default()
-        };
+        let ogr: OracleGuardRails = oracle_guard_rails.unwrap_or_default();
 
         Ok(OracleMap {
             oracles,

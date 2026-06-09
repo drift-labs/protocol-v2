@@ -417,11 +417,11 @@ mod calculate_asset_transfer_for_liability_transfer {
     #[test]
     pub fn full_liability_tranfer_same_decimals() {
         let asset_decimals = 6;
-        let asset_amount = 200 * 10_u128.pow(asset_decimals as u32);
+        let asset_amount = 200 * 10_u128.pow(asset_decimals);
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let asset_price = PRICE_PRECISION_I64;
         let liability_decimals = 6;
-        let liability_transfer = 10_u128.pow(liability_decimals as u32);
+        let liability_transfer = 10_u128.pow(liability_decimals);
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_price = PRICE_PRECISION_I64;
 
@@ -443,11 +443,11 @@ mod calculate_asset_transfer_for_liability_transfer {
     #[test]
     pub fn full_liability_tranfer_asset_decimals_less_than_liability_decimals() {
         let asset_decimals = 5;
-        let asset_amount = 200 * 10_u128.pow(asset_decimals as u32);
+        let asset_amount = 200 * 10_u128.pow(asset_decimals);
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let asset_price = PRICE_PRECISION_I64;
         let liability_decimals = 6;
-        let liability_transfer = 10_u128.pow(liability_decimals as u32);
+        let liability_transfer = 10_u128.pow(liability_decimals);
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_price = PRICE_PRECISION_I64;
 
@@ -469,11 +469,11 @@ mod calculate_asset_transfer_for_liability_transfer {
     #[test]
     pub fn full_liability_tranfer_liability_decimals_less_than_asset_decimals() {
         let asset_decimals = 6;
-        let asset_amount = 200 * 10_u128.pow(asset_decimals as u32);
+        let asset_amount = 200 * 10_u128.pow(asset_decimals);
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let asset_price = PRICE_PRECISION_I64;
         let liability_decimals = 5;
-        let liability_transfer = 10_u128.pow(liability_decimals as u32);
+        let liability_transfer = 10_u128.pow(liability_decimals);
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_price = PRICE_PRECISION_I64;
 
@@ -502,11 +502,9 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     fn total_base_asset_amount_is_zero() {
         let loss = -QUOTE_PRECISION_I128;
         let market = PerpMarket {
-            amm: AMM {
-                base_asset_amount_long: 0,
-                base_asset_amount_short: 0,
-                ..AMM::default()
-            },
+            amm: AMM { ..AMM::default() },
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
             ..PerpMarket::default()
         };
 
@@ -517,11 +515,9 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     fn total_base_asset_amount_not_zero() {
         let loss = -100 * QUOTE_PRECISION_I128;
         let market = PerpMarket {
-            amm: AMM {
-                base_asset_amount_long: 7 * BASE_PRECISION_I128,
-                base_asset_amount_short: -4 * BASE_PRECISION_I128,
-                ..AMM::default()
-            },
+            amm: AMM { ..AMM::default() },
+            base_asset_amount_long: 7 * BASE_PRECISION_I128,
+            base_asset_amount_short: -4 * BASE_PRECISION_I128,
             ..PerpMarket::default()
         };
 
@@ -941,7 +937,7 @@ mod validate_swap_within_liquidation_boundaries {
     fn success() {
         let asset_decimals = 9;
         let liability_decimals = 6;
-        let asset_transfer = 1 * 10_u128.pow(asset_decimals);
+        let asset_transfer = 10_u128.pow(asset_decimals);
         let liability_transfer = 200 * 10_u128.pow(liability_decimals);
         let asset_price = 200 * PRICE_PRECISION_I64;
         let liability_price = PRICE_PRECISION_I64;
@@ -965,7 +961,7 @@ mod validate_swap_within_liquidation_boundaries {
     fn failure() {
         let asset_decimals = 9;
         let liability_decimals = 6;
-        let asset_transfer = 1 * 10_u128.pow(asset_decimals);
+        let asset_transfer = 10_u128.pow(asset_decimals);
         let liability_transfer = 198 * 10_u128.pow(liability_decimals);
         let asset_price = 200 * PRICE_PRECISION_I64;
         let liability_price = PRICE_PRECISION_I64;

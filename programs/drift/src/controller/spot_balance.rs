@@ -7,7 +7,6 @@ use crate::msg;
 use anchor_lang::prelude::*;
 
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm::sanitize_new_price;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     FIVE_MINUTE, IF_FACTOR_PRECISION, ONE_HOUR, ONE_MINUTE, QUOTE_SPOT_MARKET_INDEX,
@@ -18,6 +17,7 @@ use crate::math::spot_balance::{
     get_spot_balance, get_token_amount, InterestAccumulated,
 };
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
+use crate::vlp::amm::math::amm::sanitize_new_price;
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;

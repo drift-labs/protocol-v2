@@ -9,7 +9,6 @@ use crate::msg;
 use crate::state::liquidation_mode::{get_perp_liquidation_mode, LiquidatePerpMode};
 use anchor_lang::prelude::*;
 
-use crate::controller::amm::get_fee_pool_tokens;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders;
 use crate::controller::orders::{cancel_order, fill_perp_order, place_perp_order};
@@ -17,7 +16,6 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
     update_quote_asset_and_break_even_amount, PositionDirection,
 };
-use crate::controller::repeg::update_amm_and_check_validity;
 use crate::controller::spot_balance::{
     update_revenue_pool_balances, update_spot_balances, update_spot_market_and_check_validity,
     update_spot_market_cumulative_interest,
@@ -54,6 +52,8 @@ use crate::math::orders::{
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
+use crate::vlp::amm::controller::get_fee_pool_tokens;
+use crate::vlp::amm::refresh::update_amm_and_check_validity;
 
 use crate::math::constants::LST_POOL_ID;
 use crate::math::spot_balance::get_token_value;
@@ -101,10 +101,10 @@ pub fn liquidate_perp(
     let initial_pct_to_liquidate = state.initial_pct_to_liquidate as u128;
     let liquidation_duration = state.liquidation_duration as u128;
 
-    let liquidation_mode = get_perp_liquidation_mode(&user, market_index)?;
+    let liquidation_mode = get_perp_liquidation_mode(user, market_index)?;
 
     validate!(
-        !liquidation_mode.is_user_bankrupt(&user)?,
+        !liquidation_mode.is_user_bankrupt(user)?,
         ErrorCode::UserBankrupt,
         "user bankrupt",
     )?;
@@ -156,7 +156,7 @@ pub fn liquidate_perp(
             .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
     )?;
 
-    let user_is_being_liquidated = liquidation_mode.user_is_being_liquidated(&user)?;
+    let user_is_being_liquidated = liquidation_mode.user_is_being_liquidated(user)?;
     if !user_is_being_liquidated
         && liquidation_mode.meets_margin_requirements(&margin_calculation)?
     {
@@ -169,22 +169,20 @@ pub fn liquidate_perp(
         return Ok(());
     }
 
-    user.get_perp_position(market_index).map_err(|e| {
+    user.get_perp_position(market_index).inspect_err(|_e| {
         msg!(
             "User does not have a position for perp market {}",
             market_index
         );
-        e
     })?;
 
     liquidator
         .force_get_perp_position_mut(market_index)
-        .map_err(|e| {
+        .inspect_err(|_e| {
             msg!(
                 "Liquidator has no available positions to take on perp position in market {}",
                 market_index
             );
-            e
         })?;
 
     let liquidation_id = liquidation_mode.enter_liquidation(user, slot)?;
@@ -300,7 +298,7 @@ pub fn liquidate_perp(
 
     let liquidator_max_base_asset_amount = standardize_base_asset_amount(
         liquidator_max_base_asset_amount,
-        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
+        perp_market_map.get_ref(&market_index)?.order_step_size,
     )?;
 
     validate!(
@@ -316,7 +314,7 @@ pub fn liquidate_perp(
             let oracle_price_too_divergent = is_oracle_too_divergent_with_twap_5min(
                 oracle_price,
                 perp_market
-                    .amm
+                    .market_stats
                     .historical_oracle_data
                     .last_oracle_price_twap_5min,
                 state
@@ -378,7 +376,7 @@ pub fn liquidate_perp(
     if base_asset_amount_to_cover_margin_shortage != u64::MAX {
         base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
             base_asset_amount_to_cover_margin_shortage,
-            market.amm.order_step_size,
+            market.order_step_size,
         )?;
     }
 
@@ -420,7 +418,7 @@ pub fn liquidate_perp(
         .min(max_base_asset_amount_allowed_to_be_transferred.max(min_base_asset_amount));
     let base_asset_amount = standardize_base_asset_amount_ceil(
         base_asset_amount,
-        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
+        perp_market_map.get_ref(&market_index)?.order_step_size,
     )?;
 
     // Make sure liquidator enters at better than limit price
@@ -506,12 +504,12 @@ pub fn liquidate_perp(
         validate!(
             is_multiple_of_step_size(
                 user_position.base_asset_amount.unsigned_abs(),
-                market.amm.order_step_size
+                market.order_step_size
             )?,
             ErrorCode::InvalidPerpPosition,
             "base asset amount {} step size {}",
             user_position.base_asset_amount,
-            market.amm.order_step_size
+            market.order_step_size
         )?;
 
         let liquidator_position = liquidator.force_get_perp_position_mut(market_index)?;
@@ -528,16 +526,15 @@ pub fn liquidate_perp(
         validate!(
             is_multiple_of_step_size(
                 liquidator_position.base_asset_amount.unsigned_abs(),
-                market.amm.order_step_size
+                market.order_step_size
             )?,
             ErrorCode::InvalidPerpPosition,
             "base asset amount {} step size {}",
             liquidator_position.base_asset_amount,
-            market.amm.order_step_size
+            market.order_step_size
         )?;
 
-        market.amm.total_liquidation_fee = market
-            .amm
+        market.total_liquidation_fee = market
             .total_liquidation_fee
             .safe_add(if_fee.unsigned_abs().cast()?)?;
 
@@ -606,11 +603,7 @@ pub fn liquidate_perp(
 
     let liquidator_order = Order {
         slot,
-        price: if let Some(price) = limit_price {
-            price
-        } else {
-            0
-        },
+        price: limit_price.unwrap_or_default(),
         base_asset_amount,
         order_id: liquidator_order_id,
         market_index,
@@ -678,10 +671,10 @@ pub fn liquidate_perp(
         maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
         oracle_price,
         bit_flags: 0,
-        taker_existing_quote_entry_amount: taker_existing_quote_entry_amount,
-        taker_existing_base_asset_amount: taker_existing_base_asset_amount,
-        maker_existing_quote_entry_amount: maker_existing_quote_entry_amount,
-        maker_existing_base_asset_amount: maker_existing_base_asset_amount,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
         trigger_price: None,
         builder_idx: None,
         builder_fee: None,
@@ -698,7 +691,7 @@ pub fn liquidate_perp(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
+        bankrupt: liquidation_mode.is_user_bankrupt(user)?,
         canceled_order_ids,
         margin_freed,
         liquidate_perp: LiquidatePerpRecord {
@@ -813,12 +806,11 @@ pub fn liquidate_perp_with_fill(
         return Ok(());
     }
 
-    user.get_perp_position(market_index).map_err(|e| {
+    user.get_perp_position(market_index).inspect_err(|_e| {
         msg!(
             "User does not have a position for perp market {}",
             market_index
         );
-        e
     })?;
 
     let liquidation_id = liquidation_mode.enter_liquidation(&mut user, slot)?;
@@ -936,7 +928,7 @@ pub fn liquidate_perp_with_fill(
         oracle_price,
         perp_market_map
             .get_ref(&market_index)?
-            .amm
+            .market_stats
             .historical_oracle_data
             .last_oracle_price_twap_5min,
         state
@@ -984,7 +976,7 @@ pub fn liquidate_perp_with_fill(
             oracle_price,
             quote_oracle_price,
         )?,
-        market.amm.order_step_size,
+        market.order_step_size,
     )?;
     drop(market);
     drop(quote_spot_market);
@@ -1023,7 +1015,7 @@ pub fn liquidate_perp_with_fill(
         .min(max_base_asset_amount_allowed_to_be_transferred.max(min_base_asset_amount));
     let base_asset_amount = standardize_base_asset_amount_ceil(
         base_asset_amount,
-        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
+        perp_market_map.get_ref(&market_index)?.order_step_size,
     )?;
 
     let existing_direction = user.perp_positions[position_index].get_direction();
@@ -1080,7 +1072,6 @@ pub fn liquidate_perp_with_fill(
         clock,
         FillMode::Liquidation,
         &mut None,
-        false,
     )?;
 
     let mut user = load_mut!(user_loader)?;
@@ -1119,8 +1110,7 @@ pub fn liquidate_perp_with_fill(
         let user_position = user.get_perp_position_mut(market_index)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
 
-        market.amm.total_liquidation_fee = market
-            .amm
+        market.total_liquidation_fee = market
             .total_liquidation_fee
             .safe_add(if_fee.unsigned_abs().cast()?)?;
     }
@@ -1188,10 +1178,8 @@ pub fn liquidate_spot(
     limit_price: Option<u64>,
     user: &mut User,
     user_key: &Pubkey,
-    user_stats: &mut UserStats,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
-    liquidator_stats: &mut UserStats,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -1273,16 +1261,14 @@ pub fn liquidate_spot(
 
     liquidator
         .force_get_spot_position_mut(asset_market_index)
-        .map_err(|e| {
+        .inspect_err(|_e| {
             msg!("Liquidator has no available spot balances to take on deposit");
-            e
         })?;
 
     liquidator
         .force_get_spot_position_mut(liability_market_index)
-        .map_err(|e| {
+        .inspect_err(|_e| {
             msg!("Liquidator has no available spot balances to take on borrow");
-            e
         })?;
 
     let (
@@ -1765,10 +1751,8 @@ pub fn liquidate_spot_with_swap_begin(
     swap_amount_in: u64,
     user: &mut User,
     user_key: &Pubkey,
-    user_stats: &mut UserStats,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
-    _liquidator_stats: &mut UserStats,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2154,10 +2138,7 @@ pub fn liquidate_spot_with_swap_end(
     liability_market_index: u16,
     user: &mut User,
     user_key: &Pubkey,
-    user_stats: &mut UserStats,
-    _liquidator: &mut User,
     liquidator_key: &Pubkey,
-    _liquidator_stats: &mut UserStats,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2370,13 +2351,13 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     drop(liability_spot_market);
 
-    user.get_perp_position(perp_market_index).map_err(|e| {
-        msg!(
-            "User does not have a position for perp market {}",
-            perp_market_index
-        );
-        e
-    })?;
+    user.get_perp_position(perp_market_index)
+        .inspect_err(|_e| {
+            msg!(
+                "User does not have a position for perp market {}",
+                perp_market_index
+            );
+        })?;
 
     user.get_spot_position(liability_market_index)
         .map_err(|_| {
@@ -2389,16 +2370,14 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     liquidator
         .force_get_perp_position_mut(perp_market_index)
-        .map_err(|e| {
+        .inspect_err(|_e| {
             msg!("Liquidator has no available positions to take on pnl");
-            e
         })?;
 
     liquidator
         .force_get_spot_position_mut(liability_market_index)
-        .map_err(|e| {
+        .inspect_err(|_e| {
             msg!("Liquidator has no available spot balances to take on borrow");
-            e
         })?;
 
     settle_funding_payment(
@@ -2813,10 +2792,10 @@ pub fn liquidate_perp_pnl_for_deposit(
     // blocked when 1) user deposit oracle is deemed invalid
     // or 2) user has outstanding liability with higher tier
 
-    let liquidation_mode = get_perp_liquidation_mode(&user, perp_market_index)?;
+    let liquidation_mode = get_perp_liquidation_mode(user, perp_market_index)?;
 
     validate!(
-        !liquidation_mode.is_user_bankrupt(&user)?,
+        !liquidation_mode.is_user_bankrupt(user)?,
         ErrorCode::UserBankrupt,
         "user bankrupt",
     )?;
@@ -2856,28 +2835,26 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     drop(perp_market);
 
-    user.get_perp_position(perp_market_index).map_err(|e| {
-        msg!(
-            "User does not have a position for perp market {}",
-            perp_market_index
-        );
-        e
-    })?;
+    user.get_perp_position(perp_market_index)
+        .inspect_err(|_e| {
+            msg!(
+                "User does not have a position for perp market {}",
+                perp_market_index
+            );
+        })?;
 
     liquidation_mode.validate_spot_position(user, asset_market_index)?;
 
     liquidator
         .force_get_perp_position_mut(perp_market_index)
-        .map_err(|e| {
+        .inspect_err(|_e| {
             msg!("Liquidator has no available positions to take on pnl");
-            e
         })?;
 
     liquidator
         .force_get_spot_position_mut(asset_market_index)
-        .map_err(|e| {
+        .inspect_err(|_e| {
             msg!("Liquidator has no available spot balances to take on deposit");
-            e
         })?;
 
     settle_funding_payment(
@@ -2986,7 +2963,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    let user_is_being_liquidated = liquidation_mode.user_is_being_liquidated(&user)?;
+    let user_is_being_liquidated = liquidation_mode.user_is_being_liquidated(user)?;
     if !user_is_being_liquidated
         && liquidation_mode.meets_margin_requirements(&margin_calculation)?
     {
@@ -3062,7 +3039,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                 liquidator: *liquidator_key,
                 margin_requirement,
                 total_collateral,
-                bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
+                bankrupt: liquidation_mode.is_user_bankrupt(user)?,
                 canceled_order_ids,
                 margin_freed,
                 liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
@@ -3271,7 +3248,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
+        bankrupt: liquidation_mode.is_user_bankrupt(user)?,
         margin_freed,
         liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
             perp_market_index,
@@ -3300,16 +3277,16 @@ pub fn resolve_perp_bankruptcy(
     now: i64,
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
-    let liquidation_mode = get_perp_liquidation_mode(&user, market_index)?;
+    let liquidation_mode = get_perp_liquidation_mode(user, market_index)?;
 
-    if !liquidation_mode.is_user_bankrupt(&user)?
-        && liquidation_mode.should_user_enter_bankruptcy(&user)?
+    if !liquidation_mode.is_user_bankrupt(user)?
+        && liquidation_mode.should_user_enter_bankruptcy(user)?
     {
         liquidation_mode.enter_bankruptcy(user)?;
     }
 
     validate!(
-        liquidation_mode.is_user_bankrupt(&user)?,
+        liquidation_mode.is_user_bankrupt(user)?,
         ErrorCode::UserNotBankrupt,
         "user not bankrupt",
     )?;
@@ -3337,12 +3314,11 @@ pub fn resolve_perp_bankruptcy(
 
     drop(market);
 
-    user.get_perp_position(market_index).map_err(|e| {
+    user.get_perp_position(market_index).inspect_err(|_e| {
         msg!(
             "User does not have a position for perp market {}",
             market_index
         );
-        e
     })?;
 
     let loss = user
@@ -3411,7 +3387,7 @@ pub fn resolve_perp_bankruptcy(
     let fee_pool_payment: i128 = if losses_remaining < 0 {
         let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
-        let fee_pool_tokens = get_fee_pool_tokens(perp_market, spot_market)?;
+        let fee_pool_tokens = get_fee_pool_tokens(&perp_market.amm, spot_market)?;
         msg!("fee_pool_tokens={:?}", fee_pool_tokens);
 
         losses_remaining.abs().min(fee_pool_tokens.cast()?)
@@ -3428,11 +3404,10 @@ pub fn resolve_perp_bankruptcy(
         let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
         msg!("fee_pool_payment={:?}", fee_pool_payment);
-        update_spot_balances(
+        <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::withdraw_from_fee_pool(
+            &mut perp_market.amm,
             fee_pool_payment.unsigned_abs(),
-            &SpotBalanceType::Borrow,
             spot_market,
-            &mut perp_market.amm.fee_pool,
             false,
         )?;
     }
@@ -3453,18 +3428,15 @@ pub fn resolve_perp_bankruptcy(
     if loss_to_socialize < 0 {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-        market.amm.total_social_loss = market
-            .amm
+        market.total_social_loss = market
             .total_social_loss
             .safe_add(loss_to_socialize.unsigned_abs())?;
 
-        market.amm.cumulative_funding_rate_long = market
-            .amm
+        market.cumulative_funding_rate_long = market
             .cumulative_funding_rate_long
             .safe_add(cumulative_funding_rate_delta)?;
 
-        market.amm.cumulative_funding_rate_short = market
-            .amm
+        market.cumulative_funding_rate_short = market
             .cumulative_funding_rate_short
             .safe_sub(cumulative_funding_rate_delta)?;
     }

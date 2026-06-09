@@ -113,6 +113,8 @@ export function calculateTradeSlippage(
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
+				market.marketStats,
+				market.totalExchangeFee,
 				direction,
 				mmOraclePriceData,
 				latestSlot
@@ -184,6 +186,8 @@ export function calculateTradeAcquiredAmounts(
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
+				market.marketStats,
+				market.totalExchangeFee,
 				direction,
 				mmOraclePriceData,
 				latestSlot
@@ -274,6 +278,8 @@ export function calculateTargetPriceTrade(
 		const { baseAssetReserve, quoteAssetReserve, newPeg } =
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
+				market.marketStats,
+				market.totalExchangeFee,
 				direction,
 				mmOraclePriceData,
 				latestSlot
@@ -436,6 +442,8 @@ export function calculateEstimatedPerpEntryPrice(
 	const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
+			market.marketStats,
+			market.totalExchangeFee,
 			direction,
 			mmOraclePriceData,
 			new BN(slot)
@@ -451,7 +459,7 @@ export function calculateEstimatedPerpEntryPrice(
 		market.amm.baseAssetReserve,
 		market.amm.minBaseAssetReserve,
 		market.amm.maxBaseAssetReserve,
-		market.amm.orderStepSize
+		market.orderStepSize
 	);
 
 	let ammLiquidity: BN;

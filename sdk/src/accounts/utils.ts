@@ -21,8 +21,8 @@ export function findDelistedPerpMarketsAndOracles(
 		if (isVariant(perpMarket.data.status, 'delisted')) {
 			delistedPerpMarketIndexes.push(perpMarket.data.marketIndex);
 			delistedOracles.push({
-				publicKey: perpMarket.data.amm.oracle,
-				source: perpMarket.data.amm.oracleSource,
+				publicKey: perpMarket.data.oracle,
+				source: perpMarket.data.oracleSource,
 			});
 		}
 	}

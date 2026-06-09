@@ -385,9 +385,8 @@ export type SpotInterestRecord = {
 	maxBorrowRate: number;
 };
 
-export type CurveRecord = {
+export type AmmCurveChanged = {
 	ts: BN;
-	recordId: BN;
 	marketIndex: number;
 	pegMultiplierBefore: BN;
 	baseAssetReserveBefore: BN;
@@ -397,15 +396,9 @@ export type CurveRecord = {
 	baseAssetReserveAfter: BN;
 	quoteAssetReserveAfter: BN;
 	sqrtKAfter: BN;
-	baseAssetAmountLong: BN;
-	baseAssetAmountShort: BN;
-	baseAssetAmountWithAmm: BN;
-	totalFee: BN;
-	totalFeeMinusDistributions: BN;
 	adjustmentCost: BN;
-	numberOfUsers: BN;
+	totalFeeMinusDistributionsAfter: BN;
 	oraclePrice: BN;
-	fillRecord: BN;
 };
 
 export declare type InsuranceFundRecord = {
@@ -447,7 +440,6 @@ export type FundingRateRecord = {
 	cumulativeFundingRateShort: BN;
 	oraclePriceTwap: BN;
 	markPriceTwap: BN;
-	periodRevenue: BN;
 	baseAssetAmountWithAmm: BN;
 };
 
@@ -816,13 +808,13 @@ export type PerpMarketAccount = {
 	pubkey: PublicKey;
 	name: number[];
 	amm: AMM;
+	marketStats: MarketStats;
 	numberOfUsersWithBase: number;
 	numberOfUsers: number;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
 	nextFundingRateRecordId: BN;
-	nextCurveRecordId: BN;
 	pnlPool: PoolBalance;
 	liquidatorFee: number;
 	ifLiquidationFee: number;
@@ -844,12 +836,41 @@ export type PerpMarketAccount = {
 
 	lastFillPrice: BN;
 
-	lpPoolId: number;
-	lpFeeTransferScalar: number;
-	lpExchangeFeeExcluscionScalar: number;
-	lpStatus: number;
-	lpPausedOperations: number;
+	hedgeConfig: {
+		poolId: number;
+		status: number;
+		pausedOperations: number;
+		exchangeFeeExclusionScalar: number;
+		feeTransferScalar: number;
+	};
 	marketConfig: number;
+
+	// Fields migrated off AMM to top-level PerpMarket
+	oracle: PublicKey;
+	oracleSource: OracleSource;
+	oracleSlotDelayOverride: number;
+	oracleLowRiskSlotDelayOverride: number;
+	baseAssetAmountLong: BN;
+	baseAssetAmountShort: BN;
+	quoteAssetAmount: BN;
+	quoteEntryAmountLong: BN;
+	quoteEntryAmountShort: BN;
+	quoteBreakEvenAmountLong: BN;
+	quoteBreakEvenAmountShort: BN;
+	totalSocialLoss: BN;
+	maxOpenInterest: BN;
+	totalExchangeFee: BN;
+	totalLiquidationFee: BN;
+	cumulativeFundingRateLong: BN;
+	cumulativeFundingRateShort: BN;
+	lastFundingRate: BN;
+	lastFundingRateLong: BN;
+	lastFundingRateShort: BN;
+	lastFundingRateTs: BN;
+	netUnsettledFundingPnl: BN;
+	lastFundingOracleTwap: BN;
+	orderStepSize: BN;
+	orderTickSize: BN;
 };
 
 export type HistoricalOracleData = {
@@ -960,97 +981,58 @@ export type PoolBalance = {
 };
 
 export type AMM = {
+	feePool: PoolBalance;
 	baseAssetReserve: BN;
+	quoteAssetReserve: BN;
+	concentrationCoef: BN;
+	minBaseAssetReserve: BN;
+	maxBaseAssetReserve: BN;
 	sqrtK: BN;
-	cumulativeFundingRate: BN;
-	lastFundingRate: BN;
-	lastFundingRateTs: BN;
+	pegMultiplier: BN;
+	terminalQuoteAssetReserve: BN;
+	baseAssetAmountWithAmm: BN;
+	totalFee: BN;
+	totalMmFee: BN;
+	totalFeeMinusDistributions: BN;
+	totalFeeWithdrawn: BN;
+	lastUpdateSlot: BN;
+	netRevenueSinceLastFunding: BN;
+	lastCumulativeFundingRateLong: BN;
+	lastCumulativeFundingRateShort: BN;
+	baseSpread: number;
+	maxSpread: number;
+	maxFillReserveFraction: number;
+	maxSlippageRatio: number;
+	curveUpdateIntensity: number;
+	ammJitIntensity: number;
+	ammSpreadAdjustment: number;
+	ammInventorySpreadAdjustment: number;
+	referencePriceOffsetDeadbandPct: number;
+};
+
+export type MarketStats = {
 	lastMarkPriceTwap: BN;
 	lastMarkPriceTwap5Min: BN;
 	lastMarkPriceTwapTs: BN;
-	lastTradeTs: BN;
-
-	oracle: PublicKey;
-	oracleSource: OracleSource;
-	historicalOracleData: HistoricalOracleData;
-
-	lastOracleReservePriceSpreadPct: BN;
-	lastOracleConfPct: BN;
-
-	fundingPeriod: BN;
-	quoteAssetReserve: BN;
-	pegMultiplier: BN;
-	cumulativeFundingRateLong: BN;
-	cumulativeFundingRateShort: BN;
-	last24HAvgFundingRate: BN;
-	lastFundingRateShort: BN;
-	lastFundingRateLong: BN;
-
-	totalLiquidationFee: BN;
-	totalFeeMinusDistributions: BN;
-	totalFeeWithdrawn: BN;
-	totalFee: BN;
-	mmOracleSequenceId: BN;
-	orderStepSize: BN;
-	orderTickSize: BN;
-	maxFillReserveFraction: number;
-	maxSlippageRatio: number;
-	baseSpread: number;
-	curveUpdateIntensity: number;
-	baseAssetAmountWithAmm: BN;
-	baseAssetAmountLong: BN;
-	baseAssetAmountShort: BN;
-	quoteAssetAmount: BN;
-	terminalQuoteAssetReserve: BN;
-	concentrationCoef: BN;
-	feePool: PoolBalance;
-	totalExchangeFee: BN;
-	totalMmFee: BN;
-	netRevenueSinceLastFunding: BN;
-	lastUpdateSlot: BN;
-	lastOracleNormalisedPrice: BN;
-	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
-	longSpread: number;
-	shortSpread: number;
-	maxSpread: number;
-
-	ammJitIntensity: number;
-	maxOpenInterest: BN;
-	maxBaseAssetReserve: BN;
-	minBaseAssetReserve: BN;
-	totalSocialLoss: BN;
-
-	quoteBreakEvenAmountLong: BN;
-	quoteBreakEvenAmountShort: BN;
-	quoteEntryAmountLong: BN;
-	quoteEntryAmountShort: BN;
-
 	markStd: BN;
 	oracleStd: BN;
+	lastOracleConfPct: BN;
+	volume24H: BN;
 	longIntensityVolume: BN;
 	shortIntensityVolume: BN;
-	volume24H: BN;
+	lastTradeTs: BN;
+	last24HAvgFundingRate: BN;
+	fundingPeriod: BN;
 	minOrderSize: BN;
 	mmOraclePrice: BN;
 	mmOracleSlot: BN;
-
-	bidBaseAssetReserve: BN;
-	bidQuoteAssetReserve: BN;
-	askBaseAssetReserve: BN;
-	askQuoteAssetReserve: BN;
-
-	netUnsettledFundingPnl: BN;
-	referencePriceOffset: number;
-
-	oracleLowRiskSlotDelayOverride: number;
-	oracleSlotDelayOverride: number;
-	ammSpreadAdjustment: number;
-	ammInventorySpreadAdjustment: number;
-
-	lastFundingOracleTwap: BN;
-	referencePriceOffsetDeadbandPct: number;
+	mmOracleSequenceId: BN;
+	lastOracleNormalisedPrice: BN;
+	lastReferencePriceOffset: number;
+	lastOracleValid: boolean;
+	historicalOracleData: HistoricalOracleData;
 };
 
 // # User Account Types
@@ -1086,8 +1068,6 @@ export type UserStatsAccount = {
 		totalFeeRebate: BN;
 		totalTokenDiscount: BN;
 		totalRefereeDiscount: BN;
-		totalReferrerReward: BN;
-		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
 	referrerStatus: number;
@@ -1582,10 +1562,6 @@ export type RevenueShareAccount = {
 export type RevenueShareEscrowAccount = {
 	authority: PublicKey;
 	referrer: PublicKey;
-	referrerBoostExpireTs: number;
-	referrerRewardOffset: number;
-	refereeFeeNumeratorOffset: number;
-	referrerBoostNumerator: number;
 	reservedFixed: number[];
 	orders: RevenueShareOrder[];
 	approvedBuilders: BuilderInfo[];

@@ -135,11 +135,12 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     }
 
     fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
-        Ok(margin_calculation.can_exit_cross_margin_liquidation()?)
+        margin_calculation.can_exit_cross_margin_liquidation()
     }
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {
-        Ok(user.exit_cross_margin_liquidation())
+        user.exit_cross_margin_liquidation();
+        Ok(())
     }
 
     fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>) {
@@ -176,11 +177,13 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     }
 
     fn enter_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
-        Ok(user.enter_cross_margin_bankruptcy())
+        user.enter_cross_margin_bankruptcy();
+        Ok(())
     }
 
     fn exit_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
-        Ok(user.exit_cross_margin_bankruptcy())
+        user.exit_cross_margin_bankruptcy();
+        Ok(())
     }
 
     fn get_event_fields(
@@ -216,7 +219,7 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
             "User did not have a deposit for the asset market"
         )?;
 
-        let token_amount = spot_position.get_token_amount(&spot_market)?;
+        let token_amount = spot_position.get_token_amount(spot_market)?;
 
         validate!(
             token_amount != 0,

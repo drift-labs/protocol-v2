@@ -171,16 +171,20 @@ describe('drift client', () => {
 		assert.ok(market.numberOfUsersWithBase === 0);
 
 		const ammD = market.amm;
-		console.log(ammD.oracle.toString());
-		assert.ok(ammD.oracle.equals(solUsd));
+		console.log(market.oracle.toString());
+		assert.ok(market.oracle.equals(solUsd));
 		assert.ok(ammD.baseAssetReserve.eq(ammInitialBaseAssetAmount));
 		assert.ok(ammD.quoteAssetReserve.eq(ammInitialQuoteAssetAmount));
-		assert.ok(ammD.cumulativeFundingRateLong.eq(new BN(0)));
-		assert.ok(ammD.cumulativeFundingRateShort.eq(new BN(0)));
-		assert.ok(ammD.fundingPeriod.eq(periodicity));
-		assert.ok(ammD.lastFundingRate.eq(new BN(0)));
-		assert.ok(!ammD.lastFundingRateTs.eq(new BN(0)));
-		assert.ok(!ammD.historicalOracleData.lastOraclePriceTwapTs.eq(new BN(0)));
+		assert.ok(market.cumulativeFundingRateLong.eq(new BN(0)));
+		assert.ok(market.cumulativeFundingRateShort.eq(new BN(0)));
+		assert.ok(market.marketStats.fundingPeriod.eq(periodicity));
+		assert.ok(market.lastFundingRate.eq(new BN(0)));
+		assert.ok(!market.lastFundingRateTs.eq(new BN(0)));
+		assert.ok(
+			!market.marketStats.historicalOracleData.lastOraclePriceTwapTs.eq(
+				new BN(0)
+			)
+		);
 	});
 
 	it('Initialize user account and deposit collateral atomically', async () => {
@@ -299,7 +303,7 @@ describe('drift client', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			1.01,
-			marketData.amm.oracle,
+			marketData.oracle,
 			10000
 		);
 
@@ -441,7 +445,7 @@ describe('drift client', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			1.0,
-			marketData.amm.oracle,
+			marketData.oracle,
 			10000
 		);
 
@@ -611,7 +615,7 @@ describe('drift client', () => {
 		try {
 			await driftClient.openPosition(
 				PositionDirection.LONG,
-				driftClient.getPerpMarketAccount(0).amm.orderStepSize,
+				driftClient.getPerpMarketAccount(0).orderStepSize,
 				0
 			);
 		} catch (e) {
@@ -659,7 +663,7 @@ describe('drift client', () => {
 			PositionDirection.LONG,
 			baseAssetAmount,
 			marketIndex,
-			estTradePrice.add(market.amm.orderTickSize)
+			estTradePrice.add(market.orderTickSize)
 		);
 
 		await driftClient.fetchAccounts();

@@ -28,8 +28,8 @@ function calculateLiveMarkTwap(
 ): BN {
 	now = now || new BN((Date.now() / 1000).toFixed(0));
 
-	const lastMarkTwapWithMantissa = market.amm.lastMarkPriceTwap;
-	const lastMarkPriceTwapTs = market.amm.lastMarkPriceTwapTs;
+	const lastMarkTwapWithMantissa = market.marketStats.lastMarkPriceTwap;
+	const lastMarkPriceTwapTs = market.marketStats.lastMarkPriceTwapTs;
 
 	const timeSinceLastMarkChange = now.sub(lastMarkPriceTwapTs);
 	const markTwapTimeSinceLastUpdate = BN.max(
@@ -38,7 +38,12 @@ function calculateLiveMarkTwap(
 	);
 
 	if (!markPrice) {
-		const [bid, ask] = calculateBidAskPrice(market.amm, mmOraclePriceData);
+		const [bid, ask] = calculateBidAskPrice(
+			market.amm,
+			market.marketStats,
+			market.totalExchangeFee,
+			mmOraclePriceData
+		);
 		markPrice = bid.add(ask).div(new BN(2));
 	}
 
@@ -60,25 +65,28 @@ function shrinkStaleTwaps(
 	let newMarkTwap = markTwapWithMantissa;
 	let newOracleTwap = oracleTwapWithMantissa;
 	if (
-		market.amm.lastMarkPriceTwapTs.gt(
-			market.amm.historicalOracleData.lastOraclePriceTwapTs
+		market.marketStats.lastMarkPriceTwapTs.gt(
+			market.marketStats.historicalOracleData.lastOraclePriceTwapTs
 		)
 	) {
 		// shrink oracle based on invalid intervals
 		const oracleInvalidDuration = BN.max(
 			ZERO,
-			market.amm.lastMarkPriceTwapTs.sub(
-				market.amm.historicalOracleData.lastOraclePriceTwapTs
+			market.marketStats.lastMarkPriceTwapTs.sub(
+				market.marketStats.historicalOracleData.lastOraclePriceTwapTs
 			)
 		);
 		const timeSinceLastOracleTwapUpdate = now.sub(
-			market.amm.historicalOracleData.lastOraclePriceTwapTs
+			market.marketStats.historicalOracleData.lastOraclePriceTwapTs
 		);
 		const oracleTwapTimeSinceLastUpdate = BN.max(
 			ONE,
 			BN.min(
-				market.amm.fundingPeriod,
-				BN.max(ONE, market.amm.fundingPeriod.sub(timeSinceLastOracleTwapUpdate))
+				market.marketStats.fundingPeriod,
+				BN.max(
+					ONE,
+					market.marketStats.fundingPeriod.sub(timeSinceLastOracleTwapUpdate)
+				)
 			)
 		);
 		newOracleTwap = oracleTwapTimeSinceLastUpdate
@@ -86,23 +94,28 @@ function shrinkStaleTwaps(
 			.add(oracleInvalidDuration.mul(markTwapWithMantissa))
 			.div(oracleTwapTimeSinceLastUpdate.add(oracleInvalidDuration));
 	} else if (
-		market.amm.lastMarkPriceTwapTs.lt(
-			market.amm.historicalOracleData.lastOraclePriceTwapTs
+		market.marketStats.lastMarkPriceTwapTs.lt(
+			market.marketStats.historicalOracleData.lastOraclePriceTwapTs
 		)
 	) {
 		// shrink mark to oracle twap over tradless intervals
 		const tradelessDuration = BN.max(
 			ZERO,
-			market.amm.historicalOracleData.lastOraclePriceTwapTs.sub(
-				market.amm.lastMarkPriceTwapTs
+			market.marketStats.historicalOracleData.lastOraclePriceTwapTs.sub(
+				market.marketStats.lastMarkPriceTwapTs
 			)
 		);
-		const timeSinceLastMarkTwapUpdate = now.sub(market.amm.lastMarkPriceTwapTs);
+		const timeSinceLastMarkTwapUpdate = now.sub(
+			market.marketStats.lastMarkPriceTwapTs
+		);
 		const markTwapTimeSinceLastUpdate = BN.max(
 			ONE,
 			BN.min(
-				market.amm.fundingPeriod,
-				BN.max(ONE, market.amm.fundingPeriod.sub(timeSinceLastMarkTwapUpdate))
+				market.marketStats.fundingPeriod,
+				BN.max(
+					ONE,
+					market.marketStats.fundingPeriod.sub(timeSinceLastMarkTwapUpdate)
+				)
 			)
 		);
 		newMarkTwap = markTwapTimeSinceLastUpdate
@@ -141,13 +154,13 @@ export function calculateAllEstimatedFundingRate(
 		mmOraclePriceData,
 		markPrice,
 		now,
-		market.amm.fundingPeriod
+		market.marketStats.fundingPeriod
 	);
 	const liveOracleTwap = calculateLiveOracleTwap(
-		market.amm.historicalOracleData,
+		market.marketStats.historicalOracleData,
 		oraclePriceData,
 		now,
-		market.amm.fundingPeriod
+		market.marketStats.fundingPeriod
 	);
 	const [markTwap, oracleTwap] = shrinkStaleTwaps(
 		market,
@@ -187,10 +200,10 @@ export function calculateAllEstimatedFundingRate(
 
 	const secondsInHour = new BN(3600);
 	const hoursInDay = new BN(24);
-	const timeSinceLastUpdate = now.sub(market.amm.lastFundingRateTs);
+	const timeSinceLastUpdate = now.sub(market.lastFundingRateTs);
 
 	const lowerboundEst = twapSpreadPct
-		.mul(market.amm.fundingPeriod)
+		.mul(market.marketStats.fundingPeriod)
 		.mul(BN.min(secondsInHour, timeSinceLastUpdate))
 		.div(secondsInHour)
 		.div(secondsInHour)
@@ -210,19 +223,15 @@ export function calculateAllEstimatedFundingRate(
 	let cappedAltEst: BN;
 	let largerSide: BN;
 	let smallerSide: BN;
-	if (
-		market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort.abs())
-	) {
-		largerSide = market.amm.baseAssetAmountLong.abs();
-		smallerSide = market.amm.baseAssetAmountShort.abs();
+	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort.abs())) {
+		largerSide = market.baseAssetAmountLong.abs();
+		smallerSide = market.baseAssetAmountShort.abs();
 		if (twapSpread.gt(new BN(0))) {
 			return [markTwap, oracleTwap, lowerboundEst, interpEst, interpEst];
 		}
-	} else if (
-		market.amm.baseAssetAmountLong.lt(market.amm.baseAssetAmountShort.abs())
-	) {
-		largerSide = market.amm.baseAssetAmountShort.abs();
-		smallerSide = market.amm.baseAssetAmountLong.abs();
+	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort.abs())) {
+		largerSide = market.baseAssetAmountShort.abs();
+		smallerSide = market.baseAssetAmountLong.abs();
 		if (twapSpread.lt(new BN(0))) {
 			return [markTwap, oracleTwap, lowerboundEst, interpEst, interpEst];
 		}
@@ -370,11 +379,9 @@ export function calculateLongShortFundingRate(
 		now
 	);
 
-	if (market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort)) {
+	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort)) {
 		return [cappedAltEst, interpEst];
-	} else if (
-		market.amm.baseAssetAmountLong.lt(market.amm.baseAssetAmountShort)
-	) {
+	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort)) {
 		return [interpEst, cappedAltEst];
 	} else {
 		return [interpEst, interpEst];
@@ -404,13 +411,9 @@ export function calculateLongShortFundingRateAndLiveTwaps(
 			now
 		);
 
-	if (
-		market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort.abs())
-	) {
+	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort.abs())) {
 		return [markTwapLive, oracleTwapLive, cappedAltEst, interpEst];
-	} else if (
-		market.amm.baseAssetAmountLong.lt(market.amm.baseAssetAmountShort.abs())
-	) {
+	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort.abs())) {
 		return [markTwapLive, oracleTwapLive, interpEst, cappedAltEst];
 	} else {
 		return [markTwapLive, oracleTwapLive, interpEst, interpEst];
@@ -424,7 +427,7 @@ export function calculateLongShortFundingRateAndLiveTwaps(
  */
 export function calculateFundingPool(market: PerpMarketAccount): BN {
 	// todo
-	const totalFeeLB = market.amm.totalExchangeFee.div(new BN(2));
+	const totalFeeLB = market.totalExchangeFee.div(new BN(2));
 	const feePool = BN.max(
 		ZERO,
 		market.amm.totalFeeMinusDistributions

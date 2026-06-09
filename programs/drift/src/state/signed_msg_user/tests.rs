@@ -2,7 +2,6 @@
 mod signed_msg_order_id_eviction {
     use std::cell::RefCell;
 
-    use anchor_lang::prelude::borsh::BorshSerialize;
     use anchor_lang::prelude::Pubkey;
 
     use crate::{
@@ -142,7 +141,6 @@ mod zero_copy {
     use crate::test_utils::create_account_info;
     use crate::ID;
 
-    use anchor_lang::prelude::borsh::BorshSerialize;
     use anchor_lang::{prelude::Pubkey, Discriminator};
 
     use crate::{
@@ -170,7 +168,7 @@ mod zero_copy {
         }
 
         let mut bytes = Vec::with_capacity(8 + borsh::to_vec(&orders).unwrap().len());
-        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
+        bytes.extend_from_slice(SignedMsgUserOrders::DISCRIMINATOR);
         bytes.extend_from_slice(&borsh::to_vec(&orders).unwrap());
 
         let pubkey = Pubkey::default();
@@ -187,7 +185,7 @@ mod zero_copy {
                 &SignedMsgOrderId {
                     uuid: [0; 8],
                     max_slot: 0,
-                    order_id: i as u32,
+                    order_id: i,
                     padding: 0,
                 }
             );
@@ -211,7 +209,7 @@ mod zero_copy {
         // invalid discriminator
         let mut bytes = Vec::with_capacity(8 + borsh::to_vec(&orders).unwrap().len());
         bytes.extend_from_slice(&borsh::to_vec(&orders).unwrap());
-        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
+        bytes.extend_from_slice(SignedMsgUserOrders::DISCRIMINATOR);
         let orders_account_info =
             create_account_info(&random_pubkey, false, &mut lamports, &mut bytes, &ID);
         let result = orders_account_info.load();
@@ -237,7 +235,7 @@ mod zero_copy {
         }
 
         let mut bytes = Vec::with_capacity(8 + borsh::to_vec(&orders).unwrap().len());
-        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
+        bytes.extend_from_slice(SignedMsgUserOrders::DISCRIMINATOR);
         bytes.extend_from_slice(&borsh::to_vec(&orders).unwrap());
 
         let pubkey = Pubkey::default();
@@ -255,7 +253,7 @@ mod zero_copy {
                 &SignedMsgOrderId {
                     uuid: [0; 8],
                     max_slot: 0,
-                    order_id: i as u32,
+                    order_id: i,
                     padding: 0,
                 }
             );
@@ -279,7 +277,7 @@ mod zero_copy {
         // invalid discriminator
         let mut bytes = Vec::with_capacity(8 + borsh::to_vec(&orders).unwrap().len());
         bytes.extend_from_slice(&borsh::to_vec(&orders).unwrap());
-        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
+        bytes.extend_from_slice(SignedMsgUserOrders::DISCRIMINATOR);
         let orders_account_info =
             create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &ID);
         let result = orders_account_info.load_mut();

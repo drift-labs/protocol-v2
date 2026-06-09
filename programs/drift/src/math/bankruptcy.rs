@@ -47,7 +47,7 @@ pub fn is_isolated_margin_bankrupt(user: &User, market_index: u16) -> DriftResul
         return Ok(false);
     }
 
-    return Ok(perp_position.base_asset_amount == 0
+    Ok(perp_position.base_asset_amount == 0
         && perp_position.quote_asset_amount < 0
-        && !perp_position.has_open_order());
+        && !perp_position.has_open_order())
 }

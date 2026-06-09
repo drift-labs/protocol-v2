@@ -184,16 +184,12 @@ impl BuilderInfo {
 }
 
 #[account]
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Default)]
 pub struct RevenueShareEscrow {
     /// the owner of this account, a user
     pub authority: Pubkey,
     pub referrer: Pubkey,
-    pub referrer_boost_expire_ts: u32,
-    pub referrer_reward_offset: i8,
-    pub referee_fee_numerator_offset: i8,
-    pub referrer_boost_numerator: i8,
-    pub reserved_fixed: [u8; 17],
+    pub reserved_fixed: [u8; 24],
     pub padding0: u32, // align with [`RevenueShareEscrow::orders`] 4 bytes len prefix
     pub orders: Vec<RevenueShareOrder>,
     pub padding1: u32, // align with [`RevenueShareEscrow::approved_builders`] 4 bytes len prefix
@@ -225,50 +221,15 @@ impl RevenueShareEscrow {
 #[zero_copy(unsafe)]
 #[derive(Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
+#[derive(Default)]
 pub struct RevenueShareEscrowFixed {
     pub authority: Pubkey,
     pub referrer: Pubkey,
-    pub referrer_boost_expire_ts: u32,
-    pub referrer_reward_offset: i8,
-    pub referee_fee_numerator_offset: i8,
-    pub referrer_boost_numerator: i8,
-    pub reserved_fixed: [u8; 17],
+    pub reserved_fixed: [u8; 24],
 }
 
 unsafe impl bytemuck::Pod for RevenueShareEscrowFixed {}
 unsafe impl bytemuck::Zeroable for RevenueShareEscrowFixed {}
-
-impl Default for RevenueShareEscrowFixed {
-    fn default() -> Self {
-        Self {
-            authority: Pubkey::default(),
-            referrer: Pubkey::default(),
-            referrer_boost_expire_ts: 0,
-            referrer_reward_offset: 0,
-            referee_fee_numerator_offset: 0,
-            referrer_boost_numerator: 0,
-            reserved_fixed: [0; 17],
-        }
-    }
-}
-
-impl Default for RevenueShareEscrow {
-    fn default() -> Self {
-        Self {
-            authority: Pubkey::default(),
-            referrer: Pubkey::default(),
-            referrer_boost_expire_ts: 0,
-            referrer_reward_offset: 0,
-            referee_fee_numerator_offset: 0,
-            referrer_boost_numerator: 0,
-            reserved_fixed: [0; 17],
-            padding0: 0,
-            orders: Vec::new(),
-            padding1: 0,
-            approved_builders: Vec::new(),
-        }
-    }
-}
 
 pub struct RevenueShareEscrowZeroCopy<'a> {
     pub fixed: Ref<'a, RevenueShareEscrowFixed>,
@@ -488,7 +449,7 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
             }
         }
 
-        Err(ErrorCode::RevenueShareEscrowOrdersAccountFull.into())
+        Err(ErrorCode::RevenueShareEscrowOrdersAccountFull)
     }
 
     /// Marks any [`RevenueShareOrder`]s as Complete if there is no longer a corresponding
@@ -524,12 +485,12 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
 }
 
 pub trait RevenueShareEscrowLoader<'a> {
-    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy>;
-    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut>;
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy<'_>>;
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut<'_>>;
 }
 
 impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
-    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy> {
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -555,7 +516,7 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
         })
     }
 
-    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut> {
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut<'_>> {
         let owner = self.owner;
 
         validate!(

@@ -41,6 +41,7 @@ pub mod state;
 #[cfg(test)]
 mod test_utils;
 mod validation;
+pub mod vlp;
 
 // main program entrypoint
 // anchor `#[program]` entrypoint is compiled out by `no-entrypoint`
@@ -59,8 +60,7 @@ pub fn program_entry<'info>(
                 accounts, payload,
             )?),
             _ => Err(
-                anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData
-                    .into(),
+                anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData,
             ),
         }
     } else {
@@ -1714,13 +1714,6 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
-
-    // pub fn update_feature_bit_flags_builder_referral(
-    //     ctx: Context<HotAdminUpdateState>,
-    //     enable: bool,
-    // ) -> Result<()> {
-    //     handle_update_feature_bit_flags_builder_referral(ctx, enable)
-    // }
 
     pub fn update_feature_bit_flags_builder_codes(
         ctx: Context<HotAdminUpdateState>,

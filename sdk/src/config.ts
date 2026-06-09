@@ -247,13 +247,10 @@ export async function findAllMarketAndOracles(
 	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {
 		const perpMarket = perpMarketProgramAccount.account as PerpMarketAccount;
 		perpMarketIndexes.push(perpMarket.marketIndex);
-		oracleInfos.set(
-			getOracleId(perpMarket.amm.oracle, perpMarket.amm.oracleSource),
-			{
-				publicKey: perpMarket.amm.oracle,
-				source: perpMarket.amm.oracleSource,
-			}
-		);
+		oracleInfos.set(getOracleId(perpMarket.oracle, perpMarket.oracleSource), {
+			publicKey: perpMarket.oracle,
+			source: perpMarket.oracleSource,
+		});
 	}
 
 	for (const spotMarketProgramAccount of spotMarketProgramAccounts) {

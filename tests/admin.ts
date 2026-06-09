@@ -277,14 +277,13 @@ describe('admin', () => {
 		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
 		assert(
-			market.amm.oracle.equals(PublicKey.default),
-			`oracle does not match \n actual: ${market.amm.oracle} \n expected: ${PublicKey.default}`
+			market.oracle.equals(PublicKey.default),
+			`oracle does not match \n actual: ${market.oracle} \n expected: ${PublicKey.default}`
 		);
 		assert(
-			JSON.stringify(market.amm.oracleSource) ===
-				JSON.stringify(newOracleSource),
+			JSON.stringify(market.oracleSource) === JSON.stringify(newOracleSource),
 			`oracle source does not match \n actual: ${JSON.stringify(
-				market.amm.oracleSource
+				market.oracleSource
 			)} \n expected: ${JSON.stringify(newOracleSource)}`
 		);
 	});
@@ -302,12 +301,12 @@ describe('admin', () => {
 		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
 		assert(
-			market.amm.orderStepSize.eq(stepSize),
-			`step size does not match \n actual: ${market.amm.orderStepSize} \n expected: ${stepSize}`
+			market.orderStepSize.eq(stepSize),
+			`step size does not match \n actual: ${market.orderStepSize} \n expected: ${stepSize}`
 		);
 		assert(
-			market.amm.orderTickSize.eq(tickSize),
-			`tick size does not match \n actual: ${market.amm.orderTickSize} \n expected: ${tickSize}`
+			market.orderTickSize.eq(tickSize),
+			`tick size does not match \n actual: ${market.orderTickSize} \n expected: ${tickSize}`
 		);
 	});
 
@@ -425,17 +424,17 @@ describe('admin', () => {
 		await driftClient.fetchAccounts();
 
 		let perpMarket = driftClient.getPerpMarketAccount(0);
-		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+		assert(perpMarket.marketStats.mmOraclePrice.eq(oraclePrice));
 		const slot = (await bankrunContextWrapper.connection.getSlot()).toString();
-		expect(perpMarket.amm.mmOracleSlot.toNumber()).to.be.approximately(
+		expect(perpMarket.marketStats.mmOracleSlot.toNumber()).to.be.approximately(
 			+slot,
 			1
 		);
-		assert(perpMarket.amm.mmOracleSequenceId.eq(oracleTS));
+		assert(perpMarket.marketStats.mmOracleSequenceId.eq(oracleTS));
 
 		// Doesnt change if id doesnt increase
 		await driftClient.updateMmOracleNative(0, oraclePrice.addn(1), oracleTS);
-		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+		assert(perpMarket.marketStats.mmOraclePrice.eq(oraclePrice));
 
 		// Errors if we try and update it with price of zero
 		try {
@@ -465,15 +464,15 @@ describe('admin', () => {
 		);
 		await driftClient.fetchAccounts();
 		perpMarket = driftClient.getPerpMarketAccount(0);
-		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice.addn(2)));
-		assert(perpMarket.amm.mmOracleSequenceId.eq(oracleTS.addn(1)));
+		assert(perpMarket.marketStats.mmOraclePrice.eq(oraclePrice.addn(2)));
+		assert(perpMarket.marketStats.mmOracleSequenceId.eq(oracleTS.addn(1)));
 	});
 
 	it('mm oracle step cap rejects too large jump', async () => {
 		await driftClient.fetchAccounts();
 		const before = driftClient.getPerpMarketAccount(0);
-		const baselinePrice = before.amm.mmOraclePrice;
-		const baselineSeqId = before.amm.mmOracleSequenceId;
+		const baselinePrice = before.marketStats.mmOraclePrice;
+		const baselineSeqId = before.marketStats.mmOracleSequenceId;
 
 		// 5% jump from the last accepted price exceeds the 1% step cap.
 		const tooLargePrice = baselinePrice.muln(105).divn(100);
@@ -485,11 +484,11 @@ describe('admin', () => {
 
 		const after = driftClient.getPerpMarketAccount(0);
 		assert(
-			after.amm.mmOraclePrice.eq(baselinePrice),
+			after.marketStats.mmOraclePrice.eq(baselinePrice),
 			'mm oracle price should be unchanged after step-cap reject'
 		);
 		assert(
-			after.amm.mmOracleSequenceId.eq(baselineSeqId),
+			after.marketStats.mmOracleSequenceId.eq(baselineSeqId),
 			'mm oracle sequence id should be unchanged after step-cap reject'
 		);
 	});

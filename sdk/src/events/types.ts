@@ -11,7 +11,7 @@ import {
 	InsuranceFundRecord,
 	SpotInterestRecord,
 	InsuranceFundStakeRecord,
-	CurveRecord,
+	AmmCurveChanged,
 	SwapRecord,
 	SpotMarketVaultDepositRecord,
 	SignedMsgOrderRecord,
@@ -52,7 +52,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'InsuranceFundRecord',
 		'SpotInterestRecord',
 		'InsuranceFundStakeRecord',
-		'CurveRecord',
+		'AmmCurveChanged',
 		'SwapRecord',
 		'SpotMarketVaultDepositRecord',
 		'SignedMsgOrderRecord',
@@ -101,7 +101,7 @@ export type EventMap = {
 	InsuranceFundRecord: Event<InsuranceFundRecord>;
 	SpotInterestRecord: Event<SpotInterestRecord>;
 	InsuranceFundStakeRecord: Event<InsuranceFundStakeRecord>;
-	CurveRecord: Event<CurveRecord>;
+	AmmCurveChanged: Event<AmmCurveChanged>;
 	SwapRecord: Event<SwapRecord>;
 	SpotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
 	SignedMsgOrderRecord: Event<SignedMsgOrderRecord>;
@@ -127,7 +127,7 @@ export type VelocityEvent =
 	| Event<InsuranceFundRecord>
 	| Event<SpotInterestRecord>
 	| Event<InsuranceFundStakeRecord>
-	| Event<CurveRecord>
+	| Event<AmmCurveChanged>
 	| Event<SwapRecord>
 	| Event<SpotMarketVaultDepositRecord>
 	| Event<SignedMsgOrderRecord>

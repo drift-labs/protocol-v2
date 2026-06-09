@@ -254,11 +254,11 @@ export function getTriggerAuctionStartPrice(params: {
 	const { perpMarket, direction, oraclePrice, limitPrice } = params;
 
 	const twapMismatch =
-		perpMarket.amm.historicalOracleData.lastOraclePriceTwapTs
-			.sub(perpMarket.amm.lastMarkPriceTwapTs)
+		perpMarket.marketStats.historicalOracleData.lastOraclePriceTwapTs
+			.sub(perpMarket.marketStats.lastMarkPriceTwapTs)
 			.abs()
 			.gte(new BN(60)) ||
-		perpMarket.amm.volume24H.lte(new BN(100_000).mul(QUOTE_PRECISION));
+		perpMarket.marketStats.volume24H.lte(new BN(100_000).mul(QUOTE_PRECISION));
 
 	let baselineStartOffset: BN;
 
@@ -266,27 +266,31 @@ export function getTriggerAuctionStartPrice(params: {
 		const contractTierNumber = getPerpMarketTierNumber(perpMarket);
 		const priceDivisor = contractTierNumber <= 1 ? 500 : 100;
 		baselineStartOffset = isVariant(direction, 'long')
-			? perpMarket.amm.lastBidPriceTwap.divn(priceDivisor)
-			: perpMarket.amm.lastAskPriceTwap.divn(priceDivisor).neg();
+			? perpMarket.marketStats.lastBidPriceTwap.divn(priceDivisor)
+			: perpMarket.marketStats.lastAskPriceTwap.divn(priceDivisor).neg();
 	} else {
 		const markTwapSlow = isVariant(direction, 'long')
-			? perpMarket.amm.lastBidPriceTwap
-			: perpMarket.amm.lastAskPriceTwap;
+			? perpMarket.marketStats.lastBidPriceTwap
+			: perpMarket.marketStats.lastAskPriceTwap;
 
-		const markTwapFast = perpMarket.amm.lastMarkPriceTwap5Min;
+		const markTwapFast = perpMarket.marketStats.lastMarkPriceTwap5Min;
 		const oracleTwapSlow =
-			perpMarket.amm.historicalOracleData.lastOraclePriceTwap;
+			perpMarket.marketStats.historicalOracleData.lastOraclePriceTwap;
 		const oracleTwapFast =
-			perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min;
+			perpMarket.marketStats.historicalOracleData.lastOraclePriceTwap5Min;
 
 		const offsetSlow = markTwapSlow.sub(oracleTwapSlow);
 		const offsetFast = markTwapFast.sub(oracleTwapFast);
 
-		const fracOfLongSpreadInPrice = new BN(perpMarket.amm.longSpread)
+		// long_spread/short_spread were removed from AMM in the decoupling refactor.
+		// Fall back to half base_spread as the per-side spread approximation; the
+		// AMM no longer caches an exact per-side spread without oracle context.
+		const halfBaseSpread = new BN(Math.floor(perpMarket.amm.baseSpread / 2));
+		const fracOfLongSpreadInPrice = halfBaseSpread
 			.mul(markTwapSlow)
 			.div(PRICE_PRECISION.muln(10)); // divide by 10x for safety
 
-		const fracOfShortSpreadInPrice = new BN(perpMarket.amm.shortSpread)
+		const fracOfShortSpreadInPrice = halfBaseSpread
 			.mul(markTwapSlow)
 			.div(PRICE_PRECISION.muln(10)); // divide by 10x for safety
 

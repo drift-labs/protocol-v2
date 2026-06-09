@@ -4,6 +4,7 @@ import {
 	isVariant,
 	PerpMarketAccount,
 	AMM,
+	MarketStats,
 	Order,
 	PositionDirection,
 	MarketTypeStr,
@@ -251,11 +252,18 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 	const limitPrice = getLimitPrice(order, mmOraclePriceData, slot);
 	let baseAssetAmount;
 
-	const updatedAMM = calculateUpdatedAMM(market.amm, mmOraclePriceData);
+	const updatedAMM = calculateUpdatedAMM(
+		market.amm,
+		market.totalExchangeFee,
+		mmOraclePriceData
+	);
 	if (limitPrice !== undefined) {
 		baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 			order,
 			updatedAMM,
+			market.marketStats,
+			market.orderStepSize,
+			market.orderTickSize,
 			limitPrice,
 			mmOraclePriceData
 		);
@@ -265,6 +273,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 
 	const maxBaseAssetAmount = calculateMaxBaseAssetAmountFillable(
 		updatedAMM,
+		market.orderStepSize,
 		order.direction
 	);
 
@@ -274,15 +283,19 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	order: Order,
 	amm: AMM,
+	marketStats: MarketStats,
+	orderStepSize: BN,
+	orderTickSize: BN,
 	limitPrice: BN,
 	mmOraclePriceData: MMOraclePriceData
 ): BN {
 	const adjustedLimitPrice = isVariant(order.direction, 'long')
-		? limitPrice.sub(amm.orderTickSize)
-		: limitPrice.add(amm.orderTickSize);
+		? limitPrice.sub(orderTickSize)
+		: limitPrice.add(orderTickSize);
 
 	const [maxAmountToTrade, direction] = calculateMaxBaseAssetAmountToTrade(
 		amm,
+		marketStats,
 		adjustedLimitPrice,
 		order.direction,
 		mmOraclePriceData
@@ -290,7 +303,7 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 
 	const baseAssetAmount = standardizeBaseAssetAmount(
 		maxAmountToTrade,
-		amm.orderStepSize
+		orderStepSize
 	);
 
 	// Check that directions are the same
@@ -461,7 +474,7 @@ export function maxSizeForTargetLiabilityWeightBN(
 	}
 
 	// cap at max OI
-	const maxOpenInterest = market.amm.maxOpenInterest;
+	const maxOpenInterest = market.maxOpenInterest;
 	if (lo.gt(maxOpenInterest)) {
 		return maxOpenInterest;
 	}

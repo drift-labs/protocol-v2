@@ -58,16 +58,15 @@ async function updateFundingRateHelper(
 		// );
 		await driftClient.fetchAccounts();
 		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
-		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
-			ammAccountState0.oracle
+			marketData0.oracle
 		);
 
 		const priceSpread0 =
-			convertToNumber(ammAccountState0.lastMarkPriceTwap) -
+			convertToNumber(marketData0.marketStats.lastMarkPriceTwap) -
 			convertToNumber(
-				ammAccountState0.historicalOracleData.lastOraclePriceTwap
+				marketData0.marketStats.historicalOracleData.lastOraclePriceTwap
 			);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
@@ -75,23 +74,22 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc0:',
 			frontEndFundingCalc0,
 			'markTwap0:',
-			ammAccountState0.lastMarkPriceTwap.toNumber() /
+			marketData0.marketStats.lastMarkPriceTwap.toNumber() /
 				PRICE_PRECISION.toNumber(),
 			'oracleTwap0:',
-			ammAccountState0.historicalOracleData.lastOraclePriceTwap.toNumber() /
+			marketData0.marketStats.historicalOracleData.lastOraclePriceTwap.toNumber() /
 				PRICE_PRECISION.toNumber(),
 			'markTwap0:',
-			ammAccountState0.lastMarkPriceTwap.toNumber(),
+			marketData0.marketStats.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
 			oraclePx0.twap,
 			'priceSpread',
 			priceSpread0
 		);
 
-		const cumulativeFundingRateLongOld =
-			ammAccountState0.cumulativeFundingRateLong;
+		const cumulativeFundingRateLongOld = marketData0.cumulativeFundingRateLong;
 		const cumulativeFundingRateShortOld =
-			ammAccountState0.cumulativeFundingRateShort;
+			marketData0.cumulativeFundingRateShort;
 
 		const state = driftClient.getStateAccount();
 		assert(state.exchangeStatus === ExchangeStatus.ACTIVE);
@@ -105,56 +103,49 @@ async function updateFundingRateHelper(
 
 		await driftClient.fetchAccounts();
 		const marketData = driftClient.getPerpMarketAccount(marketIndex);
-		const ammAccountState = marketData.amm;
-		const peroidicity = marketData.amm.fundingPeriod;
+		const peroidicity = marketData.marketStats.fundingPeriod;
 
 		const lastFundingRate = convertToNumber(
-			ammAccountState.lastFundingRate,
+			marketData.lastFundingRate,
 			CONVERSION_SCALE
 		);
 
 		console.log('last funding rate:', lastFundingRate);
 		console.log(
 			'cumfunding rate long',
-			convertToNumber(
-				ammAccountState.cumulativeFundingRateLong,
-				CONVERSION_SCALE
-			),
+			convertToNumber(marketData.cumulativeFundingRateLong, CONVERSION_SCALE),
 			'cumfunding rate short',
-			convertToNumber(
-				ammAccountState.cumulativeFundingRateShort,
-				CONVERSION_SCALE
-			)
+			convertToNumber(marketData.cumulativeFundingRateShort, CONVERSION_SCALE)
 		);
 
-		const lastFundingLong = ammAccountState.cumulativeFundingRateLong
+		const lastFundingLong = marketData.cumulativeFundingRateLong
 			.sub(cumulativeFundingRateLongOld)
 			.abs();
-		const lastFundingShort = ammAccountState.cumulativeFundingRateShort
+		const lastFundingShort = marketData.cumulativeFundingRateShort
 			.sub(cumulativeFundingRateShortOld)
 			.abs();
 
-		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
+		assert(marketData.lastFundingRate.abs().gte(lastFundingLong.abs()));
 		console.log(
-			convertToNumber(ammAccountState.lastFundingRate.abs()) /
+			convertToNumber(marketData.lastFundingRate.abs()) /
 				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'>=',
 			convertToNumber(lastFundingShort.abs()) /
 				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
-		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
+		assert(marketData.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
 		const oraclePx = await getFeedData(
 			anchor.workspace.Pyth,
-			ammAccountState.oracle
+			marketData.oracle
 		);
 
 		await new Promise((r) => setTimeout(r, 1000)); // wait 1 second
 
 		const priceSpread =
-			ammAccountState.lastMarkPriceTwap.toNumber() /
+			marketData.marketStats.lastMarkPriceTwap.toNumber() /
 				PRICE_PRECISION.toNumber() -
-			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
+			marketData.marketStats.historicalOracleData.lastOraclePriceTwap.toNumber() /
 				PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
@@ -163,18 +154,21 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
+			marketData.marketStats.lastMarkPriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber(),
 			'oracleTwap:',
-			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
+			marketData.marketStats.historicalOracleData.lastOraclePriceTwap.toNumber() /
 				PRICE_PRECISION.toNumber(),
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber(),
+			marketData.marketStats.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
 			oraclePx.twap,
 			'priceSpread:',
 			priceSpread
 		);
-		const s = new Date(ammAccountState.lastMarkPriceTwapTs.toNumber() * 1000);
+		const s = new Date(
+			marketData.marketStats.lastMarkPriceTwapTs.toNumber() * 1000
+		);
 		const sdate = s.toLocaleDateString('en-US');
 		const stime = s.toLocaleTimeString('en-US');
 
@@ -330,7 +324,7 @@ async function cappedSymFundingScenario(
 	await updateFundingRateHelper(
 		driftClient,
 		marketIndex,
-		market.amm.oracle,
+		market.oracle,
 		priceAction.slice(1)
 	);
 
@@ -339,8 +333,8 @@ async function cappedSymFundingScenario(
 
 	const marketNew = driftClient.getPerpMarketAccount(marketIndex);
 
-	const fundingRateLong = marketNew.amm.cumulativeFundingRateLong; //.sub(prevFRL);
-	const fundingRateShort = marketNew.amm.cumulativeFundingRateShort; //.sub(prevFRS);
+	const fundingRateLong = marketNew.cumulativeFundingRateLong; //.sub(prevFRL);
+	const fundingRateShort = marketNew.cumulativeFundingRateShort; //.sub(prevFRS);
 
 	console.log(
 		'fundingRateLong',
@@ -356,19 +350,19 @@ async function cappedSymFundingScenario(
 	);
 	console.log(
 		'baseAssetAmountLong',
-		convertToNumber(marketNew.amm.baseAssetAmountLong, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.baseAssetAmountLong, AMM_RESERVE_PRECISION),
 		'baseAssetAmountShort',
-		convertToNumber(marketNew.amm.baseAssetAmountShort, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.baseAssetAmountShort, AMM_RESERVE_PRECISION),
 		'totalFee',
 		convertToNumber(marketNew.amm.totalFee, QUOTE_PRECISION),
 		'totalFeeMinusDistributions',
 		convertToNumber(marketNew.amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 	);
 
-	const fundingPnLForLongs = marketNew.amm.baseAssetAmountLong
+	const fundingPnLForLongs = marketNew.baseAssetAmountLong
 		.mul(fundingRateLong)
 		.mul(new BN(-1));
-	const fundingPnLForShorts = marketNew.amm.baseAssetAmountShort
+	const fundingPnLForShorts = marketNew.baseAssetAmountShort
 		.mul(fundingRateShort)
 		.mul(new BN(-1));
 
@@ -816,8 +810,8 @@ describe('capped funding', () => {
 		await driftClient.fetchAccounts();
 		const marketNew = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(
-			'marketNew.amm.historicalOracleData.lastOraclePriceTwap:',
-			marketNew.amm.historicalOracleData.lastOraclePriceTwap.toString()
+			'marketNew.marketStats.historicalOracleData.lastOraclePriceTwap:',
+			marketNew.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		const clampedFundingRatePct = new BN(
 			(0.03 * PRICE_PRECISION.toNumber()) / 24

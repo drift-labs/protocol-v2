@@ -147,7 +147,7 @@ pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
         market_index: spot_market_index,
         explanation: DepositExplanation::None,
         transfer_user: None,
-        user_token_amount_after: user.get_total_token_amount(&spot_market)?,
+        user_token_amount_after: user.get_total_token_amount(spot_market)?,
         signer: None,
     };
 
@@ -232,8 +232,8 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         if let Some(_user_stats) = user_stats {
             user.meets_transfer_isolated_position_deposit_margin_requirement(
-                &perp_market_map,
-                &spot_market_map,
+                perp_market_map,
+                spot_market_map,
                 oracle_map,
                 MarginTypeConfig::CrossMarginOverride {
                     margin_requirement_type: MarginRequirementType::Initial,
@@ -243,7 +243,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 perp_market_index,
             )?;
 
-            validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, oracle_map)?;
+            validate_spot_margin_trading(user, perp_market_map, spot_market_map, oracle_map)?;
 
             if user.is_cross_margin_being_liquidated() {
                 user.exit_cross_margin_liquidation();
@@ -295,8 +295,8 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         if let Some(_user_stats) = user_stats {
             user.meets_transfer_isolated_position_deposit_margin_requirement(
-                &perp_market_map,
-                &spot_market_map,
+                perp_market_map,
+                spot_market_map,
                 oracle_map,
                 MarginTypeConfig::IsolatedPositionOverride {
                     margin_requirement_type: MarginRequirementType::Initial,
@@ -311,11 +311,9 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             if user.is_isolated_margin_being_liquidated(perp_market_index)? {
                 user.exit_isolated_margin_liquidation(perp_market_index)?;
             }
-        } else {
-            if let Ok(_) = get_position_index(&user.perp_positions, perp_market_index) {
-                msg!("Cant transfer isolated position deposit without user stats if position is still open");
-                return Err(ErrorCode::DefaultError);
-            }
+        } else if get_position_index(&user.perp_positions, perp_market_index).is_ok() {
+            msg!("Cant transfer isolated position deposit without user stats if position is still open");
+            return Err(ErrorCode::DefaultError);
         }
     }
 
@@ -406,8 +404,8 @@ pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
     }
 
     user.meets_withdraw_margin_requirement(
-        &perp_market_map,
-        &spot_market_map,
+        perp_market_map,
+        spot_market_map,
         oracle_map,
         MarginRequirementType::Initial,
     )?;

@@ -3,7 +3,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+    OPEN_ORDER_MARGIN_REQUIREMENT, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
     SPOT_WEIGHT_PRECISION_I128, THIRTY_DAY,
 };
 use crate::math::margin::MarginRequirementType;
@@ -36,7 +36,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
     validate_any_isolated_tier_requirements,
 };
-use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarginTypeConfig};
+use crate::state::margin_calculation::{MarginContext, MarginTypeConfig};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market_map::SpotMarketMap;
@@ -347,7 +347,7 @@ impl User {
         for perp_position in self.perp_positions.iter() {
             if perp_position.is_isolated() {
                 perp_token_amount = perp_token_amount
-                    .safe_add(perp_position.get_isolated_token_amount(&spot_market)?)?;
+                    .safe_add(perp_position.get_isolated_token_amount(spot_market)?)?;
             }
         }
 
@@ -717,7 +717,7 @@ impl User {
             return Ok(false);
         }
 
-        return Ok(true);
+        Ok(true)
     }
 
     pub fn update_perp_position_max_margin_ratio(
@@ -765,12 +765,6 @@ pub struct UserFees {
     /// Total discount from being referred
     /// precision: QUOTE_PRECISION
     pub total_referee_discount: u64,
-    /// Total reward to referrer
-    /// precision: QUOTE_PRECISION
-    pub total_referrer_reward: u64,
-    /// Total reward to referrer this epoch
-    /// precision: QUOTE_PRECISION
-    pub current_epoch_referrer_reward: u64,
 }
 
 #[zero_copy(unsafe)]
@@ -1770,10 +1764,6 @@ pub struct UserStats {
     /// Stats on the fees paid by the user
     pub fees: UserFees,
 
-    /// The timestamp of the next epoch
-    /// Epoch is used to limit referrer rewards earned in single epoch
-    pub next_epoch_ts: i64,
-
     /// Rolling 30day maker volume for user
     /// precision: QUOTE_PRECISION
     pub maker_volume_30d: u64,
@@ -1809,7 +1799,7 @@ pub struct UserStats {
 
     /// Delegate permissions across all sub accounts
     pub delegate_permissions: u8,
-    pub padding: [u8; 39],
+    pub padding: [u8; 63],
 }
 
 impl Default for UserStats {
@@ -1818,7 +1808,6 @@ impl Default for UserStats {
             authority: Pubkey::default(),
             referrer: Pubkey::default(),
             fees: UserFees::default(),
-            next_epoch_ts: 0,
             maker_volume_30d: 0,
             taker_volume_30d: 0,
             filler_volume_30d: 0,
@@ -1833,7 +1822,7 @@ impl Default for UserStats {
             paused_operations: 0,
             if_staked_gov_token_amount: 0,
             delegate_permissions: 0,
-            padding: [0; 39],
+            padding: [0; 63],
         }
     }
 }
@@ -1944,28 +1933,6 @@ impl UserStats {
 
     pub fn increment_total_rebate(&mut self, fee: u64) -> DriftResult {
         self.fees.total_fee_rebate = self.fees.total_fee_rebate.safe_add(fee)?;
-
-        Ok(())
-    }
-
-    pub fn increment_total_referrer_reward(&mut self, reward: u64, now: i64) -> DriftResult {
-        self.fees.total_referrer_reward = self.fees.total_referrer_reward.safe_add(reward)?;
-
-        self.fees.current_epoch_referrer_reward =
-            self.fees.current_epoch_referrer_reward.safe_add(reward)?;
-
-        if now > self.next_epoch_ts {
-            let n_epoch_durations = now
-                .safe_sub(self.next_epoch_ts)?
-                .safe_div(EPOCH_DURATION)?
-                .safe_add(1)?;
-
-            self.next_epoch_ts = self
-                .next_epoch_ts
-                .safe_add(EPOCH_DURATION.safe_mul(n_epoch_durations)?)?;
-
-            self.fees.current_epoch_referrer_reward = 0;
-        }
 
         Ok(())
     }

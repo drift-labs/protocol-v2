@@ -22,7 +22,6 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
     revenue_share_map: &RevenueShareMap<'a>,
     now_ts: i64,
     builder_codes_feature_enabled: bool,
-    builder_referral_feature_enabled: bool,
 ) -> crate::error::DriftResult<()> {
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
@@ -87,52 +86,46 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
         }
 
         if is_referral_order {
-            if builder_referral_feature_enabled {
-                let referrer_authority =
-                    if let Some(referrer_authority) = revenue_share_escrow.get_referrer() {
-                        referrer_authority
-                    } else {
-                        continue;
-                    };
+            let referrer_authority =
+                if let Some(referrer_authority) = revenue_share_escrow.get_referrer() {
+                    referrer_authority
+                } else {
+                    continue;
+                };
 
-                let referrer_user = revenue_share_map.get_user_ref_mut(&referrer_authority);
-                let referrer_rev_share =
-                    revenue_share_map.get_revenue_share_account_mut(&referrer_authority);
+            let referrer_user = revenue_share_map.get_user_ref_mut(&referrer_authority);
+            let referrer_rev_share =
+                revenue_share_map.get_revenue_share_account_mut(&referrer_authority);
 
-                if referrer_user.is_ok() && referrer_rev_share.is_ok() {
-                    let mut referrer_user = referrer_user.unwrap();
-                    let mut referrer_rev_share = referrer_rev_share.unwrap();
+            if let (Ok(mut referrer_user), Ok(mut referrer_rev_share)) =
+                (referrer_user, referrer_rev_share)
+            {
+                spot_balance::transfer_spot_balances(
+                    fees_accrued as i128,
+                    quote_spot_market,
+                    &mut perp_market.pnl_pool,
+                    referrer_user.get_quote_spot_position_mut(),
+                )?;
 
-                    spot_balance::transfer_spot_balances(
-                        fees_accrued as i128,
-                        quote_spot_market,
-                        &mut perp_market.pnl_pool,
-                        referrer_user.get_quote_spot_position_mut(),
-                    )?;
+                referrer_rev_share.total_referrer_rewards = referrer_rev_share
+                    .total_referrer_rewards
+                    .safe_add(fees_accrued)?;
 
-                    referrer_rev_share.total_referrer_rewards = referrer_rev_share
-                        .total_referrer_rewards
-                        .safe_add(fees_accrued as u64)?;
+                emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(RevenueShareSettleRecord {
+                    ts: now_ts,
+                    builder: None,
+                    referrer: Some(referrer_authority),
+                    fee_settled: fees_accrued,
+                    market_index: order_market_index,
+                    market_type: order_market_type,
+                    builder_total_referrer_rewards: referrer_rev_share.total_referrer_rewards,
+                    builder_total_builder_rewards: referrer_rev_share.total_builder_rewards,
+                    builder_sub_account_id: referrer_user.sub_account_id,
+                })?;
 
-                    emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(
-                        RevenueShareSettleRecord {
-                            ts: now_ts,
-                            builder: None,
-                            referrer: Some(referrer_authority),
-                            fee_settled: fees_accrued as u64,
-                            market_index: order_market_index,
-                            market_type: order_market_type,
-                            builder_total_referrer_rewards: referrer_rev_share
-                                .total_referrer_rewards,
-                            builder_total_builder_rewards: referrer_rev_share.total_builder_rewards,
-                            builder_sub_account_id: referrer_user.sub_account_id,
-                        },
-                    )?;
-
-                    // zero out the order
-                    if let Ok(builder_order) = revenue_share_escrow.get_order_mut(i) {
-                        builder_order.fees_accrued = 0;
-                    }
+                // zero out the order
+                if let Ok(builder_order) = revenue_share_escrow.get_order_mut(i) {
+                    builder_order.fees_accrued = 0;
                 }
             }
         } else if builder_codes_feature_enabled {
@@ -151,10 +144,9 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
             let builder_rev_share =
                 revenue_share_map.get_revenue_share_account_mut(&builder_authority);
 
-            if builder_user.is_ok() && builder_rev_share.is_ok() {
-                let mut builder_user = builder_user.unwrap();
-                let mut builder_revenue_share = builder_rev_share.unwrap();
-
+            if let (Ok(mut builder_user), Ok(mut builder_revenue_share)) =
+                (builder_user, builder_rev_share)
+            {
                 spot_balance::transfer_spot_balances(
                     fees_accrued as i128,
                     quote_spot_market,
@@ -164,13 +156,13 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
 
                 builder_revenue_share.total_builder_rewards = builder_revenue_share
                     .total_builder_rewards
-                    .safe_add(fees_accrued as u64)?;
+                    .safe_add(fees_accrued)?;
 
                 emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(RevenueShareSettleRecord {
                     ts: now_ts,
                     builder: Some(builder_authority),
                     referrer: None,
-                    fee_settled: fees_accrued as u64,
+                    fee_settled: fees_accrued,
                     market_index: order_market_index,
                     market_type: order_market_type,
                     builder_total_referrer_rewards: builder_revenue_share.total_referrer_rewards,

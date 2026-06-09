@@ -95,8 +95,7 @@ pub fn calculate_filler_multiplier_for_matched_orders(
         PositionDirection::Long => (-price_pct_diff).safe_add(TEN_BPS_I64 * 2)?,
         PositionDirection::Short => price_pct_diff.safe_add(TEN_BPS_I64 * 2)?,
     }
-    .max(TEN_BPS_I64)
-    .min(TEN_BPS_I64 * 100);
+    .clamp(TEN_BPS_I64, TEN_BPS_I64 * 100);
 
     multiplier.cast()
 }

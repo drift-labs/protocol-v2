@@ -1,41 +1,40 @@
 mod amm {
-    use crate::state::perp_market::AMM;
-    use crate::{
-        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64,
-    };
+    use crate::state::perp_market::{MarketStats, AMM};
+    use crate::{AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64};
+
+    /// AMM with a non-trivial long_spread / short_spread so the premium /
+    /// discount helpers compute non-zero values. Spread of 100000 (1%) on a
+    /// $100 ask gives $1 of premium relative to oracle.
+    fn amm_with_10bps_spread() -> AMM {
+        AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            long_spread: 100000,
+            short_spread: 100000,
+            ..AMM::default()
+        }
+    }
 
     #[test]
     fn last_ask_premium() {
-        let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
-            ..AMM::default()
-        };
-        amm.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
+        let amm = amm_with_10bps_spread();
+        let mut market_stats = MarketStats::default();
+        market_stats.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
 
-        let premium = amm.last_ask_premium().unwrap();
+        let premium = amm.last_ask_premium(&market_stats).unwrap();
 
         assert_eq!(premium, 10000000); // $1
     }
 
     #[test]
     fn last_bid_discount() {
-        let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
-            ..AMM::default()
-        };
-        amm.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
+        let amm = amm_with_10bps_spread();
+        let mut market_stats = MarketStats::default();
+        market_stats.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
 
-        let discount = amm.last_bid_discount().unwrap();
+        let discount = amm.last_bid_discount(&market_stats).unwrap();
 
         assert_eq!(discount, 10000000); // $1
     }
@@ -77,26 +76,27 @@ mod get_margin_ratio {
 
 mod get_trigger_price {
     use crate::state::perp_market::HistoricalOracleData;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
 
     #[test]
     fn test_get_last_funding_basis() {
         let oracle_price = 109144736794;
         let last_funding_rate_ts = 1752080410;
-        let now = last_funding_rate_ts + 0;
+        let now = last_funding_rate_ts;
         let perp_market = PerpMarket {
-            amm: AMM {
-                last_funding_rate: 1410520875,
-                last_funding_rate_ts: 1752080410,
+            market_stats: MarketStats {
                 last_mark_price_twap: 109146153042,
-                last_funding_oracle_twap: 109198342833,
                 funding_period: 3600,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap_5min: 109143803911,
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
+            amm: AMM { ..AMM::default() },
+            last_funding_rate: 1410520875,
+            last_funding_rate_ts: 1752080410,
+            last_funding_oracle_twap: 109198342833,
             ..PerpMarket::default()
         };
 
@@ -133,18 +133,19 @@ mod get_trigger_price {
         let oracle_price = 109144736794;
         let now = 1752082210;
         let perp_market = PerpMarket {
-            amm: AMM {
-                last_funding_rate: 1410520875,
-                last_funding_rate_ts: 1752080410,
+            market_stats: MarketStats {
                 last_mark_price_twap: 109146153042,
-                last_funding_oracle_twap: 109198342833,
                 funding_period: 3600,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap_5min: 109143803911,
                     ..HistoricalOracleData::default()
                 },
-                ..AMM::default()
+                ..MarketStats::default()
             },
+            amm: AMM { ..AMM::default() },
+            last_funding_rate: 1410520875,
+            last_funding_rate_ts: 1752080410,
+            last_funding_oracle_twap: 109198342833,
             ..PerpMarket::default()
         };
 
@@ -261,7 +262,7 @@ mod amm_can_fill_order_tests {
     use crate::state::fill_mode::FillMode;
     use crate::state::oracle::{MMOraclePriceData, OraclePriceData};
     use crate::state::paused_operations::PerpOperation;
-    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::state::{State, ValidityGuardRails};
     use crate::state::user::{Order, OrderStatus, User, UserStats};
     use crate::PRICE_PRECISION_I64;
@@ -275,10 +276,12 @@ mod amm_can_fill_order_tests {
 
     fn base_market() -> PerpMarket {
         PerpMarket {
-            amm: AMM {
+            market_stats: MarketStats {
                 mm_oracle_price: PRICE_PRECISION_I64,
                 mm_oracle_slot: 0,
-                order_step_size: 1,
+                ..MarketStats::default()
+            },
+            amm: AMM {
                 amm_jit_intensity: 100,
                 ..AMM::default()
             },
@@ -448,7 +451,7 @@ mod amm_can_fill_order_tests {
 
         // valid oracle for immediate and user can skip, market can skip due to low inventory => can fill
         market.amm.base_asset_amount_with_amm = -2; // taker long improves balance
-        market.amm.order_step_size = 1;
+        market.order_step_size = 1;
         market.amm.base_asset_reserve = 1_000_000;
         market.amm.quote_asset_reserve = 1_000_000;
         market.amm.sqrt_k = 1_000_000;

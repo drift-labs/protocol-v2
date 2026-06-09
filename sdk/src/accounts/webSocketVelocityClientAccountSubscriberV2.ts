@@ -600,13 +600,13 @@ export class WebSocketVelocityClientAccountSubscriberV2
 			}
 			const perpMarketAccount = perpMarket.data;
 			const perpMarketIndex = perpMarketAccount.marketIndex;
-			const oracle = perpMarketAccount.amm.oracle;
-			const oracleId = getOracleId(oracle, perpMarket.data.amm.oracleSource);
+			const oracle = perpMarketAccount.oracle;
+			const oracleId = getOracleId(oracle, perpMarket.data.oracleSource);
 			if (!this.oracleSubscribers.has(oracleId)) {
 				addOraclePromises.push(
 					this.addOracle({
 						publicKey: oracle,
-						source: perpMarket.data.amm.oracleSource,
+						source: perpMarket.data.oracleSource,
 					})
 				);
 			}
@@ -720,7 +720,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 			return undefined;
 		}
 
-		if (!perpMarketAccount.data.amm.oracle.equals(oracle)) {
+		if (!perpMarketAccount.data.oracle.equals(oracle)) {
 			// If the oracle has changed, we need to update the oracle map in background
 			this.setPerpOracleMap();
 		}

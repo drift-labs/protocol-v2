@@ -735,7 +735,7 @@ describe('orders', () => {
 		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateReservePrice(market).sub(
-			market.amm.orderTickSize.mul(new BN(2))
+			market.orderTickSize.mul(new BN(2))
 		); // 0 liquidity at current mark price
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
@@ -906,7 +906,7 @@ describe('orders', () => {
 
 		const standardizedBaseAssetAmount = standardizeBaseAssetAmount(
 			baseAssetAmount,
-			driftClient.getPerpMarketAccount(marketIndex).amm.orderStepSize
+			driftClient.getPerpMarketAccount(marketIndex).orderStepSize
 		);
 		assert(
 			driftClientUser

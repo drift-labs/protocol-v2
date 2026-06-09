@@ -13,6 +13,12 @@ import {
 	Wallet,
 	PRICE_PRECISION,
 	ReferrerStatus,
+	RevenueShareAccount,
+	RevenueShareEscrowAccount,
+	RevenueShareEscrowMap,
+	getRevenueShareAccountPublicKey,
+	isBuilderOrderReferral,
+	ZERO,
 } from '../sdk/src';
 
 import {
@@ -25,7 +31,7 @@ import {
 } from './testHelpers';
 import {
 	BASE_PRECISION,
-	getMarketOrderParams,
+	getLimitOrderParams,
 	PEG_PRECISION,
 	PositionDirection,
 } from '../sdk/src';
@@ -48,6 +54,8 @@ describe('referrer', () => {
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let escrowMap: RevenueShareEscrowMap;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -130,6 +138,8 @@ describe('referrer', () => {
 		await referrerDriftClient.initialize(usdcMint.publicKey, true);
 		await referrerDriftClient.subscribe();
 		await referrerDriftClient.updatePerpAuctionDuration(0);
+		// Enable builder-codes so the RevenueShareEscrow referral path is active.
+		await referrerDriftClient.updateFeatureBitFlagsBuilderCodes(true);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -187,6 +197,8 @@ describe('referrer', () => {
 			oracleInfos,
 			bulkAccountLoader
 		);
+
+		escrowMap = new RevenueShareEscrowMap(refereeDriftClient, false);
 	});
 
 	after(async () => {
@@ -246,45 +258,173 @@ describe('referrer', () => {
 		assert((referrerStats.referrerStatus & ReferrerStatus.IsReferrer) > 0);
 	});
 
-	it('fill order', async () => {
-		const txSig = await refereeDriftClient.placeAndTakePerpOrder(
-			getMarketOrderParams({
+	it('referrer can initialize a RevenueShare account', async () => {
+		await referrerDriftClient.initializeRevenueShare(
+			referrerDriftClient.wallet.publicKey
+		);
+
+		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			getRevenueShareAccountPublicKey(
+				referrerDriftClient.program.programId,
+				referrerDriftClient.wallet.publicKey
+			)
+		);
+		assert(accountInfo !== null, 'RevenueShare account should exist');
+
+		const revShare: RevenueShareAccount =
+			referrerDriftClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'revenueShare',
+				accountInfo.data
+			);
+		assert(
+			revShare.authority.toBase58() ===
+				referrerDriftClient.wallet.publicKey.toBase58()
+		);
+		assert(revShare.totalReferrerRewards.toNumber() === 0);
+	});
+
+	it('referee can initialize a RevenueShareEscrow', async () => {
+		// The referee already has its referrer set on UserStats (from the
+		// 'initialize with referrer' test), so initializing the escrow stamps
+		// escrow.referrer with the referrer's authority.
+		await refereeDriftClient.initializeRevenueShareEscrow(
+			refereeDriftClient.wallet.publicKey,
+			3
+		);
+
+		await escrowMap.slowSync();
+		const escrow = (await escrowMap.mustGet(
+			refereeDriftClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
+		assert(
+			escrow.authority.toBase58() ===
+				refereeDriftClient.wallet.publicKey.toBase58()
+		);
+		assert(
+			escrow.referrer.toBase58() ===
+				referrerDriftClient.wallet.publicKey.toBase58(),
+			`escrow.referrer ${escrow.referrer.toBase58()} !== referrer ${referrerDriftClient.wallet.publicKey.toBase58()}`
+		);
+	});
+
+	it('fill order accrues a referral reward to the escrow and settles it', async () => {
+		const marketIndex = 0;
+
+		// Referee places a crossing limit long order, filled against the vAMM by
+		// the filler. Passing hasBuilderFee=true forces the SDK to attach the
+		// referee's RevenueShareEscrow as a remaining account so the on-chain
+		// referral reward can be routed into the escrow's Referral order slot.
+		const price = new BN(101).mul(PRICE_PRECISION);
+		await refereeDriftClient.placePerpOrder(
+			getLimitOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.LONG,
-				marketIndex: 0,
-			}),
+				marketIndex,
+				price,
+			})
+		);
+
+		await refereeDriftClient.fetchAccounts();
+		const order = refereeDriftClient.getUser().getOpenOrders()[0];
+
+		const txSig = await fillerDriftClient.fillPerpOrder(
+			await refereeDriftClient.getUserAccountPublicKey(),
+			refereeDriftClient.getUserAccount(),
+			{ marketIndex, orderId: order.orderId },
 			undefined,
-			refereeDriftClient.getUserStats().getReferrerInfo()
+			undefined,
+			undefined,
+			undefined,
+			true // hasBuilderFee -> attach RevenueShareEscrow remaining account
 		);
 
 		await eventSubscriber.awaitTx(txSig);
 
 		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
-		assert(eventRecord.takerFee.eq(new BN(95001)));
-		assert(eventRecord.referrerReward === 15000);
-
-		await referrerDriftClient.fetchAccounts();
-		const referrerStats = referrerDriftClient.getUserStats().getAccount();
-		assert(referrerStats.fees.totalReferrerReward.eq(new BN(15000)));
-
-		const referrerPosition = referrerDriftClient.getUser().getUserAccount()
-			.perpPositions[0];
-		assert(referrerPosition.quoteAssetAmount.eq(new BN(15000)));
+		assert(eventRecord.referrerReward > 0);
+		const referrerReward = new BN(eventRecord.referrerReward);
 
 		const refereeStats = refereeDriftClient.getUserStats().getAccount();
-		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));
+		assert(refereeStats.fees.totalRefereeDiscount.gt(ZERO));
 
-		const txSig2 = await refereeDriftClient.placeAndTakePerpOrder(
-			getMarketOrderParams({
-				baseAssetAmount: BASE_PRECISION,
-				direction: PositionDirection.SHORT,
-				marketIndex: 0,
-			}),
+		// The referral reward should now be sitting in a Referral-flagged order
+		// in the referee's escrow, waiting to be settled.
+		await escrowMap.slowSync();
+		let escrow = (await escrowMap.mustGet(
+			refereeDriftClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
+		const referralOrder = escrow.orders.find(
+			(o) => isBuilderOrderReferral(o) && o.marketIndex === marketIndex
+		);
+		assert(referralOrder !== undefined, 'expected a referral order in escrow');
+		assert(
+			referralOrder.feesAccrued.eq(referrerReward),
+			`referralOrder.feesAccrued ${referralOrder.feesAccrued.toString()} !== referrerReward ${referrerReward.toString()}`
+		);
+		assert(referralOrder.feesAccrued.gt(ZERO));
+
+		// Snapshot the referrer's RevenueShare before settle.
+		const revShareBeforeInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getRevenueShareAccountPublicKey(
+					referrerDriftClient.program.programId,
+					referrerDriftClient.wallet.publicKey
+				)
+			);
+		const revShareBefore: RevenueShareAccount =
+			referrerDriftClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'revenueShare',
+				revShareBeforeInfo.data
+			);
+
+		await bankrunContextWrapper.moveTimeForward(100);
+
+		// Settle the referee's pnl; the escrow map drives the SDK to include the
+		// referrer's User + RevenueShare accounts so the sweep can credit them.
+		await refereeDriftClient.fetchAccounts();
+		await referrerDriftClient.settlePNL(
+			await refereeDriftClient.getUserAccountPublicKey(),
+			refereeDriftClient.getUserAccount(),
+			marketIndex,
 			undefined,
-			refereeDriftClient.getUserStats().getReferrerInfo()
+			undefined,
+			escrowMap
 		);
 
-		bankrunContextWrapper.printTxLogs(txSig2);
+		// Referral slot in the escrow is reset after sweep.
+		await escrowMap.slowSync();
+		escrow = (await escrowMap.mustGet(
+			refereeDriftClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
+		const referralOrderAfter = escrow.orders.find(
+			(o) => isBuilderOrderReferral(o) && o.marketIndex === marketIndex
+		);
+		assert(referralOrderAfter !== undefined);
+		assert(
+			referralOrderAfter.feesAccrued.eq(ZERO),
+			`referralOrderAfter.feesAccrued ${referralOrderAfter.feesAccrued.toString()} !== 0`
+		);
+
+		// Referrer's RevenueShare.totalReferrerRewards increased by the reward.
+		const revShareAfterInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getRevenueShareAccountPublicKey(
+					referrerDriftClient.program.programId,
+					referrerDriftClient.wallet.publicKey
+				)
+			);
+		const revShareAfter: RevenueShareAccount =
+			referrerDriftClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'revenueShare',
+				revShareAfterInfo.data
+			);
+		const referrerRewardChange = revShareAfter.totalReferrerRewards.sub(
+			revShareBefore.totalReferrerRewards
+		);
+		assert(
+			referrerRewardChange.eq(referrerReward),
+			`referrerRewardChange ${referrerRewardChange.toString()} !== referrerReward ${referrerReward.toString()}`
+		);
 	});
 
 	it('withdraw', async () => {

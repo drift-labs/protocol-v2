@@ -264,7 +264,7 @@ describe('drift client', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			1.01,
-			marketData.amm.oracle,
+			marketData.oracle,
 			10000
 		);
 
@@ -411,7 +411,7 @@ describe('drift client', () => {
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			1.0,
-			marketData.amm.oracle,
+			marketData.oracle,
 			10000
 		);
 
