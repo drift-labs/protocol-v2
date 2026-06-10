@@ -24,9 +24,9 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { isVariant } from '../sdk';
 
 describe('cancel all orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -66,7 +66,7 @@ describe('cancel all orders', () => {
 
 		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -88,15 +88,15 @@ describe('cancel all orders', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			oracle,
 			ammInitialBaseAssetReserve,
@@ -104,19 +104,19 @@ describe('cancel all orders', () => {
 			periodicity
 		);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('cancel all orders', async () => {
 		for (let i = 0; i < 32; i++) {
-			await driftClient.placePerpOrder(
+			await velocityClient.placePerpOrder(
 				getLimitOrderParams({
 					baseAssetAmount: BASE_PRECISION,
 					marketIndex: 0,
@@ -126,12 +126,14 @@ describe('cancel all orders', () => {
 			);
 		}
 
-		await driftClient.cancelOrders(null, null, null);
+		await velocityClient.cancelOrders(null, null, null);
 
 		// await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
-			assert(!isVariant(driftClient.getUserAccount().orders[i].status, 'open'));
+			assert(
+				!isVariant(velocityClient.getUserAccount().orders[i].status, 'open')
+			);
 		}
 	});
 });

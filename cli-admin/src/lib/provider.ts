@@ -1,14 +1,14 @@
 import * as anchor from '@coral-xyz/anchor';
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { AdminClient, BulkAccountLoader, DriftEnv, initialize } from '@velocity-exchange/sdk';
+import { AdminClient, BulkAccountLoader, VelocityEnv, initialize } from '@velocity-exchange/sdk';
 import * as fs from 'fs';
 import * as os from 'os';
 
 export type GlobalOpts = {
 	url: string;
 	keypair: string;
-	env: DriftEnv;
+	env: VelocityEnv;
 	multisig?: string;
 };
 
@@ -44,7 +44,7 @@ export async function buildAdminClient(
 ): Promise<AdminClient> {
 	const provider = buildProvider(opts);
 	const sdkConfig = initialize({ env: opts.env });
-	const programId = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
+	const programId = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
 
 	const client = new AdminClient({
 		connection: provider.connection,

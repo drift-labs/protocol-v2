@@ -1,5 +1,5 @@
 /**
- * Margin calculation helpers — TypeScript mirror of `programs/drift/src/math/margin.rs`.
+ * Margin calculation helpers — TypeScript mirror of `programs/velocity/src/math/margin.rs`.
  * Computes initial/maintenance margin requirements, free collateral, and account health.
  * Used by {@link User} for leverage queries and by keeper bots for liquidation eligibility checks.
  */
@@ -220,17 +220,17 @@ export function calculatePerpLiabilityValue(
  * @returns
  */
 export function calculateMarginUSDCRequiredForTrade(
-	driftClient: VelocityClient,
+	velocityClient: VelocityClient,
 	targetMarketIndex: number,
 	baseSize: BN,
 	userMaxMarginRatio?: number,
 	entryPrice?: BN
 ): BN {
-	const targetMarket = driftClient.getPerpMarketAccount(targetMarketIndex);
+	const targetMarket = velocityClient.getPerpMarketAccount(targetMarketIndex);
 
 	const price =
 		entryPrice ??
-		driftClient.getOracleDataForPerpMarket(targetMarket.marketIndex).price;
+		velocityClient.getOracleDataForPerpMarket(targetMarket.marketIndex).price;
 
 	const perpLiabilityValue = calculatePerpLiabilityValue(baseSize, price);
 
@@ -254,7 +254,7 @@ export function calculateMarginUSDCRequiredForTrade(
  * Returns collateral required in the precision of the target collateral market.
  */
 export function calculateCollateralDepositRequiredForTrade(
-	driftClient: VelocityClient,
+	velocityClient: VelocityClient,
 	targetMarketIndex: number,
 	baseSize: BN,
 	collateralIndex: number,
@@ -262,17 +262,17 @@ export function calculateCollateralDepositRequiredForTrade(
 	estEntryPrice?: BN
 ): BN {
 	const marginRequiredUsdc = calculateMarginUSDCRequiredForTrade(
-		driftClient,
+		velocityClient,
 		targetMarketIndex,
 		baseSize,
 		userMaxMarginRatio,
 		estEntryPrice
 	);
 
-	const collateralMarket = driftClient.getSpotMarketAccount(collateralIndex);
+	const collateralMarket = velocityClient.getSpotMarketAccount(collateralIndex);
 
 	const collateralOracleData =
-		driftClient.getOracleDataForSpotMarket(collateralIndex);
+		velocityClient.getOracleDataForSpotMarket(collateralIndex);
 
 	const scaledAssetWeight = calculateScaledInitialAssetWeight(
 		collateralMarket,
@@ -280,7 +280,7 @@ export function calculateCollateralDepositRequiredForTrade(
 	);
 
 	// Base amount required to deposit = (marginRequiredUsdc / priceOfAsset) / assetWeight .. (E.g. $100 required / $10000 price / 0.5 weight)
-	const baseAmountRequired = driftClient
+	const baseAmountRequired = velocityClient
 		.convertToSpotPrecision(collateralIndex, marginRequiredUsdc)
 		.mul(PRICE_PRECISION) // adjust for division by oracle price
 		.mul(SPOT_MARKET_WEIGHT_PRECISION) // adjust for division by scaled asset weight
@@ -294,14 +294,14 @@ export function calculateCollateralDepositRequiredForTrade(
 }
 
 export function calculateCollateralValueOfDeposit(
-	driftClient: VelocityClient,
+	velocityClient: VelocityClient,
 	collateralIndex: number,
 	baseSize: BN
 ): BN {
-	const collateralMarket = driftClient.getSpotMarketAccount(collateralIndex);
+	const collateralMarket = velocityClient.getSpotMarketAccount(collateralIndex);
 
 	const collateralOracleData =
-		driftClient.getOracleDataForSpotMarket(collateralIndex);
+		velocityClient.getOracleDataForSpotMarket(collateralIndex);
 
 	const scaledAssetWeight = calculateScaledInitialAssetWeight(
 		collateralMarket,
@@ -341,20 +341,20 @@ export function calculateLiquidationPrice(
 }
 
 export function calculateUserMaxPerpOrderSize(
-	driftClient: VelocityClient,
+	velocityClient: VelocityClient,
 	userAccountKey: PublicKey,
 	userAccount: UserAccount,
 	targetMarketIndex: number,
 	tradeSide: PositionDirection
 ): { tradeSize: BN; oppositeSideTradeSize: BN } {
 	const userAccountSubscriber = new OneShotUserAccountSubscriber(
-		driftClient.program,
+		velocityClient.program,
 		userAccountKey,
 		userAccount
 	);
 
 	const user = new User({
-		driftClient,
+		velocityClient,
 		userAccountPublicKey: userAccountKey,
 		accountSubscription: {
 			type: 'custom',

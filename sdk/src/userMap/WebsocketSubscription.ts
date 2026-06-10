@@ -54,7 +54,7 @@ export class WebsocketSubscription {
 			this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
 				'UserMap',
 				'user',
-				this.userMap.driftClient.program,
+				this.userMap.velocityClient.program,
 				this.decodeFn,
 				{
 					filters,

@@ -14,7 +14,7 @@
 # env:
 #   CARGO_TERM_COLOR: always
 #   SOLANA_VERSION: "1.9.5"
-#   PROGRAM_PATH: "programs/drift/"
+#   PROGRAM_PATH: "programs/velocity/"
 #   RUST_TOOLCHAIN: nightly-2022-02-07
 
 # jobs:

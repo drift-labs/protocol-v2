@@ -38,9 +38,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate spot', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -50,8 +50,8 @@ describe('liquidate spot', () => {
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorDriftClient: TestClient;
-	let liquidatorDriftClientWSOLAccount: PublicKey;
+	let liquidatorVelocityClient: TestClient;
+	let liquidatorVelocityClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -98,7 +98,7 @@ describe('liquidate spot', () => {
 			10000
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -121,75 +121,78 @@ describe('liquidate spot', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.updateInitialPctToLiquidate(
+		await velocityClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
 
-		const oracleGuardrails = await driftClient.getStateAccount()
+		const oracleGuardrails = await velocityClient.getStateAccount()
 			.oracleGuardRails;
 		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			100
 		).mul(PERCENTAGE_PRECISION);
-		await driftClient.updateOracleGuardRails(oracleGuardrails);
+		await velocityClient.updateOracleGuardRails(oracleGuardrails);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
 		const solAmount = new BN(1 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway] =
-			await createUserWithUSDCAndWSOLAccount(
-				bankrunContextWrapper,
-				usdcMint,
-				chProgram,
-				solAmount,
-				usdcAmount,
-				[],
-				[0, 1],
-				[
-					{
-						publicKey: solOracle,
-						source: OracleSource.PYTH_LAZER,
-					},
-				],
-				bulkAccountLoader
-			);
+		[
+			liquidatorVelocityClient,
+			liquidatorVelocityClientWSOLAccount,
+			_throwaway,
+		] = await createUserWithUSDCAndWSOLAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			solAmount,
+			usdcAmount,
+			[],
+			[0, 1],
+			[
+				{
+					publicKey: solOracle,
+					source: OracleSource.PYTH_LAZER,
+				},
+			],
+			bulkAccountLoader
+		);
 
 		const marketIndex = 1;
 
-		await liquidatorDriftClient.deposit(
+		await liquidatorVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			liquidatorDriftClientWSOLAccount
+			liquidatorVelocityClientWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
+		await velocityClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await liquidatorDriftClient.unsubscribe();
+		await velocityClient.unsubscribe();
+		await liquidatorVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		const user = new User({
-			driftClient: driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			velocityClient: velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
 		await user.subscribe();
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		const healthBefore100 = user.getHealth();
 		console.log('healthBefore100:', healthBefore100);
 		assert(healthBefore100 == 45);
@@ -204,7 +207,7 @@ describe('liquidate spot', () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 179, solOracle, 10000);
 		await sleep(1000);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		await user.fetchAccounts();
 		const healthBefore179 = user.getHealth();
 		console.log('healthBefore179:', healthBefore179);
@@ -232,7 +235,7 @@ describe('liquidate spot', () => {
 		);
 		await sleep(1000);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		await user.fetchAccounts();
 
 		mtc = user.getTotalCollateral('Maintenance');
@@ -257,9 +260,9 @@ describe('liquidate spot', () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 190, solOracle, 10000);
 		await sleep(1000);
 
-		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
-		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
-		await driftClient.fetchAccounts();
+		const spotMarketBefore = velocityClient.getSpotMarketAccount(0);
+		const spotMarket1Before = velocityClient.getSpotMarketAccount(1);
+		await velocityClient.fetchAccounts();
 		await user.fetchAccounts();
 
 		const healthAfter = user.getHealth();
@@ -267,9 +270,9 @@ describe('liquidate spot', () => {
 		assert(healthAfter == 0);
 		await user.unsubscribe();
 
-		const txSig = await liquidatorDriftClient.liquidateSpot(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		const txSig = await liquidatorVelocityClient.liquidateSpot(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			0,
 			1,
 			new BN(6 * 10 ** 8)
@@ -280,30 +283,30 @@ describe('liquidate spot', () => {
 		console.log('compute units', computeUnits);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		// assert(!driftClient.getUserAccount().isBeingLiquidated); // out of liq territory
-		assert(driftClient.getUserAccount().status === 0);
+		// assert(!velocityClient.getUserAccount().isBeingLiquidated); // out of liq territory
+		assert(velocityClient.getUserAccount().status === 0);
 
-		assert(driftClient.getUserAccount().nextLiquidationId === 2);
+		assert(velocityClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			isVariant(
-				driftClient.getUserAccount().spotPositions[0].balanceType,
+				velocityClient.getUserAccount().spotPositions[0].balanceType,
 				'deposit'
 			)
 		);
 		assert(
-			driftClient.getUserAccount().spotPositions[0].scaledBalance.gt(ZERO)
+			velocityClient.getUserAccount().spotPositions[0].scaledBalance.gt(ZERO)
 		);
 		// assert(
-		// 	driftClient.getUserAccount().spotPositions[1].scaledBalance.gt(new BN(2))
+		// 	velocityClient.getUserAccount().spotPositions[1].scaledBalance.gt(new BN(2))
 		// );
 		// assert(
 		// 	isVariant(
-		// 		driftClient.getUserAccount().spotPositions[0].balanceType,
+		// 		velocityClient.getUserAccount().spotPositions[0].balanceType,
 		// 		'borrow'
 		// 	)
 		// );
 		console.log(
-			driftClient.getUserAccount().spotPositions[0].scaledBalance.toString()
+			velocityClient.getUserAccount().spotPositions[0].scaledBalance.toString()
 		);
 
 		const liquidationRecord =
@@ -333,9 +336,9 @@ describe('liquidate spot', () => {
 		// if fee costs 1/100th of liability transfer
 		assert(liquidationRecord.liquidateSpot.ifFee.eq(new BN(0)));
 
-		await driftClient.fetchAccounts();
-		const spotMarket = driftClient.getSpotMarketAccount(0);
-		const spotMarket1 = driftClient.getSpotMarketAccount(1);
+		await velocityClient.fetchAccounts();
+		const spotMarket = velocityClient.getSpotMarketAccount(0);
+		const spotMarket1 = velocityClient.getSpotMarketAccount(1);
 
 		console.log(
 			'usdc borrows in spotMarket:',

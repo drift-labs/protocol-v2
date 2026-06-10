@@ -37,10 +37,10 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('stop limit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
-	let driftClientUser: User;
+	let velocityClient: TestClient;
+	let velocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -67,7 +67,7 @@ describe('stop limit', () => {
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
-	let fillerDriftClient: TestClient;
+	let fillerVelocityClient: TestClient;
 	let fillerUser: User;
 
 	const marketIndex = 0;
@@ -127,7 +127,7 @@ describe('stop limit', () => {
 			},
 		];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -144,23 +144,23 @@ describe('stop limit', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			1,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
@@ -168,29 +168,29 @@ describe('stop limit', () => {
 			periodicity,
 			new BN(60000000) // btc-ish price level
 		);
-		await driftClient.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
 
 		[, userAccountPublicKey] =
-			await driftClient.initializeUserAccountAndDepositCollateral(
+			await velocityClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 
-		driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const discountMintKeypair = await mockUSDCMint(bankrunContextWrapper);
 
 		discountMint = discountMintKeypair.publicKey;
 
-		await driftClient.updateDiscountMint(discountMint);
+		await velocityClient.updateDiscountMint(discountMint);
 
 		const discountMintAta = getAssociatedTokenAddressSync(
 			discountMint,
@@ -219,7 +219,7 @@ describe('stop limit', () => {
 			bankrunContextWrapper,
 			fillerKeyPair.publicKey
 		);
-		fillerDriftClient = new TestClient({
+		fillerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,
@@ -236,16 +236,17 @@ describe('stop limit', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.subscribe();
+		await fillerVelocityClient.subscribe();
 
-		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
+		await fillerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			fillerUSDCAccount.publicKey
 		);
 
 		fillerUser = new User({
-			driftClient: fillerDriftClient,
-			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+			velocityClient: fillerVelocityClient,
+			userAccountPublicKey:
+				await fillerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -255,10 +256,10 @@ describe('stop limit', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 		await fillerUser.unsubscribe();
-		await fillerDriftClient.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -267,11 +268,11 @@ describe('stop limit', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = PRICE_PRECISION;
 		const limitPrice = PRICE_PRECISION.sub(
-			driftClient.getPerpMarketAccount(marketIndex).orderTickSize
+			velocityClient.getPerpMarketAccount(marketIndex).orderTickSize
 		);
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
-		await driftClient.placeAndTakePerpOrder(
+		await velocityClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -288,38 +289,38 @@ describe('stop limit', () => {
 			triggerCondition,
 		});
 
-		await driftClient.placePerpOrder(orderParams);
+		await velocityClient.placePerpOrder(orderParams);
 		const orderId = 2;
 		const orderIndex = new BN(0);
-		await driftClientUser.fetchAccounts();
-		let order = driftClientUser.getOrder(orderId);
+		await velocityClientUser.fetchAccounts();
+		let order = velocityClientUser.getOrder(orderId);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1.01, solUsd, 10000);
-		await driftClient.moveAmmToPrice(
+		await velocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(1.01 * PRICE_PRECISION.toNumber())
 		);
-		await driftClient.triggerOrder(
+		await velocityClient.triggerOrder(
 			userAccountPublicKey,
-			driftClientUser.getUserAccount(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await fillerDriftClient.fillPerpOrder(
+		await fillerVelocityClient.fillPerpOrder(
 			userAccountPublicKey,
-			driftClientUser.getUserAccount(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
+		order = velocityClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(isVariant(order.status, 'filled'));
 
-		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
+		const firstPosition = velocityClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -340,7 +341,9 @@ describe('stop limit', () => {
 		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(
-			orderRecord.taker.equals(await driftClientUser.getUserAccountPublicKey())
+			orderRecord.taker.equals(
+				await velocityClientUser.getUserAccountPublicKey()
+			)
 		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())
@@ -353,11 +356,11 @@ describe('stop limit', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const triggerPrice = PRICE_PRECISION;
 		const limitPrice = PRICE_PRECISION.add(
-			driftClient.getPerpMarketAccount(marketIndex).orderTickSize
+			velocityClient.getPerpMarketAccount(marketIndex).orderTickSize
 		);
 		const triggerCondition = OrderTriggerCondition.BELOW;
 
-		await driftClient.placeAndTakePerpOrder(
+		await velocityClient.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.SHORT,
@@ -374,38 +377,38 @@ describe('stop limit', () => {
 			triggerCondition,
 		});
 
-		await driftClient.placePerpOrder(orderParams);
+		await velocityClient.placePerpOrder(orderParams);
 		const orderId = 4;
 		const orderIndex = new BN(0);
-		driftClientUser.getUserAccount();
-		let order = driftClientUser.getOrder(orderId);
+		velocityClientUser.getUserAccount();
+		let order = velocityClientUser.getOrder(orderId);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.99, solUsd, 10000);
-		await driftClient.moveAmmToPrice(
+		await velocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(0.99 * PRICE_PRECISION.toNumber())
 		);
-		await driftClient.triggerOrder(
+		await velocityClient.triggerOrder(
 			userAccountPublicKey,
-			driftClientUser.getUserAccount(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await fillerDriftClient.fillPerpOrder(
+		await fillerVelocityClient.fillPerpOrder(
 			userAccountPublicKey,
-			driftClientUser.getUserAccount(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
+		order = velocityClientUser.getUserAccount().orders[orderIndex.toString()];
 
 		assert(isVariant(order.status, 'filled'));
 
-		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
+		const firstPosition = velocityClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -421,7 +424,9 @@ describe('stop limit', () => {
 		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(
-			orderRecord.taker.equals(await driftClientUser.getUserAccountPublicKey())
+			orderRecord.taker.equals(
+				await velocityClientUser.getUserAccountPublicKey()
+			)
 		);
 		assert(
 			orderRecord.filler.equals(await fillerUser.getUserAccountPublicKey())

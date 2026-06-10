@@ -1,7 +1,6 @@
 import { Commitment, Connection, MemcmpFilter } from '@solana/web3.js';
 import { VelocityClient } from '../velocityClient';
 import { GrpcConfigs } from '../accounts/types';
-import { AtLeastOne } from '../util/deprecatedAlias';
 
 // passed into UserMap.getUniqueAuthorities to filter users
 export type UserAccountFilterCriteria = {
@@ -65,5 +64,6 @@ type UserMapConfigBase = {
 	additionalFilters?: MemcmpFilter[];
 };
 
-export type UserMapConfig = UserMapConfigBase &
-	AtLeastOne<'velocityClient', 'driftClient', VelocityClient>;
+export type UserMapConfig = UserMapConfigBase & {
+	velocityClient: VelocityClient;
+};

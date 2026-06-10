@@ -753,10 +753,3 @@ export class grpcVelocityClientAccountSubscriberV2
 		this.spotOracleStringMap.clear();
 	}
 }
-
-/** @deprecated Use `grpcVelocityClientAccountSubscriberV2` instead. `grpcDriftClientAccountSubscriberV2` will be removed in a future major. */
-export const grpcDriftClientAccountSubscriberV2 =
-	grpcVelocityClientAccountSubscriberV2;
-/** @deprecated Use `grpcVelocityClientAccountSubscriberV2` instead. `grpcDriftClientAccountSubscriberV2` will be removed in a future major. */
-export type grpcDriftClientAccountSubscriberV2 =
-	grpcVelocityClientAccountSubscriberV2;

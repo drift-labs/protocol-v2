@@ -1,13 +1,13 @@
 services:
-  drift:
-    image: drift-dev
+  velocity:
+    image: velocity-dev
     volumes:
       - ../:/workdir
-      - drift-target:/workdir/target
+      - velocity-target:/workdir/target
     environment:
       - ANCHOR_WALLET=/root/.config/solana/id.json
       - RUST_LOG=solana_runtime::message_processor::stable_log=debug
     command: tail -f /dev/null
 
 volumes:
-  drift-target:
+  velocity-target:

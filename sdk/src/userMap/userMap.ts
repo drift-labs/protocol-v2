@@ -78,10 +78,6 @@ export interface UserMapInterface {
 export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, DataAndSlot<User>>();
 	velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	public get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	private connection: Connection;
 	private commitment: Commitment;
@@ -114,7 +110,7 @@ export class UserMap implements UserMapInterface {
 	 */
 	constructor(config: UserMapConfig) {
 		// Type-system guarantees at least one of the two is supplied.
-		this.velocityClient = (config.velocityClient ?? config.driftClient)!;
+		this.velocityClient = config.velocityClient!;
 		if (config.connection) {
 			this.connection = config.connection;
 		} else {
@@ -420,7 +416,7 @@ export class UserMap implements UserMapInterface {
 
 	/**
 	 * Syncs the UserMap using the default sync method (single getProgramAccounts call with filters).
-	 * This method may fail when drift has too many users. (nodejs response size limits)
+	 * This method may fail when velocity has too many users. (nodejs response size limits)
 	 * @returns
 	 */
 	private async defaultSync() {
@@ -517,7 +513,7 @@ export class UserMap implements UserMapInterface {
 
 	/**
 	 * Syncs the UserMap using the paginated sync method (multiple getMultipleAccounts calls with filters).
-	 * This method is more reliable when drift has many users.
+	 * This method is more reliable when velocity has many users.
 	 * @returns
 	 */
 	private async paginatedSync() {

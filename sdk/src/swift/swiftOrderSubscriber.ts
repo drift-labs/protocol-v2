@@ -4,7 +4,6 @@ import {
 } from '../constants/perpMarkets';
 import { VelocityClient } from '../velocityClient';
 import { VelocityEnv } from '../config';
-import { AtLeastOne } from '../util/deprecatedAlias';
 import {
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
@@ -33,16 +32,16 @@ type SwiftOrderSubscriberConfigBase = {
 	endpoint?: string;
 	marketIndexes: number[];
 	/**
-		In the future, this will be used for verifying $DRIFT stake as we add
+		In the future, this will be used for verifying $VELOCITY stake as we add
 		authentication for delegate signers
 		For now, pass a new keypair or a keypair to an empty wallet
 	*/
 	keypair: Keypair;
 };
 
-export type SwiftOrderSubscriberConfig = SwiftOrderSubscriberConfigBase &
-	AtLeastOne<'velocityEnv', 'driftEnv', VelocityEnv> &
-	AtLeastOne<'velocityClient', 'driftClient', VelocityClient>;
+export type SwiftOrderSubscriberConfig = SwiftOrderSubscriberConfigBase & {
+	velocityEnv: VelocityEnv;
+} & { velocityClient: VelocityClient };
 
 /**
  * Swift order message received from WebSocket
@@ -74,10 +73,6 @@ export class SwiftOrderSubscriber {
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	private get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
 	public onOrder: (
 		orderMessageRaw: SwiftOrderMessage,
@@ -91,7 +86,7 @@ export class SwiftOrderSubscriber {
 
 	constructor(private config: SwiftOrderSubscriberConfig) {
 		// Type-system guarantees at least one of the two is supplied.
-		this.velocityClient = (config.velocityClient ?? config.driftClient)!;
+		this.velocityClient = config.velocityClient!;
 		this.userAccountGetter = config.userAccountGetter;
 	}
 
@@ -105,7 +100,7 @@ export class SwiftOrderSubscriber {
 	}
 
 	getSymbolForMarketIndex(marketIndex: number): string {
-		const env = this.config.velocityEnv ?? this.config.driftEnv;
+		const env = this.config.velocityEnv;
 		const markets = env === 'devnet' ? DevnetPerpMarkets : MainnetPerpMarkets;
 		return markets[marketIndex].symbol;
 	}
@@ -162,7 +157,7 @@ export class SwiftOrderSubscriber {
 	): Promise<void> {
 		this.onOrder = onOrder;
 
-		const env = this.config.velocityEnv ?? this.config.driftEnv;
+		const env = this.config.velocityEnv;
 		const endpoint =
 			this.config.endpoint ??
 			(env === 'devnet'

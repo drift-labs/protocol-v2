@@ -30,7 +30,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('surge pricing', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -161,7 +161,7 @@ describe('surge pricing', () => {
 	it('Create users', async () => {
 		for (let i = 0; i < 5; i++) {
 			const expectedFee = calculateInitUserFee(admin.getStateAccount());
-			const [driftClient, _, keyPair] = await createUserWithUSDCAccount(
+			const [velocityClient, _, keyPair] = await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
@@ -173,7 +173,7 @@ describe('surge pricing', () => {
 			);
 
 			const userAccount = await getUserAccountPublicKey(
-				driftClient.program.programId,
+				velocityClient.program.programId,
 				keyPair.publicKey,
 				0
 			);
@@ -192,7 +192,7 @@ describe('surge pricing', () => {
 
 			if (i === 4) {
 				await admin.updateStateMaxNumberOfSubAccounts(0);
-				await driftClient.reclaimRent(0);
+				await velocityClient.reclaimRent(0);
 				const accountInfoAfterReclaim =
 					await bankrunContextWrapper.connection.getAccountInfo(userAccount);
 				console.log(
@@ -201,7 +201,7 @@ describe('surge pricing', () => {
 				);
 				assert(accountInfoAfterReclaim.lamports === baseLamports);
 			}
-			await driftClient.unsubscribe();
+			await velocityClient.unsubscribe();
 		}
 	});
 });

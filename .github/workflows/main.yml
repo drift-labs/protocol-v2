@@ -54,7 +54,7 @@ jobs:
       - name: Cargo fmt
         run: cargo fmt -- --check
       - name: Cargo clippy
-        run: cargo clippy -p drift
+        run: cargo clippy -p velocity
   unit-tests:
     name: Unit tests
     runs-on: ubicloud
@@ -239,7 +239,7 @@ jobs:
         with:
           filters: |
             program:
-              - 'programs/drift/Cargo.toml'
+              - 'programs/velocity/Cargo.toml'
   verified-build:
     name: Build Verifiable Artifact
     runs-on: ubicloud
@@ -259,10 +259,10 @@ jobs:
 
       - name: Verifiable Build
         run: |
-          solana-verify build --library-name drift -b ${{ env.VERIFIABLE_BUILD_IMAGE }}
+          solana-verify build --library-name velocity -b ${{ env.VERIFIABLE_BUILD_IMAGE }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: build
-          path: target/deploy/drift.so
+          path: target/deploy/velocity.so

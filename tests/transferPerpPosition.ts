@@ -24,8 +24,8 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
-function getOpenInterest(driftClient: TestClient, marketIndex: number) {
-	const perpMarket = driftClient.getPerpMarketAccount(marketIndex);
+function getOpenInterest(velocityClient: TestClient, marketIndex: number) {
+	const perpMarket = velocityClient.getPerpMarketAccount(marketIndex);
 	return BN.max(
 		perpMarket.baseAssetAmountLong,
 		perpMarket.baseAssetAmountShort.abs()
@@ -33,13 +33,13 @@ function getOpenInterest(driftClient: TestClient, marketIndex: number) {
 }
 
 describe('trigger orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -89,7 +89,7 @@ describe('trigger orders', () => {
 			},
 		];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -106,10 +106,10 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
@@ -124,11 +124,11 @@ describe('trigger orders', () => {
 			},
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -136,12 +136,12 @@ describe('trigger orders', () => {
 			periodicity
 		);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey,
 			0,
@@ -150,7 +150,7 @@ describe('trigger orders', () => {
 	});
 
 	beforeEach(async () => {
-		await driftClient.moveAmmPrice(
+		await velocityClient.moveAmmPrice(
 			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
@@ -159,7 +159,7 @@ describe('trigger orders', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('transfer long position', async () => {
@@ -170,10 +170,10 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		try {
-			await driftClient.transferPerpPosition(
+			await velocityClient.transferPerpPosition(
 				1,
 				0,
 				marketIndex,
@@ -184,14 +184,19 @@ describe('trigger orders', () => {
 			// should throw error
 		}
 
-		const oiBefore = getOpenInterest(driftClient, marketIndex);
+		const oiBefore = getOpenInterest(velocityClient, marketIndex);
 
-		await driftClient.transferPerpPosition(0, 1, marketIndex, baseAssetAmount);
+		await velocityClient.transferPerpPosition(
+			0,
+			1,
+			marketIndex,
+			baseAssetAmount
+		);
 
-		const firstUserBaseAssetAmount = driftClient
+		const firstUserBaseAssetAmount = velocityClient
 			.getUser(0)
 			.getPerpPosition(marketIndex).baseAssetAmount;
-		const secondUserBaseAssetAmount = driftClient
+		const secondUserBaseAssetAmount = velocityClient
 			.getUser(1)
 			.getPerpPosition(marketIndex).baseAssetAmount;
 
@@ -201,7 +206,7 @@ describe('trigger orders', () => {
 			baseAssetAmount.toString()
 		);
 
-		const oiAfter = getOpenInterest(driftClient, marketIndex);
+		const oiAfter = getOpenInterest(velocityClient, marketIndex);
 		assert.equal(oiAfter.toString(), oiBefore.toString());
 	});
 
@@ -213,10 +218,10 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: baseAssetAmount.abs(),
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		try {
-			await driftClient.transferPerpPosition(
+			await velocityClient.transferPerpPosition(
 				1,
 				0,
 				marketIndex,
@@ -227,21 +232,26 @@ describe('trigger orders', () => {
 			// should throw error
 		}
 
-		await driftClient.transferPerpPosition(0, 1, marketIndex, baseAssetAmount);
+		await velocityClient.transferPerpPosition(
+			0,
+			1,
+			marketIndex,
+			baseAssetAmount
+		);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const firstUserBaseAssetAmount = driftClient
+		const firstUserBaseAssetAmount = velocityClient
 			.getUser(0)
 			.getPerpPosition(marketIndex).baseAssetAmount;
 
 		assert.equal(firstUserBaseAssetAmount.toString(), '0');
 		assert.equal(
-			driftClient.getUser(1).getPerpPosition(marketIndex),
+			velocityClient.getUser(1).getPerpPosition(marketIndex),
 			undefined
 		);
 
-		const oiAfter = getOpenInterest(driftClient, marketIndex);
+		const oiAfter = getOpenInterest(velocityClient, marketIndex);
 		assert.equal(oiAfter.toString(), '0');
 	});
 });

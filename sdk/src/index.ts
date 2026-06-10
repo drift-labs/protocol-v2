@@ -26,10 +26,7 @@ export { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscri
 export { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 export { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 export { WebSocketProgramAccountsSubscriberV2 } from './accounts/webSocketProgramAccountsSubscriberV2';
-export {
-	WebSocketVelocityClientAccountSubscriberV2,
-	WebSocketDriftClientAccountSubscriberV2,
-} from './accounts/webSocketVelocityClientAccountSubscriberV2';
+export { WebSocketVelocityClientAccountSubscriberV2 } from './accounts/webSocketVelocityClientAccountSubscriberV2';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';

@@ -5,7 +5,6 @@ import {
 	VelocityMarketInfo,
 	VelocityPriorityFeeResponse,
 } from './velocityPriorityFeeMethod';
-import { AtLeastOne } from '../util/deprecatedAlias';
 
 export const DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS = 10_000;
 
@@ -35,8 +34,6 @@ export type PriorityFeeSubscriberConfig = {
 	addresses?: PublicKey[];
 	/// market type and index, optionally provide at initialization time if using priorityFeeMethod.VELOCITY
 	velocityMarkets?: VelocityMarketInfo[];
-	/** @deprecated Use `velocityMarkets` instead. `driftMarkets` will be removed in a future major. */
-	driftMarkets?: VelocityMarketInfo[];
 	/// custom strategy to calculate priority fees, defaults to AVERAGE
 	customStrategy?: PriorityFeeStrategy;
 	/// method for fetching priority fee samples
@@ -47,8 +44,6 @@ export type PriorityFeeSubscriberConfig = {
 	heliusRpcUrl?: string;
 	/// url for Velocity cached priority fee endpoint, required if using priorityFeeMethod.VELOCITY
 	velocityPriorityFeeEndpoint?: string;
-	/** @deprecated Use `velocityPriorityFeeEndpoint` instead. `driftPriorityFeeEndpoint` will be removed in a future major. */
-	driftPriorityFeeEndpoint?: string;
 	/// clamp any returned priority fee value to this value.
 	maxFeeMicroLamports?: number;
 	/// multiplier applied to priority fee before maxFeeMicroLamports, defaults to 1.0
@@ -60,15 +55,10 @@ type PriorityFeeSubscriberMapConfigBase = {
 	frequencyMs?: number;
 	/// market type and associated market index to query
 	velocityMarkets?: VelocityMarketInfo[];
-	/** @deprecated Use `velocityMarkets` instead. `driftMarkets` will be removed in a future major. */
-	driftMarkets?: VelocityMarketInfo[];
 };
 
 /// url for Velocity cached priority fee endpoint
 export type PriorityFeeSubscriberMapConfig =
-	PriorityFeeSubscriberMapConfigBase &
-		AtLeastOne<
-			'velocityPriorityFeeEndpoint',
-			'driftPriorityFeeEndpoint',
-			string
-		>;
+	PriorityFeeSubscriberMapConfigBase & {
+		velocityPriorityFeeEndpoint: string;
+	};

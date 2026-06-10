@@ -1,0 +1,3623 @@
+use std::{cell::RefMut, convert::TryFrom};
+
+use anchor_lang::{prelude::*, Discriminator};
+use anchor_spl::{
+    associated_token::{get_associated_token_address_with_program_id, AssociatedToken},
+    token_interface::{TokenAccount, TokenInterface},
+};
+use solana_program::{
+    instruction::Instruction,
+    pubkey,
+    sysvar::instructions::{
+        self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
+    },
+};
+
+use super::optional_accounts::get_token_interface;
+use crate::{
+    auth::check_hot,
+    controller,
+    controller::{
+        insurance::update_user_stats_if_stake_amount,
+        isolated_position::transfer_isolated_perp_position_deposit,
+        liquidation::{liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end},
+        orders::{cancel_orders, validate_spot_dlob_trading_enabled_for_market_type},
+        position::{get_position_index, PositionDirection},
+        spot_balance::update_spot_balances,
+        token::{receive, send_from_program_vault},
+    },
+    error::ErrorCode,
+    ids::{
+        dflow_mainnet_aggregator_4, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6,
+        serum_program, titan_mainnet_argos_v1,
+    },
+    instructions::{
+        constraints::*,
+        optional_accounts::{get_revenue_share_escrow_account, load_maps, AccountMaps},
+    },
+    load, load_mut, math,
+    math::{
+        casting::Cast,
+        constants::{
+            BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT, GOV_SPOT_MARKET_INDEX,
+            QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+        },
+        margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement},
+        orders::{
+            estimate_price_from_side, filter_bids_asks_by_oracle_divergence,
+            find_bids_and_asks_from_users,
+        },
+        position::calculate_base_asset_value_and_pnl_with_oracle_price,
+        safe_math::SafeMath,
+        spot_withdraw::validate_spot_market_vault_amount,
+    },
+    math_error,
+    optional_accounts::{get_token_mint, update_prelaunch_oracle},
+    print_error, safe_decrement,
+    state::{
+        events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord},
+        fill_mode::FillMode,
+        insurance_fund_stake::InsuranceFundStake,
+        market_status::MarketStatus,
+        oracle_map::OracleMap,
+        order_params::{OrderParams, PlaceOrderOptions},
+        paused_operations::{PerpLpOperation, PerpOperation, SpotOperation},
+        perp_market::PerpMarket,
+        perp_market_map::{
+            get_market_set_for_spot_positions, get_market_set_for_user_positions,
+            get_market_set_from_list, get_writable_perp_market_set,
+            get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
+        },
+        revenue_share::{
+            RevenueShareEscrowZeroCopyMut, RevenueShareOrder, RevenueShareOrderBitFlag,
+        },
+        revenue_share_map::load_revenue_share_map,
+        settle_pnl_mode::SettlePnlMode,
+        signed_msg_user::{
+            SignedMsgOrderId, SignedMsgUserOrdersLoader, SignedMsgUserOrdersZeroCopyMut,
+            SIGNED_MSG_PDA_SEED,
+        },
+        spot_market::{SpotBalanceType, SpotMarket},
+        spot_market_map::{
+            get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
+        },
+        state::{HotRole, State},
+        user::{MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats},
+        user_map::{load_user_map, load_user_maps},
+        zero_copy::{AccountZeroCopyMut, ZeroCopyLoader},
+    },
+    validate,
+    validation::{
+        sig_verification::verify_and_decode_ed25519_msg,
+        user::{validate_user_deletion, validate_user_is_idle},
+    },
+    vlp::amm_cache::CacheInfo,
+    OracleSource, ID,
+};
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_fill_perp_order<'c: 'info, 'info>(
+    ctx: Context<'info, FillOrder<'info>>,
+    order_id: Option<u32>,
+) -> Result<()> {
+    let (order_id, market_index) = {
+        let user = &load!(ctx.accounts.user)?;
+        // if there is no order id, use the users last order id
+        let order_id = order_id.unwrap_or_else(|| user.get_last_order_id());
+        let market_index = match user.get_order(order_id) {
+            Some(order) => order.market_index,
+            None => {
+                msg!("Order does not exist {}", order_id);
+                return Ok(());
+            }
+        };
+        (order_id, market_index)
+    };
+
+    let user_key = &ctx.accounts.user.key();
+    fill_order(ctx, order_id, market_index).inspect_err(|_e| {
+        msg!(
+            "Err filling order id {} for user {} for market index {}",
+            order_id,
+            user_key,
+            market_index
+        );
+    })?;
+
+    Ok(())
+}
+
+fn fill_order<'c: 'info, 'info>(
+    ctx: Context<'info, FillOrder<'info>>,
+    order_id: u32,
+    market_index: u16,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = ctx.accounts.state.load()?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
+
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled {
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.user)?.authority,
+        )?
+    } else {
+        None
+    };
+
+    // No `update_amm` here: `fill_perp_order` snaps the AMM and refreshes
+    // PerpMarket-level oracle stats internally before quoting.
+
+    controller::orders::fill_perp_order(
+        order_id,
+        &*ctx.accounts.state.load()?,
+        &ctx.accounts.user,
+        &ctx.accounts.user_stats,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.filler,
+        &ctx.accounts.filler_stats,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
+        clock,
+        FillMode::Fill,
+        &mut escrow.as_mut(),
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
+    let filler = load_mut!(ctx.accounts.filler)?;
+    let clock = Clock::get()?;
+
+    validate!(
+        filler.last_active_slot == clock.slot,
+        ErrorCode::RevertFill,
+        "filler last active slot ({}) != current slot ({})",
+        filler.last_active_slot,
+        clock.slot
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_trigger_order<'c: 'info, 'info>(
+    ctx: Context<'info, TriggerOrder<'info>>,
+    order_id: u32,
+) -> Result<()> {
+    let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
+        Some(order) => order.market_type,
+        None => {
+            msg!("order_id not found {}", order_id);
+            return Ok(());
+        }
+    };
+
+    validate_spot_dlob_trading_enabled_for_market_type(market_type)?;
+
+    let (writeable_perp_markets, writeable_spot_markets) = (MarketSet::new(), MarketSet::new());
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &writeable_perp_markets,
+        &writeable_spot_markets,
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    controller::orders::trigger_order(
+        order_id,
+        &*ctx.accounts.state.load()?,
+        &ctx.accounts.user,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.filler,
+        &Clock::get()?,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_force_cancel_orders<'c: 'info, 'info>(
+    ctx: Context<'info, ForceCancelOrder>,
+) -> Result<()> {
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    controller::orders::force_cancel_orders(
+        &*ctx.accounts.state.load()?,
+        &ctx.accounts.user,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.filler,
+        &Clock::get()?,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_idle<'c: 'info, 'info>(
+    ctx: Context<'info, UpdateUserIdle<'info>>,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let clock = Clock::get()?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let (equity, _) =
+        calculate_user_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    // user flipped to idle faster if equity is less than 1000
+    let accelerated = equity < QUOTE_PRECISION_I128 * 1000;
+
+    validate_user_is_idle(&user, clock.slot, accelerated)?;
+
+    user.idle = true;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_log_user_balances<'c: 'info, 'info>(
+    ctx: Context<'info, LogUserBalances<'info>>,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let user = load!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let (equity, _) =
+        calculate_user_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    msg!(
+        "Authority key {} subaccount id {} user key {}",
+        user.authority,
+        user.sub_account_id,
+        user_key
+    );
+
+    msg!("Equity {}", equity);
+
+    for spot_position in user.spot_positions.iter() {
+        if spot_position.scaled_balance == 0 {
+            continue;
+        }
+
+        let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+        let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
+        msg!(
+            "Spot position {} balance {}",
+            spot_position.market_index,
+            token_amount
+        );
+    }
+
+    for perp_position in user.perp_positions.iter() {
+        if perp_position.is_available() {
+            continue;
+        }
+
+        let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
+        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(perp_position, oracle_price)?;
+
+        if unrealized_pnl == 0 {
+            continue;
+        }
+
+        msg!(
+            "Perp position {} unrealized pnl {}",
+            perp_position.market_index,
+            unrealized_pnl
+        );
+    }
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_stats_referrer_info<'c: 'info, 'info>(
+    ctx: Context<'info, UpdateUserStatsReferrerInfo<'info>>,
+) -> Result<()> {
+    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
+
+    user_stats.update_referrer_status();
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    let mut open_orders = 0_u8;
+    let mut open_auctions = 0_u8;
+
+    for order in user.orders.iter() {
+        if order.status == OrderStatus::Open {
+            open_orders += 1;
+        }
+
+        if order.has_auction() {
+            open_auctions += 1;
+        }
+    }
+
+    user.open_orders = open_orders;
+    user.has_open_order = open_orders > 0;
+    user.open_auctions = open_auctions;
+    user.has_open_auction = open_auctions > 0;
+
+    Ok(())
+}
+
+pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
+    ctx: Context<'info, PlaceSignedMsgTakerOrder<'info>>,
+    signed_msg_order_params_message_bytes: Vec<u8>,
+    is_delegate_signer: bool,
+) -> Result<()> {
+    let state = ctx.accounts.state.load()?;
+
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+    // TODO: generalize to support multiple market types
+    let AccountMaps {
+        perp_market_map,
+        mut spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut remaining_accounts,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let taker_key = ctx.accounts.user.key();
+    let mut taker = load_mut!(ctx.accounts.user)?;
+    let mut taker_stats = load_mut!(ctx.accounts.user_stats)?;
+    let mut signed_msg_taker = ctx.accounts.signed_msg_user_orders.load_mut()?;
+
+    let escrow = if state.builder_codes_enabled() {
+        get_revenue_share_escrow_account(&mut remaining_accounts, &taker.authority)?
+    } else {
+        None
+    };
+
+    place_signed_msg_taker_order(
+        taker_key,
+        &mut taker,
+        &mut taker_stats,
+        &mut signed_msg_taker,
+        signed_msg_order_params_message_bytes,
+        &ctx.accounts.ix_sysvar.to_account_info(),
+        &perp_market_map,
+        &mut spot_market_map,
+        &mut oracle_map,
+        escrow,
+        &state,
+        is_delegate_signer,
+    )?;
+    Ok(())
+}
+
+pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
+    taker_key: Pubkey,
+    taker: &mut RefMut<User>,
+    taker_stats: &mut RefMut<UserStats>,
+    signed_msg_account: &mut SignedMsgUserOrdersZeroCopyMut,
+    taker_order_params_message_bytes: Vec<u8>,
+    ix_sysvar: &AccountInfo<'info>,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &mut SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    escrow: Option<RevenueShareEscrowZeroCopyMut<'info>>,
+    state: &State,
+    is_delegate_signer: bool,
+) -> Result<()> {
+    // Authenticate the signed msg order param message
+    let ix_idx = load_current_index_checked(ix_sysvar)?;
+    validate!(
+        ix_idx > 0,
+        ErrorCode::InvalidVerificationIxIndex,
+        "instruction index must be greater than 0 for one sig verifies"
+    )?;
+
+    // Verify data from verify ix
+    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
+
+    let signer = if is_delegate_signer {
+        taker.delegate.to_bytes()
+    } else {
+        taker.authority.to_bytes()
+    };
+    let verified_message_and_signature = verify_and_decode_ed25519_msg(
+        &ix,
+        ix_sysvar,
+        ix_idx,
+        &signer,
+        &taker_order_params_message_bytes[..],
+        is_delegate_signer,
+    )?;
+
+    let mut escrow_zc: Option<RevenueShareEscrowZeroCopyMut<'info>> = None;
+    let mut builder_fee_bps: Option<u16> = None;
+    if state.builder_codes_enabled()
+        && verified_message_and_signature.builder_idx.is_some()
+        && verified_message_and_signature
+            .builder_fee_tenth_bps
+            .is_some()
+    {
+        if let Some(mut escrow) = escrow {
+            let builder_idx = verified_message_and_signature.builder_idx.unwrap();
+            let builder_fee = verified_message_and_signature
+                .builder_fee_tenth_bps
+                .unwrap();
+
+            validate!(
+                escrow.fixed.authority == taker.authority,
+                ErrorCode::InvalidUserAccount,
+                "RevenueShareEscrow account must be owned by taker",
+            )?;
+
+            let builder = escrow.get_approved_builder_mut(builder_idx)?;
+
+            if builder.is_revoked() {
+                return Err(ErrorCode::BuilderRevoked.into());
+            }
+
+            if builder_fee > builder.max_fee_tenth_bps {
+                return Err(ErrorCode::InvalidBuilderFee.into());
+            }
+
+            builder_fee_bps = Some(builder_fee);
+            escrow_zc = Some(escrow);
+        } else {
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
+        }
+    }
+
+    if is_delegate_signer {
+        validate!(
+            verified_message_and_signature.delegate_signed_taker_pubkey == Some(taker_key),
+            ErrorCode::SignedMsgUserContextUserMismatch,
+            "Delegate signed msg for taker pubkey different than supplied pubkey"
+        )?;
+    } else {
+        // Verify taker passed to the ix matches pda derived from subaccount id + authority
+        let taker_pda = Pubkey::find_program_address(
+            &[
+                "user".as_bytes(),
+                &taker.authority.to_bytes(),
+                &verified_message_and_signature
+                    .sub_account_id
+                    .unwrap()
+                    .to_le_bytes(),
+            ],
+            &ID,
+        );
+        validate!(
+            taker_pda.0 == taker_key,
+            ErrorCode::SignedMsgUserContextUserMismatch,
+            "Taker key does not match pda"
+        )?;
+    };
+
+    let signature = verified_message_and_signature.signature;
+    let clock = &Clock::get()?;
+
+    // First order must be a taker order
+    let matching_taker_order_params = &verified_message_and_signature.signed_msg_order_params;
+    if matching_taker_order_params.market_type != MarketType::Perp
+        || !matching_taker_order_params.has_valid_auction_params()?
+    {
+        msg!("First order must be a perp taker order");
+        return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
+    }
+
+    // Set max slot for the order early so we set correct signed msg order id
+    let order_slot = verified_message_and_signature.slot;
+    if order_slot < clock.slot.saturating_sub(500) {
+        msg!(
+            "SignedMsg order slot {} is too old: must be within 500 slots of current slot",
+            order_slot
+        );
+        return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
+    }
+    let market_index = matching_taker_order_params.market_index;
+    let max_slot = if matching_taker_order_params.order_type == OrderType::Limit {
+        order_slot.safe_add(
+            matching_taker_order_params
+                .auction_duration
+                .unwrap_or(0)
+                .cast::<u64>()?,
+        )?
+    } else {
+        order_slot.safe_add(
+            matching_taker_order_params
+                .auction_duration
+                .unwrap()
+                .cast::<u64>()?,
+        )?
+    };
+
+    // Dont place order if max slot already passed
+    if max_slot < clock.slot {
+        msg!(
+            "SignedMsg order max_slot {} < current slot {}",
+            max_slot,
+            clock.slot
+        );
+        return Ok(());
+    }
+
+    // Dont place order if signed msg order already exists
+    let mut taker_order_id_to_use = taker.next_order_id;
+    let mut signed_msg_order_id =
+        SignedMsgOrderId::new(verified_message_and_signature.uuid, max_slot, 0);
+    if signed_msg_account
+        .check_exists_and_prune_stale_signed_msg_order_ids(signed_msg_order_id, clock.slot)
+    {
+        msg!("SignedMsg order already exists for taker {:?}", taker_key);
+        return Ok(());
+    }
+
+    if let Some(max_margin_ratio) = verified_message_and_signature.max_margin_ratio {
+        taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
+    }
+
+    if let Some(isolated_position_deposit) =
+        verified_message_and_signature.isolated_position_deposit
+    {
+        spot_market_map.update_writable_spot_market(0)?;
+        transfer_isolated_perp_position_deposit(
+            taker,
+            Some(taker_stats),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock.slot,
+            clock.unix_timestamp,
+            0,
+            market_index,
+            isolated_position_deposit.cast::<i64>()?,
+        )?;
+    }
+
+    // Good to place orders, do stop loss and take profit orders first
+    if let Some(stop_loss_order_params) = verified_message_and_signature.stop_loss_order_params {
+        taker_order_id_to_use += 1;
+        let stop_loss_order = OrderParams {
+            order_type: OrderType::TriggerMarket,
+            direction: matching_taker_order_params.direction.opposite(),
+            trigger_price: Some(stop_loss_order_params.trigger_price),
+            base_asset_amount: stop_loss_order_params.base_asset_amount,
+            trigger_condition: if matching_taker_order_params.direction == PositionDirection::Long {
+                OrderTriggerCondition::Below
+            } else {
+                OrderTriggerCondition::Above
+            },
+            market_index,
+            market_type: MarketType::Perp,
+            reduce_only: true,
+            ..OrderParams::default()
+        };
+
+        let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
+            let new_order_id = taker_order_id_to_use - 1;
+            let new_order_index = taker
+                .orders
+                .iter()
+                .position(|order| order.is_available())
+                .ok_or(ErrorCode::MaxNumberOfOrders)?;
+            match escrow.add_order(RevenueShareOrder::new(
+                verified_message_and_signature.builder_idx.unwrap(),
+                taker.sub_account_id,
+                new_order_id,
+                builder_fee_bps.unwrap(),
+                MarketType::Perp,
+                market_index,
+                RevenueShareOrderBitFlag::Open as u8,
+                new_order_index as u8,
+            )) {
+                Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
+                Err(_) => {
+                    msg!("Failed to add stop loss order, escrow is full");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        controller::orders::place_perp_order(
+            state,
+            taker,
+            taker_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            stop_loss_order,
+            PlaceOrderOptions {
+                enforce_margin_check: false,
+                existing_position_direction_override: Some(matching_taker_order_params.direction),
+                ..PlaceOrderOptions::default()
+            },
+            &mut builder_order,
+        )?;
+    }
+
+    if let Some(take_profit_order_params) = verified_message_and_signature.take_profit_order_params
+    {
+        taker_order_id_to_use += 1;
+        let take_profit_order = OrderParams {
+            order_type: OrderType::TriggerMarket,
+            direction: matching_taker_order_params.direction.opposite(),
+            trigger_price: Some(take_profit_order_params.trigger_price),
+            base_asset_amount: take_profit_order_params.base_asset_amount,
+            trigger_condition: if matching_taker_order_params.direction == PositionDirection::Long {
+                OrderTriggerCondition::Above
+            } else {
+                OrderTriggerCondition::Below
+            },
+            market_index,
+            market_type: MarketType::Perp,
+            reduce_only: true,
+            ..OrderParams::default()
+        };
+
+        let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
+            let new_order_id = taker_order_id_to_use - 1;
+            let new_order_index = taker
+                .orders
+                .iter()
+                .position(|order| order.is_available())
+                .ok_or(ErrorCode::MaxNumberOfOrders)?;
+            match escrow.add_order(RevenueShareOrder::new(
+                verified_message_and_signature.builder_idx.unwrap(),
+                taker.sub_account_id,
+                new_order_id,
+                builder_fee_bps.unwrap(),
+                MarketType::Perp,
+                market_index,
+                RevenueShareOrderBitFlag::Open as u8,
+                new_order_index as u8,
+            )) {
+                Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
+                Err(_) => {
+                    msg!("Failed to add take profit order, escrow is full");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        controller::orders::place_perp_order(
+            state,
+            taker,
+            taker_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            take_profit_order,
+            PlaceOrderOptions {
+                enforce_margin_check: false,
+                existing_position_direction_override: Some(matching_taker_order_params.direction),
+                ..PlaceOrderOptions::default()
+            },
+            &mut builder_order,
+        )?;
+    }
+    signed_msg_order_id.order_id = taker_order_id_to_use;
+    signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
+
+    let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
+        let new_order_id = taker_order_id_to_use;
+        let new_order_index = taker
+            .orders
+            .iter()
+            .position(|order| order.is_available())
+            .ok_or(ErrorCode::MaxNumberOfOrders)?;
+        match escrow.add_order(RevenueShareOrder::new(
+            verified_message_and_signature.builder_idx.unwrap(),
+            taker.sub_account_id,
+            new_order_id,
+            builder_fee_bps.unwrap(),
+            MarketType::Perp,
+            market_index,
+            RevenueShareOrderBitFlag::Open as u8,
+            new_order_index as u8,
+        )) {
+            Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
+            Err(_) => {
+                msg!("Failed to add order, escrow is full");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    controller::orders::place_perp_order(
+        state,
+        taker,
+        taker_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        *matching_taker_order_params,
+        PlaceOrderOptions {
+            enforce_margin_check: true,
+            signed_msg_taker_order_slot: Some(order_slot),
+            ..PlaceOrderOptions::default()
+        },
+        &mut builder_order,
+    )?;
+
+    let order_params_hash =
+        base64::encode(solana_program::hash::hash(&borsh::to_vec(&signature).unwrap()).as_ref());
+
+    emit!(SignedMsgOrderRecord {
+        user: taker_key,
+        signed_msg_order_max_slot: signed_msg_order_id.max_slot,
+        signed_msg_order_uuid: signed_msg_order_id.uuid,
+        user_order_id: signed_msg_order_id.order_id,
+        matching_order_params: *matching_taker_order_params,
+        hash: order_params_hash,
+        ts: clock.unix_timestamp,
+    });
+
+    if let Some(ref mut escrow) = escrow_zc {
+        escrow.revoke_completed_orders(taker)?;
+    };
+
+    Ok(())
+}
+
+#[access_control(
+    settle_pnl_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_pnl<'c: 'info, 'info>(
+    ctx: Context<'info, SettlePNL>,
+    market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = ctx.accounts.state.load()?;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user have pool_id 0"
+    )?;
+
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut remaining_accounts,
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let (mut builder_escrow, maybe_rev_share_map) = if state.builder_codes_enabled() {
+        (
+            get_revenue_share_escrow_account(&mut remaining_accounts, &user.authority)?,
+            load_revenue_share_map(&mut remaining_accounts).ok(),
+        )
+    } else {
+        (None, None)
+    };
+
+    let market_in_settlement =
+        perp_market_map.get_ref(&market_index)?.status == MarketStatus::Settlement;
+
+    if market_in_settlement {
+        amm_not_paused(&ctx.accounts.state)?;
+
+        controller::pnl::settle_expired_position(
+            market_index,
+            user,
+            &user_key,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &clock,
+            &state,
+        )?;
+
+        user.update_last_active_slot(clock.slot);
+    } else {
+        // No `update_amm` here: settle_pnl reads the live oracle and falls
+        // back to the AMM's slot-fresh check only when the live oracle is
+        // degraded. Either path is satisfied without an in-ix AMM refresh;
+        // the keeper's `update_amms` crank or any prior fill in the same
+        // slot provides the freshness when needed.
+
+        controller::pnl::settle_pnl(
+            market_index,
+            user,
+            ctx.accounts.authority.key,
+            &user_key,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &clock,
+            &state,
+            None,
+            SettlePnlMode::MustSettle,
+        )?;
+    }
+
+    if state.builder_codes_enabled() {
+        if let Some(ref mut escrow) = builder_escrow {
+            escrow.revoke_completed_orders(user)?;
+            if let Some(ref builder_map) = maybe_rev_share_map {
+                controller::revenue_share::sweep_completed_revenue_share_for_market(
+                    market_index,
+                    escrow,
+                    &perp_market_map,
+                    &spot_market_map,
+                    builder_map,
+                    clock.unix_timestamp,
+                    state.builder_codes_enabled(),
+                )?;
+            } else {
+                msg!("Builder Users not provided, but RevenueEscrow was provided");
+            }
+        }
+    }
+
+    if let Ok(position_index) = get_position_index(&user.perp_positions, market_index) {
+        if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
+            transfer_isolated_perp_position_deposit(
+                user,
+                None,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                clock.slot,
+                clock.unix_timestamp,
+                QUOTE_SPOT_MARKET_INDEX,
+                market_index,
+                i64::MIN,
+            )?;
+        }
+    }
+
+    let spot_market = spot_market_map.get_quote_spot_market()?;
+    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    Ok(())
+}
+
+#[access_control(
+    settle_pnl_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
+    ctx: Context<'info, SettlePNL>,
+    market_indexes: Vec<u16>,
+    mode: SettlePnlMode,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = ctx.accounts.state.load()?;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut remaining_accounts,
+        &get_writable_perp_market_set_from_vec(&market_indexes),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let (mut builder_escrow, maybe_rev_share_map) = if state.builder_codes_enabled() {
+        (
+            get_revenue_share_escrow_account(&mut remaining_accounts, &user.authority)?,
+            load_revenue_share_map(&mut remaining_accounts).ok(),
+        )
+    } else {
+        (None, None)
+    };
+
+    let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
+
+    for market_index in market_indexes.iter() {
+        let market_in_settlement =
+            perp_market_map.get_ref(market_index)?.status == MarketStatus::Settlement;
+
+        if market_in_settlement {
+            amm_not_paused(&ctx.accounts.state)?;
+
+            controller::pnl::settle_expired_position(
+                *market_index,
+                user,
+                &user_key,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                &clock,
+                &state,
+            )?;
+
+            user.update_last_active_slot(clock.slot);
+        } else {
+            // See `handle_settle_pnl` for the no-refresh rationale.
+
+            controller::pnl::settle_pnl(
+                *market_index,
+                user,
+                ctx.accounts.authority.key,
+                &user_key,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                &clock,
+                &state,
+                Some(meets_margin_requirement),
+                mode,
+            )?;
+        }
+
+        if state.builder_codes_enabled() {
+            if let Some(ref mut escrow) = builder_escrow {
+                escrow.revoke_completed_orders(user)?;
+                if let Some(ref builder_map) = maybe_rev_share_map {
+                    controller::revenue_share::sweep_completed_revenue_share_for_market(
+                        *market_index,
+                        escrow,
+                        &perp_market_map,
+                        &spot_market_map,
+                        builder_map,
+                        clock.unix_timestamp,
+                        state.builder_codes_enabled(),
+                    )?;
+                } else {
+                    msg!("Builder Users not provided, but RevenueEscrow was provided");
+                }
+            }
+        }
+
+        if let Ok(position_index) = get_position_index(&user.perp_positions, *market_index) {
+            if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
+                transfer_isolated_perp_position_deposit(
+                    user,
+                    None,
+                    &perp_market_map,
+                    &spot_market_map,
+                    &mut oracle_map,
+                    clock.slot,
+                    clock.unix_timestamp,
+                    QUOTE_SPOT_MARKET_INDEX,
+                    *market_index,
+                    i64::MIN,
+                )?;
+            }
+        }
+    }
+
+    let spot_market = spot_market_map.get_quote_spot_market()?;
+    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    Ok(())
+}
+
+#[access_control(
+    funding_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_funding_payment<'c: 'info, 'info>(
+    ctx: Context<'info, SettleFunding>,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map, ..
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_market_set_for_user_positions(&user.perp_positions),
+        &MarketSet::new(),
+        clock.slot,
+        None,
+    )?;
+
+    controller::funding::settle_funding_payments(user, &user_key, &perp_market_map, now)?;
+    user.update_last_active_slot(clock.slot);
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_perp<'c: 'info, 'info>(
+    ctx: Context<'info, LiquidatePerp<'info>>,
+    market_index: u16,
+    liquidator_max_base_asset_amount: u64,
+    limit_price: Option<u64>,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+    let state = ctx.accounts.state.load()?;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+    let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::liquidation::liquidate_perp(
+        market_index,
+        liquidator_max_base_asset_amount,
+        limit_price,
+        user,
+        &user_key,
+        user_stats,
+        liquidator,
+        &liquidator_key,
+        liquidator_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        slot,
+        now,
+        &state,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_perp_with_fill<'c: 'info, 'info>(
+    ctx: Context<'info, LiquidatePerp<'info>>,
+    market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = ctx.accounts.state.load()?;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
+
+    controller::liquidation::liquidate_perp_with_fill(
+        market_index,
+        &ctx.accounts.user,
+        &user_key,
+        &ctx.accounts.user_stats,
+        &ctx.accounts.liquidator,
+        &liquidator_key,
+        &ctx.accounts.liquidator_stats,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        &clock,
+        &state,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_spot<'c: 'info, 'info>(
+    ctx: Context<'info, LiquidateSpot<'info>>,
+    asset_market_index: u16,
+    liability_market_index: u16,
+    liquidator_max_liability_transfer: u128,
+    limit_price: Option<u64>,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let state = ctx.accounts.state.load()?;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![asset_market_index, liability_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::liquidation::liquidate_spot(
+        asset_market_index,
+        liability_market_index,
+        liquidator_max_liability_transfer,
+        limit_price,
+        user,
+        &user_key,
+        liquidator,
+        &liquidator_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        clock.slot,
+        &state,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
+    ctx: Context<'info, LiquidateSpotWithSwap<'info>>,
+    asset_market_index: u16,
+    liability_market_index: u16,
+    swap_amount: u64,
+) -> Result<()> {
+    let state = ctx.accounts.state.load()?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![asset_market_index, liability_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let _token_interface = get_token_interface(remaining_accounts_iter)?;
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+    validate!(
+        asset_spot_market.flash_loan_initial_token_amount == 0
+            && asset_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let asset_oracle_data = oracle_map.get_price_data(&asset_spot_market.oracle_id())?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut asset_spot_market,
+        Some(asset_oracle_data),
+        now,
+    )?;
+
+    let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    validate!(
+        liability_spot_market.flash_loan_initial_token_amount == 0
+            && liability_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let liability_oracle_data = oracle_map.get_price_data(&liability_spot_market.oracle_id())?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut liability_spot_market,
+        Some(liability_oracle_data),
+        now,
+    )?;
+
+    drop(liability_spot_market);
+    drop(asset_spot_market);
+
+    validate!(
+        asset_market_index != liability_market_index,
+        ErrorCode::InvalidSwap,
+        "asset and liability market the same"
+    )?;
+
+    validate!(
+        swap_amount != 0,
+        ErrorCode::InvalidSwap,
+        "swap_amount cannot be zero"
+    )?;
+
+    liquidate_spot_with_swap_begin(
+        asset_market_index,
+        liability_market_index,
+        swap_amount,
+        user,
+        &user_key,
+        liquidator,
+        &liquidator_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        clock.slot,
+        &state,
+    )?;
+
+    let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+    let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    let asset_vault = &ctx.accounts.asset_spot_market_vault;
+    let asset_token_account = &ctx.accounts.asset_token_account;
+
+    asset_spot_market.flash_loan_amount = swap_amount;
+    asset_spot_market.flash_loan_initial_token_amount = asset_token_account.amount;
+
+    let liability_token_account = &ctx.accounts.liability_token_account;
+
+    liability_spot_market.flash_loan_initial_token_amount = liability_token_account.amount;
+
+    let asset_spot_has_transfer_hook = asset_spot_market.has_transfer_hook();
+    let liability_spot_has_transfer_hook = liability_spot_market.has_transfer_hook();
+
+    validate!(
+        !(asset_spot_has_transfer_hook && liability_spot_has_transfer_hook),
+        ErrorCode::InvalidSwap,
+        "both asset and liability spot markets cannot both have transfer hooks"
+    )?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        asset_vault,
+        &ctx.accounts.asset_token_account,
+        &ctx.accounts.velocity_signer,
+        state.signer_nonce,
+        swap_amount,
+        &mint,
+        if asset_spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
+    )?;
+
+    let ixs = ctx.accounts.instructions.as_ref();
+    let current_index = instructions::load_current_index_checked(ixs)? as usize;
+
+    let current_ix = instructions::load_instruction_at_checked(current_index, ixs)?;
+    validate!(
+        current_ix.program_id == *ctx.program_id,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "LiquidateSpotWithSwapBegin must be a top-level instruction (cant be cpi)"
+    )?;
+
+    let mut index = current_index + 1;
+    let mut found_end = false;
+    loop {
+        let ix = match instructions::load_instruction_at_checked(index, ixs) {
+            Ok(ix) => ix,
+            Err(ProgramError::InvalidArgument) => break,
+            Err(e) => return Err(e.into()),
+        };
+
+        // Check that the velocity program key is not used
+        if ix.program_id == crate::id() {
+            // must be the last ix -- this could possibly be relaxed
+            validate!(
+                !found_end,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the transaction must not contain a Velocity instruction after FlashLoanEnd"
+            )?;
+            found_end = true;
+
+            // must be the SwapEnd instruction
+            let discriminator = crate::instruction::LiquidateSpotWithSwapEnd::DISCRIMINATOR;
+            validate!(
+                &ix.data[0..8] == discriminator,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "last velocity ix must be end of swap"
+            )?;
+
+            validate!(
+                ctx.accounts.authority.key() == ix.accounts[1].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the authority passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.liquidator.key() == ix.accounts[2].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the liquidator passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.user.key() == ix.accounts[4].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the user passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.liability_spot_market_vault.key() == ix.accounts[6].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the liability_spot_market_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.asset_spot_market_vault.key() == ix.accounts[7].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the asset_spot_market_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.liability_token_account.key() == ix.accounts[8].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the liability_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.asset_token_account.key() == ix.accounts[9].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the asset_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.remaining_accounts.len() == ix.accounts.len() - 13,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "begin and end ix must have the same number of accounts"
+            )?;
+
+            for i in 13..ix.accounts.len() {
+                validate!(
+                    *ctx.remaining_accounts[i - 13].key == ix.accounts[i].pubkey,
+                    ErrorCode::InvalidLiquidateSpotWithSwap,
+                    "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
+                    i,
+                    ctx.remaining_accounts[i - 13].key,
+                    ix.accounts[i].pubkey
+                )?;
+            }
+        } else if found_end {
+            for meta in ix.accounts.iter() {
+                validate!(
+                    !meta.is_writable,
+                    ErrorCode::InvalidLiquidateSpotWithSwap,
+                    "instructions after swap end must not have writable accounts"
+                )?;
+            }
+        } else {
+            let whitelisted_programs = [
+                serum_program::id(),
+                AssociatedToken::id(),
+                jupiter_mainnet_3::ID,
+                jupiter_mainnet_4::ID,
+                jupiter_mainnet_6::ID,
+                dflow_mainnet_aggregator_4::ID,
+                titan_mainnet_argos_v1::ID,
+            ];
+            validate!(
+                whitelisted_programs.contains(&ix.program_id),
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
+            )?;
+
+            for meta in ix.accounts.iter() {
+                validate!(
+                    meta.pubkey != crate::id(),
+                    ErrorCode::InvalidLiquidateSpotWithSwap,
+                    "instructions between begin and end must not be velocity instructions"
+                )?;
+            }
+        }
+
+        index += 1;
+    }
+
+    validate!(
+        found_end,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "found no LiquidateSpotWithSwapEnd instruction in transaction"
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
+    ctx: Context<'info, LiquidateSpotWithSwap<'info>>,
+    asset_market_index: u16,
+    liability_market_index: u16,
+) -> Result<()> {
+    let state = ctx.accounts.state.load()?;
+    let clock = Clock::get()?;
+    let slot = clock.slot;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![asset_market_index, liability_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let liability_token_program = get_token_interface(remaining_accounts)?;
+
+    let asset_mint = get_token_mint(remaining_accounts)?;
+    let liability_mint = get_token_mint(remaining_accounts)?;
+
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(&ctx.accounts.user)?;
+
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+
+    validate!(
+        asset_spot_market.flash_loan_amount != 0,
+        ErrorCode::InvalidSwap,
+        "the asset_spot_market must have a flash loan amount set"
+    )?;
+
+    let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    let asset_vault = &mut ctx.accounts.asset_spot_market_vault;
+    let asset_token_account = &mut ctx.accounts.asset_token_account;
+
+    let mut amount_in = asset_spot_market.flash_loan_amount;
+    if asset_token_account.amount > asset_spot_market.flash_loan_initial_token_amount {
+        let residual = asset_token_account
+            .amount
+            .safe_sub(asset_spot_market.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            asset_token_account,
+            asset_vault,
+            &ctx.accounts.authority,
+            residual,
+            &asset_mint,
+            if asset_spot_market.has_transfer_hook() {
+                Some(remaining_accounts)
+            } else {
+                None
+            },
+        )?;
+        asset_token_account.reload()?;
+        asset_vault.reload()?;
+
+        amount_in = amount_in.safe_sub(residual)?;
+    }
+
+    asset_spot_market.flash_loan_initial_token_amount = 0;
+    asset_spot_market.flash_loan_amount = 0;
+
+    let liability_vault = &mut ctx.accounts.liability_spot_market_vault;
+    let liability_token_account = &mut ctx.accounts.liability_token_account;
+
+    let mut amount_out = 0_u64;
+    if liability_token_account.amount > liability_spot_market.flash_loan_initial_token_amount {
+        amount_out = liability_token_account
+            .amount
+            .safe_sub(liability_spot_market.flash_loan_initial_token_amount)?;
+
+        if let Some(token_interface) = liability_token_program {
+            controller::token::receive(
+                &token_interface,
+                liability_token_account,
+                liability_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &liability_mint,
+                if liability_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
+            )?;
+        } else {
+            controller::token::receive(
+                &ctx.accounts.token_program,
+                liability_token_account,
+                liability_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &liability_mint,
+                if liability_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
+            )?;
+        }
+
+        liability_vault.reload()?;
+    }
+
+    validate!(
+        amount_out != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out must be greater than 0"
+    )?;
+
+    liability_spot_market.flash_loan_initial_token_amount = 0;
+    liability_spot_market.flash_loan_amount = 0;
+
+    drop(liability_spot_market);
+    drop(asset_spot_market);
+
+    liquidate_spot_with_swap_end(
+        asset_market_index,
+        liability_market_index,
+        &mut user,
+        &user_key,
+        &liquidator_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        slot,
+        &state,
+        amount_in.cast()?,
+        amount_out.cast()?,
+    )?;
+
+    let liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    validate!(
+        liability_spot_market.flash_loan_initial_token_amount == 0
+            && liability_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &liability_spot_market,
+        liability_vault.amount,
+    )?;
+
+    let asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+
+    validate!(
+        asset_spot_market.flash_loan_initial_token_amount == 0
+            && asset_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&asset_spot_market, asset_vault.amount)?;
+
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_borrow_for_perp_pnl<'c: 'info, 'info>(
+    ctx: Context<'info, LiquidateBorrowForPerpPnl<'info>>,
+    perp_market_index: u16,
+    spot_market_index: u16,
+    liquidator_max_liability_transfer: u128,
+    limit_price: Option<u64>, // currently unimplemented
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let state = ctx.accounts.state.load()?;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(spot_market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::liquidation::liquidate_borrow_for_perp_pnl(
+        perp_market_index,
+        spot_market_index,
+        liquidator_max_liability_transfer,
+        limit_price,
+        user,
+        &user_key,
+        liquidator,
+        &liquidator_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        clock.slot,
+        state.liquidation_margin_buffer_ratio,
+        state.initial_pct_to_liquidate as u128,
+        state.liquidation_duration as u128,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_perp_pnl_for_deposit<'c: 'info, 'info>(
+    ctx: Context<'info, LiquidatePerpPnlForDeposit<'info>>,
+    perp_market_index: u16,
+    spot_market_index: u16,
+    liquidator_max_pnl_transfer: u128,
+    limit_price: Option<u64>, // currently unimplemented
+) -> Result<()> {
+    let state = ctx.accounts.state.load()?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(spot_market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::liquidation::liquidate_perp_pnl_for_deposit(
+        perp_market_index,
+        spot_market_index,
+        liquidator_max_pnl_transfer,
+        limit_price,
+        user,
+        &user_key,
+        liquidator,
+        &liquidator_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        clock.slot,
+        state.liquidation_margin_buffer_ratio,
+        state.initial_pct_to_liquidate as u128,
+        state.liquidation_duration as u128,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_set_user_status_to_being_liquidated<'c: 'info, 'info>(
+    ctx: Context<'info, SetUserStatusToBeingLiquidated<'info>>,
+) -> Result<()> {
+    let state = ctx.accounts.state.load()?;
+    let clock = Clock::get()?;
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::liquidation::set_user_status_to_being_liquidated(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock.slot,
+        &state,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
+    ctx: Context<'info, ResolvePerpPnlDeficit<'info>>,
+    spot_market_index: u16,
+    perp_market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    validate!(spot_market_index == 0, ErrorCode::InvalidSpotMarketAccount)?;
+    let state = ctx.accounts.state.load()?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(perp_market_index),
+        &get_writable_spot_market_set(spot_market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    // No `update_amm` here: this handler moves spot/IF balances and does
+    // not read perp AMM peg or reserves. Refreshing the AMM was cargo-cult.
+
+    {
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+        if spot_market.has_transfer_hook() {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.velocity_signer,
+                &state,
+                &mint,
+                Some(&mut remaining_accounts_iter.clone()),
+            )?;
+        } else {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.velocity_signer,
+                &state,
+                &mint,
+                None,
+            )?;
+        };
+
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
+    }
+
+    let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
+    let spot_market_vault_amount = ctx.accounts.spot_market_vault.amount;
+
+    let pay_from_insurance = {
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+        let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;
+
+        if perp_market.amm.is_curve_update_enabled() {
+            validate!(
+                perp_market.market_stats.last_oracle_valid,
+                ErrorCode::InvalidOracle,
+                "Oracle Price detected as invalid"
+            )?;
+
+            validate!(
+                perp_market.amm.is_fresh_at(oracle_map.slot),
+                ErrorCode::AMMNotUpdatedInSameSlot,
+                "AMM must be updated in a prior instruction within same slot"
+            )?;
+        }
+
+        validate!(
+            !perp_market.is_in_settlement(now),
+            ErrorCode::MarketActionPaused,
+            "Market is in settlement mode",
+        )?;
+
+        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
+        controller::orders::validate_market_within_price_band(perp_market, &state, oracle_price)?;
+
+        controller::insurance::resolve_perp_pnl_deficit(
+            spot_market_vault_amount,
+            insurance_vault_amount,
+            spot_market,
+            perp_market,
+            clock.unix_timestamp,
+        )?
+    };
+
+    if pay_from_insurance > 0 {
+        validate!(
+            pay_from_insurance < ctx.accounts.insurance_fund_vault.amount,
+            ErrorCode::InsufficientCollateral,
+            "Insurance Fund balance InsufficientCollateral for payment: !{} < {}",
+            pay_from_insurance,
+            ctx.accounts.insurance_fund_vault.amount
+        )?;
+
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.spot_market_vault,
+            &ctx.accounts.velocity_signer,
+            state.signer_nonce,
+            pay_from_insurance,
+            &mint,
+            if spot_market.has_transfer_hook() {
+                Some(remaining_accounts_iter)
+            } else {
+                None
+            },
+        )?;
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::InvalidIFDetected,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
+    }
+
+    // todo: validate amounts transfered and spot_market before and after are zero-sum
+
+    Ok(())
+}
+
+#[access_control(
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
+    ctx: Context<'info, ResolveBankruptcy<'info>>,
+    quote_spot_market_index: u16,
+    market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    validate!(
+        quote_spot_market_index == QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::InvalidSpotMarketAccount
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+    let state = ctx.accounts.state.load()?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(quote_spot_market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    {
+        let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
+        controller::insurance::attempt_settle_revenue_to_insurance_fund(
+            &ctx.accounts.spot_market_vault,
+            &ctx.accounts.insurance_fund_vault,
+            spot_market,
+            now,
+            &ctx.accounts.token_program,
+            &ctx.accounts.velocity_signer,
+            &state,
+            &mint,
+            remaining_accounts,
+        )?;
+
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
+    }
+
+    let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
+        market_index,
+        user,
+        &user_key,
+        liquidator,
+        &liquidator_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        ctx.accounts.insurance_fund_vault.amount,
+    )?;
+
+    if pay_from_insurance > 0 {
+        validate!(
+            pay_from_insurance < ctx.accounts.insurance_fund_vault.amount,
+            ErrorCode::InsufficientCollateral,
+            "Insurance Fund balance InsufficientCollateral for payment: !{} < {}",
+            pay_from_insurance,
+            ctx.accounts.insurance_fund_vault.amount
+        )?;
+
+        let spot_market = &spot_market_map.get_ref(&quote_spot_market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
+
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.spot_market_vault,
+            &ctx.accounts.velocity_signer,
+            state.signer_nonce,
+            pay_from_insurance,
+            &mint,
+            remaining_accounts,
+        )?;
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::InvalidIFDetected,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
+    }
+
+    {
+        let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
+    }
+
+    Ok(())
+}
+
+#[access_control(
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
+    ctx: Context<'info, ResolveBankruptcy<'info>>,
+    market_index: u16,
+) -> Result<()> {
+    let state = ctx.accounts.state.load()?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set(market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    {
+        let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
+        controller::insurance::attempt_settle_revenue_to_insurance_fund(
+            &ctx.accounts.spot_market_vault,
+            &ctx.accounts.insurance_fund_vault,
+            spot_market,
+            now,
+            &ctx.accounts.token_program,
+            &ctx.accounts.velocity_signer,
+            &state,
+            &mint,
+            remaining_accounts,
+        )?;
+
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
+    }
+
+    let pay_from_insurance = controller::liquidation::resolve_spot_bankruptcy(
+        market_index,
+        user,
+        &user_key,
+        liquidator,
+        &liquidator_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        ctx.accounts.insurance_fund_vault.amount,
+    )?;
+
+    if pay_from_insurance > 0 {
+        let spot_market = &spot_market_map.get_ref(&market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.spot_market_vault,
+            &ctx.accounts.velocity_signer,
+            ctx.accounts.state.load()?.signer_nonce,
+            pay_from_insurance,
+            &mint,
+            remaining_accounts,
+        )?;
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::InvalidIFDetected,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
+    }
+
+    {
+        let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
+    }
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+    funding_not_paused(&ctx.accounts.state)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_funding_rate(
+    ctx: Context<UpdateFundingRate>,
+    perp_market_index: u16,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let clock_slot = clock.slot;
+    let state = ctx.accounts.state.load()?;
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock_slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        clock_slot,
+        &state.oracle_guard_rails.validity,
+    )?;
+    // Refresh PerpMarket-level oracle stats. AMM refresh happens inside
+    // `update_funding_rate` via the AmmQuoter's setup phase — not here.
+    let validity = crate::vlp::amm::refresh::compute_amm_refresh_validity(
+        perp_market,
+        &mm_oracle_price_data,
+        &state,
+    )?;
+    perp_market.update_oracle_derived_stats(&mm_oracle_price_data, validity, now, clock_slot)?;
+
+    validate!(
+        matches!(
+            perp_market.status,
+            MarketStatus::Active | MarketStatus::ReduceOnly
+        ),
+        ErrorCode::MarketActionPaused,
+        "Market funding is paused",
+    )?;
+
+    let funding_paused =
+        state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
+
+    let is_updated = controller::funding::update_funding_rate(
+        perp_market_index,
+        perp_market,
+        &mut oracle_map,
+        now,
+        clock_slot,
+        &state.oracle_guard_rails,
+        funding_paused,
+        None,
+    )?;
+
+    if !is_updated {
+        let time_until_next_update = crate::math::helpers::on_the_hour_update(
+            now,
+            perp_market.last_funding_rate_ts,
+            perp_market.market_stats.funding_period,
+        )?;
+        msg!(
+            "time_until_next_update = {:?} seconds",
+            time_until_next_update
+        );
+        return Err(ErrorCode::FundingWasNotUpdated.into());
+    }
+
+    Ok(())
+}
+
+#[access_control(
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+    let clock = Clock::get()?;
+    let clock_slot = clock.slot;
+    let oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
+
+    let perp_market = &load!(ctx.accounts.perp_market)?;
+
+    validate!(
+        perp_market.oracle_source == OracleSource::Prelaunch,
+        ErrorCode::DefaultError,
+        "wrong oracle source"
+    )?;
+
+    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+    funding_not_paused(&ctx.accounts.state)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
+    ctx: Context<'info, UpdatePerpBidAskTwap<'info>>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+    let state = ctx.accounts.state.load()?;
+    let mut oracle_map =
+        OracleMap::load_one(&ctx.accounts.oracle, slot, Some(state.oracle_guard_rails))?;
+
+    let keeper_stats = load!(ctx.accounts.keeper_stats)?;
+    validate!(
+        keeper_stats.can_update_bid_ask_twap(),
+        ErrorCode::CantUpdatePerpBidAskTwap,
+        "Keeper stats can_update_bid_ask_twap is false"
+    )?;
+
+    let min_if_stake = 1000 * QUOTE_PRECISION_U64;
+    validate!(
+        keeper_stats.if_staked_quote_asset_amount >= min_if_stake,
+        ErrorCode::CantUpdatePerpBidAskTwap,
+        "Keeper doesnt have min if stake. stake = {} min if stake = {}",
+        keeper_stats.if_staked_quote_asset_amount,
+        min_if_stake
+    )?;
+
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        slot,
+        &state.oracle_guard_rails.validity,
+    )?;
+    // PerpMarket-level oracle stats only — this ix walks DLOB makers to
+    // estimate bid/ask TWAP and does not read AMM peg or reserves. The
+    // AMM snap_to_oracle that used to fire here was cargo-cult and is
+    // dropped; oracle TWAP / reference-price-offset bookkeeping still
+    // happens via refresh_perp_market_stats_from_oracle.
+    let validity = crate::vlp::amm::refresh::compute_amm_refresh_validity(
+        perp_market,
+        &mm_oracle_price_data,
+        &state,
+    )?;
+    perp_market.update_oracle_derived_stats(&mm_oracle_price_data, validity, now, slot)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let makers = load_user_map(remaining_accounts_iter, false)?;
+
+    let depth = perp_market.get_market_depth_for_funding_rate()?;
+
+    let (bids, asks) =
+        find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+    let (bids, asks) = filter_bids_asks_by_oracle_divergence(
+        bids,
+        asks,
+        oracle_price_data.price,
+        BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT,
+    )?;
+    let estimated_bid = estimate_price_from_side(&bids, depth)?;
+    let estimated_ask = estimate_price_from_side(&asks, depth)?;
+
+    msg!(
+        "estimated_bid = {:?} estimated_ask = {:?}",
+        estimated_bid,
+        estimated_ask
+    );
+
+    let before_bid_price_twap = perp_market.market_stats.last_bid_price_twap;
+    let before_ask_price_twap = perp_market.market_stats.last_ask_price_twap;
+    let before_mark_twap_ts = perp_market.market_stats.last_mark_price_twap_ts;
+
+    let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
+    {
+        let reserve_price = perp_market.amm.reserve_price()?;
+        let crate::state::perp_market::PerpMarket {
+            amm, market_stats, ..
+        } = &mut **perp_market;
+        // Refresh the AMM's cached spread state against this slot's oracle,
+        // then fold it (plus DLOB liquidity) into the mark TWAP.
+        crate::vlp::amm::math::spread::update_amm_quote_state(
+            amm,
+            market_stats,
+            &mm_oracle_price_data,
+            reserve_price,
+            slot,
+        )?;
+        market_stats.update_mark_twap_crank(
+            amm,
+            now,
+            oracle_price_data,
+            estimated_bid,
+            estimated_ask,
+            sanitize_clamp_denominator,
+        )?;
+    }
+
+    msg!(
+        "after amm bid twap = {} -> {}
+        ask twap = {} -> {}
+        ts = {} -> {}",
+        before_bid_price_twap,
+        perp_market.market_stats.last_bid_price_twap,
+        before_ask_price_twap,
+        perp_market.market_stats.last_ask_price_twap,
+        before_mark_twap_ts,
+        perp_market.market_stats.last_mark_price_twap_ts
+    );
+
+    if perp_market.market_stats.last_bid_price_twap == before_bid_price_twap
+        || perp_market.market_stats.last_ask_price_twap == before_ask_price_twap
+    {
+        validate!(
+            perp_market
+                .market_stats
+                .last_mark_price_twap_ts
+                .safe_sub(before_mark_twap_ts)?
+                >= 60
+                || estimated_bid.unwrap_or(0) == before_bid_price_twap
+                || estimated_ask.unwrap_or(0) == before_ask_price_twap,
+            ErrorCode::CantUpdatePerpBidAskTwap,
+            "bid or ask twap unchanged from small ts delta update",
+        )?;
+    }
+
+    let funding_paused =
+        state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
+    controller::funding::update_funding_rate(
+        perp_market.market_index,
+        perp_market,
+        &mut oracle_map,
+        now,
+        slot,
+        &state.oracle_guard_rails,
+        funding_paused,
+        None,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_revenue_to_insurance_fund<'c: 'info, 'info>(
+    ctx: Context<'info, SettleRevenueToInsuranceFund<'info>>,
+    spot_market_index: u16,
+) -> Result<()> {
+    let state = ctx.accounts.state.load()?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    validate!(
+        spot_market_index == spot_market.market_index,
+        ErrorCode::InvalidSpotMarketAccount,
+        "invalid spot_market passed"
+    )?;
+
+    validate!(
+        spot_market.insurance_fund.revenue_settle_period > 0,
+        ErrorCode::RevenueSettingsCannotSettleToIF,
+        "invalid revenue_settle_period settings on spot market"
+    )?;
+
+    let spot_vault_amount = ctx.accounts.spot_market_vault.amount;
+    let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let time_until_next_update = math::helpers::on_the_hour_update(
+        now,
+        spot_market.insurance_fund.last_revenue_settle_ts,
+        spot_market.insurance_fund.revenue_settle_period,
+    )?;
+
+    validate!(
+        time_until_next_update == 0,
+        ErrorCode::RevenueSettingsCannotSettleToIF,
+        "Must wait {} seconds until next available settlement time",
+        time_until_next_update
+    )?;
+
+    // uses proportion of revenue pool allocated to insurance fund
+    let token_amount = controller::insurance::settle_revenue_to_insurance_fund(
+        spot_vault_amount,
+        insurance_vault_amount,
+        spot_market,
+        now,
+        true,
+    )?;
+
+    spot_market.insurance_fund.last_revenue_settle_ts = now;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.insurance_fund_vault,
+        &ctx.accounts.velocity_signer,
+        state.signer_nonce,
+        token_amount,
+        &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
+    )?;
+
+    // reload the spot market vault balance so it's up-to-date
+    ctx.accounts.spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+    exchange_not_paused(&ctx.accounts.state)
+    valid_oracle_for_spot_market(&ctx.accounts.oracle, &ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_cumulative_interest(
+    ctx: Context<UpdateSpotMarketCumulativeInterest>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let state = ctx.accounts.state.load()?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let clock_slot = clock.slot;
+
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock_slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
+
+    if !state.funding_paused()? {
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+    } else {
+        // even if funding is paused still update twap stats
+        controller::spot_balance::update_spot_market_twap_stats(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+    }
+
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_amms<'c: 'info, 'info>(
+    ctx: Context<'info, UpdateAMM<'info>>,
+    market_indexes: Vec<u16>,
+) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
+    // up to ~60k compute units (per amm) worst case
+
+    let clock = Clock::get()?;
+
+    let state = ctx.accounts.state.load()?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        mut perp_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_market_set_from_list(market_indexes),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    crate::vlp::amm::refresh::update_amms(&mut perp_market_map, &mut oracle_map, &state, &clock)?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn view_amm_liquidity<'c: 'info, 'info>(
+    ctx: Context<'info, UpdateAMM<'info>>,
+    market_indexes: Vec<u16>,
+) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
+    // up to ~60k compute units (per amm) worst case
+
+    let clock = Clock::get()?;
+
+    let state = ctx.accounts.state.load()?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
+    let market_map = &mut PerpMarketMap::load(
+        &get_market_set_from_list(market_indexes),
+        remaining_accounts_iter,
+    )?;
+
+    crate::vlp::amm::refresh::update_amms(market_map, oracle_map, &state, &clock)?;
+
+    for (_key, market_account_loader) in market_map.0.iter_mut() {
+        let market = &mut load_mut!(market_account_loader)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
+
+        // `update_amms` above refreshed each AMM's cached spread state; read
+        // it back for the dlog.
+        let reserve_price = market.amm.reserve_price()?;
+        let (bid, ask) = market.amm.bid_ask_price(
+            reserve_price,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.reference_price_offset,
+        )?;
+        crate::dlog!(bid, ask, oracle_price_data.price);
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_user_quote_asset_insurance_stake(
+    ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
+) -> Result<()> {
+    let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        insurance_fund_stake.market_index == 0,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
+        "insurance_fund_stake is not for quote market"
+    )?;
+
+    if insurance_fund_stake.market_index == 0 && spot_market.market_index == 0 {
+        update_user_stats_if_stake_amount(
+            0,
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            spot_market,
+        )?;
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_user_gov_token_insurance_stake(
+    ctx: Context<UpdateUserGovTokenInsuranceStake>,
+) -> Result<()> {
+    let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
+        "insurance_fund_stake is not for governance market index = {}",
+        GOV_SPOT_MARKET_INDEX
+    )?;
+
+    if insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX
+        && spot_market.market_index == GOV_SPOT_MARKET_INDEX
+    {
+        update_user_stats_if_stake_amount(
+            0,
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            spot_market,
+        )?;
+    }
+
+    Ok(())
+}
+
+pub fn handle_force_delete_user<'c: 'info, 'info>(
+    ctx: Context<'info, ForceDeleteUser<'info>>,
+) -> Result<()> {
+    // Pyra accounts are exempt from force_delete_user
+
+    let pyra_program = pubkey!("6JjHXLheGSNvvexgzMthEcgjkcirDrGduc3HAKB2P1v2");
+    validate!(
+        *ctx.accounts.authority.owner != pyra_program,
+        ErrorCode::DefaultError,
+        "pyra accounts are exempt from force_delete_user"
+    )?;
+
+    let state = ctx.accounts.state.load()?;
+
+    let keeper_key = *ctx.accounts.keeper.key;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_market_set_for_spot_positions(&user.spot_positions),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    // check the user equity
+
+    let (user_equity, _) =
+        calculate_user_equity(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    let max_equity = QUOTE_PRECISION_I128 / 20;
+    validate!(
+        user_equity <= max_equity,
+        ErrorCode::DefaultError,
+        "user equity must be less than {}",
+        max_equity
+    )?;
+
+    #[cfg(not(feature = "anchor-test"))]
+    {
+        let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
+
+        validate!(
+            slots_since_last_active >= 18144000, // 60 * 60 * 24 * 7 * 4 * 3 / .4 (~3 months)
+            ErrorCode::DefaultError,
+            "user not inactive for long enough: {}",
+            slots_since_last_active
+        )?;
+    }
+
+    // cancel all open orders
+    cancel_orders(
+        user,
+        &user_key,
+        Some(&keeper_key),
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        slot,
+        OrderActionExplanation::None,
+        None,
+        None,
+        None,
+        false,
+    )?;
+
+    validate!(
+        !user.perp_positions.iter().any(|p| !p.is_available()),
+        ErrorCode::DefaultError,
+        "user must have no perp positions"
+    )?;
+
+    for spot_position in user.spot_positions.iter_mut() {
+        if spot_position.is_available() {
+            continue;
+        }
+
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_position.market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
+
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+
+        let token_amount = spot_position.get_token_amount(spot_market)?;
+        let balance_type = spot_position.balance_type;
+
+        let token_program_pubkey = spot_market.get_token_program();
+
+        let token_program = &ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == token_program_pubkey)
+            .map(Interface::try_from)
+            .unwrap()
+            .unwrap();
+
+        let spot_market_mint = &spot_market.mint;
+        let mint_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_mint.key())
+            .map(|acc| InterfaceAccount::try_from(acc).unwrap());
+
+        let keeper_vault = get_associated_token_address_with_program_id(
+            &keeper_key,
+            spot_market_mint,
+            &token_program_pubkey,
+        );
+        let keeper_vault_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == keeper_vault.key())
+            .map(InterfaceAccount::try_from)
+            .unwrap()
+            .unwrap();
+
+        let spot_market_vault = spot_market.vault;
+        let mut spot_market_vault_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_vault.key())
+            .map(InterfaceAccount::try_from)
+            .unwrap()
+            .unwrap();
+
+        if balance_type == SpotBalanceType::Deposit {
+            update_spot_balances(
+                token_amount,
+                &SpotBalanceType::Borrow,
+                spot_market,
+                spot_position,
+                true,
+            )?;
+
+            // TODO: support transfer hook tokens
+            send_from_program_vault(
+                token_program,
+                &spot_market_vault_account_info,
+                &keeper_vault_account_info,
+                &ctx.accounts.velocity_signer,
+                state.signer_nonce,
+                token_amount.cast()?,
+                &mint_account_info,
+                None,
+            )?;
+        } else {
+            update_spot_balances(
+                token_amount,
+                &SpotBalanceType::Deposit,
+                spot_market,
+                spot_position,
+                false,
+            )?;
+
+            // TODO: support transfer hook tokens
+            receive(
+                token_program,
+                &keeper_vault_account_info,
+                &spot_market_vault_account_info,
+                &ctx.accounts.keeper.to_account_info(),
+                token_amount.cast()?,
+                &mint_account_info,
+                None,
+            )?;
+        }
+
+        spot_market_vault_account_info.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            spot_market_vault_account_info.amount,
+        )?;
+    }
+
+    validate_user_deletion(
+        user,
+        user_stats,
+        &*ctx.accounts.state.load()?,
+        Clock::get()?.unix_timestamp,
+    )?;
+
+    safe_decrement!(user_stats.number_of_sub_accounts, 1);
+
+    let mut state = ctx.accounts.state.load_mut()?;
+    safe_decrement!(state.number_of_sub_accounts, 1);
+
+    emit!(DeleteUserRecord {
+        ts: now,
+        user_authority: *ctx.accounts.authority.key,
+        user: user_key,
+        sub_account_id: user.sub_account_id,
+        keeper: Some(*ctx.accounts.keeper.key),
+    });
+
+    Ok(())
+}
+
+pub fn handle_pause_spot_market_deposit_withdraw(
+    ctx: Context<PauseSpotMarketDepositWithdraw>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let result =
+        validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount);
+
+    validate!(
+        matches!(result, Err(ErrorCode::SpotMarketVaultInvariantViolated)),
+        ErrorCode::DefaultError,
+        "spot market vault amount is valid"
+    )?;
+
+    spot_market.paused_operations |= SpotOperation::Deposit as u8;
+    spot_market.paused_operations |= SpotOperation::Withdraw as u8;
+
+    Ok(())
+}
+
+pub fn handle_update_amm_cache<'c: 'info, 'info>(
+    ctx: Context<'info, UpdateAmmCache<'info>>,
+) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
+        ctx.accounts.amm_cache.load_zc_mut()?;
+
+    let state = ctx.accounts.state.load()?;
+    let quote_market = ctx.accounts.quote_market.load()?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map: _,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+    let slot = Clock::get()?.slot;
+
+    for (_, perp_market_loader) in perp_market_map.0.iter() {
+        let perp_market = perp_market_loader.load()?;
+        if perp_market.hedge_config.status == 0 {
+            continue;
+        }
+        let cached_info = amm_cache.get_for_market_index_mut(perp_market.market_index)?;
+
+        validate!(
+            perp_market.oracle_id() == cached_info.oracle_id()?,
+            ErrorCode::DefaultError,
+            "oracle id mismatch between amm cache and perp market"
+        )?;
+
+        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+        let validity = ctx.accounts.state.load()?.oracle_guard_rails.validity;
+        let mm_oracle_price_data =
+            perp_market.get_mm_oracle_price_data(*oracle_data, slot, &validity)?;
+
+        cached_info.update_perp_market_fields(&perp_market)?;
+        cached_info.try_update_oracle_info(
+            slot,
+            &mm_oracle_price_data,
+            &perp_market,
+            &state.oracle_guard_rails,
+        )?;
+
+        if perp_market.hedge_config.status != 0
+            && !PerpLpOperation::is_operation_paused(
+                perp_market.hedge_config.paused_operations,
+                PerpLpOperation::TrackAmmRevenue,
+            )
+        {
+            amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct UpdateAmmCache<'info> {
+    #[account(mut)]
+    pub keeper: Signer<'info>,
+    pub state: AccountLoader<'info, State>,
+    /// CHECK: checked in AmmCacheZeroCopy checks
+    #[account(mut)]
+    pub amm_cache: UncheckedAccount<'info>,
+    #[account(
+        owner = crate::ID,
+        seeds = [b"spot_market", QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub quote_market: AccountLoader<'info, SpotMarket>,
+}
+
+#[derive(Accounts)]
+pub struct FillOrder<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&filler, &filler_stats)?
+    )]
+    pub filler_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct RevertFill<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&filler, &filler_stats)?
+    )]
+    pub filler_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct TriggerOrder<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct ForceCancelOrder<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserIdle<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&filler, &authority)?
+    )]
+    pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LogUserBalances<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserStatsReferrerInfo<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct SettlePNL<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceSignedMsgTakerOrder<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        mut,
+        seeds = [SIGNED_MSG_PDA_SEED.as_bytes(), user.load()?.authority.as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks
+    pub signed_msg_user_orders: UncheckedAccount<'info>,
+    pub authority: Signer<'info>,
+    /// CHECK: The address check is needed because otherwise
+    /// the supplied Sysvar could be anything else.
+    /// The Instruction Sysvar has not been implemented
+    /// in the Anchor framework yet, so this is the safe approach.
+    #[account(address = IX_ID)]
+    pub ix_sysvar: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SettleFunding<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LiquidatePerp<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&liquidator, &authority)?
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct LiquidateSpot<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&liquidator, &authority)?
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LiquidateBorrowForPerpPnl<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&liquidator, &authority)?
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct LiquidatePerpPnlForDeposit<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&liquidator, &authority)?
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct SetUserStatusToBeingLiquidated<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(asset_market_index: u16, liability_market_index: u16, )]
+pub struct LiquidateSpotWithSwap<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&liquidator, &authority)?
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), liability_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub liability_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), asset_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub asset_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &liability_spot_market_vault.mint.eq(&liability_token_account.mint),
+        token::authority = authority
+    )]
+    pub liability_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &asset_spot_market_vault.mint.eq(&asset_token_account.mint),
+        token::authority = authority
+    )]
+    pub asset_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.load()?.signer.eq(&velocity_signer.key())
+    )]
+    /// CHECK: forced velocity_signer
+    pub velocity_signer: UncheckedAccount<'info>,
+    /// Instructions Sysvar for instruction introspection
+    /// CHECK: fixed instructions sysvar account
+    #[account(address = instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(spot_market_index: u16,)]
+pub struct ResolveBankruptcy<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&liquidator, &authority)?
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()], // todo: market_index=0 hardcode for perps?
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        constraint = state.load()?.signer.eq(&velocity_signer.key())
+    )]
+    /// CHECK: forced velocity_signer
+    pub velocity_signer: UncheckedAccount<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(spot_market_index: u16,)]
+pub struct ResolvePerpPnlDeficit<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()], // todo: market_index=0 hardcode for perps?
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        constraint = state.load()?.signer.eq(&velocity_signer.key())
+    )]
+    /// CHECK: forced velocity_signer
+    pub velocity_signer: UncheckedAccount<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct SettleRevenueToInsuranceFund<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(
+        mut,
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        constraint = state.load()?.signer.eq(&velocity_signer.key())
+    )]
+    /// CHECK: forced velocity_signer
+    pub velocity_signer: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSpotMarketCumulativeInterest<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    /// CHECK: checked in `update_spot_market_cumulative_interest` ix constraint
+    pub oracle: UncheckedAccount<'info>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAMM<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateFundingRate<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `update_funding_rate` ix constraint
+    pub oracle: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePerpBidAskTwap<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `update_funding_rate` ix constraint
+    pub oracle: UncheckedAccount<'info>,
+    pub keeper_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(
+        mut,
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        constraint = is_stats_for_if_stake(&insurance_fund_stake, &user_stats)?
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub signer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserGovTokenInsuranceStake<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(
+        mut,
+        seeds = [b"spot_market", 15_u16.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        constraint = is_stats_for_if_stake(&insurance_fund_stake, &user_stats)?
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub signer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), 15_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePrelaunchOracle<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    /// CHECK: checked in ix
+    pub oracle: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ForceDeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: AccountLoader<'info, State>,
+    /// CHECK: authority
+    #[account(mut)]
+    pub authority: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = check_hot(&keeper.key(), &state, HotRole::UserFlag)?
+    )]
+    pub keeper: Signer<'info>,
+    /// CHECK: forced velocity_signer
+    pub velocity_signer: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PauseSpotMarketDepositWithdraw<'info> {
+    pub state: AccountLoader<'info, State>,
+    pub keeper: Signer<'info>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}

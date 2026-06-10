@@ -79,10 +79,10 @@ function printComputeUnitTable(
 }
 
 describe('compute units', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let originalConsoleLog: typeof console.log;
 
 	let acceptedMmOraclePrice = new BN(100_000_000);
@@ -116,7 +116,7 @@ describe('compute units', () => {
 		const wallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
 		await bankrunContextWrapper.fundKeypair(wallet, 10 ** 9);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
@@ -137,29 +137,29 @@ describe('compute units', () => {
 			usdcMint,
 			new BN(10 * 10 ** 6),
 			bankrunContextWrapper,
-			driftClient.wallet.publicKey
+			velocityClient.wallet.publicKey
 		);
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccount(0);
-		await driftClient.fetchAccounts();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
-		await driftClient.fetchAccounts();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccount(0);
+		await velocityClient.fetchAccounts();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.fetchAccounts();
 
 		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			new BN(1000),
 			new BN(1000),
 			new BN(60 * 60)
 		);
-		await driftClient.initializeAmmCache();
-		await driftClient.updateFeatureBitFlagsMMOracle(true);
+		await velocityClient.initializeAmmCache();
+		await velocityClient.updateFeatureBitFlagsMMOracle(true);
 
-		await driftClient.updateMmOracleNative(
+		await velocityClient.updateMmOracleNative(
 			0,
 			acceptedMmOraclePrice,
 			acceptedMmOracleSequenceId
@@ -167,8 +167,8 @@ describe('compute units', () => {
 	});
 
 	after(async () => {
-		if (driftClient?.isSubscribed) {
-			await driftClient.unsubscribe();
+		if (velocityClient?.isSubscribed) {
+			await velocityClient.unsubscribe();
 		}
 		if (originalConsoleLog) {
 			console.log = originalConsoleLog;
@@ -190,7 +190,7 @@ describe('compute units', () => {
 		assert.strictEqual(
 			computeUnits.length,
 			1,
-			`expected one Drift CU log, got ${computeUnits.length}`
+			`expected one Velocity CU log, got ${computeUnits.length}`
 		);
 		return Number(computeUnits[0]);
 	}
@@ -199,7 +199,7 @@ describe('compute units', () => {
 		await advancePastMmOracleRateLimit();
 		const nextPrice = acceptedMmOraclePrice.addn(1);
 		const nextSequenceId = acceptedMmOracleSequenceId.addn(1);
-		const txSig = await driftClient.updateMmOracleNative(
+		const txSig = await velocityClient.updateMmOracleNative(
 			0,
 			nextPrice,
 			nextSequenceId
@@ -235,7 +235,7 @@ describe('compute units', () => {
 			'update_mm_oracle_native',
 			'stale sequence noop',
 			async () => {
-				const txSig = await driftClient.updateMmOracleNative(
+				const txSig = await velocityClient.updateMmOracleNative(
 					0,
 					acceptedMmOraclePrice.addn(1),
 					acceptedMmOracleSequenceId
@@ -249,7 +249,7 @@ describe('compute units', () => {
 			'min slot gap noop',
 			async () => {
 				await sendAcceptedMmOracleUpdate();
-				const txSig = await driftClient.updateMmOracleNative(
+				const txSig = await velocityClient.updateMmOracleNative(
 					0,
 					acceptedMmOraclePrice.addn(1),
 					acceptedMmOracleSequenceId.addn(1)
@@ -263,7 +263,7 @@ describe('compute units', () => {
 			'step cap noop',
 			async () => {
 				await advancePastMmOracleRateLimit();
-				const txSig = await driftClient.updateMmOracleNative(
+				const txSig = await velocityClient.updateMmOracleNative(
 					0,
 					acceptedMmOraclePrice.muln(105).divn(100),
 					acceptedMmOracleSequenceId.addn(1)
@@ -277,7 +277,7 @@ describe('compute units', () => {
 			'success write',
 			async () => {
 				ammSpreadAdjustment = (ammSpreadAdjustment + 1) % 100;
-				const txSig = await driftClient.updateAmmSpreadAdjustmentNative(
+				const txSig = await velocityClient.updateAmmSpreadAdjustmentNative(
 					0,
 					ammSpreadAdjustment
 				);

@@ -17,15 +17,7 @@ export class PriorityFeeSubscriberMap {
 	intervalId?: ReturnType<typeof setTimeout>;
 
 	velocityMarkets?: VelocityMarketInfo[];
-	/** @deprecated Use `velocityMarkets` instead. `driftMarkets` will be removed in a future major. */
-	public get driftMarkets(): VelocityMarketInfo[] | undefined {
-		return this.velocityMarkets;
-	}
 	velocityPriorityFeeEndpoint: string;
-	/** @deprecated Use `velocityPriorityFeeEndpoint` instead. `driftPriorityFeeEndpoint` will be removed in a future major. */
-	public get driftPriorityFeeEndpoint(): string {
-		return this.velocityPriorityFeeEndpoint;
-	}
 	feesMap: Map<string, Map<number, VelocityPriorityFeeLevels>>; // marketType -> marketIndex -> priority fee
 
 	public constructor(config: PriorityFeeSubscriberMapConfig) {
@@ -33,8 +25,8 @@ export class PriorityFeeSubscriberMap {
 			config.frequencyMs ?? DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS;
 		// Type-system guarantees at least one of the two is supplied.
 		this.velocityPriorityFeeEndpoint = (config.velocityPriorityFeeEndpoint ??
-			config.driftPriorityFeeEndpoint)!;
-		this.velocityMarkets = config.velocityMarkets ?? config.driftMarkets;
+			config.velocityPriorityFeeEndpoint)!;
+		this.velocityMarkets = config.velocityMarkets;
 		this.feesMap = new Map<string, Map<number, VelocityPriorityFeeLevels>>();
 		this.feesMap.set('perp', new Map<number, VelocityPriorityFeeLevels>());
 		this.feesMap.set('spot', new Map<number, VelocityPriorityFeeLevels>());

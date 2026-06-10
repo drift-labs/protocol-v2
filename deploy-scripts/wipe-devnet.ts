@@ -1,11 +1,11 @@
 /**
- * Devnet escape hatch: closes drift-owned PDAs whose on-chain layout no
+ * Devnet escape hatch: closes velocity-owned PDAs whose on-chain layout no
  * longer matches the program (e.g. after a layout-breaking upgrade). Calls
  * the `force_wipe_accounts_devnet` ix, which:
  *   - reads State's first pubkey field at raw bytes 8..40 to gate on admin
  *     (works regardless of which State layout is currently on chain)
  *   - drains lamports out of every account passed in `remaining_accounts`
- *     (drift-owned only), so the runtime garbage-collects them at end of tx.
+ *     (velocity-owned only), so the runtime garbage-collects them at end of tx.
  *
  * The ix is compiled into devnet builds only (`cfg(not(feature = "mainnet-beta"))`).
  *
@@ -33,7 +33,7 @@ import {
 } from '@solana/web3.js';
 import { AnchorProvider, Program, Idl } from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import driftIdl from '../sdk/src/idl/drift.json';
+import velocityIdl from '../sdk/src/idl/velocity.json';
 import { Wallet, loadKeypair } from '../sdk/src';
 
 const RPC_URL = process.env.RPC_URL ?? 'https://api.devnet.solana.com';
@@ -94,7 +94,7 @@ function collectReceiptTargets(
 	for (const [idx, m] of Object.entries(spot)) {
 		pushIfPresent(`spotMarket[${idx}]`, m?.pubkey);
 		// Each spot market also has two token-program-owned vaults (spot +
-		// insurance fund) that survive a drift-only wipe and block re-init.
+		// insurance fund) that survive a velocity-only wipe and block re-init.
 		const idxLe = Buffer.from(new Uint16Array([Number(idx)]).buffer);
 		const [spotVault] = PublicKey.findProgramAddressSync(
 			[Buffer.from('spot_market_vault'), idxLe],
@@ -164,11 +164,11 @@ async function main() {
 	const provider = new AnchorProvider(connection, new Wallet(admin), {
 		commitment: 'confirmed',
 	});
-	const program = new Program(driftIdl as Idl, provider);
+	const program = new Program(velocityIdl as Idl, provider);
 
-	// drift_signer PDA + nonce — needed to authorize SPL CloseAccount CPI.
-	const [driftSigner, driftSignerNonce] = PublicKey.findProgramAddressSync(
-		[Buffer.from('drift_signer')],
+	// velocity_signer PDA + nonce — needed to authorize SPL CloseAccount CPI.
+	const [velocitySigner, velocitySignerNonce] = PublicKey.findProgramAddressSync(
+		[Buffer.from('velocity_signer')],
 		programId
 	);
 
@@ -177,7 +177,7 @@ async function main() {
 	const statePubkey = (activeReceipt.state as any)?.pubkey
 		? new PublicKey((activeReceipt.state as any).pubkey)
 		: PublicKey.findProgramAddressSync(
-				[Buffer.from('drift_state')],
+				[Buffer.from('velocity_state')],
 				programId
 		  )[0];
 
@@ -200,14 +200,14 @@ async function main() {
 	candidates.push(...extra);
 
 	// Filter: skip already-empty accounts. Token-program-owned vaults are
-	// closed via CPI (after burning any token balance); drift-owned accounts
+	// closed via CPI (after burning any token balance); velocity-owned accounts
 	// are drained. Token vaults must be passed paired with their mint.
 	const tokenVaults: {
 		label: string;
 		pubkey: PublicKey;
 		mint: PublicKey;
 	}[] = [];
-	const driftPdas: { label: string; pubkey: PublicKey }[] = [];
+	const velocityPdas: { label: string; pubkey: PublicKey }[] = [];
 	for (const c of candidates) {
 		const info = await connection.getAccountInfo(c.pubkey);
 		if (!info) {
@@ -221,13 +221,13 @@ async function main() {
 			continue;
 		}
 		if (info.owner.equals(programId)) {
-			driftPdas.push({ label: c.label, pubkey: c.pubkey });
+			velocityPdas.push({ label: c.label, pubkey: c.pubkey });
 			continue;
 		}
 		console.log(
 			`skip ${
 				c.label
-			} ${c.pubkey.toBase58()} (owned by ${info.owner.toBase58()}, not drift or token program)`
+			} ${c.pubkey.toBase58()} (owned by ${info.owner.toBase58()}, not velocity or token program)`
 		);
 	}
 
@@ -245,12 +245,12 @@ async function main() {
 			)} ${t.pubkey.toBase58()}  mint=${t.mint.toBase58()}`
 		);
 	}
-	console.log(`  drift PDAs (will drain lamports):`);
-	for (const t of driftPdas) {
+	console.log(`  velocity PDAs (will drain lamports):`);
+	for (const t of velocityPdas) {
 		console.log(`    - ${t.label.padEnd(28)} ${t.pubkey.toBase58()}`);
 	}
 
-	if (tokenVaults.length === 0 && driftPdas.length === 0) {
+	if (tokenVaults.length === 0 && velocityPdas.length === 0) {
 		console.log('Nothing to wipe.');
 		return;
 	}
@@ -264,25 +264,25 @@ async function main() {
 	}
 
 	// Ix expects remaining_accounts as: (vault, mint), (vault, mint), …,
-	// then drift-owned PDAs. ~30 writable accounts fit in one legacy tx.
+	// then velocity-owned PDAs. ~30 writable accounts fit in one legacy tx.
 	type Rem = { pubkey: PublicKey; isSigner: false; isWritable: boolean };
 	const remaining: Rem[] = [];
 	for (const v of tokenVaults) {
 		remaining.push({ pubkey: v.pubkey, isSigner: false, isWritable: true });
 		remaining.push({ pubkey: v.mint, isSigner: false, isWritable: true });
 	}
-	for (const p of driftPdas) {
+	for (const p of velocityPdas) {
 		remaining.push({ pubkey: p.pubkey, isSigner: false, isWritable: true });
 	}
 
 	// One tx for now; expand to batching only if we ever exceed account limits.
 	{
 		const ix = await program.methods
-			.forceWipeAccountsDevnet(driftSignerNonce)
+			.forceWipeAccountsDevnet(velocitySignerNonce)
 			.accountsStrict({
 				admin: admin.publicKey,
 				state: statePubkey,
-				driftSigner: driftSigner,
+				velocitySigner: velocitySigner,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			})
 			.remainingAccounts(remaining)
@@ -307,7 +307,7 @@ async function main() {
 		tx.sign([admin]);
 
 		console.log(
-			`\nwiping ${tokenVaults.length} token vault(s) + ${driftPdas.length} drift PDA(s)…`
+			`\nwiping ${tokenVaults.length} token vault(s) + ${velocityPdas.length} velocity PDA(s)…`
 		);
 		const sig = await connection.sendRawTransaction(tx.serialize(), {
 			skipPreflight: false,
@@ -325,7 +325,7 @@ async function main() {
 
 	// Sanity confirm: every target now has no on-chain account.
 	console.log('\nverifying targets are gone…');
-	for (const t of [...tokenVaults, ...driftPdas]) {
+	for (const t of [...tokenVaults, ...velocityPdas]) {
 		const info = await connection.getAccountInfo(t.pubkey);
 		const status = info ? `STILL EXISTS (${info.lamports} lamports)` : 'gone';
 		console.log(`  ${t.label.padEnd(28)} ${t.pubkey.toBase58()} — ${status}`);

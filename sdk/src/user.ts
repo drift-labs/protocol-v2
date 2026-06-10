@@ -2,7 +2,7 @@
  * User — read-oriented abstraction over the on-chain `User` account.
  *
  * Responsibilities:
- *   - Margin and free-collateral calculations (mirrors `programs/drift/src/math/margin.rs`).
+ *   - Margin and free-collateral calculations (mirrors `programs/velocity/src/math/margin.rs`).
  *   - Position accessors: perp positions, spot positions, unrealized PnL, leverage.
  *   - Open order queries and filtering.
  *   - Health factor and liquidation threshold checks.
@@ -129,10 +129,6 @@ export type MarginType = 'Cross' | 'Isolated';
 
 export class User {
 	velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	public get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	userAccountPublicKey: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
 	_isSubscribed = false;
@@ -148,7 +144,7 @@ export class User {
 
 	public constructor(config: UserConfig) {
 		// Type-system guarantees at least one of the two is supplied.
-		const velocityClient = (config.velocityClient ?? config.driftClient)!;
+		const velocityClient = config.velocityClient!;
 		this.velocityClient = velocityClient;
 		this.userAccountPublicKey = config.userAccountPublicKey;
 		if (config.accountSubscription?.type === 'polling') {

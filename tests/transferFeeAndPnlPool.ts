@@ -21,9 +21,9 @@ import { Keypair } from '@solana/web3.js';
 import { createTransferCheckedInstruction } from '@solana/spl-token';
 
 describe('transfer fee and pnl pool', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -34,15 +34,16 @@ describe('transfer fee and pnl pool', () => {
 
 	const readFeePool = (marketIndex: number) =>
 		getTokenAmount(
-			driftClient.getPerpMarketAccount(marketIndex).amm.feePool.scaledBalance,
-			driftClient.getSpotMarketAccount(0),
+			velocityClient.getPerpMarketAccount(marketIndex).amm.feePool
+				.scaledBalance,
+			velocityClient.getSpotMarketAccount(0),
 			SpotBalanceType.DEPOSIT
 		);
 
 	const readPnlPool = (marketIndex: number) =>
 		getTokenAmount(
-			driftClient.getPerpMarketAccount(marketIndex).pnlPool.scaledBalance,
-			driftClient.getSpotMarketAccount(0),
+			velocityClient.getPerpMarketAccount(marketIndex).pnlPool.scaledBalance,
+			velocityClient.getSpotMarketAccount(0),
 			SpotBalanceType.DEPOSIT
 		);
 
@@ -67,7 +68,7 @@ describe('transfer fee and pnl pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -82,10 +83,10 @@ describe('transfer fee and pnl pool', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 
 		const solOracle = await mockOracleNoProgram(bankrunContextWrapper, 150);
 		const placeholderOracle = await mockOracleNoProgram(
@@ -95,21 +96,21 @@ describe('transfer fee and pnl pool', () => {
 		const ethOracle = await mockOracleNoProgram(bankrunContextWrapper, 2500);
 
 		const periodicity = new BN(3600);
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			SOL_PERP,
 			solOracle,
 			new BN(1000),
 			new BN(1000),
 			periodicity
 		);
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			1,
 			placeholderOracle,
 			new BN(1000),
 			new BN(1000),
 			periodicity
 		);
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			ETH_PERP,
 			ethOracle,
 			new BN(1000),
@@ -117,43 +118,43 @@ describe('transfer fee and pnl pool', () => {
 			periodicity
 		);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		const fundAmount = new BN(100 * 10 ** 6);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			fundAmount.muln(10),
 			bankrunContextWrapper,
-			driftClient.wallet.publicKey
+			velocityClient.wallet.publicKey
 		);
 
-		const quoteVault = driftClient.getSpotMarketAccount(0).vault;
+		const quoteVault = velocityClient.getSpotMarketAccount(0).vault;
 		const splTransferIx = createTransferCheckedInstruction(
 			userUSDCAccount.publicKey,
 			usdcMint.publicKey,
 			quoteVault,
-			driftClient.wallet.publicKey,
+			velocityClient.wallet.publicKey,
 			fundAmount.muln(4).toNumber(),
 			6
 		);
-		const tx = await driftClient.buildTransaction(splTransferIx);
+		const tx = await velocityClient.buildTransaction(splTransferIx);
 		//@ts-ignore
-		await driftClient.sendTransaction(tx);
+		await velocityClient.sendTransaction(tx);
 
-		await driftClient.depositIntoPerpMarketFeePool(
+		await velocityClient.depositIntoPerpMarketFeePool(
 			SOL_PERP,
 			fundAmount,
 			userUSDCAccount.publicKey
 		);
-		await driftClient.depositIntoPerpMarketFeePool(
+		await velocityClient.depositIntoPerpMarketFeePool(
 			ETH_PERP,
 			fundAmount,
 			userUSDCAccount.publicKey
 		);
-		await driftClient.updatePerpMarketPnlPool(SOL_PERP, fundAmount);
-		await driftClient.updatePerpMarketPnlPool(ETH_PERP, fundAmount);
+		await velocityClient.updatePerpMarketPnlPool(SOL_PERP, fundAmount);
+		await velocityClient.updatePerpMarketPnlPool(ETH_PERP, fundAmount);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 	});
 
 	const amt = new BN(1_000_000); // 1 USDC
@@ -162,13 +163,13 @@ describe('transfer fee and pnl pool', () => {
 	it('same market fee -> pnl', async () => {
 		const feeBefore = readFeePool(SOL_PERP);
 		const pnlBefore = readPnlPool(SOL_PERP);
-		await driftClient.transferFeeAndPnlPool(
+		await velocityClient.transferFeeAndPnlPool(
 			SOL_PERP,
 			SOL_PERP,
 			amt,
 			TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(readFeePool(SOL_PERP).eq(feeBefore.sub(amt)));
 		assert(readPnlPool(SOL_PERP).eq(pnlBefore.add(amt)));
 	});
@@ -176,13 +177,13 @@ describe('transfer fee and pnl pool', () => {
 	it('same market pnl -> fee', async () => {
 		const feeBefore = readFeePool(SOL_PERP);
 		const pnlBefore = readPnlPool(SOL_PERP);
-		await driftClient.transferFeeAndPnlPool(
+		await velocityClient.transferFeeAndPnlPool(
 			SOL_PERP,
 			SOL_PERP,
 			amt,
 			TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(readFeePool(SOL_PERP).eq(feeBefore.add(amt)));
 		assert(readPnlPool(SOL_PERP).eq(pnlBefore.sub(amt)));
 	});
@@ -190,13 +191,13 @@ describe('transfer fee and pnl pool', () => {
 	it('cross market fee pool SOL -> pnl pool ETH', async () => {
 		const feeBefore = readFeePool(SOL_PERP);
 		const pnlBefore = readPnlPool(ETH_PERP);
-		await driftClient.transferFeeAndPnlPool(
+		await velocityClient.transferFeeAndPnlPool(
 			SOL_PERP,
 			ETH_PERP,
 			amt,
 			TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(readFeePool(SOL_PERP).eq(feeBefore.sub(amt)));
 		assert(readPnlPool(ETH_PERP).eq(pnlBefore.add(amt)));
 	});
@@ -204,13 +205,13 @@ describe('transfer fee and pnl pool', () => {
 	it('cross market pnl pool ETH -> fee pool SOL', async () => {
 		const feeBefore = readFeePool(SOL_PERP);
 		const pnlBefore = readPnlPool(ETH_PERP);
-		await driftClient.transferFeeAndPnlPool(
+		await velocityClient.transferFeeAndPnlPool(
 			SOL_PERP,
 			ETH_PERP,
 			amt,
 			TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(readFeePool(SOL_PERP).eq(feeBefore.add(amt)));
 		assert(readPnlPool(ETH_PERP).eq(pnlBefore.sub(amt)));
 	});
@@ -218,13 +219,13 @@ describe('transfer fee and pnl pool', () => {
 	it('cross market fee pool ETH -> pnl pool SOL', async () => {
 		const feeBefore = readFeePool(ETH_PERP);
 		const pnlBefore = readPnlPool(SOL_PERP);
-		await driftClient.transferFeeAndPnlPool(
+		await velocityClient.transferFeeAndPnlPool(
 			ETH_PERP,
 			SOL_PERP,
 			amt,
 			TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(readFeePool(ETH_PERP).eq(feeBefore.sub(amt)));
 		assert(readPnlPool(SOL_PERP).eq(pnlBefore.add(amt)));
 	});
@@ -232,20 +233,20 @@ describe('transfer fee and pnl pool', () => {
 	it('cross market pnl pool SOL -> fee pool ETH', async () => {
 		const feeBefore = readFeePool(ETH_PERP);
 		const pnlBefore = readPnlPool(SOL_PERP);
-		await driftClient.transferFeeAndPnlPool(
+		await velocityClient.transferFeeAndPnlPool(
 			ETH_PERP,
 			SOL_PERP,
 			amt,
 			TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(readFeePool(ETH_PERP).eq(feeBefore.add(amt)));
 		assert(readPnlPool(SOL_PERP).eq(pnlBefore.sub(amt)));
 	});
 
 	it('rejects oversized fee -> pnl same market', async () => {
 		await expectFail(() =>
-			driftClient.transferFeeAndPnlPool(
+			velocityClient.transferFeeAndPnlPool(
 				SOL_PERP,
 				SOL_PERP,
 				hugeAmt,
@@ -256,7 +257,7 @@ describe('transfer fee and pnl pool', () => {
 
 	it('rejects oversized pnl -> fee same market', async () => {
 		await expectFail(() =>
-			driftClient.transferFeeAndPnlPool(
+			velocityClient.transferFeeAndPnlPool(
 				SOL_PERP,
 				SOL_PERP,
 				hugeAmt,
@@ -267,7 +268,7 @@ describe('transfer fee and pnl pool', () => {
 
 	it('rejects oversized fee -> pnl cross market', async () => {
 		await expectFail(() =>
-			driftClient.transferFeeAndPnlPool(
+			velocityClient.transferFeeAndPnlPool(
 				SOL_PERP,
 				ETH_PERP,
 				hugeAmt,
@@ -278,7 +279,7 @@ describe('transfer fee and pnl pool', () => {
 
 	it('rejects oversized pnl -> fee cross market', async () => {
 		await expectFail(() =>
-			driftClient.transferFeeAndPnlPool(
+			velocityClient.transferFeeAndPnlPool(
 				SOL_PERP,
 				ETH_PERP,
 				hugeAmt,
@@ -288,6 +289,6 @@ describe('transfer fee and pnl pool', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 });

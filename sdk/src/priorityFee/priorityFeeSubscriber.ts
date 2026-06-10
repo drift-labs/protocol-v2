@@ -23,10 +23,6 @@ export class PriorityFeeSubscriber {
 	frequencyMs: number;
 	addresses: string[];
 	velocityMarkets?: VelocityMarketInfo[];
-	/** @deprecated Use `velocityMarkets` instead. `driftMarkets` will be removed in a future major. */
-	public get driftMarkets(): VelocityMarketInfo[] | undefined {
-		return this.velocityMarkets;
-	}
 	customStrategy?: PriorityFeeStrategy;
 	averageStrategy = new AverageOverSlotsStrategy();
 	maxStrategy = new MaxOverSlotsStrategy();
@@ -36,10 +32,6 @@ export class PriorityFeeSubscriber {
 	priorityFeeMultiplier?: number;
 
 	velocityPriorityFeeEndpoint?: string;
-	/** @deprecated Use `velocityPriorityFeeEndpoint` instead. `driftPriorityFeeEndpoint` will be removed in a future major. */
-	public get driftPriorityFeeEndpoint(): string | undefined {
-		return this.velocityPriorityFeeEndpoint;
-	}
 	heliusRpcUrl?: string;
 	lastHeliusSample?: HeliusPriorityFeeLevels;
 
@@ -58,7 +50,7 @@ export class PriorityFeeSubscriber {
 		this.addresses = config.addresses
 			? config.addresses.map((address) => address.toBase58())
 			: [];
-		this.velocityMarkets = config.velocityMarkets ?? config.driftMarkets;
+		this.velocityMarkets = config.velocityMarkets;
 
 		if (config.customStrategy) {
 			this.customStrategy = config.customStrategy;
@@ -84,7 +76,8 @@ export class PriorityFeeSubscriber {
 				}
 			} else if (this.priorityFeeMethod === PriorityFeeMethod.VELOCITY) {
 				this.velocityPriorityFeeEndpoint =
-					config.velocityPriorityFeeEndpoint ?? config.driftPriorityFeeEndpoint;
+					config.velocityPriorityFeeEndpoint ??
+					config.velocityPriorityFeeEndpoint;
 			}
 		}
 
@@ -146,7 +139,7 @@ export class PriorityFeeSubscriber {
 		}
 	}
 
-	private async loadForDrift(): Promise<void> {
+	private async loadForVelocity(): Promise<void> {
 		if (!this.velocityMarkets) {
 			return;
 		}
@@ -228,7 +221,7 @@ export class PriorityFeeSubscriber {
 			} else if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
 				await this.loadForHelius();
 			} else if (this.priorityFeeMethod === PriorityFeeMethod.VELOCITY) {
-				await this.loadForDrift();
+				await this.loadForVelocity();
 			} else {
 				throw new Error(`${this.priorityFeeMethod} load not implemented`);
 			}

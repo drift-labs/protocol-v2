@@ -32,10 +32,10 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('prelisting', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let adminDriftClient: TestClient;
-	let adminDriftClientUser: User;
+	let adminVelocityClient: TestClient;
+	let adminVelocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -94,7 +94,7 @@ describe('prelisting', () => {
 			{ publicKey: prelaunchOracle, source: OracleSource.Prelaunch },
 		];
 
-		adminDriftClient = new TestClient({
+		adminVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -112,16 +112,20 @@ describe('prelisting', () => {
 			},
 		});
 
-		await adminDriftClient.initialize(usdcMint.publicKey, true);
-		await adminDriftClient.subscribe();
-		await initializeQuoteSpotMarket(adminDriftClient, usdcMint.publicKey);
+		await adminVelocityClient.initialize(usdcMint.publicKey, true);
+		await adminVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(adminVelocityClient, usdcMint.publicKey);
 
 		const startPrice = PRICE_PRECISION.muln(32);
 		const maxPrice = startPrice.muln(4);
-		await adminDriftClient.initializePrelaunchOracle(0, startPrice, maxPrice);
+		await adminVelocityClient.initializePrelaunchOracle(
+			0,
+			startPrice,
+			maxPrice
+		);
 
 		const periodicity = new BN(3600);
-		await adminDriftClient.initializePerpMarket(
+		await adminVelocityClient.initializePerpMarket(
 			0,
 			prelaunchOracle,
 			ammInitialBaseAssetReserve,
@@ -130,34 +134,34 @@ describe('prelisting', () => {
 			new BN(32 * PEG_PRECISION.toNumber()),
 			OracleSource.Prelaunch
 		);
-		await adminDriftClient.initializeAmmCache();
+		await adminVelocityClient.initializeAmmCache();
 
-		await adminDriftClient.updatePerpMarketBaseSpread(
+		await adminVelocityClient.updatePerpMarketBaseSpread(
 			0,
 			Number(BID_ASK_SPREAD_PRECISION.divn(50))
 		);
 
-		await adminDriftClient.updatePerpAuctionDuration(0);
+		await adminVelocityClient.updatePerpAuctionDuration(0);
 
-		await adminDriftClient.initializeUserAccountAndDepositCollateral(
+		await adminVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		adminDriftClientUser = new User({
-			driftClient: adminDriftClient,
-			userAccountPublicKey: await adminDriftClient.getUserAccountPublicKey(),
+		adminVelocityClientUser = new User({
+			velocityClient: adminVelocityClient,
+			userAccountPublicKey: await adminVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await adminDriftClientUser.subscribe();
+		await adminVelocityClientUser.subscribe();
 	});
 
 	after(async () => {
-		await adminDriftClient.unsubscribe();
-		await adminDriftClientUser.unsubscribe();
+		await adminVelocityClient.unsubscribe();
+		await adminVelocityClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -175,21 +179,21 @@ describe('prelisting', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		await adminDriftClient.placePerpOrder(bidOrderParams);
-		await adminDriftClient.fetchAccounts();
-		const bidOrder = adminDriftClientUser.getOrderByUserOrderId(1);
+		await adminVelocityClient.placePerpOrder(bidOrderParams);
+		await adminVelocityClient.fetchAccounts();
+		const bidOrder = adminVelocityClientUser.getOrderByUserOrderId(1);
 
-		await adminDriftClient.fillPerpOrder(
-			await adminDriftClient.getUserAccountPublicKey(),
-			adminDriftClient.getUserAccount(),
+		await adminVelocityClient.fillPerpOrder(
+			await adminVelocityClient.getUserAccountPublicKey(),
+			adminVelocityClient.getUserAccount(),
 			bidOrder
 		);
 
 		// settle pnl to force oracle to update
-		await adminDriftClient.updatePrelaunchOracle(0);
+		await adminVelocityClient.updatePrelaunchOracle(0);
 
 		const oraclePriceDataAfterBuy =
-			adminDriftClient.getOracleDataForPerpMarket(0);
+			adminVelocityClient.getOracleDataForPerpMarket(0);
 		const oraclePriceAfterBuy = oraclePriceDataAfterBuy.price;
 		assert(oraclePriceAfterBuy.gt(new BN(32000000)));
 
@@ -204,21 +208,21 @@ describe('prelisting', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		await adminDriftClient.placePerpOrder(askOrderParams);
-		await adminDriftClient.fetchAccounts();
-		const askOrder = adminDriftClientUser.getOrderByUserOrderId(1);
+		await adminVelocityClient.placePerpOrder(askOrderParams);
+		await adminVelocityClient.fetchAccounts();
+		const askOrder = adminVelocityClientUser.getOrderByUserOrderId(1);
 
-		await adminDriftClient.fillPerpOrder(
-			await adminDriftClient.getUserAccountPublicKey(),
-			adminDriftClient.getUserAccount(),
+		await adminVelocityClient.fillPerpOrder(
+			await adminVelocityClient.getUserAccountPublicKey(),
+			adminVelocityClient.getUserAccount(),
 			askOrder
 		);
 
 		// settle pnl to force oracle to update
-		await adminDriftClient.updatePrelaunchOracle(0);
+		await adminVelocityClient.updatePrelaunchOracle(0);
 
 		const oraclePriceDataAfterSell =
-			adminDriftClient.getOracleDataForPerpMarket(0);
+			adminVelocityClient.getOracleDataForPerpMarket(0);
 		const oraclePriceAfterSell = oraclePriceDataAfterSell.price;
 		assert(oraclePriceAfterSell.lt(oraclePriceAfterBuy));
 	});
@@ -226,35 +230,39 @@ describe('prelisting', () => {
 	it('update params', async () => {
 		const newPrice = PRICE_PRECISION.muln(40);
 		const maxPrice = newPrice.muln(4);
-		await adminDriftClient.updatePrelaunchOracleParams(0, newPrice, maxPrice);
+		await adminVelocityClient.updatePrelaunchOracleParams(
+			0,
+			newPrice,
+			maxPrice
+		);
 
-		await adminDriftClient.fetchAccounts();
-		const price = adminDriftClient.getOracleDataForPerpMarket(0);
+		await adminVelocityClient.fetchAccounts();
+		const price = adminVelocityClient.getOracleDataForPerpMarket(0);
 		assert(price.price.eq(new BN(40000000)));
 
 		const markTwap =
-			adminDriftClient.getPerpMarketAccount(0).marketStats.lastMarkPriceTwap;
+			adminVelocityClient.getPerpMarketAccount(0).marketStats.lastMarkPriceTwap;
 		assert(markTwap.eq(new BN(40000000)));
 	});
 
 	it('delete', async () => {
 		try {
-			await adminDriftClient.deletePrelaunchOracle(0);
+			await adminVelocityClient.deletePrelaunchOracle(0);
 			assert(false);
 		} catch (e) {
 			console.log('Delete successfully failed');
 		}
 
-		const oldOracleKey = adminDriftClient.getPerpMarketAccount(0).oracle;
+		const oldOracleKey = adminVelocityClient.getPerpMarketAccount(0).oracle;
 
 		const newOracle = await mockOracleNoProgram(bankrunContextWrapper, 40);
-		await adminDriftClient.updatePerpMarketOracle(
+		await adminVelocityClient.updatePerpMarketOracle(
 			0,
 			newOracle,
 			OracleSource.PYTH_LAZER
 		);
 
-		await adminDriftClient.deletePrelaunchOracle(0);
+		await adminVelocityClient.deletePrelaunchOracle(0);
 
 		const result =
 			await bankrunContextWrapper.connection.getAccountInfoAndContext(

@@ -1,12 +1,12 @@
 /**
- * Shared TypeScript types for the Drift SDK.
+ * Shared TypeScript types for the Velocity SDK.
  *
  * Contains TypeScript mirrors of all on-chain account structs (UserAccount, PerpMarketAccount,
  * SpotMarketAccount, StateAccount, OracleData, etc.), instruction parameter types (OrderParams,
  * ModifyOrderParams), enums (MarketType, OrderType, PositionDirection, OracleSource), and
  * precision constants used throughout the SDK.
  *
- * The authoritative layout source is `sdk/src/idl/drift.json` (generated from the program).
+ * The authoritative layout source is `sdk/src/idl/velocity.json` (generated from the program).
  * Do not edit struct shapes here without a corresponding on-chain change.
  */
 import {
@@ -1489,9 +1489,6 @@ export interface VelocityClientMetricsEvents {
 	preTxSigned: void;
 }
 
-/** @deprecated Use `VelocityClientMetricsEvents` instead. `DriftClientMetricsEvents` will be removed in a future major. */
-export interface DriftClientMetricsEvents extends VelocityClientMetricsEvents {}
-
 export type SignedTxData = {
 	txSig: string;
 	signedTx: Transaction | VersionedTransaction;
@@ -1528,7 +1525,7 @@ export type IfRebalanceConfigParams = {
 };
 
 /* Represents proof of a signed msg taker order
- * It can be provided to drift program to fill a signed msg order
+ * It can be provided to velocity program to fill a signed msg order
  */
 export interface SignedMsgOrderParams {
 	/**

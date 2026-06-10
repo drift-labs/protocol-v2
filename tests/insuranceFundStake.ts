@@ -52,9 +52,9 @@ import {
 } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('insurance fund stake', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -68,11 +68,11 @@ describe('insurance fund stake', () => {
 
 	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
 
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
-	let secondUserDriftClientUSDCAccount: PublicKey;
+	let secondUserVelocityClient: TestClient;
+	let secondUserVelocityClientWSOLAccount: PublicKey;
+	let secondUserVelocityClientUSDCAccount: PublicKey;
 
-	let driftClientUser: User;
+	let velocityClientUser: User;
 
 	const solAmount = new BN(10000 * 10 ** 9);
 
@@ -109,7 +109,7 @@ describe('insurance fund stake', () => {
 			10000
 		); // a future we all need to believe in
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -133,18 +133,18 @@ describe('insurance fund stake', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.updateInitialPctToLiquidate(
+		await velocityClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solOracle,
 			AMM_RESERVE_PRECISION,
@@ -154,14 +154,14 @@ describe('insurance fund stake', () => {
 			undefined,
 			ContractTier.A
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await driftClient.updatePerpMarketBaseSpread(0, 2000);
-		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketBaseSpread(0, 2000);
+		await velocityClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const subAccountId = 0;
 		const name = 'BIGZ';
-		await driftClient.initializeUserAccount(subAccountId, name);
-		await driftClient.deposit(
+		await velocityClient.initializeUserAccount(subAccountId, name);
+		await velocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
@@ -169,23 +169,23 @@ describe('insurance fund stake', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		await velocityClient.unsubscribe();
+		await secondUserVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('initialize if stake', async () => {
 		const marketIndex = 0;
-		await driftClient.initializeInsuranceFundStake(marketIndex);
+		await velocityClient.initializeInsuranceFundStake(marketIndex);
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			marketIndex
 		);
 		const ifStakeAccount =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 		assert(ifStakeAccount.marketIndex === marketIndex);
@@ -195,14 +195,14 @@ describe('insurance fund stake', () => {
 			)
 		);
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 		assert(userStats.numberOfSubAccounts === 1);
 		assert(userStats.ifStakedQuoteAssetAmount.eq(ZERO));
 	});
 
 	it('user if stake', async () => {
 		const marketIndex = 0;
-		const spotMarketBefore = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarketBefore = velocityClient.getSpotMarketAccount(marketIndex);
 		// console.log(spotMarketBefore);
 		console.log(
 			'spotMarketBefore.totalIfShares:',
@@ -210,7 +210,7 @@ describe('insurance fund stake', () => {
 		);
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake({
+			const txSig = await velocityClient.addInsuranceFundStake({
 				marketIndex: marketIndex,
 				amount: usdcAmount,
 				collateralAccountPublicKey: userUSDCAccount.publicKey,
@@ -220,7 +220,7 @@ describe('insurance fund stake', () => {
 			console.error(e);
 		}
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = velocityClient.getSpotMarketAccount(marketIndex);
 		console.log(
 			'spotMarket0.insurance.totalIfShares:',
 			spotMarket0.insuranceFund.totalShares.toString()
@@ -232,7 +232,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount));
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount));
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 		console.log(userStats);
 		assert(userStats.ifStakedQuoteAssetAmount.eq(usdcAmount));
 	});
@@ -241,7 +241,7 @@ describe('insurance fund stake', () => {
 		const marketIndex = 0;
 		const nShares = usdcAmount.div(new BN(2));
 
-		const spotMarket0Before = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Before = velocityClient.getSpotMarketAccount(marketIndex);
 
 		const insuranceVaultAmountBefore = (
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -258,7 +258,7 @@ describe('insurance fund stake', () => {
 		console.log(amountFromShare.toString());
 
 		try {
-			const txSig = await driftClient.requestRemoveInsuranceFundStake(
+			const txSig = await velocityClient.requestRemoveInsuranceFundStake(
 				marketIndex,
 				amountFromShare
 			);
@@ -267,22 +267,22 @@ describe('insurance fund stake', () => {
 			console.error(e);
 		}
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = velocityClient.getSpotMarketAccount(marketIndex);
 		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
 		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount));
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount));
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 		assert(userStats.ifStakedQuoteAssetAmount.eq(usdcAmount));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			marketIndex
 		);
 
 		const ifStakeAccount =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 
@@ -296,19 +296,19 @@ describe('insurance fund stake', () => {
 	it('user if unstake (half)', async () => {
 		const marketIndex = 0;
 		// const nShares = usdcAmount.div(new BN(2));
-		await driftClient.updateInsuranceFundUnstakingPeriod(
+		await velocityClient.updateInsuranceFundUnstakingPeriod(
 			marketIndex,
 			new BN(1)
 		);
 		await sleep(1000);
 
-		const txSig = await driftClient.removeInsuranceFundStake(
+		const txSig = await velocityClient.removeInsuranceFundStake(
 			marketIndex,
 			userUSDCAccount.publicKey
 		);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = velocityClient.getSpotMarketAccount(marketIndex);
 		console.log(
 			'totalIfShares:',
 			spotMarket0.insuranceFund.totalShares.toString()
@@ -321,11 +321,11 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount.div(new BN(2))));
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount.div(new BN(2))));
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 		assert(userStats.ifStakedQuoteAssetAmount.eq(usdcAmount.div(new BN(2))));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			marketIndex
 		);
@@ -345,7 +345,7 @@ describe('insurance fund stake', () => {
 		assert(usdcbalance.toString() == '500000000000');
 
 		const ifStakeAccount =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 
@@ -353,7 +353,7 @@ describe('insurance fund stake', () => {
 	});
 
 	it('user request if unstake with escrow period (last half)', async () => {
-		const txSig = await driftClient.updateInsuranceFundUnstakingPeriod(
+		const txSig = await velocityClient.updateInsuranceFundUnstakingPeriod(
 			0,
 			new BN(10)
 		);
@@ -361,14 +361,14 @@ describe('insurance fund stake', () => {
 
 		const marketIndex = 0;
 		const nShares = usdcAmount.div(new BN(2));
-		const txSig2 = await driftClient.requestRemoveInsuranceFundStake(
+		const txSig2 = await velocityClient.requestRemoveInsuranceFundStake(
 			marketIndex,
 			nShares
 		);
 		bankrunContextWrapper.connection.printTxLogs(txSig2);
 
 		try {
-			const txSig3 = await driftClient.removeInsuranceFundStake(
+			const txSig3 = await velocityClient.removeInsuranceFundStake(
 				marketIndex,
 				userUSDCAccount.publicKey
 			);
@@ -378,25 +378,25 @@ describe('insurance fund stake', () => {
 			console.error(e);
 		}
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = velocityClient.getSpotMarketAccount(marketIndex);
 		assert(spotMarket0.insuranceFund.unstakingPeriod.eq(new BN(10)));
 		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
 		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount.div(new BN(2))));
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount.div(new BN(2))));
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 		assert(userStats.ifStakedQuoteAssetAmount.gt(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			marketIndex
 		);
 
 		const ifStakeAccount =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 
@@ -407,7 +407,7 @@ describe('insurance fund stake', () => {
 		const marketIndex = 0;
 
 		try {
-			await driftClient.updateSpotMarketIfFactor(
+			await velocityClient.updateSpotMarketIfFactor(
 				0,
 				new BN(90000),
 				new BN(100000)
@@ -418,20 +418,20 @@ describe('insurance fund stake', () => {
 			assert(false);
 		}
 
-		const spotMarket0Pre = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Pre = velocityClient.getSpotMarketAccount(marketIndex);
 		assert(spotMarket0Pre.insuranceFund.unstakingPeriod.eq(new BN(10)));
 
 		await bankrunContextWrapper.moveTimeForward(10);
 
 		// const nShares = usdcAmount.div(new BN(2));
-		const txSig = await driftClient.removeInsuranceFundStake(
+		const txSig = await velocityClient.removeInsuranceFundStake(
 			marketIndex,
 			userUSDCAccount.publicKey
 		);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const spotMarket0 = velocityClient.getSpotMarketAccount(marketIndex);
 		console.log(
 			'totalIfShares:',
 			spotMarket0.insuranceFund.totalShares.toString()
@@ -445,19 +445,19 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.insuranceFund.userShares.eq(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			marketIndex
 		);
 
 		const ifStakeAccount =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 		assert(userStats.ifStakedQuoteAssetAmount.eq(ZERO));
 
 		const usdcbalance = (
@@ -471,9 +471,9 @@ describe('insurance fund stake', () => {
 
 	it('Second User Deposit SOL', async () => {
 		[
-			secondUserDriftClient,
-			secondUserDriftClientWSOLAccount,
-			secondUserDriftClientUSDCAccount,
+			secondUserVelocityClient,
+			secondUserVelocityClientWSOLAccount,
+			secondUserVelocityClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -492,14 +492,14 @@ describe('insurance fund stake', () => {
 		);
 
 		const marketIndex = 1;
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserDriftClientWSOLAccount
+			secondUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		const spotMarket = await driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket = await velocityClient.getSpotMarketAccount(marketIndex);
 		console.log(spotMarket.depositBalance.toString());
 		// assert(spotMarket.depositBalance.eq('10000000000'));
 
@@ -519,7 +519,7 @@ describe('insurance fund stake', () => {
 			SpotBalanceType.DEPOSIT
 		);
 		const userspotMarketBalance =
-			secondUserDriftClient.getUserAccount().spotPositions[1];
+			secondUserVelocityClient.getUserAccount().spotPositions[1];
 		assert(isVariant(userspotMarketBalance.balanceType, 'deposit'));
 		assert(userspotMarketBalance.scaledBalance.eq(expectedBalance));
 	});
@@ -527,15 +527,15 @@ describe('insurance fund stake', () => {
 	it('Second User Withdraw First half USDC', async () => {
 		const marketIndex = 0;
 		const withdrawAmount = usdcAmount.div(new BN(2));
-		const txSig = await secondUserDriftClient.withdraw(
+		const txSig = await secondUserVelocityClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		const spotMarket = await driftClient.getSpotMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const spotMarket = await velocityClient.getSpotMarketAccount(marketIndex);
 		const expectedBorrowBalance = new BN(500000000000001);
 		console.log(
 			'spotMarket.borrowBalance:',
@@ -557,14 +557,14 @@ describe('insurance fund stake', () => {
 		);
 
 		const userspotMarketBalance =
-			secondUserDriftClient.getUserAccount().spotPositions[0];
+			secondUserVelocityClient.getUserAccount().spotPositions[0];
 		assert(isVariant(userspotMarketBalance.balanceType, 'borrow'));
 		assert(userspotMarketBalance.scaledBalance.eq(expectedBalance));
 
 		const actualAmountWithdrawn = asBN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientUSDCAccount
+					secondUserVelocityClientUSDCAccount
 				)
 			).amount
 		);
@@ -572,7 +572,7 @@ describe('insurance fund stake', () => {
 	});
 
 	it('if pool revenue from borrows', async () => {
-		let spotMarket = driftClient.getSpotMarketAccount(0);
+		let spotMarket = velocityClient.getSpotMarketAccount(0);
 
 		// await mintToInsuranceFund(
 		// 	spotMarket.insurance.vault,
@@ -590,10 +590,10 @@ describe('insurance fund stake', () => {
 		assert(spotMarket.borrowBalance.gt(ZERO));
 		assert(ifPoolBalance.eq(new BN(0)));
 
-		await driftClient.updateSpotMarketCumulativeInterest(0);
+		await velocityClient.updateSpotMarketCumulativeInterest(0);
 
-		await driftClient.fetchAccounts();
-		spotMarket = driftClient.getSpotMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		spotMarket = velocityClient.getSpotMarketAccount(0);
 
 		console.log(
 			'cumulativeBorrowInterest:',
@@ -622,10 +622,10 @@ describe('insurance fund stake', () => {
 		console.log('insuranceVaultAmount:', insuranceVaultAmountBefore.toString());
 		assert(insuranceVaultAmountBefore.eq(ONE));
 
-		await driftClient.updateSpotMarketRevenueSettlePeriod(0, ONE);
+		await velocityClient.updateSpotMarketRevenueSettlePeriod(0, ONE);
 
 		try {
-			const txSig = await driftClient.settleRevenueToInsuranceFund(0);
+			const txSig = await velocityClient.settleRevenueToInsuranceFund(0);
 			bankrunContextWrapper.printTxLogs(txSig);
 		} catch (e) {
 			console.error(e);
@@ -646,8 +646,8 @@ describe('insurance fund stake', () => {
 		);
 		assert(insuranceVaultAmount.gt(ONE));
 
-		await driftClient.fetchAccounts();
-		spotMarket = driftClient.getSpotMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		spotMarket = velocityClient.getSpotMarketAccount(0);
 		const ifPoolBalanceAfterSettle = getTokenAmount(
 			spotMarket.revenuePool.scaledBalance,
 			spotMarket,
@@ -658,7 +658,7 @@ describe('insurance fund stake', () => {
 
 	it('no user -> user stake when there is a vault balance', async () => {
 		const marketIndex = 0;
-		const spotMarket0Before = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Before = velocityClient.getSpotMarketAccount(marketIndex);
 		const insuranceVaultAmountBefore = asBN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
@@ -682,7 +682,7 @@ describe('insurance fund stake', () => {
 		assert(usdcbalance.toString() == '999999999999');
 
 		try {
-			const txSig = await driftClient.addInsuranceFundStake({
+			const txSig = await velocityClient.addInsuranceFundStake({
 				marketIndex,
 				amount: new BN(usdcbalance),
 				collateralAccountPublicKey: userUSDCAccount.publicKey,
@@ -693,7 +693,7 @@ describe('insurance fund stake', () => {
 			assert(false);
 		}
 
-		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0 = velocityClient.getSpotMarketAccount(marketIndex);
 		assert(spotMarket0.revenuePool.scaledBalance.eq(ZERO));
 		const insuranceVaultAmountAfter = asBN(
 			(
@@ -716,13 +716,13 @@ describe('insurance fund stake', () => {
 
 		assert(spotMarket0.insuranceFund.userShares.eq(new BN(usdcbalance)));
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 		assert(userStats.ifStakedQuoteAssetAmount.eq(new BN(usdcbalance)));
 	});
 
 	it('user stake misses out on gains during escrow period after cancel', async () => {
 		const marketIndex = 0;
-		const spotMarket0Before = driftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket0Before = velocityClient.getSpotMarketAccount(marketIndex);
 		const insuranceVaultAmountBefore = asBN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
@@ -743,12 +743,12 @@ describe('insurance fund stake', () => {
 
 		// user requests partial withdraw
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			marketIndex
 		);
 		const ifStakeAccount =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 
@@ -758,16 +758,16 @@ describe('insurance fund stake', () => {
 			insuranceVaultAmountBefore
 		);
 
-		await driftClient.requestRemoveInsuranceFundStake(
+		await velocityClient.requestRemoveInsuranceFundStake(
 			marketIndex,
 			amountFromShare
 		);
 
 		console.log('letting interest accum (2s)');
 		await sleep(2000);
-		await driftClient.updateSpotMarketCumulativeInterest(0);
-		await driftClient.fetchAccounts();
-		const spotMarketIUpdate = await driftClient.getSpotMarketAccount(
+		await velocityClient.updateSpotMarketCumulativeInterest(0);
+		await velocityClient.fetchAccounts();
+		const spotMarketIUpdate = await velocityClient.getSpotMarketAccount(
 			marketIndex
 		);
 
@@ -784,7 +784,9 @@ describe('insurance fund stake', () => {
 		assert(spotMarketIUpdate.revenuePool.scaledBalance.gt(ZERO));
 
 		try {
-			const txSig = await driftClient.settleRevenueToInsuranceFund(marketIndex);
+			const txSig = await velocityClient.settleRevenueToInsuranceFund(
+				marketIndex
+			);
 			bankrunContextWrapper.printTxLogs(txSig);
 		} catch (e) {
 			console.error(e);
@@ -800,16 +802,16 @@ describe('insurance fund stake', () => {
 		);
 
 		assert(insuranceVaultAmountAfter.gt(insuranceVaultAmountBefore));
-		const txSig = await driftClient.cancelRequestRemoveInsuranceFundStake(
+		const txSig = await velocityClient.cancelRequestRemoveInsuranceFundStake(
 			marketIndex
 		);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
 		const ifStakeAccountAfter =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 
 		console.log(
 			'ifshares:',
@@ -832,7 +834,7 @@ describe('insurance fund stake', () => {
 	});
 
 	it('liquidate borrow (w/ IF revenue)', async () => {
-		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
+		const spotMarketBefore = velocityClient.getSpotMarketAccount(0);
 
 		const revPoolBalance = getTokenAmount(
 			spotMarketBefore.revenuePool.scaledBalance,
@@ -845,18 +847,18 @@ describe('insurance fund stake', () => {
 		assert(revPoolBalance.gt(new BN(0))); // should be a little residual left in rev pool
 		assert(revPoolBalance.lt(QUOTE_PRECISION));
 
-		driftClientUser = new User({
-			driftClient: secondUserDriftClient,
+		velocityClientUser = new User({
+			velocityClient: secondUserVelocityClient,
 			userAccountPublicKey:
-				await secondUserDriftClient.getUserAccountPublicKey(),
+				await secondUserVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
-		const prevTC = driftClientUser.getTotalCollateral();
+		const prevTC = velocityClientUser.getTotalCollateral();
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
@@ -870,8 +872,8 @@ describe('insurance fund stake', () => {
 			},
 		};
 
-		await driftClient.updateLiquidationDuration(1);
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateLiquidationDuration(1);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 		await setFeedPriceNoProgram(
 			bankrunContextWrapper,
 			22500 / 10000,
@@ -880,13 +882,13 @@ describe('insurance fund stake', () => {
 		); // down 99.99%
 		await sleep(2000);
 
-		const state = await driftClient.getStateAccount();
+		const state = await velocityClient.getStateAccount();
 		console.log('state.liquidationDuration', state.liquidationDuration);
 		assert(state.liquidationDuration > 0);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const newTC = driftClientUser.getTotalCollateral();
+		const newTC = velocityClientUser.getTotalCollateral();
 		console.log(
 			"Borrower's TotalCollateral: ",
 			convertToNumber(prevTC, QUOTE_PRECISION),
@@ -895,10 +897,10 @@ describe('insurance fund stake', () => {
 		);
 		assert(!prevTC.eq(newTC));
 
-		assert(driftClientUser.canBeLiquidated());
+		assert(velocityClientUser.canBeLiquidated());
 
-		const beforecbb0 = driftClient.getUserAccount().spotPositions[0];
-		const beforecbb1 = driftClient.getUserAccount().spotPositions[1];
+		const beforecbb0 = velocityClient.getUserAccount().spotPositions[0];
+		const beforecbb1 = velocityClient.getUserAccount().spotPositions[1];
 
 		const beforeLiquiderUSDCDeposit = getTokenAmount(
 			beforecbb0.scaledBalance,
@@ -923,8 +925,10 @@ describe('insurance fund stake', () => {
 		assert(isVariant(beforecbb0.balanceType, 'deposit'));
 		// assert(isVariant(beforecbb1.balanceType, 'deposit'));
 
-		const beforebb0 = secondUserDriftClient.getUserAccount().spotPositions[0];
-		const beforebb1 = secondUserDriftClient.getUserAccount().spotPositions[1];
+		const beforebb0 =
+			secondUserVelocityClient.getUserAccount().spotPositions[0];
+		const beforebb1 =
+			secondUserVelocityClient.getUserAccount().spotPositions[1];
 
 		const usdcDepositsBefore = getTokenAmount(
 			spotMarketBefore.depositBalance,
@@ -960,9 +964,9 @@ describe('insurance fund stake', () => {
 		assert(beforeLiquiteeUSDCBorrow.gt(new BN('500000033001')));
 		assert(beforeLiquiteeSOLDeposit.gt(new BN('10000000997')));
 
-		const txSig = await driftClient.liquidateSpot(
-			await secondUserDriftClient.getUserAccountPublicKey(),
-			secondUserDriftClient.getUserAccount(),
+		const txSig = await velocityClient.liquidateSpot(
+			await secondUserVelocityClient.getUserAccountPublicKey(),
+			secondUserVelocityClient.getUserAccount(),
 			1,
 			0,
 			new BN(6 * 10 ** 8)
@@ -973,13 +977,13 @@ describe('insurance fund stake', () => {
 		console.log('compute units', computeUnits);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await secondUserDriftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 
-		const spotMarket = driftClient.getSpotMarketAccount(0);
+		const spotMarket = velocityClient.getSpotMarketAccount(0);
 
-		const cbb0 = driftClient.getUserAccount().spotPositions[0];
-		const cbb1 = driftClient.getUserAccount().spotPositions[1];
+		const cbb0 = velocityClient.getUserAccount().spotPositions[0];
+		const cbb1 = velocityClient.getUserAccount().spotPositions[1];
 
 		const afterLiquiderUSDCDeposit = getTokenAmount(
 			cbb0.scaledBalance,
@@ -1004,8 +1008,8 @@ describe('insurance fund stake', () => {
 		assert(isVariant(cbb0.balanceType, 'deposit'));
 		assert(isVariant(cbb1.balanceType, 'deposit'));
 
-		const bb0 = secondUserDriftClient.getUserAccount().spotPositions[0];
-		const bb1 = secondUserDriftClient.getUserAccount().spotPositions[1];
+		const bb0 = secondUserVelocityClient.getUserAccount().spotPositions[0];
+		const bb1 = secondUserVelocityClient.getUserAccount().spotPositions[1];
 
 		const afterLiquiteeUSDCBorrow = getTokenAmount(
 			bb0.scaledBalance,
@@ -1038,34 +1042,34 @@ describe('insurance fund stake', () => {
 		// assert(afterLiquiteeSOLDeposit.gte(new BN('9733337361')));
 
 		// console.log(
-		// 	secondUserDriftClient
+		// 	secondUserVelocityClient
 		// 		.getUserAccount()
 		// 		.spotPositions[0].scaledBalance.toString(),
 
-		// 	secondUserDriftClient
+		// 	secondUserVelocityClient
 		// 		.getUserAccount()
 		// 		.spotPositions[0].marketIndex.toString(),
-		// 	secondUserDriftClient.getUserAccount().spotPositions[0].balanceType
+		// 	secondUserVelocityClient.getUserAccount().spotPositions[0].balanceType
 		// );
 
 		// console.log(
-		// 	secondUserDriftClient
+		// 	secondUserVelocityClient
 		// 		.getUserAccount()
 		// 		.spotPositions[1].scaledBalance.toString(),
 
-		// 	secondUserDriftClient
+		// 	secondUserVelocityClient
 		// 		.getUserAccount()
 		// 		.spotPositions[1].marketIndex.toString(),
-		// 	secondUserDriftClient.getUserAccount().spotPositions[1].balanceType
+		// 	secondUserVelocityClient.getUserAccount().spotPositions[1].balanceType
 		// );
 
 		assert(
-			secondUserDriftClient.getUserAccount().status ===
+			secondUserVelocityClient.getUserAccount().status ===
 				UserStatus.BEING_LIQUIDATED
 		);
 
 		assert(
-			secondUserDriftClient.getUserAccount().status !== UserStatus.BANKRUPT
+			secondUserVelocityClient.getUserAccount().status !== UserStatus.BANKRUPT
 		);
 
 		const liquidationRecord =
@@ -1165,7 +1169,7 @@ describe('insurance fund stake', () => {
 			usdcAfter.toString()
 		);
 
-		await driftClientUser.unsubscribe();
+		await velocityClientUser.unsubscribe();
 
 		// TODO: resolve any issues in liq borrow before adding asserts in test here
 
@@ -1181,15 +1185,15 @@ describe('insurance fund stake', () => {
 		);
 		const marketIndex = 0;
 		const insuranceFundStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
-			driftClient.wallet.publicKey,
+			velocityClient.program.programId,
+			velocityClient.wallet.publicKey,
 			marketIndex
 		);
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
-			driftClient.program.programId,
-			driftClient.wallet.publicKey
+			velocityClient.program.programId,
+			velocityClient.wallet.publicKey
 		);
-		const txSig = await driftClient.depositIntoInsuranceFundStake(
+		const txSig = await velocityClient.depositIntoInsuranceFundStake(
 			marketIndex,
 			usdcAmount,
 			userStatsPublicKey,
@@ -1202,7 +1206,7 @@ describe('insurance fund stake', () => {
 	// it('settle spotMarket to insurance vault', async () => {
 	// 	const marketIndex = new BN(0);
 
-	// 	const spotMarket0Before = driftClient.getSpotMarketAccount(marketIndex);
+	// 	const spotMarket0Before = velocityClient.getSpotMarketAccount(marketIndex);
 
 	// 	const insuranceVaultAmountBefore = new BN(
 	// 		(
@@ -1225,7 +1229,7 @@ describe('insurance fund stake', () => {
 	// 	assert(spotMarket0Before.insurance.totalIfShares.eq(ZERO)); // 0_od
 
 	// 	try {
-	// 		const txSig = await driftClient.settleRevenueToInsuranceFund(marketIndex);
+	// 		const txSig = await velocityClient.settleRevenueToInsuranceFund(marketIndex);
 	// 		console.log(
 	// 			'tx logs',
 	// 			(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -1236,7 +1240,7 @@ describe('insurance fund stake', () => {
 	// 		assert(false);
 	// 	}
 
-	// 	const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+	// 	const spotMarket0 = velocityClient.getSpotMarketAccount(marketIndex);
 	// 	assert(spotMarket0.revenuePool.scaledBalance.eq(ZERO));
 	// 	assert(spotMarket0.insurance.totalIfShares.eq(ZERO));
 	// });

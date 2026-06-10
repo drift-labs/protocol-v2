@@ -29,7 +29,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -42,11 +42,11 @@ describe('spot deposit and withdraw', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientUSDCAccount: PublicKey;
+	let secondUserVelocityClient: TestClient;
+	let secondUserVelocityClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -107,8 +107,8 @@ describe('spot deposit and withdraw', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
+		await secondUserVelocityClient.unsubscribe();
 	});
 
 	it('Initialize Markets', async () => {
@@ -170,7 +170,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
+		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -183,18 +183,18 @@ describe('spot deposit and withdraw', () => {
 			);
 
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		await firstUserVelocityClient.deposit(
 			usdcAmount.divn(2),
 			0,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 
 		try {
-			await firstUserDriftClient.deposit(
+			await firstUserVelocityClient.deposit(
 				usdcAmount.divn(2),
 				1,
-				firstUserDriftClientUSDCAccount
+				firstUserVelocityClientUSDCAccount
 			);
 			assert(false);
 		} catch (e) {
@@ -203,7 +203,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Second User Deposit USDC', async () => {
-		[secondUserDriftClient, secondUserDriftClientUSDCAccount] =
+		[secondUserVelocityClient, secondUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -215,22 +215,22 @@ describe('spot deposit and withdraw', () => {
 				bulkAccountLoader
 			);
 
-		await secondUserDriftClient.updateUserPoolId([
+		await secondUserVelocityClient.updateUserPoolId([
 			{ subAccountId: 0, poolId: 1 },
 		]);
 		await sleep(100);
-		await secondUserDriftClient.fetchAccounts();
-		await secondUserDriftClient.deposit(
+		await secondUserVelocityClient.fetchAccounts();
+		await secondUserVelocityClient.deposit(
 			usdcAmount.divn(2),
 			1,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 
 		try {
-			await secondUserDriftClient.deposit(
+			await secondUserVelocityClient.deposit(
 				usdcAmount.divn(2),
 				0,
-				secondUserDriftClientUSDCAccount
+				secondUserVelocityClientUSDCAccount
 			);
 			assert(false);
 		} catch (e) {

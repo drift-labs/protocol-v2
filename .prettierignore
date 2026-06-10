@@ -1,2 +1,2 @@
 **/node_modules/**
-sdk/src/idl/drift.ts
+sdk/src/idl/velocity.ts

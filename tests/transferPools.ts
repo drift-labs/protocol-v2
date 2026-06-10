@@ -31,7 +31,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { NATIVE_MINT } from '@solana/spl-token';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -44,12 +44,12 @@ describe('spot deposit and withdraw', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
-	let secondUserDriftClientUSDCAccount: PublicKey;
+	let secondUserVelocityClient: TestClient;
+	let secondUserVelocityClientWSOLAccount: PublicKey;
+	let secondUserVelocityClientUSDCAccount: PublicKey;
 
 	const solAmount = new BN(1 * 10 ** 9);
 
@@ -112,8 +112,8 @@ describe('spot deposit and withdraw', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
+		await secondUserVelocityClient.unsubscribe();
 	});
 
 	it('Initialize USDC Markets', async () => {
@@ -246,7 +246,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('First User Deposit USDC Markets', async () => {
-		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
+		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -259,31 +259,31 @@ describe('spot deposit and withdraw', () => {
 			);
 
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		await firstUserVelocityClient.deposit(
 			usdcAmount,
 			0,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 
-		await firstUserDriftClient.initializeUserAccount(1);
-		await firstUserDriftClient.updateUserPoolId([
+		await firstUserVelocityClient.initializeUserAccount(1);
+		await firstUserVelocityClient.updateUserPoolId([
 			{ subAccountId: 1, poolId: 1 },
 		]);
 
-		await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.deposit(
 			usdcAmount,
 			1,
-			firstUserDriftClientUSDCAccount,
+			firstUserVelocityClientUSDCAccount,
 			1
 		);
 	});
 
 	it('Second User Deposit SOL', async () => {
 		[
-			secondUserDriftClient,
-			secondUserDriftClientWSOLAccount,
-			secondUserDriftClientUSDCAccount,
+			secondUserVelocityClient,
+			secondUserVelocityClientWSOLAccount,
+			secondUserVelocityClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -297,10 +297,10 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const marketIndex = 2;
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserDriftClientWSOLAccount
+			secondUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 	});
@@ -308,23 +308,23 @@ describe('spot deposit and withdraw', () => {
 	it('Second User Withdraw First half USDC', async () => {
 		const marketIndex = 0;
 		const withdrawAmount = usdcAmount.div(new BN(2));
-		const txSig = await secondUserDriftClient.withdraw(
+		const txSig = await secondUserVelocityClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 	});
 
 	it('transfer pools', async () => {
-		await secondUserDriftClient.initializeUserAccount(1);
-		await secondUserDriftClient.updateUserPoolId([
+		await secondUserVelocityClient.initializeUserAccount(1);
+		await secondUserVelocityClient.updateUserPoolId([
 			{ subAccountId: 1, poolId: 1 },
 		]);
 		await sleep(100);
-		await secondUserDriftClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 
-		await secondUserDriftClient.transferPools(
+		await secondUserVelocityClient.transferPools(
 			2,
 			3,
 			0,
@@ -335,17 +335,21 @@ describe('spot deposit and withdraw', () => {
 			1
 		);
 
-		secondUserDriftClient.fetchAccounts();
+		secondUserVelocityClient.fetchAccounts();
 
-		await secondUserDriftClient.switchActiveUser(1);
+		await secondUserVelocityClient.switchActiveUser(1);
 
-		const secondUserSolDeposit = await secondUserDriftClient.getTokenAmount(3);
+		const secondUserSolDeposit = await secondUserVelocityClient.getTokenAmount(
+			3
+		);
 		assert(secondUserSolDeposit.eq(solAmount));
 
-		const secondUserUsdcBorrow = await secondUserDriftClient.getTokenAmount(1);
+		const secondUserUsdcBorrow = await secondUserVelocityClient.getTokenAmount(
+			1
+		);
 		assert(secondUserUsdcBorrow.eq(new BN(-5000090)));
 
-		await secondUserDriftClient.transferPools(
+		await secondUserVelocityClient.transferPools(
 			3,
 			2,
 			1,
@@ -356,22 +360,30 @@ describe('spot deposit and withdraw', () => {
 			0
 		);
 
-		secondUserDriftClient.fetchAccounts();
+		secondUserVelocityClient.fetchAccounts();
 
-		await secondUserDriftClient.switchActiveUser(1);
+		await secondUserVelocityClient.switchActiveUser(1);
 
-		const secondUserSolDeposit2 = await secondUserDriftClient.getTokenAmount(3);
+		const secondUserSolDeposit2 = await secondUserVelocityClient.getTokenAmount(
+			3
+		);
 		assert(secondUserSolDeposit2.eq(new BN(499999999)));
 
-		const secondUserUsdcBorrow2 = await secondUserDriftClient.getTokenAmount(1);
+		const secondUserUsdcBorrow2 = await secondUserVelocityClient.getTokenAmount(
+			1
+		);
 		assert(secondUserUsdcBorrow2.eq(new BN(-2500175)));
 
-		await secondUserDriftClient.switchActiveUser(0);
+		await secondUserVelocityClient.switchActiveUser(0);
 
-		const firstUserSolDeposit = await secondUserDriftClient.getTokenAmount(2);
+		const firstUserSolDeposit = await secondUserVelocityClient.getTokenAmount(
+			2
+		);
 		assert(firstUserSolDeposit.eq(new BN(500000000)));
 
-		const firstUserUsdcBorrow = await secondUserDriftClient.getTokenAmount(0);
+		const firstUserUsdcBorrow = await secondUserVelocityClient.getTokenAmount(
+			0
+		);
 		assert(firstUserUsdcBorrow.eq(new BN(-2500001)));
 	});
 });

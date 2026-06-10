@@ -50,7 +50,7 @@ export class PythLazerSubscriber {
 	 * @param endpoints - Array of WebSocket endpoint URLs for Pyth Lazer
 	 * @param token - Authentication token for Pyth Lazer API
 	 * @param priceFeedArrays - Array of price feed configurations to subscribe to
-	 * @param env - Drift environment (mainnet-beta, devnet, etc.)
+	 * @param env - Velocity environment (mainnet-beta, devnet, etc.)
 	 * @param resubTimeoutMs - Milliseconds to wait before resubscribing on data timeout
 	 * @param sdkLogging - Whether to log Pyth SDK logs to the console. This is very noisy but could be useful for debugging.
 	 * @param feedProperties - Price feed properties to request. Must include both 'price' and 'exponent' (required for getPriceFromMarketIndex). Defaults to ['price', 'bestAskPrice', 'bestBidPrice', 'exponent']. Stored by copy so caller mutation does not affect this instance.

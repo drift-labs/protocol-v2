@@ -2,13 +2,13 @@ name: "Build Program (verified + IDL)"
 description: >
   Runs `anchor build` (for the IDL JSON) and `solana-verify build` (for the
   deployable .so) for one program. Devnet variant strips the `mainnet-beta`
-  cargo feature so drift's cfg-gated declare_id! resolves to the devnet pubkey.
+  cargo feature so velocity's cfg-gated declare_id! resolves to the devnet pubkey.
 inputs:
   program:
-    description: "Program crate name (drift | token_faucet)"
+    description: "Program crate name (velocity | token_faucet)"
     required: true
   devnet:
-    description: "If 'true', strip mainnet-beta feature (drift only)"
+    description: "If 'true', strip mainnet-beta feature (velocity only)"
     required: false
     default: "false"
 
@@ -49,8 +49,8 @@ runs:
         DEVNET: ${{ inputs.devnet }}
       run: |
         set -euo pipefail
-        if [ "$PROGRAM" = "drift" ] && [ "$DEVNET" = "true" ]; then
-          anchor build --ignore-keys -p drift -- --no-default-features --features no-entrypoint
+        if [ "$PROGRAM" = "velocity" ] && [ "$DEVNET" = "true" ]; then
+          anchor build --ignore-keys -p velocity -- --no-default-features --features no-entrypoint
         else
           anchor build -p "$PROGRAM"
         fi
@@ -63,8 +63,8 @@ runs:
         DEVNET: ${{ inputs.devnet }}
       run: |
         set -euo pipefail
-        if [ "$PROGRAM" = "drift" ] && [ "$DEVNET" = "true" ]; then
-          solana-verify build --library-name drift -b "$VERIFIABLE_BUILD_IMAGE" -- --no-default-features --features no-entrypoint
+        if [ "$PROGRAM" = "velocity" ] && [ "$DEVNET" = "true" ]; then
+          solana-verify build --library-name velocity -b "$VERIFIABLE_BUILD_IMAGE" -- --no-default-features --features no-entrypoint
         else
           solana-verify build --library-name "$PROGRAM" -b "$VERIFIABLE_BUILD_IMAGE"
         fi

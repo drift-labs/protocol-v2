@@ -33,7 +33,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 async function updateFundingRateHelper(
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>,
@@ -46,7 +46,7 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPriceNoProgram(context, newprice, priceFeedAddress);
 
-		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
+		const marketData0 = velocityClient.getPerpMarketAccount(marketIndex);
 		const oraclePx0 = await getFeedDataNoProgram(
 			// @ts-ignore
 			context.connection,
@@ -82,8 +82,8 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			marketData0.cumulativeFundingRateShort;
 		try {
-			driftClient.txParams.computeUnits = 600_000 + txNonce;
-			const _tx = await driftClient.updateFundingRate(
+			velocityClient.txParams.computeUnits = 600_000 + txNonce;
+			const _tx = await velocityClient.updateFundingRate(
 				marketIndex,
 				priceFeedAddress
 			);
@@ -93,7 +93,7 @@ async function updateFundingRateHelper(
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
-		const marketData = driftClient.getPerpMarketAccount(marketIndex);
+		const marketData = velocityClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.marketStats.fundingPeriod;
 
@@ -155,10 +155,10 @@ async function updateFundingRateHelper(
 }
 
 describe('pyth-oracle', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
-	let driftClient2: TestClient;
+	let velocityClient: TestClient;
+	let velocityClient2: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -195,7 +195,7 @@ describe('pyth-oracle', () => {
 		const price = 50000;
 		await mockOracleNoProgram(bankrunContextWrapper, price, -6);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -211,16 +211,16 @@ describe('pyth-oracle', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
-		await driftClient.initializeUserAccount();
+		await velocityClient.initializeUserAccount();
 		userAccount = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -228,14 +228,14 @@ describe('pyth-oracle', () => {
 		});
 		await userAccount.subscribe();
 
-		await driftClient.deposit(
+		await velocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const [_userUSDCAccounts, _user_keys, driftClients, userAccountInfos] =
+		const [_userUSDCAccounts, _user_keys, velocityClients, userAccountInfos] =
 			await initUserAccounts(
 				1,
 				usdcMint,
@@ -247,10 +247,10 @@ describe('pyth-oracle', () => {
 				bulkAccountLoader
 			);
 
-		driftClient2 = driftClients[0];
+		velocityClient2 = velocityClients[0];
 		userAccount2 = userAccountInfos[0];
 
-		// await driftClient.depositCollateral(
+		// await velocityClient.depositCollateral(
 		// 	await userAccount2.getPublicKey(),
 		// 	usdcAmount,
 		// 	userUSDCAccounts[1].publicKey
@@ -258,10 +258,10 @@ describe('pyth-oracle', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await userAccount.unsubscribe();
 
-		await driftClient2.unsubscribe();
+		await velocityClient2.unsubscribe();
 		await userAccount2.unsubscribe();
 	});
 
@@ -305,7 +305,7 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0); // 1 HOUR
 		const marketIndex = 0;
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
@@ -313,10 +313,10 @@ describe('pyth-oracle', () => {
 			periodicity,
 			new BN(39.99 * PEG_PRECISION.toNumber())
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await updateFundingRateHelper(
-			driftClient,
+			velocityClient,
 			marketIndex,
 			priceFeedAddress,
 			[42],
@@ -335,7 +335,7 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0);
 		const marketIndex = 1;
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			1,
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
@@ -343,15 +343,18 @@ describe('pyth-oracle', () => {
 			periodicity,
 			new BN(41.7 * PEG_PRECISION.toNumber())
 		);
-		await driftClient.updatePerpMarketStatus(marketIndex, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(
+			marketIndex,
+			MarketStatus.ACTIVE
+		);
 
-		// await driftClient.moveAmmToPrice(
+		// await velocityClient.moveAmmToPrice(
 		// 	marketIndex,
 		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		await updateFundingRateHelper(
-			driftClient,
+			velocityClient,
 			marketIndex,
 			priceFeedAddress,
 			[41.501, 41.499],
@@ -363,7 +366,7 @@ describe('pyth-oracle', () => {
 	it('oracle/vamm: asym funding rate calc 0hour periodicity', async () => {
 		const marketIndex = 1;
 
-		// await driftClient.moveAmmToPrice(
+		// await velocityClient.moveAmmToPrice(
 		// 	marketIndex,
 		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
@@ -372,50 +375,50 @@ describe('pyth-oracle', () => {
 			'PRICE',
 			convertToNumber(
 				calculateReservePrice(
-					driftClient.getPerpMarketAccount(marketIndex),
-					driftClient.getOracleDataForPerpMarket(marketIndex)
+					velocityClient.getPerpMarketAccount(marketIndex),
+					velocityClient.getOracleDataForPerpMarket(marketIndex)
 				)
 			)
 		);
 
-		driftClient.txParams.computeUnits = 600_003;
-		await driftClient.openPosition(
+		velocityClient.txParams.computeUnits = 600_003;
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION,
 			marketIndex
 		);
 
-		driftClient.txParams.computeUnits = 600_004;
-		await driftClient2.openPosition(
+		velocityClient.txParams.computeUnits = 600_004;
+		await velocityClient2.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION.div(new BN(100)),
 			marketIndex
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 
 		console.log(
 			'PRICE AFTER',
 			convertToNumber(
 				calculateReservePrice(
 					market,
-					driftClient.getOracleDataForPerpMarket(marketIndex)
+					velocityClient.getOracleDataForPerpMarket(marketIndex)
 				)
 			)
 		);
 
 		await updateFundingRateHelper(
-			driftClient,
+			velocityClient,
 			marketIndex,
 			market.oracle,
 			[43.501, 44.499],
 			bankrunContextWrapper,
 			3
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const marketNew = driftClient.getPerpMarketAccount(marketIndex);
+		const marketNew = velocityClient.getPerpMarketAccount(marketIndex);
 
 		console.log(
 			'lastOraclePriceTwap before:',

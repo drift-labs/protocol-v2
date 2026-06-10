@@ -1,5 +1,5 @@
 /**
- * EventSubscriber — streams and parses Drift program events from transaction logs.
+ * EventSubscriber — streams and parses Velocity program events from transaction logs.
  *
  * Decodes all program events (OrderActionRecord, DepositRecord, LiquidationRecord,
  * FundingPaymentRecord, etc.) from `state/events.rs` into typed TypeScript objects.

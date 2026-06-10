@@ -5,8 +5,8 @@
  * market, oracle, and state accounts cached in memory. `User` uses a `UserAccountSubscriber`
  * for the individual User account. All subscribers implement the interfaces defined here.
  *
- * Implementations: `webSocketDriftClientAccountSubscriber.ts` (default),
- * `pollingDriftClientAccountSubscriber.ts`, `bulkAccountLoader.ts` (batched RPC).
+ * Implementations: `webSocketVelocityClientAccountSubscriber.ts` (default),
+ * `pollingVelocityClientAccountSubscriber.ts`, `bulkAccountLoader.ts` (batched RPC).
  */
 import {
 	SpotMarketAccount,
@@ -65,9 +65,6 @@ export interface VelocityClientAccountEvents {
 	error: (e: Error) => void;
 }
 
-/** @deprecated Use `VelocityClientAccountEvents` instead. `DriftClientAccountEvents` will be removed in a future major. */
-export interface DriftClientAccountEvents extends VelocityClientAccountEvents {}
-
 export interface VelocityClientAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, VelocityClientAccountEvents>;
 	isSubscribed: boolean;
@@ -103,10 +100,6 @@ export interface VelocityClientAccountSubscriber {
 
 	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
 }
-
-/** @deprecated Use `VelocityClientAccountSubscriber` instead. `DriftClientAccountSubscriber` will be removed in a future major. */
-export interface DriftClientAccountSubscriber
-	extends VelocityClientAccountSubscriber {}
 
 export enum DelistedMarketSetting {
 	Unsubscribe,

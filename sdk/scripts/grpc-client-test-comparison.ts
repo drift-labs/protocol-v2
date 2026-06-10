@@ -18,14 +18,14 @@ import {
 	Program,
 	ProgramAccount,
 } from '@coral-xyz/anchor';
-import driftIDL from '../src/idl/drift.json';
+import velocityIDL from '../src/idl/velocity.json';
 import assert from 'assert';
 
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const TOKEN = process.env.TOKEN;
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT;
 
-async function initializeGrpcDriftClientV2VersusV1() {
+async function initializeGrpcVelocityClientV2VersusV1() {
 	const connection = new Connection(RPC_ENDPOINT);
 	const wallet = new Wallet(new Keypair());
 	dotenv.config({ path: '../' });
@@ -40,7 +40,7 @@ async function initializeGrpcDriftClientV2VersusV1() {
 		}
 	);
 
-	const program = new Program(driftIDL as Idl, programId, provider);
+	const program = new Program(velocityIDL as Idl, programId, provider);
 
 	const allPerpMarketProgramAccounts =
 		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
@@ -369,4 +369,4 @@ async function initializeGrpcDriftClientV2VersusV1() {
 	process.on('SIGTERM', cleanup);
 }
 
-initializeGrpcDriftClientV2VersusV1().catch(console.error);
+initializeGrpcVelocityClientV2VersusV1().catch(console.error);

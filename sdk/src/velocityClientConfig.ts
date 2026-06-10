@@ -64,9 +64,6 @@ export type VelocityClientConfig = {
 	coder?: Coder;
 };
 
-/** @deprecated Use `VelocityClientConfig` instead. `DriftClientConfig` will be removed in a future major. */
-export type DriftClientConfig = VelocityClientConfig;
-
 type GrpcVelocityClientAccountSubscriberCtor = new (
 	grpcConfigs: GrpcConfigs,
 	program: Program,
@@ -97,8 +94,6 @@ export type VelocityClientSubscriptionConfig =
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
 			velocityClientAccountSubscriber?: GrpcVelocityClientAccountSubscriberCtor;
-			/** @deprecated Use `velocityClientAccountSubscriber` instead. `driftClientAccountSubscriber` will be removed in a future major. */
-			driftClientAccountSubscriber?: GrpcVelocityClientAccountSubscriberCtor;
 			grpcMultiUserAccountSubscriber?: grpcMultiUserAccountSubscriber;
 	  }
 	| {
@@ -117,13 +112,8 @@ export type VelocityClientSubscriptionConfig =
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
 			/** If you use V2 here, whatever you pass for perpMarketAccountSubscriber will be ignored and it will use v2 under the hood regardless */
 			velocityClientAccountSubscriber?: WsVelocityClientAccountSubscriberCtor;
-			/** @deprecated Use `velocityClientAccountSubscriber` instead. `driftClientAccountSubscriber` will be removed in a future major. */
-			driftClientAccountSubscriber?: WsVelocityClientAccountSubscriberCtor;
 	  }
 	| {
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
 	  };
-
-/** @deprecated Use `VelocityClientSubscriptionConfig` instead. `DriftClientSubscriptionConfig` will be removed in a future major. */
-export type DriftClientSubscriptionConfig = VelocityClientSubscriptionConfig;

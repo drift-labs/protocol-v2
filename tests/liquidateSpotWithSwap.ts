@@ -38,9 +38,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot swap', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let makerDriftClient: TestClient;
+	let makerVelocityClient: TestClient;
 	let makerWSOL: PublicKey;
 	let eventSubscriber: EventSubscriber;
 
@@ -55,7 +55,7 @@ describe('spot swap', () => {
 	let usdcMint;
 	let makerUSDC;
 
-	let takerDriftClient: TestClient;
+	let takerVelocityClient: TestClient;
 	let takerWSOL: PublicKey;
 	let takerUSDC: PublicKey;
 	let takerOpenOrders: PublicKey;
@@ -124,7 +124,7 @@ describe('spot swap', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -142,29 +142,29 @@ describe('spot swap', () => {
 			},
 		});
 
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
-		await makerDriftClient.subscribe();
-		await makerDriftClient.initializeUserAccount();
+		await makerVelocityClient.initialize(usdcMint.publicKey, true);
+		await makerVelocityClient.subscribe();
+		await makerVelocityClient.initializeUserAccount();
 
-		const oracleGuardrails = await makerDriftClient.getStateAccount()
+		const oracleGuardrails = await makerVelocityClient.getStateAccount()
 			.oracleGuardRails;
 		oracleGuardrails.validity.tooVolatileRatio = new BN(10000);
 		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			100
 		).mul(PERCENTAGE_PRECISION);
 
-		await makerDriftClient.updateOracleGuardRails(oracleGuardrails);
+		await makerVelocityClient.updateOracleGuardRails(oracleGuardrails);
 
-		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(makerDriftClient, solOracle);
-		await makerDriftClient.updateSpotMarketStepSizeAndTickSize(
+		await initializeQuoteSpotMarket(makerVelocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(makerVelocityClient, solOracle);
+		await makerVelocityClient.updateSpotMarketStepSizeAndTickSize(
 			1,
 			new BN(100000000),
 			new BN(100)
 		);
-		await makerDriftClient.updateSpotAuctionDuration(0);
+		await makerVelocityClient.updateSpotAuctionDuration(0);
 
-		[takerDriftClient, takerWSOL, takerUSDC, takerKeypair] =
+		[takerVelocityClient, takerWSOL, takerUSDC, takerKeypair] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -186,24 +186,24 @@ describe('spot swap', () => {
 			takerKeypair,
 			10 * LAMPORTS_PER_SOL
 		);
-		await takerDriftClient.deposit(takerUsdcDepositAmount, 0, takerUSDC);
+		await takerVelocityClient.deposit(takerUsdcDepositAmount, 0, takerUSDC);
 
-		await takerDriftClient.deposit(takerSolDepositAmount, 1, takerWSOL);
+		await takerVelocityClient.deposit(takerSolDepositAmount, 1, takerWSOL);
 
-		await makerDriftClient.deposit(
+		await makerVelocityClient.deposit(
 			makerUsdcDepositAmount,
 			0,
 			makerUSDC.publicKey
 		);
 
-		await makerDriftClient.withdraw(makerSolWithdrawAmount, 1, makerWSOL);
+		await makerVelocityClient.withdraw(makerSolWithdrawAmount, 1, makerWSOL);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 200, solOracle);
 	});
 
 	after(async () => {
-		await takerDriftClient.unsubscribe();
-		await makerDriftClient.unsubscribe();
+		await takerVelocityClient.unsubscribe();
+		await makerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -230,7 +230,7 @@ describe('spot swap', () => {
 
 		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
-		await makerDriftClient.initializeSerumFulfillmentConfig(
+		await makerVelocityClient.initializeSerumFulfillmentConfig(
 			solSpotMarketIndex,
 			serumMarketPublicKey,
 			SERUM
@@ -251,11 +251,11 @@ describe('spot swap', () => {
 		const createOpenOrdersIx = await OpenOrders.makeCreateAccountTransaction(
 			bankrunContextWrapper.connection.toConnection(),
 			market.address,
-			takerDriftClient.wallet.publicKey,
+			takerVelocityClient.wallet.publicKey,
 			openOrdersAccount.publicKey,
 			market.programId
 		);
-		await takerDriftClient.sendTransaction(
+		await takerVelocityClient.sendTransaction(
 			new Transaction().add(createOpenOrdersIx),
 			[openOrdersAccount]
 		);
@@ -302,14 +302,15 @@ describe('spot swap', () => {
 
 		const amountIn = makerUsdcDepositAmount;
 		const { beginSwapIx, endSwapIx } =
-			await takerDriftClient.getLiquidateSpotWithSwapIx({
+			await takerVelocityClient.getLiquidateSpotWithSwapIx({
 				swapAmount: amountIn,
 				assetMarketIndex: 0,
 				liabilityMarketIndex: 1,
 				assetTokenAccount: takerUSDC,
 				liabilityTokenAccount: takerWSOL,
-				userAccount: makerDriftClient.getUserAccount(),
-				userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+				userAccount: makerVelocityClient.getUserAccount(),
+				userAccountPublicKey:
+					await makerVelocityClient.getUserAccountPublicKey(),
 			});
 
 		// @ts-ignore
@@ -317,7 +318,7 @@ describe('spot swap', () => {
 			bankrunContextWrapper.connection.toConnection(),
 			{
 				// @ts-ignore
-				owner: takerDriftClient.wallet,
+				owner: takerVelocityClient.wallet,
 				payer: takerUSDC,
 				side: 'buy',
 				price: 199,
@@ -330,13 +331,13 @@ describe('spot swap', () => {
 			}
 		);
 
-		const serumConfig = await takerDriftClient.getSerumV3FulfillmentConfig(
+		const serumConfig = await takerVelocityClient.getSerumV3FulfillmentConfig(
 			market.publicKey
 		);
 		const settleFundsIx = DexInstructions.settleFunds({
 			market: market.publicKey,
 			openOrders: takerOpenOrders,
-			owner: takerDriftClient.wallet.publicKey,
+			owner: takerVelocityClient.wallet.publicKey,
 			// @ts-ignore
 			baseVault: serumConfig.serumBaseVault,
 			// @ts-ignore
@@ -357,14 +358,14 @@ describe('spot swap', () => {
 			.add(settleFundsIx)
 			.add(endSwapIx);
 
-		await takerDriftClient.sendTransaction(tx);
+		await takerVelocityClient.sendTransaction(tx);
 
-		await makerDriftClient.fetchAccounts();
+		await makerVelocityClient.fetchAccounts();
 
 		console.log(
 			'maker is being liquidated',
-			makerDriftClient.getUser().isBeingLiquidated(),
-			makerDriftClient.getUserAccount().status
+			makerVelocityClient.getUser().isBeingLiquidated(),
+			makerVelocityClient.getUserAccount().status
 		);
 	});
 });

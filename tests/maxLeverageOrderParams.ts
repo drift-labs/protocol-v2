@@ -35,20 +35,20 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('max leverage order params', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let usdcMint;
 	let userUSDCAccount;
 
-	let lendorDriftClient: TestClient;
-	let lendorDriftClientWSOLAccount: PublicKey;
-	let lendorDriftClientUSDCAccount: PublicKey;
+	let lendorVelocityClient: TestClient;
+	let lendorVelocityClientWSOLAccount: PublicKey;
+	let lendorVelocityClientUSDCAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -95,7 +95,7 @@ describe('max leverage order params', () => {
 			10000
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -118,29 +118,29 @@ describe('max leverage order params', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.updateInitialPctToLiquidate(
+		await velocityClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -158,14 +158,14 @@ describe('max leverage order params', () => {
 			},
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 
 		const lenderSolAmount = new BN(100 * 10 ** 9);
 		const lenderUSDCAmount = usdcAmount.mul(new BN(100));
 		[
-			lendorDriftClient,
-			lendorDriftClientWSOLAccount,
-			lendorDriftClientUSDCAccount,
+			lendorVelocityClient,
+			lendorVelocityClientWSOLAccount,
+			lendorVelocityClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -182,30 +182,30 @@ describe('max leverage order params', () => {
 			],
 			bulkAccountLoader
 		);
-		await lendorDriftClient.subscribe();
+		await lendorVelocityClient.subscribe();
 
 		const spotMarketIndex = 1;
-		await lendorDriftClient.deposit(
+		await lendorVelocityClient.deposit(
 			lenderSolAmount,
 			spotMarketIndex,
-			lendorDriftClientWSOLAccount
+			lendorVelocityClientWSOLAccount
 		);
 
-		await lendorDriftClient.deposit(
+		await lendorVelocityClient.deposit(
 			lenderUSDCAmount,
 			0,
-			lendorDriftClientUSDCAccount
+			lendorVelocityClientUSDCAccount
 		);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await lendorDriftClient.unsubscribe();
+		await velocityClient.unsubscribe();
+		await lendorVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('max perp leverage', async () => {
-		await driftClient.placePerpOrder(
+		await velocityClient.placePerpOrder(
 			getMarketOrderParams({
 				direction: PositionDirection.LONG,
 				marketIndex: 0,
@@ -214,13 +214,13 @@ describe('max leverage order params', () => {
 			})
 		);
 
-		let leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
+		let leverage = velocityClient.getUser().getLeverage().toNumber() / 10000;
 		assert(leverage === 4.995);
 
-		await driftClient.cancelOrderByUserId(1);
+		await velocityClient.cancelOrderByUserId(1);
 
 		// test placing order with short direction
-		await driftClient.placePerpOrder(
+		await velocityClient.placePerpOrder(
 			getMarketOrderParams({
 				direction: PositionDirection.SHORT,
 				marketIndex: 0,
@@ -229,9 +229,9 @@ describe('max leverage order params', () => {
 			})
 		);
 
-		leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
+		leverage = velocityClient.getUser().getLeverage().toNumber() / 10000;
 		assert(leverage === 4.995);
 
-		await driftClient.cancelOrderByUserId(1);
+		await velocityClient.cancelOrderByUserId(1);
 	});
 });

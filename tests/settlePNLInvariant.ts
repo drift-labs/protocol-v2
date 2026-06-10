@@ -42,7 +42,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -55,11 +55,11 @@ describe('spot deposit and withdraw', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
+	let secondUserVelocityClient: TestClient;
+	let secondUserVelocityClientWSOLAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -128,8 +128,8 @@ describe('spot deposit and withdraw', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
+		await secondUserVelocityClient.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -266,7 +266,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
+		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -280,11 +280,11 @@ describe('spot deposit and withdraw', () => {
 
 		const marketIndex = 0;
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		const txSig = await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		const txSig = await firstUserVelocityClient.deposit(
 			usdcAmount,
 			marketIndex,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -307,15 +307,18 @@ describe('spot deposit and withdraw', () => {
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		const spotPosition = firstUserDriftClient.getUserAccount().spotPositions[0];
+		const spotPosition =
+			firstUserVelocityClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
-		assert(firstUserDriftClient.getUserAccount().totalDeposits.eq(usdcAmount));
+		assert(
+			firstUserVelocityClient.getUserAccount().totalDeposits.eq(usdcAmount)
+		);
 	});
 
 	it('Second User Deposit SOL', async () => {
-		[secondUserDriftClient, secondUserDriftClientWSOLAccount] =
+		[secondUserVelocityClient, secondUserVelocityClientWSOLAccount] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -329,10 +332,10 @@ describe('spot deposit and withdraw', () => {
 			);
 
 		const marketIndex = 1;
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserDriftClientWSOLAccount
+			secondUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -369,12 +372,12 @@ describe('spot deposit and withdraw', () => {
 			SpotBalanceType.DEPOSIT
 		);
 		const spotPosition =
-			secondUserDriftClient.getUserAccount().spotPositions[1];
+			secondUserVelocityClient.getUserAccount().spotPositions[1];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
 		assert(
-			secondUserDriftClient
+			secondUserVelocityClient
 				.getUserAccount()
 				.totalDeposits.eq(new BN(30).mul(PRICE_PRECISION))
 		);
@@ -404,21 +407,21 @@ describe('spot deposit and withdraw', () => {
 	it('Trade and settle pnl', async () => {
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
-		await secondUserDriftClient.openPosition(
+		await secondUserVelocityClient.openPosition(
 			PositionDirection.LONG,
 			baseAssetAmount,
 			marketIndex
 		);
 
-		await secondUserDriftClient.settlePNL(
-			await secondUserDriftClient.getUserAccountPublicKey(),
-			secondUserDriftClient.getUserAccount(),
+		await secondUserVelocityClient.settlePNL(
+			await secondUserVelocityClient.getUserAccountPublicKey(),
+			secondUserVelocityClient.getUserAccount(),
 			marketIndex
 		);
 
-		await secondUserDriftClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 
-		const quoteTokenAmount = await secondUserDriftClient.getTokenAmount(0);
+		const quoteTokenAmount = await secondUserVelocityClient.getTokenAmount(0);
 
 		assert(quoteTokenAmount.eq(new BN(-30003)));
 

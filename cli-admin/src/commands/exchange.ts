@@ -25,7 +25,7 @@ export function registerExchange(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin exchange set-status'
+				'velocity-admin exchange set-status'
 			);
 			reportDispatch(`exchange status = ${bitfield}`, result);
 		} finally {

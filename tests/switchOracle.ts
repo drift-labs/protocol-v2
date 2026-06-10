@@ -14,7 +14,7 @@ import {
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	Wallet,
-	DriftClient,
+	VelocityClient,
 } from '../sdk/src';
 
 import {
@@ -63,7 +63,7 @@ async function waitForOraclePrice(
 }
 
 describe('switch oracles', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -175,7 +175,7 @@ describe('switch oracles', () => {
 	});
 
 	it('polling', async () => {
-		const [driftClient, _usdcAccount, _userKeyPair] =
+		const [velocityClient, _usdcAccount, _userKeyPair] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -197,16 +197,14 @@ describe('switch oracles', () => {
 		);
 
 		await admin.fetchAccounts();
-		const perpOraclePriceBefore = await driftClient.getOracleDataForPerpMarket(
-			0
-		);
+		const perpOraclePriceBefore =
+			await velocityClient.getOracleDataForPerpMarket(0);
 		assert(perpOraclePriceBefore.price.eq(PRICE_PRECISION.muln(30)));
 
 		await sleep(1000);
 
-		const perpOraclePriceAfter = await driftClient.getOracleDataForPerpMarket(
-			0
-		);
+		const perpOraclePriceAfter =
+			await velocityClient.getOracleDataForPerpMarket(0);
 		assert(perpOraclePriceAfter.price.eq(PRICE_PRECISION.muln(100)));
 
 		await admin.updateSpotMarketOracle(
@@ -216,26 +214,24 @@ describe('switch oracles', () => {
 			true
 		);
 
-		await driftClient.fetchAccounts();
-		const spotOraclePriceBefore = await driftClient.getOracleDataForSpotMarket(
-			1
-		);
+		await velocityClient.fetchAccounts();
+		const spotOraclePriceBefore =
+			await velocityClient.getOracleDataForSpotMarket(1);
 		assert(spotOraclePriceBefore.price.eq(PRICE_PRECISION.muln(30)));
 
 		await sleep(1000);
 
-		const spotOraclePriceAfter = await driftClient.getOracleDataForSpotMarket(
-			1
-		);
+		const spotOraclePriceAfter =
+			await velocityClient.getOracleDataForSpotMarket(1);
 		console.log(spotOraclePriceAfter.price.toString());
 		assert(spotOraclePriceAfter.price.eq(PRICE_PRECISION.muln(100)));
 
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('ws', async () => {
 		const userKeyPair = await createFundedKeyPair(bankrunContextWrapper);
-		const driftClient = new DriftClient({
+		const velocityClient = new VelocityClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(userKeyPair),
 			programID: admin.program.programId,
@@ -251,12 +247,12 @@ describe('switch oracles', () => {
 				type: 'websocket',
 			},
 		});
-		await driftClient.subscribe();
+		await velocityClient.subscribe();
 
 		const newSolOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		await waitForOraclePrice(
-			() => driftClient.getOracleDataForPerpMarket(0),
+			() => velocityClient.getOracleDataForPerpMarket(0),
 			PRICE_PRECISION.muln(30)
 		);
 
@@ -268,12 +264,12 @@ describe('switch oracles', () => {
 		);
 
 		await waitForOraclePrice(
-			() => driftClient.getOracleDataForPerpMarket(0),
+			() => velocityClient.getOracleDataForPerpMarket(0),
 			PRICE_PRECISION.muln(100)
 		);
 
 		await waitForOraclePrice(
-			() => driftClient.getOracleDataForSpotMarket(1),
+			() => velocityClient.getOracleDataForSpotMarket(1),
 			PRICE_PRECISION.muln(30)
 		);
 
@@ -285,10 +281,10 @@ describe('switch oracles', () => {
 		);
 
 		await waitForOraclePrice(
-			() => driftClient.getOracleDataForSpotMarket(1),
+			() => velocityClient.getOracleDataForSpotMarket(1),
 			PRICE_PRECISION.muln(100)
 		);
 
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 });

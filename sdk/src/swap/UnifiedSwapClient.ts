@@ -270,7 +270,7 @@ export class UnifiedSwapClient {
 					slippageBps,
 					swapMode: isExactOut ? TitanSwapMode.ExactOut : TitanSwapMode.ExactIn,
 					onlyDirectRoutes,
-					sizeConstraint: sizeConstraint || 1280 - 375, // MAX_TX_BYTE_SIZE - buffer for drift instructions
+					sizeConstraint: sizeConstraint || 1280 - 375, // MAX_TX_BYTE_SIZE - buffer for velocity instructions
 				});
 
 			swapInstructions = titanClient.getTitanInstructions({

@@ -22,8 +22,8 @@ describe('token faucet', () => {
 
 	let usdcMint: Keypair;
 
-	const chProgram = anchor.workspace.Drift as Program;
-	let driftClient: TestClient;
+	const chProgram = anchor.workspace.Velocity as Program;
+	let velocityClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -42,7 +42,7 @@ describe('token faucet', () => {
 			1
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -68,7 +68,7 @@ describe('token faucet', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('Initialize State', async () => {
@@ -131,10 +131,10 @@ describe('token faucet', () => {
 	it('initialize user for dev net', async () => {
 		const state: any = await tokenFaucet.fetchState();
 
-		await driftClient.initialize(state.mint, false);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.initializeUserAccountForDevnet(
+		await velocityClient.initialize(state.mint, false);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.initializeUserAccountForDevnet(
 			0,
 			'crisp',
 			0,
@@ -142,7 +142,7 @@ describe('token faucet', () => {
 			amount
 		);
 
-		assert(driftClient.getQuoteAssetTokenAmount().eq(amount));
+		assert(velocityClient.getQuoteAssetTokenAmount().eq(amount));
 	});
 
 	it('transfer mint authority back', async () => {

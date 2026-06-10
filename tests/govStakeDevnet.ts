@@ -24,9 +24,9 @@ import {
 dotenv.config();
 
 describe('gov stake increase on devnet', () => {
-	const chProgram = anchor.workspace.Drift as Program;
-	let makerDriftClient: TestClient;
-	let makerDriftClientUser: User;
+	const chProgram = anchor.workspace.Velocity as Program;
+	let makerVelocityClient: TestClient;
+	let makerVelocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -87,7 +87,7 @@ describe('gov stake increase on devnet', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -104,12 +104,12 @@ describe('gov stake increase on devnet', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
-		await makerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
+		await makerVelocityClient.initialize(usdcMint.publicKey, true);
+		await makerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(makerVelocityClient, usdcMint.publicKey);
 
 		const periodicity = new anchor.BN(0);
-		await makerDriftClient.initializePerpMarket(
+		await makerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -118,31 +118,31 @@ describe('gov stake increase on devnet', () => {
 			new anchor.BN(33 * PEG_PRECISION.toNumber())
 		);
 
-		await makerDriftClient.initializeUserAccountAndDepositCollateral(
+		await makerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		makerDriftClientUser = new User({
-			driftClient: makerDriftClient,
-			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+		makerVelocityClientUser = new User({
+			velocityClient: makerVelocityClient,
+			userAccountPublicKey: await makerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClientUser.subscribe();
+		await makerVelocityClientUser.subscribe();
 	});
 
 	after(async () => {
-		await makerDriftClient.unsubscribe();
-		await makerDriftClientUser.unsubscribe();
+		await makerVelocityClient.unsubscribe();
+		await makerVelocityClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('should update gov stake without error', async () => {
-		await makerDriftClient.updateUserGovTokenInsuranceStake(
-			makerDriftClient.authority,
+		await makerVelocityClient.updateUserGovTokenInsuranceStake(
+			makerVelocityClient.authority,
 			undefined,
 			'devnet'
 		);

@@ -13,7 +13,7 @@ import {
 	OracleInfo,
 	PRICE_PRECISION,
 	Wallet,
-	DriftClient,
+	VelocityClient,
 	PEG_PRECISION,
 } from '../sdk/src';
 
@@ -26,13 +26,13 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-// import { PRICE_PRECISION, PEG_PRECISION, Wallet, DriftClient } from '../sdk';
+// import { PRICE_PRECISION, PEG_PRECISION, Wallet, VelocityClient } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('oracle diff sources', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -159,7 +159,7 @@ describe('oracle diff sources', () => {
 	});
 
 	it('polling', async () => {
-		const [driftClient, _usdcAccount, _userKeyPair] =
+		const [velocityClient, _usdcAccount, _userKeyPair] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -171,30 +171,30 @@ describe('oracle diff sources', () => {
 				bulkAccountLoader
 			);
 
-		assert(driftClient.getSpotMarketAccount(1).oracle.equals(solOracle));
-		assert(driftClient.getSpotMarketAccount(2).oracle.equals(solOracle));
+		assert(velocityClient.getSpotMarketAccount(1).oracle.equals(solOracle));
+		assert(velocityClient.getSpotMarketAccount(2).oracle.equals(solOracle));
 
-		const normalPrice = await driftClient.getOracleDataForSpotMarket(1);
+		const normalPrice = await velocityClient.getOracleDataForSpotMarket(1);
 		assert(normalPrice.price.eq(PRICE_PRECISION.muln(3)));
 
-		const oneKPrice = await driftClient.getOracleDataForSpotMarket(2);
+		const oneKPrice = await velocityClient.getOracleDataForSpotMarket(2);
 		assert(oneKPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
-		assert(driftClient.getPerpMarketAccount(0).oracle.equals(solOracle));
-		assert(driftClient.getPerpMarketAccount(1).oracle.equals(solOracle));
+		assert(velocityClient.getPerpMarketAccount(0).oracle.equals(solOracle));
+		assert(velocityClient.getPerpMarketAccount(1).oracle.equals(solOracle));
 
-		const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(0);
+		const normalPerpPrice = await velocityClient.getOracleDataForPerpMarket(0);
 		assert(normalPerpPrice.price.eq(PRICE_PRECISION.muln(3)));
 
-		const oneKPerpPrice = await driftClient.getOracleDataForPerpMarket(1);
+		const oneKPerpPrice = await velocityClient.getOracleDataForPerpMarket(1);
 		assert(oneKPerpPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('ws', async () => {
 		const userKeyPair = await createFundedKeyPair(bankrunContextWrapper);
-		const driftClient = new DriftClient({
+		const velocityClient = new VelocityClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(userKeyPair),
 			programID: admin.program.programId,
@@ -210,20 +210,20 @@ describe('oracle diff sources', () => {
 				type: 'websocket',
 			},
 		});
-		await driftClient.subscribe();
+		await velocityClient.subscribe();
 
-		const normalPrice = await driftClient.getOracleDataForSpotMarket(1);
+		const normalPrice = await velocityClient.getOracleDataForSpotMarket(1);
 		assert(normalPrice.price.eq(PRICE_PRECISION.muln(3)));
 
-		const oneKPrice = await driftClient.getOracleDataForSpotMarket(2);
+		const oneKPrice = await velocityClient.getOracleDataForSpotMarket(2);
 		assert(oneKPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
-		const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(0);
+		const normalPerpPrice = await velocityClient.getOracleDataForPerpMarket(0);
 		assert(normalPerpPrice.price.eq(PRICE_PRECISION.muln(3)));
 
-		const oneKPerpPrice = await driftClient.getOracleDataForPerpMarket(1);
+		const oneKPerpPrice = await velocityClient.getOracleDataForPerpMarket(1);
 		assert(oneKPerpPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 });

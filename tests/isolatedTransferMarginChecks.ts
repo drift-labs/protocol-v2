@@ -26,9 +26,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('isolated transfer margin checks', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
@@ -118,7 +118,7 @@ describe('isolated transfer margin checks', () => {
 
 		await eventSubscriber.subscribe();
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -141,17 +141,17 @@ describe('isolated transfer margin checks', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.initialize(usdcMint.publicKey, true);
 
-		await driftClient.subscribe();
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.subscribe();
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		// Initialize SOL-PERP market (index 0)
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -161,7 +161,7 @@ describe('isolated transfer margin checks', () => {
 		);
 
 		// Initialize ETH-PERP market (index 1)
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			1,
 			ethUsd,
 			ammInitialBaseAssetAmount,
@@ -171,7 +171,7 @@ describe('isolated transfer margin checks', () => {
 		);
 
 		// Initialize BTC-PERP market (index 2)
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			2,
 			btcUsd,
 			ammInitialBaseAssetAmount,
@@ -181,46 +181,46 @@ describe('isolated transfer margin checks', () => {
 		);
 
 		// Set step sizes
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
+		await velocityClient.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1),
 			new BN(1)
 		);
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
+		await velocityClient.updatePerpMarketStepSizeAndTickSize(
 			1,
 			new BN(1),
 			new BN(1)
 		);
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
+		await velocityClient.updatePerpMarketStepSizeAndTickSize(
 			2,
 			new BN(1),
 			new BN(1)
 		);
 
 		// Set margin ratios: 50% initial, 33% maintenance
-		await driftClient.updatePerpMarketMarginRatio(
+		await velocityClient.updatePerpMarketMarginRatio(
 			0,
 			MARGIN_PRECISION.toNumber() / 2, // 50% IM
 			MARGIN_PRECISION.toNumber() / 3 // 33% MM
 		);
-		await driftClient.updatePerpMarketMarginRatio(
+		await velocityClient.updatePerpMarketMarginRatio(
 			1,
 			MARGIN_PRECISION.toNumber() / 2, // 50% IM
 			MARGIN_PRECISION.toNumber() / 3 // 33% MM
 		);
-		await driftClient.updatePerpMarketMarginRatio(
+		await velocityClient.updatePerpMarketMarginRatio(
 			2,
 			MARGIN_PRECISION.toNumber() / 2, // 50% IM
 			MARGIN_PRECISION.toNumber() / 3 // 33% MM
 		);
 
 		// Initialize user account
-		await driftClient.initializeUserAccount();
+		await velocityClient.initializeUserAccount();
 		console.log('Initialized user account');
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -232,27 +232,27 @@ describe('isolated transfer margin checks', () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1000, ethUsd, 10000);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 100000, btcUsd, 10000);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		// Close any open positions
-		const user = driftClient.getUserAccount();
+		const user = velocityClient.getUserAccount();
 		for (const perpPosition of user.perpPositions) {
 			if (!perpPosition.baseAssetAmount.eq(ZERO)) {
 				try {
-					await driftClient.closePosition(perpPosition.marketIndex);
+					await velocityClient.closePosition(perpPosition.marketIndex);
 				} catch (e) {
 					// Ignore
 				} finally {
-					await driftClient.fetchAccounts();
+					await velocityClient.fetchAccounts();
 				}
 			}
 		}
 
 		// Settle PNL for all markets
 		try {
-			await driftClient.settleMultiplePNLs(
-				await driftClient.getUserAccountPublicKey(),
-				driftClient.getUserAccount(),
+			await velocityClient.settleMultiplePNLs(
+				await velocityClient.getUserAccountPublicKey(),
+				velocityClient.getUserAccount(),
 				[0],
 				SettlePnlMode.TRY_SETTLE
 			);
@@ -260,34 +260,34 @@ describe('isolated transfer margin checks', () => {
 			// Ignore
 		}
 		try {
-			await driftClient.settlePNL(
-				await driftClient.getUserAccountPublicKey(),
-				driftClient.getUserAccount(),
+			await velocityClient.settlePNL(
+				await velocityClient.getUserAccountPublicKey(),
+				velocityClient.getUserAccount(),
 				1
 			);
 		} catch (e) {
 			// Ignore
 		}
 		try {
-			await driftClient.settlePNL(
-				await driftClient.getUserAccountPublicKey(),
-				driftClient.getUserAccount(),
+			await velocityClient.settlePNL(
+				await velocityClient.getUserAccountPublicKey(),
+				velocityClient.getUserAccount(),
 				2
 			);
 		} catch (e) {
 			// Ignore
 		}
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		// Transfer isolated collateral back to cross if any
-		for (const perpPosition of driftClient.getUserAccount().perpPositions) {
-			const isolatedBalance = driftClient.getIsolatedPerpPositionTokenAmount(
+		for (const perpPosition of velocityClient.getUserAccount().perpPositions) {
+			const isolatedBalance = velocityClient.getIsolatedPerpPositionTokenAmount(
 				perpPosition.marketIndex
 			);
 			if (isolatedBalance.gt(ZERO)) {
 				try {
-					await driftClient.transferIsolatedPerpPositionDeposit(
+					await velocityClient.transferIsolatedPerpPositionDeposit(
 						isolatedBalance.neg(),
 						perpPosition.marketIndex,
 						undefined,
@@ -302,17 +302,21 @@ describe('isolated transfer margin checks', () => {
 		}
 
 		// Withdraw all cross collateral
-		await driftClient.fetchAccounts();
-		const crossBalance = driftClient.getQuoteAssetTokenAmount();
+		await velocityClient.fetchAccounts();
+		const crossBalance = velocityClient.getQuoteAssetTokenAmount();
 		if (crossBalance.gt(ZERO)) {
 			try {
-				await driftClient.withdraw(crossBalance, 0, userUSDCAccount.publicKey);
+				await velocityClient.withdraw(
+					crossBalance,
+					0,
+					userUSDCAccount.publicKey
+				);
 			} catch (e) {
 				// Ignore
 			}
 		}
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 	}
 
 	describe('Scenario 1: Cross passes IM before and after transfer, no other isolateds', () => {
@@ -323,13 +327,13 @@ describe('isolated transfer margin checks', () => {
 			// Transfer $200 to isolated ETH (empty slot). After: cross $800, isolated ETH $200.
 			// Cross still $0 IM -> PASS
 
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(1000 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
 
-			const txSig = await driftClient.transferIsolatedPerpPositionDeposit(
+			const txSig = await velocityClient.transferIsolatedPerpPositionDeposit(
 				new BN(200 * 10 ** 6),
 				1,
 				undefined,
@@ -339,15 +343,15 @@ describe('isolated transfer margin checks', () => {
 			);
 
 			assert(txSig, 'Transfer should have passed');
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 			assert(
-				driftClient
+				velocityClient
 					.getIsolatedPerpPositionTokenAmount(1)
 					.eq(new BN(200 * 10 ** 6)),
 				'Isolated ETH should have 200'
 			);
 			assert(
-				driftClient.getQuoteAssetTokenAmount().eq(new BN(800 * 10 ** 6)),
+				velocityClient.getQuoteAssetTokenAmount().eq(new BN(800 * 10 ** 6)),
 				'Cross should have 800'
 			);
 		});
@@ -360,12 +364,12 @@ describe('isolated transfer margin checks', () => {
 			// Cross: $700, 10 SOL long @ $100 -> $500 IM required
 			// Transfer $250 to isolated ETH. After: cross $450 < $500 IM -> FAIL
 
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(700 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
@@ -373,7 +377,7 @@ describe('isolated transfer margin checks', () => {
 
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.transferIsolatedPerpPositionDeposit(
+				await velocityClient.transferIsolatedPerpPositionDeposit(
 					new BN(250 * 10 ** 6),
 					1,
 					undefined,
@@ -391,9 +395,9 @@ describe('isolated transfer margin checks', () => {
 			} finally {
 				restoreConsole();
 			}
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 			assert(
-				driftClient.getQuoteAssetTokenAmount().eq(new BN(700 * 10 ** 6)),
+				velocityClient.getQuoteAssetTokenAmount().eq(new BN(700 * 10 ** 6)),
 				'Cross should be unchanged'
 			);
 		});
@@ -407,23 +411,23 @@ describe('isolated transfer margin checks', () => {
 			// SOL price moves to $70, cross has $300 effective collateral, IM is 10 x 70 x .5 = $350
 			// Transfer $100 to isolated. Should fail (cross already below IM)
 
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(600 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
 			// 10 SOL @ 100->70: loss 200, effective 300 collateral, need 350 IM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 70, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.transferIsolatedPerpPositionDeposit(
+				await velocityClient.transferIsolatedPerpPositionDeposit(
 					new BN(100 * 10 ** 6),
 					1,
 					undefined,
@@ -450,22 +454,22 @@ describe('isolated transfer margin checks', () => {
 
 			// Cross: $300 effective, 10 SOL long -> $333 MM required, cross fails MM
 			// 10 SOL @ 100->70: loss 300, effective 300, MM 333
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(600 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
 			await setFeedPriceNoProgram(bankrunContextWrapper, 70, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.transferIsolatedPerpPositionDeposit(
+				await velocityClient.transferIsolatedPerpPositionDeposit(
 					new BN(50 * 10 ** 6),
 					1,
 					undefined,
@@ -494,28 +498,28 @@ describe('isolated transfer margin checks', () => {
 			// SOL at 50 -> effective $100 < $333 MM. Transfer $200 to isolated ETH.
 			// Cross after $600, no IM. But other isolated fails MM -> FAIL
 
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(2000 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.transferIsolatedPerpPositionDeposit(
+			await velocityClient.transferIsolatedPerpPositionDeposit(
 				new BN(600 * 10 ** 6),
 				0
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
 			// SOL at 50: 10*(100-50)=500 loss, 600-500=100 < 333 MM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 50, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// Cross has 1400, isolated SOL has 100 effective (fails MM)
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.transferIsolatedPerpPositionDeposit(
+				await velocityClient.transferIsolatedPerpPositionDeposit(
 					new BN(200 * 10 ** 6),
 					1,
 					undefined,
@@ -544,26 +548,26 @@ describe('isolated transfer margin checks', () => {
 			// SOL at 80 -> effective $400 > $333 MM. Transfer $200 to isolated ETH.
 			// Cross after $600. Other isolated passes MM -> PASS
 
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(2000 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
 			// SOL at 80: 10*(100-80)=200 loss, 600-200=400 > 333 MM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 80, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
-			const txSig = await driftClient.transferIsolatedPerpPositionDeposit(
+			const txSig = await velocityClient.transferIsolatedPerpPositionDeposit(
 				new BN(200 * 10 ** 6),
 				1,
 				undefined,
@@ -573,9 +577,9 @@ describe('isolated transfer margin checks', () => {
 			);
 
 			assert(txSig, 'Transfer should have passed');
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 			assert(
-				driftClient
+				velocityClient
 					.getIsolatedPerpPositionTokenAmount(1)
 					.eq(new BN(200 * 10 ** 6)),
 				'Isolated ETH should have 200'
@@ -591,22 +595,22 @@ describe('isolated transfer margin checks', () => {
 			// ETH at 700 -> effective $300 < $333 MM. Transfer $250.
 			// Cross after $450 < $500 IM. Other isolated fails MM. FAIL
 
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(700 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6),
 				1,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(1 * 10 ** 9),
 				1
@@ -614,11 +618,11 @@ describe('isolated transfer margin checks', () => {
 			// Cross: 700, 10 SOL @ 100. Sol at 100, cross IM 500, cross ok.
 			// ETH at 700: 1*(1000-700)=300 loss, 600-300=300 < 333 MM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 700, ethUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// const restoreConsole = suppressConsole();
 			try {
-				await driftClient.transferIsolatedPerpPositionDeposit(
+				await velocityClient.transferIsolatedPerpPositionDeposit(
 					new BN(250 * 10 ** 6),
 					2,
 					undefined,
@@ -647,33 +651,33 @@ describe('isolated transfer margin checks', () => {
 			// ETH at 800 -> $200 loss, effective collateral $400 > $333 MM. Transfer $250.
 			// Cross after transfer is $450 < $500 IM -> FAIL (other isolated is fine)
 
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(700 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6),
 				1,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(1 * 10 ** 9),
 				1
 			);
 			// ETH at 800: 1*(1000-800)=200 loss, 600-200=400 > 333 MM - passes
 			await setFeedPriceNoProgram(bankrunContextWrapper, 800, ethUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.transferIsolatedPerpPositionDeposit(
+				await velocityClient.transferIsolatedPerpPositionDeposit(
 					new BN(250 * 10 ** 6),
 					1,
 					undefined,
@@ -704,27 +708,27 @@ describe('isolated transfer margin checks', () => {
 			// So: SOL isolated passes, ETH isolated fails. Transfer cross->ETH isolated (adding to failing one)
 			// actually that would improve ETH. Let me reconsider.
 			// Transfer cross->SOL isolated (adding to passing one) while ETH fails MM -> FAIL
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(2000 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6),
 				1,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(1 * 10 ** 9),
 				1
@@ -732,11 +736,11 @@ describe('isolated transfer margin checks', () => {
 			// SOL at 80: passes MM. ETH at 600: fails MM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 80, solUsd, 10000);
 			await setFeedPriceNoProgram(bankrunContextWrapper, 600, ethUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.transferIsolatedPerpPositionDeposit(
+				await velocityClient.transferIsolatedPerpPositionDeposit(
 					new BN(100 * 10 ** 6),
 					0,
 					undefined,

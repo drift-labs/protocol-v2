@@ -18,17 +18,13 @@ import { grpcUserStatsAccountSubscriber } from './accounts/grpcUserStatsAccountS
 
 export class UserStats {
 	velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	public get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	userStatsAccountPublicKey: PublicKey;
 	accountSubscriber: UserStatsAccountSubscriber;
 	isSubscribed: boolean;
 
 	public constructor(config: UserStatsConfig) {
 		// Type-system guarantees at least one of the two is supplied.
-		const velocityClient = (config.velocityClient ?? config.driftClient)!;
+		const velocityClient = config.velocityClient!;
 		this.velocityClient = velocityClient;
 		this.userStatsAccountPublicKey = config.userStatsAccountPublicKey;
 		if (config.accountSubscription?.type === 'polling') {

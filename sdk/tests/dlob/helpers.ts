@@ -630,12 +630,12 @@ export class MockUserMap implements UserMapInterface {
 	eventEmitter: EventEmitter = new EventEmitter();
 	private userMap = new Map<string, User>();
 	private userAccountToAuthority = new Map<string, string>();
-	private driftClient: VelocityClient;
+	private velocityClient: VelocityClient;
 
 	constructor() {
 		this.userMap = new Map();
 		this.userAccountToAuthority = new Map();
-		this.driftClient = new VelocityClient({
+		this.velocityClient = new VelocityClient({
 			connection: new Connection('http://localhost:8899'),
 			wallet: new Wallet(new Keypair()),
 			programID: PublicKey.default,
@@ -648,7 +648,7 @@ export class MockUserMap implements UserMapInterface {
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			userAccountPublicKey: userAccountPublicKey,
 		});
 		this.userMap.set(userAccountPublicKey.toBase58(), user);
@@ -682,7 +682,7 @@ export class MockUserMap implements UserMapInterface {
 
 	public async mustGet(_key: string): Promise<User> {
 		return new User({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			userAccountPublicKey: PublicKey.default,
 		});
 	}
@@ -690,7 +690,7 @@ export class MockUserMap implements UserMapInterface {
 	public async mustGetWithSlot(_key: string): Promise<DataAndSlot<User>> {
 		return {
 			data: new User({
-				driftClient: this.driftClient,
+				velocityClient: this.velocityClient,
 				userAccountPublicKey: PublicKey.default,
 			}),
 			slot: 0,

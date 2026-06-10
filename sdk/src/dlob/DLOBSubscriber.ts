@@ -21,10 +21,6 @@ import { BN } from '../isomorphic/anchor';
 
 export class DLOBSubscriber {
 	velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	public get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
@@ -32,11 +28,9 @@ export class DLOBSubscriber {
 	dlob: DLOB;
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 	constructor(config: DLOBSubscriptionConfig) {
-		const velocityClient = config.velocityClient ?? config.driftClient;
+		const velocityClient = config.velocityClient;
 		if (!velocityClient) {
-			throw new Error(
-				'DLOBSubscriber: velocityClient (or deprecated driftClient) must be provided'
-			);
+			throw new Error('DLOBSubscriber: velocityClient must be provided');
 		}
 		this.velocityClient = velocityClient;
 		this.dlobSource = config.dlobSource;

@@ -1,19 +1,18 @@
 {
 	"name": "@velocity-exchange/admin-cli",
 	"version": "0.1.0",
-	"description": "Drift v2 admin CLI: rotate authority keys, pause markets, and route operations through a Squads V4 multisig.",
-	"author": "drift-labs",
-	"homepage": "https://www.drift.trade/",
+	"description": "Velocity v2 admin CLI: rotate authority keys, pause markets, and route operations through a Squads V4 multisig.",
+	"author": "velocity-exchange",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:drift-labs/protocol-v2.git",
+		"url": "git@github.com:drift-labs/protocol-v2-shadow.git",
 		"directory": "cli-admin"
 	},
 	"license": "Apache-2.0",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"bin": {
-		"drift-admin": "lib/index.js"
+		"velocity-admin": "lib/index.js"
 	},
 	"files": [
 		"lib"
@@ -22,8 +21,8 @@
 		"node": ">=20"
 	},
 	"keywords": [
-		"drift-labs",
-		"drift",
+		"velocity-exchange",
+		"velocity",
 		"admin",
 		"cli",
 		"squads"

@@ -37,10 +37,10 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('post only maker order w/ amm fulfillments', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let fillerDriftClient: TestClient;
-	let fillerDriftClientUser: User;
+	let fillerVelocityClient: TestClient;
+	let fillerVelocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -97,7 +97,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		fillerDriftClient = new TestClient({
+		fillerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -114,14 +114,14 @@ describe('post only maker order w/ amm fulfillments', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.initialize(usdcMint.publicKey, true);
-		await fillerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
-		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
+		await fillerVelocityClient.initialize(usdcMint.publicKey, true);
+		await fillerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(fillerVelocityClient, usdcMint.publicKey);
+		await fillerVelocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerDriftClient.initializePerpMarket(
+		await fillerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -129,28 +129,29 @@ describe('post only maker order w/ amm fulfillments', () => {
 			periodicity,
 			new BN(32.821 * PEG_PRECISION.toNumber())
 		);
-		await fillerDriftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await fillerVelocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await fillerDriftClient.updatePerpMarketBaseSpread(0, 500);
+		await fillerVelocityClient.updatePerpMarketBaseSpread(0, 500);
 
-		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
+		await fillerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		fillerDriftClientUser = new User({
-			driftClient: fillerDriftClient,
-			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+		fillerVelocityClientUser = new User({
+			velocityClient: fillerVelocityClient,
+			userAccountPublicKey:
+				await fillerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClientUser.subscribe();
+		await fillerVelocityClientUser.subscribe();
 	});
 
 	beforeEach(async () => {
-		await fillerDriftClient.moveAmmPrice(
+		await fillerVelocityClient.moveAmmPrice(
 			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
@@ -159,8 +160,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 	});
 
 	after(async () => {
-		await fillerDriftClient.unsubscribe();
-		await fillerDriftClientUser.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
+		await fillerVelocityClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -175,7 +176,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
@@ -193,25 +194,25 @@ describe('post only maker order w/ amm fulfillments', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const reservePrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 
@@ -220,14 +221,14 @@ describe('post only maker order w/ amm fulfillments', () => {
 			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
 		setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
-		await fillerDriftClient.moveAmmToPrice(marketIndex, newOraclePriceBN);
+		await fillerVelocityClient.moveAmmToPrice(marketIndex, newOraclePriceBN);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
-		await fillerDriftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
+		await fillerVelocityClient.fetchAccounts();
 
 		const reservePrice2 = calculateReservePrice(
-			fillerDriftClient.getPerpMarketAccount(marketIndex),
+			fillerVelocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		console.log(
@@ -243,14 +244,14 @@ describe('post only maker order w/ amm fulfillments', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: baseAssetAmount.div(new BN(2)),
 			price: reservePrice2.add(
-				driftClient.getPerpMarketAccount(marketIndex).orderTickSize
+				velocityClient.getPerpMarketAccount(marketIndex).orderTickSize
 			),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 		});
-		await fillerDriftClient.placePerpOrder(makerOrderParams2);
-		await fillerDriftClient.fetchAccounts();
-		const order2 = fillerDriftClient.getOrderByUserId(1);
+		await fillerVelocityClient.placePerpOrder(makerOrderParams2);
+		await fillerVelocityClient.fetchAccounts();
+		const order2 = fillerVelocityClient.getOrderByUserId(1);
 		assert(order2.postOnly);
 
 		await setFeedPriceNoProgram(
@@ -266,31 +267,31 @@ describe('post only maker order w/ amm fulfillments', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		await driftClient.placePerpOrder(makerOrderParams);
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClient.placePerpOrder(makerOrderParams);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
 
 		const makerInfo = {
-			maker: await fillerDriftClient.getUserAccountPublicKey(),
-			makerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
-			makerUserAccount: fillerDriftClient.getUserAccount(),
+			maker: await fillerVelocityClient.getUserAccountPublicKey(),
+			makerStats: fillerVelocityClient.getUserStatsAccountPublicKey(),
+			makerUserAccount: fillerVelocityClient.getUserAccount(),
 			order: order2,
 		};
 
-		const txSig = await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		const txSig = await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order,
 			makerInfo
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
-		const position = driftClientUser.getPerpPosition(marketIndex);
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
+		const position = velocityClientUser.getPerpPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		console.log(position.quoteAssetAmount.toString());
 		console.log(position.quoteBreakEvenAmount.toString());
@@ -301,19 +302,19 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(position.quoteBreakEvenAmount.eq(new BN(-32208912)));
 
 		console.log(
-			'driftClient.getQuoteAssetTokenAmount:',
-			driftClient.getQuoteAssetTokenAmount().toString(),
+			'velocityClient.getQuoteAssetTokenAmount:',
+			velocityClient.getQuoteAssetTokenAmount().toString(),
 			'vs',
 			usdcAmount.toString()
 		);
-		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(velocityClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 
-		const driftClientUserStats = driftClient.getUserStats().getAccount();
-		console.log('user stats:', driftClientUserStats);
-		assert(driftClientUserStats.fees.totalFeePaid.eq(new BN(32178)));
-		assert(driftClientUserStats.fees.totalFeeRebate.eq(ZERO));
+		const velocityClientUserStats = velocityClient.getUserStats().getAccount();
+		console.log('user stats:', velocityClientUserStats);
+		assert(velocityClientUserStats.fees.totalFeePaid.eq(new BN(32178)));
+		assert(velocityClientUserStats.fees.totalFeeRebate.eq(ZERO));
 
-		await fillerDriftClient.fetchAccounts();
+		await fillerVelocityClient.fetchAccounts();
 		const orderRecords = eventSubscriber.getEventsArray('OrderActionRecord');
 
 		console.log(orderRecords.length, 'orderRecords found.');
@@ -337,8 +338,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(orderRecord2);
 		assert(isVariant(orderRecord2.action, 'fill'));
 		assert(isVariant(orderRecord2.actionExplanation, 'orderFilledWithMatch'));
-		// assert(orderRecord2.maker == await fillerDriftClient.getUserAccountPublicKey());
-		// assert(orderRecord2.taker == await driftClient.getUserAccountPublicKey());
+		// assert(orderRecord2.maker == await fillerVelocityClient.getUserAccountPublicKey());
+		// assert(orderRecord2.taker == await velocityClient.getUserAccountPublicKey());
 		assert(orderRecord2.baseAssetAmountFilled.eq(new BN(1000000000 / 2)));
 		console.log(orderRecord2.quoteAssetAmountFilled.toString());
 		assert(orderRecord2.quoteAssetAmountFilled.eq(new BN(16086360)));
@@ -357,9 +358,9 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(isVariant(orderRecord4.action, 'place'));
 		assert(isVariant(orderRecord4.actionExplanation, 'none'));
 
-		await fillerDriftClientUser.fetchAccounts();
+		await fillerVelocityClientUser.fetchAccounts();
 
-		const positionMaker = fillerDriftClientUser.getPerpPosition(marketIndex);
+		const positionMaker = fillerVelocityClientUser.getPerpPosition(marketIndex);
 		console.log(positionMaker);
 		assert(positionMaker.baseAssetAmount.eq(new BN(-500000000)));
 		console.log(positionMaker.quoteAssetAmount.toString());
@@ -368,8 +369,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(positionMaker.quoteEntryAmount.eq(new BN(16086360)));
 		assert(positionMaker.quoteBreakEvenAmount.eq(new BN(16089577)));
 
-		await fillerDriftClient.fetchAccounts();
-		const perpMarket = fillerDriftClient.getPerpMarketAccount(0);
+		await fillerVelocityClient.fetchAccounts();
+		const perpMarket = fillerVelocityClient.getPerpMarketAccount(0);
 		console.log(perpMarket.amm.totalFee.toString());
 		console.log(perpMarket.amm.totalFeeMinusDistributions.toString());
 		console.log(perpMarket.totalExchangeFee.toString());
@@ -382,7 +383,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(perpMarket.amm.totalMmFee.eq(new BN(4022)));
 		assert(perpMarket.amm.totalFeeWithdrawn.eq(ZERO));
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 });

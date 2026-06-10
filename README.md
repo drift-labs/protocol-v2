@@ -10,11 +10,11 @@
   </p>
 </div>
 
-# Drift Protocol v2
+# Velocity Protocol v2
 
-This repository provides open source access to Drift V2's Typescript SDK, Solana Programs, and more.
+This repository provides open source access to Velocity V2's Typescript SDK, Solana Programs, and more.
 
-Integrating Drift? [Go here](./sdk/README.md)
+Integrating Velocity? [Go here](./sdk/README.md)
 
 # SDK Guide
 
@@ -62,10 +62,10 @@ bash test-scripts/run-anchor-tests.sh
 
 We've provided a devcontainer `Dockerfile` to help you spin up a dev environment with the correct versions of Rust, Solana, and Anchor for program development.
 
-Build the container and tag it `drift-dev`:
+Build the container and tag it `velocity-dev`:
 
 ```
-cd .devcontainer && docker build -t drift-dev .
+cd .devcontainer && docker build -t velocity-dev .
 ```
 
 Open a shell to the container:
@@ -94,7 +94,7 @@ Use the dev container as you would a local build environment:
 anchor build
 
 # update idl
-anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json
+anchor build -- --features anchor-test && cp target/idl/velocity.json sdk/src/idl/velocity.json
 
 # run cargo tests
 cargo test
@@ -110,7 +110,7 @@ You can also run the dev environment using Docker Compose:
 ```bash
 cd .devcontainer
 docker compose up -d
-docker compose exec drift bash
+docker compose exec velocity bash
 ```
 
 # Releases

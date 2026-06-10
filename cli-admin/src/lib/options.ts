@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import * as os from 'os';
 import { GlobalOpts } from './provider';
-import { DriftEnv } from '@velocity-exchange/sdk';
+import { VelocityEnv } from '@velocity-exchange/sdk';
 
 /**
  * Attach shared global options to every subcommand.
@@ -24,7 +24,7 @@ export function withGlobalOptions(cmd: Command): Command {
 		)
 		.option(
 			'-e, --env <env>',
-			'Drift env (mainnet-beta or devnet)',
+			'Velocity env (mainnet-beta or devnet)',
 			'mainnet-beta'
 		)
 		.option(
@@ -42,7 +42,7 @@ export function readGlobalOpts(cmd: Command): GlobalOpts {
 	return {
 		url: opts.url as string,
 		keypair: opts.keypair as string,
-		env: env as DriftEnv,
+		env: env as VelocityEnv,
 		multisig: opts.multisig as string | undefined,
 	};
 }

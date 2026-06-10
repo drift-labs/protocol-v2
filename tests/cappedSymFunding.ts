@@ -40,7 +40,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 async function updateFundingRateHelper(
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
@@ -51,13 +51,13 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		await setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 		// just to update funding trade .1 cent
-		// await driftClient.openPosition(
+		// await velocityClient.openPosition(
 		// 	PositionDirection.LONG,
 		// 	QUOTE_PRECISION.div(new BN(100)),
 		// 	marketIndex
 		// );
-		await driftClient.fetchAccounts();
-		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const marketData0 = velocityClient.getPerpMarketAccount(marketIndex);
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
 			marketData0.oracle
@@ -91,18 +91,18 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			marketData0.cumulativeFundingRateShort;
 
-		const state = driftClient.getStateAccount();
+		const state = velocityClient.getStateAccount();
 		assert(state.exchangeStatus === ExchangeStatus.ACTIVE);
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 		assert(isVariant(market.status, 'active'));
 
-		await driftClient.updateFundingRate(marketIndex, priceFeedAddress);
+		await velocityClient.updateFundingRate(marketIndex, priceFeedAddress);
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
-		await driftClient.fetchAccounts();
-		const marketData = driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const marketData = velocityClient.getPerpMarketAccount(marketIndex);
 		const peroidicity = marketData.marketStats.fundingPeriod;
 
 		const lastFundingRate = convertToNumber(
@@ -180,9 +180,9 @@ async function updateFundingRateHelper(
 
 async function cappedSymFundingScenario(
 	rollingMarketNum: number,
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	userAccount: User,
-	driftClient2: TestClient,
+	velocityClient2: TestClient,
 	userAccount2: User,
 	marketIndex: number,
 	kSqrt: BN,
@@ -193,7 +193,7 @@ async function cappedSymFundingScenario(
 	const priceFeedAddress = await mockOracle(priceAction[0], -10);
 	const periodicity = new BN(0);
 
-	await driftClient.initializePerpMarket(
+	await velocityClient.initializePerpMarket(
 		rollingMarketNum,
 		priceFeedAddress,
 		kSqrt,
@@ -201,46 +201,46 @@ async function cappedSymFundingScenario(
 		periodicity,
 		new BN(priceAction[0] * PEG_PRECISION.toNumber())
 	);
-	await driftClient.updatePerpMarketContractTier(
+	await velocityClient.updatePerpMarketContractTier(
 		rollingMarketNum,
 		ContractTier.A
 	);
-	await driftClient.accountSubscriber.addOracle({
+	await velocityClient.accountSubscriber.addOracle({
 		source: OracleSource.PYTH_LAZER,
 		publicKey: priceFeedAddress,
 	});
-	await driftClient2.accountSubscriber.addOracle({
+	await velocityClient2.accountSubscriber.addOracle({
 		source: OracleSource.PYTH_LAZER,
 		publicKey: priceFeedAddress,
 	});
 	await sleep(2500);
 
 	if (fees && fees > 0) {
-		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
+		await velocityClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 
 		console.log('spawn some fee pool');
 
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.mul(new BN(100)),
 			marketIndex
 		);
-		await driftClient.closePosition(marketIndex);
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.closePosition(marketIndex);
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
-		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await velocityClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 	}
-	await driftClient.fetchAccounts();
+	await velocityClient.fetchAccounts();
 
-	const oracleData = driftClient.getOracleDataForPerpMarket(0);
+	const oracleData = velocityClient.getOracleDataForPerpMarket(0);
 	console.log(
 		'PRICE',
 		convertToNumber(
 			calculateReservePrice(
-				driftClient.getPerpMarketAccount(marketIndex),
+				velocityClient.getPerpMarketAccount(marketIndex),
 				undefined
 			)
 		),
@@ -252,31 +252,31 @@ async function cappedSymFundingScenario(
 	console.log(ExchangeStatus.FUNDING_PAUSED);
 	console.log(ExchangeStatus.ACTIVE);
 
-	await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
-	await driftClient.fetchAccounts();
+	await velocityClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
+	await velocityClient.fetchAccounts();
 
 	if (longShortSizes[0] !== 0) {
-		console.log('driftClient.openPosition');
-		const txSig = await driftClient.openPosition(
+		console.log('velocityClient.openPosition');
+		const txSig = await velocityClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.mul(new BN(longShortSizes[0])),
 			marketIndex
 		);
-		await printTxLogs(driftClient.connection, txSig);
+		await printTxLogs(velocityClient.connection, txSig);
 	}
 
 	// try{
 	if (longShortSizes[1] !== 0) {
-		console.log('driftClient2.openPosition');
-		await driftClient2.openPosition(
+		console.log('velocityClient2.openPosition');
+		await velocityClient2.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION.mul(new BN(longShortSizes[1])),
 			marketIndex
 		);
 	}
 	await sleep(1500);
-	await driftClient.fetchAccounts();
-	await driftClient2.fetchAccounts();
+	await velocityClient.fetchAccounts();
+	await velocityClient2.fetchAccounts();
 	await sleep(1500);
 
 	console.log(longShortSizes[0], longShortSizes[1]);
@@ -315,23 +315,23 @@ async function cappedSymFundingScenario(
 		assert(userAccount2.getTotalPerpPositionLiability().eq(new BN(0)));
 	}
 
-	await driftClient.fetchAccounts();
-	const market = driftClient.getPerpMarketAccount(marketIndex);
+	await velocityClient.fetchAccounts();
+	const market = velocityClient.getPerpMarketAccount(marketIndex);
 
-	await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+	await velocityClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 
 	console.log('priceAction update', priceAction, priceAction.slice(1));
 	await updateFundingRateHelper(
-		driftClient,
+		velocityClient,
 		marketIndex,
 		market.oracle,
 		priceAction.slice(1)
 	);
 
-	await driftClient.fetchAccounts();
-	await driftClient2.fetchAccounts();
+	await velocityClient.fetchAccounts();
+	await velocityClient2.fetchAccounts();
 
-	const marketNew = driftClient.getPerpMarketAccount(marketIndex);
+	const marketNew = velocityClient.getPerpMarketAccount(marketIndex);
 
 	const fundingRateLong = marketNew.cumulativeFundingRateLong; //.sub(prevFRL);
 	const fundingRateShort = marketNew.cumulativeFundingRateShort; //.sub(prevFRS);
@@ -388,38 +388,38 @@ async function cappedSymFundingScenario(
 	assert(!fundingRateLong.eq(new BN(0)));
 	assert(!fundingRateShort.eq(new BN(0)));
 
-	// await driftClient.moveAmmToPrice(
+	// await velocityClient.moveAmmToPrice(
 	// 	marketIndex,
 	// 	new BN(priceAction[1] * PRICE_PRECISION.toNumber())
 	// );
 
 	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
-	await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
+	await velocityClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 
 	assert(fundingRateShort.lte(fundingRateLong));
 	if (longShortSizes[0] !== 0) {
-		await driftClient.closePosition(marketIndex);
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.closePosition(marketIndex);
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
 	}
 	if (longShortSizes[1] !== 0) {
-		await driftClient2.closePosition(marketIndex);
-		await driftClient2.settlePNL(
-			await driftClient2.getUserAccountPublicKey(),
-			driftClient2.getUserAccount(),
+		await velocityClient2.closePosition(marketIndex);
+		await velocityClient2.settlePNL(
+			await velocityClient2.getUserAccountPublicKey(),
+			velocityClient2.getUserAccount(),
 			marketIndex
 		);
 	}
-	await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+	await velocityClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
 	setFeedPrice(anchor.workspace.Pyth, priceAction[1], priceFeedAddress);
 
 	await sleep(2000);
 
-	await driftClient.fetchAccounts();
-	await driftClient2.fetchAccounts();
+	await velocityClient.fetchAccounts();
+	await velocityClient2.fetchAccounts();
 	await userAccount.fetchAccounts();
 	await userAccount2.fetchAccounts();
 
@@ -443,12 +443,12 @@ async function cappedSymFundingScenario(
 }
 
 describe('capped funding', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
-	let driftClient: TestClient;
-	let driftClient2: TestClient;
+	let velocityClient: TestClient;
+	let velocityClient2: TestClient;
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -484,7 +484,7 @@ describe('capped funding', () => {
 
 		const spotMarketIndexes = [0];
 		const marketIndexes = Array.from({ length: 15 }, (_, i) => i);
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -500,35 +500,35 @@ describe('capped funding', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.fetchAccounts();
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.fetchAccounts();
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
-		await driftClient.initializeUserAccount();
+		await velocityClient.initializeUserAccount();
 		userAccount = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
 		await userAccount.subscribe();
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		await driftClient.deposit(
+		await velocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const [_userUSDCAccounts, _user_keys, driftClients, userAccountInfos] =
+		const [_userUSDCAccounts, _user_keys, velocityClients, userAccountInfos] =
 			await initUserAccounts(
 				1,
 				usdcMint,
@@ -540,7 +540,7 @@ describe('capped funding', () => {
 				bulkAccountLoader
 			);
 
-		driftClient2 = driftClients[0];
+		velocityClient2 = velocityClients[0];
 		userAccount2 = userAccountInfos[0];
 	});
 
@@ -556,9 +556,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -615,9 +615,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -675,9 +675,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -733,9 +733,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -795,9 +795,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -807,8 +807,8 @@ describe('capped funding', () => {
 		);
 
 		//ensure it was clamped :)
-		await driftClient.fetchAccounts();
-		const marketNew = driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const marketNew = velocityClient.getPerpMarketAccount(marketIndex);
 		console.log(
 			'marketNew.marketStats.historicalOracleData.lastOraclePriceTwap:',
 			marketNew.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
@@ -895,9 +895,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -906,8 +906,8 @@ describe('capped funding', () => {
 		);
 
 		//ensure it was clamped :)
-		await driftClient.fetchAccounts();
-		const _marketNew = driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const _marketNew = velocityClient.getPerpMarketAccount(marketIndex);
 		const clampedFundingRatePct = new BN(
 			(0.03 * PRICE_PRECISION.toNumber()) / 24
 		).mul(FUNDING_RATE_BUFFER_PRECISION);
@@ -991,9 +991,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -1053,9 +1053,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,
@@ -1116,9 +1116,9 @@ describe('capped funding', () => {
 			cumulativeFee,
 		] = await cappedSymFundingScenario(
 			rollingMarketNum - 1,
-			driftClient,
+			velocityClient,
 			userAccount,
-			driftClient2,
+			velocityClient2,
 			userAccount2,
 			marketIndex,
 			ammInitialBaseAssetAmount,

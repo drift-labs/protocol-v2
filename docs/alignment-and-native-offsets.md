@@ -65,7 +65,7 @@ const_assert_eq!(size_of::<PerpMarket>(), 1232);
 // PoolBalance: u128 (16) + u16 (2) + [u8;14] padding == 32
 const_assert_eq!(size_of::<PoolBalance>(), 32);
 // AMM has no standalone SIZE constant.  Derive the correct value by running:
-//   cargo test -p drift -- amm_zero_copy_offsets --nocapture
+//   cargo test -p velocity -- amm_zero_copy_offsets --nocapture
 // or by checking `size_of::<PerpMarket>() - offset_of!(PerpMarket, amm)
 //   - size_of::<PoolBalance>() - <remaining PerpMarket fields>`.
 // Update the literal whenever AMM fields change.
@@ -156,7 +156,7 @@ old offsets.
      by `16 − N` bytes, requiring a realloc migration.
 3. **Place the field correctly**: u128/i128 fields must precede `PoolBalance` fields; other
    types can go anywhere that keeps all u128 offsets at multiples of 16.
-4. **Run the size regression tests**: `cargo test -p drift size`.
+4. **Run the size regression tests**: `cargo test -p velocity size`.
 
 ### Removing a field (replacing with padding)
 
@@ -253,14 +253,14 @@ alignment padding.
 
 ### Regression tests
 
-`programs/drift/src/state/traits/tests.rs :: native_instruction_offsets` contains two tests that
+`programs/velocity/src/state/traits/tests.rs :: native_instruction_offsets` contains two tests that
 lock these values down:
 
 - **`amm_zero_copy_offsets`** — asserts each `offset_of!` value equals the literal in `admin.rs`.
 - **`state_borsh_feature_bit_flags_offset`** — serialises a `State` with `feature_bit_flags = 0xFF`
   and asserts the byte is found at position 982 (including discriminator).
 
-**If you change any field in `AMM`, `PerpMarket`, or `State`, run `cargo test -p drift
+**If you change any field in `AMM`, `PerpMarket`, or `State`, run `cargo test -p velocity
 native_instruction_offsets` and update both the test expectations and the literals in
 `handle_update_mm_oracle_native` / `handle_update_amm_spread_adjustment_native` together.**
 

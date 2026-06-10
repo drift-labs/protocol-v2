@@ -10,10 +10,6 @@ import { ResubOpts } from '../accounts/types';
 
 export class AuctionSubscriber {
 	private velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	private get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	private opts: ConfirmOptions;
 	private resubOpts?: ResubOpts;
 
@@ -22,13 +18,12 @@ export class AuctionSubscriber {
 
 	constructor({
 		velocityClient,
-		driftClient,
 		opts,
 		resubTimeoutMs,
 		logResubMessages,
 	}: AuctionSubscriberConfig) {
 		// Type-system guarantees at least one of the two is supplied.
-		this.velocityClient = (velocityClient ?? driftClient)!;
+		this.velocityClient = velocityClient!;
 		this.opts = opts || this.velocityClient.opts;
 		this.eventEmitter = new EventEmitter();
 		this.resubOpts = { resubTimeoutMs, logResubMessages };

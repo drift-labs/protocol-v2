@@ -4,8 +4,8 @@ This document describes the single-source-of-truth margin engine in the SDK that
 
 ### Alignment with on-chain
 
-- The SDK snapshot shape mirrors `programs/drift/src/state/margin_calculation.rs` field-for-field.
-- The inputs and ordering mirror `calculate_margin_requirement_and_total_collateral_and_liability_info` in `programs/drift/src/math/margin.rs`.
+- The SDK snapshot shape mirrors `programs/velocity/src/state/margin_calculation.rs` field-for-field.
+- The inputs and ordering mirror `calculate_margin_requirement_and_total_collateral_and_liability_info` in `programs/velocity/src/math/margin.rs`.
 - Isolated positions are represented as `isolatedMarginCalculations` keyed by perp `marketIndex`, matching program logic.
 
 ### Core SDK types (shape parity)

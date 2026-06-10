@@ -1,2 +1,2 @@
 #!/bin/sh
-solana-verify build --library-name drift
+solana-verify build --library-name velocity

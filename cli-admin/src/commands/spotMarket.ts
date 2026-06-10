@@ -32,7 +32,7 @@ export function registerSpotMarket(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin spot-market set-status'
+				'velocity-admin spot-market set-status'
 			);
 			reportDispatch(`spot-market[${market}] status = ${status}`, result);
 		} finally {
@@ -59,7 +59,7 @@ export function registerSpotMarket(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin spot-market set-guard-threshold'
+				'velocity-admin spot-market set-guard-threshold'
 			);
 			reportDispatch(
 				`spot-market[${market}] guard-threshold = ${threshold}`,

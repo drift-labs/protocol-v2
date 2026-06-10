@@ -49,10 +49,10 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw 22', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let firstUserKeypair: Keypair;
-	let firstUserDriftClient: TestClient;
+	let firstUserVelocityClient: TestClient;
 	let firstUserTokenAccount: PublicKey;
 
 	let admin: TestClient;
@@ -129,18 +129,21 @@ describe('spot deposit and withdraw 22', () => {
 
 		await initializeQuoteSpotMarket(admin, usdcMint.publicKey);
 
-		let _firstUserDriftClientUSDCAccount: PublicKey;
-		[firstUserDriftClient, _firstUserDriftClientUSDCAccount, firstUserKeypair] =
-			await createUserWithUSDCAccount(
-				bankrunContextWrapper,
-				usdcMint,
-				chProgram,
-				usdcAmount,
-				marketIndexes,
-				spotMarketIndexes,
-				oracleInfos,
-				bulkAccountLoader
-			);
+		let _firstUserVelocityClientUSDCAccount: PublicKey;
+		[
+			firstUserVelocityClient,
+			_firstUserVelocityClientUSDCAccount,
+			firstUserKeypair,
+		] = await createUserWithUSDCAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			usdcAmount,
+			marketIndexes,
+			spotMarketIndexes,
+			oracleInfos,
+			bulkAccountLoader
+		);
 
 		// create token with scaled ui amount config
 		mintAuthority = Keypair.generate();
@@ -188,7 +191,7 @@ describe('spot deposit and withdraw 22', () => {
 
 	after(async () => {
 		await admin.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
 	});
 
 	it('Can mint tokens and transfer between accounts', async () => {
@@ -438,12 +441,16 @@ describe('spot deposit and withdraw 22', () => {
 			2
 		);
 
-		await firstUserDriftClient.fetchAccounts();
-		await firstUserDriftClient.deposit(depositAmount, 1, firstUserTokenAccount);
+		await firstUserVelocityClient.fetchAccounts();
+		await firstUserVelocityClient.deposit(
+			depositAmount,
+			1,
+			firstUserTokenAccount
+		);
 
-		await firstUserDriftClient.fetchAccounts();
-		let spotMarket = firstUserDriftClient.getSpotMarketAccount(1)!;
-		let spotPos = firstUserDriftClient.getSpotPosition(1)!;
+		await firstUserVelocityClient.fetchAccounts();
+		let spotMarket = firstUserVelocityClient.getSpotMarketAccount(1)!;
+		let spotPos = firstUserVelocityClient.getSpotPosition(1)!;
 		let spotBal = getTokenAmount(
 			spotPos.scaledBalance,
 			spotMarket,
@@ -451,16 +458,16 @@ describe('spot deposit and withdraw 22', () => {
 		);
 		assert.equal(spotBal.toString(), depositAmount.toString());
 
-		await firstUserDriftClient.fetchAccounts();
-		await firstUserDriftClient.withdraw(
+		await firstUserVelocityClient.fetchAccounts();
+		await firstUserVelocityClient.withdraw(
 			depositAmount,
 			1,
 			firstUserTokenAccount
 		);
 
-		await firstUserDriftClient.fetchAccounts();
-		spotMarket = firstUserDriftClient.getSpotMarketAccount(1)!;
-		spotPos = firstUserDriftClient.getSpotPosition(1)!;
+		await firstUserVelocityClient.fetchAccounts();
+		spotMarket = firstUserVelocityClient.getSpotMarketAccount(1)!;
+		spotPos = firstUserVelocityClient.getSpotPosition(1)!;
 		spotBal = getTokenAmount(
 			spotPos.scaledBalance,
 			spotMarket,

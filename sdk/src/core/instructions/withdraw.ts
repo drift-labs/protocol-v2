@@ -14,7 +14,7 @@ export async function buildWithdrawInstruction(args: {
 	state: PublicKey;
 	spotMarket: PublicKey;
 	spotMarketVault: PublicKey;
-	driftSigner: PublicKey;
+	velocitySigner: PublicKey;
 	user: PublicKey;
 	userStats: PublicKey;
 	userTokenAccount: PublicKey;
@@ -31,7 +31,7 @@ export async function buildWithdrawInstruction(args: {
 				state: args.state,
 				spotMarket: args.spotMarket,
 				spotMarketVault: args.spotMarketVault,
-				driftSigner: args.driftSigner,
+				velocitySigner: args.velocitySigner,
 				user: args.user,
 				userStats: args.userStats,
 				userTokenAccount: args.userTokenAccount,

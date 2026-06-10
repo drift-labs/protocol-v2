@@ -79,7 +79,7 @@ async function main() {
 	await client.subscribe();
 
 	const userMap = new UserMap({
-		driftClient: client,
+		velocityClient: client,
 		subscriptionConfig: {
 			type: 'polling',
 			frequency: 60_000,

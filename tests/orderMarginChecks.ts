@@ -28,9 +28,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('order margin checks with isolated positions', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
@@ -100,7 +100,7 @@ describe('order margin checks with isolated positions', () => {
 
 		await eventSubscriber.subscribe();
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -122,17 +122,17 @@ describe('order margin checks with isolated positions', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.initialize(usdcMint.publicKey, true);
 
-		await driftClient.subscribe();
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.subscribe();
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		// Initialize SOL-PERP market (index 0)
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -142,7 +142,7 @@ describe('order margin checks with isolated positions', () => {
 		);
 
 		// Initialize ETH-PERP market (index 1)
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			1,
 			ethUsd,
 			ammInitialBaseAssetAmount,
@@ -152,36 +152,36 @@ describe('order margin checks with isolated positions', () => {
 		);
 
 		// Set step sizes
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
+		await velocityClient.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1),
 			new BN(1)
 		);
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
+		await velocityClient.updatePerpMarketStepSizeAndTickSize(
 			1,
 			new BN(1),
 			new BN(1)
 		);
 
 		// Set margin ratios: 50% initial, 33% maintenance
-		await driftClient.updatePerpMarketMarginRatio(
+		await velocityClient.updatePerpMarketMarginRatio(
 			0,
 			MARGIN_PRECISION.toNumber() / 2, // 50% IM
 			MARGIN_PRECISION.toNumber() / 3 // 33% MM
 		);
-		await driftClient.updatePerpMarketMarginRatio(
+		await velocityClient.updatePerpMarketMarginRatio(
 			1,
 			MARGIN_PRECISION.toNumber() / 2, // 50% IM
 			MARGIN_PRECISION.toNumber() / 3 // 33% MM
 		);
 
 		// Initialize user account
-		await driftClient.initializeUserAccount();
+		await velocityClient.initializeUserAccount();
 		console.log('Initialized user account');
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -191,27 +191,27 @@ describe('order margin checks with isolated positions', () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 100, solUsd, 10000);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1000, ethUsd, 10000);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		// Close any open positions
-		const user = driftClient.getUserAccount();
+		const user = velocityClient.getUserAccount();
 		for (const perpPosition of user.perpPositions) {
 			if (!perpPosition.baseAssetAmount.eq(ZERO)) {
 				try {
-					await driftClient.closePosition(perpPosition.marketIndex);
+					await velocityClient.closePosition(perpPosition.marketIndex);
 				} catch (e) {
 					// Ignore errors when closing
 				} finally {
-					await driftClient.fetchAccounts();
+					await velocityClient.fetchAccounts();
 				}
 			}
 		}
 
 		// Settle PNL for all markets
 		try {
-			await driftClient.settleMultiplePNLs(
-				await driftClient.getUserAccountPublicKey(),
-				driftClient.getUserAccount(),
+			await velocityClient.settleMultiplePNLs(
+				await velocityClient.getUserAccountPublicKey(),
+				velocityClient.getUserAccount(),
 				[0],
 				SettlePnlMode.TRY_SETTLE
 			);
@@ -219,25 +219,25 @@ describe('order margin checks with isolated positions', () => {
 			// Ignore
 		}
 		try {
-			await driftClient.settlePNL(
-				await driftClient.getUserAccountPublicKey(),
-				driftClient.getUserAccount(),
+			await velocityClient.settlePNL(
+				await velocityClient.getUserAccountPublicKey(),
+				velocityClient.getUserAccount(),
 				1
 			);
 		} catch (e) {
 			// Ignore
 		}
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		// Transfer isolated collateral back to cross if any
-		for (const perpPosition of driftClient.getUserAccount().perpPositions) {
-			const isolatedBalance = driftClient.getIsolatedPerpPositionTokenAmount(
+		for (const perpPosition of velocityClient.getUserAccount().perpPositions) {
+			const isolatedBalance = velocityClient.getIsolatedPerpPositionTokenAmount(
 				perpPosition.marketIndex
 			);
 			if (isolatedBalance.gt(ZERO)) {
 				try {
-					await driftClient.transferIsolatedPerpPositionDeposit(
+					await velocityClient.transferIsolatedPerpPositionDeposit(
 						isolatedBalance.neg(),
 						perpPosition.marketIndex,
 						undefined,
@@ -252,17 +252,21 @@ describe('order margin checks with isolated positions', () => {
 		}
 
 		// Withdraw all cross collateral
-		await driftClient.fetchAccounts();
-		const crossBalance = driftClient.getQuoteAssetTokenAmount();
+		await velocityClient.fetchAccounts();
+		const crossBalance = velocityClient.getQuoteAssetTokenAmount();
 		if (crossBalance.gt(ZERO)) {
 			try {
-				await driftClient.withdraw(crossBalance, 0, userUSDCAccount.publicKey);
+				await velocityClient.withdraw(
+					crossBalance,
+					0,
+					userUSDCAccount.publicKey
+				);
 			} catch (e) {
 				// Ignore
 			}
 		}
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 	}
 
 	describe('Scenario 1: Cross below IM -> cannot open isolated position', () => {
@@ -278,7 +282,7 @@ describe('order margin checks with isolated positions', () => {
 				'[LOGGING] depositing into cross',
 				new BN(600 * 10 ** 6).toString()
 			);
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(600 * 10 ** 6), // $600
 				0,
 				userUSDCAccount.publicKey
@@ -290,7 +294,7 @@ describe('order margin checks with isolated positions', () => {
 				'[LOGGING] opening cross position',
 				baseAssetAmount.toString()
 			);
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				baseAssetAmount,
 				0 // SOL-PERP market
@@ -300,7 +304,7 @@ describe('order margin checks with isolated positions', () => {
 			// (Withdraw would be rejected by program; cannot withdraw below IM.)
 			// 10 SOL long @ $100 -> drop to $79: loss = $210, effective collateral ~$390, IM required $395, MM ~$261
 			await setFeedPriceNoProgram(bankrunContextWrapper, 79, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// Now try to open isolated ETH-PERP position
 			// First deposit into isolated
@@ -309,9 +313,13 @@ describe('order margin checks with isolated positions', () => {
 				'[LOGGING] depositing into cross',
 				isolatedDeposit.toString()
 			);
-			await driftClient.deposit(isolatedDeposit, 0, userUSDCAccount.publicKey);
+			await velocityClient.deposit(
+				isolatedDeposit,
+				0,
+				userUSDCAccount.publicKey
+			);
 			console.log('[LOGGING] deposited into cross', isolatedDeposit.toString());
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				isolatedDeposit,
 				1, // ETH-PERP
 				userUSDCAccount.publicKey
@@ -324,7 +332,7 @@ describe('order margin checks with isolated positions', () => {
 					'[LOGGING] placing order on isolated ETH-PERP',
 					new BN(1 * 10 ** 9).toString()
 				);
-				await driftClient.placePerpOrder(
+				await velocityClient.placePerpOrder(
 					getOrderParams({
 						orderType: OrderType.MARKET,
 						marketType: MarketType.PERP,
@@ -358,14 +366,14 @@ describe('order margin checks with isolated positions', () => {
 			// Shortfall: $200. If cross provides $200, cross has $350 vs $500 IM -> fails
 
 			// Deposit initial cross collateral
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(700 * 10 ** 6), // $700
 				0,
 				userUSDCAccount.publicKey
 			);
 
 			// Open cross SOL position
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9), // 10 SOL
 				0
@@ -373,36 +381,36 @@ describe('order margin checks with isolated positions', () => {
 
 			// Lower SOL oracle so cross has effective $550 (loss $150: 10*(100-85)=150)
 			await setFeedPriceNoProgram(bankrunContextWrapper, 85, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// Deposit and setup isolated ETH position
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(550 * 10 ** 6), // $550
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(550 * 10 ** 6),
 				1,
 				userUSDCAccount.publicKey
 			);
 
 			// Open initial isolated ETH position
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(1 * 10 ** 9), // 1 ETH
 				1
 			);
 
 			// Cross already at effective $550 from oracle move above
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// Now try to increase isolated position by 0.5 ETH
 			// This would require $750 IM total, but only have $550 isolated
 			// Shortfall of $200 from cross would make cross fail ($550 - $200 = $350 < $500 IM)
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.placePerpOrder(
+				await velocityClient.placePerpOrder(
 					getOrderParams({
 						orderType: OrderType.MARKET,
 						marketType: MarketType.PERP,
@@ -439,14 +447,14 @@ describe('order margin checks with isolated positions', () => {
 			// Shortfall: $202. Cross provides $202, cross has $598 vs $500 IM -> passes
 
 			// Deposit initial cross collateral
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(900 * 10 ** 6), // $900
 				0,
 				userUSDCAccount.publicKey
 			);
 
 			// Open cross SOL position
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9), // 10 SOL
 				0
@@ -454,39 +462,39 @@ describe('order margin checks with isolated positions', () => {
 
 			// Lower SOL oracle so cross has effective $800 (loss $100: 10*(100-90)=100)
 			await setFeedPriceNoProgram(bankrunContextWrapper, 90, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// Deposit and setup isolated ETH position
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(550 * 10 ** 6), // $550
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(550 * 10 ** 6),
 				1,
 				userUSDCAccount.publicKey
 			);
 
 			// Open initial isolated ETH position
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(1 * 10 ** 9), // 1 ETH
 				1
 			);
 
 			// Cross already at effective $800 from oracle move above
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// $202 from cross leaves cross with $598 > $500 IM -> passes (202 because of rounding)
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(202 * 10 ** 6),
 				1,
 				userUSDCAccount.publicKey
 			);
 
 			// Now increase isolated position by 0.5 ETH - should pass with $750 collateral on IM
-			const txSig = await driftClient.placePerpOrder(
+			const txSig = await velocityClient.placePerpOrder(
 				getOrderParams({
 					orderType: OrderType.MARKET,
 					marketType: MarketType.PERP,
@@ -516,21 +524,21 @@ describe('order margin checks with isolated positions', () => {
 			// Try to open new isolated ETH-PERP - should pass because SOL-PERP passes MM
 
 			// Deposit cross collateral
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(2000 * 10 ** 6), // $2000
 				0,
 				userUSDCAccount.publicKey
 			);
 
 			// Setup isolated SOL position with enough to open
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6), // $600 - enough to open ($500 IM)
 				0,
 				userUSDCAccount.publicKey
 			);
 
 			// Open SOL position
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9), // 10 SOL
 				0
@@ -538,17 +546,17 @@ describe('order margin checks with isolated positions', () => {
 
 			// Lower SOL oracle so isolated SOL has effective $400 (loss $200: 10*(100-80)=200), fails IM but passes MM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 80, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// Now setup and open isolated ETH position
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6), // $600 - enough for $500 IM
 				1,
 				userUSDCAccount.publicKey
 			);
 
 			// Open ETH position - should pass because SOL position passes MM
-			const txSig = await driftClient.openPosition(
+			const txSig = await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(1 * 10 ** 9), // 1 ETH
 				1
@@ -576,21 +584,21 @@ describe('order margin checks with isolated positions', () => {
 			// Try to open new isolated ETH-PERP - should fail because SOL-PERP fails MM
 
 			// Deposit cross collateral
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(2000 * 10 ** 6), // $2000
 				0,
 				userUSDCAccount.publicKey
 			);
 
 			// Setup isolated SOL position with enough to open
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6), // $600 - enough to open ($500 IM)
 				0,
 				userUSDCAccount.publicKey
 			);
 
 			// Open SOL position
-			await driftClient.openPosition(
+			await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9), // 10 SOL
 				0
@@ -598,10 +606,10 @@ describe('order margin checks with isolated positions', () => {
 
 			// Lower SOL oracle so isolated SOL has effective $300 (loss $300: 10*(100-70)=300), below MM $333
 			await setFeedPriceNoProgram(bankrunContextWrapper, 70, solUsd, 10000);
-			await driftClient.fetchAccounts();
+			await velocityClient.fetchAccounts();
 
 			// Setup isolated ETH collateral
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6), // $600 - enough for $500 IM
 				1,
 				userUSDCAccount.publicKey
@@ -610,7 +618,7 @@ describe('order margin checks with isolated positions', () => {
 			// Try to open ETH position - should fail because SOL position fails MM
 			const restoreConsole = suppressConsole();
 			try {
-				await driftClient.openPosition(
+				await velocityClient.openPosition(
 					PositionDirection.LONG,
 					new BN(1 * 10 ** 9), // 1 ETH
 					1
@@ -637,21 +645,21 @@ describe('order margin checks with isolated positions', () => {
 			// Should easily pass
 
 			// Deposit cross collateral
-			await driftClient.deposit(
+			await velocityClient.deposit(
 				new BN(2000 * 10 ** 6), // $2000
 				0,
 				userUSDCAccount.publicKey
 			);
 
 			// Setup isolated ETH collateral
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await velocityClient.depositIntoIsolatedPerpPosition(
 				new BN(600 * 10 ** 6), // $600 - enough for $500 IM
 				1,
 				userUSDCAccount.publicKey
 			);
 
 			// Open ETH position - should pass easily
-			const txSig = await driftClient.openPosition(
+			const txSig = await velocityClient.openPosition(
 				PositionDirection.LONG,
 				new BN(1 * 10 ** 9), // 1 ETH
 				1
@@ -660,8 +668,8 @@ describe('order margin checks with isolated positions', () => {
 			assert(txSig, 'Order should pass when cross has plenty of collateral');
 
 			// Verify position was opened
-			await driftClient.fetchAccounts();
-			const user = driftClient.getUserAccount();
+			await velocityClient.fetchAccounts();
+			const user = velocityClient.getUserAccount();
 			const ethPosition = user.perpPositions.find((p) => p.marketIndex === 1);
 			assert(
 				ethPosition && !ethPosition.baseAssetAmount.eq(ZERO),

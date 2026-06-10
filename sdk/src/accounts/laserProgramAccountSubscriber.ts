@@ -126,7 +126,7 @@ export class LaserstreamProgramAccountSubscriber<
 		const request: LaserSubscribeRequest = {
 			slots: {},
 			accounts: {
-				drift: {
+				velocity: {
 					account: [],
 					owner: [this.program.programId.toBase58()],
 					filters,

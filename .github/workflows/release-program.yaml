@@ -1,13 +1,13 @@
 name: Release Program to Mainnet
 
-# Mainnet program upgrades are gated by a `program-drift-<version>` tag.
+# Mainnet program upgrades are gated by a `program-velocity-<version>` tag.
 # The workflow only PROPOSES the Squads transaction; multisig signers must
 # approve + execute via the Squads UI.
 
 on:
   push:
     tags:
-      - "program-drift-*"
+      - "program-velocity-*"
 
 permissions:
   contents: write   # needed to attach the IDL JSON to the GitHub release
@@ -18,7 +18,7 @@ env:
   ANCHOR_VERSION: 1.0.0
   NODE_VERSION: "24.x.x"
   VERIFIABLE_BUILD_IMAGE: solanafoundation/solana-verifiable-build:3.1.14
-  DRIFT_MAINNET_PROGRAM_ID: dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH
+  VELOCITY_MAINNET_PROGRAM_ID: vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P
 
 jobs:
   release:
@@ -33,25 +33,25 @@ jobs:
         run: |
           set -euo pipefail
           TAG=${GITHUB_REF#refs/tags/}
-          # program-drift-<version>
-          VERSION=$(echo "$TAG" | sed 's/^program-drift-//')
+          # program-velocity-<version>
+          VERSION=$(echo "$TAG" | sed 's/^program-velocity-//')
           if [ -z "$VERSION" ] || [ "$VERSION" = "$TAG" ]; then
-            echo "Tag '$TAG' does not match program-drift-<version>" >&2
+            echo "Tag '$TAG' does not match program-velocity-<version>" >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Build drift (mainnet)
+      - name: Build velocity (mainnet)
         uses: ./.github/actions/build-program/
         with:
-          program: drift
+          program: velocity
           devnet: "false"
 
       - name: Attach IDL to GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          files: target/idl/drift.json
+          files: target/idl/velocity.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -59,7 +59,7 @@ jobs:
         id: buffer-deploy
         uses: ./.github/actions/buffer-deploy/
         with:
-          program: drift
+          program: velocity
           rpc-url: ${{ secrets.MAINNET_RPC_ENDPOINT }}
           keypair: ${{ secrets.MAINNET_DEPLOYER_KEYPAIR }}
           buffer-authority: ${{ secrets.MAINNET_MULTISIG_VAULT }}
@@ -69,10 +69,10 @@ jobs:
         with:
           network-url: ${{ secrets.MAINNET_RPC_ENDPOINT }}
           program-multisig: ${{ secrets.MAINNET_MULTISIG }}
-          program-id: ${{ env.DRIFT_MAINNET_PROGRAM_ID }}
+          program-id: ${{ env.VELOCITY_MAINNET_PROGRAM_ID }}
           buffer: ${{ steps.buffer-deploy.outputs.buffer }}
           idl-buffer: ${{ steps.buffer-deploy.outputs.idl-buffer }}
           spill-address: ${{ secrets.MAINNET_DEPLOYER_ADDRESS }}
           authority: ${{ secrets.MAINNET_MULTISIG_VAULT }}
-          name: "Deploy drift ${{ steps.tag.outputs.version }}"
+          name: "Deploy velocity ${{ steps.tag.outputs.version }}"
           keypair: ${{ secrets.MAINNET_DEPLOYER_KEYPAIR }}

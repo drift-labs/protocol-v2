@@ -19,9 +19,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('market orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -82,7 +82,7 @@ describe('market orders', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -101,15 +101,15 @@ describe('market orders', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -118,14 +118,14 @@ describe('market orders', () => {
 		);
 
 		[, userAccountPublicKey] =
-			await driftClient.initializeUserAccountAndDepositCollateral(
+			await velocityClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -137,55 +137,57 @@ describe('market orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
-		const txSig = await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.placeAndTakePerpOrder(orderParams);
+		const txSig = await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		console.log(
-			driftClient.getQuoteAssetTokenAmount().toString(),
-			driftClient
+			velocityClient.getQuoteAssetTokenAmount().toString(),
+			velocityClient
 				.getUserStats()
 				.getAccountAndSlot()
 				.data.fees.totalFeePaid.toString(),
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
-		assert(driftClient.getQuoteAssetTokenAmount().eq(new BN(9951998)));
+		assert(velocityClient.getQuoteAssetTokenAmount().eq(new BN(9951998)));
 		assert(
-			driftClient
+			velocityClient
 				.getUserStats()
 				.getAccountAndSlot()
 				.data.fees.totalFeePaid.eq(new BN(48001))
 		);
 
 		console.log(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteEntryAmount.eq(new BN(-48000001))
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(-48048002))
 		);
-		console.log(driftClient.getUserAccount().perpPositions[0].baseAssetAmount);
+		console.log(
+			velocityClient.getUserAccount().perpPositions[0].baseAssetAmount
+		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = velocityClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(48000000000)));
 		assert.ok(market.baseAssetAmountLong.eq(new BN(48000000000)));
 		assert.ok(market.baseAssetAmountShort.eq(ZERO));
@@ -209,49 +211,51 @@ describe('market orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		const txSig = await driftClient.placeAndTakePerpOrder(orderParams);
+		const txSig = await velocityClient.placeAndTakePerpOrder(orderParams);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
 
 		console.log(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteEntryAmount.eq(new BN(-24000001))
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(-24048001))
 		);
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toNumber()
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(24000000000))
 		);
 
-		console.log(driftClient.getQuoteAssetTokenAmount().toString());
-		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9927998)));
+		console.log(velocityClient.getQuoteAssetTokenAmount().toString());
+		assert.ok(velocityClient.getQuoteAssetTokenAmount().eq(new BN(9927998)));
 		assert(
-			driftClient
+			velocityClient
 				.getUserStats()
 				.getAccount()
 				.fees.totalFeePaid.eq(new BN(72001))
 		);
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = velocityClient.getPerpMarketAccount(0);
 		console.log(market.amm.baseAssetAmountWithAmm.toString());
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
 		assert.ok(market.baseAssetAmountLong.eq(new BN(24000000000)));
@@ -278,47 +282,49 @@ describe('market orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
 
-		await driftClient.fetchAccounts();
-		console.log(driftClient.getQuoteAssetTokenAmount().toString());
-		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9879998)));
+		await velocityClient.fetchAccounts();
+		console.log(velocityClient.getQuoteAssetTokenAmount().toString());
+		assert.ok(velocityClient.getQuoteAssetTokenAmount().eq(new BN(9879998)));
 		assert(
-			driftClient
+			velocityClient
 				.getUserStats()
 				.getAccount()
 				.fees.totalFeePaid.eq(new BN(120001))
 		);
 		console.log(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteEntryAmount.eq(new BN(24000000))
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(23952000))
 		);
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString()
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000))
 		);
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = velocityClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
 		assert.ok(market.baseAssetAmountLong.eq(ZERO));
 		assert.ok(market.baseAssetAmountShort.eq(new BN(-24000000000)));
@@ -346,39 +352,39 @@ describe('market orders', () => {
 			baseAssetAmount,
 			reduceOnly: true,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
 
 		console.log(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.eq(new BN(0))
 		);
 		assert.ok(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(0))
 		);
 
-		console.log(driftClient.getQuoteAssetTokenAmount().toString());
-		assert.ok(driftClient.getQuoteAssetTokenAmount().eq(new BN(9855998)));
+		console.log(velocityClient.getQuoteAssetTokenAmount().toString());
+		assert.ok(velocityClient.getQuoteAssetTokenAmount().eq(new BN(9855998)));
 		assert(
-			driftClient
+			velocityClient
 				.getUserStats()
 				.getAccount()
 				.fees.totalFeePaid.eq(new BN(144001))
 		);
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = velocityClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));

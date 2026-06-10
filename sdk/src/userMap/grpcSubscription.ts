@@ -56,7 +56,7 @@ export class grpcSubscription {
 				this.grpcConfigs,
 				'UserMap',
 				'user',
-				this.userMap.driftClient.program,
+				this.userMap.velocityClient.program,
 				this.decodeFn,
 				{
 					filters,
