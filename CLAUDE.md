@@ -29,6 +29,7 @@ bun run program:build:mainnet   # mainnet .so (default features: production gate
 `program:build` and `program:idl` use `--no-default-features --features no-entrypoint,anchor-test`. This is required even though `declare_id!` is now unconditional: default features include `mainnet-beta`, which compiles out devnet-only instructions (e.g. `force_wipe_accounts_devnet` — `wipe-devnet.ts` calls it via the SDK IDL) and switches `ids.rs` to mainnet constants. `program:idl` runs `anchor idl build` under `cargo test` with the host toolchain, which sidesteps the bundled-cargo issues described below.
 
 **SDK:**
+
 ```bash
 cd sdk/ && bun install && bun run build
 ```
@@ -43,20 +44,25 @@ Two pitfalls that fresh setups regularly hit. If you see either symptom, apply t
 
 **Symptom: `c/blake3_impl.h:4:10: fatal error: 'assert.h' file not found`** during `anchor build`.
 The Solana platform-tools clang has no built-in macOS SDK path; it can't find system headers. Fix:
+
 ```bash
 export SDKROOT="$(xcrun --show-sdk-path)"
 ```
+
 (or prefix the build command with it). Add it to your shell profile so future sessions inherit it.
 
 **Symptom: `feature 'edition2024' is required ... not stabilized in this version of Cargo (1.84.0)`** when downloading `toml_datetime` / `wincode` / `toml_parser`.
 The bundled cargo in older platform-tools (v1.51 ships cargo 1.84) can't parse `edition2024` deps. Fix by upgrading platform-tools — the Anchor 1.0 branches need ≥ v1.54:
+
 ```bash
 cargo-build-sbf --tools-version v1.54 --force-tools-install
 ```
+
 Run that once; subsequent `anchor build` invocations will use the new toolchain. Check with `cargo-build-sbf --version`.
 
 **Symptom: program panics with `Access violation in unknown section at address 0x80 of size 8`** (or similar address) at runtime, on instructions that touch types you didn't change.
 This is almost always **stale SBF build artifacts** after a Cargo.lock dep change. SBF caches compiled `.rlib`s under `target/sbpf-solana-solana/`, and the cache key doesn't catch every dep-resolution change — the resulting `.so` loads but reads/writes wrong offsets. Whenever Cargo.lock dep versions change (e.g. after `cargo update`, or after switching branches with different lockfiles), do:
+
 ```bash
 rm -rf target/sbpf-solana-solana target/deploy
 cargo-build-sbf --tools-version v1.54 -- --features anchor-test
@@ -65,31 +71,37 @@ cargo-build-sbf --tools-version v1.54 -- --features anchor-test
 ## Testing
 
 **Rust unit tests:**
+
 ```bash
 cargo test -p velocity                    # velocity program only
 cargo test -p velocity -- --show-output  # with stdout
 ```
 
 **Single TypeScript integration test:**
+
 ```bash
 ts-mocha -t 300000 ./tests/<test_file>.ts
 ```
 
 **Full TypeScript integration test suite** (builds first, then runs all ~70 test files serially):
+
 ```bash
 bash test-scripts/run-anchor-tests.sh
 # Skip rebuild if .so is already built:
 bash test-scripts/run-anchor-tests.sh --skip-build
 ```
+
 The integration tests in `tests/` resolve `@coral-xyz/anchor` and friends from the **repo-root** `node_modules`, not from `sdk/`. If you only ran `bun install` inside `sdk/`, the test files will fail to load with `Cannot find module '@coral-xyz/anchor'`. Run `bun install` at the repo root first.
 
 **SDK unit tests:**
+
 ```bash
 cd sdk/ && bun run test:dlob    # DLOB tests
 cd sdk/ && bun run test:ci      # CI subset
 ```
 
 **Lint/format:**
+
 ```bash
 cargo fmt                        # Rust
 cd sdk/ && bun run prettify:fix  # SDK (TypeScript)
@@ -116,9 +128,9 @@ Each item below cost real time before being understood — read this before touc
 - **SPL token vaults survive a velocity-only wipe.** Solana rule: only the owning program can decrement an account's lamports. `force_wipe_accounts_devnet` zeroes velocity-owned PDAs but cannot touch `spot_market_vault` / `insurance_fund_vault` (Token-program owned). After a wipe these vaults linger and `initialize_spot_market` then fails with `Allocate: account ... already in use` because Anchor's `init` constraint unconditionally calls System Allocate on the same PDA address.
 - **Closing an SPL token account requires `amount == 0`.** Token program rejects `close_account` with `Non-native account can only be closed if its balance is zero` (error `0xb`). The wipe ix must `spl_token::burn` (or transfer) before closing — and `burn` needs the mint passed as a writable account. The wipe-devnet.ts script reads each vault's data on chain to find its mint and passes `(vault, mint)` pairs in `remaining_accounts`.
 - **Mixing manual lamport mutation with CPI in one loop trips the runtime.** Solana's per-CPI conservation check fires with `sum of account balances before and after instruction do not match` if you manually credit admin lamports and then CPI into another program that also rebalances lamports. Fix: do all CPI closes in one pass, then all manual drains in a second pass.
-- **The IDL regen recipe must drop `mainnet-beta` or devnet-only ixs vanish from the IDL.** Default features include `mainnet-beta`, which strips `#[cfg(not(feature = "mainnet-beta"))]` items. The deployed `.so` *has* the ix (built via `build-devnet.sh` with `--no-default-features`) but `program.methods.forceWipeAccountsDevnet` is undefined on the SDK because the IDL doesn't list it. Use: `anchor idl build -p velocity -o target/idl/velocity.json -- --no-default-features --features no-entrypoint,anchor-test` then `cp` and `anchor idl type`.
+- **The IDL regen recipe must drop `mainnet-beta` or devnet-only ixs vanish from the IDL.** Default features include `mainnet-beta`, which strips `#[cfg(not(feature = "mainnet-beta"))]` items. The deployed `.so` _has_ the ix (built via `build-devnet.sh` with `--no-default-features`) but `program.methods.forceWipeAccountsDevnet` is undefined on the SDK because the IDL doesn't list it. Use: `anchor idl build -p velocity -o target/idl/velocity.json -- --no-default-features --features no-entrypoint,anchor-test` then `cp` and `anchor idl type`.
 - **Anchor 1.0 `.accounts()` is implicitly `accountsPartial` and may reorder.** When sending a wipe ix with explicit `velocitySigner` + `tokenProgram`, the auto-resolver can shift them into `remaining_accounts`. Use `.accountsStrict({...})` for fixed account sets.
-- **`deploy-from-buffer-devnet.sh` insists on a `PROGRAM_KEYPAIR` file.** For an *upgrade* you don't need the program keypair — only the upgrade authority. Direct: `solana program deploy target/deploy/velocity.so --buffer <BUF_PK> --program-id <PROGRAM_PUBKEY> --upgrade-authority <KP> -u <URL>` (`--program-id` accepts a Pubkey for upgrades).
+- **`deploy-from-buffer-devnet.sh` insists on a `PROGRAM_KEYPAIR` file.** For an _upgrade_ you don't need the program keypair — only the upgrade authority. Direct: `solana program deploy target/deploy/velocity.so --buffer <BUF_PK> --program-id <PROGRAM_PUBKEY> --upgrade-authority <KP> -u <URL>` (`--program-id` accepts a Pubkey for upgrades).
 - **`wipe-devnet.ts` walks `.wiped-*.json` archives too**, not just the active receipt. Any spot-market index ever recorded gets its derived vault PDAs included in subsequent wipes. Don't delete the archives until you're certain there are no lingering on-chain accounts.
 - **Phase G (LP pool) creates more orphan token accounts.** The LP-pool subaccounts (e.g. dUSDT constituent token vault) survive a wipe the same way as spot vaults. If you don't need an LP pool, `SKIP_PHASE_G=1`. Otherwise extend the `wipe-devnet.ts` collector to derive the LP-pool vault PDAs.
 - **Removing a feature (e.g. PR #38 PMM removal) breaks deploy scripts.** SDK exports referenced by `init-devnet.ts` / `verify-devnet.ts` vanish; the script crashes at import. After any feature removal, search `deploy-scripts/` for helpers named after it and rip that phase out before the next devnet run.
@@ -132,6 +144,7 @@ Each item below cost real time before being understood — read this before touc
 This is **Velocity Protocol v2** — a Solana perpetuals and spot trading protocol.
 
 ### Programs (`programs/`)
+
 - **`velocity/`** — Core protocol (Anchor, ~500k+ lines of Rust). Entry point: `src/lib.rs`. Main instruction handlers in `src/instructions/`:
   - `user.rs` — trading instructions (place/cancel/fill orders)
   - `keeper.rs` — keeper/crank instructions (settle PnL, funding, liquidations)
@@ -141,7 +154,9 @@ This is **Velocity Protocol v2** — a Solana perpetuals and spot trading protoc
 - **`openbook_v2/`, `token_faucet/`** — DEX integration and test utilities
 
 ### SDK (`sdk/`)
+
 TypeScript library (`@velocity-exchange/sdk`). Key modules in `src/`:
+
 - `velocityClient.ts` — main client class
 - `user.ts` — user account abstraction
 - `dlob/` — Decentralized Limit Order Book implementation
@@ -149,9 +164,11 @@ TypeScript library (`@velocity-exchange/sdk`). Key modules in `src/`:
 - `idl/velocity.json` — generated Anchor IDL (do not edit manually)
 
 ### Tests (`tests/`)
+
 ~70 TypeScript integration tests using ts-mocha + Anchor's local validator (bankrun for some). Each test spins up a local validator with the program deployed. Tests are run serially by `run-anchor-tests.sh`.
 
 ### Program internals
+
 - `programs/velocity/src/math/` — core math (funding, fees, margin, AMM)
 - `programs/velocity/src/state/` — account structs (User, PerpMarket, SpotMarket, etc.)
 - `programs/velocity/src/controller/` — stateful operations (position updates, fills, liquidations)
@@ -161,13 +178,29 @@ TypeScript library (`@velocity-exchange/sdk`). Key modules in `src/`:
 
 All modules have doc comments. When making feature or refactor changes, update any module-level doc comments that would be invalidated by the change.
 
+### Migration doc ([docs/DRIFT-TO-VELOCITY.md](./docs/DRIFT-TO-VELOCITY.md))
+
+`docs/DRIFT-TO-VELOCITY.md` is the canonical record of what changed between upstream `drift-labs/protocol-v2` (fork point `0ae3e3b1d`) and Velocity, written for external integrators migrating off the old Drift SDK/program. **Whenever a change could affect a migrating integrator, update this doc in the same PR.** That includes:
+
+- Adding, removing, or changing the signature/accounts of a program instruction
+- Changing the layout, size, or fields of any on-chain account struct (User, PerpMarket, SpotMarket, State, …)
+- Adding or deprecating `Error` enum variants, `OracleSource` variants, or other ABI-visible enums
+- Renaming, removing, or adding SDK exports (classes, types, constants, config fields)
+- Changing program IDs, PDA seeds, mints, or other well-known addresses
+- Changing dependency majors that integrators inherit (Anchor, @solana/web3.js)
+- Removing or adding a protocol feature
+
+Match the doc's existing structure: feature-level changes go in §2/§3, SDK surface in §4, ABI/layout notes in §5, and add a row to the PR change log in §6. Update the §7 checklist if the migration steps themselves change. Keep stated facts (sizes, pubkeys, counts) verified against the code, not guessed. Purely internal refactors that don't change the program ABI or SDK surface do not need a doc update.
+
 ### Error enum stability
 
 The velocity program's `Error` enum is ABI-stable — on-chain clients identify errors by numeric code. When modifying it:
+
 - **Add** new variants at the **bottom** only, never insert between existing ones.
 - **Remove** by marking the variant as deprecated (e.g., `/// @deprecated`) and leaving it in place — do not delete or reorder.
 
 ### Key design patterns
+
 - Velocity uses a custom native entrypoint (discriminator `[0xFF, 0xFF, 0xFF, 0xFF, opcode]`) for high-frequency keeper instructions that bypass Anchor overhead, alongside the standard Anchor `#[program]` entrypoint.
 - `remaining_accounts` is used extensively to pass variable numbers of oracle accounts, spot markets, and maker accounts to instructions.
 - Zero-copy account loading (`AccountLoader`) is used for large accounts (User, PerpMarket).
