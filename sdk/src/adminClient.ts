@@ -95,7 +95,7 @@ export class AdminClient extends VelocityClient {
 			throw new Error('Clearing house already initialized');
 		}
 
-		const [driftStatePublicKey] =
+		const [velocityStatePublicKey] =
 			await getVelocityStateAccountPublicKeyAndNonce(this.program.programId);
 
 		const initializeIx = await this.program.instruction.initialize({
@@ -103,10 +103,10 @@ export class AdminClient extends VelocityClient {
 				admin: this.isSubscribed
 					? this.getStateAccount().coldAdmin
 					: this.wallet.publicKey,
-				state: driftStatePublicKey,
+				state: velocityStatePublicKey,
 				quoteAssetMint: usdcMint,
 				rent: SYSVAR_RENT_PUBKEY,
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				systemProgram: anchor.web3.SystemProgram.programId,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -260,7 +260,7 @@ export class AdminClient extends VelocityClient {
 					spotMarket,
 					spotMarketVault,
 					insuranceFundVault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					spotMarketMint: mint,
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,
@@ -315,7 +315,7 @@ export class AdminClient extends VelocityClient {
 					spotMarket: spotMarketPublicKey,
 					spotMarketVault: spotMarketVaultPublicKey,
 					insuranceFundVault: insuranceFundVaultPublicKey,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 			}
@@ -1204,7 +1204,7 @@ export class AdminClient extends VelocityClient {
 					perpMarketIndex
 				),
 				sourceVault,
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				quoteSpotMarket: spotMarket.pubkey,
 				spotMarketVault: spotMarket.vault,
 				tokenProgram: TOKEN_PROGRAM_ID,
@@ -3722,7 +3722,7 @@ export class AdminClient extends VelocityClient {
 						outMarketIndex
 					),
 					tokenProgram: TOKEN_PROGRAM_ID,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 				},
 				remainingAccounts,
 			}
@@ -3779,7 +3779,7 @@ export class AdminClient extends VelocityClient {
 					insuranceFundVault: spotMarket.insuranceFund.vault,
 					recipientTokenAccount,
 					tokenProgram: tokenProgramId,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 				},
 				remainingAccounts,
 			}
@@ -4405,7 +4405,7 @@ export class AdminClient extends VelocityClient {
 					insuranceFundVault: spotMarket.insuranceFund.vault,
 					userTokenAccount: userTokenAccountPublicKey,
 					tokenProgram: this.getTokenProgramForSpotMarket(spotMarket),
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 				},
 			}
 		);
@@ -5094,7 +5094,7 @@ export class AdminClient extends VelocityClient {
 	}
 
 	/**
-	 * Get the drift begin_swap and end_swap instructions
+	 * Get the velocity begin_swap and end_swap instructions
 	 *
 	 * @param outMarketIndex the market index of the token you're buying
 	 * @param inMarketIndex the market index of the token you're selling
@@ -5573,7 +5573,7 @@ export class AdminClient extends VelocityClient {
 					spotMarketVault: withdrawSpotMarket.vault,
 					tokenProgram: withdrawTokenProgram,
 					mint: withdrawSpotMarket.mint,
-					driftSigner: getVelocitySignerPublicKey(this.program.programId),
+					velocitySigner: getVelocitySignerPublicKey(this.program.programId),
 					oracle: withdrawSpotMarket.oracle,
 				},
 			}

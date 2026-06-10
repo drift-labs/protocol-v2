@@ -18,7 +18,7 @@ import {
 	Program,
 	ProgramAccount,
 } from '@coral-xyz/anchor';
-import driftIDL from '../src/idl/drift.json';
+import velocityIDL from '../src/idl/velocity.json';
 import { grpcMultiUserAccountSubscriber } from '../src/accounts/grpcMultiUserAccountSubscriber';
 
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
@@ -26,7 +26,7 @@ const TOKEN = process.env.TOKEN;
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT;
 
 async function initializeSingleGrpcClient() {
-	console.log('🚀 Initializing single gRPC Drift Client...');
+	console.log('🚀 Initializing single gRPC Velocity Client...');
 
 	const connection = new Connection(RPC_ENDPOINT);
 	const wallet = new Wallet(new Keypair());
@@ -42,7 +42,7 @@ async function initializeSingleGrpcClient() {
 		}
 	);
 
-	const program = new Program(driftIDL as Idl, programId, provider);
+	const program = new Program(velocityIDL as Idl, programId, provider);
 
 	// Get perp market accounts
 	const allPerpMarketProgramAccounts =

@@ -1,5 +1,5 @@
 {
-  "name": "Drift Protocol Development",
+  "name": "Velocity Protocol Development",
   "build": {
     "dockerfile": "Dockerfile",
     "platform": "linux/amd64"
@@ -8,7 +8,7 @@
   "remoteUser": "root",
   "mounts": [
     "source=${localWorkspaceFolder},target=/workdir,type=bind,consistency=cached",
-    "source=drift-target,target=/workdir/target,type=volume,consistency=delegated"
+    "source=velocity-target,target=/workdir/target,type=volume,consistency=delegated"
   ],
   "postCreateCommand": "echo 'Dev container ready! You can now run: anchor build, anchor test, cargo build, etc.'",
   "customizations": {

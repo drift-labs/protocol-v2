@@ -35,10 +35,10 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('scale orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
-	let driftClientUser: User;
+	let velocityClient: TestClient;
+	let velocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -100,7 +100,7 @@ describe('scale orders', () => {
 			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
 		];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -117,16 +117,16 @@ describe('scale orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		let oraclesLoaded = false;
 		while (!oraclesLoaded) {
-			await driftClient.accountSubscriber.setSpotOracleMap();
+			await velocityClient.accountSubscriber.setSpotOracleMap();
 			const found =
-				!!driftClient.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
+				!!velocityClient.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
 					0
 				);
 			if (found) {
@@ -137,7 +137,7 @@ describe('scale orders', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -146,24 +146,24 @@ describe('scale orders', () => {
 		);
 
 		// Set step size to 0.001 (1e6 in base precision)
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
+		await velocityClient.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1000000), // 0.001 in BASE_PRECISION
 			new BN(1)
 		);
 
 		// Initialize SOL spot market
-		await initializeSolSpotMarket(driftClient, solUsd);
+		await initializeSolSpotMarket(velocityClient, solUsd);
 
 		// Set step size for spot market
-		await driftClient.updateSpotMarketStepSizeAndTickSize(
+		await velocityClient.updateSpotMarketStepSizeAndTickSize(
 			spotMarketIndex,
 			new BN(1000000), // 0.001 in token precision
 			new BN(1)
 		);
 
 		// Enable margin trading on spot market (required for short orders)
-		await driftClient.updateSpotMarketMarginWeights(
+		await velocityClient.updateSpotMarketMarginWeights(
 			spotMarketIndex,
 			MARGIN_PRECISION.toNumber() * 0.75, // initial asset weight
 			MARGIN_PRECISION.toNumber() * 0.8, // maintenance asset weight
@@ -173,7 +173,7 @@ describe('scale orders', () => {
 
 		// Get initialization instructions
 		const { ixs: initIxs, userAccountPublicKey } =
-			await driftClient.createInitializeUserAccountAndDepositCollateralIxs(
+			await velocityClient.createInitializeUserAccountAndDepositCollateralIxs(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
@@ -181,13 +181,13 @@ describe('scale orders', () => {
 
 		// Get margin trading enabled instruction (manually construct since user doesn't exist yet)
 		const marginTradingIx =
-			await driftClient.program.instruction.updateUserMarginTradingEnabled(
+			await velocityClient.program.instruction.updateUserMarginTradingEnabled(
 				0, // subAccountId
 				true, // marginTradingEnabled
 				{
 					accounts: {
 						user: getUserAccountPublicKeySync(
-							driftClient.program.programId,
+							velocityClient.program.programId,
 							bankrunContextWrapper.provider.wallet.publicKey,
 							0
 						),
@@ -199,41 +199,45 @@ describe('scale orders', () => {
 
 		// Bundle and send all instructions together
 		const allIxs = [...initIxs, marginTradingIx];
-		const tx = await driftClient.buildTransaction(allIxs);
-		await driftClient.sendTransaction(tx as Transaction, [], driftClient.opts);
+		const tx = await velocityClient.buildTransaction(allIxs);
+		await velocityClient.sendTransaction(
+			tx as Transaction,
+			[],
+			velocityClient.opts
+		);
 
 		// Add user to client
-		await driftClient.addUser(0);
+		await velocityClient.addUser(0);
 
-		driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	beforeEach(async () => {
 		// Clean up any orders from previous tests
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
-		const userAccount = driftClientUser.getUserAccount();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
+		const userAccount = velocityClientUser.getUserAccount();
 		const hasOpenOrders = userAccount.orders.some((order) =>
 			isVariant(order.status, 'open')
 		);
 		if (hasOpenOrders) {
-			await driftClient.cancelOrders();
-			await driftClient.fetchAccounts();
-			await driftClientUser.fetchAccounts();
+			await velocityClient.cancelOrders();
+			await velocityClient.fetchAccounts();
+			await velocityClientUser.fetchAccounts();
 		}
 	});
 
@@ -244,7 +248,7 @@ describe('scale orders', () => {
 		const orderCount = 5;
 
 		// Long: start high, end low (DCA down)
-		const txSig = await driftClient.placeScaleOrders({
+		const txSig = await velocityClient.placeScaleOrders({
 			marketType: MarketType.PERP,
 			direction: PositionDirection.LONG,
 			marketIndex: perpMarketIndex,
@@ -261,10 +265,10 @@ describe('scale orders', () => {
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const userAccount = driftClientUser.getUserAccount();
+		const userAccount = velocityClientUser.getUserAccount();
 		const orders = userAccount.orders.filter((order) =>
 			isVariant(order.status, 'open')
 		);
@@ -300,7 +304,7 @@ describe('scale orders', () => {
 		);
 
 		// Cancel all orders for next test
-		await driftClient.cancelOrders();
+		await velocityClient.cancelOrders();
 	});
 
 	it('place perp scale orders - ascending distribution (long)', async () => {
@@ -308,7 +312,7 @@ describe('scale orders', () => {
 		const orderCount = 3;
 
 		// Long: start high, end low (DCA down)
-		const txSig = await driftClient.placeScaleOrders({
+		const txSig = await velocityClient.placeScaleOrders({
 			marketType: MarketType.PERP,
 			direction: PositionDirection.LONG,
 			marketIndex: perpMarketIndex,
@@ -325,10 +329,10 @@ describe('scale orders', () => {
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const userAccount = driftClientUser.getUserAccount();
+		const userAccount = velocityClientUser.getUserAccount();
 		const orders = userAccount.orders
 			.filter((order) => isVariant(order.status, 'open'))
 			.sort((a, b) => a.price.toNumber() - b.price.toNumber());
@@ -362,7 +366,7 @@ describe('scale orders', () => {
 		);
 
 		// Cancel all orders for next test
-		await driftClient.cancelOrders();
+		await velocityClient.cancelOrders();
 	});
 
 	it('place perp scale orders - short direction', async () => {
@@ -370,7 +374,7 @@ describe('scale orders', () => {
 		const orderCount = 4;
 
 		// Short: start low, end high (scale out up)
-		const txSig = await driftClient.placeScaleOrders({
+		const txSig = await velocityClient.placeScaleOrders({
 			marketType: MarketType.PERP,
 			direction: PositionDirection.SHORT,
 			marketIndex: perpMarketIndex,
@@ -387,10 +391,10 @@ describe('scale orders', () => {
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const userAccount = driftClientUser.getUserAccount();
+		const userAccount = velocityClientUser.getUserAccount();
 		const orders = userAccount.orders.filter((order) =>
 			isVariant(order.status, 'open')
 		);
@@ -431,7 +435,7 @@ describe('scale orders', () => {
 		);
 
 		// Cancel all orders for next test
-		await driftClient.cancelOrders();
+		await velocityClient.cancelOrders();
 	});
 
 	it('place perp scale orders - descending distribution', async () => {
@@ -439,7 +443,7 @@ describe('scale orders', () => {
 		const orderCount = 3;
 
 		// Long: start high, end low (DCA down)
-		const txSig = await driftClient.placeScaleOrders({
+		const txSig = await velocityClient.placeScaleOrders({
 			marketType: MarketType.PERP,
 			direction: PositionDirection.LONG,
 			marketIndex: perpMarketIndex,
@@ -456,10 +460,10 @@ describe('scale orders', () => {
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const userAccount = driftClientUser.getUserAccount();
+		const userAccount = velocityClientUser.getUserAccount();
 		const orders = userAccount.orders
 			.filter((order) => isVariant(order.status, 'open'))
 			.sort((a, b) => a.price.toNumber() - b.price.toNumber());
@@ -494,7 +498,7 @@ describe('scale orders', () => {
 		);
 
 		// Cancel all orders
-		await driftClient.cancelOrders();
+		await velocityClient.cancelOrders();
 	});
 
 	it('place perp scale orders - with reduce only flag', async () => {
@@ -503,7 +507,7 @@ describe('scale orders', () => {
 		const totalBaseAmount = BASE_PRECISION.div(new BN(2)); // 0.5 SOL
 
 		// Long: start high, end low (DCA down)
-		const txSig = await driftClient.placeScaleOrders({
+		const txSig = await velocityClient.placeScaleOrders({
 			marketType: MarketType.PERP,
 			direction: PositionDirection.LONG,
 			marketIndex: perpMarketIndex,
@@ -520,10 +524,10 @@ describe('scale orders', () => {
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const userAccount = driftClientUser.getUserAccount();
+		const userAccount = velocityClientUser.getUserAccount();
 		const orders = userAccount.orders.filter((order) =>
 			isVariant(order.status, 'open')
 		);
@@ -536,7 +540,7 @@ describe('scale orders', () => {
 		}
 
 		// Cancel all orders
-		await driftClient.cancelOrders();
+		await velocityClient.cancelOrders();
 	});
 
 	it('place perp scale orders - minimum 2 orders', async () => {
@@ -544,7 +548,7 @@ describe('scale orders', () => {
 		const orderCount = 2; // Minimum allowed
 
 		// Long: start high, end low (DCA down)
-		const txSig = await driftClient.placeScaleOrders({
+		const txSig = await velocityClient.placeScaleOrders({
 			marketType: MarketType.PERP,
 			direction: PositionDirection.LONG,
 			marketIndex: perpMarketIndex,
@@ -561,10 +565,10 @@ describe('scale orders', () => {
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const userAccount = driftClientUser.getUserAccount();
+		const userAccount = velocityClientUser.getUserAccount();
 		const orders = userAccount.orders.filter((order) =>
 			isVariant(order.status, 'open')
 		);
@@ -584,6 +588,6 @@ describe('scale orders', () => {
 		);
 
 		// Cancel all orders
-		await driftClient.cancelOrders();
+		await velocityClient.cancelOrders();
 	});
 });

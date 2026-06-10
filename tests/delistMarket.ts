@@ -39,26 +39,26 @@ import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
-	// const state = await driftClient.getStateAccount();
+	// const state = await velocityClient.getStateAccount();
 	// const tokenIx = Token.createTransferInstruction(
 	// 	TOKEN_PROGRAM_ID,
 	// 	userUSDCAccount.publicKey,
 	// 	state.insuranceVault,
-	// 	driftClient.provider.wallet.publicKey,
+	// 	velocityClient.provider.wallet.publicKey,
 	// 	// usdcMint.publicKey,
 	// 	[],
 	// 	ifAmount.toNumber()
 	// );
 	//
 	// await sendAndConfirmTransaction(
-	// 	driftClient.provider.connection,
+	// 	velocityClient.provider.connection,
 	// 	new Transaction().add(tokenIx),
 	// 	// @ts-ignore
-	// 	[driftClient.provider.wallet.payer],
+	// 	[velocityClient.provider.wallet.payer],
 	// 	{
 	// 		skipPreflight: false,
 	// 		commitment: 'recent',
@@ -68,7 +68,7 @@ async function depositToFeePoolFromIF(
 
 	console.log(userUSDCAccount.publicKey.toString());
 	// // send $50 to market from IF
-	const txSig00 = await driftClient.depositIntoPerpMarketFeePool(
+	const txSig00 = await velocityClient.depositIntoPerpMarketFeePool(
 		0,
 		ifAmount,
 		userUSDCAccount.publicKey
@@ -83,9 +83,9 @@ describe('delist market', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
 		commitment: 'recent',
 	});
@@ -97,10 +97,10 @@ describe('delist market', () => {
 	let userUSDCAccount;
 	let userUSDCAccount2;
 
-	let driftClientLoser: TestClient;
+	let velocityClientLoser: TestClient;
 
-	let liquidatorDriftClient: TestClient;
-	let liquidatorDriftClientWSOLAccount: PublicKey;
+	let liquidatorVelocityClient: TestClient;
+	let liquidatorVelocityClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -126,7 +126,7 @@ describe('delist market', () => {
 
 		solOracle = await mockOracle(43.1337);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -148,16 +148,16 @@ describe('delist market', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
@@ -166,16 +166,16 @@ describe('delist market', () => {
 			new BN(43_133_000)
 		);
 
-		// await driftClient.updatePerpMarketBaseSpread(new BN(0), 2000);
-		// await driftClient.updatePerpMarketCurveUpdateIntensity(new BN(0), 100);
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
+		// await velocityClient.updatePerpMarketBaseSpread(new BN(0), 2000);
+		// await velocityClient.updatePerpMarketCurveUpdateIntensity(new BN(0), 100);
+		await velocityClient.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(10),
 			new BN(1)
 		);
-		await driftClient.updatePerpMarketMinOrderSize(0, new BN(1));
+		await velocityClient.updatePerpMarketMinOrderSize(0, new BN(1));
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -187,7 +187,7 @@ describe('delist market', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		driftClientLoser = new TestClient({
+		velocityClientLoser = new TestClient({
 			connection,
 			wallet: new Wallet(userKeypair),
 			programID: chProgram.programId,
@@ -208,37 +208,37 @@ describe('delist market', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientLoser.subscribe();
-		await driftClientLoser.initializeUserAccountAndDepositCollateral(
+		await velocityClientLoser.subscribe();
+		await velocityClientLoser.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount2.publicKey
 		);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await driftClientLoser.unsubscribe();
-		await liquidatorDriftClient.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientLoser.unsubscribe();
+		await liquidatorVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('put market in big drawdown and net user positive pnl', async () => {
 		await sleep(1000);
-		await depositToFeePoolFromIF(1000, driftClient, userUSDCAccount);
-		await driftClient.fetchAccounts();
+		await depositToFeePoolFromIF(1000, velocityClient, userUSDCAccount);
+		await velocityClient.fetchAccounts();
 		// try {
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION,
 			0,
 			new BN(0)
 		);
 		// } catch (e) {
-		// 	console.log('driftClient.openPosition');
+		// 	console.log('velocityClient.openPosition');
 
 		// 	console.error(e);
 		// }
-		const market001 = driftClient.getPerpMarketAccount(0);
+		const market001 = velocityClient.getPerpMarketAccount(0);
 
 		console.log(
 			'market001 num users with base:',
@@ -252,22 +252,22 @@ describe('delist market', () => {
 		assert(market001.numberOfUsersWithBase == 1);
 		// todo
 		// try {
-		await driftClientLoser.fetchAccounts();
+		await velocityClientLoser.fetchAccounts();
 
-		await driftClientLoser.openPosition(
+		await velocityClientLoser.openPosition(
 			PositionDirection.LONG,
 			new BN(2000 * 2),
 			0
 		);
 		// } catch (e) {
-		// 	console.log('driftClientLoserc.openPosition');
+		// 	console.log('velocityClientLoserc.openPosition');
 
 		// 	console.error(e);
 		// 	return 0;
 		// }
 
-		await driftClient.fetchAccounts();
-		const market00 = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const market00 = velocityClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		console.log(
@@ -282,7 +282,7 @@ describe('delist market', () => {
 		assert(market00.numberOfUsersWithBase == 2);
 
 		const solAmount = new BN(1 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount] =
+		[liquidatorVelocityClient, liquidatorVelocityClientWSOLAccount] =
 			await createUserWithUSDCAndWSOLAccount(
 				provider,
 				usdcMint,
@@ -299,18 +299,18 @@ describe('delist market', () => {
 				],
 				bulkAccountLoader
 			);
-		await liquidatorDriftClient.subscribe();
+		await liquidatorVelocityClient.subscribe();
 
 		const bankIndex = 1;
-		await liquidatorDriftClient.deposit(
+		await liquidatorVelocityClient.deposit(
 			solAmount,
 			bankIndex,
-			liquidatorDriftClientWSOLAccount
+			liquidatorVelocityClientWSOLAccount
 		);
 
-		const market0 = driftClient.getPerpMarketAccount(0);
-		const winnerUser = driftClient.getUserAccount();
-		const loserUser = driftClientLoser.getUserAccount();
+		const market0 = velocityClient.getPerpMarketAccount(0);
+		const winnerUser = velocityClient.getUserAccount();
+		const loserUser = velocityClientLoser.getUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
@@ -338,16 +338,16 @@ describe('delist market', () => {
 			},
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 
-		await driftClient.updateFundingRate(marketIndex, solOracle);
+		await velocityClient.updateFundingRate(marketIndex, solOracle);
 
-		await driftClient.fetchAccounts();
-		const perpMarket = await driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const perpMarket = await velocityClient.getPerpMarketAccount(marketIndex);
 		// console.log(perpMarket.cumulativeFundingRateLong.toString());
 		assert(!perpMarket.cumulativeFundingRateLong.eq(ZERO));
 
-		const marketBefore = driftClient.getPerpMarketAccount(0);
+		const marketBefore = velocityClient.getPerpMarketAccount(0);
 
 		console.log(
 			'marketBefore num users with base:',
@@ -360,19 +360,19 @@ describe('delist market', () => {
 		assert(marketBefore.numberOfUsersWithBase == 2);
 		assert(marketBefore.numberOfUsers == 2);
 
-		await driftClient.updateK(
+		await velocityClient.updateK(
 			marketIndex,
 			perpMarket.amm.sqrtK.mul(new BN(10012345)).div(new BN(9912345))
 		);
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION,
 			0,
 			new BN(0)
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		let marketBefore2 = driftClient.getPerpMarketAccount(0);
+		let marketBefore2 = velocityClient.getPerpMarketAccount(0);
 
 		console.log(
 			'marketBefore num users with base:',
@@ -385,12 +385,12 @@ describe('delist market', () => {
 		assert(marketBefore2.numberOfUsersWithBase == 1);
 		assert(marketBefore2.numberOfUsers == 2);
 
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
-		marketBefore2 = driftClient.getPerpMarketAccount(0);
+		marketBefore2 = velocityClient.getPerpMarketAccount(0);
 
 		console.log(
 			'marketBefore num users with base:',
@@ -403,14 +403,14 @@ describe('delist market', () => {
 		assert(marketBefore2.numberOfUsersWithBase == 1);
 		assert(marketBefore2.numberOfUsers == 1);
 
-		await driftClient.updateK(marketIndex, perpMarket.amm.sqrtK);
-		await driftClient.openPosition(
+		await velocityClient.updateK(marketIndex, perpMarket.amm.sqrtK);
+		await velocityClient.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION,
 			0,
 			new BN(0)
 		);
-		marketBefore2 = driftClient.getPerpMarketAccount(0);
+		marketBefore2 = velocityClient.getPerpMarketAccount(0);
 
 		console.log(
 			'marketBefore num users with base:',
@@ -422,11 +422,11 @@ describe('delist market', () => {
 		);
 		assert(marketBefore2.numberOfUsersWithBase == 2);
 		assert(marketBefore2.numberOfUsers == 2);
-		await driftClient.updateFundingRate(marketIndex, solOracle);
+		await velocityClient.updateFundingRate(marketIndex, solOracle);
 
-		await driftClient.fetchAccounts();
-		await liquidatorDriftClient.fetchAccounts();
-		marketBefore2 = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		await liquidatorVelocityClient.fetchAccounts();
+		marketBefore2 = velocityClient.getPerpMarketAccount(0);
 
 		console.log(
 			'marketBefore num users with base:',
@@ -439,29 +439,29 @@ describe('delist market', () => {
 		assert(marketBefore2.numberOfUsersWithBase == 2);
 		assert(marketBefore2.numberOfUsers == 2);
 		assert(
-			liquidatorDriftClient
+			liquidatorVelocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 		// assert(
-		// 	liquidatorDriftClient.getUserAccount().perpPositions[0].remainderBaseAssetAmount != 0
+		// 	liquidatorVelocityClient.getUserAccount().perpPositions[0].remainderBaseAssetAmount != 0
 		// );
 		console.log(
-			'liquidatorDriftClient perps:',
-			liquidatorDriftClient.getUserAccount().perpPositions[0]
+			'liquidatorVelocityClient perps:',
+			liquidatorVelocityClient.getUserAccount().perpPositions[0]
 		);
 
-		await driftClient.updateK(
+		await velocityClient.updateK(
 			marketIndex,
 			perpMarket.amm.sqrtK.mul(new BN(9912345)).div(new BN(10012345))
 		);
 
 		console.log(
-			'liquidatorDriftClient perps:',
-			liquidatorDriftClient.getUserAccount().perpPositions[0]
+			'liquidatorVelocityClient perps:',
+			liquidatorVelocityClient.getUserAccount().perpPositions[0]
 		);
 
-		const market001 = driftClient.getPerpMarketAccount(0);
+		const market001 = velocityClient.getPerpMarketAccount(0);
 
 		console.log(
 			'market001 num users with base:',
@@ -472,27 +472,27 @@ describe('delist market', () => {
 			market001.numberOfUsers.toString()
 		);
 		assert(
-			liquidatorDriftClient
+			liquidatorVelocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 		assert(
-			liquidatorDriftClient.getUserAccount().perpPositions[0]
+			liquidatorVelocityClient.getUserAccount().perpPositions[0]
 				.remainderBaseAssetAmount == 0
 		);
 		assert(market001.numberOfUsersWithBase == 2);
 		assert(market001.numberOfUsers == 3);
 
 		console.log(
-			'liquidatorDriftClient perps:',
-			liquidatorDriftClient
+			'liquidatorVelocityClient perps:',
+			liquidatorVelocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.toString()
 		);
-		// await liquidatorDriftClient.closePosition(marketIndex);
+		// await liquidatorVelocityClient.closePosition(marketIndex);
 
 		// sol tanks 90%
-		await driftClient.moveAmmToPrice(
+		await velocityClient.moveAmmToPrice(
 			0,
 			new BN(43.1337 * PRICE_PRECISION.toNumber()).div(new BN(10))
 		);
@@ -506,14 +506,14 @@ describe('delist market', () => {
 		const now = await connection.getBlockTime(slot);
 		const expiryTs = new BN(now + 3);
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = velocityClient.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
-		await driftClient.updatePerpMarketExpiry(marketIndex, expiryTs);
+		await velocityClient.updatePerpMarketExpiry(marketIndex, expiryTs);
 		await sleep(1000);
-		driftClient.fetchAccounts();
+		velocityClient.fetchAccounts();
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'reduceOnly'));
 		console.log(
@@ -533,7 +533,7 @@ describe('delist market', () => {
 			market.amm.totalFeeMinusDistributions.toString()
 		);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		console.log(
 			'lastOraclePriceTwap:',
 			market.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
@@ -546,7 +546,7 @@ describe('delist market', () => {
 
 		// should fail
 		try {
-			await driftClientLoser.openPosition(
+			await velocityClientLoser.openPosition(
 				PositionDirection.LONG,
 				new BN(10000000),
 				0,
@@ -564,13 +564,13 @@ describe('delist market', () => {
 			console.log('risk increase trade failed');
 		}
 
-		await driftClientLoser.fetchAccounts();
+		await velocityClientLoser.fetchAccounts();
 
-		const loserUser0 = driftClientLoser.getUserAccount();
+		const loserUser0 = velocityClientLoser.getUserAccount();
 		console.log(loserUser0.perpPositions[0]);
 
-		await driftClient.fetchAccounts();
-		const marketBeforeReduceUser = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const marketBeforeReduceUser = velocityClient.getPerpMarketAccount(0);
 		console.log(
 			'lastOraclePriceTwap:',
 			marketBeforeReduceUser.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
@@ -581,15 +581,15 @@ describe('delist market', () => {
 			)
 		);
 		// should succeed
-		await driftClientLoser.openPosition(
+		await velocityClientLoser.openPosition(
 			PositionDirection.SHORT,
 			new BN(2000),
 			0,
 			new BN(0)
 		);
 
-		await driftClient.fetchAccounts();
-		const marketBeforeReduceUser2 = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const marketBeforeReduceUser2 = velocityClient.getPerpMarketAccount(0);
 		console.log(
 			'lastOraclePriceTwap:',
 			marketBeforeReduceUser2.marketStats.historicalOracleData.lastOraclePriceTwap.toString()
@@ -607,7 +607,7 @@ describe('delist market', () => {
 		let slot = await connection.getSlot();
 		let now = await connection.getBlockTime(slot);
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = velocityClient.getPerpMarketAccount(marketIndex);
 		console.log('market0.status:', market0.status);
 		while (market0.expiryTs.gte(new BN(now))) {
 			console.log(market0.expiryTs.toString(), '>', now);
@@ -616,7 +616,7 @@ describe('delist market', () => {
 			now = await connection.getBlockTime(slot);
 		}
 
-		const winningUserBefore = driftClient.getUserAccount();
+		const winningUserBefore = velocityClient.getUserAccount();
 		console.log(winningUserBefore.perpPositions[0]);
 		const oraclePriceDataBefore = await getOraclePriceData(
 			anchor.workspace.Pyth,
@@ -629,15 +629,15 @@ describe('delist market', () => {
 		);
 
 		// try {
-		const txSig = await driftClient.settleExpiredMarket(marketIndex);
+		const txSig = await velocityClient.settleExpiredMarket(marketIndex);
 		// } catch (e) {
 		// 	console.error(e);
 		// }
 		await printTxLogs(connection, txSig);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
 		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
@@ -679,7 +679,7 @@ describe('delist market', () => {
 			)
 		);
 
-		const winningUser = driftClient.getUserAccount();
+		const winningUser = velocityClient.getUserAccount();
 		console.log(winningUser.perpPositions[0]);
 		const afterExpiryValue = calculateBaseAssetValueWithOracle(
 			market,
@@ -698,17 +698,17 @@ describe('delist market', () => {
 
 	it('settle expired market position', async () => {
 		const marketIndex = 0;
-		await driftClientLoser.fetchAccounts();
+		await velocityClientLoser.fetchAccounts();
 
-		const loserUser0 = driftClientLoser.getUserAccount();
+		const loserUser0 = velocityClientLoser.getUserAccount();
 		console.log(loserUser0.perpPositions[0]);
 
 		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
 		assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
 
-		const txSig = await driftClientLoser.settlePNL(
-			await driftClientLoser.getUserAccountPublicKey(),
-			driftClientLoser.getUserAccount(),
+		const txSig = await velocityClientLoser.settlePNL(
+			await velocityClientLoser.getUserAccountPublicKey(),
+			velocityClientLoser.getUserAccount(),
 			marketIndex
 		);
 		await printTxLogs(connection, txSig);
@@ -716,12 +716,12 @@ describe('delist market', () => {
 		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
 		// console.log(settleRecord);
 
-		await driftClientLoser.fetchAccounts();
-		const loserUser = driftClientLoser.getUserAccount();
+		await velocityClientLoser.fetchAccounts();
+		const loserUser = velocityClientLoser.getUserAccount();
 		// console.log(loserUser.perpPositions[0]);
 		assert(loserUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
-		const marketAfter0 = driftClient.getPerpMarketAccount(marketIndex);
+		const marketAfter0 = velocityClient.getPerpMarketAccount(marketIndex);
 
 		const finalPnlResultMin0 = new BN(1000020719000 - 100090);
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
@@ -753,25 +753,25 @@ describe('delist market', () => {
 			'marketAfter0 num users with quote:',
 			marketAfter0.numberOfUsers.toString()
 		);
-		const txSig2 = await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		const txSig2 = await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
 		await printTxLogs(connection, txSig2);
-		await driftClient.fetchAccounts();
-		const winnerUser = driftClient.getUserAccount();
+		await velocityClient.fetchAccounts();
+		const winnerUser = velocityClient.getUserAccount();
 		// console.log(winnerUser.perpPositions[0]);
 		assert(winnerUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		// assert(winnerUser.perpPositions[0].quoteAssetAmount.gt(new BN(0))); // todo they lose money too after fees
 
-		// await driftClient.settlePNL(
-		// 	await driftClientLoser.getUserAccountPublicKey(),
-		// 	driftClientLoser.getUserAccount(),
+		// await velocityClient.settlePNL(
+		// 	await velocityClientLoser.getUserAccountPublicKey(),
+		// 	velocityClientLoser.getUserAccount(),
 		// 	marketIndex
 		// );
 
-		const marketAfter = driftClient.getPerpMarketAccount(marketIndex);
+		const marketAfter = velocityClient.getPerpMarketAccount(marketIndex);
 		console.log(
 			'marketAfter num users with base:',
 			marketAfter.numberOfUsersWithBase.toString()
@@ -795,7 +795,7 @@ describe('delist market', () => {
 
 	it('put settle market pools to revenue pool', async () => {
 		const marketIndex = 0;
-		const marketBefore = driftClient.getPerpMarketAccount(marketIndex);
+		const marketBefore = velocityClient.getPerpMarketAccount(marketIndex);
 		const userCostBasisBefore = marketBefore.quoteAssetAmount;
 
 		console.log('userCostBasisBefore:', userCostBasisBefore.toString());
@@ -806,25 +806,25 @@ describe('delist market', () => {
 		);
 		console.log('num users with quote:', marketBefore.numberOfUsers.toString());
 		console.log(
-			'liquidatorDriftClient perps:',
-			liquidatorDriftClient
+			'liquidatorVelocityClient perps:',
+			liquidatorVelocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.toString()
 		);
 
-		await liquidatorDriftClient.settlePNL(
-			await liquidatorDriftClient.getUserAccountPublicKey(),
-			liquidatorDriftClient.getUserAccount(),
+		await liquidatorVelocityClient.settlePNL(
+			await liquidatorVelocityClient.getUserAccountPublicKey(),
+			liquidatorVelocityClient.getUserAccount(),
 			marketIndex
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		assert(
-			liquidatorDriftClient
+			liquidatorVelocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 
 		console.log(
 			'num users with base:',
@@ -837,29 +837,29 @@ describe('delist market', () => {
 		assert(userCostBasis.eq(ZERO)); // ready to settle expiration
 
 		try {
-			await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+			await velocityClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
 		} catch (e) {
 			console.log('failed');
 		}
 
-		await driftClient.updateStateSettlementDuration(1000); // too far away
+		await velocityClient.updateStateSettlementDuration(1000); // too far away
 		try {
-			await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+			await velocityClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
 		} catch (e) {
 			console.log('failed');
 		}
 
-		await driftClient.updateStateSettlementDuration(1);
+		await velocityClient.updateStateSettlementDuration(1);
 		try {
-			await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+			await velocityClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
 		} catch (e) {
 			console.log('settleExpiredMarketPoolsToRevenuePool err');
 
 			console.error(e);
 			return 0;
 		}
-		await driftClient.fetchAccounts();
-		const marketAfter = driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const marketAfter = velocityClient.getPerpMarketAccount(marketIndex);
 
 		console.log(
 			marketAfter.amm.baseAssetReserve.toString(),
@@ -876,7 +876,7 @@ describe('delist market', () => {
 				.eq(ZERO)
 		);
 
-		const usdcMarket = driftClient.getQuoteSpotMarketAccount();
+		const usdcMarket = velocityClient.getQuoteSpotMarketAccount();
 		console.log(usdcMarket.revenuePool.scaledBalance.toString());
 		assert(usdcMarket.revenuePool.scaledBalance.gt(ZERO));
 		assert(

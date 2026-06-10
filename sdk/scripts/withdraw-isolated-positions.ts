@@ -6,7 +6,7 @@ import {
 	Program,
 	ProgramAccount,
 } from '@coral-xyz/anchor';
-import driftIDL from '../src/idl/drift.json';
+import velocityIDL from '../src/idl/velocity.json';
 import {
 	VELOCITY_PROGRAM_ID,
 	PerpMarketAccount,
@@ -53,7 +53,7 @@ async function main() {
 		commitment: 'processed',
 	});
 	const programId = new PublicKey(VELOCITY_PROGRAM_ID);
-	const program = new Program(driftIDL as Idl, programId, provider);
+	const program = new Program(velocityIDL as Idl, programId, provider);
 
 	// Discover markets and oracles (like the example test script)
 	const allPerpMarketProgramAccounts =

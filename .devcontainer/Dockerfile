@@ -1,5 +1,5 @@
 #
-# Drift Protocol Dev Container
+# Velocity Protocol Dev Container
 #
 
 FROM --platform=linux/amd64 ubuntu:24.04

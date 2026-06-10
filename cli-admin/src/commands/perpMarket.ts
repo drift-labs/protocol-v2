@@ -31,7 +31,7 @@ export function registerPerpMarket(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin perp-market set-status'
+				'velocity-admin perp-market set-status'
 			);
 			reportDispatch(`perp-market[${market}] status = ${status}`, result);
 		} finally {

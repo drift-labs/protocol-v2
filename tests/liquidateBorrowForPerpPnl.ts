@@ -35,9 +35,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate borrow for perp pnl', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -47,8 +47,8 @@ describe('liquidate borrow for perp pnl', () => {
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorDriftClient: TestClient;
-	let liquidatorDriftClientWSOLAccount: PublicKey;
+	let liquidatorVelocityClient: TestClient;
+	let liquidatorVelocityClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -106,7 +106,7 @@ describe('liquidate borrow for perp pnl', () => {
 			10000
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -128,30 +128,30 @@ describe('liquidate borrow for perp pnl', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.updateInitialPctToLiquidate(
+		await velocityClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
-		// await driftClient.updateLiquidationDuration(1);
+		// await velocityClient.updateLiquidationDuration(1);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(3600);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -169,50 +169,53 @@ describe('liquidate borrow for perp pnl', () => {
 			},
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 
 		// await bankrunContextWrapper.fundKeypair(bankrunContextWrapper.provider.wallet, BigInt(101 * LAMPORTS_PER_SOL));
 
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			new BN(10).mul(BASE_PRECISION),
 			0,
 			new BN(0)
 		);
 
-		await driftClient.moveAmmToPrice(
+		await velocityClient.moveAmmToPrice(
 			0,
 			new BN(1).mul(PRICE_PRECISION).muln(101).divn(100)
 		);
 
-		await driftClient.closePosition(0);
+		await velocityClient.closePosition(0);
 
 		const solAmount = new BN(10 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway] =
-			await createUserWithUSDCAndWSOLAccount(
-				bankrunContextWrapper,
-				usdcMint,
-				chProgram,
-				solAmount,
-				usdcAmount,
-				[0],
-				[0, 1],
-				[
-					{
-						publicKey: solOracle,
-						source: OracleSource.PYTH_LAZER,
-					},
-				],
-				bulkAccountLoader
-			);
-		await liquidatorDriftClient.subscribe();
+		[
+			liquidatorVelocityClient,
+			liquidatorVelocityClientWSOLAccount,
+			_throwaway,
+		] = await createUserWithUSDCAndWSOLAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			solAmount,
+			usdcAmount,
+			[0],
+			[0, 1],
+			[
+				{
+					publicKey: solOracle,
+					source: OracleSource.PYTH_LAZER,
+				},
+			],
+			bulkAccountLoader
+		);
+		await liquidatorVelocityClient.subscribe();
 
 		const spotMarketIndex = 1;
 
-		await liquidatorDriftClient.deposit(
+		await liquidatorVelocityClient.deposit(
 			solAmount,
 			spotMarketIndex,
-			liquidatorDriftClientWSOLAccount
+			liquidatorVelocityClientWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
 
@@ -223,21 +226,21 @@ describe('liquidate borrow for perp pnl', () => {
 
 		console.log(account);
 
-		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
+		await velocityClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await liquidatorDriftClient.unsubscribe();
+		await velocityClient.unsubscribe();
+		await liquidatorVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 50, solOracle, 10000);
 
-		const txSig = await liquidatorDriftClient.liquidateBorrowForPerpPnl(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		const txSig = await liquidatorVelocityClient.liquidateBorrowForPerpPnl(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			0,
 			1,
 			new BN(6 * 10 ** 8)
@@ -245,11 +248,11 @@ describe('liquidate borrow for perp pnl', () => {
 
 		console.log(txSig);
 
-		const userAccount = driftClient.getUserAccount();
+		const userAccount = velocityClient.getUserAccount();
 		assert(userAccount.status === UserStatus.BEING_LIQUIDATED);
 		assert(userAccount.nextLiquidationId === 2);
 		assert(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
+			velocityClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);
 
 		const liquidationRecord =

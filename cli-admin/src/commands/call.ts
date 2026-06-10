@@ -9,7 +9,7 @@ import { reportDispatch, sendOrPropose } from '../lib/squads';
 /**
  * Generic IDL-driven dispatcher.
  *
- * Escape hatch for any drift instruction without a dedicated CLI wrapper.
+ * Escape hatch for any velocity instruction without a dedicated CLI wrapper.
  * Caller supplies the camelCase ix name and a JSON file specifying `args` and
  * `accounts` (both keyed by the names in the IDL). Numeric BN args use a
  * string; pubkey accounts use the base58 string. Example payload:
@@ -67,7 +67,7 @@ export function registerCall(parent: Command): void {
 					provider,
 					[ix],
 					opts.multisig ? new PublicKey(opts.multisig) : undefined,
-					`drift-admin call ${ixName}`
+					`velocity-admin call ${ixName}`
 				);
 				reportDispatch(`call ${ixName}`, result);
 			} finally {

@@ -6,7 +6,7 @@ description: >
   proposal can apply them.
 inputs:
   program:
-    description: "Program crate name (drift | token_faucet)"
+    description: "Program crate name (velocity | token_faucet)"
     required: true
   rpc-url:
     description: "Solana RPC URL"

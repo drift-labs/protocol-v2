@@ -83,12 +83,12 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('place and make signedMsg order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let slot: BN;
 
-	let makerDriftClient: TestClient;
-	let makerDriftClientUser: User;
+	let makerVelocityClient: TestClient;
+	let makerVelocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -165,7 +165,7 @@ describe('place and make signedMsg order', () => {
 			{ publicKey: solUsdLazer, source: OracleSource.PYTH_LAZER },
 		];
 
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -182,12 +182,12 @@ describe('place and make signedMsg order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
-		await makerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
+		await makerVelocityClient.initialize(usdcMint.publicKey, true);
+		await makerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(makerVelocityClient, usdcMint.publicKey);
 
 		const periodicity = new BN(0);
-		await makerDriftClient.initializePerpMarket(
+		await makerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -195,27 +195,27 @@ describe('place and make signedMsg order', () => {
 			periodicity,
 			new BN(84 * PEG_PRECISION.toNumber())
 		);
-		await makerDriftClient.initializeAmmCache();
+		await makerVelocityClient.initializeAmmCache();
 
-		await makerDriftClient.initializeUserAccountAndDepositCollateral(
+		await makerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		makerDriftClientUser = new User({
-			driftClient: makerDriftClient,
-			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+		makerVelocityClientUser = new User({
+			velocityClient: makerVelocityClient,
+			userAccountPublicKey: await makerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClientUser.subscribe();
+		await makerVelocityClientUser.subscribe();
 	});
 
 	after(async () => {
-		await makerDriftClient.unsubscribe();
-		await makerDriftClientUser.unsubscribe();
+		await makerVelocityClient.unsubscribe();
+		await makerVelocityClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -223,7 +223,7 @@ describe('place and make signedMsg order', () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -234,7 +234,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -270,18 +270,19 @@ describe('place and make signedMsg order', () => {
 			bitFlags: 1,
 		});
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-		const txSig = await makerDriftClient.placeAndMakeSignedMsgPerpOrder(
+		const txSig = await makerVelocityClient.placeAndMakeSignedMsgPerpOrder(
 			signedOrderParams,
 			uuid,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -290,10 +291,10 @@ describe('place and make signedMsg order', () => {
 			2
 		);
 
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		const makerPosition = makerVelocityClient.getUser().getPerpPosition(0);
 		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 
 		// Make sure that the event is in the logs
@@ -309,14 +310,14 @@ describe('place and make signedMsg order', () => {
 					.digest('base64')
 		);
 
-		await makerDriftClient.placeAndMakeSignedMsgPerpOrder(
+		await makerVelocityClient.placeAndMakeSignedMsgPerpOrder(
 			signedOrderParams,
 			uuid,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -325,23 +326,23 @@ describe('place and make signedMsg order', () => {
 			2
 		);
 
-		const takerPositionAfter = takerDriftClient.getUser().getPerpPosition(0);
-		const makerPositionAfter = makerDriftClient.getUser().getPerpPosition(0);
+		const takerPositionAfter = takerVelocityClient.getUser().getPerpPosition(0);
+		const makerPositionAfter = makerVelocityClient.getUser().getPerpPosition(0);
 
 		assert(takerPositionAfter.baseAssetAmount.eq(baseAssetAmount.muln(2)));
 		assert(
 			makerPositionAfter.baseAssetAmount.eq(baseAssetAmount.muln(2).neg())
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should work with delegates', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -352,10 +353,10 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
-		await takerDriftClient.updateUserDelegate(
-			makerDriftClient.wallet.publicKey
+		await takerVelocityClient.updateUserDelegate(
+			makerVelocityClient.wallet.publicKey
 		);
 
 		const marketIndex = 0;
@@ -377,7 +378,7 @@ describe('place and make signedMsg order', () => {
 		// Should fail if we try first without encoding properly
 		const takerOrderParamsMessage: SignedMsgOrderParamsDelegateMessage = {
 			signedMsgOrderParams: takerOrderParams,
-			takerPubkey: await takerDriftClient.getUserAccountPublicKey(),
+			takerPubkey: await takerVelocityClient.getUserAccountPublicKey(),
 			slot,
 			uuid,
 			takeProfitOrderParams: null,
@@ -385,24 +386,25 @@ describe('place and make signedMsg order', () => {
 		};
 
 		// Should work if we encode properly
-		const signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage,
-			true
-		);
-		const txSig = await makerDriftClient.placeSignedMsgTakerOrder(
+		const signedOrderParams =
+			makerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage,
+				true
+			);
+		const txSig = await makerVelocityClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
 			marketIndex,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: makerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: makerVelocityClient.wallet.publicKey,
 			},
 			undefined,
 			2
 		);
 
-		const takerOrders = takerDriftClient.getUser().getOpenOrders();
+		const takerOrders = takerVelocityClient.getUser().getOpenOrders();
 		assert(takerOrders.length > 0);
 
 		// Make sure that the event is in the logs
@@ -418,8 +420,8 @@ describe('place and make signedMsg order', () => {
 					.digest('base64')
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should work with pyth lazer crank and filling against vamm in one tx', async () => {
@@ -428,17 +430,17 @@ describe('place and make signedMsg order', () => {
 		);
 
 		// Switch the oracle over to using pyth lazer
-		await makerDriftClient.initializePythLazerOracle(6);
-		await makerDriftClient.postPythLazerOracleUpdate(
+		await makerVelocityClient.initializePythLazerOracle(6);
+		await makerVelocityClient.postPythLazerOracleUpdate(
 			[6],
 			PYTH_LAZER_HEX_STRING_SOL
 		);
 
-		await makerDriftClient.postPythLazerOracleUpdate(
+		await makerVelocityClient.postPythLazerOracleUpdate(
 			[6],
 			PYTH_LAZER_HEX_STRING_SOL
 		);
-		await makerDriftClient.updatePerpMarketOracle(
+		await makerVelocityClient.updatePerpMarketOracle(
 			0,
 			solUsdLazer,
 			OracleSource.PYTH_LAZER
@@ -446,29 +448,29 @@ describe('place and make signedMsg order', () => {
 
 		const [lookupTableInst, lookupTableAddress] =
 			AddressLookupTableProgram.createLookupTable({
-				authority: makerDriftClient.wallet.publicKey,
-				payer: makerDriftClient.wallet.publicKey,
+				authority: makerVelocityClient.wallet.publicKey,
+				payer: makerVelocityClient.wallet.publicKey,
 				recentSlot: slot.toNumber() - 10,
 			});
 
 		const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-			payer: makerDriftClient.wallet.publicKey,
-			authority: makerDriftClient.wallet.publicKey,
+			payer: makerVelocityClient.wallet.publicKey,
+			authority: makerVelocityClient.wallet.publicKey,
 			lookupTable: lookupTableAddress,
 			addresses: [
 				SystemProgram.programId,
 				solUsd,
 				solUsdLazer,
-				...makerDriftClient
+				...makerVelocityClient
 					.getPerpMarketAccounts()
 					.map((account) => account.pubkey),
-				...makerDriftClient
+				...makerVelocityClient
 					.getPerpMarketAccounts()
 					.map((account) => account.oracle),
-				...makerDriftClient
+				...makerVelocityClient
 					.getSpotMarketAccounts()
 					.map((account) => account.pubkey),
-				...makerDriftClient
+				...makerVelocityClient
 					.getSpotMarketAccounts()
 					.map((account) => account.oracle),
 				PYTH_LAZER_STORAGE_ACCOUNT_KEY,
@@ -476,10 +478,10 @@ describe('place and make signedMsg order', () => {
 		});
 
 		const tx = new Transaction().add(lookupTableInst).add(extendInstruction);
-		await makerDriftClient.sendTransaction(tx);
+		await makerVelocityClient.sendTransaction(tx);
 		console.log(`Lookup table: ${lookupTableAddress.toBase58()}`);
 
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -490,7 +492,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -514,13 +516,14 @@ describe('place and make signedMsg order', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		// Get pyth lazer instruction
 		const pythLazerCrankIxs =
-			await makerDriftClient.getPostPythLazerOracleUpdateIxs(
+			await makerVelocityClient.getPostPythLazerOracleUpdateIxs(
 				[6],
 				PYTH_LAZER_HEX_STRING_SOL,
 				undefined,
@@ -528,14 +531,14 @@ describe('place and make signedMsg order', () => {
 			);
 
 		const placeSignedMsgTakerOrderIxs =
-			await makerDriftClient.getPlaceSignedMsgTakerPerpOrderIxs(
+			await makerVelocityClient.getPlaceSignedMsgTakerPerpOrderIxs(
 				signedOrderParams,
 				takerOrderParams.marketIndex,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.wallet.publicKey,
 				},
 				pythLazerCrankIxs
 			);
@@ -570,9 +573,9 @@ describe('place and make signedMsg order', () => {
 			postedSlotTail: 0,
 		};
 
-		const fillIx = await makerDriftClient.getFillPerpOrderIx(
-			takerDriftClientUser.getUserAccountPublicKey(),
-			takerDriftClientUser.getUserAccount(),
+		const fillIx = await makerVelocityClient.getFillPerpOrderIx(
+			takerVelocityClientUser.getUserAccountPublicKey(),
+			takerVelocityClientUser.getUserAccount(),
 			signedMsgOrder,
 			undefined,
 			undefined,
@@ -580,9 +583,10 @@ describe('place and make signedMsg order', () => {
 		);
 
 		const txMessage = new TransactionMessage({
-			payerKey: makerDriftClient.wallet.publicKey,
-			recentBlockhash: (await makerDriftClient.connection.getLatestBlockhash())
-				.blockhash,
+			payerKey: makerVelocityClient.wallet.publicKey,
+			recentBlockhash: (
+				await makerVelocityClient.connection.getLatestBlockhash()
+			).blockhash,
 			instructions: [
 				...pythLazerCrankIxs,
 				...placeSignedMsgTakerOrderIxs,
@@ -597,18 +601,18 @@ describe('place and make signedMsg order', () => {
 		).value;
 		const message = txMessage.compileToV0Message([lookupTableAccount]);
 
-		const txSig = await makerDriftClient.connection.sendTransaction(
+		const txSig = await makerVelocityClient.connection.sendTransaction(
 			new VersionedTransaction(message)
 		);
 		console.log(txSig);
 
-		await takerDriftClient.fetchAccounts();
+		await takerVelocityClient.fetchAccounts();
 		assert(
-			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.gt(ZERO)
+			takerVelocityClient.getUser().getPerpPosition(0).baseAssetAmount.gt(ZERO)
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it.skip('should not fill against the vamm if the user is toxic', async () => {
@@ -618,29 +622,29 @@ describe('place and make signedMsg order', () => {
 
 		const [lookupTableInst, lookupTableAddress] =
 			AddressLookupTableProgram.createLookupTable({
-				authority: makerDriftClient.wallet.publicKey,
-				payer: makerDriftClient.wallet.publicKey,
+				authority: makerVelocityClient.wallet.publicKey,
+				payer: makerVelocityClient.wallet.publicKey,
 				recentSlot: slot.toNumber() - 10,
 			});
 
 		const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-			payer: makerDriftClient.wallet.publicKey,
-			authority: makerDriftClient.wallet.publicKey,
+			payer: makerVelocityClient.wallet.publicKey,
+			authority: makerVelocityClient.wallet.publicKey,
 			lookupTable: lookupTableAddress,
 			addresses: [
 				SystemProgram.programId,
 				solUsd,
 				solUsdLazer,
-				...makerDriftClient
+				...makerVelocityClient
 					.getPerpMarketAccounts()
 					.map((account) => account.pubkey),
-				...makerDriftClient
+				...makerVelocityClient
 					.getPerpMarketAccounts()
 					.map((account) => account.oracle),
-				...makerDriftClient
+				...makerVelocityClient
 					.getSpotMarketAccounts()
 					.map((account) => account.pubkey),
-				...makerDriftClient
+				...makerVelocityClient
 					.getSpotMarketAccounts()
 					.map((account) => account.oracle),
 				PYTH_LAZER_STORAGE_ACCOUNT_KEY,
@@ -648,10 +652,10 @@ describe('place and make signedMsg order', () => {
 		});
 
 		const tx = new Transaction().add(lookupTableInst).add(extendInstruction);
-		await makerDriftClient.sendTransaction(tx);
+		await makerVelocityClient.sendTransaction(tx);
 		console.log(`Lookup table: ${lookupTableAddress.toBase58()}`);
 
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -662,16 +666,16 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		// Create 11 subaccounts so our user is considered toxic
 		for (let i = 1; i < 11; i++) {
-			await takerDriftClient.initializeUserAccount(i);
+			await takerVelocityClient.initializeUserAccount(i);
 		}
 
 		const userStatsPubkey = getUserStatsAccountPublicKey(
 			chProgram.programId,
-			takerDriftClient.wallet.publicKey
+			takerVelocityClient.wallet.publicKey
 		);
 		const userStatsData = await bankrunContextWrapper.connection.getAccountInfo(
 			userStatsPubkey
@@ -706,13 +710,14 @@ describe('place and make signedMsg order', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		// Get pyth lazer instruction
 		const pythLazerCrankIxs =
-			await makerDriftClient.getPostPythLazerOracleUpdateIxs(
+			await makerVelocityClient.getPostPythLazerOracleUpdateIxs(
 				[6],
 				PYTH_LAZER_HEX_STRING_SOL_LATER,
 				undefined,
@@ -720,14 +725,14 @@ describe('place and make signedMsg order', () => {
 			);
 
 		const placeSignedMsgTakerOrderIxs =
-			await makerDriftClient.getPlaceSignedMsgTakerPerpOrderIxs(
+			await makerVelocityClient.getPlaceSignedMsgTakerPerpOrderIxs(
 				signedOrderParams,
 				takerOrderParams.marketIndex,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.wallet.publicKey,
 				},
 				pythLazerCrankIxs
 			);
@@ -762,9 +767,9 @@ describe('place and make signedMsg order', () => {
 			postedSlotTail: 0,
 		};
 
-		const fillIx = await makerDriftClient.getFillPerpOrderIx(
-			takerDriftClientUser.getUserAccountPublicKey(),
-			takerDriftClientUser.getUserAccount(),
+		const fillIx = await makerVelocityClient.getFillPerpOrderIx(
+			takerVelocityClientUser.getUserAccountPublicKey(),
+			takerVelocityClientUser.getUserAccount(),
 			signedMsgOrder,
 			undefined,
 			undefined,
@@ -772,9 +777,10 @@ describe('place and make signedMsg order', () => {
 		);
 
 		const txMessage = new TransactionMessage({
-			payerKey: makerDriftClient.wallet.publicKey,
-			recentBlockhash: (await makerDriftClient.connection.getLatestBlockhash())
-				.blockhash,
+			payerKey: makerVelocityClient.wallet.publicKey,
+			recentBlockhash: (
+				await makerVelocityClient.connection.getLatestBlockhash()
+			).blockhash,
 			instructions: [
 				...pythLazerCrankIxs,
 				...placeSignedMsgTakerOrderIxs,
@@ -789,25 +795,25 @@ describe('place and make signedMsg order', () => {
 		).value;
 		const message = txMessage.compileToV0Message([lookupTableAccount]);
 
-		const txSig = await makerDriftClient.connection.sendTransaction(
+		const txSig = await makerVelocityClient.connection.sendTransaction(
 			new VersionedTransaction(message)
 		);
 		console.log(txSig);
 
-		await takerDriftClient.fetchAccounts();
+		await takerVelocityClient.fetchAccounts();
 		assert(
-			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.eq(ZERO)
+			takerVelocityClient.getUser().getPerpPosition(0).baseAssetAmount.eq(ZERO)
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('fills signedMsg with trigger orders ', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -818,7 +824,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -856,7 +862,7 @@ describe('place and make signedMsg order', () => {
 			marketType: MarketType.PERP,
 		});
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -883,18 +889,19 @@ describe('place and make signedMsg order', () => {
 			},
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-		const ixs = await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+		const ixs = await makerVelocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			signedOrderParams,
 			uuid,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -914,38 +921,38 @@ describe('place and make signedMsg order', () => {
 		*/
 		assert(getSizeOfTransaction(ixs, false) < 1138);
 
-		const tx = await makerDriftClient.buildTransaction(ixs);
-		await makerDriftClient.sendTransaction(tx as Transaction);
+		const tx = await makerVelocityClient.buildTransaction(ixs);
+		await makerVelocityClient.sendTransaction(tx as Transaction);
 
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		const makerPosition = makerVelocityClient.getUser().getPerpPosition(0);
 		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg().muln(3)));
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 
 		// All orders are placed and one is
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 		assert(
-			takerDriftClient
+			takerVelocityClient
 				.getUser()
 				.getOpenOrders()
 				.some((order) => order.orderId == 1)
 		);
 		assert(
-			takerDriftClient
+			takerVelocityClient
 				.getUser()
 				.getOpenOrders()
 				.some((order) => order.orderId == 2)
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should fail if taker order is a limit order without an auction', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -956,7 +963,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -969,7 +976,7 @@ describe('place and make signedMsg order', () => {
 			postOnly: PostOnlyParams.NONE,
 		}) as OrderParams;
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -989,19 +996,20 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		try {
-			await makerDriftClient.placeAndMakeSignedMsgPerpOrder(
+			await makerVelocityClient.placeAndMakeSignedMsgPerpOrder(
 				signedOrderParams,
 				uuid,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.wallet.publicKey,
 				},
 				makerOrderParams,
 				undefined,
@@ -1013,18 +1021,18 @@ describe('place and make signedMsg order', () => {
 			assert(e);
 		}
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 		assert(takerPosition == undefined);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should succeed if taker order is a limit order with an auction', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1035,7 +1043,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1051,7 +1059,7 @@ describe('place and make signedMsg order', () => {
 			postOnly: PostOnlyParams.NONE,
 		}) as OrderParams;
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -1063,19 +1071,20 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		try {
-			await makerDriftClient.placeSignedMsgTakerOrder(
+			await makerVelocityClient.placeSignedMsgTakerOrder(
 				signedOrderParams,
 				marketIndex,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.wallet.publicKey,
 				},
 				undefined,
 				2
@@ -1085,13 +1094,14 @@ describe('place and make signedMsg order', () => {
 		}
 		await bankrunContextWrapper.moveTimeForward(10);
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 		assert(
-			convertToNumber(takerDriftClient.getUser().getOpenOrders()[0].price) == 85
+			convertToNumber(takerVelocityClient.getUser().getOpenOrders()[0].price) ==
+				85
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should work with off-chain auctions', async () => {
@@ -1099,7 +1109,7 @@ describe('place and make signedMsg order', () => {
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1110,7 +1120,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1134,25 +1144,26 @@ describe('place and make signedMsg order', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-		await makerDriftClient.placeSignedMsgTakerOrder(
+		await makerVelocityClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
 			takerOrderParams.marketIndex,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			undefined,
 			2
 		);
 
-		assert(takerDriftClient.getOrderByUserId(1) !== undefined);
-		assert(takerDriftClient.getOrderByUserId(1).slot.eq(slot.subn(5)));
+		assert(takerVelocityClient.getOrderByUserId(1) !== undefined);
+		assert(takerVelocityClient.getOrderByUserId(1).slot.eq(slot.subn(5)));
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -1162,14 +1173,14 @@ describe('place and make signedMsg order', () => {
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			bitFlags: 1,
 		});
-		await makerDriftClient.placeAndMakeSignedMsgPerpOrder(
+		await makerVelocityClient.placeAndMakeSignedMsgPerpOrder(
 			signedOrderParams,
 			uuid,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -1178,11 +1189,11 @@ describe('place and make signedMsg order', () => {
 			2
 		);
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(baseAssetAmount));
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should place with high-leverage mode update', async () => {
@@ -1190,7 +1201,7 @@ describe('place and make signedMsg order', () => {
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1201,7 +1212,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1225,32 +1236,33 @@ describe('place and make signedMsg order', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-		await makerDriftClient.placeSignedMsgTakerOrder(
+		await makerVelocityClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
 			marketIndex,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			undefined,
 			2
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should fail if auction params are not set', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1261,7 +1273,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1283,19 +1295,20 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		try {
-			await makerDriftClient.placeSignedMsgTakerOrder(
+			await makerVelocityClient.placeSignedMsgTakerOrder(
 				signedOrderParams,
 				0,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.wallet.publicKey,
 				},
 				undefined,
 				2
@@ -1305,15 +1318,15 @@ describe('place and make signedMsg order', () => {
 			assert(error.message.includes('custom program error: 0x1890'));
 		}
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should verify that auction params are not sanitized', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1324,7 +1337,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1348,38 +1361,39 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-		await makerDriftClient.placeSignedMsgTakerOrder(
+		await makerVelocityClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
 			0,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			undefined,
 			2
 		);
 
 		assert(
-			takerDriftClientUser
+			takerVelocityClientUser
 				.getOrderByUserOrderId(1)
 				.auctionEndPrice.eq(new BN(10000).mul(PRICE_PRECISION))
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('should fail on malicious subaccount id supplied to custom ix', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1390,10 +1404,10 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		// Create new user account w/ diff subaccount id but same authority
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 			new BN(1000),
 			userUSDCAccount.publicKey,
 			0,
@@ -1402,15 +1416,17 @@ describe('place and make signedMsg order', () => {
 			0
 		);
 
-		const takerDriftClientUser2 = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(1),
+		const takerVelocityClientUser2 = new User({
+			velocityClient: takerVelocityClient,
+			userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(
+				1
+			),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser2.subscribe();
+		await takerVelocityClientUser2.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1434,19 +1450,20 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		try {
-			await makerDriftClient.placeSignedMsgTakerOrder(
+			await makerVelocityClient.placeSignedMsgTakerOrder(
 				signedOrderParams,
 				0,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(1),
-					takerUserAccount: takerDriftClientUser2.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(1),
+					takerUserAccount: takerVelocityClientUser2.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.wallet.publicKey,
 				},
 				undefined,
 				2
@@ -1456,19 +1473,19 @@ describe('place and make signedMsg order', () => {
 			assert(error);
 		}
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 		assert(takerPosition == undefined);
 
-		await takerDriftClientUser2.unsubscribe();
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser2.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('shouldnt work with improper delegate encoding', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1479,10 +1496,10 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
-		await takerDriftClient.updateUserDelegate(
-			makerDriftClient.wallet.publicKey
+		await takerVelocityClient.updateUserDelegate(
+			makerVelocityClient.wallet.publicKey
 		);
 
 		const marketIndex = 0;
@@ -1504,25 +1521,25 @@ describe('place and make signedMsg order', () => {
 		// Should fail if we try first without encoding properly
 		const takerOrderParamsMessage: SignedMsgOrderParamsDelegateMessage = {
 			signedMsgOrderParams: takerOrderParams,
-			takerPubkey: await takerDriftClient.getUserAccountPublicKey(),
+			takerPubkey: await takerVelocityClient.getUserAccountPublicKey(),
 			slot,
 			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		let signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+		let signedOrderParams = makerVelocityClient.signSignedMsgOrderParamsMessage(
 			takerOrderParamsMessage,
 			false
 		);
 		try {
-			await makerDriftClient.placeSignedMsgTakerOrder(
+			await makerVelocityClient.placeSignedMsgTakerOrder(
 				signedOrderParams,
 				marketIndex,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: makerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: makerVelocityClient.wallet.publicKey,
 				},
 				undefined,
 				2
@@ -1530,24 +1547,24 @@ describe('place and make signedMsg order', () => {
 			assert.fail('should fail');
 		} catch (e) {
 			assert(e.toString().includes('0x18a5')); // SignedMsgUserContextUserMismatch
-			const takerOrders = takerDriftClient.getUser().getOpenOrders();
+			const takerOrders = takerVelocityClient.getUser().getOpenOrders();
 			assert(takerOrders.length == 0);
 		}
 
-		signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+		signedOrderParams = makerVelocityClient.signSignedMsgOrderParamsMessage(
 			takerOrderParamsMessage,
 			true
 		);
 		// Should fail if we dont set delegate as signing authority
 		try {
-			await makerDriftClient.placeSignedMsgTakerOrder(
+			await makerVelocityClient.placeSignedMsgTakerOrder(
 				signedOrderParams,
 				marketIndex,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.wallet.publicKey,
 				},
 				undefined,
 				2
@@ -1555,19 +1572,19 @@ describe('place and make signedMsg order', () => {
 			assert.fail('should fail');
 		} catch (e) {
 			assert(e.toString().includes('Error: Invalid option'));
-			const takerOrders = takerDriftClient.getUser().getOpenOrders();
+			const takerOrders = takerVelocityClient.getUser().getOpenOrders();
 			assert(takerOrders.length == 0);
 		}
 
-		const takerOrders = takerDriftClient.getUser().getOpenOrders();
+		const takerOrders = takerVelocityClient.getUser().getOpenOrders();
 		assert(takerOrders.length == 0);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('can let user delete their account', async () => {
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1578,28 +1595,28 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
-		await takerDriftClient.deleteSignedMsgUserOrders();
+		await takerVelocityClientUser.fetchAccounts();
+		await takerVelocityClient.deleteSignedMsgUserOrders();
 
 		assert(
 			(await checkIfAccountExists(
-				takerDriftClient.connection,
+				takerVelocityClient.connection,
 				getSignedMsgUserAccountPublicKey(
-					takerDriftClient.program.programId,
-					takerDriftClient.authority
+					takerVelocityClient.program.programId,
+					takerVelocityClient.authority
 				)
 			)) == false
 		);
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 
 	it('fills signedMsg with max margin ratio and isolated position deposit', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const [takerDriftClient, takerDriftClientUser] =
+		const [takerVelocityClient, takerVelocityClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
 				chProgram,
@@ -1610,7 +1627,7 @@ describe('place and make signedMsg order', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1627,7 +1644,7 @@ describe('place and make signedMsg order', () => {
 			marketType: MarketType.PERP,
 		}) as OrderParams;
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -1650,18 +1667,19 @@ describe('place and make signedMsg order', () => {
 			isolatedPositionDeposit: usdcAmount,
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-		const ixs = await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+		const ixs = await makerVelocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			signedOrderParams,
 			uuid,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerVelocityClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -1681,18 +1699,18 @@ describe('place and make signedMsg order', () => {
 		*/
 		assert(getSizeOfTransaction(ixs, false) < 1138);
 
-		const tx = await makerDriftClient.buildTransaction(ixs);
-		await makerDriftClient.sendTransaction(tx as Transaction);
+		const tx = await makerVelocityClient.buildTransaction(ixs);
+		await makerVelocityClient.sendTransaction(tx as Transaction);
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 
 		// All orders are placed and one is
 		// @ts-ignore
 		assert(takerPosition.maxMarginRatio === 100);
 		assert(takerPosition.isolatedPositionScaledBalance.gt(new BN(0)));
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 });
 
@@ -1716,7 +1734,7 @@ async function initializeNewTakerClientAndUser(
 		bankrunContextWrapper,
 		keypair.publicKey
 	);
-	const takerDriftClient = new TestClient({
+	const takerVelocityClient = new TestClient({
 		connection: bankrunContextWrapper.connection.toConnection(),
 		wallet,
 		programID: chProgram.programId,
@@ -1734,21 +1752,21 @@ async function initializeNewTakerClientAndUser(
 			accountLoader: bulkAccountLoader,
 		},
 	});
-	await takerDriftClient.subscribe();
-	await takerDriftClient.initializeUserAccountAndDepositCollateral(
+	await takerVelocityClient.subscribe();
+	await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 		usdcAmount,
 		userUSDCAccount.publicKey
 	);
-	const takerDriftClientUser = new User({
-		driftClient: takerDriftClient,
-		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+	const takerVelocityClientUser = new User({
+		velocityClient: takerVelocityClient,
+		userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
 		},
 	});
-	await takerDriftClientUser.subscribe();
-	return [takerDriftClient, takerDriftClientUser];
+	await takerVelocityClientUser.subscribe();
+	return [takerVelocityClient, takerVelocityClientUser];
 }
 
 export function getSizeOfTransaction(

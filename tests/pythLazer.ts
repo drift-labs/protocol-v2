@@ -31,9 +31,9 @@ describe('pyth lazer oracles', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 0);
 
@@ -63,7 +63,7 @@ describe('pyth lazer oracles', () => {
 			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
 		];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection,
 			//@ts-ignore
 			wallet: new Wallet(loadKeypair(process.env.ANCHOR_WALLET)),
@@ -81,25 +81,25 @@ describe('pyth lazer oracles', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	// TODO: update BTC string for theses
 	it('init feed', async () => {
-		await driftClient.initializePythLazerOracle(1);
-		await driftClient.initializePythLazerOracle(2);
-		await driftClient.initializePythLazerOracle(6);
+		await velocityClient.initializePythLazerOracle(1);
+		await velocityClient.initializePythLazerOracle(2);
+		await velocityClient.initializePythLazerOracle(6);
 	});
 
 	it('crank', async () => {
-		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await velocityClient.getPostPythLazerOracleUpdateIxs(
 			[1],
 			PYTH_LAZER_HEX_STRING_BTC,
 			[]
@@ -107,7 +107,7 @@ describe('pyth lazer oracles', () => {
 
 		const message = new TransactionMessage({
 			instructions: ixs,
-			payerKey: driftClient.wallet.payer.publicKey,
+			payerKey: velocityClient.wallet.payer.publicKey,
 			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
 		}).compileToV0Message();
 		const tx = new VersionedTransaction(message);
@@ -117,18 +117,18 @@ describe('pyth lazer oracles', () => {
 
 		const normalTx = new Transaction();
 		normalTx.add(...ixs);
-		await driftClient.sendTransaction(normalTx);
+		await velocityClient.sendTransaction(normalTx);
 	});
 
 	it('crank multi', async () => {
-		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await velocityClient.getPostPythLazerOracleUpdateIxs(
 			[1, 2, 6],
 			PYTH_LAZER_HEX_STRING_MULTI
 		);
 
 		const message = new TransactionMessage({
 			instructions: ixs,
-			payerKey: driftClient.wallet.payer.publicKey,
+			payerKey: velocityClient.wallet.payer.publicKey,
 			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
 		}).compileToV0Message();
 		const tx = new VersionedTransaction(message);
@@ -138,14 +138,14 @@ describe('pyth lazer oracles', () => {
 	});
 
 	it('fails on wrong message passed', async () => {
-		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await velocityClient.getPostPythLazerOracleUpdateIxs(
 			[1],
 			PYTH_LAZER_HEX_STRING_SOL
 		);
 
 		const message = new TransactionMessage({
 			instructions: ixs,
-			payerKey: driftClient.wallet.payer.publicKey,
+			payerKey: velocityClient.wallet.payer.publicKey,
 			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
 		}).compileToV0Message();
 		const tx = new VersionedTransaction(message);

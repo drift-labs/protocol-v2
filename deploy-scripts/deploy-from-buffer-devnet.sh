@@ -5,22 +5,22 @@
 #
 # Env:
 #   BUFFER_ACCOUNT_KEYPAIR   required — same file passed to write-buffer-devnet.sh
-#   PROGRAM_KEYPAIR          required — JSON keypair whose pubkey is DRIFT_DEVNET_PROGRAM_ID
-#   DRIFT_DEVNET_PROGRAM_ID  override; default reads [programs.devnet].drift from Anchor.toml
-#   PROGRAM_SO               default target/deploy/drift.so (ELF sanity check)
-#   DRIFT_DEVNET_UPGRADE_KEYPAIR | SOLANA_PATH+DEVNET_ADMIN — upgrade authority
+#   PROGRAM_KEYPAIR          required — JSON keypair whose pubkey is VELOCITY_DEVNET_PROGRAM_ID
+#   VELOCITY_DEVNET_PROGRAM_ID  override; default reads [programs.devnet].velocity from Anchor.toml
+#   PROGRAM_SO               default target/deploy/velocity.so (ELF sanity check)
+#   VELOCITY_DEVNET_UPGRADE_KEYPAIR | SOLANA_PATH+DEVNET_ADMIN — upgrade authority
 #   SOLANA_RPC / RPC_URL
 
 set -eu
 
 . "$(dirname "$0")/_lib.sh"
 
-resolve_drift_devnet_program_id DRIFT_DEVNET_PROGRAM_ID
-PROGRAM_SO="${PROGRAM_SO:-target/deploy/drift.so}"
+resolve_velocity_devnet_program_id VELOCITY_DEVNET_PROGRAM_ID
+PROGRAM_SO="${PROGRAM_SO:-target/deploy/velocity.so}"
 SOLANA_RPC="${SOLANA_RPC:-${RPC_URL:-https://api.devnet.solana.com}}"
 
 BUFFER_ACCOUNT_KEYPAIR="${BUFFER_ACCOUNT_KEYPAIR:?Set BUFFER_ACCOUNT_KEYPAIR (output from write-buffer-devnet.sh)}"
-PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:?Set PROGRAM_KEYPAIR — JSON file for program id $DRIFT_DEVNET_PROGRAM_ID}"
+PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:?Set PROGRAM_KEYPAIR — JSON file for program id $VELOCITY_DEVNET_PROGRAM_ID}"
 
 if [ ! -f "$BUFFER_ACCOUNT_KEYPAIR" ]; then
 	echo "BUFFER_ACCOUNT_KEYPAIR not found: $BUFFER_ACCOUNT_KEYPAIR" >&2
@@ -36,14 +36,14 @@ if [ ! -f "$PROGRAM_SO" ]; then
 fi
 
 KP=$(solana-keygen pubkey "$PROGRAM_KEYPAIR")
-if [ "$KP" != "$DRIFT_DEVNET_PROGRAM_ID" ]; then
-	echo "PROGRAM_KEYPAIR pubkey $KP != DRIFT_DEVNET_PROGRAM_ID $DRIFT_DEVNET_PROGRAM_ID" >&2
+if [ "$KP" != "$VELOCITY_DEVNET_PROGRAM_ID" ]; then
+	echo "PROGRAM_KEYPAIR pubkey $KP != VELOCITY_DEVNET_PROGRAM_ID $VELOCITY_DEVNET_PROGRAM_ID" >&2
 	exit 1
 fi
 
 resolve_upgrade_keypair UPGRADE_KEYPAIR
 
-confirm_program_id "$DRIFT_DEVNET_PROGRAM_ID" "first-time program deploy from buffer"
+confirm_program_id "$VELOCITY_DEVNET_PROGRAM_ID" "first-time program deploy from buffer"
 
 solana program deploy "$PROGRAM_SO" \
 	-u "$SOLANA_RPC" \
@@ -51,4 +51,4 @@ solana program deploy "$PROGRAM_SO" \
 	--program-id "$PROGRAM_KEYPAIR" \
 	--upgrade-authority "$UPGRADE_KEYPAIR"
 
-echo "Deployed program $DRIFT_DEVNET_PROGRAM_ID"
+echo "Deployed program $VELOCITY_DEVNET_PROGRAM_ID"

@@ -1702,7 +1702,7 @@ export class DLOB {
 	}
 
 	public printTop(
-		driftClient: VelocityClient,
+		velocityClient: VelocityClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType
@@ -1710,7 +1710,7 @@ export class DLOB {
 		if (isVariant(marketType, 'perp')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				driftClient.getMMOracleDataForPerpMarket(marketIndex);
+				velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
@@ -1738,7 +1738,7 @@ export class DLOB {
 				100.0;
 
 			const name = decodeName(
-				driftClient.getPerpMarketAccount(marketIndex).name
+				velocityClient.getPerpMarketAccount(marketIndex).name
 			);
 			console.log(`Market ${name} Orders`);
 			console.log(
@@ -1755,7 +1755,7 @@ export class DLOB {
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				driftClient.getOracleDataForSpotMarket(marketIndex);
+				velocityClient.getOracleDataForSpotMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
@@ -1783,7 +1783,7 @@ export class DLOB {
 				100.0;
 
 			const name = decodeName(
-				driftClient.getSpotMarketAccount(marketIndex).name
+				velocityClient.getSpotMarketAccount(marketIndex).name
 			);
 			console.log(`Market ${name} Orders`);
 			console.log(

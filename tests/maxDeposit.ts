@@ -16,9 +16,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('max deposit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -49,7 +49,7 @@ describe('max deposit', () => {
 
 		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -67,24 +67,24 @@ describe('max deposit', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('update max deposit', async () => {
-		await driftClient.updateSpotMarketMaxTokenDeposits(0, QUOTE_PRECISION);
-		const market = driftClient.getSpotMarketAccount(0);
+		await velocityClient.updateSpotMarketMaxTokenDeposits(0, QUOTE_PRECISION);
+		const market = velocityClient.getSpotMarketAccount(0);
 		console.assert(market.maxTokenDeposits.eq(QUOTE_PRECISION));
 	});
 
 	it('block deposit', async () => {
 		try {
-			await driftClient.initializeUserAccountAndDepositCollateral(
+			await velocityClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);

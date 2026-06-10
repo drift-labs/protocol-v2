@@ -19,20 +19,20 @@ npm i @velocity-exchange/sdk
 
 ## Getting Started
 
-_Start here if you're integrating with Drift!_
+_Start here if you're integrating with Velocity!_
 
-- [Drift v2-teacher + API Docs](https://drift-labs.github.io/v2-teacher/)
+- [Velocity v2-teacher + API Docs](https://drift-labs.github.io/v2-teacher/)
   - Docs and examples for using the SDK in Typescript and Python
-  - Useful concepts and examples when integrating Drift
-  - Docs for Drift's "Data API"
+  - Useful concepts and examples when integrating Velocity
+  - Docs for Velocity's "Data API"
 - [Typescript API docs](https://drift-labs.github.io/protocol-v2/sdk/)
-  - JSDoc automated documentation for the Drift v2 Typescript SDK
-- [Drift docs](https://docs.drift.trade/)
-  - Comprehensive universal docs for Drift
+  - JSDoc automated documentation for the Velocity v2 Typescript SDK
+- [Velocity docs](https://docs.drift.trade/)
+  - Comprehensive universal docs for Velocity
 
 ---
 
-The below is a light overview of using Solana and Drift's typescript sdk. If you want comprehensive docs with examples of how to integrate with Drift you should use the [v2-teacher docs](https://drift-labs.github.io/v2-teacher/).
+The below is a light overview of using Solana and Velocity's typescript sdk. If you want comprehensive docs with examples of how to integrate with Velocity you should use the [v2-teacher docs](https://drift-labs.github.io/v2-teacher/).
 
 ### Setting up a wallet for your program
 
@@ -40,7 +40,7 @@ The below is a light overview of using Solana and Drift's typescript sdk. If you
 # Generate a keypair
 solana-keygen new
 
-# Get the pubkey for the new wallet (You will need to send USDC to this address to Deposit into Drift (only on mainnet - devnet has a faucet for USDC))
+# Get the pubkey for the new wallet (You will need to send USDC to this address to Deposit into Velocity (only on mainnet - devnet has a faucet for USDC))
 solana address
 
 # Put the private key into your .env to be used by your bot
@@ -52,14 +52,14 @@ echo BOT_PRIVATE_KEY=`cat ~/.config/solana/id.json` >> .env
 
 ### BN / Precision
 
-The Drift SDK uses BigNum (BN), using [this package](https://github.com/indutny/bn.js/), to represent numerical values. This is because Solana tokens tend to use levels of precision which are too precise for standard Javascript floating point numbers to handle. All numbers in BN are represented as integers, and we will often denote the `precision` of the number so that it can be converted back down to a regular number.
+The Velocity SDK uses BigNum (BN), using [this package](https://github.com/indutny/bn.js/), to represent numerical values. This is because Solana tokens tend to use levels of precision which are too precise for standard Javascript floating point numbers to handle. All numbers in BN are represented as integers, and we will often denote the `precision` of the number so that it can be converted back down to a regular number.
 
 ```bash
 Example:
 a BigNum: 10,500,000, with precision 10^6, is equal to 10.5 because 10,500,000 / 10^6 = 10.5.
 ```
 
-The Drift SDK uses some common precisions, which are available as constants to import from the SDK.
+The Velocity SDK uses some common precisions, which are available as constants to import from the SDK.
 
 | Precision Name        | Value |
 | --------------------- | ----- |
@@ -99,7 +99,7 @@ import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	calculateReservePrice,
-	DriftClient,
+	VelocityClient,
 	User,
 	initialize,
 	PositionDirection,
@@ -132,7 +132,7 @@ const main = async () => {
 	const env = 'devnet';
 	// const env = 'mainnet-beta';
 
-	// Initialize Drift SDK
+	// Initialize Velocity SDK
 	const sdkConfig = initialize({ env });
 
 	// Set up the Wallet and Provider
@@ -169,30 +169,30 @@ const main = async () => {
 		provider.wallet.publicKey.toString()
 	);
 
-	// Set up the Drift Client
-	const driftPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
+	// Set up the Velocity Client
+	const velocityPublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
 	const bulkAccountLoader = new BulkAccountLoader(
 		provider.connection,
 		'confirmed',
 		1000
 	);
-	const driftClient = new DriftClient({
+	const velocityClient = new VelocityClient({
 		connection: provider.connection,
 		wallet: provider.wallet,
-		programID: driftPublicKey,
+		programID: velocityPublicKey,
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
 		},
 	});
-	await driftClient.subscribe();
+	await velocityClient.subscribe();
 
-	console.log('subscribed to driftClient');
+	console.log('subscribed to velocityClient');
 
 	// Set up user client
 	const user = new User({
-		driftClient: driftClient,
-		userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		velocityClient: velocityClient,
+		userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
@@ -206,13 +206,13 @@ const main = async () => {
 		console.log(
 			'initializing to',
 			env,
-			' drift account for',
+			' velocity account for',
 			provider.wallet.publicKey.toString()
 		);
 
-		//// Create a Drift V2 account by Depositing some USDC ($10,000 in this case)
+		//// Create a Velocity V2 account by Depositing some USDC ($10,000 in this case)
 		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			depositAmount,
 			await getTokenAddress(
 				usdcTokenAddress.toString(),
@@ -232,8 +232,8 @@ const main = async () => {
 
 	// Get vAMM bid and ask price
 	const [bid, ask] = calculateBidAskPrice(
-		driftClient.getPerpMarketAccount(marketIndex).amm,
-		driftClient.getOracleDataForPerpMarket(marketIndex)
+		velocityClient.getPerpMarketAccount(marketIndex).amm,
+		velocityClient.getOracleDataForPerpMarket(marketIndex)
 	);
 
 	const formattedBidPrice = convertToNumber(bid, PRICE_PRECISION);
@@ -244,12 +244,12 @@ const main = async () => {
 		`vAMM bid: $${formattedBidPrice} and ask: $${formattedAskPrice}`
 	);
 
-	const solMarketAccount = driftClient.getPerpMarketAccount(
+	const solMarketAccount = velocityClient.getPerpMarketAccount(
 		solMarketInfo.marketIndex
 	);
 	console.log(env, `Placing a 1 SOL-PERP LONG order`);
 
-	const txSig = await driftClient.placePerpOrder(
+	const txSig = await velocityClient.placePerpOrder(
 		getMarketOrderParams({
 			baseAssetAmount: new BN(1).mul(BASE_PRECISION),
 			direction: PositionDirection.LONG,
@@ -267,8 +267,8 @@ main();
 
 ## License
 
-Drift Protocol v2 is licensed under [Apache 2.0](./LICENSE).
+Velocity Protocol v2 is licensed under [Apache 2.0](./LICENSE).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
+for inclusion in Velocity SDK by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.

@@ -39,7 +39,7 @@ export function registerAuth(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin auth set-admin'
+				'velocity-admin auth set-admin'
 			);
 			reportDispatch(`set-admin → ${newAdmin}`, result);
 		} finally {
@@ -63,7 +63,7 @@ export function registerAuth(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin auth set-warm-admin'
+				'velocity-admin auth set-warm-admin'
 			);
 			reportDispatch(`set-warm-admin → ${newWarmAdmin}`, result);
 		} finally {
@@ -90,7 +90,7 @@ export function registerAuth(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				`drift-admin auth set-hot-admin ${role}`
+				`velocity-admin auth set-hot-admin ${role}`
 			);
 			reportDispatch(`set-hot-admin ${role} → ${pubkey}`, result);
 		} finally {

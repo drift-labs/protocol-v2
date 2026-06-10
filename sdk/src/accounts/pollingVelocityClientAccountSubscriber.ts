@@ -643,10 +643,3 @@ export class PollingVelocityClientAccountSubscriber
 		this.accountLoader.updatePollingFrequency(pollingFrequency);
 	}
 }
-
-/** @deprecated Use `PollingVelocityClientAccountSubscriber` instead. `PollingDriftClientAccountSubscriber` will be removed in a future major. */
-export const PollingDriftClientAccountSubscriber =
-	PollingVelocityClientAccountSubscriber;
-/** @deprecated Use `PollingVelocityClientAccountSubscriber` instead. `PollingDriftClientAccountSubscriber` will be removed in a future major. */
-export type PollingDriftClientAccountSubscriber =
-	PollingVelocityClientAccountSubscriber;

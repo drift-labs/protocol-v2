@@ -4,7 +4,7 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { VELOCITY_PROGRAM_ID } from '../src';
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
-import driftIDL from '../src/idl/drift.json';
+import velocityIDL from '../src/idl/velocity.json';
 import assert from 'assert';
 import { Wallet } from '../src';
 
@@ -40,7 +40,7 @@ async function testGrpcUserAccountSubscriberV1VsV2() {
 		}
 	);
 
-	const program = new Program(driftIDL as Idl, programId, provider);
+	const program = new Program(velocityIDL as Idl, programId, provider);
 
 	const grpcConfigs = {
 		endpoint: GRPC_ENDPOINT,

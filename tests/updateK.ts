@@ -42,9 +42,9 @@ describe('update k', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
@@ -68,7 +68,7 @@ describe('update k', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -83,11 +83,11 @@ describe('update k', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -96,7 +96,7 @@ describe('update k', () => {
 			initPrice: initialSOLPrice,
 		});
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsdOracle,
 			ammInitialBaseAssetReserve,
@@ -104,18 +104,18 @@ describe('update k', () => {
 			periodicity,
 			new BN(initialSOLPrice * PEG_PRECISION.toNumber())
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await driftClient.initializeUserAccount();
+		await velocityClient.initializeUserAccount();
 		userAccount = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await userAccount.unsubscribe();
 	});
 
@@ -123,20 +123,20 @@ describe('update k', () => {
 		const marketIndex = 0;
 
 		const oldKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
-		const ammOld = driftClient.getPerpMarketAccount(0).amm;
+		const ammOld = velocityClient.getPerpMarketAccount(0).amm;
 		const newSqrtK = ammInitialBaseAssetReserve.mul(new BN(10));
-		await driftClient.updateK(marketIndex, newSqrtK);
+		await velocityClient.updateK(marketIndex, newSqrtK);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		const newKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 
-		const amm = driftClient.getPerpMarketAccount(0).amm;
+		const amm = velocityClient.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(100);
 
@@ -159,7 +159,7 @@ describe('update k', () => {
 	});
 
 	it('increase k base/quote imbalance (FREE)', async () => {
-		await driftClient.deposit(
+		await velocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
@@ -170,13 +170,13 @@ describe('update k', () => {
 		const targetPriceUp = new BN(
 			initialSOLPrice * PRICE_PRECISION.toNumber() * 44.1
 		);
-		await driftClient.moveAmmToPrice(marketIndex, targetPriceUp);
-		await driftClient.fetchAccounts();
+		await velocityClient.moveAmmToPrice(marketIndex, targetPriceUp);
+		await velocityClient.fetchAccounts();
 
-		const marketOld = driftClient.getPerpMarketAccount(0);
+		const marketOld = velocityClient.getPerpMarketAccount(0);
 
 		const oldKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		const ammOld = marketOld.amm;
@@ -185,15 +185,15 @@ describe('update k', () => {
 			.mul(new BN(1.000132325235 * PRICE_PRECISION.toNumber()))
 			.div(PRICE_PRECISION);
 
-		await driftClient.updateK(marketIndex, newSqrtK);
+		await velocityClient.updateK(marketIndex, newSqrtK);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		const newKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 
-		const amm = driftClient.getPerpMarketAccount(0).amm;
+		const amm = velocityClient.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -230,25 +230,25 @@ describe('update k', () => {
 			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
-		// const [direction, tradeSize, _] = driftClient.calculateTargetPriceTrade(
+		// const [direction, tradeSize, _] = velocityClient.calculateTargetPriceTrade(
 		// 	marketIndex,
 		// 	targetPriceUp
 		// );
-		await driftClient.moveAmmToPrice(marketIndex, targetPriceBack);
+		await velocityClient.moveAmmToPrice(marketIndex, targetPriceBack);
 
 		console.log('taking position');
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.div(new BN(initialSOLPrice)),
 			marketIndex
 		);
 		console.log('$1 position taken');
-		await driftClient.fetchAccounts();
-		const marketOld = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const marketOld = velocityClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		const ammOld = marketOld.amm;
@@ -262,24 +262,24 @@ describe('update k', () => {
 			.div(PRICE_PRECISION);
 
 		try {
-			await driftClient.updateK(marketIndex, newSqrtK);
+			await velocityClient.updateK(marketIndex, newSqrtK);
 			assert(false);
 		} catch {
-			await driftClient.fetchAccounts();
-			const marketKChange = await driftClient.getPerpMarketAccount(0);
+			await velocityClient.fetchAccounts();
+			const marketKChange = await velocityClient.getPerpMarketAccount(0);
 			const ammKChange = marketKChange.amm;
 
 			const newKPrice = calculateReservePrice(
-				driftClient.getPerpMarketAccount(marketIndex),
+				velocityClient.getPerpMarketAccount(marketIndex),
 				undefined
 			);
 
 			console.log('$1 position closing');
 
-			await driftClient.closePosition(marketIndex);
+			await velocityClient.closePosition(marketIndex);
 			console.log('$1 position closed');
 
-			const amm = driftClient.getPerpMarketAccount(0).amm;
+			const amm = velocityClient.getPerpMarketAccount(0).amm;
 
 			const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -330,25 +330,25 @@ describe('update k', () => {
 			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
-		// const [direction, tradeSize, _] = driftClient.calculateTargetPriceTrade(
+		// const [direction, tradeSize, _] = velocityClient.calculateTargetPriceTrade(
 		// 	marketIndex,
 		// 	targetPriceUp
 		// );
-		await driftClient.moveAmmToPrice(marketIndex, targetPriceBack);
+		await velocityClient.moveAmmToPrice(marketIndex, targetPriceBack);
 
 		console.log('taking position');
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.div(new BN(initialSOLPrice)).mul(new BN(1000)),
 			marketIndex
 		);
 		console.log('$1000 position taken');
-		await driftClient.fetchAccounts();
-		const marketOld = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const marketOld = velocityClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		const ammOld = marketOld.amm;
@@ -367,18 +367,18 @@ describe('update k', () => {
 		)[0];
 
 		try {
-			await driftClient.updateK(marketIndex, newSqrtK);
+			await velocityClient.updateK(marketIndex, newSqrtK);
 		} catch (e) {
 			console.error(e);
 			assert(false);
 		}
 
-		await driftClient.fetchAccounts();
-		const marketKChange = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const marketKChange = velocityClient.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 
 		const newKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 
@@ -398,10 +398,10 @@ describe('update k', () => {
 
 		console.log('$1000 position closing');
 
-		await driftClient.closePosition(marketIndex);
+		await velocityClient.closePosition(marketIndex);
 		console.log('$1 position closed');
 
-		const amm = driftClient.getPerpMarketAccount(0).amm;
+		const amm = velocityClient.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -445,25 +445,25 @@ describe('update k', () => {
 			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
-		// const [direction, tradeSize, _] = driftClient.calculateTargetPriceTrade(
+		// const [direction, tradeSize, _] = velocityClient.calculateTargetPriceTrade(
 		// 	marketIndex,
 		// 	targetPriceUp
 		// );
-		await driftClient.moveAmmToPrice(marketIndex, targetPriceBack);
+		await velocityClient.moveAmmToPrice(marketIndex, targetPriceBack);
 
 		console.log('taking position');
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			new BN(QUOTE_PRECISION).mul(new BN(30000)),
 			marketIndex
 		);
 		console.log('$1 position taken');
-		await driftClient.fetchAccounts();
-		const marketOld = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const marketOld = velocityClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 		const ammOld = marketOld.amm;
@@ -481,13 +481,13 @@ describe('update k', () => {
 		const newSqrtK = ammOld.sqrtK
 			.mul(new BN(1.02 * PRICE_PRECISION.toNumber()))
 			.div(PRICE_PRECISION);
-		await driftClient.updateK(marketIndex, newSqrtK);
+		await velocityClient.updateK(marketIndex, newSqrtK);
 
-		await driftClient.fetchAccounts();
-		const marketKChange = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const marketKChange = velocityClient.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 		const newKPrice = calculateReservePrice(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			undefined
 		);
 
@@ -507,11 +507,11 @@ describe('update k', () => {
 
 		console.log('$1 position closing');
 
-		await driftClient.closePosition(marketIndex);
+		await velocityClient.closePosition(marketIndex);
 		console.log('$1 position closed');
 
-		await driftClient.fetchAccounts();
-		const markets = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const markets = velocityClient.getPerpMarketAccount(0);
 		const amm = markets.amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places

@@ -54,14 +54,14 @@ import {
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
 
 	// // send $50 to market from IF
 	try {
-		const txSig00 = await driftClient.depositIntoPerpMarketFeePool(
+		const txSig00 = await velocityClient.depositIntoPerpMarketFeePool(
 			0,
 			ifAmount,
 			userUSDCAccount.publicKey
@@ -75,11 +75,11 @@ async function depositToFeePoolFromIF(
 }
 
 async function iterClosePosition(
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	marketIndex: number,
 	oraclePriceData: OraclePriceData
 ) {
-	let userPosition = driftClient.getUser().getPerpPosition(marketIndex);
+	let userPosition = velocityClient.getUser().getPerpPosition(marketIndex);
 	let posDirection;
 	let limitPrice: BN;
 
@@ -110,17 +110,19 @@ async function iterClosePosition(
 			price: limitPrice,
 			immediateOrCancel: true,
 		});
-		const txClose = await driftClient.placeAndTakePerpOrder(closeOrderParams);
+		const txClose = await velocityClient.placeAndTakePerpOrder(
+			closeOrderParams
+		);
 		console.log(
 			'tx logs',
 			(
-				await driftClient.connection.getTransaction(txClose, {
+				await velocityClient.connection.getTransaction(txClose, {
 					commitment: 'confirmed',
 				})
 			).meta.logMessages
 		);
-		await driftClient.fetchAccounts();
-		userPosition = driftClient.getUser().getPerpPosition(marketIndex);
+		await velocityClient.fetchAccounts();
+		userPosition = velocityClient.getUser().getPerpPosition(marketIndex);
 		console.log(
 			'userPosition.baseAssetAmount: ',
 			userPosition.baseAssetAmount.toString()
@@ -136,9 +138,9 @@ describe('repeg and spread amm', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
 		commitment: 'recent',
 	});
@@ -190,7 +192,7 @@ describe('repeg and spread amm', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH_LAZER };
 		});
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -207,15 +209,15 @@ describe('repeg and spread amm', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await driftClient.updatePerpAuctionDuration(0);
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await velocityClient.updatePerpAuctionDuration(0);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			btcUsd,
 			ammInitialBaseAssetAmount,
@@ -233,13 +235,13 @@ describe('repeg and spread amm', () => {
 			250,
 			400
 		);
-		await driftClient.updatePerpMarketBaseSpread(0, 250);
-		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
+		await velocityClient.updatePerpMarketBaseSpread(0, 250);
+		await velocityClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		// for (let i = 1; i <= 4; i++) {
 		// 	// init more markets
 		// 	const thisUsd = mockOracles[i];
-		// 	await driftClient.initializeMarket(
+		// 	await velocityClient.initializeMarket(
 		// 		thisUsd,
 		// 		ammInitialBaseAssetAmount,
 		// 		ammInitialQuoteAssetAmount,
@@ -249,19 +251,19 @@ describe('repeg and spread amm', () => {
 		// 		1000,
 		// 		201
 		// 	);
-		// 	await driftClient.updatePerpMarketBaseSpread(new BN(i), 2000);
-		// 	await driftClient.updatePerpMarketCurveUpdateIntensity(new BN(i), 100);
+		// 	await velocityClient.updatePerpMarketBaseSpread(new BN(i), 2000);
+		// 	await velocityClient.updatePerpMarketCurveUpdateIntensity(new BN(i), 100);
 		// }
 
 		const [, _userAccountPublicKey] =
-			await driftClient.initializeUserAccountAndDepositCollateral(
+			await velocityClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -279,10 +281,10 @@ describe('repeg and spread amm', () => {
 			},
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+		await velocityClient.fetchAccounts();
+		const state = velocityClient.getStateAccount();
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
@@ -296,26 +298,26 @@ describe('repeg and spread amm', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
-		await depositToFeePoolFromIF(0.001, driftClient, userUSDCAccount);
+		await depositToFeePoolFromIF(0.001, velocityClient, userUSDCAccount);
 
-		// await driftClient.closePosition(new BN(0));
-		const txSig0 = await driftClient.placeAndTakePerpOrder(orderParams);
+		// await velocityClient.closePosition(new BN(0));
+		const txSig0 = await velocityClient.placeAndTakePerpOrder(orderParams);
 
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig0, { commitment: 'confirmed' }))
 				.meta.logMessages
 		);
-		await depositToFeePoolFromIF(50, driftClient, userUSDCAccount);
+		await depositToFeePoolFromIF(50, velocityClient, userUSDCAccount);
 
-		await driftClient.fetchAccounts();
-		const btcPerpAccount = driftClient.getPerpMarketAccount(0);
+		await velocityClient.fetchAccounts();
+		const btcPerpAccount = velocityClient.getPerpMarketAccount(0);
 		assert(btcPerpAccount.numberOfUsersWithBase == 1);
 		assert(btcPerpAccount.numberOfUsers == 1);
 		assert(btcPerpAccount.amm.baseAssetAmountWithAmm.lt(ZERO));
@@ -338,7 +340,7 @@ describe('repeg and spread amm', () => {
 			anchor.workspace.Pyth,
 			btcUsd
 		);
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = velocityClient.getPerpMarketAccount(0);
 		console.log(
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toNumber() /
@@ -485,7 +487,7 @@ describe('repeg and spread amm', () => {
 		console.log(convertToNumber(oraclePriceData.price), midPrice);
 		console.log(
 			'getSpotMarketAssetValue:',
-			driftClientUser.getSpotMarketAssetValue().toString()
+			velocityClientUser.getSpotMarketAssetValue().toString()
 		);
 
 		const effectiveLeverage = calculateEffectiveLeverage(
@@ -513,7 +515,7 @@ describe('repeg and spread amm', () => {
 		assert(Math.min(inventoryScale, 10) <= 1.66387);
 
 		try {
-			const txSig = await driftClient.updateAMMs([marketIndex]);
+			const txSig = await velocityClient.updateAMMs([marketIndex]);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -523,7 +525,7 @@ describe('repeg and spread amm', () => {
 			console.error(e);
 		}
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = velocityClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(
 			market.amm,
 			oraclePriceData,
@@ -580,26 +582,30 @@ describe('repeg and spread amm', () => {
 		console.log(bAR1.toString(), '==', market.amm.baseAssetReserve.toString());
 		assert(bAR1.eq(market.amm.baseAssetReserve));
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString()
 		);
 		assert(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(
 					new BN(-0.1931 * BASE_PRECISION.toNumber())
 				)
 		);
 		// assert(
-		// 	driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
+		// 	velocityClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'4229493402'
 		// ); // $4229.49
 
-		let userPosition = driftClient.getUser().getPerpPosition(marketIndex);
+		let userPosition = velocityClient.getUser().getPerpPosition(marketIndex);
 
 		assert(market.amm.maxSlippageRatio == 50);
 		const limitPrice = oraclePriceData.price
@@ -617,14 +623,16 @@ describe('repeg and spread amm', () => {
 				price: limitPrice,
 				immediateOrCancel: true,
 			});
-			const txClose = await driftClient.placeAndTakePerpOrder(closeOrderParams);
+			const txClose = await velocityClient.placeAndTakePerpOrder(
+				closeOrderParams
+			);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txClose, { commitment: 'confirmed' }))
 					.meta.logMessages
 			);
-			await driftClient.fetchAccounts();
-			userPosition = driftClient.getUser().getPerpPosition(marketIndex);
+			await velocityClient.fetchAccounts();
+			userPosition = velocityClient.getUser().getPerpPosition(marketIndex);
 			console.log(
 				'userPosition.baseAssetAmount: ',
 				userPosition.baseAssetAmount.toString()
@@ -632,32 +640,36 @@ describe('repeg and spread amm', () => {
 		}
 
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString()
 		);
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.toString() == '0'
 		);
 		// assert(
-		// 	driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
+		// 	velocityClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'203455312'
 		// ); // $203.45
 
 		assert(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString() == '0'
 		);
 
 		console.log(
 			'getSpotMarketAssetValue:',
-			driftClientUser.getSpotMarketAssetValue().toString()
+			velocityClientUser.getSpotMarketAssetValue().toString()
 		);
-		const spotMarketAccount0 = driftClient.getSpotMarketAccount(0);
+		const spotMarketAccount0 = velocityClient.getSpotMarketAccount(0);
 
 		const feePoolBalance0 = getTokenAmount(
 			market.amm.feePool.scaledBalance,
@@ -674,38 +686,40 @@ describe('repeg and spread amm', () => {
 		console.log('usdcAmount:', usdcAmount.toString());
 		console.log(
 			'getSpotMarketAssetValue:',
-			driftClientUser.getSpotMarketAssetValue().toString()
+			velocityClientUser.getSpotMarketAssetValue().toString()
 		);
 		console.log('feePoolBalance0:', feePoolBalance0.toString());
 		console.log('pnlPoolBalance0:', pnlPoolBalance0.toString());
 
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		console.log(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		// assert(
-		// 	driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
+		// 	velocityClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'157582183'
 		// ); // $157.58
 		assert(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteBreakEvenAmount.toString() == '0'
 		);
 
-		await depositToFeePoolFromIF(157.476328, driftClient, userUSDCAccount);
+		await depositToFeePoolFromIF(157.476328, velocityClient, userUSDCAccount);
 
-		const market1 = driftClient.getPerpMarketAccount(0);
+		const market1 = velocityClient.getPerpMarketAccount(0);
 		console.log(
 			'after fee pool deposit totalFeeMinusDistributions:',
 			market1.amm.totalFeeMinusDistributions.toString()
@@ -713,7 +727,7 @@ describe('repeg and spread amm', () => {
 
 		assert(!market1.amm.totalFeeMinusDistributions.eq(ZERO));
 
-		const spotMarketAccount = driftClient.getSpotMarketAccount(0);
+		const spotMarketAccount = velocityClient.getSpotMarketAccount(0);
 
 		const revPoolBalance = getTokenAmount(
 			spotMarketAccount.revenuePool.scaledBalance,
@@ -736,21 +750,21 @@ describe('repeg and spread amm', () => {
 		console.log('usdcAmount:', usdcAmount.toString());
 		console.log(
 			'getSpotMarketAssetValue:',
-			driftClientUser.getSpotMarketAssetValue().toString()
+			velocityClientUser.getSpotMarketAssetValue().toString()
 		);
 		console.log('revPoolBalance:', revPoolBalance.toString());
 		console.log('feePoolBalance:', feePoolBalance.toString());
 		console.log('pnlPoolBalance:', pnlPoolBalance.toString());
 
-		// assert(driftClientUser.getSpotMarketAssetValue().eq(new BN('10000000000'))); // remainder is of debt is for fees for revenue pool
-		await driftClientUser.unsubscribe();
+		// assert(velocityClientUser.getSpotMarketAssetValue().eq(new BN('10000000000'))); // remainder is of debt is for fees for revenue pool
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('5 users, 15 trades, single market, user net win, check invariants', async () => {
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
-		const driftClientOld = driftClient;
+		const velocityClientOld = velocityClient;
 
-		const [_userUSDCAccounts, _user_keys, driftClients, _userAccountInfos] =
+		const [_userUSDCAccounts, _user_keys, velocityClients, _userAccountInfos] =
 			await initUserAccounts(
 				5,
 				usdcMint,
@@ -779,7 +793,7 @@ describe('repeg and spread amm', () => {
 				btcUsd
 			);
 
-			const market0 = driftClient.getPerpMarketAccount(0);
+			const market0 = velocityClient.getPerpMarketAccount(0);
 			const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 			const [longSpread, shortSpread] = calculateSpread(
@@ -809,28 +823,28 @@ describe('repeg and spread amm', () => {
 				baseAssetAmount: new BN(tradeSize),
 			});
 
-			await driftClients[count % 5].placeAndTakePerpOrder(orderParams);
+			await velocityClients[count % 5].placeAndTakePerpOrder(orderParams);
 			count += 1;
 		}
 
 		let allUserCollateral = 0;
 		let allUserUnsettledPnl = 0;
 
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 		});
-		await driftClientUser.subscribe();
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.subscribe();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		const userCollateral = convertToNumber(
-			driftClientUser.getSpotMarketAssetValue(),
+			velocityClientUser.getSpotMarketAssetValue(),
 			QUOTE_PRECISION
 		);
 
 		const userUnsettledPnl = convertToNumber(
-			driftClientUser
+			velocityClientUser
 				.getUserAccount()
 				.perpPositions.reduce((unsettledPnl, position) => {
 					return unsettledPnl.add(
@@ -852,15 +866,15 @@ describe('repeg and spread amm', () => {
 			userUnsettledPnl,
 			'(unsettled)'
 		);
-		await driftClientUser.unsubscribe();
+		await velocityClientUser.unsubscribe();
 
 		const oraclePriceData1 = await getOraclePriceData(
 			anchor.workspace.Pyth,
 			btcUsd
 		);
 
-		for (let i = 0; i < driftClients.length; i++) {
-			const pos = driftClients[i].getUserAccount().perpPositions[0];
+		for (let i = 0; i < velocityClients.length; i++) {
+			const pos = velocityClients[i].getUserAccount().perpPositions[0];
 			console.log(
 				'user',
 				i,
@@ -868,26 +882,26 @@ describe('repeg and spread amm', () => {
 				pos.baseAssetAmount.toString()
 			);
 			if (!pos.baseAssetAmount.eq(ZERO)) {
-				// await driftClients[i].closePosition(new BN(0));
-				await iterClosePosition(driftClients[i], 0, oraclePriceData1);
-				await driftClients[i].settlePNL(
-					await driftClients[i].getUserAccountPublicKey(),
-					driftClients[i].getUserAccount(),
+				// await velocityClients[i].closePosition(new BN(0));
+				await iterClosePosition(velocityClients[i], 0, oraclePriceData1);
+				await velocityClients[i].settlePNL(
+					await velocityClients[i].getUserAccountPublicKey(),
+					velocityClients[i].getUserAccount(),
 					0
 				);
-				await driftClients[i].fetchAccounts();
+				await velocityClients[i].fetchAccounts();
 			}
 
-			const driftClientI = driftClients[i];
-			const driftClientUserI = _userAccountInfos[i];
+			const velocityClientI = velocityClients[i];
+			const velocityClientUserI = _userAccountInfos[i];
 			const userCollateral = convertToNumber(
-				driftClientUserI.getSpotMarketAssetValue(),
+				velocityClientUserI.getSpotMarketAssetValue(),
 				QUOTE_PRECISION
 			);
-			await driftClientI.fetchAccounts();
-			await driftClientUserI.fetchAccounts();
+			await velocityClientI.fetchAccounts();
+			await velocityClientUserI.fetchAccounts();
 
-			const unsettledPnl = driftClientUserI
+			const unsettledPnl = velocityClientUserI
 				.getUserAccount()
 				.perpPositions.reduce((unsettledPnl, position) => {
 					return unsettledPnl.add(
@@ -908,11 +922,11 @@ describe('repeg and spread amm', () => {
 				userUnsettledPnl,
 				'(unsettled)'
 			);
-			await driftClientI.unsubscribe();
-			await driftClientUserI.unsubscribe();
+			await velocityClientI.unsubscribe();
+			await velocityClientUserI.unsubscribe();
 		}
 
-		const market0 = driftClientOld.getPerpMarketAccount(0);
+		const market0 = velocityClientOld.getPerpMarketAccount(0);
 
 		console.log('total Fees:', market0.amm.totalFee.toString());
 		console.log(
@@ -920,7 +934,7 @@ describe('repeg and spread amm', () => {
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
 
-		const spotMarketAccount = driftClientOld.getSpotMarketAccount(
+		const spotMarketAccount = velocityClientOld.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 

@@ -167,7 +167,7 @@ import {
 	VelocityProgram,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 } from './config';
-import { Drift } from './idl/drift';
+import { Velocity } from './idl/velocity';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -329,8 +329,8 @@ export class VelocityClient {
 			config.wallet,
 			this.opts
 		);
-		this.program = new Program<Drift>(
-			VelocityCore.defaultIdl() as unknown as Drift,
+		this.program = new Program<Velocity>(
+			VelocityCore.defaultIdl() as unknown as Velocity,
 			this.provider,
 			config.coder
 		);
@@ -471,7 +471,6 @@ export class VelocityClient {
 		} else if (config.accountSubscription?.type === 'grpc') {
 			const accountSubscriberClass: any =
 				config.accountSubscription?.velocityClientAccountSubscriber ??
-				config.accountSubscription?.driftClientAccountSubscriber ??
 				grpcVelocityClientAccountSubscriber;
 			this.accountSubscriber = new accountSubscriberClass(
 				config.accountSubscription.grpcConfigs,
@@ -489,7 +488,6 @@ export class VelocityClient {
 		} else {
 			const accountSubscriberClass: any =
 				config.accountSubscription?.velocityClientAccountSubscriber ??
-				config.accountSubscription?.driftClientAccountSubscriber ??
 				WebSocketVelocityClientAccountSubscriber;
 			this.accountSubscriber = new accountSubscriberClass(
 				this.program as any,
@@ -751,7 +749,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Update the wallet to use for drift transactions and linked user account
+	 * Update the wallet to use for velocity transactions and linked user account
 	 * @param newWallet
 	 * @param subAccountIds
 	 * @param activeSubAccountId
@@ -770,8 +768,8 @@ export class VelocityClient {
 			newWallet,
 			this.opts
 		);
-		const newProgram = new Program<Drift>(
-			VelocityCore.defaultIdl() as unknown as Drift,
+		const newProgram = new Program<Velocity>(
+			VelocityCore.defaultIdl() as unknown as Velocity,
 			newProvider
 		);
 
@@ -944,7 +942,7 @@ export class VelocityClient {
 	 * Adds and subscribes to users based on params set by the constructor or by updateWallet.
 	 */
 	public async addAndSubscribeToUsers(authority?: PublicKey): Promise<boolean> {
-		// save the rpc calls if driftclient is initialized without a real wallet
+		// save the rpc calls if velocityclient is initialized without a real wallet
 		if (this.skipLoadUsers) return true;
 
 		let result = true;
@@ -2204,7 +2202,7 @@ export class VelocityClient {
 				userStats,
 				authority,
 				state: await this.getStatePublicKey(),
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				keeper: this.wallet.publicKey,
 			},
 			remainingAccounts,
@@ -2470,7 +2468,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Each drift instruction must include perp and sport market accounts in the ix remaining accounts.
+	 * Each velocity instruction must include perp and sport market accounts in the ix remaining accounts.
 	 * Use this function to force a subset of markets to be included in the remaining accounts for every ix
 	 *
 	 * @param perpMarketIndexes
@@ -3644,7 +3642,7 @@ export class VelocityClient {
 			state: await this.getStatePublicKey(),
 			spotMarket: spotMarketAccount.pubkey,
 			spotMarketVault: spotMarketAccount.vault,
-			driftSigner: this.getSignerPublicKey(),
+			velocitySigner: this.getSignerPublicKey(),
 			user,
 			userStats: this.getUserStatsAccountPublicKey(),
 			userTokenAccount,
@@ -3960,7 +3958,7 @@ export class VelocityClient {
 					).vault,
 					borrowToSpotMarketVault:
 						this.getSpotMarketAccount(borrowToMarketIndex).vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 				},
 				remainingAccounts,
 			}
@@ -4344,7 +4342,7 @@ export class VelocityClient {
 					authority: this.wallet.publicKey,
 					userTokenAccount: userTokenAccount,
 					tokenProgram: this.getTokenProgramForSpotMarket(spotMarketAccount),
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 				},
 				remainingAccounts,
 			}
@@ -5508,7 +5506,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Swap tokens in drift account using titan or jupiter
+	 * Swap tokens in velocity account using titan or jupiter
 	 * @param swapClient swap client to find routes and instructions (Titan or Jupiter)
 	 * @param jupiterClient @deprecated Use swapClient instead. Legacy parameter for backward compatibility
 	 * @param outMarketIndex the market index of the token you're buying
@@ -5519,7 +5517,7 @@ export class VelocityClient {
 	 * @param slippageBps the max slippage passed to the swap provider api
 	 * @param swapMode swap provider swapMode (ExactIn or ExactOut), default is ExactIn
 	 * @param route the swap provider route to use for the swap
-	 * @param reduceOnly specify if In or Out token on the drift account must reduceOnly, checked at end of swap
+	 * @param reduceOnly specify if In or Out token on the velocity account must reduceOnly, checked at end of swap
 	 * @param v6 pass in the quote response from swap provider quote's API (deprecated, use quote instead)
 	 * @param quote pass in the quote response from swap provider quote's API
 	 * @param txParams
@@ -5738,7 +5736,7 @@ export class VelocityClient {
 			slippageBps,
 			swapMode: isExactOut ? TitanSwapMode.ExactOut : TitanSwapMode.ExactIn,
 			onlyDirectRoutes,
-			sizeConstraint: MAX_TX_BYTE_SIZE - 375, // buffer for drift instructions
+			sizeConstraint: MAX_TX_BYTE_SIZE - 375, // buffer for velocity instructions
 		});
 
 		const titanInstructions = titanClient.getTitanInstructions({
@@ -5898,7 +5896,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Get the drift begin_swap and end_swap instructions
+	 * Get the velocity begin_swap and end_swap instructions
 	 *
 	 * @param outMarketIndex the market index of the token you're buying
 	 * @param inMarketIndex the market index of the token you're selling
@@ -6003,7 +6001,7 @@ export class VelocityClient {
 					inTokenAccount,
 					outTokenAccount,
 					tokenProgram: inTokenProgram,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -6026,7 +6024,7 @@ export class VelocityClient {
 					inTokenAccount,
 					outTokenAccount,
 					tokenProgram: inTokenProgram,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -6143,7 +6141,7 @@ export class VelocityClient {
 			amountInForBeginSwap = amount;
 		}
 
-		// Get drift swap instructions for begin and end
+		// Get velocity swap instructions for begin and end
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
@@ -6921,7 +6919,7 @@ export class VelocityClient {
 	/**
 	 * Builds a deposit and place request for Swift service
 	 *
-	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `buildSwiftDepositTx`)
+	 * @param depositTx - The signed tx containing a velocity deposit (e.g. see `buildSwiftDepositTx`)
 	 * @param orderParamsMessage - The order parameters message to sign
 	 * @param delegateSigner - Whether this is a delegate signer
 	 *
@@ -8434,7 +8432,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Get the drift liquidate_spot_with_swap instructions
+	 * Get the velocity liquidate_spot_with_swap instructions
 	 *
 	 * @param liabilityMarketIndex the market index of the token you're buying
 	 * @param assetMarketIndex the market index of the token you're selling
@@ -8537,7 +8535,7 @@ export class VelocityClient {
 						assetTokenAccount: assetTokenAccount,
 						liabilityTokenAccount: liabilityTokenAccount,
 						tokenProgram: assetTokenProgram,
-						driftSigner: this.getStateAccount().signer,
+						velocitySigner: this.getStateAccount().signer,
 						instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 					},
 					remainingAccounts,
@@ -8558,7 +8556,7 @@ export class VelocityClient {
 					assetTokenAccount: assetTokenAccount,
 					liabilityTokenAccount: liabilityTokenAccount,
 					tokenProgram: assetTokenProgram,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -8637,7 +8635,7 @@ export class VelocityClient {
 					inTokenAccount,
 					ifRebalanceConfig: ifRebalanceConfig,
 					tokenProgram: TOKEN_PROGRAM_ID,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -8657,7 +8655,7 @@ export class VelocityClient {
 					inTokenAccount,
 					ifRebalanceConfig: ifRebalanceConfig,
 					tokenProgram: TOKEN_PROGRAM_ID,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -8877,7 +8875,7 @@ export class VelocityClient {
 					liquidatorStats: liquidatorStatsPublicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				remainingAccounts: remainingAccounts,
@@ -8949,7 +8947,7 @@ export class VelocityClient {
 				liquidator,
 				spotMarketVault: spotMarket.vault,
 				insuranceFundVault: spotMarket.insuranceFund.vault,
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				tokenProgram: tokenProgramId,
 			},
 			remainingAccounts: remainingAccounts,
@@ -9283,7 +9281,7 @@ export class VelocityClient {
 					authority: this.wallet.publicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					userTokenAccount: collateralAccountPublicKey,
 					tokenProgram,
 				},
@@ -9597,7 +9595,7 @@ export class VelocityClient {
 					),
 					authority: this.wallet.publicKey,
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					userTokenAccount: tokenAccount,
 					tokenProgram,
 				},
@@ -9741,7 +9739,7 @@ export class VelocityClient {
 					state: await this.getStatePublicKey(),
 					spotMarket: spotMarketAccount.pubkey,
 					spotMarketVault: spotMarketAccount.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
 					tokenProgram: tokenProgramId,
 				},
@@ -9789,7 +9787,7 @@ export class VelocityClient {
 					authority: this.wallet.publicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					tokenProgram: tokenProgramId,
 				},
 				remainingAccounts: remainingAccounts,
@@ -9832,7 +9830,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * This ix will donate your funds to drift revenue pool. It does not deposit into your user account
+	 * This ix will donate your funds to velocity revenue pool. It does not deposit into your user account
 	 * @param marketIndex
 	 * @param amount
 	 * @param userTokenAccountPublicKey
@@ -10504,7 +10502,7 @@ export class VelocityClient {
 			{
 				remainingAccounts,
 				accounts: {
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool,
 					constituentTargetBase,
@@ -10862,7 +10860,7 @@ export class VelocityClient {
 				{
 					remainingAccounts,
 					accounts: {
-						driftSigner: this.getSignerPublicKey(),
+						velocitySigner: this.getSignerPublicKey(),
 						state: await this.getStatePublicKey(),
 						lpPool: lpPool.pubkey,
 						authority: this.wallet.publicKey,
@@ -11176,7 +11174,7 @@ export class VelocityClient {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		return this.program.instruction.settlePerpToLpPool({
 			accounts: {
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				state: await this.getStatePublicKey(),
 				keeper: this.wallet.publicKey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
@@ -11370,9 +11368,3 @@ export class VelocityClient {
 		return currentBase.add(orderBaseAmount).abs().gt(currentBase.abs());
 	}
 }
-
-/** @deprecated Use `VelocityClient` instead. `DriftClient` will be removed in a future major. */
-export const DriftClient = VelocityClient;
-
-/** @deprecated Use `VelocityClient` instead. `DriftClient` will be removed in a future major. */
-export type DriftClient = VelocityClient;

@@ -28,7 +28,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -43,8 +43,8 @@ describe('spot deposit and withdraw', () => {
 
 	let adminUsdcAccount: Keypair;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -109,7 +109,7 @@ describe('spot deposit and withdraw', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
 	});
 
 	it('Deposit into spot market vault', async () => {
@@ -135,7 +135,7 @@ describe('spot deposit and withdraw', () => {
 			maintenanceLiabilityWeight
 		);
 
-		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
+		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -149,11 +149,11 @@ describe('spot deposit and withdraw', () => {
 
 		const marketIndex = 0;
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		const txSig = await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		const txSig = await firstUserVelocityClient.deposit(
 			usdcAmount,
 			marketIndex,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -171,7 +171,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		assert(vaultAmount.eq(usdcAmount));
 
-		const depositTokenAmountBefore = firstUserDriftClient.getTokenAmount(0);
+		const depositTokenAmountBefore = firstUserVelocityClient.getTokenAmount(0);
 		assert(depositTokenAmountBefore.eq(usdcAmount));
 
 		await admin.depositIntoSpotMarketVault(
@@ -187,7 +187,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		assert(vaultAmountAfter.eq(usdcAmount.muln(2)));
 
-		const depositTokenAmount = firstUserDriftClient.getTokenAmount(0);
+		const depositTokenAmount = firstUserVelocityClient.getTokenAmount(0);
 		assert(depositTokenAmount.eq(usdcAmount.muln(2)));
 	});
 });

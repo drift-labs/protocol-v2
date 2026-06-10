@@ -32,13 +32,13 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('whitelist', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -79,7 +79,7 @@ describe('whitelist', () => {
 		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -97,11 +97,11 @@ describe('whitelist', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -133,24 +133,24 @@ describe('whitelist', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('Assert whitelist mint null', async () => {
-		const state = driftClient.getStateAccount();
+		const state = velocityClient.getStateAccount();
 		assert(state.whitelistMint.equals(PublicKey.default));
 	});
 
 	it('enable whitelist mint', async () => {
-		await driftClient.updateWhitelistMint(whitelistMint);
-		const state = driftClient.getStateAccount();
+		await velocityClient.updateWhitelistMint(whitelistMint);
+		const state = velocityClient.getStateAccount();
 		console.assert(state.whitelistMint.equals(whitelistMint));
 	});
 
 	it('block initialize user', async () => {
 		try {
 			[, userAccountPublicKey] =
-				await driftClient.initializeUserAccountAndDepositCollateral(
+				await velocityClient.initializeUserAccountAndDepositCollateral(
 					usdcAmount,
 					userUSDCAccount.publicKey
 				);
@@ -183,12 +183,12 @@ describe('whitelist', () => {
 		);
 
 		[, userAccountPublicKey] =
-			await driftClient.initializeUserAccountAndDepositCollateral(
+			await velocityClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 
-		const user: any = await driftClient.program.account.user.fetch(
+		const user: any = await velocityClient.program.account.user.fetch(
 			userAccountPublicKey
 		);
 
@@ -198,8 +198,8 @@ describe('whitelist', () => {
 	});
 
 	it('disable whitelist mint', async () => {
-		await driftClient.updateWhitelistMint(PublicKey.default);
-		const state = driftClient.getStateAccount();
+		await velocityClient.updateWhitelistMint(PublicKey.default);
+		const state = velocityClient.getStateAccount();
 		console.assert(state.whitelistMint.equals(PublicKey.default));
 	});
 });

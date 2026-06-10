@@ -52,10 +52,10 @@ describe('place and make signedMsg order', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let makerDriftClient: TestClient;
-	let makerDriftClientUser: User;
+	let makerVelocityClient: TestClient;
+	let makerVelocityClientUser: User;
 	//@ts-ignore
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
 		commitment: 'recent',
@@ -101,7 +101,7 @@ describe('place and make signedMsg order', () => {
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		const wallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection,
 			//@ts-ignore
 			wallet,
@@ -119,12 +119,12 @@ describe('place and make signedMsg order', () => {
 			},
 			txVersion: 'legacy',
 		});
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
-		await makerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
+		await makerVelocityClient.initialize(usdcMint.publicKey, true);
+		await makerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(makerVelocityClient, usdcMint.publicKey);
 
 		const periodicity = new BN(0);
-		await makerDriftClient.initializePerpMarket(
+		await makerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -133,25 +133,25 @@ describe('place and make signedMsg order', () => {
 			new BN(32 * PEG_PRECISION.toNumber())
 		);
 
-		await makerDriftClient.initializeUserAccountAndDepositCollateral(
+		await makerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		makerDriftClientUser = new User({
-			driftClient: makerDriftClient,
-			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+		makerVelocityClientUser = new User({
+			velocityClient: makerVelocityClient,
+			userAccountPublicKey: await makerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClientUser.subscribe();
+		await makerVelocityClientUser.subscribe();
 	});
 
 	after(async () => {
-		await makerDriftClient.unsubscribe();
-		await makerDriftClientUser.unsubscribe();
+		await makerVelocityClient.unsubscribe();
+		await makerVelocityClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -166,7 +166,7 @@ describe('place and make signedMsg order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new TestClient({
+		const takerVelocityClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -184,21 +184,21 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		await takerVelocityClient.subscribe();
+		await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+		const takerVelocityClientUser = new User({
+			velocityClient: takerVelocityClient,
+			userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -224,7 +224,7 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -236,9 +236,10 @@ describe('place and make signedMsg order', () => {
 			bitFlags: 1,
 		});
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		const ixs = [
 			ComputeBudgetProgram.setComputeUnitLimit({
@@ -246,14 +247,14 @@ describe('place and make signedMsg order', () => {
 			}),
 		];
 		ixs.push(
-			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+			...(await makerVelocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 				signedOrderParams,
 				uuid,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.authority,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.authority,
 				},
 				makerOrderParams,
 				undefined,
@@ -264,7 +265,7 @@ describe('place and make signedMsg order', () => {
 
 		const message = new TransactionMessage({
 			instructions: ixs,
-			payerKey: makerDriftClient.wallet.payer.publicKey,
+			payerKey: makerVelocityClient.wallet.payer.publicKey,
 			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
 		}).compileToV0Message();
 		const tx = new VersionedTransaction(message);
@@ -274,7 +275,7 @@ describe('place and make signedMsg order', () => {
 
 		const normalTx = new Transaction();
 		normalTx.add(...ixs);
-		await makerDriftClient.sendTransaction(normalTx);
+		await makerVelocityClient.sendTransaction(normalTx);
 	});
 
 	it('should fail on bad order params sig', async () => {
@@ -288,7 +289,7 @@ describe('place and make signedMsg order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new TestClient({
+		const takerVelocityClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -306,21 +307,21 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		await takerVelocityClient.subscribe();
+		await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+		const takerVelocityClientUser = new User({
+			velocityClient: takerVelocityClient,
+			userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -346,7 +347,7 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -359,12 +360,12 @@ describe('place and make signedMsg order', () => {
 		});
 
 		const takerOrderParamsMessageEncoded =
-			takerDriftClient.encodeSignedMsgOrderParamsMessage(
+			takerVelocityClient.encodeSignedMsgOrderParamsMessage(
 				takerOrderParamsMessage
 			);
-		const takerOrderParamsSig = takerDriftClient.signMessage(
+		const takerOrderParamsSig = takerVelocityClient.signMessage(
 			Buffer.from(takerOrderParamsMessageEncoded.toString('hex')),
-			makerDriftClient.wallet.payer
+			makerVelocityClient.wallet.payer
 		);
 
 		const ixs = [
@@ -373,7 +374,7 @@ describe('place and make signedMsg order', () => {
 			}),
 		];
 		ixs.push(
-			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+			...(await makerVelocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 				{
 					orderParams: Buffer.from(
 						takerOrderParamsMessageEncoded.toString('hex')
@@ -382,10 +383,10 @@ describe('place and make signedMsg order', () => {
 				},
 				uuid,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.authority,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.authority,
 				},
 				makerOrderParams,
 				undefined,
@@ -397,7 +398,7 @@ describe('place and make signedMsg order', () => {
 		try {
 			const normalTx = new Transaction();
 			normalTx.add(...ixs);
-			await makerDriftClient.sendTransaction(normalTx);
+			await makerVelocityClient.sendTransaction(normalTx);
 			assert.fail('should have thrown');
 		} catch (error) {
 			assert.equal(
@@ -418,7 +419,7 @@ describe('place and make signedMsg order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new TestClient({
+		const takerVelocityClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -436,24 +437,24 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		await takerVelocityClient.subscribe();
+		await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+		const takerVelocityClientUser = new User({
+			velocityClient: takerVelocityClient,
+			userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
 		const delegate = Keypair.generate();
-		await takerDriftClient.updateUserDelegate(delegate.publicKey);
+		await takerVelocityClient.updateUserDelegate(delegate.publicKey);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -479,7 +480,7 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -492,12 +493,12 @@ describe('place and make signedMsg order', () => {
 		});
 
 		const takerOrderParamsMessageEncoded =
-			takerDriftClient.encodeSignedMsgOrderParamsMessage(
+			takerVelocityClient.encodeSignedMsgOrderParamsMessage(
 				takerOrderParamsMessage
 			);
-		const takerOrderParamsSig = takerDriftClient.signMessage(
+		const takerOrderParamsSig = takerVelocityClient.signMessage(
 			Buffer.from(takerOrderParamsMessageEncoded.toString('hex')),
-			makerDriftClient.wallet.payer
+			makerVelocityClient.wallet.payer
 		);
 
 		const ixs = [
@@ -506,7 +507,7 @@ describe('place and make signedMsg order', () => {
 			}),
 		];
 		ixs.push(
-			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+			...(await makerVelocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 				{
 					orderParams: Buffer.from(
 						takerOrderParamsMessageEncoded.toString('hex')
@@ -515,9 +516,9 @@ describe('place and make signedMsg order', () => {
 				},
 				uuid,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
 					signingAuthority: delegate.publicKey,
 				},
 				makerOrderParams,
@@ -530,7 +531,7 @@ describe('place and make signedMsg order', () => {
 		try {
 			const normalTx = new Transaction();
 			normalTx.add(...ixs);
-			await makerDriftClient.sendTransaction(normalTx);
+			await makerVelocityClient.sendTransaction(normalTx);
 			assert.fail('should have thrown');
 		} catch (error) {
 			assert.equal(
@@ -551,7 +552,7 @@ describe('place and make signedMsg order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new TestClient({
+		const takerVelocityClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -569,21 +570,21 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		await takerVelocityClient.subscribe();
+		await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+		const takerVelocityClientUser = new User({
+			velocityClient: takerVelocityClient,
+			userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -606,7 +607,7 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -618,9 +619,10 @@ describe('place and make signedMsg order', () => {
 			bitFlags: 1,
 		});
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		const ixs = [
 			ComputeBudgetProgram.setComputeUnitLimit({
@@ -628,14 +630,14 @@ describe('place and make signedMsg order', () => {
 			}),
 		];
 		ixs.push(
-			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+			...(await makerVelocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 				signedOrderParams,
 				uuid,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.authority,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.authority,
 				},
 				makerOrderParams,
 				undefined,
@@ -646,7 +648,7 @@ describe('place and make signedMsg order', () => {
 
 		const message = new TransactionMessage({
 			instructions: ixs,
-			payerKey: makerDriftClient.wallet.payer.publicKey,
+			payerKey: makerVelocityClient.wallet.payer.publicKey,
 			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
 		}).compileToV0Message();
 		const tx = new VersionedTransaction(message);
@@ -656,11 +658,11 @@ describe('place and make signedMsg order', () => {
 
 		const normalTx = new Transaction();
 		normalTx.add(...ixs);
-		await makerDriftClient.sendTransaction(normalTx);
+		await makerVelocityClient.sendTransaction(normalTx);
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
-		const perpPosition = await takerDriftClientUser.getPerpPosition(
+		const perpPosition = await takerVelocityClientUser.getPerpPosition(
 			marketIndex
 		);
 		assert.equal(
@@ -680,7 +682,7 @@ describe('place and make signedMsg order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new TestClient({
+		const takerVelocityClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -698,21 +700,21 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		await takerVelocityClient.subscribe();
+		await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+		const takerVelocityClientUser = new User({
+			velocityClient: takerVelocityClient,
+			userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -735,7 +737,7 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 		};
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -747,9 +749,10 @@ describe('place and make signedMsg order', () => {
 			bitFlags: 1,
 		});
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
+		const signedOrderParams =
+			takerVelocityClient.signSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
 		const ixs = [
 			ComputeBudgetProgram.setComputeUnitLimit({
@@ -757,14 +760,14 @@ describe('place and make signedMsg order', () => {
 			}),
 		];
 		ixs.push(
-			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+			...(await makerVelocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 				signedOrderParams,
 				uuid,
 				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.authority,
+					taker: await takerVelocityClient.getUserAccountPublicKey(),
+					takerUserAccount: takerVelocityClient.getUserAccount(),
+					takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerVelocityClient.authority,
 				},
 				makerOrderParams,
 				undefined,
@@ -775,7 +778,7 @@ describe('place and make signedMsg order', () => {
 
 		const message = new TransactionMessage({
 			instructions: ixs,
-			payerKey: makerDriftClient.wallet.payer.publicKey,
+			payerKey: makerVelocityClient.wallet.payer.publicKey,
 			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
 		}).compileToV0Message();
 		const tx = new VersionedTransaction(message);

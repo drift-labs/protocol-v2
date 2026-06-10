@@ -104,7 +104,7 @@ function buildMsg(
 }
 
 describe('builder codes', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let usdcMint: Keypair;
 

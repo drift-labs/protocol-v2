@@ -35,9 +35,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate perp (no open orders)', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -49,7 +49,7 @@ describe('liquidate perp (no open orders)', () => {
 
 	const liquidatorKeyPair = new Keypair();
 	let liquidatorUSDCAccount: Keypair;
-	let liquidatorDriftClient: TestClient;
+	let liquidatorVelocityClient: TestClient;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -95,7 +95,7 @@ describe('liquidate perp (no open orders)', () => {
 			10000
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -117,15 +117,15 @@ describe('liquidate perp (no open orders)', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.updateInitialPctToLiquidate(
+		await velocityClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
@@ -140,11 +140,11 @@ describe('liquidate perp (no open orders)', () => {
 			},
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 
 		const periodicity = new BN(0);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 
 			oracle,
@@ -153,12 +153,12 @@ describe('liquidate perp (no open orders)', () => {
 			periodicity
 		);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 17.5 SOL
 			0,
@@ -172,7 +172,7 @@ describe('liquidate perp (no open orders)', () => {
 			bankrunContextWrapper,
 			liquidatorKeyPair.publicKey
 		);
-		liquidatorDriftClient = new TestClient({
+		liquidatorVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(liquidatorKeyPair),
 			programID: chProgram.programId,
@@ -194,36 +194,36 @@ describe('liquidate perp (no open orders)', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await liquidatorDriftClient.subscribe();
+		await liquidatorVelocityClient.subscribe();
 
-		await liquidatorDriftClient.initializeUserAccountAndDepositCollateral(
+		await liquidatorVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			liquidatorUSDCAccount.publicKey
 		);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await liquidatorDriftClient.unsubscribe();
+		await velocityClient.unsubscribe();
+		await liquidatorVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		const marketIndex = 0;
 
-		const driftClientUser = new User({
-			driftClient: driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient: velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
-		const mtc = driftClientUser.getTotalCollateral('Maintenance');
-		const mmr = driftClientUser.getMaintenanceMarginRequirement();
-		const pp = driftClientUser.getPerpPosition(0);
+		const mtc = velocityClientUser.getTotalCollateral('Maintenance');
+		const mmr = velocityClientUser.getMaintenanceMarginRequirement();
+		const pp = velocityClientUser.getPerpPosition(0);
 
 		const deltaValueToLiq = mtc.sub(mmr); // QUOTE_PRECISION
 		console.log('mtc:', mtc.toString());
@@ -232,25 +232,25 @@ describe('liquidate perp (no open orders)', () => {
 		console.log('pp.base:', pp.baseAssetAmount.toString());
 
 		const expectedLiqPrice = 0.452195;
-		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
+		const liqPrice = velocityClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
 		assert(liqPrice.eq(new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())));
 
-		const oracle = driftClient.getPerpMarketAccount(0).oracle;
+		const oracle = velocityClient.getPerpMarketAccount(0).oracle;
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle, 10000);
 		await sleep(2000);
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const oraclePrice = driftClient.getOracleDataForPerpMarket(0).price;
+		const oraclePrice = velocityClient.getOracleDataForPerpMarket(0).price;
 		console.log('oraclePrice:', oraclePrice.toString());
 		assert(oraclePrice.eq(new BN(0.9 * PRICE_PRECISION.toNumber())));
-		const liqPriceAfterPxChange = driftClientUser.liquidationPrice(0, ZERO);
+		const liqPriceAfterPxChange = velocityClientUser.liquidationPrice(0, ZERO);
 
 		console.log('liqPriceAfterPxChange:', liqPriceAfterPxChange.toString());
-		const mtc0 = driftClientUser.getTotalCollateral('Maintenance');
-		const mmr0 = driftClientUser.getMaintenanceMarginRequirement();
-		const pp0 = driftClientUser.getPerpPosition(0);
+		const mtc0 = velocityClientUser.getTotalCollateral('Maintenance');
+		const mmr0 = velocityClientUser.getMaintenanceMarginRequirement();
+		const pp0 = velocityClientUser.getPerpPosition(0);
 
 		const deltaValueToLiq0 = mtc0.sub(mmr0); // QUOTE_PRECISION
 		console.log('mtc0:', mtc0.toString());
@@ -263,22 +263,22 @@ describe('liquidate perp (no open orders)', () => {
 			)
 		);
 
-		await driftClient.settlePNL(
-			driftClientUser.userAccountPublicKey,
-			driftClientUser.getUserAccount(),
+		await velocityClient.settlePNL(
+			velocityClientUser.userAccountPublicKey,
+			velocityClientUser.getUserAccount(),
 			0
 		);
 		await sleep(2000);
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
-		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(0).price;
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
+		const oraclePrice2 = velocityClient.getOracleDataForPerpMarket(0).price;
 		console.log('oraclePrice2:', oraclePrice2.toString());
 		assert(oraclePrice2.eq(new BN(0.9 * PRICE_PRECISION.toNumber())));
-		const liqPriceAfterSettlePnl = driftClientUser.liquidationPrice(0, ZERO);
+		const liqPriceAfterSettlePnl = velocityClientUser.liquidationPrice(0, ZERO);
 
-		const mtc2 = driftClientUser.getTotalCollateral('Maintenance');
-		const mmr2 = driftClientUser.getMaintenanceMarginRequirement();
-		const pp2 = driftClientUser.getPerpPosition(0);
+		const mtc2 = velocityClientUser.getTotalCollateral('Maintenance');
+		const mmr2 = velocityClientUser.getMaintenanceMarginRequirement();
+		const pp2 = velocityClientUser.getPerpPosition(0);
 
 		const deltaValueToLiq2 = mtc2.sub(mmr2); // QUOTE_PRECISION
 		console.log('mtc2:', mtc2.toString());
@@ -295,18 +295,18 @@ describe('liquidate perp (no open orders)', () => {
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle, 10000);
 		await sleep(2000);
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
-		const oraclePrice3 = driftClient.getOracleDataForPerpMarket(0).price;
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
+		const oraclePrice3 = velocityClient.getOracleDataForPerpMarket(0).price;
 		console.log('oraclePrice3:', oraclePrice3.toString());
 		assert(oraclePrice3.eq(new BN(1100000)));
-		await driftClient.settlePNL(
-			driftClientUser.userAccountPublicKey,
-			driftClientUser.getUserAccount(),
+		await velocityClient.settlePNL(
+			velocityClientUser.userAccountPublicKey,
+			velocityClientUser.getUserAccount(),
 			0
 		);
 
-		const liqPriceAfterRallySettlePnl = driftClientUser.liquidationPrice(
+		const liqPriceAfterRallySettlePnl = velocityClientUser.liquidationPrice(
 			0,
 			ZERO
 		);
@@ -319,20 +319,23 @@ describe('liquidate perp (no open orders)', () => {
 				new BN(expectedLiqPrice * PRICE_PRECISION.toNumber())
 			)
 		);
-		await driftClientUser.unsubscribe();
+		await velocityClientUser.unsubscribe();
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle, 10000);
 
-		const txSig1 = await liquidatorDriftClient.setUserStatusToBeingLiquidated(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount()
-		);
+		const txSig1 =
+			await liquidatorVelocityClient.setUserStatusToBeingLiquidated(
+				await velocityClient.getUserAccountPublicKey(),
+				velocityClient.getUserAccount()
+			);
 		console.log('setUserStatusToBeingLiquidated txSig:', txSig1);
-		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
+		assert(
+			velocityClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED
+		);
 
-		const txSig = await liquidatorDriftClient.liquidatePerp(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		const txSig = await liquidatorVelocityClient.liquidatePerp(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			0,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10))
 		);
@@ -340,17 +343,21 @@ describe('liquidate perp (no open orders)', () => {
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
 		for (let i = 0; i < 32; i++) {
-			assert(!isVariant(driftClient.getUserAccount().orders[i].status, 'open'));
+			assert(
+				!isVariant(velocityClient.getUserAccount().orders[i].status, 'open')
+			);
 		}
 
 		assert(
-			liquidatorDriftClient
+			liquidatorVelocityClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
-		assert(driftClient.getUserAccount().nextLiquidationId === 2);
+		assert(
+			velocityClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED
+		);
+		assert(velocityClient.getUserAccount().nextLiquidationId === 2);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
@@ -402,27 +409,29 @@ describe('liquidate perp (no open orders)', () => {
 		assert(fillRecord.makerExistingQuoteEntryAmount === null);
 		assert(fillRecord.makerExistingBaseAssetAmount === null);
 
-		const _sig2 = await liquidatorDriftClient.liquidatePerpPnlForDeposit(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		const _sig2 = await liquidatorVelocityClient.liquidatePerpPnlForDeposit(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			0,
 			0,
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount
+			velocityClient.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
 
-		await driftClient.fetchAccounts();
-		assert(driftClient.getUserAccount().status === UserStatus.BANKRUPT);
+		await velocityClient.fetchAccounts();
+		assert(velocityClient.getUserAccount().status === UserStatus.BANKRUPT);
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteAssetAmount.eq(new BN(-5767726))
 		);
 
-		await driftClient.updatePerpMarketContractTier(0, ContractTier.A);
-		const tx1 = await driftClient.updatePerpMarketMaxImbalances(
+		await velocityClient.updatePerpMarketContractTier(0, ContractTier.A);
+		const tx1 = await velocityClient.updatePerpMarketMaxImbalances(
 			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),
 			QUOTE_PRECISION,
@@ -430,9 +439,9 @@ describe('liquidate perp (no open orders)', () => {
 		);
 		bankrunContextWrapper.connection.printTxLogs(tx1);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		const marketBeforeBankruptcy =
-			driftClient.getPerpMarketAccount(marketIndex);
+			velocityClient.getPerpMarketAccount(marketIndex);
 		assert(
 			marketBeforeBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
 				ZERO
@@ -447,15 +456,16 @@ describe('liquidate perp (no open orders)', () => {
 			)
 		);
 		assert(marketBeforeBankruptcy.totalSocialLoss.eq(ZERO));
-		const _sig = await liquidatorDriftClient.resolvePerpBankruptcy(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		const _sig = await liquidatorVelocityClient.resolvePerpBankruptcy(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			0
 		);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		// all social loss
-		const marketAfterBankruptcy = driftClient.getPerpMarketAccount(marketIndex);
+		const marketAfterBankruptcy =
+			velocityClient.getPerpMarketAccount(marketIndex);
 		assert(
 			marketAfterBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
 				ZERO
@@ -472,15 +482,15 @@ describe('liquidate perp (no open orders)', () => {
 		);
 		assert(marketAfterBankruptcy.totalSocialLoss.eq(new BN(5767726)));
 
-		// assert(!driftClient.getUserAccount().isBankrupt);
-		// assert(!driftClient.getUserAccount().isBeingLiquidated);
+		// assert(!velocityClient.getUserAccount().isBankrupt);
+		// assert(!velocityClient.getUserAccount().isBeingLiquidated);
 		assert(
-			(driftClient.getUserAccount().status &
+			(velocityClient.getUserAccount().status &
 				(UserStatus.BANKRUPT | UserStatus.BEING_LIQUIDATED)) ===
 				0
 		);
 
-		console.log(driftClient.getUserAccount());
+		console.log(velocityClient.getUserAccount());
 
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
@@ -501,7 +511,7 @@ describe('liquidate perp (no open orders)', () => {
 			)
 		);
 
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = velocityClient.getPerpMarketAccount(0);
 		console.log(
 			market.cumulativeFundingRateLong.toString(),
 			market.cumulativeFundingRateShort.toString()

@@ -5,15 +5,15 @@ trap 'echo -e "\nStopped by signal $? (SIGINT)"; exit 0' INT
 
 if [ "$1" != "--skip-build" ]; then
   anchor build --ignore-keys --skip-lint -- --features anchor-test && anchor test --skip-build --skip-local-validator --skip-deploy &&
-    cp target/idl/drift.json sdk/src/idl/ && cp target/types/drift.ts sdk/src/idl/
+    cp target/idl/velocity.json sdk/src/idl/ && cp target/types/velocity.ts sdk/src/idl/
 else
   # --skip-build still needs the bundled SDK IDL to match the deployed program ID,
   # otherwise tx instructions target a program that bankrun never loaded.
-  if [ -f target/idl/drift.json ]; then
-    cp target/idl/drift.json sdk/src/idl/
+  if [ -f target/idl/velocity.json ]; then
+    cp target/idl/velocity.json sdk/src/idl/
   fi
-  if [ -f target/types/drift.ts ]; then
-    cp target/types/drift.ts sdk/src/idl/
+  if [ -f target/types/velocity.ts ]; then
+    cp target/types/velocity.ts sdk/src/idl/
   fi
   ( cd sdk && bun run build >/dev/null )
 fi
@@ -41,11 +41,11 @@ test_files=(
   curve.ts
   deleteInitializedSpotMarket.ts
   depositIntoSpotMarketVault.ts
-  driftClient.ts
+  velocityClient.ts
   # ifRebalance.ts # broken by spot fulfillment purge — needs migration to read serum vaults directly off the Market
   # adminWithdrawFromInsuranceFundVault.ts # uses production-snapshot grafting with old struct layout — re-snapshot needed
   insuranceFundStake.ts
-  isolatedPositionDriftClient.ts
+  isolatedPositionVelocityClient.ts
   isolatedPositionLiquidatePerp.ts
   isolatedPositionLiquidatePerpwithFill.ts
   liquidateBorrowForPerpPnl.ts

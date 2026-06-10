@@ -25,18 +25,18 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 describe('admin deposit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
-	let adminDriftClient: TestClient;
+	let adminVelocityClient: TestClient;
 	let adminUSDCAccount: Keypair;
 
 	let userKeyPair: Keypair;
-	let userDriftClient: TestClient;
+	let userVelocityClient: TestClient;
 
 	let userKeyPair2: Keypair;
-	let userDriftClient2: TestClient;
+	let userVelocityClient2: TestClient;
 	let user2USDCAccount: Keypair;
 
 	let usdcMint;
@@ -71,7 +71,7 @@ describe('admin deposit', () => {
 			userKeyPair2.publicKey
 		);
 
-		adminDriftClient = new TestClient({
+		adminVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -88,16 +88,16 @@ describe('admin deposit', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await adminDriftClient.initialize(usdcMint.publicKey, true);
-		await adminDriftClient.subscribe();
-		await initializeQuoteSpotMarket(adminDriftClient, usdcMint.publicKey);
-		// await adminDriftClient.initializeUserAccountAndDepositCollateral(
+		await adminVelocityClient.initialize(usdcMint.publicKey, true);
+		await adminVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(adminVelocityClient, usdcMint.publicKey);
+		// await adminVelocityClient.initializeUserAccountAndDepositCollateral(
 		// 	QUOTE_PRECISION,
 		// 	adminUSDCAccount.publicKey
 		// );
-		await adminDriftClient.initializeUserAccount(0, 'admin subacc 0');
+		await adminVelocityClient.initializeUserAccount(0, 'admin subacc 0');
 
-		userDriftClient = new TestClient({
+		userVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(userKeyPair),
 			programID: chProgram.programId,
@@ -114,11 +114,11 @@ describe('admin deposit', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await userDriftClient.subscribe();
-		await userDriftClient.initializeUserAccount(0, 'user account 0');
+		await userVelocityClient.subscribe();
+		await userVelocityClient.initializeUserAccount(0, 'user account 0');
 
 		userKeyPair2 = await createFundedKeyPair(bankrunContextWrapper);
-		userDriftClient2 = new TestClient({
+		userVelocityClient2 = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(userKeyPair2),
 			programID: chProgram.programId,
@@ -135,24 +135,24 @@ describe('admin deposit', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await userDriftClient2.subscribe();
+		await userVelocityClient2.subscribe();
 	});
 
 	after(async () => {
-		await adminDriftClient.unsubscribe();
-		await userDriftClient.unsubscribe();
+		await adminVelocityClient.unsubscribe();
+		await userVelocityClient.unsubscribe();
 	});
 
 	it('admin can deposit into user', async () => {
-		const userAccount = await userDriftClient.getUserAccountPublicKey(0);
+		const userAccount = await userVelocityClient.getUserAccountPublicKey(0);
 		console.log('user userAccount', userAccount.toBase58());
 
-		const state = adminDriftClient.getStateAccount().coldAdmin.toBase58();
-		expect(state).to.be.equal(adminDriftClient.wallet.publicKey.toBase58());
+		const state = adminVelocityClient.getStateAccount().coldAdmin.toBase58();
+		expect(state).to.be.equal(adminVelocityClient.wallet.publicKey.toBase58());
 
 		// user has 0 balance
-		let spotPos = userDriftClient.getSpotPosition(0);
-		let spotMarket = userDriftClient.getSpotMarketAccount(0);
+		let spotPos = userVelocityClient.getSpotPosition(0);
+		let spotMarket = userVelocityClient.getSpotMarketAccount(0);
 		const userSpotBalBefore = getSignedTokenAmount(
 			getTokenAmount(spotPos.scaledBalance, spotMarket, spotPos.balanceType),
 			spotPos.balanceType
@@ -160,19 +160,19 @@ describe('admin deposit', () => {
 		expect(userSpotBalBefore.toString()).to.be.equal('0');
 
 		// admin deposits into user
-		await adminDriftClient.adminDeposit(
+		await adminVelocityClient.adminDeposit(
 			0,
 			usdcAmount,
 			userAccount,
 			adminUSDCAccount.publicKey
 		);
 
-		await adminDriftClient.fetchAccounts();
-		await userDriftClient.fetchAccounts();
+		await adminVelocityClient.fetchAccounts();
+		await userVelocityClient.fetchAccounts();
 
 		// check user got the deposit
-		spotPos = userDriftClient.getSpotPosition(0);
-		spotMarket = userDriftClient.getSpotMarketAccount(0);
+		spotPos = userVelocityClient.getSpotPosition(0);
+		spotMarket = userVelocityClient.getSpotMarketAccount(0);
 		const userSpotBalAfter = getSignedTokenAmount(
 			getTokenAmount(spotPos.scaledBalance, spotMarket, spotPos.balanceType),
 			spotPos.balanceType
@@ -182,12 +182,14 @@ describe('admin deposit', () => {
 	});
 
 	it('user2 cannot deposit into user', async () => {
-		const state = adminDriftClient.getStateAccount().coldAdmin.toBase58();
-		expect(state).to.not.be.equal(userDriftClient2.wallet.publicKey.toBase58());
+		const state = adminVelocityClient.getStateAccount().coldAdmin.toBase58();
+		expect(state).to.not.be.equal(
+			userVelocityClient2.wallet.publicKey.toBase58()
+		);
 
 		// user has 0 balance
-		let spotPos = userDriftClient.getSpotPosition(0);
-		let spotMarket = userDriftClient.getSpotMarketAccount(0);
+		let spotPos = userVelocityClient.getSpotPosition(0);
+		let spotMarket = userVelocityClient.getSpotMarketAccount(0);
 		const userSpotBalBefore = getSignedTokenAmount(
 			getTokenAmount(spotPos.scaledBalance, spotMarket, spotPos.balanceType),
 			spotPos.balanceType
@@ -195,10 +197,10 @@ describe('admin deposit', () => {
 
 		// user2 attempts to deposit into user
 		try {
-			await userDriftClient2.adminDeposit(
+			await userVelocityClient2.adminDeposit(
 				0,
 				usdcAmount,
-				await userDriftClient.getUserAccountPublicKey(0),
+				await userVelocityClient.getUserAccountPublicKey(0),
 				user2USDCAccount.publicKey
 			);
 			expect.fail('should not allow non-admin to call adminDeposit');
@@ -206,12 +208,12 @@ describe('admin deposit', () => {
 			expect(e.message as string).to.contain('0x7d3');
 		}
 
-		await adminDriftClient.fetchAccounts();
-		await userDriftClient.fetchAccounts();
+		await adminVelocityClient.fetchAccounts();
+		await userVelocityClient.fetchAccounts();
 
 		// check user did not get the deposit
-		spotPos = userDriftClient.getSpotPosition(0);
-		spotMarket = userDriftClient.getSpotMarketAccount(0);
+		spotPos = userVelocityClient.getSpotPosition(0);
+		spotMarket = userVelocityClient.getSpotMarketAccount(0);
 		const userSpotBalAfter = getSignedTokenAmount(
 			getTokenAmount(spotPos.scaledBalance, spotMarket, spotPos.balanceType),
 			spotPos.balanceType

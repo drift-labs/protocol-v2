@@ -18,9 +18,9 @@ import {
 } from './testHelpers';
 
 describe('perp market config flag', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint;
@@ -38,7 +38,7 @@ describe('perp market config flag', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -55,8 +55,8 @@ describe('perp market config flag', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
 		const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 		const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -66,7 +66,7 @@ describe('perp market config flag', () => {
 			mantissaSqrtScale
 		);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			await mockOracleNoProgram(bankrunContextWrapper, 100),
 			ammInitialBaseAssetReserve,
@@ -74,27 +74,27 @@ describe('perp market config flag', () => {
 			new BN(0),
 			new BN(100 * PEG_PRECISION.toNumber())
 		);
-		await driftClient.initializeAmmCache();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await velocityClient.initializeAmmCache();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('set disable formulaic k update flag', async () => {
 		const marketIndex = 0;
 
-		let market = driftClient.getPerpMarketAccount(marketIndex);
+		let market = velocityClient.getPerpMarketAccount(marketIndex);
 		assert(market.marketConfig === 0);
 
-		await driftClient.updatePerpMarketConfig(
+		await velocityClient.updatePerpMarketConfig(
 			marketIndex,
 			MarketConfigFlag.DISABLE_FORMULAIC_K_UPDATE
 		);
 
-		await driftClient.fetchAccounts();
-		market = driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		market = velocityClient.getPerpMarketAccount(marketIndex);
 		assert(
 			(market.marketConfig & MarketConfigFlag.DISABLE_FORMULAIC_K_UPDATE) !== 0
 		);
@@ -103,10 +103,10 @@ describe('perp market config flag', () => {
 	it('clear disable formulaic k update flag', async () => {
 		const marketIndex = 0;
 
-		await driftClient.updatePerpMarketConfig(marketIndex, 0);
+		await velocityClient.updatePerpMarketConfig(marketIndex, 0);
 
-		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		await velocityClient.fetchAccounts();
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 		assert(market.marketConfig === 0);
 	});
 
@@ -114,7 +114,7 @@ describe('perp market config flag', () => {
 		const marketIndex = 0;
 		let threw = false;
 		try {
-			await driftClient.updatePerpMarketConfig(marketIndex, 0xff);
+			await velocityClient.updatePerpMarketConfig(marketIndex, 0xff);
 		} catch (e) {
 			threw = true;
 		}

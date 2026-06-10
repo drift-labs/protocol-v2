@@ -18,8 +18,6 @@ const MAX_CONSTITUENT_SIZE_BYTES = 480; // TODO: update this when account is fin
 
 export type ConstituentMapConfig = {
 	velocityClient?: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	driftClient?: VelocityClient;
 	connection?: Connection;
 	subscriptionConfig:
 		| {
@@ -71,11 +69,9 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private decoder: 'base64' | 'base64+zstd';
 
 	constructor(config: ConstituentMapConfig) {
-		const velocityClient = config.velocityClient ?? config.driftClient;
+		const velocityClient = config.velocityClient;
 		if (!velocityClient) {
-			throw new Error(
-				'ConstituentMap: velocityClient (or deprecated driftClient) must be provided'
-			);
+			throw new Error('ConstituentMap: velocityClient must be provided');
 		}
 		this.velocityClient = velocityClient;
 		this.additionalFilters = config.additionalFilters;

@@ -45,7 +45,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -58,12 +58,12 @@ describe('spot deposit and withdraw', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
-	let secondUserDriftClientUSDCAccount: PublicKey;
+	let secondUserVelocityClient: TestClient;
+	let secondUserVelocityClientWSOLAccount: PublicKey;
+	let secondUserVelocityClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -126,8 +126,8 @@ describe('spot deposit and withdraw', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
+		await secondUserVelocityClient.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -264,7 +264,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
+		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -278,11 +278,11 @@ describe('spot deposit and withdraw', () => {
 
 		const marketIndex = 0;
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		const txSig = await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		const txSig = await firstUserVelocityClient.deposit(
 			usdcAmount,
 			marketIndex,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -305,18 +305,21 @@ describe('spot deposit and withdraw', () => {
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		const spotPosition = firstUserDriftClient.getUserAccount().spotPositions[0];
+		const spotPosition =
+			firstUserVelocityClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
-		assert(firstUserDriftClient.getUserAccount().totalDeposits.eq(usdcAmount));
+		assert(
+			firstUserVelocityClient.getUserAccount().totalDeposits.eq(usdcAmount)
+		);
 	});
 
 	it('Second User Deposit SOL', async () => {
 		[
-			secondUserDriftClient,
-			secondUserDriftClientWSOLAccount,
-			secondUserDriftClientUSDCAccount,
+			secondUserVelocityClient,
+			secondUserVelocityClientWSOLAccount,
+			secondUserVelocityClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -330,10 +333,10 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const marketIndex = 1;
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserDriftClientWSOLAccount
+			secondUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -370,12 +373,12 @@ describe('spot deposit and withdraw', () => {
 			SpotBalanceType.DEPOSIT
 		);
 		const spotPosition =
-			secondUserDriftClient.getUserAccount().spotPositions[1];
+			secondUserVelocityClient.getUserAccount().spotPositions[1];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
 		assert(
-			secondUserDriftClient
+			secondUserVelocityClient
 				.getUserAccount()
 				.totalDeposits.eq(new BN(30).mul(PRICE_PRECISION))
 		);
@@ -384,10 +387,10 @@ describe('spot deposit and withdraw', () => {
 	it('Second User Withdraw First half USDC', async () => {
 		const marketIndex = 0;
 		const withdrawAmount = usdcAmount.div(new BN(2));
-		const txSig = await secondUserDriftClient.withdraw(
+		const txSig = await secondUserVelocityClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -410,14 +413,14 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const spotPosition =
-			secondUserDriftClient.getUserAccount().spotPositions[0];
+			secondUserVelocityClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'borrow'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
 		const actualAmountWithdrawn = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientUSDCAccount
+					secondUserVelocityClientUSDCAccount
 				)
 			).amount.toString()
 		);
@@ -425,25 +428,28 @@ describe('spot deposit and withdraw', () => {
 		assert(withdrawAmount.eq(actualAmountWithdrawn));
 
 		assert(
-			secondUserDriftClient.getUserAccount().totalWithdraws.eq(withdrawAmount)
+			secondUserVelocityClient
+				.getUserAccount()
+				.totalWithdraws.eq(withdrawAmount)
 		);
 	});
 
 	it('Update Cumulative Interest with 50% utilization', async () => {
 		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(5000);
 
-		const txSig = await firstUserDriftClient.updateSpotMarketCumulativeInterest(
-			usdcmarketIndex
-		);
+		const txSig =
+			await firstUserVelocityClient.updateSpotMarketCumulativeInterest(
+				usdcmarketIndex
+			);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await firstUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
 		const newSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldSpotMarketAccount,
@@ -473,7 +479,7 @@ describe('spot deposit and withdraw', () => {
 	it('Second User Withdraw second half USDC', async () => {
 		const marketIndex = 0;
 		let spotMarketAccount =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex);
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex);
 		const spotMarketDepositTokenAmountBefore = getTokenAmount(
 			spotMarketAccount.depositBalance,
 			spotMarketAccount,
@@ -489,26 +495,27 @@ describe('spot deposit and withdraw', () => {
 		const userUSDCAmountBefore = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientUSDCAccount
+					secondUserVelocityClientUSDCAccount
 				)
 			).amount.toString()
 		);
 
 		const spotPositionBefore =
-			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
+			secondUserVelocityClient.getSpotPosition(marketIndex).scaledBalance;
 
 		const withdrawAmount = spotMarketDepositTokenAmountBefore
 			.sub(spotMarketBorrowTokenAmountBefore)
 			.sub(ONE);
 
-		const txSig = await secondUserDriftClient.withdraw(
+		const txSig = await secondUserVelocityClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		spotMarketAccount = secondUserDriftClient.getSpotMarketAccount(marketIndex);
+		spotMarketAccount =
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex);
 		const increaseInspotPosition = getBalance(
 			withdrawAmount,
 			spotMarketAccount,
@@ -518,7 +525,7 @@ describe('spot deposit and withdraw', () => {
 		console.log('withdrawAmount:', withdrawAmount.toString());
 
 		assert(
-			secondUserDriftClient
+			secondUserVelocityClient
 				.getSpotPosition(marketIndex)
 				.scaledBalance.eq(expectedspotPosition)
 		);
@@ -527,14 +534,14 @@ describe('spot deposit and withdraw', () => {
 		const userUSDCAmountAfter = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientUSDCAccount
+					secondUserVelocityClientUSDCAccount
 				)
 			).amount.toString()
 		);
 
 		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
 		assert(
-			secondUserDriftClient
+			secondUserVelocityClient
 				.getUserAccount()
 				.totalWithdraws.eq(userUSDCAmountAfter)
 		);
@@ -583,18 +590,19 @@ describe('spot deposit and withdraw', () => {
 	it('Update Cumulative Interest with 100% utilization', async () => {
 		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(5000);
 
-		const txSig = await firstUserDriftClient.updateSpotMarketCumulativeInterest(
-			usdcmarketIndex
-		);
+		const txSig =
+			await firstUserVelocityClient.updateSpotMarketCumulativeInterest(
+				usdcmarketIndex
+			);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await firstUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
 		const newSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldSpotMarketAccount,
@@ -636,34 +644,34 @@ describe('spot deposit and withdraw', () => {
 		const userUSDCAmountBefore = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientUSDCAccount
+					secondUserVelocityClientUSDCAccount
 				)
 			).amount.toString()
 		);
 
 		await mintUSDCToUser(
 			usdcMint,
-			secondUserDriftClientUSDCAccount,
+			secondUserVelocityClientUSDCAccount,
 			mintAmount,
 			bankrunContextWrapper
 		);
 
 		const userBorrowBalanceBefore =
-			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
+			secondUserVelocityClient.getSpotPosition(marketIndex).scaledBalance;
 		const spotMarketDepositBalanceBefore =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex).depositBalance;
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex).depositBalance;
 
 		const depositAmount = userUSDCAmountBefore.add(mintAmount.div(new BN(2)));
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			depositAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await secondUserDriftClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 		const spotMarketAccount =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex);
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex);
 		const borrowToPayOff = getTokenAmount(
 			userBorrowBalanceBefore,
 			spotMarketAccount,
@@ -676,7 +684,8 @@ describe('spot deposit and withdraw', () => {
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
-		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
+		const userBalanceAfter =
+			secondUserVelocityClient.getSpotPosition(marketIndex);
 
 		console.log(
 			expectedUserBalance.toString(),
@@ -704,11 +713,11 @@ describe('spot deposit and withdraw', () => {
 		const marketIndex = 0;
 
 		const spotMarketAccountBefore =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex);
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex);
 		const userDepositBalanceBefore =
-			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
+			secondUserVelocityClient.getSpotPosition(marketIndex).scaledBalance;
 		const spotMarketDepositBalanceBefore =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex).depositBalance;
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex).depositBalance;
 		const userDepositokenAmountBefore = getTokenAmount(
 			userDepositBalanceBefore,
 			spotMarketAccountBefore,
@@ -716,16 +725,16 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const borrowAmount = userDepositokenAmountBefore.add(new BN(1 * 10 ** 6));
-		const txSig = await secondUserDriftClient.withdraw(
+		const txSig = await secondUserVelocityClient.withdraw(
 			borrowAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await secondUserDriftClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 		const spotMarketAccount =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex);
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex);
 		const depositToWithdrawAgainst = getTokenAmount(
 			userDepositBalanceBefore,
 			spotMarketAccount,
@@ -738,7 +747,8 @@ describe('spot deposit and withdraw', () => {
 			spotMarketAccount,
 			SpotBalanceType.BORROW
 		);
-		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
+		const userBalanceAfter =
+			secondUserVelocityClient.getSpotPosition(marketIndex);
 
 		assert(expectedUserBalance.eq(userBalanceAfter.scaledBalance));
 		assert(isVariant(userBalanceAfter.balanceType, 'borrow'));
@@ -757,28 +767,28 @@ describe('spot deposit and withdraw', () => {
 		const userUSDCAmountBefore = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientUSDCAccount
+					secondUserVelocityClientUSDCAccount
 				)
 			).amount.toString()
 		);
 
 		const currentUserBorrowBalance =
-			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
+			secondUserVelocityClient.getSpotPosition(marketIndex).scaledBalance;
 		const spotMarketDepositBalanceBefore =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex).depositBalance;
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex).depositBalance;
 
 		const depositAmount = userUSDCAmountBefore.mul(new BN(100000)); // huge number
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			depositAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount,
+			secondUserVelocityClientUSDCAccount,
 			undefined,
 			true
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		const spotMarketAccountAfter =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex);
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex);
 		const borrowToPayBack = getTokenAmount(
 			currentUserBorrowBalance,
 			spotMarketAccountAfter,
@@ -788,7 +798,7 @@ describe('spot deposit and withdraw', () => {
 		const userUSDCAmountAfter = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientUSDCAccount
+					secondUserVelocityClientUSDCAccount
 				)
 			).amount.toString()
 		);
@@ -800,7 +810,8 @@ describe('spot deposit and withdraw', () => {
 		);
 		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
 
-		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
+		const userBalanceAfter =
+			secondUserVelocityClient.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.scaledBalance.eq(ZERO));
 
 		assert(spotMarketAccountAfter.borrowBalance.eq(ZERO));
@@ -814,25 +825,25 @@ describe('spot deposit and withdraw', () => {
 		const userWSOLAmountBefore = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientWSOLAccount
+					secondUserVelocityClientWSOLAccount
 				)
 			).amount.toString()
 		);
 
 		const currentUserDepositBalance =
-			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
+			secondUserVelocityClient.getSpotPosition(marketIndex).scaledBalance;
 
 		const withdrawAmount = new BN(LAMPORTS_PER_SOL * 100);
-		const txSig = await secondUserDriftClient.withdraw(
+		const txSig = await secondUserVelocityClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserDriftClientWSOLAccount,
+			secondUserVelocityClientWSOLAccount,
 			true
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		const spotMarketAccountAfter =
-			secondUserDriftClient.getSpotMarketAccount(marketIndex);
+			secondUserVelocityClient.getSpotMarketAccount(marketIndex);
 		const amountAbleToWithdraw = getTokenAmount(
 			currentUserDepositBalance,
 			spotMarketAccountAfter,
@@ -842,7 +853,7 @@ describe('spot deposit and withdraw', () => {
 		const userWSOLAmountAfter = new BN(
 			(
 				await bankrunContextWrapper.connection.getTokenAccount(
-					secondUserDriftClientWSOLAccount
+					secondUserVelocityClientWSOLAccount
 				)
 			).amount.toString()
 		);
@@ -853,7 +864,8 @@ describe('spot deposit and withdraw', () => {
 		console.log(userWSOLAmountAfter.toString());
 		assert(expectedUserWSOLAmount.eq(userWSOLAmountAfter));
 
-		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
+		const userBalanceAfter =
+			secondUserVelocityClient.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.scaledBalance.eq(ZERO));
 	});
 
@@ -861,9 +873,9 @@ describe('spot deposit and withdraw', () => {
 		// rounding on spot market balance <-> token conversions can lead to tiny epislon of loss on deposits
 
 		const [
-			thirdUserDriftClient,
-			_thirdUserDriftClientWSOLAccount,
-			thirdUserDriftClientUSDCAccount,
+			thirdUserVelocityClient,
+			_thirdUserVelocityClientWSOLAccount,
+			thirdUserVelocityClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -878,12 +890,13 @@ describe('spot deposit and withdraw', () => {
 
 		const marketIndex = 0;
 
-		await thirdUserDriftClient.fetchAccounts();
-		const spotPosition = thirdUserDriftClient.getSpotPosition(marketIndex);
+		await thirdUserVelocityClient.fetchAccounts();
+		const spotPosition = thirdUserVelocityClient.getSpotPosition(marketIndex);
 		console.log(spotPosition);
 		assert(spotPosition.scaledBalance.eq(ZERO));
 
-		const spotMarket = thirdUserDriftClient.getSpotMarketAccount(marketIndex);
+		const spotMarket =
+			thirdUserVelocityClient.getSpotMarketAccount(marketIndex);
 
 		console.log(spotMarket.cumulativeDepositInterest.toString());
 		console.log(spotMarket.cumulativeBorrowInterest.toString());
@@ -900,14 +913,15 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		console.log('usdcAmount:', largeUsdcAmount.toString(), 'user deposits');
-		const txSig = await thirdUserDriftClient.deposit(
+		const txSig = await thirdUserVelocityClient.deposit(
 			largeUsdcAmount,
 			marketIndex,
-			thirdUserDriftClientUSDCAccount
+			thirdUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		const spotPositionAfter = thirdUserDriftClient.getSpotPosition(marketIndex);
+		const spotPositionAfter =
+			thirdUserVelocityClient.getSpotPosition(marketIndex);
 		const tokenAmount = getTokenAmount(
 			spotPositionAfter.scaledBalance,
 			spotMarket,
@@ -919,6 +933,6 @@ describe('spot deposit and withdraw', () => {
 		); // didnt lose more than a penny
 		assert(tokenAmount.lt(largeUsdcAmount)); // lose a lil bit
 
-		await thirdUserDriftClient.unsubscribe();
+		await thirdUserVelocityClient.unsubscribe();
 	});
 });

@@ -1,7 +1,7 @@
 import { Program, Event } from '../isomorphic/anchor';
 import { CuUsageEvent } from './types';
 
-const driftProgramId = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
+const velocityProgramId = 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 const PROGRAM_LOG = 'Program log: ';
 const PROGRAM_INSTRUCTION = 'Program log: Instruction: ';
 const PROGRAM_DATA = 'Program data: ';
@@ -12,7 +12,7 @@ const PROGRAM_INSTRUCTION_START_INDEX = PROGRAM_INSTRUCTION.length;
 export function parseLogs(
 	program: Program,
 	logs: string[],
-	programId = driftProgramId
+	programId = velocityProgramId
 ): Event[] {
 	const { events } = parseLogsWithRaw(program, logs, programId);
 	return events;
@@ -21,7 +21,7 @@ export function parseLogs(
 export function parseLogsWithRaw(
 	program: Program,
 	logs: string[],
-	programId = driftProgramId
+	programId = velocityProgramId
 ): { events: Event[]; rawLogs: string[] } {
 	const events = [];
 	const rawLogs = [];
@@ -55,23 +55,23 @@ function handleLog(
 	execution: ExecutionContext,
 	log: string,
 	program: Program,
-	programId = driftProgramId
+	programId = velocityProgramId
 ): [Event | null, string | null, boolean] {
-	// Executing program is drift program.
+	// Executing program is velocity program.
 	if (execution.stack.length > 0 && execution.program() === programId) {
 		return handleProgramLog(log, program, programId);
 	}
-	// Executing program is not drift program.
+	// Executing program is not velocity program.
 	else {
 		return [null, ...handleSystemLog(log, programId)];
 	}
 }
 
-// Handles logs from *drift* program.
+// Handles logs from *velocity* program.
 function handleProgramLog(
 	log: string,
 	program: Program,
-	programId = driftProgramId
+	programId = velocityProgramId
 ): [Event | null, string | null, boolean] {
 	// This is a `msg!` log or a `sol_log_data` log.
 	if (log.startsWith(PROGRAM_LOG)) {
@@ -87,10 +87,10 @@ function handleProgramLog(
 	}
 }
 
-// Handles logs when the current program being executing is *not* drift.
+// Handles logs when the current program being executing is *not* velocity.
 function handleSystemLog(
 	log: string,
-	programId = driftProgramId
+	programId = velocityProgramId
 ): [string | null, boolean] {
 	// System component.
 	const logStart = log.split(':')[0];
@@ -153,7 +153,7 @@ class ExecutionContext {
 
 export function parseLogsForCuUsage(
 	logs: string[],
-	programId = driftProgramId
+	programId = velocityProgramId
 ): Event<any, CuUsageEvent>[] {
 	const cuUsageEvents: Event<any, CuUsageEvent>[] = [];
 
@@ -194,7 +194,7 @@ export function parseLogsForCuUsage(
 function handleLogForCuUsage(
 	execution: ExecutionContext,
 	log: string,
-	programId = driftProgramId
+	programId = velocityProgramId
 ): [string | null, string | null, boolean, number | null] {
 	if (execution.stack.length > 0 && execution.program() === programId) {
 		return handleProgramLogForCuUsage(log, programId);
@@ -205,7 +205,7 @@ function handleLogForCuUsage(
 
 function handleProgramLogForCuUsage(
 	log: string,
-	programId = driftProgramId
+	programId = velocityProgramId
 ): [string | null, string | null, boolean, number | null] {
 	if (log.startsWith(PROGRAM_INSTRUCTION)) {
 		const ixStr = log.slice(PROGRAM_INSTRUCTION_START_INDEX);
@@ -217,7 +217,7 @@ function handleProgramLogForCuUsage(
 
 function handleSystemLogForCuUsage(
 	log: string,
-	programId = driftProgramId
+	programId = velocityProgramId
 ): [string | null, string | null, boolean, number | null] {
 	// System component.
 	const logStart = log.split(':')[0];

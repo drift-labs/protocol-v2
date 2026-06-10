@@ -28,9 +28,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('user delegate', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -43,7 +43,7 @@ describe('user delegate', () => {
 
 	let delegateKeyPair: Keypair;
 	let secondDelegateKeyPair: Keypair;
-	let delegateDriftClient: TestClient;
+	let delegateVelocityClient: TestClient;
 	let delegateUsdcAccount: Keypair;
 
 	const marketIndexes = [0];
@@ -81,7 +81,7 @@ describe('user delegate', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -105,55 +105,55 @@ describe('user delegate', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		const subAccountId = 0;
 		const name = 'CRISP';
-		await driftClient.initializeUserAccount(subAccountId, name);
-		await driftClient.initializeUserAccount(1, 'CRISP 1');
-		await driftClient.switchActiveUser(0);
+		await velocityClient.initializeUserAccount(subAccountId, name);
+		await velocityClient.initializeUserAccount(1, 'CRISP 1');
+		await velocityClient.switchActiveUser(0);
 
 		delegateKeyPair = await createFundedKeyPair(bankrunContextWrapper);
 		secondDelegateKeyPair = await createFundedKeyPair(bankrunContextWrapper);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await delegateDriftClient.unsubscribe();
+		await delegateVelocityClient.unsubscribe();
 	});
 
 	it('Update delegate', async () => {
-		await driftClient.updateUserDelegate(delegateKeyPair.publicKey);
-		await driftClient.switchActiveUser(1);
-		await driftClient.updateUserDelegate(delegateKeyPair.publicKey, 1);
-		await driftClient.switchActiveUser(0);
+		await velocityClient.updateUserDelegate(delegateKeyPair.publicKey);
+		await velocityClient.switchActiveUser(1);
+		await velocityClient.updateUserDelegate(delegateKeyPair.publicKey, 1);
+		await velocityClient.switchActiveUser(0);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(
-			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
+			velocityClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
 		);
 		assert(
-			driftClient
+			velocityClient
 				.getUser(1)
 				.getUserAccount()
 				.delegate.equals(delegateKeyPair.publicKey)
 		);
 
-		delegateDriftClient = new TestClient({
+		delegateVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(delegateKeyPair),
 			programID: chProgram.programId,
@@ -179,7 +179,7 @@ describe('user delegate', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await delegateDriftClient.subscribe();
+		await delegateVelocityClient.subscribe();
 	});
 
 	it('Deposit', async () => {
@@ -190,19 +190,19 @@ describe('user delegate', () => {
 			delegateKeyPair.publicKey
 		);
 
-		await delegateDriftClient.deposit(
+		await delegateVelocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			delegateUsdcAccount.publicKey
 		);
 
-		assert(delegateDriftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(delegateVelocityClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 	});
 
 	it('Cannot transfer deposits by delegate without permission', async () => {
 		let caughtError = false;
 		try {
-			await delegateDriftClient.transferDepositByDelegate(
+			await delegateVelocityClient.transferDepositByDelegate(
 				new BN(1 * 10 ** 6),
 				QUOTE_SPOT_MARKET_INDEX,
 				0,
@@ -215,25 +215,25 @@ describe('user delegate', () => {
 	});
 
 	it('Update allow delegate transfer', async () => {
-		await driftClient.updateUserAllowDelegateTransfer(true);
+		await velocityClient.updateUserAllowDelegateTransfer(true);
 	});
 
 	it('Transfer deposits by delegate', async () => {
 		const transferAmount = new BN(3 * 10 ** 6);
 
-		await delegateDriftClient.transferDepositByDelegate(
+		await delegateVelocityClient.transferDepositByDelegate(
 			transferAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			0,
 			1
 		);
-		await driftClient.getUser(0).fetchAccounts();
-		await driftClient.getUser(1).fetchAccounts();
+		await velocityClient.getUser(0).fetchAccounts();
+		await velocityClient.getUser(1).fetchAccounts();
 
-		const fromAmount = driftClient
+		const fromAmount = velocityClient
 			.getUser(0)
 			.getTokenAmount(QUOTE_SPOT_MARKET_INDEX);
-		const toAmount = driftClient
+		const toAmount = velocityClient
 			.getUser(1)
 			.getTokenAmount(QUOTE_SPOT_MARKET_INDEX);
 		const expectedFromAmount = usdcAmount.sub(transferAmount);
@@ -247,14 +247,14 @@ describe('user delegate', () => {
 	});
 
 	it('Cannot transfer deposits unless both subaccounts use the same delegate', async () => {
-		await driftClient.switchActiveUser(1);
-		await driftClient.updateUserDelegate(secondDelegateKeyPair.publicKey, 1);
-		await driftClient.switchActiveUser(0);
-		await driftClient.fetchAccounts();
+		await velocityClient.switchActiveUser(1);
+		await velocityClient.updateUserDelegate(secondDelegateKeyPair.publicKey, 1);
+		await velocityClient.switchActiveUser(0);
+		await velocityClient.fetchAccounts();
 
 		let caughtError = false;
 		try {
-			await delegateDriftClient.transferDepositByDelegate(
+			await delegateVelocityClient.transferDepositByDelegate(
 				new BN(1 * 10 ** 6),
 				QUOTE_SPOT_MARKET_INDEX,
 				0,
@@ -269,7 +269,7 @@ describe('user delegate', () => {
 	it('Withdraw', async () => {
 		let caughtError = false;
 		try {
-			await delegateDriftClient.withdraw(
+			await delegateVelocityClient.withdraw(
 				usdcAmount,
 				QUOTE_SPOT_MARKET_INDEX,
 				delegateUsdcAccount.publicKey
@@ -281,7 +281,7 @@ describe('user delegate', () => {
 	});
 
 	it('Open position', async () => {
-		await delegateDriftClient.openPosition(
+		await delegateVelocityClient.openPosition(
 			PositionDirection.LONG,
 			usdcAmount,
 			0

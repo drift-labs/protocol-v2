@@ -204,10 +204,3 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 		return true;
 	}
 }
-
-/** @deprecated Use `grpcVelocityClientAccountSubscriber` instead. `grpcDriftClientAccountSubscriber` will be removed in a future major. */
-export const grpcDriftClientAccountSubscriber =
-	grpcVelocityClientAccountSubscriber;
-/** @deprecated Use `grpcVelocityClientAccountSubscriber` instead. `grpcDriftClientAccountSubscriber` will be removed in a future major. */
-export type grpcDriftClientAccountSubscriber =
-	grpcVelocityClientAccountSubscriber;

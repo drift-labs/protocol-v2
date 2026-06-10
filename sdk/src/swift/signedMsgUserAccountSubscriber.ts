@@ -4,7 +4,6 @@ import { SignedMsgOrderId, SignedMsgUserOrdersAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
 import { VelocityClient } from '../velocityClient';
-import { AtLeastOne } from '../util/deprecatedAlias';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 
@@ -13,7 +12,7 @@ export type SignedMsgUserOrdersAccountSubscriberConfig = {
 	resubOpts?: ResubOpts;
 	decodeFn?: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
 	resyncIntervalMs?: number;
-} & AtLeastOne<'velocityClient', 'driftClient', VelocityClient>;
+} & { velocityClient: VelocityClient };
 
 export interface SignedMsgUserOrdersAccountSubscriberEvents {
 	onAccountUpdate: (
@@ -31,10 +30,6 @@ export interface SignedMsgUserOrdersAccountSubscriberEvents {
 
 export class SignedMsgUserOrdersAccountSubscriber {
 	protected velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	protected get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	protected commitment: Commitment;
 	protected resubOpts?: ResubOpts;
 	protected resyncTimeoutId?: ReturnType<typeof setTimeout>;
@@ -60,7 +55,6 @@ export class SignedMsgUserOrdersAccountSubscriber {
 
 	constructor({
 		velocityClient,
-		driftClient,
 		commitment,
 		resubOpts,
 		decodeFn,
@@ -69,7 +63,7 @@ export class SignedMsgUserOrdersAccountSubscriber {
 		this.commitment = commitment ?? 'confirmed';
 		this.resubOpts = resubOpts;
 		// Type-system guarantees at least one of the two is supplied.
-		this.velocityClient = (velocityClient ?? driftClient)!;
+		this.velocityClient = velocityClient!;
 		this.decodeFn =
 			decodeFn ??
 			(

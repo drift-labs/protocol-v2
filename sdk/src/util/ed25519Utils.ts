@@ -37,7 +37,7 @@ const ED25519_INSTRUCTION_LAYOUT = BufferLayout.struct<
 
 /**
  * Constructs a minimal Ed25519 verification instruction that references the data
- * inside the drift custom instruction (e.g. postPythLazerOracleUpdate, placeSignedMsgTakerOrder).
+ * inside the velocity custom instruction (e.g. postPythLazerOracleUpdate, placeSignedMsgTakerOrder).
  *
  * @param customInstructionIndex The index of the custom instruction in the transaction (e.g. if tx contains compute budget limit, compute budget price, ed25519 verify, custom ix, this would be 3).
  * @param messageOffset The offset within the custom instruction data where the signed message begins.

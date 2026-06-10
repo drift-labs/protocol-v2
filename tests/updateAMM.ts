@@ -39,21 +39,21 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 
-async function feePoolInjection(fees, marketIndex, driftClient) {
-	let market0 = driftClient.getPerpMarketAccount(marketIndex);
-	await driftClient.updatePerpMarketCurveUpdateIntensity(marketIndex, 0);
+async function feePoolInjection(fees, marketIndex, velocityClient) {
+	let market0 = velocityClient.getPerpMarketAccount(marketIndex);
+	await velocityClient.updatePerpMarketCurveUpdateIntensity(marketIndex, 0);
 	const connection = anchor.AnchorProvider.local().connection;
 
 	while (market0.amm.totalFeeMinusDistributions.lt(fees)) {
 		const reservePrice = calculateReservePrice(
 			market0,
-			driftClient.getOracleDataForPerpMarket(marketIndex)
+			velocityClient.getOracleDataForPerpMarket(marketIndex)
 		);
 		const baseAmountToTrade = new BN(9000)
 			.mul(PRICE_PRECISION)
 			.mul(BASE_PRECISION)
 			.div(reservePrice);
-		const tx = await driftClient.openPosition(
+		const tx = await velocityClient.openPosition(
 			PositionDirection.LONG,
 			baseAmountToTrade,
 			marketIndex
@@ -66,18 +66,18 @@ async function feePoolInjection(fees, marketIndex, driftClient) {
 
 		// try to cancel remaining order
 		try {
-			await driftClient.cancelOrder();
+			await velocityClient.cancelOrder();
 		} catch (e) {
 			console.error(e);
 		}
 
-		await driftClient.closePosition(marketIndex);
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await velocityClient.closePosition(marketIndex);
+		await velocityClient.settlePNL(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			marketIndex
 		);
-		market0 = driftClient.getPerpMarketAccount(marketIndex);
+		market0 = velocityClient.getPerpMarketAccount(marketIndex);
 		console.log(
 			market0.amm.totalFeeMinusDistributions.toString(),
 			'<',
@@ -85,7 +85,7 @@ async function feePoolInjection(fees, marketIndex, driftClient) {
 		);
 	}
 
-	await driftClient.updatePerpMarketCurveUpdateIntensity(marketIndex, 100);
+	await velocityClient.updatePerpMarketCurveUpdateIntensity(marketIndex, 100);
 }
 
 describe('update amm', () => {
@@ -96,9 +96,9 @@ describe('update amm', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
 		commitment: 'recent',
 	});
@@ -145,7 +145,7 @@ describe('update amm', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH_LAZER };
 		});
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -162,14 +162,14 @@ describe('update amm', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.initialize(usdcMint.publicKey, true);
 
-		await driftClient.subscribe();
-		await driftClient.updatePerpAuctionDuration(0);
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await velocityClient.subscribe();
+		await velocityClient.updatePerpAuctionDuration(0);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -187,13 +187,13 @@ describe('update amm', () => {
 			2000,
 			5000
 		);
-		await driftClient.updatePerpMarketBaseSpread(0, 2000);
-		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
+		await velocityClient.updatePerpMarketBaseSpread(0, 2000);
+		await velocityClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
 			const thisUsd = mockOracles[i];
-			await driftClient.initializePerpMarket(
+			await velocityClient.initializePerpMarket(
 				i,
 				thisUsd,
 				ammInitialBaseAssetAmount,
@@ -211,19 +211,19 @@ describe('update amm', () => {
 				2000,
 				5000
 			);
-			await driftClient.updatePerpMarketBaseSpread(i, 2000);
-			await driftClient.updatePerpMarketCurveUpdateIntensity(i, 100);
+			await velocityClient.updatePerpMarketBaseSpread(i, 2000);
+			await velocityClient.updatePerpMarketCurveUpdateIntensity(i, 100);
 		}
 
 		const [, _userAccountPublicKey] =
-			await driftClient.initializeUserAccountAndDepositCollateral(
+			await velocityClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -233,7 +233,7 @@ describe('update amm', () => {
 		const baseAssetAmount = new BN(
 			(49.7450503674885 * AMM_RESERVE_PRECISION.toNumber()) / 50
 		);
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = velocityClient.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.003, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
@@ -274,9 +274,9 @@ describe('update amm', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const txSig = await driftClient.updateAMMs([marketIndex]);
+		const txSig = await velocityClient.updateAMMs([marketIndex]);
 		const computeUnits = await findComputeUnitConsumption(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'
@@ -287,7 +287,7 @@ describe('update amm', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = driftClient.getPerpMarketAccount(0);
+		const market = velocityClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -341,7 +341,7 @@ describe('update amm', () => {
 		const baseAssetAmount = new BN(
 			(49.7450503674885 * AMM_RESERVE_PRECISION.toNumber()) / 50
 		);
-		const market0 = driftClient.getPerpMarketAccount(1);
+		const market0 = velocityClient.getPerpMarketAccount(1);
 		await setFeedPrice(anchor.workspace.Pyth, 0.9378, mockOracles[1]);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, mockOracles[1]))
 			.price;
@@ -380,9 +380,9 @@ describe('update amm', () => {
 			'after trade est. mark price:',
 			convertToNumber(newPrice)
 		);
-		const txSig = await driftClient.updateAMMs([marketIndex]);
+		const txSig = await velocityClient.updateAMMs([marketIndex]);
 		const computeUnits = await findComputeUnitConsumption(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'
@@ -393,7 +393,7 @@ describe('update amm', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = driftClient.getPerpMarketAccount(1);
+		const market = velocityClient.getPerpMarketAccount(1);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -447,9 +447,9 @@ describe('update amm', () => {
 		await feePoolInjection(
 			new BN(250 * QUOTE_PRECISION.toNumber()),
 			1,
-			driftClient
+			velocityClient
 		);
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.Pyth,
@@ -483,7 +483,7 @@ describe('update amm', () => {
 		);
 		let txSig;
 		try {
-			txSig = await driftClient.placeAndTakePerpOrder(orderParams);
+			txSig = await velocityClient.placeAndTakePerpOrder(orderParams);
 		} catch (e) {
 			console.error(e);
 		}
@@ -500,8 +500,8 @@ describe('update amm', () => {
 		).price;
 		console.log('new oracle price:', curPrice);
 
-		const _txSig2 = await driftClient.updateAMMs([marketIndex]);
-		const market2 = driftClient.getPerpMarketAccount(marketIndex);
+		const _txSig2 = await velocityClient.updateAMMs([marketIndex]);
+		const market2 = velocityClient.getPerpMarketAccount(marketIndex);
 		console.log(
 			'market2.amm.pegMultiplier = ',
 			market2.amm.pegMultiplier.toString()
@@ -529,7 +529,7 @@ describe('update amm', () => {
 			// useForLiquidations: false,
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
 
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
@@ -537,7 +537,7 @@ describe('update amm', () => {
 			const baseAssetAmount = new BN(
 				31.02765 * AMM_RESERVE_PRECISION.toNumber()
 			);
-			const market0 = driftClient.getPerpMarketAccount(i);
+			const market0 = velocityClient.getPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -572,12 +572,12 @@ describe('update amm', () => {
 			);
 			let txSig;
 			try {
-				txSig = await driftClient.placeAndTakePerpOrder(orderParams);
+				txSig = await velocityClient.placeAndTakePerpOrder(orderParams);
 			} catch (e) {
 				console.error(e);
 			}
 			const computeUnits = await findComputeUnitConsumption(
-				driftClient.program.programId,
+				velocityClient.program.programId,
 				connection,
 				txSig,
 				'confirmed'
@@ -589,7 +589,7 @@ describe('update amm', () => {
 					.meta.logMessages
 			);
 
-			const market = driftClient.getPerpMarketAccount(i);
+			const market = velocityClient.getPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',
@@ -612,7 +612,7 @@ describe('update amm', () => {
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = i;
-			const market0 = driftClient.getPerpMarketAccount(marketIndex);
+			const market0 = velocityClient.getPerpMarketAccount(marketIndex);
 			market0s.push(market0);
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
@@ -664,17 +664,17 @@ describe('update amm', () => {
 			baseAssetAmount: tradeSize,
 		});
 
-		const txSig21 = await driftClient.updateAMMs([0, 1, 2, 3]);
+		const txSig21 = await velocityClient.updateAMMs([0, 1, 2, 3]);
 		const computeUnits21 = await findComputeUnitConsumption(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			connection,
 			txSig21,
 			'confirmed'
 		);
 		console.log(computeUnits21);
 
-		const txSig3 = await driftClient.placeAndTakePerpOrder(orderParams);
-		await driftClient.fetchAccounts();
+		const txSig3 = await velocityClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.fetchAccounts();
 
 		console.log(
 			'tx logs',
@@ -689,7 +689,7 @@ describe('update amm', () => {
 				anchor.workspace.Pyth,
 				thisUsd
 			);
-			const market = driftClient.getPerpMarketAccount(i);
+			const market = velocityClient.getPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',

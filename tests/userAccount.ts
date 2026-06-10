@@ -34,9 +34,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('User Account', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient;
+	let velocityClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -85,7 +85,7 @@ describe('User Account', () => {
 			10000
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -104,15 +104,15 @@ describe('User Account', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(0);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
@@ -120,12 +120,12 @@ describe('User Account', () => {
 			periodicity,
 			new BN(initialSOLPrice).mul(PEG_PRECISION)
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await driftClient.initializeUserAccount();
+		await velocityClient.initializeUserAccount();
 		userAccount = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -135,7 +135,7 @@ describe('User Account', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await userAccount.unsubscribe();
 	});
 
@@ -208,7 +208,7 @@ describe('User Account', () => {
 	});
 
 	it('After Deposit', async () => {
-		await driftClient.deposit(
+		await velocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
@@ -232,18 +232,20 @@ describe('User Account', () => {
 	});
 
 	it('After Position Taken', async () => {
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION,
 			marketIndex
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		await userAccount.fetchAccounts();
 		const perpPosition = userAccount.getPerpPosition(marketIndex);
 
-		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
+		const market = velocityClient.getPerpMarketAccount(
+			perpPosition.marketIndex
+		);
 
-		const oraclePrice = driftClient.getOracleDataForPerpMarket(
+		const oraclePrice = velocityClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice = calculatePrice(
@@ -264,13 +266,13 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		const oracleP2 = await getFeedDataNoProgram(
 			bankrunContextWrapper.connection,
 			solUsdOracle
 		);
 		console.log('oracleP2:', oracleP2.price);
-		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
+		const oraclePrice2 = velocityClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice2 = calculateReservePrice(market, oraclePrice);
@@ -283,7 +285,7 @@ describe('User Account', () => {
 		const worstCaseBaseAssetAmount = calculateWorstCaseBaseAssetAmount(
 			perpPosition,
 			market,
-			driftClient.getOracleDataForPerpMarket(perpPosition.marketIndex).price
+			velocityClient.getOracleDataForPerpMarket(perpPosition.marketIndex).price
 		);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
@@ -319,16 +321,18 @@ describe('User Account', () => {
 	});
 
 	it('After Position Price Moves', async () => {
-		await driftClient.moveAmmPrice(
+		await velocityClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
 		const perpPosition = userAccount.getPerpPosition(marketIndex);
 
-		const market = driftClient.getPerpMarketAccount(perpPosition.marketIndex);
+		const market = velocityClient.getPerpMarketAccount(
+			perpPosition.marketIndex
+		);
 
-		const oraclePrice = driftClient.getOracleDataForPerpMarket(
+		const oraclePrice = velocityClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice = calculatePrice(
@@ -350,13 +354,13 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		const oracleP2 = await getFeedDataNoProgram(
 			bankrunContextWrapper.connection,
 			solUsdOracle
 		);
 		console.log('oracleP2:', oracleP2.price);
-		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
+		const oraclePrice2 = velocityClient.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice2 = calculateReservePrice(market, oraclePrice);
@@ -383,7 +387,7 @@ describe('User Account', () => {
 		);
 	});
 	it('Close Position', async () => {
-		await driftClient.closePosition(marketIndex);
+		await velocityClient.closePosition(marketIndex);
 
 		const expectedBuyingPower = new BN(100000000);
 		const expectedFreeCollateral = new BN(20000000);

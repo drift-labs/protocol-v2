@@ -1,8 +1,8 @@
 # deploy-scripts
 
-Devnet deployment scripts for the drift program. The devnet quote token is **dUSDT** — a drift-controlled SPL mint created in Phase 0 and distributed via the `token_faucet` program. Internal env vars and identifiers still use `USDT` (e.g. `USDT_MINT`, `usdtMint`) for brevity; on-chain ticker / spot market name is `dUSDT`.
+Devnet deployment scripts for the velocity program. The devnet quote token is **dUSDT** — a velocity-controlled SPL mint created in Phase 0 and distributed via the `token_faucet` program. Internal env vars and identifiers still use `USDT` (e.g. `USDT_MINT`, `usdtMint`) for brevity; on-chain ticker / spot market name is `dUSDT`.
 
-The devnet program id is read from `[programs.devnet].drift` in `Anchor.toml` — that and the `declare_id!` in `programs/drift/src/lib.rs` (Anchor enforces they match) are the source of truth. Override with `DRIFT_DEVNET_PROGRAM_ID=…` only for one-off testing.
+The devnet program id is read from `[programs.devnet].velocity` in `Anchor.toml` — that and the `declare_id!` in `programs/velocity/src/lib.rs` (Anchor enforces they match) are the source of truth. Override with `VELOCITY_DEVNET_PROGRAM_ID=…` only for one-off testing.
 
 ## Program upgrades via CI (preferred)
 
@@ -10,12 +10,12 @@ Program upgrades to **mainnet** and **devnet** are gated through a Squads multis
 
 | Target | Trigger | Workflow |
 | --- | --- | --- |
-| **mainnet** | Push tag `program-drift-<version>` (e.g. `program-drift-2.163.0`) | [`.github/workflows/release-program.yaml`](../.github/workflows/release-program.yaml) |
+| **mainnet** | Push tag `program-velocity-<version>` (e.g. `program-velocity-2.163.0`) | [`.github/workflows/release-program.yaml`](../.github/workflows/release-program.yaml) |
 | **devnet** | Run **Manual Devnet Program Deploy** from the Actions tab (pick program + branch) | [`.github/workflows/manual-devnet-deploy.yaml`](../.github/workflows/manual-devnet-deploy.yaml) |
 
 Both workflows do the same thing on different multisigs:
 
-1. Build the program — `anchor build` for the IDL, `solana-verify build` for a reproducible `.so` (Docker image pinned in workflow env). Devnet drift strips `mainnet-beta` so the cfg-gated `declare_id!` resolves to the devnet pubkey.
+1. Build the program — `anchor build` for the IDL, `solana-verify build` for a reproducible `.so` (Docker image pinned in workflow env). Devnet velocity strips `mainnet-beta` so the cfg-gated `declare_id!` resolves to the devnet pubkey.
 2. Upload the `.so` to a BPF Upgradeable Loader buffer (via `solana program write-buffer`).
 3. Upload the IDL JSON to a program-metadata buffer (via `npx @solana-program/program-metadata create-buffer` — Anchor 1.0 stopped baking the legacy IDL instructions into programs).
 4. Transfer both buffer authorities to the multisig vault PDA.
@@ -31,18 +31,18 @@ Both workflows do the same thing on different multisigs:
 | `MAINNET_MULTISIG` / `DEVNET_MULTISIG` | Squads multisig PDA. |
 | `MAINNET_MULTISIG_VAULT` / `DEVNET_MULTISIG_VAULT` | The vault PDA owned by the multisig (Squads "vault index 0"). This is the on-chain program upgrade authority and the IDL metadata authority. |
 
-The first-ever mainnet deploy with this flow will also **initialize the canonical IDL metadata account** for `dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH` — the action detects an absent metadata PDA and includes the `Initialize` instruction in the same Squads proposal. For drift mainnet, that account does not exist today.
+The first-ever mainnet deploy with this flow will also **initialize the canonical IDL metadata account** for `vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P` — the action detects an absent metadata PDA and includes the `Initialize` instruction in the same Squads proposal. For velocity mainnet, that account does not exist today.
 
 ### Cutting a mainnet release
 
 ```bash
-# 1. Bump programs/drift/Cargo.toml version
+# 1. Bump programs/velocity/Cargo.toml version
 # 2. Land that on mainnet-beta
 git checkout mainnet-beta
 git pull
 # 3. Tag it
-git tag program-drift-2.163.0
-git push origin program-drift-2.163.0
+git tag program-velocity-2.163.0
+git push origin program-velocity-2.163.0
 # 4. Watch Actions → Release Program to Mainnet → wait for Squads proposal
 # 5. Sign + execute in the Squads UI
 ```
@@ -57,29 +57,29 @@ The `mainnet-beta` branch tracks what is (or is about to be) live on mainnet; `m
    ```
    bash deploy-scripts/build-devnet.sh
    ```
-   Builds `drift` (no default features, no mainnet-beta gate, devnet `declare_id!`) and `token_faucet` (used to distribute devnet dUSDT). The deploy scripts read the devnet program id from `Anchor.toml`; you do not need to set `DRIFT_DEVNET_PROGRAM_ID` unless overriding for one-off testing.
+   Builds `velocity` (no default features, no mainnet-beta gate, devnet `declare_id!`) and `token_faucet` (used to distribute devnet dUSDT). The deploy scripts read the devnet program id from `Anchor.toml`; you do not need to set `VELOCITY_DEVNET_PROGRAM_ID` unless overriding for one-off testing.
 2. **Deploy** (first time — fresh programs):
-   - **Vanity program id + buffer (recommended for large drift.so uploads):** Build (`bash deploy-scripts/build-devnet.sh`), save your **program keypair JSON** whose pubkey matches `[programs.devnet].drift` in `Anchor.toml` under `deploy-scripts/out/` (gitignored). If you only have a recovery phrase / seed words, recover once:
+   - **Vanity program id + buffer (recommended for large velocity.so uploads):** Build (`bash deploy-scripts/build-devnet.sh`), save your **program keypair JSON** whose pubkey matches `[programs.devnet].velocity` in `Anchor.toml` under `deploy-scripts/out/` (gitignored). If you only have a recovery phrase / seed words, recover once:
      ```
-     solana-keygen recover ASK -o deploy-scripts/out/drift-program-devnet.json --skip-seed-phrase-validation
+     solana-keygen recover ASK -o deploy-scripts/out/velocity-program-devnet.json --skip-seed-phrase-validation
      ```
      …paste your phrase when prompted (pass `--skip-seed-phrase-validation` if the words are not on the BIP39 English list). Then create the on-chain buffer and deploy from it:
      ```
-     export DRIFT_DEVNET_UPGRADE_KEYPAIR=/path/to/admin-or-buffer-authority.json
-     export PROGRAM_KEYPAIR=$PWD/deploy-scripts/out/drift-program-devnet.json
+     export VELOCITY_DEVNET_UPGRADE_KEYPAIR=/path/to/admin-or-buffer-authority.json
+     export PROGRAM_KEYPAIR=$PWD/deploy-scripts/out/velocity-program-devnet.json
      bash deploy-scripts/write-buffer-devnet.sh
-     BUFFER_ACCOUNT_KEYPAIR=$PWD/deploy-scripts/out/drift-so-write-buffer-keypair.json \
+     BUFFER_ACCOUNT_KEYPAIR=$PWD/deploy-scripts/out/velocity-so-write-buffer-keypair.json \
        PROGRAM_KEYPAIR=$PROGRAM_KEYPAIR bash deploy-scripts/deploy-from-buffer-devnet.sh
      ```
-     If your vanity run only printed a short “seed” (e.g. `6IPs6rIASB0S38TO`), treat it as the custom word or passphrase your tool uses with the rest of its output; the recovered pubkey must equal `[programs.devnet].drift` from `Anchor.toml` — confirm with `solana-keygen pubkey` on the recovered JSON. The deploy scripts will reject a mismatching `PROGRAM_KEYPAIR`.
+     If your vanity run only printed a short “seed” (e.g. `6IPs6rIASB0S38TO`), treat it as the custom word or passphrase your tool uses with the rest of its output; the recovered pubkey must equal `[programs.devnet].velocity` from `Anchor.toml` — confirm with `solana-keygen pubkey` on the recovered JSON. The deploy scripts will reject a mismatching `PROGRAM_KEYPAIR`.
      Prefer a **private devnet RPC** via `SOLANA_RPC` or `RPC_URL` so `write-buffer` does not hit rate limits.
 
-   - **Alternatively:** `anchor deploy --program-name drift` … `anchor deploy --program-name token_faucet` with devnet and `PROGRAM_KEYPAIR` / `--program-keypair`.
+   - **Alternatively:** `anchor deploy --program-name velocity` … `anchor deploy --program-name token_faucet` with devnet and `PROGRAM_KEYPAIR` / `--program-keypair`.
 
-   For **subsequent upgrades** (same program id): `bash deploy-scripts/deploy-devnet.sh`. The script reads the program id from `Anchor.toml`; set `DRIFT_DEVNET_UPGRADE_KEYPAIR` (path to the upgrade authority keypair), or legacy `SOLANA_PATH` + `DEVNET_ADMIN`. Override `DRIFT_DEVNET_PROGRAM_ID=…` only for one-off testing against a non-canonical id.
+   For **subsequent upgrades** (same program id): `bash deploy-scripts/deploy-devnet.sh`. The script reads the program id from `Anchor.toml`; set `VELOCITY_DEVNET_UPGRADE_KEYPAIR` (path to the upgrade authority keypair), or legacy `SOLANA_PATH` + `DEVNET_ADMIN`. Override `VELOCITY_DEVNET_PROGRAM_ID=…` only for one-off testing against a non-canonical id.
 3. **Sync IDL** into the SDK so the init script sees current instruction shapes:
    ```
-   anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json
+   anchor build -- --features anchor-test && cp target/idl/velocity.json sdk/src/idl/velocity.json
    ```
 4. **Initialize on-chain state** (phases 0 + A–H in one pass; idempotent):
    ```
@@ -99,7 +99,7 @@ The `mainnet-beta` branch tracks what is (or is about to be) live on mainnet; `m
    - `sdk/src/config.ts` → `configs.devnet.QUOTE_MINT_ADDRESS` ← `usdtMint`
    - `sdk/src/constants/spotMarkets.ts` → `DevnetSpotMarkets[0].mint` ← `usdtMint`, `DevnetSpotMarkets[0].oracle` ← `pythLazerOracles[<usdtFeedId>].pubkey`, `DevnetSpotMarkets[1].oracle` ← `pythLazerOracles[<solFeedId>].pubkey`
    - `sdk/src/constants/perpMarkets.ts` → `DevnetPerpMarkets[0].oracle` ← `pythLazerOracles[<solFeedId>].pubkey`
-   - `ui/src/config.ts` → `DRIFT_PROGRAM_ID` ← receipt `programId` (rebuild + redeploy the bundle)
+   - `ui/src/config.ts` → `VELOCITY_PROGRAM_ID` ← receipt `programId` (rebuild + redeploy the bundle)
 
 ## Distributing devnet dUSDT to test wallets
 
@@ -124,14 +124,14 @@ Optional:
 - `LP_POOL_ID` (default `1`; id `0` is the "not in a pool" sentinel)
 - `LP_MAX_AUM` (default `1_000_000`, multiplied by `QUOTE_PRECISION`)
 - `RECEIPT_PATH` (default `deploy-scripts/out/devnet-deployment.json`)
-- `SKIP_PHASE_C2=1`, `SKIP_PHASE_D=1`, `SKIP_PHASE_E=1`, `SKIP_PHASE_F=1`, `SKIP_PHASE_G=1` — bypass individual phases. **Phases F/G are optional** (IF shares transfer config / LP pool) — skip freely. Phase F's program entrypoint (`initialize_protocol_if_shares_transfer_config`) is currently commented out in `programs/drift/src/lib.rs`, so set `SKIP_PHASE_F=1` until it's re-enabled. Phase E (oracle switch) is **required** for a functional dUSDT spot[0] — only skip during partial re-runs.
+- `SKIP_PHASE_C2=1`, `SKIP_PHASE_D=1`, `SKIP_PHASE_E=1`, `SKIP_PHASE_F=1`, `SKIP_PHASE_G=1` — bypass individual phases. **Phases F/G are optional** (IF shares transfer config / LP pool) — skip freely. Phase F's program entrypoint (`initialize_protocol_if_shares_transfer_config`) is currently commented out in `programs/velocity/src/lib.rs`, so set `SKIP_PHASE_F=1` until it's re-enabled. Phase E (oracle switch) is **required** for a functional dUSDT spot[0] — only skip during partial re-runs.
 - `NON_INTERACTIVE=1` (or `YES=1`) — skip every confirmation prompt; useful for CI
 
-By default the script pauses before pre-flight and before each phase (0 + A–G), printing the resolved inputs (mint, oracle, LP id, etc.) and waiting for `y` to continue. Pre-flight verifies both the drift and token_faucet programs are deployed/executable, and that any caller-supplied `USDT_MINT` is a real token mint, before any state is touched.
+By default the script pauses before pre-flight and before each phase (0 + A–G), printing the resolved inputs (mint, oracle, LP id, etc.) and waiting for `y` to continue. Pre-flight verifies both the velocity and token_faucet programs are deployed/executable, and that any caller-supplied `USDT_MINT` is a real token mint, before any state is touched.
 
 ## What gets initialized
 
-See `.claude/plans/drift-devnet-deployment.md` for the authoritative plan. Summary:
+See `.claude/plans/velocity-devnet-deployment.md` for the authoritative plan. Summary:
 
 Required phases (0 → E):
 
@@ -160,7 +160,7 @@ Skipped by design (left for later):
 After the script finishes, confirm the program is live (program id from `Anchor.toml`):
 
 ```
-solana program show "$(sh -c '. deploy-scripts/_lib.sh; drift_devnet_program_id')" --url devnet
+solana program show "$(sh -c '. deploy-scripts/_lib.sh; velocity_devnet_program_id')" --url devnet
 ```
 
 Then run the read-only verifier — derives every expected PDA and reports which exist:
@@ -172,52 +172,52 @@ bun run deploy-scripts/verify-devnet.ts <SOL_FEED_ID> <USDT_FEED_ID>
 
 Or inspect the receipt and spot-check with `solana account <pubkey> --url devnet`.
 
-End-to-end smoke: use a second wallet to call `DriftClient.initializeUserAccount()` → `deposit(usdtAmount, 0)` → `placePerpOrder({ marketIndex: 0, ... })` and observe a keeper fill.
+End-to-end smoke: use a second wallet to call `VelocityClient.initializeUserAccount()` → `deposit(usdtAmount, 0)` → `placePerpOrder({ marketIndex: 0, ... })` and observe a keeper fill.
 
 ## Operational notes (learned on first deploy)
 
-- **Use a private RPC for `solana program` writes.** The public `api.devnet.solana.com` rate-limits the ~5,000 chunked writes a drift upgrade requires (drift.so is ~5 MB → ~5,000 × 1 KB chunks) and fails partway through with `Data writes to account failed: Custom error: Max retries exceeded` and/or `Blockhash expired. N retries remaining`, leaving a partial buffer on chain. Pass a private RPC via `--url` to `solana program …` directly, or set `SOLANA_RPC` / `RPC_URL` for the helper scripts (`write-buffer-devnet.sh` / `deploy-from-buffer-devnet.sh` read it). `anchor program upgrade --provider.cluster <url>` works for the wrapper too, but it does **not** propagate the URL to the underlying `solana program deploy` subprocess — so also `solana config set --url <url>` before invoking anchor. Drift has a Triton pool at `https://drift-drift-a827.devnet.rpcpool.com/<token>` — see user memory `reference_drift_devnet_rpc.md`.
+- **Use a private RPC for `solana program` writes.** The public `api.devnet.solana.com` rate-limits the ~5,000 chunked writes a velocity upgrade requires (velocity.so is ~5 MB → ~5,000 × 1 KB chunks) and fails partway through with `Data writes to account failed: Custom error: Max retries exceeded` and/or `Blockhash expired. N retries remaining`, leaving a partial buffer on chain. Pass a private RPC via `--url` to `solana program …` directly, or set `SOLANA_RPC` / `RPC_URL` for the helper scripts (`write-buffer-devnet.sh` / `deploy-from-buffer-devnet.sh` read it). `anchor program upgrade --provider.cluster <url>` works for the wrapper too, but it does **not** propagate the URL to the underlying `solana program deploy` subprocess — so also `solana config set --url <url>` before invoking anchor. Velocity has a Triton pool at `https://velocity-velocity-a827.devnet.rpcpool.com/<token>` — see user memory `reference_velocity_devnet_rpc.md`.
 
 - **`anchor upgrade` is deprecated → `anchor program upgrade` in Anchor 1.0.** Same flags, same `solana program deploy` underneath. `deploy-devnet.sh` uses the new form.
 
 - **Prefer the two-phase `write-buffer` → `deploy-from-buffer` flow over `anchor program upgrade`** for any upload more than a few hundred KB. The single-shot `anchor program upgrade` / bare `solana program deploy <file.so>` creates an *anonymous* internal buffer, then auto-closes it on fatal error to refund rent — so on the next attempt there's nothing to resume from and you start at chunk 0 again. The two-phase flow uses a **named buffer keypair** so the on-chain buffer persists across attempts and `write-buffer` resumes by only re-sending chunks that haven't landed yet. Use the helper scripts:
   ```
-  export DRIFT_DEVNET_UPGRADE_KEYPAIR=/path/to/upgrade-authority.json
-  export SOLANA_RPC=https://drift-drift-a827.devnet.rpcpool.com/<token>
+  export VELOCITY_DEVNET_UPGRADE_KEYPAIR=/path/to/upgrade-authority.json
+  export SOLANA_RPC=https://velocity-velocity-a827.devnet.rpcpool.com/<token>
   bash deploy-scripts/write-buffer-devnet.sh     # ← re-run this until it exits clean
-  BUFFER_ACCOUNT_KEYPAIR=deploy-scripts/out/drift-so-write-buffer-keypair.json \
+  BUFFER_ACCOUNT_KEYPAIR=deploy-scripts/out/velocity-so-write-buffer-keypair.json \
     bash deploy-scripts/deploy-from-buffer-devnet.sh
   ```
   The buffer keypair file is reused across `write-buffer-devnet.sh` invocations; each pass closes more gaps until the buffer is whole.
 
 - **Symptom: `Failed to parse ELF file: invalid section header` / `invalid account data for instruction`** when running the swap (`program deploy --buffer …`). The buffer is **partial** — some chunk-writes silently never landed even though `write-buffer` exited 0. The CLI's exit code isn't a reliable "buffer is complete" signal: a last-batch retry success can mask earlier dropped writes. Fix:
   ```
-  solana program show <BUFFER_PK> --url <rpc>     # compare Data Length to ls -l target/deploy/drift.so
+  solana program show <BUFFER_PK> --url <rpc>     # compare Data Length to ls -l target/deploy/velocity.so
   bash deploy-scripts/write-buffer-devnet.sh      # re-run; resume fills missing chunks
   ```
   Two to three resume passes is normal. When `solana program show` reports Data Length ≈ .so size (BPF loader prepends ~45-byte header), the buffer is whole. Adding `--with-compute-unit-price 1000` to the underlying `solana program write-buffer` invocation (or via the `write-buffer-devnet.sh` env) helps individual chunk-writes win contention faster.
 
 - **Why the upload "starts from scratch each time" in the wrapper flow but not in the helper-script flow.** `anchor program upgrade` / `solana program deploy <file>` invent a new buffer pubkey per invocation and never expose it; on partial failure the recent CLI tears the buffer down to refund rent. The next invocation has no buffer to resume into. The helper scripts hold the buffer keypair file on disk, so the next invocation finds the same partial buffer on chain and only writes the gaps.
 
-- **If a buffer is orphaned, reclaim the SOL** — each abandoned buffer locks ~38 SOL (devnet rent for a drift-sized buffer):
+- **If a buffer is orphaned, reclaim the SOL** — each abandoned buffer locks ~38 SOL (devnet rent for a velocity-sized buffer):
   ```
   # List buffers under each candidate authority (CLI default keypair vs. upgrade authority)
   solana program show --buffers --url <rpc>
   solana program show --buffers --url <rpc> \
-    --buffer-authority $(solana-keygen pubkey "$DRIFT_DEVNET_UPGRADE_KEYPAIR")
+    --buffer-authority $(solana-keygen pubkey "$VELOCITY_DEVNET_UPGRADE_KEYPAIR")
 
   # Close one
   solana program close <BUFFER_PK> --url <rpc> \
-    --recipient $(solana-keygen pubkey "$DRIFT_DEVNET_UPGRADE_KEYPAIR") \
-    --buffer-authority "$DRIFT_DEVNET_UPGRADE_KEYPAIR"
+    --recipient $(solana-keygen pubkey "$VELOCITY_DEVNET_UPGRADE_KEYPAIR") \
+    --buffer-authority "$VELOCITY_DEVNET_UPGRADE_KEYPAIR"
 
   # Close all buffers under one authority in one shot
   solana program close --buffers --url <rpc> \
-    --recipient $(solana-keygen pubkey "$DRIFT_DEVNET_UPGRADE_KEYPAIR") \
-    --buffer-authority "$DRIFT_DEVNET_UPGRADE_KEYPAIR"
+    --recipient $(solana-keygen pubkey "$VELOCITY_DEVNET_UPGRADE_KEYPAIR") \
+    --buffer-authority "$VELOCITY_DEVNET_UPGRADE_KEYPAIR"
   ```
   `--buffer-authority` must point at the keypair file (signer), not just the pubkey. If `--buffers` finds nothing under either candidate authority but balances look intact, the CLI already auto-closed and refunded — no action needed.
-- **`anchor build` for the drift keypair mismatch:** the checked-in `target/deploy/drift-keypair.json` is a placeholder, so `anchor build` fails with "Program ID mismatch" on a clean checkout. Pass `--ignore-keys` — the deployed program id is hard-coded in source and the local keypair is unused for upgrade.
+- **`anchor build` for the velocity keypair mismatch:** the checked-in `target/deploy/velocity-keypair.json` is a placeholder, so `anchor build` fails with "Program ID mismatch" on a clean checkout. Pass `--ignore-keys` — the deployed program id is hard-coded in source and the local keypair is unused for upgrade.
 - **`bun` strict type-only re-exports:** `bun run deploy-scripts/init-devnet.ts` fails if the SDK re-exports a type without the `type` keyword (e.g. `export { PythLazerPriceFeedArray }`). This was fixed in `sdk/src/index.ts` and `sdk/src/pyth/index.ts`; keep an eye on it when adding new SDK exports.
-- **Pyth Lazer message must include `feedUpdateTimestamp`.** The on-chain `post_pyth_lazer_oracle_update` ix silently skips updates whose payload lacks `FeedUpdateTimestamp` (`programs/drift/src/instructions/pyth_lazer_oracle.rs:99-102`) — the tx returns Ok with no on-chain write, and the next phase fails with `Unable to read oracle price`. Phase C+ subscribes with `feedUpdateTimestamp` plus `bestBid/AskPrice` (used for confidence) and `exponent`; do not strip these properties.
+- **Pyth Lazer message must include `feedUpdateTimestamp`.** The on-chain `post_pyth_lazer_oracle_update` ix silently skips updates whose payload lacks `FeedUpdateTimestamp` (`programs/velocity/src/instructions/pyth_lazer_oracle.rs:99-102`) — the tx returns Ok with no on-chain write, and the next phase fails with `Unable to read oracle price`. Phase C+ subscribes with `feedUpdateTimestamp` plus `bestBid/AskPrice` (used for confidence) and `exponent`; do not strip these properties.
 - **dUSDT oracle is a two-step init.** `handle_initialize_spot_market` (`admin.rs:217-228`) hard-requires the quote spot market to be `OracleSource::QuoteAsset` with `oracle = Pubkey::default()`. Switching to `PythLazerStableCoin` afterwards is done in Phase E via `update_spot_market_oracle`, which itself reads the new oracle (`admin.rs:1295-1300`) — so the USDT lazer PDA must already have a posted price. This is why Phase C+ runs before Phase E and must succeed.

@@ -5,15 +5,13 @@ import { GrpcConfigs, UserAccountSubscriber } from './accounts/types';
 import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from './types';
 import { grpcMultiUserAccountSubscriber } from './accounts/grpcMultiUserAccountSubscriber';
-import { AtLeastOne } from './util/deprecatedAlias';
 
 type UserConfigBase = {
 	accountSubscription?: UserSubscriptionConfig;
 	userAccountPublicKey: PublicKey;
 };
 
-export type UserConfig = UserConfigBase &
-	AtLeastOne<'velocityClient', 'driftClient', VelocityClient>;
+export type UserConfig = UserConfigBase & { velocityClient: VelocityClient };
 
 export type UserSubscriptionConfig =
 	| {

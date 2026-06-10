@@ -6,9 +6,6 @@ export type VelocityMarketInfo = {
 	marketIndex: number;
 };
 
-/** @deprecated Use `VelocityMarketInfo` instead. `DriftMarketInfo` will be removed in a future major. */
-export type DriftMarketInfo = VelocityMarketInfo;
-
 export type VelocityPriorityFeeLevels = {
 	[key in HeliusPriorityLevel]: number;
 } & {
@@ -16,13 +13,7 @@ export type VelocityPriorityFeeLevels = {
 	marketIndex: number;
 };
 
-/** @deprecated Use `VelocityPriorityFeeLevels` instead. `DriftPriorityFeeLevels` will be removed in a future major. */
-export type DriftPriorityFeeLevels = VelocityPriorityFeeLevels;
-
 export type VelocityPriorityFeeResponse = VelocityPriorityFeeLevels[];
-
-/** @deprecated Use `VelocityPriorityFeeResponse` instead. `DriftPriorityFeeResponse` will be removed in a future major. */
-export type DriftPriorityFeeResponse = VelocityPriorityFeeResponse;
 
 export async function fetchVelocityPriorityFee(
 	url: string,
@@ -49,6 +40,3 @@ export async function fetchVelocityPriorityFee(
 
 	return [];
 }
-
-/** @deprecated Use `fetchVelocityPriorityFee` instead. `fetchDriftPriorityFee` will be removed in a future major. */
-export const fetchDriftPriorityFee = fetchVelocityPriorityFee;

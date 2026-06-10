@@ -33,9 +33,9 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('pyth lazer oracles', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -72,7 +72,7 @@ describe('pyth lazer oracles', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		feedAddress = getPythLazerOraclePublicKey(chProgram.programId, feedId);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -95,11 +95,11 @@ describe('pyth lazer oracles', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.initializePythLazerOracle(feedId);
-		await driftClient.postPythLazerOracleUpdate(
+		await velocityClient.initializePythLazerOracle(feedId);
+		await velocityClient.postPythLazerOracleUpdate(
 			[feedId],
 			PYTH_LAZER_HEX_STRING_SOL
 		);
@@ -112,7 +112,7 @@ describe('pyth lazer oracles', () => {
 			mantissaSqrtScale
 		);
 		const periodicity = new BN(0);
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			feedAddress,
 			ammInitialBaseAssetReserve,
@@ -121,36 +121,42 @@ describe('pyth lazer oracles', () => {
 			new BN(82 * PEG_PRECISION.toNumber()),
 			OracleSource.PYTH_LAZER
 		);
-		await driftClient.initializeAmmCache();
+		await velocityClient.initializeAmmCache();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('init feed', async () => {
-		await driftClient.initializePythLazerOracle(1);
-		await driftClient.initializePythLazerOracle(2);
-		// await driftClient.initializePythLazerOracle(6); before hook already initialized SOL oracle
+		await velocityClient.initializePythLazerOracle(1);
+		await velocityClient.initializePythLazerOracle(2);
+		// await velocityClient.initializePythLazerOracle(6); before hook already initialized SOL oracle
 	});
 
 	it('crank single', async () => {
-		await driftClient.postPythLazerOracleUpdate([6], PYTH_LAZER_HEX_STRING_SOL);
-		await driftClient.updatePerpMarketOracle(
+		await velocityClient.postPythLazerOracleUpdate(
+			[6],
+			PYTH_LAZER_HEX_STRING_SOL
+		);
+		await velocityClient.updatePerpMarketOracle(
 			0,
-			getPythLazerOraclePublicKey(driftClient.program.programId, 6),
+			getPythLazerOraclePublicKey(velocityClient.program.programId, 6),
 			OracleSource.PYTH_LAZER
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(
-			isVariant(driftClient.getPerpMarketAccount(0).oracleSource, 'pythLazer')
+			isVariant(
+				velocityClient.getPerpMarketAccount(0).oracleSource,
+				'pythLazer'
+			)
 		);
 	});
 
 	it('crank multi', async () => {
-		const tx = await driftClient.postPythLazerOracleUpdate(
+		const tx = await velocityClient.postPythLazerOracleUpdate(
 			[1, 2, 6],
 			PYTH_LAZER_HEX_STRING_MULTI
 		);

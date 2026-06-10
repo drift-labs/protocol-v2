@@ -1,6 +1,6 @@
-# Drift Protocol v2 — Architecture
+# Velocity Protocol v2 — Architecture
 
-Navigation map for `programs/drift` and `sdk/`. Start here to find the right file for any query.
+Navigation map for `programs/velocity` and `sdk/`. Start here to find the right file for any query.
 
 ---
 
@@ -8,11 +8,11 @@ Navigation map for `programs/drift` and `sdk/`. Start here to find the right fil
 
 | Module | Owns | Does NOT own |
 |---|---|---|
-| `programs/drift/src/instructions/` | Account constraint structs, Anchor deserialization, input validation, delegation to `controller` | Business logic, math |
-| `programs/drift/src/controller/` | Stateful mutations: fills, liquidations, position updates, funding | Account loading (done by `instructions`), pure math |
-| `programs/drift/src/math/` | Pure numeric functions: margin, fees, funding, AMM pricing, oracle checks | Any account I/O or state mutation |
-| `programs/drift/src/state/` | Account struct definitions and accessor/mutation methods | Instruction routing, math |
-| `programs/drift/src/validation/` | Pre-mutation precondition checks (called by `instructions` before `controller`) | Post-trade checks (those live in `math/margin`) |
+| `programs/velocity/src/instructions/` | Account constraint structs, Anchor deserialization, input validation, delegation to `controller` | Business logic, math |
+| `programs/velocity/src/controller/` | Stateful mutations: fills, liquidations, position updates, funding | Account loading (done by `instructions`), pure math |
+| `programs/velocity/src/math/` | Pure numeric functions: margin, fees, funding, AMM pricing, oracle checks | Any account I/O or state mutation |
+| `programs/velocity/src/state/` | Account struct definitions and accessor/mutation methods | Instruction routing, math |
+| `programs/velocity/src/validation/` | Pre-mutation precondition checks (called by `instructions` before `controller`) | Post-trade checks (those live in `math/margin`) |
 
 ---
 
@@ -102,11 +102,11 @@ Variable-length account lists are passed via `remaining_accounts` to avoid fixed
 ### Key Files
 | File | Size | Purpose |
 |---|---|---|
-| `driftClient.ts` | ~13k lines | Main client. All trading + keeper instruction builders. |
-| `adminClient.ts` | ~6.5k lines | Admin instruction builders (extends `DriftClient`). |
+| `velocityClient.ts` | ~13k lines | Main client. All trading + keeper instruction builders. |
+| `adminClient.ts` | ~6.5k lines | Admin instruction builders (extends `VelocityClient`). |
 | `user.ts` | ~4.7k lines | `User` account abstraction: margin queries, position accessors, PnL. |
 | `types.ts` | ~45k lines | All shared TypeScript types mirroring on-chain structs. |
-| `idl/drift.json` | — | Generated Anchor IDL. Source of truth for instruction interfaces and account layouts. **Do not edit manually.** |
+| `idl/velocity.json` | — | Generated Anchor IDL. Source of truth for instruction interfaces and account layouts. **Do not edit manually.** |
 
 ### Key Directories
 | Directory | Purpose |
@@ -123,15 +123,15 @@ Variable-length account lists are passed via `remaining_accounts` to avoid fixed
 ### SDK ↔ On-Chain Instruction Mapping
 | SDK Method | On-Chain Instruction | Handler File |
 |---|---|---|
-| `driftClient.placePerpOrder` | `PlacePerpOrder` | `instructions/user.rs` |
-| `driftClient.cancelOrder` | `CancelOrder` | `instructions/user.rs` |
-| `driftClient.modifyOrder` | `ModifyOrder` | `instructions/user.rs` |
-| `driftClient.deposit` | `Deposit` | `instructions/user.rs` |
-| `driftClient.withdraw` | `Withdraw` | `instructions/user.rs` |
-| `driftClient.fillPerpOrder` | `FillPerpOrder` | `instructions/keeper.rs` |
-| `driftClient.settlePnl` | `SettlePnl` | `instructions/keeper.rs` |
-| `driftClient.liquidatePerp` | `LiquidatePerp` | `instructions/keeper.rs` |
-| `driftClient.updateFundingRate` | `UpdateFundingRate` | `instructions/keeper.rs` |
+| `velocityClient.placePerpOrder` | `PlacePerpOrder` | `instructions/user.rs` |
+| `velocityClient.cancelOrder` | `CancelOrder` | `instructions/user.rs` |
+| `velocityClient.modifyOrder` | `ModifyOrder` | `instructions/user.rs` |
+| `velocityClient.deposit` | `Deposit` | `instructions/user.rs` |
+| `velocityClient.withdraw` | `Withdraw` | `instructions/user.rs` |
+| `velocityClient.fillPerpOrder` | `FillPerpOrder` | `instructions/keeper.rs` |
+| `velocityClient.settlePnl` | `SettlePnl` | `instructions/keeper.rs` |
+| `velocityClient.liquidatePerp` | `LiquidatePerp` | `instructions/keeper.rs` |
+| `velocityClient.updateFundingRate` | `UpdateFundingRate` | `instructions/keeper.rs` |
 | `adminClient.initializePerpMarket` | `InitializePerpMarket` | `instructions/admin.rs` |
 | `adminClient.updatePerpMarket*` | `UpdatePerpMarket*` | `instructions/admin.rs` |
 | `adminClient.updateOracleGuardRails` | `UpdateOracleGuardRails` | `instructions/admin.rs` |
@@ -140,7 +140,7 @@ Variable-length account lists are passed via `remaining_accounts` to avoid fixed
 
 ## Ancillary Programs
 
-These are stubs/wrappers used by Drift for oracle and DEX integrations. No core logic lives here.
+These are stubs/wrappers used by Velocity for oracle and DEX integrations. No core logic lives here.
 
 | Program | Purpose |
 |---|---|
@@ -159,10 +159,10 @@ See `CLAUDE.md` for full commands. Key entry points:
 
 ```bash
 # Verify program compiles after Rust changes
-cargo build -p drift
+cargo build -p velocity
 
 # Run Rust unit tests
-cargo test -p drift
+cargo test -p velocity
 
 # Run a single TS integration test
 ts-mocha -t 300000 ./tests/<test_file>.ts

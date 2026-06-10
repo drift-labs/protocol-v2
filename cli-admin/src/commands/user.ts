@@ -27,7 +27,7 @@ export function registerUser(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin user set-special-status'
+				'velocity-admin user set-special-status'
 			);
 			reportDispatch(`user[${userPk}] special-status = ${status}`, result);
 		} finally {
@@ -62,7 +62,7 @@ export function registerUser(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				'drift-admin user admin-deposit'
+				'velocity-admin user admin-deposit'
 			);
 			reportDispatch(
 				`admin-deposit spot[${market}] amount=${amount} → ${local.user}`,

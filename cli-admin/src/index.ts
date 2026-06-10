@@ -12,10 +12,10 @@ import { registerUser } from './commands/user';
 const program = new Command();
 
 program
-	.name('drift-admin')
+	.name('velocity-admin')
 	.description(
 		[
-			'Drift v2 admin CLI.',
+			'Velocity v2 admin CLI.',
 			'',
 			'Each subcommand builds the appropriate instruction(s) and either signs them',
 			'with --keypair (default) or, with --multisig <pda>, wraps them in a Squads V4',

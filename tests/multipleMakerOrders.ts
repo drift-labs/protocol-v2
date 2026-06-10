@@ -30,9 +30,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('multiple maker orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let fillerDriftClient: TestClient;
+	let fillerVelocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -91,7 +91,7 @@ describe('multiple maker orders', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		fillerDriftClient = new TestClient({
+		fillerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -108,14 +108,14 @@ describe('multiple maker orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.initialize(usdcMint.publicKey, true);
-		await fillerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
-		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
+		await fillerVelocityClient.initialize(usdcMint.publicKey, true);
+		await fillerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(fillerVelocityClient, usdcMint.publicKey);
+		await fillerVelocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerDriftClient.initializePerpMarket(
+		await fillerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -123,14 +123,14 @@ describe('multiple maker orders', () => {
 			periodicity,
 			new BN(100 * PEG_PRECISION.toNumber())
 		);
-		await fillerDriftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await fillerVelocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await fillerDriftClient.updatePerpMarketBaseSpread(
+		await fillerVelocityClient.updatePerpMarketBaseSpread(
 			0,
 			PRICE_PRECISION.toNumber() / 8
 		);
 
-		await fillerDriftClient.initializePerpMarket(
+		await fillerVelocityClient.initializePerpMarket(
 			1,
 			dogUsd,
 			ammInitialBaseAssetReserve.div(new BN(100000)),
@@ -142,32 +142,32 @@ describe('multiple maker orders', () => {
 			MARGIN_PRECISION.toNumber() / 4, // 4x
 			MARGIN_PRECISION.toNumber() / 5 // 5x
 		);
-		await fillerDriftClient.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
+		await fillerVelocityClient.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
 
-		await fillerDriftClient.updatePerpMarketBaseSpread(
+		await fillerVelocityClient.updatePerpMarketBaseSpread(
 			1,
 			PRICE_PRECISION.toNumber() / 80
 		);
 
-		await fillerDriftClient.updatePerpMarketMarginRatio(
+		await fillerVelocityClient.updatePerpMarketMarginRatio(
 			0,
 			MARGIN_PRECISION.toNumber() / 2,
 			MARGIN_PRECISION.toNumber() / 3
 		);
 
-		await fillerDriftClient.updatePerpMarketMaxSpread(
+		await fillerVelocityClient.updatePerpMarketMaxSpread(
 			0,
 			PRICE_PRECISION.toNumber() / 5
 		);
 
-		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
+		await fillerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 	});
 
 	beforeEach(async () => {
-		await fillerDriftClient.moveAmmPrice(
+		await fillerVelocityClient.moveAmmPrice(
 			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
@@ -175,12 +175,12 @@ describe('multiple maker orders', () => {
 	});
 
 	after(async () => {
-		await fillerDriftClient.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('taker long solUsd', async () => {
-		const [takerDriftClient, takerUSDCAccount] =
+		const [takerVelocityClient, takerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -192,9 +192,9 @@ describe('multiple maker orders', () => {
 				bulkAccountLoader
 			);
 
-		await takerDriftClient.deposit(usdcAmount, 0, takerUSDCAccount);
+		await takerVelocityClient.deposit(usdcAmount, 0, takerUSDCAccount);
 
-		const [makerDriftClient, makerUSDCAccount] =
+		const [makerVelocityClient, makerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -206,10 +206,10 @@ describe('multiple maker orders', () => {
 				bulkAccountLoader
 			);
 
-		await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
+		await makerVelocityClient.deposit(usdcAmount, 0, makerUSDCAccount);
 
 		for (let i = 0; i < 6; i++) {
-			await makerDriftClient.placePerpOrder({
+			await makerVelocityClient.placePerpOrder({
 				marketIndex: 0,
 				direction: PositionDirection.SHORT,
 				price: new BN(95 + i).mul(PRICE_PRECISION),
@@ -218,7 +218,7 @@ describe('multiple maker orders', () => {
 			});
 		}
 
-		const [secondMakerDriftClient, secondMakerUSDCAccount] =
+		const [secondMakerVelocityClient, secondMakerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -230,10 +230,14 @@ describe('multiple maker orders', () => {
 				bulkAccountLoader
 			);
 
-		await secondMakerDriftClient.deposit(usdcAmount, 0, secondMakerUSDCAccount);
+		await secondMakerVelocityClient.deposit(
+			usdcAmount,
+			0,
+			secondMakerUSDCAccount
+		);
 
 		for (let i = 0; i < 6; i++) {
-			await secondMakerDriftClient.placePerpOrder({
+			await secondMakerVelocityClient.placePerpOrder({
 				marketIndex: 0,
 				direction: PositionDirection.SHORT,
 				price: new BN(95 + i).mul(PRICE_PRECISION),
@@ -243,7 +247,7 @@ describe('multiple maker orders', () => {
 		}
 
 		const takerBaseAssetAmount = new BN(6).mul(BASE_PRECISION);
-		await takerDriftClient.placePerpOrder({
+		await takerVelocityClient.placePerpOrder({
 			marketIndex: 0,
 			orderType: OrderType.LIMIT,
 			price: new BN(100).mul(PRICE_PRECISION),
@@ -253,20 +257,21 @@ describe('multiple maker orders', () => {
 
 		const makerInfo = [
 			{
-				maker: await makerDriftClient.getUserAccountPublicKey(),
-				makerUserAccount: makerDriftClient.getUserAccount(),
-				makerStats: await makerDriftClient.getUserStatsAccountPublicKey(),
+				maker: await makerVelocityClient.getUserAccountPublicKey(),
+				makerUserAccount: makerVelocityClient.getUserAccount(),
+				makerStats: await makerVelocityClient.getUserStatsAccountPublicKey(),
 			},
 			{
-				maker: await secondMakerDriftClient.getUserAccountPublicKey(),
-				makerUserAccount: secondMakerDriftClient.getUserAccount(),
-				makerStats: await secondMakerDriftClient.getUserStatsAccountPublicKey(),
+				maker: await secondMakerVelocityClient.getUserAccountPublicKey(),
+				makerUserAccount: secondMakerVelocityClient.getUserAccount(),
+				makerStats:
+					await secondMakerVelocityClient.getUserStatsAccountPublicKey(),
 			},
 		];
-		const txSig = await fillerDriftClient.fillPerpOrder(
-			await takerDriftClient.getUserAccountPublicKey(),
-			takerDriftClient.getUserAccount(),
-			takerDriftClient.getOrder(1),
+		const txSig = await fillerVelocityClient.fillPerpOrder(
+			await takerVelocityClient.getUserAccountPublicKey(),
+			takerVelocityClient.getUserAccount(),
+			takerVelocityClient.getOrder(1),
 			makerInfo
 		);
 
@@ -277,11 +282,11 @@ describe('multiple maker orders', () => {
 			.filter((record) => isVariant(record.action, 'fill'));
 		assert(orderActionRecords.length === 6);
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(takerBaseAssetAmount));
 		assert(takerPosition.quoteAssetAmount.eq(new BN(-576576000)));
 
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		const makerPosition = makerVelocityClient.getUser().getPerpPosition(0);
 		assert(
 			makerPosition.baseAssetAmount.eq(
 				takerBaseAssetAmount.neg().div(new BN(2))
@@ -289,7 +294,7 @@ describe('multiple maker orders', () => {
 		);
 		assert(makerPosition.quoteAssetAmount.eq(new BN(288057600)));
 
-		const secondMakerPosition = secondMakerDriftClient
+		const secondMakerPosition = secondMakerVelocityClient
 			.getUser()
 			.getPerpPosition(0);
 		assert(
@@ -300,7 +305,7 @@ describe('multiple maker orders', () => {
 		assert(secondMakerPosition.quoteAssetAmount.eq(new BN(288057600)));
 
 		for (let i = 0; i < 3; i++) {
-			await makerDriftClient.placePerpOrder({
+			await makerVelocityClient.placePerpOrder({
 				marketIndex: 0,
 				direction: PositionDirection.LONG,
 				price: new BN(101 - i).mul(PRICE_PRECISION),
@@ -310,7 +315,7 @@ describe('multiple maker orders', () => {
 		}
 
 		for (let i = 0; i < 3; i++) {
-			await secondMakerDriftClient.placePerpOrder({
+			await secondMakerVelocityClient.placePerpOrder({
 				marketIndex: 0,
 				direction: PositionDirection.LONG,
 				price: new BN(101 - i).mul(PRICE_PRECISION),
@@ -320,7 +325,7 @@ describe('multiple maker orders', () => {
 		}
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 90, solUsd);
-		await takerDriftClient.placePerpOrder({
+		await takerVelocityClient.placePerpOrder({
 			marketIndex: 0,
 			orderType: OrderType.LIMIT,
 			price: new BN(90).mul(PRICE_PRECISION),
@@ -328,25 +333,25 @@ describe('multiple maker orders', () => {
 			baseAssetAmount: takerBaseAssetAmount,
 		});
 
-		const txSig2 = await fillerDriftClient.fillPerpOrder(
-			await takerDriftClient.getUserAccountPublicKey(),
-			takerDriftClient.getUserAccount(),
-			takerDriftClient.getOrder(2),
+		const txSig2 = await fillerVelocityClient.fillPerpOrder(
+			await takerVelocityClient.getUserAccountPublicKey(),
+			takerVelocityClient.getUserAccount(),
+			takerVelocityClient.getOrder(2),
 			makerInfo
 		);
 
-		const takerPosition2 = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition2 = takerVelocityClient.getUser().getPerpPosition(0);
 		assert(takerPosition2.baseAssetAmount.eq(new BN(0)));
 
 		bankrunContextWrapper.printTxLogs(txSig2);
 
-		await takerDriftClient.unsubscribe();
-		await makerDriftClient.unsubscribe();
-		await secondMakerDriftClient.unsubscribe();
+		await takerVelocityClient.unsubscribe();
+		await makerVelocityClient.unsubscribe();
+		await secondMakerVelocityClient.unsubscribe();
 	});
 
 	it('taker short dogUsd', async () => {
-		const [takerDriftClient, takerUSDCAccount] =
+		const [takerVelocityClient, takerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -358,9 +363,9 @@ describe('multiple maker orders', () => {
 				bulkAccountLoader
 			);
 
-		await takerDriftClient.deposit(usdcAmount, 0, takerUSDCAccount);
+		await takerVelocityClient.deposit(usdcAmount, 0, takerUSDCAccount);
 
-		const [makerDriftClient, makerUSDCAccount] =
+		const [makerVelocityClient, makerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -372,10 +377,10 @@ describe('multiple maker orders', () => {
 				bulkAccountLoader
 			);
 
-		await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
+		await makerVelocityClient.deposit(usdcAmount, 0, makerUSDCAccount);
 
 		for (let i = 0; i < 1; i++) {
-			await makerDriftClient.placePerpOrder({
+			await makerVelocityClient.placePerpOrder({
 				marketIndex: 1,
 				direction: PositionDirection.LONG,
 				price: new BN((0.69 - i / 100) * PRICE_PRECISION.toNumber()),
@@ -384,7 +389,7 @@ describe('multiple maker orders', () => {
 			});
 		}
 
-		const [secondMakerDriftClient, secondMakerUSDCAccount] =
+		const [secondMakerVelocityClient, secondMakerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -396,10 +401,14 @@ describe('multiple maker orders', () => {
 				bulkAccountLoader
 			);
 
-		await secondMakerDriftClient.deposit(usdcAmount, 0, secondMakerUSDCAccount);
+		await secondMakerVelocityClient.deposit(
+			usdcAmount,
+			0,
+			secondMakerUSDCAccount
+		);
 
 		for (let i = 0; i < 16; i++) {
-			await secondMakerDriftClient.placePerpOrder({
+			await secondMakerVelocityClient.placePerpOrder({
 				marketIndex: 1,
 				direction: PositionDirection.LONG,
 				price: new BN((0.69 - i / 500) * PRICE_PRECISION.toNumber()),
@@ -408,7 +417,7 @@ describe('multiple maker orders', () => {
 			});
 		}
 
-		const [thirdMakerDriftClient, thirdMakerUSDCAccount] =
+		const [thirdMakerVelocityClient, thirdMakerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -419,11 +428,15 @@ describe('multiple maker orders', () => {
 				oracleInfos,
 				bulkAccountLoader
 			);
-		await thirdMakerDriftClient.deposit(usdcAmount, 0, thirdMakerUSDCAccount);
+		await thirdMakerVelocityClient.deposit(
+			usdcAmount,
+			0,
+			thirdMakerUSDCAccount
+		);
 
 		for (let i = 0; i < 32; i++) {
 			if (i % 2 == 0) {
-				await thirdMakerDriftClient.placePerpOrder({
+				await thirdMakerVelocityClient.placePerpOrder({
 					marketIndex: 1,
 					direction: PositionDirection.LONG,
 					price: new BN((0.69 - i / 1000) * PRICE_PRECISION.toNumber()),
@@ -431,7 +444,7 @@ describe('multiple maker orders', () => {
 					baseAssetAmount: BASE_PRECISION,
 				});
 			} else {
-				await thirdMakerDriftClient.placePerpOrder({
+				await thirdMakerVelocityClient.placePerpOrder({
 					marketIndex: 1,
 					direction: PositionDirection.LONG,
 					oraclePriceOffset: new BN(-i).mul(PRICE_PRECISION).div(new BN(1000)),
@@ -443,7 +456,7 @@ describe('multiple maker orders', () => {
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.675, dogUsd);
 		const takerBaseAssetAmount = new BN(600).mul(BASE_PRECISION);
-		await takerDriftClient.placePerpOrder({
+		await takerVelocityClient.placePerpOrder({
 			marketIndex: 1,
 			orderType: OrderType.LIMIT,
 			price: new BN(0.675 * PRICE_PRECISION.toNumber()),
@@ -453,25 +466,27 @@ describe('multiple maker orders', () => {
 
 		const makerInfo = [
 			{
-				maker: await makerDriftClient.getUserAccountPublicKey(),
-				makerUserAccount: makerDriftClient.getUserAccount(),
-				makerStats: await makerDriftClient.getUserStatsAccountPublicKey(),
+				maker: await makerVelocityClient.getUserAccountPublicKey(),
+				makerUserAccount: makerVelocityClient.getUserAccount(),
+				makerStats: await makerVelocityClient.getUserStatsAccountPublicKey(),
 			},
 			{
-				maker: await secondMakerDriftClient.getUserAccountPublicKey(),
-				makerUserAccount: secondMakerDriftClient.getUserAccount(),
-				makerStats: await secondMakerDriftClient.getUserStatsAccountPublicKey(),
+				maker: await secondMakerVelocityClient.getUserAccountPublicKey(),
+				makerUserAccount: secondMakerVelocityClient.getUserAccount(),
+				makerStats:
+					await secondMakerVelocityClient.getUserStatsAccountPublicKey(),
 			},
 			{
-				maker: await thirdMakerDriftClient.getUserAccountPublicKey(),
-				makerUserAccount: thirdMakerDriftClient.getUserAccount(),
-				makerStats: await thirdMakerDriftClient.getUserStatsAccountPublicKey(),
+				maker: await thirdMakerVelocityClient.getUserAccountPublicKey(),
+				makerUserAccount: thirdMakerVelocityClient.getUserAccount(),
+				makerStats:
+					await thirdMakerVelocityClient.getUserStatsAccountPublicKey(),
 			},
 		];
-		const txSig = await fillerDriftClient.fillPerpOrder(
-			await takerDriftClient.getUserAccountPublicKey(),
-			takerDriftClient.getUserAccount(),
-			takerDriftClient.getOrder(1),
+		const txSig = await fillerVelocityClient.fillPerpOrder(
+			await takerVelocityClient.getUserAccountPublicKey(),
+			takerVelocityClient.getUserAccount(),
+			takerVelocityClient.getOrder(1),
 			makerInfo
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
@@ -482,7 +497,7 @@ describe('multiple maker orders', () => {
 		console.log('orderActionRecords.length=', orderActionRecords.length);
 		assert(orderActionRecords.length === 20);
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(1);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(1);
 		console.log(
 			'takerPosition.baseAssetAmount=',
 			takerPosition.baseAssetAmount.toString()
@@ -494,7 +509,7 @@ describe('multiple maker orders', () => {
 		assert(takerPosition.baseAssetAmount.eq(new BN('-402388600000')));
 		assert(takerPosition.quoteAssetAmount.eq(new BN('273539365')));
 
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(1);
+		const makerPosition = makerVelocityClient.getUser().getPerpPosition(1);
 		console.log(
 			'makerPosition.baseAssetAmount=',
 			makerPosition.baseAssetAmount.toString()
@@ -506,7 +521,7 @@ describe('multiple maker orders', () => {
 		assert(makerPosition.baseAssetAmount.eq(new BN('1000000000')));
 		assert(makerPosition.quoteAssetAmount.eq(new BN('-689862')));
 
-		const secondMakerPosition = secondMakerDriftClient
+		const secondMakerPosition = secondMakerVelocityClient
 			.getUser()
 			.getPerpPosition(1);
 		console.log(
@@ -520,7 +535,7 @@ describe('multiple maker orders', () => {
 		assert(secondMakerPosition.baseAssetAmount.eq(new BN('3000000000')));
 		assert(secondMakerPosition.quoteAssetAmount.eq(new BN('-2063588')));
 
-		const thirdMakerPosition = thirdMakerDriftClient
+		const thirdMakerPosition = thirdMakerVelocityClient
 			.getUser()
 			.getPerpPosition(1);
 		console.log(
@@ -534,7 +549,7 @@ describe('multiple maker orders', () => {
 		assert(thirdMakerPosition.baseAssetAmount.eq(new BN('3000000000')));
 		assert(thirdMakerPosition.quoteAssetAmount.eq(new BN('-2063588')));
 
-		const dogMarket = takerDriftClient.getPerpMarketAccount(1);
+		const dogMarket = takerVelocityClient.getPerpMarketAccount(1);
 		console.log(
 			'dogMarket.amm.baseAssetAmountWithAmm=',
 			dogMarket.amm.baseAssetAmountWithAmm.toString()
@@ -544,7 +559,7 @@ describe('multiple maker orders', () => {
 		// close position
 
 		for (let i = 0; i < 3; i++) {
-			await makerDriftClient.placePerpOrder({
+			await makerVelocityClient.placePerpOrder({
 				marketIndex: 1,
 				direction: PositionDirection.SHORT,
 				price: new BN((0.69 + i / 100) * PRICE_PRECISION.toNumber()),
@@ -554,7 +569,7 @@ describe('multiple maker orders', () => {
 		}
 
 		for (let i = 1; i < 2; i++) {
-			await secondMakerDriftClient.placePerpOrder({
+			await secondMakerVelocityClient.placePerpOrder({
 				marketIndex: 1,
 				direction: PositionDirection.SHORT,
 				price: new BN((0.69 + i / 400) * PRICE_PRECISION.toNumber()),
@@ -564,7 +579,7 @@ describe('multiple maker orders', () => {
 		}
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.75, dogUsd);
-		await takerDriftClient.placePerpOrder({
+		await takerVelocityClient.placePerpOrder({
 			marketIndex: 1,
 			orderType: OrderType.LIMIT,
 			price: new BN(0.75 * PRICE_PRECISION.toNumber()),
@@ -572,21 +587,21 @@ describe('multiple maker orders', () => {
 			baseAssetAmount: takerPosition.baseAssetAmount,
 		});
 
-		const txSig2 = await fillerDriftClient.fillPerpOrder(
-			await takerDriftClient.getUserAccountPublicKey(),
-			takerDriftClient.getUserAccount(),
-			takerDriftClient.getOrder(2),
+		const txSig2 = await fillerVelocityClient.fillPerpOrder(
+			await takerVelocityClient.getUserAccountPublicKey(),
+			takerVelocityClient.getUserAccount(),
+			takerVelocityClient.getOrder(2),
 			makerInfo
 		);
 
-		const takerPosition2 = takerDriftClient.getUser().getPerpPosition(1);
+		const takerPosition2 = takerVelocityClient.getUser().getPerpPosition(1);
 		console.log(
 			'takerPosition2.baseAssetAmount=',
 			takerPosition2.baseAssetAmount.toString()
 		);
 		assert(takerPosition2.baseAssetAmount.eq(new BN(0)));
 
-		const dogMarketAfter = takerDriftClient.getPerpMarketAccount(1);
+		const dogMarketAfter = takerVelocityClient.getPerpMarketAccount(1);
 		console.log(
 			'dogMarketAfter.amm.baseAssetAmountWithAmm=',
 			dogMarketAfter.amm.baseAssetAmountWithAmm.toString()
@@ -597,9 +612,9 @@ describe('multiple maker orders', () => {
 
 		bankrunContextWrapper.printTxLogs(txSig2);
 
-		await takerDriftClient.unsubscribe();
-		await makerDriftClient.unsubscribe();
-		await secondMakerDriftClient.unsubscribe();
-		await thirdMakerDriftClient.unsubscribe();
+		await takerVelocityClient.unsubscribe();
+		await makerVelocityClient.unsubscribe();
+		await secondMakerVelocityClient.unsubscribe();
+		await thirdMakerVelocityClient.unsubscribe();
 	});
 });

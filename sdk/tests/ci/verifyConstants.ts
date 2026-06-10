@@ -49,7 +49,7 @@ describe('Verify Constants', function () {
 		1
 	);
 
-	const devnetDriftClient = new VelocityClient({
+	const devnetVelocityClient = new VelocityClient({
 		connection: devnetConnection,
 		wallet,
 		env: 'devnet',
@@ -59,7 +59,7 @@ describe('Verify Constants', function () {
 		},
 	});
 
-	const mainnetDriftClient = new VelocityClient({
+	const mainnetVelocityClient = new VelocityClient({
 		connection: mainnetConnection,
 		wallet,
 		env: 'mainnet-beta',
@@ -72,18 +72,19 @@ describe('Verify Constants', function () {
 	let lutAccounts: string[];
 
 	before(async () => {
-		await devnetDriftClient.subscribe();
-		await mainnetDriftClient.subscribe();
+		await devnetVelocityClient.subscribe();
+		await mainnetVelocityClient.subscribe();
 
-		const lookupTables = await mainnetDriftClient.fetchAllLookupTableAccounts();
+		const lookupTables =
+			await mainnetVelocityClient.fetchAllLookupTableAccounts();
 		lutAccounts = lookupTables
 			.map((lut) => lut.state.addresses.map((x) => x.toBase58()))
 			.flat();
 	});
 
 	after(async () => {
-		await devnetDriftClient.unsubscribe();
-		await mainnetDriftClient.unsubscribe();
+		await devnetVelocityClient.unsubscribe();
+		await mainnetVelocityClient.unsubscribe();
 	});
 
 	it('has all mainnet markets', async () => {
@@ -95,7 +96,7 @@ describe('Verify Constants', function () {
 			description: string;
 		}[] = [];
 
-		const spotMarkets = mainnetDriftClient.getSpotMarketAccounts();
+		const spotMarkets = mainnetVelocityClient.getSpotMarketAccounts();
 		spotMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of spotMarkets) {
@@ -170,7 +171,7 @@ describe('Verify Constants', function () {
 			}
 		}
 
-		const perpMarkets = mainnetDriftClient.getPerpMarketAccounts();
+		const perpMarkets = mainnetVelocityClient.getPerpMarketAccounts();
 		perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of perpMarkets) {
@@ -272,7 +273,7 @@ describe('Verify Constants', function () {
 	it('has all devnet markets', async () => {
 		const errors: string[] = [];
 
-		const spotMarkets = devnetDriftClient.getSpotMarketAccounts();
+		const spotMarkets = devnetVelocityClient.getSpotMarketAccounts();
 		spotMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of spotMarkets) {
@@ -327,7 +328,7 @@ describe('Verify Constants', function () {
 			}
 		}
 
-		const perpMarkets = devnetDriftClient.getPerpMarketAccounts();
+		const perpMarkets = devnetVelocityClient.getPerpMarketAccounts();
 		perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of perpMarkets) {

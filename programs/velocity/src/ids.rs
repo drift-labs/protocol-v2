@@ -1,0 +1,105 @@
+use anchor_lang::prelude::Pubkey;
+use solana_program::pubkey;
+
+pub mod pyth_program {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH");
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
+}
+
+pub mod wormhole_program {
+    use solana_program::declare_id;
+    declare_id!("HDwcJBJXjL9FpJ7UBsYBtaDjsBUhuLCUYoz3zr8SWWaQ");
+}
+
+pub mod velocity_oracle_receiver_program {
+    use solana_program::declare_id;
+    declare_id!("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha");
+}
+
+pub mod pyth_lazer_program {
+    use solana_program::declare_id;
+    declare_id!("pytd2yyk641x7ak7mkaasSJVXh6YYZnC7wTmtgAyxPt");
+}
+
+pub mod switchboard_program {
+    use solana_program::declare_id;
+    declare_id!("SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f");
+}
+
+pub mod switchboard_on_demand {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2");
+}
+
+pub mod serum_program {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX");
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("DESVgJVGajEgKGXhb6XmqDHGz3VjdgP7rEVESBgxmroY");
+}
+
+pub mod jupiter_mainnet_6 {
+    use solana_program::declare_id;
+    declare_id!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+}
+pub mod jupiter_mainnet_4 {
+    use solana_program::declare_id;
+    declare_id!("JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB");
+}
+pub mod jupiter_mainnet_3 {
+    use solana_program::declare_id;
+    declare_id!("JUP3c2Uh3WA4Ng34tw6kPd2G4C5BB21Xo36Je1s32Ph");
+}
+
+pub mod marinade_mainnet {
+    use solana_program::declare_id;
+    declare_id!("MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD");
+}
+
+/// Designated owner for insurance fund admin withdrawal. Only token accounts owned by this
+/// pubkey can receive; prevents redirecting funds to an arbitrary address.
+pub mod insurance_fund_withdrawal_recipient {
+    use solana_program::declare_id;
+    #[cfg(feature = "anchor-test")]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+    #[cfg(all(not(feature = "anchor-test"), feature = "mainnet-beta"))]
+    declare_id!("GYUvtRMa3UTdMrwM9a78ZcouAv7b7t8komeGVdkNn6SG");
+    #[cfg(all(not(feature = "anchor-test"), not(feature = "mainnet-beta")))]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+}
+
+pub mod lighthouse {
+    use solana_program::declare_id;
+    declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");
+}
+
+pub mod dflow_mainnet_aggregator_4 {
+    use solana_program::declare_id;
+    declare_id!("DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH");
+}
+
+pub mod titan_mainnet_argos_v1 {
+    use solana_program::declare_id;
+    declare_id!("T1TANpTeScyeqVzzgNViGDNrkQ6qHz9KrSBS4aNXvGT");
+}
+
+pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
+    serum_program::id(),
+    jupiter_mainnet_3::id(),
+    jupiter_mainnet_4::id(),
+    jupiter_mainnet_6::id(),
+    dflow_mainnet_aggregator_4::id(),
+    titan_mainnet_argos_v1::id(),
+];
+
+pub const WHITELISTED_EXTERNAL_DEPOSITORS: [Pubkey; 2] = [
+    pubkey!("zApVWDs3nSychNnUXSS2czhY78Ycopa15zELrK2gAdM"),
+    pubkey!("4B62MS5gxpRZ2hwkGCNAAayA5f7LYZRW4z1ASSfU3SXo"),
+];
