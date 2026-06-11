@@ -1164,6 +1164,10 @@ export type OrderParams = {
 	maxTs: BN | null;
 	auctionStartPrice: BN | null;
 	auctionEndPrice: BN | null;
+	/** index into the placing user's RevenueShareEscrow.approved_builders list (non-swift builder codes) */
+	builderIdx?: number | null;
+	/** builder fee on this order, in tenths of a bps, e.g. 100 = 0.01% */
+	builderFeeTenthBps?: number | null;
 };
 
 export class PostOnlyParams {
@@ -1257,6 +1261,8 @@ export const DefaultOrderParams: OrderParams = {
 	maxTs: null,
 	auctionStartPrice: null,
 	auctionEndPrice: null,
+	builderIdx: null,
+	builderFeeTenthBps: null,
 };
 
 export type SignedMsgOrderParamsMessage = {
@@ -1312,6 +1318,8 @@ export type ReferrerInfo = {
 export enum ReferrerStatus {
 	IsReferrer = 1,
 	IsReferred = 2,
+	/** set when the user's RevenueShareEscrow was initialized with a referrer */
+	BuilderReferral = 4,
 }
 
 export enum PlaceAndTakeOrderSuccessCondition {

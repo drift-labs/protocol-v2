@@ -6,6 +6,17 @@ mod sig_verification {
     use crate::controller::position::PositionDirection;
     use crate::validation::sig_verification::deserialize_into_verified_message;
 
+    /// The fixtures below encode the embedded `OrderParams` with its pre-builder-codes layout.
+    /// Builder-codes support appended two trailing `Option` fields (`builder_idx`,
+    /// `builder_fee_tenth_bps`) to `OrderParams`, which in these fixtures is a 49-byte auction
+    /// order starting right after the 8-byte discriminator. Splice in their `None` encodings
+    /// (`0, 0`) at the end of the embedded `OrderParams` (offset 8 + 49 = 57) so the trailing
+    /// envelope fields stay aligned.
+    fn with_order_params_builder_none(mut payload: Vec<u8>) -> Vec<u8> {
+        payload.splice(57..57, [0u8, 0u8]);
+        payload
+    }
+
     #[test]
     fn test_deserialize_into_verified_message_non_delegate() {
         let signature = [1u8; 64];
@@ -17,7 +28,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with non-delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, false);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            false,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -59,7 +74,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, false);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            false,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -109,7 +128,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, false);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            false,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -160,7 +183,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, false);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            false,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -209,7 +236,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, true);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            true,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -256,7 +287,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, true);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            true,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -311,7 +346,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, true);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            true,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -368,7 +407,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, false);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            false,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();
@@ -417,7 +460,11 @@ mod sig_verification {
         ];
 
         // Test deserialization with delegate signer
-        let result = deserialize_into_verified_message(payload, &signature, true);
+        let result = deserialize_into_verified_message(
+            with_order_params_builder_none(payload),
+            &signature,
+            true,
+        );
         assert!(result.is_ok());
 
         let verified_message = result.unwrap();

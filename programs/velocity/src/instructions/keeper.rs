@@ -33,7 +33,10 @@ use crate::{
     },
     instructions::{
         constraints::*,
-        optional_accounts::{get_revenue_share_escrow_account, load_maps, AccountMaps},
+        optional_accounts::{
+            add_builder_order, get_revenue_share_escrow_account, load_maps,
+            validate_and_load_builder, AccountMaps,
+        },
     },
     load, load_mut, math,
     math::{
@@ -68,9 +71,7 @@ use crate::{
             get_market_set_from_list, get_writable_perp_market_set,
             get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
         },
-        revenue_share::{
-            RevenueShareEscrowZeroCopyMut, RevenueShareOrder, RevenueShareOrderBitFlag,
-        },
+        revenue_share::RevenueShareEscrowZeroCopyMut,
         revenue_share_map::load_revenue_share_map,
         settle_pnl_mode::SettlePnlMode,
         signed_msg_user::{
@@ -514,46 +515,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         is_delegate_signer,
     )?;
 
-    let mut escrow_zc: Option<RevenueShareEscrowZeroCopyMut<'info>> = None;
-    let mut builder_fee_bps: Option<u16> = None;
-    if state.builder_codes_enabled()
-        && verified_message_and_signature.builder_idx.is_some()
-        && verified_message_and_signature
-            .builder_fee_tenth_bps
-            .is_some()
-    {
-        if let Some(mut escrow) = escrow {
-            let builder_idx = verified_message_and_signature.builder_idx.unwrap();
-            let builder_fee = verified_message_and_signature
-                .builder_fee_tenth_bps
-                .unwrap();
-
-            validate!(
-                escrow.fixed.authority == taker.authority,
-                ErrorCode::InvalidUserAccount,
-                "RevenueShareEscrow account must be owned by taker",
-            )?;
-
-            let builder = escrow.get_approved_builder_mut(builder_idx)?;
-
-            if builder.is_revoked() {
-                return Err(ErrorCode::BuilderRevoked.into());
-            }
-
-            if builder_fee > builder.max_fee_tenth_bps {
-                return Err(ErrorCode::InvalidBuilderFee.into());
-            }
-
-            builder_fee_bps = Some(builder_fee);
-            escrow_zc = Some(escrow);
-        } else {
-            validate!(
-                false,
-                ErrorCode::UnableToLoadRevenueShareAccount,
-                "Order has builder fee but no escrow account found"
-            )?;
-        }
-    }
+    let (mut escrow_zc, builder_fee_bps) = validate_and_load_builder(
+        escrow,
+        &taker.authority,
+        verified_message_and_signature.builder_idx,
+        verified_message_and_signature.builder_fee_tenth_bps,
+        state,
+    )?;
 
     if is_delegate_signer {
         validate!(
@@ -681,32 +649,14 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             ..OrderParams::default()
         };
 
-        let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
-            let new_order_id = taker_order_id_to_use - 1;
-            let new_order_index = taker
-                .orders
-                .iter()
-                .position(|order| order.is_available())
-                .ok_or(ErrorCode::MaxNumberOfOrders)?;
-            match escrow.add_order(RevenueShareOrder::new(
-                verified_message_and_signature.builder_idx.unwrap(),
-                taker.sub_account_id,
-                new_order_id,
-                builder_fee_bps.unwrap(),
-                MarketType::Perp,
-                market_index,
-                RevenueShareOrderBitFlag::Open as u8,
-                new_order_index as u8,
-            )) {
-                Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
-                Err(_) => {
-                    msg!("Failed to add stop loss order, escrow is full");
-                    None
-                }
-            }
-        } else {
-            None
-        };
+        let mut builder_order = add_builder_order(
+            &mut escrow_zc,
+            taker,
+            verified_message_and_signature.builder_idx,
+            builder_fee_bps,
+            taker_order_id_to_use - 1,
+            market_index,
+        )?;
 
         controller::orders::place_perp_order(
             state,
@@ -745,32 +695,14 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             ..OrderParams::default()
         };
 
-        let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
-            let new_order_id = taker_order_id_to_use - 1;
-            let new_order_index = taker
-                .orders
-                .iter()
-                .position(|order| order.is_available())
-                .ok_or(ErrorCode::MaxNumberOfOrders)?;
-            match escrow.add_order(RevenueShareOrder::new(
-                verified_message_and_signature.builder_idx.unwrap(),
-                taker.sub_account_id,
-                new_order_id,
-                builder_fee_bps.unwrap(),
-                MarketType::Perp,
-                market_index,
-                RevenueShareOrderBitFlag::Open as u8,
-                new_order_index as u8,
-            )) {
-                Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
-                Err(_) => {
-                    msg!("Failed to add take profit order, escrow is full");
-                    None
-                }
-            }
-        } else {
-            None
-        };
+        let mut builder_order = add_builder_order(
+            &mut escrow_zc,
+            taker,
+            verified_message_and_signature.builder_idx,
+            builder_fee_bps,
+            taker_order_id_to_use - 1,
+            market_index,
+        )?;
 
         controller::orders::place_perp_order(
             state,
@@ -792,32 +724,14 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     signed_msg_order_id.order_id = taker_order_id_to_use;
     signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
 
-    let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
-        let new_order_id = taker_order_id_to_use;
-        let new_order_index = taker
-            .orders
-            .iter()
-            .position(|order| order.is_available())
-            .ok_or(ErrorCode::MaxNumberOfOrders)?;
-        match escrow.add_order(RevenueShareOrder::new(
-            verified_message_and_signature.builder_idx.unwrap(),
-            taker.sub_account_id,
-            new_order_id,
-            builder_fee_bps.unwrap(),
-            MarketType::Perp,
-            market_index,
-            RevenueShareOrderBitFlag::Open as u8,
-            new_order_index as u8,
-        )) {
-            Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
-            Err(_) => {
-                msg!("Failed to add order, escrow is full");
-                None
-            }
-        }
-    } else {
-        None
-    };
+    let mut builder_order = add_builder_order(
+        &mut escrow_zc,
+        taker,
+        verified_message_and_signature.builder_idx,
+        builder_fee_bps,
+        taker_order_id_to_use,
+        market_index,
+    )?;
 
     controller::orders::place_perp_order(
         state,

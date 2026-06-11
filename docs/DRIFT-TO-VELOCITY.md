@@ -67,6 +67,7 @@ or reworked.
 | **MM oracle validation** | #60 | Slot-gap and step-cap checks on MM oracle updates. |
 | **Special user status** | #17 | New `User.special_user_status` field (`SpecialUserStatus::VammHedger`). |
 | **Builder codes** (*pending, PR #68*) | #68 | Optional `builder_idx` / `builder_fee_tenth_bps` on `OrderParams`; new `change_approved_builder` instruction and `RevenueShareEscrow` account. Existing order placements are unaffected (fields are optional). |
+| **Revenue-share fill enforcement** (*pending, PR #68*) | #68 | Perp fills fail with `UnableToLoadRevenueShareAccount` (6324 / `0x18b4`) unless the taker's `RevenueShareEscrow` is passed in remaining accounts when (a) the taker order carries a builder code, or (b) the taker's `UserStats.referrer_status` has the `BuilderReferral` bit (escrow exists with a referrer). Liquidation fills and the feature-flag-off state are exempt. Fillers must attach the escrow for any taker that has one with a referrer — see SDK §4.4. Referral rewards also no longer accrue (and referral slots are no longer created) for escrows without a referrer. |
 
 ---
 
@@ -130,6 +131,17 @@ Config fields `SERUM_V3`, `PHOENIX`, `OPENBOOK`, `SERUM_LOOKUP_TABLE`,
 - `PerpPosition`: `lpShares`, `lastQuoteAssetAmountPerLp`, `perLpBase` removed.
 - `StateAccount`: single `admin` replaced by the cold/warm/hot key set.
 - `CurveRecord` event → `AmmCurveChanged` (fields changed too).
+- **Revenue-share escrow on fills** (PR #68): `ReferrerStatus` enum gains
+  `BuilderReferral = 4`; new `isBuilderReferral(userStats)`, `escrowHasReferrer(escrow)`,
+  and `hasBuilderParams(orderParams)` helpers in `math/builder`.
+  `fillPerpOrder` / `getFillPerpOrderIx`, `placeAndTakePerpOrder` /
+  `getPlaceAndTakePerpOrderIx`, `placeAndMakePerpOrder` /
+  `getPlaceAndMakePerpOrderIx`, and `getPlaceAndMakeSignedMsgPerpOrderIxs` accept an
+  optional trailing `takerEscrow` (the taker's decoded `RevenueShareEscrowAccount`,
+  e.g. from a `RevenueShareEscrowMap`) so the taker's escrow is attached when the
+  taker is referred (required by the program's fill-time enforcement — see §3). The
+  builders validate `takerEscrow.authority` against the taker's authority. The
+  settle-PnL builders keep their map-based `revenueShareEscrowMap` param.
 
 ### 4.5 New: `VelocityCore`
 
@@ -186,7 +198,7 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
 | #65 | Decouple AMM from rest of codebase |
 | #66 | VLP module (vAMM + hedge) |
 | #67 | Remove legacy fee path |
-| #68 *(open)* | Builder codes on non-swift orders |
+| #68 *(open)* | Builder codes on non-swift orders; fill-time enforcement of builder + referral revenue share (escrow required when taker has a builder order or a referred escrow) |
 | #70 *(open)* | Rebrand program crate drift → velocity |
 
 ---

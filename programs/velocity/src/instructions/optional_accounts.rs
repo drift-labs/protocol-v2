@@ -1,7 +1,10 @@
 use crate::error::{ErrorCode, VelocityResult};
 use crate::state::revenue_share::{
-    RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut,
+    RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut, RevenueShareOrder,
+    RevenueShareOrderBitFlag,
 };
+use crate::state::state::State;
+use crate::state::user::MarketType;
 use std::cell::RefMut;
 use std::convert::TryFrom;
 
@@ -274,4 +277,131 @@ pub fn get_revenue_share_escrow_account<'a>(
     )?;
 
     Ok(Some(escrow))
+}
+
+/// Validates that a builder referenced by an order may collect the requested fee.
+///
+/// Returns `Ok(None)` when builder codes are disabled or the order carries no builder fields.
+/// When a builder fee is present it validates the escrow ownership, that the builder is not
+/// revoked, and that the requested fee does not exceed the builder's max, returning the fee in
+/// tenths of a bps. Errors if a builder fee is requested but the escrow has not been loaded.
+pub fn validate_builder_fee(
+    escrow: Option<&mut RevenueShareEscrowZeroCopyMut>,
+    user_authority: &Pubkey,
+    builder_idx: Option<u8>,
+    builder_fee_tenth_bps: Option<u16>,
+    state: &State,
+) -> VelocityResult<Option<u16>> {
+    if !state.builder_codes_enabled() {
+        return Ok(None);
+    }
+    let (builder_idx, builder_fee) = match (builder_idx, builder_fee_tenth_bps) {
+        (Some(idx), Some(fee)) => (idx, fee),
+        _ => return Ok(None),
+    };
+
+    let escrow = match escrow {
+        Some(escrow) => escrow,
+        None => {
+            validate!(
+                false,
+                ErrorCode::UnableToLoadRevenueShareAccount,
+                "Order has builder fee but no escrow account found"
+            )?;
+            unreachable!()
+        }
+    };
+
+    validate!(
+        escrow.fixed.authority == *user_authority,
+        ErrorCode::InvalidUserAccount,
+        "RevenueShareEscrow account must be owned by taker",
+    )?;
+
+    let builder = escrow.get_approved_builder_mut(builder_idx)?;
+
+    if builder.is_revoked() {
+        return Err(ErrorCode::BuilderRevoked);
+    }
+
+    if builder_fee > builder.max_fee_tenth_bps {
+        return Err(ErrorCode::InvalidBuilderFee);
+    }
+
+    Ok(Some(builder_fee))
+}
+
+/// Move-based convenience wrapper around [`validate_builder_fee`] for single-order callers.
+///
+/// Takes ownership of the loaded escrow and returns it together with the validated builder fee
+/// when the order carries a valid builder code, or `(None, None)` otherwise.
+pub fn validate_and_load_builder<'a>(
+    mut escrow: Option<RevenueShareEscrowZeroCopyMut<'a>>,
+    user_authority: &Pubkey,
+    builder_idx: Option<u8>,
+    builder_fee_tenth_bps: Option<u16>,
+    state: &State,
+) -> VelocityResult<(Option<RevenueShareEscrowZeroCopyMut<'a>>, Option<u16>)> {
+    let builder_fee_bps = validate_builder_fee(
+        escrow.as_mut(),
+        user_authority,
+        builder_idx,
+        builder_fee_tenth_bps,
+        state,
+    )?;
+    match builder_fee_bps {
+        Some(_) => Ok((escrow, builder_fee_bps)),
+        None => Ok((None, None)),
+    }
+}
+
+/// Adds a [`RevenueShareOrder`] to the escrow for the order about to be placed and returns a
+/// mutable reference to it, suitable to pass to `controller::orders::place_perp_order` as the
+/// `rev_share_order` argument. Returns `Ok(None)` when the order carries no builder code
+/// (`builder_idx`/`builder_fee_bps` is `None`), when there is no escrow, or when the escrow's
+/// order list is full.
+///
+/// Gating on the builder fee here (rather than only on the escrow being present) is important:
+/// a referred user has an escrow even for orders without a builder code, and we must not create
+/// a spurious builder order for those — the escrow is still loaded so the fill can accrue the
+/// referrer's revenue share.
+pub fn add_builder_order<'a, 'b>(
+    escrow: &'b mut Option<RevenueShareEscrowZeroCopyMut<'a>>,
+    user: &User,
+    builder_idx: Option<u8>,
+    builder_fee_bps: Option<u16>,
+    order_id: u32,
+    market_index: u16,
+) -> VelocityResult<Option<&'b mut RevenueShareOrder>> {
+    let (builder_idx, builder_fee_bps) = match (builder_idx, builder_fee_bps) {
+        (Some(idx), Some(fee)) => (idx, fee),
+        _ => return Ok(None),
+    };
+    let escrow = match escrow.as_mut() {
+        Some(escrow) => escrow,
+        None => return Ok(None),
+    };
+
+    let new_order_index = user
+        .orders
+        .iter()
+        .position(|order| order.is_available())
+        .ok_or(ErrorCode::MaxNumberOfOrders)?;
+
+    match escrow.add_order(RevenueShareOrder::new(
+        builder_idx,
+        user.sub_account_id,
+        order_id,
+        builder_fee_bps,
+        MarketType::Perp,
+        market_index,
+        RevenueShareOrderBitFlag::Open as u8,
+        new_order_index as u8,
+    )) {
+        Ok(order_idx) => Ok(escrow.get_order_mut(order_idx).ok()),
+        Err(_) => {
+            msg!("Failed to add builder order, RevenueShareEscrow is full");
+            Ok(None)
+        }
+    }
 }

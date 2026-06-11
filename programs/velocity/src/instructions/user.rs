@@ -31,7 +31,8 @@ use crate::ids::{
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{
-    get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
+    add_builder_order, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
+    validate_and_load_builder, validate_builder_fee, AccountMaps,
 };
 use crate::load;
 use crate::math::casting::Cast;
@@ -2378,6 +2379,27 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
 
+    let escrow = if state.builder_codes_enabled() {
+        get_revenue_share_escrow_account(&mut remaining_accounts, &user.authority)?
+    } else {
+        None
+    };
+    let (mut escrow, builder_fee_bps) = validate_and_load_builder(
+        escrow,
+        &user.authority,
+        params.builder_idx,
+        params.builder_fee_tenth_bps,
+        &state,
+    )?;
+    let mut builder_order = add_builder_order(
+        &mut escrow,
+        &user,
+        params.builder_idx,
+        builder_fee_bps,
+        user.next_order_id,
+        params.market_index,
+    )?;
+
     controller::orders::place_perp_order(
         &*ctx.accounts.state.load()?,
         &mut user,
@@ -2388,7 +2410,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
-        &mut None,
+        &mut builder_order,
     )?;
 
     Ok(())
@@ -2709,6 +2731,14 @@ fn place_orders<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
 
+    // Load the RevenueShareEscrow once (it lives after the market/oracle accounts in
+    // remaining_accounts) so it can be reused across every order in the batch.
+    let mut escrow = if state.builder_codes_enabled() {
+        get_revenue_share_escrow_account(&mut remaining_accounts, &user.authority)?
+    } else {
+        None
+    };
+
     let num_orders = order_params.len();
     for (i, params) in order_params.iter().enumerate() {
         validate!(
@@ -2730,6 +2760,22 @@ fn place_orders<'c: 'info, 'info>(
         validate_spot_dlob_trading_enabled_for_market_type(params.market_type)?;
 
         if params.market_type == MarketType::Perp {
+            let builder_fee_bps = validate_builder_fee(
+                escrow.as_mut(),
+                &user.authority,
+                params.builder_idx,
+                params.builder_fee_tenth_bps,
+                &state,
+            )?;
+            let mut builder_order = add_builder_order(
+                &mut escrow,
+                &user,
+                params.builder_idx,
+                builder_fee_bps,
+                user.next_order_id,
+                params.market_index,
+            )?;
+
             controller::orders::place_perp_order(
                 &state,
                 &mut user,
@@ -2740,7 +2786,7 @@ fn place_orders<'c: 'info, 'info>(
                 clock,
                 *params,
                 options,
-                &mut None,
+                &mut builder_order,
             )?;
         }
     }
@@ -2792,6 +2838,31 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let (success_condition, auction_duration_percentage) = parse_optional_params(optional_params);
 
+    // Load the RevenueShareEscrow (it follows the market/oracle and maker accounts in
+    // remaining_accounts) before placing so the order can be tagged with its builder, then reuse
+    // the same escrow for the fill below. Use the borrowing validator so the escrow survives even
+    // when this order carries no builder code (the fill still needs it for referral revenue share).
+    let mut escrow = if state.builder_codes_enabled() {
+        get_revenue_share_escrow_account(remaining_accounts_iter, &user.authority)?
+    } else {
+        None
+    };
+    let builder_fee_bps = validate_builder_fee(
+        escrow.as_mut(),
+        &user.authority,
+        params.builder_idx,
+        params.builder_fee_tenth_bps,
+        &state,
+    )?;
+    let mut builder_order = add_builder_order(
+        &mut escrow,
+        &user,
+        params.builder_idx,
+        builder_fee_bps,
+        user.next_order_id,
+        params.market_index,
+    )?;
+
     controller::orders::place_perp_order(
         &*ctx.accounts.state.load()?,
         &mut user,
@@ -2802,20 +2873,15 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &clock,
         params,
         PlaceOrderOptions::default(),
-        &mut None,
+        &mut builder_order,
     )?;
 
+    // `builder_order` borrows `escrow`; its borrow ends here at its last use (above), freeing
+    // `escrow` to be re-borrowed for the fill below.
     drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
-
-    let builder_codes_enabled = state.builder_codes_enabled();
-    let mut escrow = if builder_codes_enabled {
-        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(user)?.authority)?
-    } else {
-        None
-    };
 
     let (base_asset_amount_filled, _) = controller::orders::fill_perp_order(
         order_id,

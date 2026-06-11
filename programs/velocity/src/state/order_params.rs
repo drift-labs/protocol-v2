@@ -36,6 +36,12 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,     // specified in slots
     pub auction_start_price: Option<i64>, // specified in price or oracle_price_offset
     pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
+    /// the index into the placing user's RevenueShareEscrow.approved_builders list, if this order
+    /// carries a builder code. Only honored for non-swift orders; swift orders carry the builder
+    /// info in the signed message envelope instead.
+    pub builder_idx: Option<u8>,
+    /// the builder fee on this order, in tenths of a bps, e.g. 100 = 0.01%
+    pub builder_fee_tenth_bps: Option<u16>,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

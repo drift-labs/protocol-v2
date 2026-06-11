@@ -68,7 +68,7 @@ use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, User};
 use crate::state::user::{
-    Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, UserStats,
 };
 use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
@@ -967,6 +967,8 @@ fn merge_modify_order_params_with_existing_order(
         auction_duration,
         auction_start_price,
         auction_end_price,
+        builder_idx: None,
+        builder_fee_tenth_bps: None,
     }))
 }
 
@@ -1067,6 +1069,30 @@ pub fn fill_perp_order(
                 return Ok((0, 0));
             }
         }
+    }
+
+    // Revenue-share enforcement: the taker's `RevenueShareEscrow` is an optional
+    // account, so a keeper could omit it and the associated fees would silently
+    // resolve to zero. Two cases require it to be supplied:
+    // 1. the taker order carries a builder code (the builder fee must accrue), or
+    // 2. the taker is referred and their escrow exists (`BuilderReferral` is set
+    //    only when an escrow was initialized with a referrer, and escrows cannot
+    //    be closed), so the referee discount and referrer reward must apply.
+    // Skip when the builder-codes feature is globally disabled (the keeper
+    // passes no escrow by design) and for liquidations (the liquidatee's order
+    // is force-filled without an escrow).
+    if !fill_mode.is_liquidation() && state.builder_codes_enabled() {
+        validate!(
+            !user.orders[order_index].is_has_builder() || rev_share_escrow.is_some(),
+            ErrorCode::UnableToLoadRevenueShareAccount,
+            "Order has builder but no RevenueShareEscrow account was included in the fill"
+        )?;
+        validate!(
+            !ReferrerStatus::has_builder_referral(user_stats.referrer_status)
+                || rev_share_escrow.is_some(),
+            ErrorCode::UnableToLoadRevenueShareAccount,
+            "User is referred with an escrow but no RevenueShareEscrow account was included in the fill"
+        )?;
     }
 
     let reserve_price_before: u64;
@@ -2777,7 +2803,11 @@ pub fn fulfill_perp_order_step(
     );
     let taker_order_has_builder = taker.orders[taker_order_index].is_has_builder();
     if taker_order_has_builder && rev_share_escrow.is_none() {
-        msg!("Order has builder but no escrow account included, in the future this will fail.");
+        // `fill_perp_order` rejects this case up front when builder codes are
+        // enabled outside of liquidation, so reaching here means either the
+        // feature is globally disabled or this is a liquidation fill — in both
+        // the builder fee is intentionally skipped.
+        msg!("Order has builder but no escrow account included; builder fee skipped.");
     }
 
     let oracle_pd = *oracle_map.get_price_data(&market.oracle_id())?;
@@ -3624,6 +3654,8 @@ pub fn can_reward_user_with_referral_reward(
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> bool {
     if let Some(escrow) = rev_share_escrow {
+        // returns None for an escrow without a referrer, so a never-referred
+        // escrow holder gets no referee discount and claims no referral slot
         escrow.find_or_create_referral_index(market_index).is_some()
     } else {
         false

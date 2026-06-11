@@ -373,9 +373,14 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         None
     }
 
-    /// Returns the index for the referral order, creating one if necessary. Returns None if a new order
-    /// cannot be created.
+    /// Returns the index for the referral order, creating one if necessary. Returns None if the
+    /// escrow has no referrer (a referral slot without a referrer could never be swept, so one is
+    /// never claimed) or if a new order cannot be created.
     pub fn find_or_create_referral_index(&mut self, market_index: u16) -> Option<u32> {
+        if !self.has_referrer() {
+            return None;
+        }
+
         // look for an existing referral order
         for i in 0..self.orders_len() {
             if let Ok(existing_order) = self.get_order(i) {

@@ -262,6 +262,8 @@ impl ScaleOrderParams {
                 auction_duration: None,
                 auction_start_price: None,
                 auction_end_price: None,
+                builder_idx: None,
+                builder_fee_tenth_bps: None,
             });
         }
 

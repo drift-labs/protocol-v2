@@ -20740,6 +20740,26 @@ export type Velocity = {
             "type": {
               "option": "i64"
             }
+          },
+          {
+            "name": "builderIdx",
+            "docs": [
+              "the index into the placing user's RevenueShareEscrow.approved_builders list, if this order",
+              "carries a builder code. Only honored for non-swift orders; swift orders carry the builder",
+              "info in the signed message envelope instead."
+            ],
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFeeTenthBps",
+            "docs": [
+              "the builder fee on this order, in tenths of a bps, e.g. 100 = 0.01%"
+            ],
+            "type": {
+              "option": "u16"
+            }
           }
         ]
       }
