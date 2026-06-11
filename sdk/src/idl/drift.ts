@@ -13416,6 +13416,9 @@ export type Drift = {
         {
           "name": "spotMarket",
           "writable": true
+        },
+        {
+          "name": "oracle"
         }
       ],
       "args": [
@@ -16337,6 +16340,11 @@ export type Drift = {
       "code": 6351,
       "name": "invalidAdminTier",
       "msg": "Signer is not authorized for this admin tier"
+    },
+    {
+      "code": 6352,
+      "name": "withdrawGuardThresholdNotionalTooLarge",
+      "msg": "Withdraw guard threshold notional exceeds max"
     }
   ],
   "types": [

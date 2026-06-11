@@ -55,6 +55,7 @@ import {
 	QUOTE_PRECISION,
 	User,
 	OracleSource,
+	getSpotMarketPublicKey,
 } from '../sdk/src';
 import {
 	BankrunContextWrapper,
@@ -1142,6 +1143,45 @@ export async function getTokenAmountAsBN(
 	);
 }
 
+/**
+ * Largest withdraw guard threshold the program will accept: $10k notional at
+ * the current oracle price (MAX_WITHDRAW_GUARD_THRESHOLD_NOTIONAL on-chain),
+ * converted to token base units.
+ */
+export async function getMaxWithdrawGuardThreshold(
+	admin: TestClient,
+	marketIndex: number
+): Promise<BN> {
+	const spotMarketPublicKey = await getSpotMarketPublicKey(
+		admin.program.programId,
+		marketIndex
+	);
+	const spotMarket = (await admin.program.account.spotMarket.fetch(
+		spotMarketPublicKey
+	)) as { oracle: PublicKey; decimals: number };
+
+	let price = 1;
+	if (!spotMarket.oracle.equals(PublicKey.default)) {
+		const info = await admin.connection.getAccountInfo(spotMarket.oracle);
+		const data = info.data as Buffer;
+		if (data.length === 48) {
+			// PythLazerOracle layout written by mockOracleNoProgram
+			const scaledPrice = Number(data.readBigInt64LE(8));
+			const exponent = data.readInt32LE(32);
+			price = scaledPrice * Math.pow(10, exponent);
+		} else {
+			price = parsePriceData(data).price;
+		}
+	}
+	// tokens = $10k * 10^decimals / price; round the price up (and the
+	// division down) so the on-chain notional check can't exceed the cap
+	const scaledOraclePrice = new BN(Math.ceil(price * 10 ** 6));
+	return new BN(10_000)
+		.mul(QUOTE_PRECISION)
+		.mul(new BN(10).pow(new BN(spotMarket.decimals)))
+		.div(scaledOraclePrice);
+}
+
 export async function initializeQuoteSpotMarket(
 	admin: TestClient,
 	usdcMint: PublicKey
@@ -1177,7 +1217,8 @@ export async function initializeQuoteSpotMarket(
 
 	await admin.updateWithdrawGuardThreshold(
 		marketIndex,
-		new BN(10 ** 10).mul(QUOTE_PRECISION)
+		await getMaxWithdrawGuardThreshold(admin, marketIndex),
+		PublicKey.default
 	);
 }
 
@@ -1222,7 +1263,8 @@ export async function initializeSolSpotMarket(
 	);
 	await admin.updateWithdrawGuardThreshold(
 		marketIndex,
-		new BN(10 ** 10).mul(QUOTE_PRECISION)
+		await getMaxWithdrawGuardThreshold(admin, marketIndex),
+		solOracle
 	);
 	return txSig;
 }

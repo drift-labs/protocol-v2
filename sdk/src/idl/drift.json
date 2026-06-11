@@ -13410,6 +13410,9 @@
         {
           "name": "spot_market",
           "writable": true
+        },
+        {
+          "name": "oracle"
         }
       ],
       "args": [
@@ -16331,6 +16334,11 @@
       "code": 6351,
       "name": "InvalidAdminTier",
       "msg": "Signer is not authorized for this admin tier"
+    },
+    {
+      "code": 6352,
+      "name": "WithdrawGuardThresholdNotionalTooLarge",
+      "msg": "Withdraw guard threshold notional exceeds max"
     }
   ],
   "types": [

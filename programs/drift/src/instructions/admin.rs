@@ -78,7 +78,7 @@ use crate::{
     validation::{
         fee_structure::validate_fee_structure,
         margin::{validate_margin, validate_margin_weights},
-        spot_market::validate_borrow_rate,
+        spot_market::{validate_borrow_rate, validate_withdraw_guard_threshold},
     },
     vlp::amm::math::amm,
     vlp::amm_cache::{AmmCache, AMM_POSITIONS_CACHE},
@@ -287,6 +287,12 @@ pub fn handle_initialize_spot_market(
         .or(Err(ErrorCode::UnableToCastUnixTime))?;
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
+
+    validate_withdraw_guard_threshold(
+        withdraw_guard_threshold,
+        decimals,
+        oracle_price_data?.price,
+    )?;
 
     let mut token_program = 0_u8;
     if ctx.accounts.token_program.key() == Token2022::id() {
@@ -1610,9 +1616,10 @@ pub fn handle_update_spot_market_liquidation_fee(
 
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
+    valid_oracle_for_spot_market(&ctx.accounts.oracle, &ctx.accounts.spot_market)
 )]
 pub fn handle_update_withdraw_guard_threshold(
-    ctx: Context<AdminUpdateSpotMarket>,
+    ctx: Context<AdminUpdateSpotMarketWithdrawGuardThreshold>,
     withdraw_guard_threshold: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
@@ -1620,6 +1627,19 @@ pub fn handle_update_withdraw_guard_threshold(
         "updating spot market withdraw guard threshold {}",
         spot_market.market_index
     );
+
+    let oracle_price = get_oracle_price(
+        &spot_market.oracle_source,
+        &ctx.accounts.oracle,
+        Clock::get()?.slot,
+    )?
+    .price;
+
+    validate_withdraw_guard_threshold(
+        withdraw_guard_threshold,
+        spot_market.decimals,
+        oracle_price,
+    )?;
 
     msg!(
         "spot_market.withdraw_guard_threshold: {:?} -> {:?}",
@@ -3767,6 +3787,17 @@ pub struct AdminUpdateSpotMarket<'info> {
     pub state: AccountLoader<'info, State>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdateSpotMarketWithdrawGuardThreshold<'info> {
+    #[account(constraint = check_warm(&admin.key(), &state)?)]
+    pub admin: Signer<'info>,
+    pub state: AccountLoader<'info, State>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    /// CHECK: checked in `valid_oracle_for_spot_market` ix access control
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

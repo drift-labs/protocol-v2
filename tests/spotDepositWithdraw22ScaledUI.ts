@@ -26,7 +26,6 @@ import {
 	OracleInfo,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	QUOTE_PRECISION,
 	getTokenAmount,
 } from '../sdk/src';
 
@@ -36,6 +35,7 @@ import {
 	mockUserUSDCAccount,
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
+	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
 import {
 	getMint,
@@ -414,7 +414,7 @@ describe('spot deposit and withdraw 22', () => {
 		);
 		await admin.updateWithdrawGuardThreshold(
 			1,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 1)
 		);
 		await admin.fetchAccounts();
 		const spotMarket = admin.getSpotMarketAccount(1);
