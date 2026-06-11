@@ -1158,7 +1158,11 @@ export async function getMaxWithdrawGuardThreshold(
 	);
 	const spotMarket = (await admin.program.account.spotMarket.fetch(
 		spotMarketPublicKey
-	)) as { oracle: PublicKey; decimals: number };
+	)) as {
+		oracle: PublicKey;
+		decimals: number;
+		oracleSource: Record<string, unknown>;
+	};
 
 	let price = 1;
 	if (!spotMarket.oracle.equals(PublicKey.default)) {
@@ -1171,6 +1175,13 @@ export async function getMaxWithdrawGuardThreshold(
 			price = scaledPrice * Math.pow(10, exponent);
 		} else {
 			price = parsePriceData(data).price;
+		}
+		// 1K/1M oracle sources multiply the raw price on chain
+		const sourceName = Object.keys(spotMarket.oracleSource)[0] ?? '';
+		if (sourceName.toLowerCase().includes('1m')) {
+			price *= 10 ** 6;
+		} else if (sourceName.toLowerCase().includes('1k')) {
+			price *= 10 ** 3;
 		}
 	}
 	// tokens = $10k * 10^decimals / price; round the price up (and the
