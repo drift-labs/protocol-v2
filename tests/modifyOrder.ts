@@ -24,9 +24,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('modify orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -74,7 +74,7 @@ describe('modify orders', () => {
 
 		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -97,15 +97,15 @@ describe('modify orders', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			oracle,
 			ammInitialBaseAssetReserve,
@@ -113,19 +113,19 @@ describe('modify orders', () => {
 			periodicity
 		);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('modify order by order id', async () => {
-		await driftClient.placePerpOrder({
+		await velocityClient.placePerpOrder({
 			marketIndex: 0,
 			baseAssetAmount: BASE_PRECISION,
 			direction: PositionDirection.LONG,
@@ -133,13 +133,13 @@ describe('modify orders', () => {
 			price: PRICE_PRECISION,
 		});
 
-		await driftClient.modifyOrder({
+		await velocityClient.modifyOrder({
 			orderId: 1,
 			newBaseAmount: BASE_PRECISION.mul(TWO),
 		});
 
 		assert(
-			driftClient
+			velocityClient
 				.getUser()
 				.getUserAccount()
 				.orders[0].baseAssetAmount.eq(BASE_PRECISION.mul(TWO))
@@ -147,7 +147,7 @@ describe('modify orders', () => {
 	});
 
 	it('modify order by user order id', async () => {
-		await driftClient.placePerpOrder({
+		await velocityClient.placePerpOrder({
 			userOrderId: 1,
 			marketIndex: 0,
 			baseAssetAmount: BASE_PRECISION,
@@ -156,13 +156,13 @@ describe('modify orders', () => {
 			price: PRICE_PRECISION,
 		});
 
-		await driftClient.modifyOrderByUserOrderId({
+		await velocityClient.modifyOrderByUserOrderId({
 			userOrderId: 1,
 			newBaseAmount: BASE_PRECISION.mul(TWO),
 		});
 
 		assert(
-			driftClient
+			velocityClient
 				.getUser()
 				.getUserAccount()
 				.orders[1].baseAssetAmount.eq(BASE_PRECISION.mul(TWO))

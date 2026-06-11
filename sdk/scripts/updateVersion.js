@@ -8,10 +8,10 @@ let version = fs.readFileSync(versionFilePath, 'utf8');
 version = version.replace(/\n/g, '');
 
 const filesToReplace = [
-    // sdk/src/idl/drift.json
-    path.join(__dirname, '..', 'src', 'idl', 'drift.json'),
-    // programs/drift/Cargo.toml
-    path.join(__dirname, '..', '..', 'programs', 'drift', 'Cargo.toml'),
+    // sdk/src/idl/velocity.json
+    path.join(__dirname, '..', 'src', 'idl', 'velocity.json'),
+    // programs/velocity/Cargo.toml
+    path.join(__dirname, '..', '..', 'programs', 'velocity', 'Cargo.toml'),
     // Cargo.lock
     path.join(__dirname, '..', '..', 'Cargo.lock'),
 ]

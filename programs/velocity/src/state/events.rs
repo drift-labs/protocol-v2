@@ -1,0 +1,888 @@
+use std::io::Write;
+
+use anchor_lang::{
+    prelude::{
+        borsh::{BorshDeserialize, BorshSerialize},
+        *,
+    },
+    Discriminator,
+};
+
+use crate::{
+    controller::position::PositionDirection,
+    error::{ErrorCode::InvalidOrder, VelocityResult},
+    math::{casting::Cast, safe_unwrap::SafeUnwrap},
+    state::{
+        order_params::{
+            OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
+        },
+        traits::Size,
+        user::{MarketType, Order},
+    },
+};
+
+#[event]
+pub struct NewUserRecord {
+    /// unix_timestamp of action
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub user: Pubkey,
+    pub sub_account_id: u16,
+    pub name: [u8; 32],
+    pub referrer: Pubkey,
+}
+
+#[event]
+pub struct DepositRecord {
+    /// unix_timestamp of action
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    /// user account public key
+    pub user: Pubkey,
+    pub direction: DepositDirection,
+    pub deposit_record_id: u64,
+    /// precision: token mint precision
+    pub amount: u64,
+    /// spot market index
+    pub market_index: u16,
+    /// precision: PRICE_PRECISION
+    pub oracle_price: i64,
+    /// precision: SPOT_BALANCE_PRECISION
+    pub market_deposit_balance: u128,
+    /// precision: SPOT_BALANCE_PRECISION
+    pub market_withdraw_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub market_cumulative_deposit_interest: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub market_cumulative_borrow_interest: u128,
+    /// precision: QUOTE_PRECISION
+    pub total_deposits_after: u64,
+    /// precision: QUOTE_PRECISION
+    pub total_withdraws_after: u64,
+    pub explanation: DepositExplanation,
+    pub transfer_user: Option<Pubkey>,
+    pub signer: Option<Pubkey>,
+    /// precision: token mint precision
+    pub user_token_amount_after: i128,
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
+pub enum DepositExplanation {
+    #[default]
+    None,
+    Transfer,
+    Borrow,
+    RepayBorrow,
+    Reward,
+}
+
+#[event]
+pub struct SpotInterestRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    /// precision: SPOT_BALANCE_PRECISION
+    pub deposit_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub cumulative_deposit_interest: u128,
+    /// precision: SPOT_BALANCE_PRECISION
+    pub borrow_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub cumulative_borrow_interest: u128,
+    /// precision: PERCENTAGE_PRECISION
+    pub optimal_utilization: u32,
+    /// precision: PERCENTAGE_PRECISION
+    pub optimal_borrow_rate: u32,
+    /// precision: PERCENTAGE_PRECISION
+    pub max_borrow_rate: u32,
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
+pub enum DepositDirection {
+    #[default]
+    Deposit,
+    Withdraw,
+}
+
+#[event]
+pub struct FundingPaymentRecord {
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub user: Pubkey,
+    pub market_index: u16,
+    /// precision: QUOTE_PRECISION
+    pub funding_payment: i64,
+    /// precision: BASE_PRECISION
+    pub base_asset_amount: i64,
+    /// precision: FUNDING_RATE_PRECISION
+    pub user_last_cumulative_funding: i64,
+    /// precision: FUNDING_RATE_PRECISION
+    pub amm_cumulative_funding_long: i128,
+    /// precision: FUNDING_RATE_PRECISION
+    pub amm_cumulative_funding_short: i128,
+}
+
+#[event]
+pub struct FundingRateRecord {
+    pub ts: i64,
+    pub record_id: u64,
+    pub market_index: u16,
+    /// precision: FUNDING_RATE_PRECISION
+    pub funding_rate: i64,
+    /// precision: FUNDING_RATE_PRECISION
+    pub funding_rate_long: i128,
+    /// precision: FUNDING_RATE_PRECISION
+    pub funding_rate_short: i128,
+    /// precision: FUNDING_RATE_PRECISION
+    pub cumulative_funding_rate_long: i128,
+    /// precision: FUNDING_RATE_PRECISION
+    pub cumulative_funding_rate_short: i128,
+    /// precision: PRICE_PRECISION
+    pub oracle_price_twap: i64,
+    /// precision: PRICE_PRECISION
+    pub mark_price_twap: u64,
+    /// precision: BASE_PRECISION
+    pub base_asset_amount_with_amm: i128,
+}
+
+/// AMM-side curve change: peg / reserves / sqrt_k moved, and the AMM
+/// debited the adjustment cost from its books. Emitted by the AMM itself
+/// (from `on_market_event(FundingUpdated)`'s k-update branch, from
+/// `snap_to_oracle`, and from the admin `repeg` ix). PerpMarket-side
+/// state at the time of the change (`base_asset_amount_long/short`,
+/// `number_of_users`) lives on a separate `FundingRateRecord` or can be
+/// queried by consumers correlating on `(ts, market_index)`.
+#[event]
+pub struct AmmCurveChanged {
+    pub ts: i64,
+    pub market_index: u16,
+    pub peg_multiplier_before: u128,
+    pub base_asset_reserve_before: u128,
+    pub quote_asset_reserve_before: u128,
+    pub sqrt_k_before: u128,
+    pub peg_multiplier_after: u128,
+    pub base_asset_reserve_after: u128,
+    pub quote_asset_reserve_after: u128,
+    pub sqrt_k_after: u128,
+    /// precision: QUOTE_PRECISION
+    pub adjustment_cost: i128,
+    /// precision: QUOTE_PRECISION — AMM's TFMD after the change.
+    pub total_fee_minus_distributions_after: i128,
+    /// precision: PRICE_PRECISION
+    pub oracle_price: i64,
+}
+
+#[event]
+pub struct SignedMsgOrderRecord {
+    pub user: Pubkey,
+    pub hash: String,
+    pub matching_order_params: OrderParams,
+    pub user_order_id: u32,
+    pub signed_msg_order_max_slot: u64,
+    pub signed_msg_order_uuid: [u8; 8],
+    pub ts: i64,
+}
+
+#[event]
+pub struct OrderRecord {
+    pub ts: i64,
+    pub user: Pubkey,
+    pub order: Order,
+}
+
+impl Size for OrderRecord {
+    const SIZE: usize = 204;
+}
+
+#[event]
+pub struct OrderActionRecord {
+    pub ts: i64,
+    pub action: OrderAction,
+    pub action_explanation: OrderActionExplanation,
+    pub market_index: u16,
+    pub market_type: MarketType,
+
+    pub filler: Option<Pubkey>,
+    /// precision: QUOTE_PRECISION
+    pub filler_reward: Option<u64>,
+    pub fill_record_id: Option<u64>,
+
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
+    pub base_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    pub quote_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    pub taker_fee: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    pub maker_fee: Option<i64>,
+    /// precision: QUOTE_PRECISION
+    pub referrer_reward: Option<u32>,
+    /// precision: QUOTE_PRECISION
+    pub quote_asset_amount_surplus: Option<i64>,
+    /// precision: QUOTE_PRECISION
+    pub spot_fulfillment_method_fee: Option<u64>,
+
+    pub taker: Option<Pubkey>,
+    pub taker_order_id: Option<u32>,
+    pub taker_order_direction: Option<PositionDirection>,
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
+    pub taker_order_base_asset_amount: Option<u64>,
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
+    pub taker_order_cumulative_base_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    pub taker_order_cumulative_quote_asset_amount_filled: Option<u64>,
+
+    pub maker: Option<Pubkey>,
+    pub maker_order_id: Option<u32>,
+    pub maker_order_direction: Option<PositionDirection>,
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
+    pub maker_order_base_asset_amount: Option<u64>,
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
+    pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
+
+    /// precision: PRICE_PRECISION
+    pub oracle_price: i64,
+
+    /// Order bit flags, defined in [`crate::state::user::OrderBitFlag`]
+    pub bit_flags: u8,
+    /// precision: QUOTE_PRECISION
+    /// Only Some if the taker reduced position
+    pub taker_existing_quote_entry_amount: Option<u64>,
+    /// precision: BASE_PRECISION
+    /// Only Some if the taker flipped position direction
+    pub taker_existing_base_asset_amount: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    /// Only Some if the maker reduced position
+    pub maker_existing_quote_entry_amount: Option<u64>,
+    /// precision: BASE_PRECISION
+    /// Only Some if the maker flipped position direction
+    pub maker_existing_base_asset_amount: Option<u64>,
+    /// precision: PRICE_PRECISION
+    pub trigger_price: Option<u64>,
+
+    /// the idx of the builder in the taker's [`RevenueShareEscrow`] account
+    pub builder_idx: Option<u8>,
+    /// precision: QUOTE_PRECISION builder fee paid by the taker
+    pub builder_fee: Option<u64>,
+}
+
+impl Size for OrderActionRecord {
+    const SIZE: usize = 480;
+}
+
+pub fn get_order_action_record(
+    ts: i64,
+    action: OrderAction,
+    action_explanation: OrderActionExplanation,
+    market_index: u16,
+    filler: Option<Pubkey>,
+    fill_record_id: Option<u64>,
+    filler_reward: Option<u64>,
+    base_asset_amount_filled: Option<u64>,
+    quote_asset_amount_filled: Option<u64>,
+    taker_fee: Option<u64>,
+    maker_rebate: Option<u64>,
+    referrer_reward: Option<u64>,
+    quote_asset_amount_surplus: Option<i64>,
+    spot_fulfillment_method_fee: Option<u64>,
+    taker: Option<Pubkey>,
+    taker_order: Option<Order>,
+    maker: Option<Pubkey>,
+    maker_order: Option<Order>,
+    oracle_price: i64,
+    bit_flags: u8,
+    taker_existing_quote_entry_amount: Option<u64>,
+    taker_existing_base_asset_amount: Option<u64>,
+    maker_existing_quote_entry_amount: Option<u64>,
+    maker_existing_base_asset_amount: Option<u64>,
+    trigger_price: Option<u64>,
+    builder_idx: Option<u8>,
+    builder_fee: Option<u64>,
+) -> VelocityResult<OrderActionRecord> {
+    Ok(OrderActionRecord {
+        ts,
+        action,
+        action_explanation,
+        market_index,
+        market_type: if let Some(taker_order) = taker_order {
+            taker_order.market_type
+        } else if let Some(maker_order) = maker_order {
+            maker_order.market_type
+        } else {
+            return Err(InvalidOrder);
+        },
+        filler,
+        filler_reward,
+        fill_record_id,
+        base_asset_amount_filled,
+        quote_asset_amount_filled,
+        taker_fee,
+        maker_fee: match maker_rebate {
+            Some(maker_rebate) => Some(-maker_rebate.cast()?),
+            None => None,
+        },
+        referrer_reward: match referrer_reward {
+            Some(referrer_reward) if referrer_reward > 0 => Some(referrer_reward.cast()?),
+            _ => None,
+        },
+        quote_asset_amount_surplus,
+        spot_fulfillment_method_fee,
+        taker,
+        taker_order_id: taker_order.map(|order| order.order_id),
+        taker_order_direction: taker_order.map(|order| order.direction),
+        taker_order_base_asset_amount: taker_order.map(|order| order.base_asset_amount),
+        taker_order_cumulative_base_asset_amount_filled: taker_order
+            .map(|order| order.base_asset_amount_filled),
+        taker_order_cumulative_quote_asset_amount_filled: taker_order
+            .as_ref()
+            .map(|order| order.quote_asset_amount_filled),
+        maker,
+        maker_order_id: maker_order.map(|order| order.order_id),
+        maker_order_direction: maker_order.map(|order| order.direction),
+        maker_order_base_asset_amount: maker_order.map(|order| order.base_asset_amount),
+        maker_order_cumulative_base_asset_amount_filled: maker_order
+            .map(|order| order.base_asset_amount_filled),
+        maker_order_cumulative_quote_asset_amount_filled: maker_order
+            .map(|order| order.quote_asset_amount_filled),
+        oracle_price,
+        bit_flags,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
+        trigger_price,
+        builder_idx,
+        builder_fee,
+    })
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
+pub enum OrderAction {
+    #[default]
+    Place,
+    Cancel,
+    Fill,
+    Trigger,
+    Expire,
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
+pub enum OrderActionExplanation {
+    None,
+    InsufficientFreeCollateral,
+    OraclePriceBreachedLimitPrice,
+    MarketOrderFilledToLimitPrice,
+    OrderExpired,
+    Liquidation,
+    OrderFilledWithAMM,
+    OrderFilledWithAMMJit,
+    OrderFilledWithMatch,
+    OrderFilledWithMatchJit,
+    MarketExpired,
+    RiskingIncreasingOrder,
+    ReduceOnlyOrderIncreasedPosition,
+    OrderFillWithSerum,
+    NoBorrowLiquidity,
+    OrderFillWithPhoenix,
+    OrderFilledWithAMMJitLPSplit,
+    OrderFilledWithLPJit,
+    DeriskLp,
+    OrderFilledWithOpenbookV2,
+    TransferPerpPosition,
+}
+
+#[event]
+#[derive(Default)]
+pub struct LiquidationRecord {
+    pub ts: i64,
+    pub liquidation_type: LiquidationType,
+    pub user: Pubkey,
+    pub liquidator: Pubkey,
+    pub margin_requirement: u128,
+    pub total_collateral: i128,
+    pub margin_freed: u64,
+    pub liquidation_id: u16,
+    pub bankrupt: bool,
+    pub canceled_order_ids: Vec<u32>,
+    pub liquidate_perp: LiquidatePerpRecord,
+    pub liquidate_spot: LiquidateSpotRecord,
+    pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
+    pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
+    pub perp_bankruptcy: PerpBankruptcyRecord,
+    pub spot_bankruptcy: SpotBankruptcyRecord,
+    pub bit_flags: u8,
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
+pub enum LiquidationType {
+    #[default]
+    LiquidatePerp,
+    LiquidateSpot,
+    LiquidateBorrowForPerpPnl,
+    LiquidatePerpPnlForDeposit,
+    PerpBankruptcy,
+    SpotBankruptcy,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidatePerpRecord {
+    pub market_index: u16,
+    pub oracle_price: i64,
+    pub base_asset_amount: i64,
+    pub quote_asset_amount: i64,
+    pub fill_record_id: u64,
+    pub user_order_id: u32,
+    pub liquidator_order_id: u32,
+    /// precision: QUOTE_PRECISION
+    pub liquidator_fee: u64,
+    /// precision: QUOTE_PRECISION
+    pub if_fee: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidateSpotRecord {
+    pub asset_market_index: u16,
+    pub asset_price: i64,
+    pub asset_transfer: u128,
+    pub liability_market_index: u16,
+    pub liability_price: i64,
+    /// precision: token mint precision
+    pub liability_transfer: u128,
+    /// precision: token mint precision
+    pub if_fee: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidateBorrowForPerpPnlRecord {
+    pub perp_market_index: u16,
+    pub market_oracle_price: i64,
+    pub pnl_transfer: u128,
+    pub liability_market_index: u16,
+    pub liability_price: i64,
+    pub liability_transfer: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct LiquidatePerpPnlForDepositRecord {
+    pub perp_market_index: u16,
+    pub market_oracle_price: i64,
+    pub pnl_transfer: u128,
+    pub asset_market_index: u16,
+    pub asset_price: i64,
+    pub asset_transfer: u128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct PerpBankruptcyRecord {
+    pub market_index: u16,
+    pub pnl: i128,
+    pub if_payment: u128,
+    pub clawback_user: Option<Pubkey>,
+    pub clawback_user_payment: Option<u128>,
+    pub cumulative_funding_rate_delta: i128,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
+pub struct SpotBankruptcyRecord {
+    pub market_index: u16,
+    pub borrow_amount: u128,
+    pub if_payment: u128,
+    pub cumulative_deposit_interest_delta: u128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[borsh(use_discriminant = true)]
+pub enum LiquidationBitFlag {
+    IsolatedPosition = 0b00000001,
+}
+
+#[event]
+#[derive(Default)]
+pub struct SettlePnlRecord {
+    pub ts: i64,
+    pub user: Pubkey,
+    pub market_index: u16,
+    pub pnl: i128,
+    pub base_asset_amount: i64,
+    pub quote_asset_amount_after: i64,
+    pub quote_entry_amount: i64,
+    pub settle_price: i64,
+    pub explanation: SettlePnlExplanation,
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
+pub enum SettlePnlExplanation {
+    #[default]
+    None,
+    ExpiredPosition,
+}
+
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundRecord {
+    pub ts: i64,
+    pub spot_market_index: u16,
+    pub perp_market_index: u16,
+    /// precision: PERCENTAGE_PRECISION
+    pub user_if_factor: u32,
+    /// precision: PERCENTAGE_PRECISION
+    pub total_if_factor: u32,
+    /// precision: token mint precision
+    pub vault_amount_before: u64,
+    /// precision: token mint precision
+    pub insurance_vault_amount_before: u64,
+    pub total_if_shares_before: u128,
+    pub total_if_shares_after: u128,
+    /// precision: token mint precision
+    pub amount: i64,
+}
+
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundStakeRecord {
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub action: StakeAction,
+    /// precision: token mint precision
+    pub amount: u64,
+    pub market_index: u16,
+
+    /// precision: token mint precision
+    pub insurance_vault_amount_before: u64,
+    pub if_shares_before: u128,
+    pub user_if_shares_before: u128,
+    pub total_if_shares_before: u128,
+    pub if_shares_after: u128,
+    pub user_if_shares_after: u128,
+    pub total_if_shares_after: u128,
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
+pub enum StakeAction {
+    #[default]
+    Stake,
+    UnstakeRequest,
+    UnstakeCancelRequest,
+    Unstake,
+    UnstakeTransfer,
+    StakeTransfer,
+    AdminDeposit,
+}
+
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundSwapRecord {
+    pub rebalance_config: Pubkey,
+    pub in_if_total_shares_before: u128,
+    pub out_if_total_shares_before: u128,
+    pub in_if_user_shares_before: u128,
+    pub out_if_user_shares_before: u128,
+    pub in_if_total_shares_after: u128,
+    pub out_if_total_shares_after: u128,
+    pub in_if_user_shares_after: u128,
+    pub out_if_user_shares_after: u128,
+    pub ts: i64,
+    pub in_amount: u64,
+    pub out_amount: u64,
+    pub out_oracle_price: u64,
+    pub out_oracle_price_twap: i64,
+    pub in_vault_amount_before: u64,
+    pub out_vault_amount_before: u64,
+    pub in_fund_vault_amount_after: u64,
+    pub out_fund_vault_amount_after: u64,
+    pub in_market_index: u16,
+    pub out_market_index: u16,
+}
+
+#[event]
+pub struct TransferProtocolIfSharesToRevenuePoolRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    pub amount: u64,
+    pub shares: u128,
+    pub if_vault_amount_before: u64,
+    pub protocol_shares_before: u128,
+    pub transfer_amount: u64,
+}
+
+#[event]
+pub struct AdminWithdrawFromInsuranceFundRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    pub admin: Pubkey,
+    pub amount: u64,
+    pub shares_burned: u128,
+    pub insurance_fund_vault_amount_before: u64,
+    pub protocol_shares_before: u128,
+    pub protocol_shares_after: u128,
+    pub recipient_token_account: Pubkey,
+}
+
+impl Size for InsuranceFundSwapRecord {
+    const SIZE: usize = 256;
+}
+
+#[event]
+#[derive(Default)]
+pub struct SwapRecord {
+    pub ts: i64,
+    pub user: Pubkey,
+    /// precision: out market mint precision
+    pub amount_out: u64,
+    /// precision: in market mint precision
+    pub amount_in: u64,
+    pub out_market_index: u16,
+    pub in_market_index: u16,
+    /// precision: PRICE_PRECISION
+    pub out_oracle_price: i64,
+    /// precision: PRICE_PRECISION
+    pub in_oracle_price: i64,
+    pub fee: u64,
+}
+
+#[event]
+pub struct SpotMarketVaultDepositRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    /// precision: SPOT_BALANCE_PRECISION
+    pub deposit_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub cumulative_deposit_interest_before: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub cumulative_deposit_interest_after: u128,
+    pub deposit_token_amount_before: u64,
+    pub amount: u64,
+}
+
+#[event]
+pub struct DeleteUserRecord {
+    /// unix_timestamp of action
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub user: Pubkey,
+    pub sub_account_id: u16,
+    pub keeper: Option<Pubkey>,
+}
+
+#[event]
+pub struct RevenueShareSettleRecord {
+    pub ts: i64,
+    pub builder: Option<Pubkey>,
+    pub referrer: Option<Pubkey>,
+    pub fee_settled: u64,
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub builder_sub_account_id: u16,
+    pub builder_total_referrer_rewards: u64,
+    pub builder_total_builder_rewards: u64,
+}
+
+impl Size for RevenueShareSettleRecord {
+    const SIZE: usize = 140;
+}
+
+pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> VelocityResult {
+    #[cfg(not(feature = "velocity-rs"))]
+    {
+        let mut data_buf = [0u8; N];
+        let mut out_buf = [0u8; N];
+
+        emit_buffers(event, &mut data_buf[..], &mut out_buf[..])
+    }
+    #[cfg(feature = "velocity-rs")]
+    // don't emit anything for offchain use
+    {
+        Ok(())
+    }
+}
+
+pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
+    event: T,
+    data_buf: &mut [u8],
+    out_buf: &mut [u8],
+) -> VelocityResult {
+    let mut data_writer = std::io::Cursor::new(data_buf);
+    data_writer
+        .write_all(<T as Discriminator>::DISCRIMINATOR)
+        .safe_unwrap()?;
+    borsh::to_writer(&mut data_writer, &event).safe_unwrap()?;
+    let data_len = data_writer.position() as usize;
+
+    let out_len = base64::encode_config_slice(
+        &data_writer.into_inner()[0..data_len],
+        base64::STANDARD,
+        out_buf,
+    );
+
+    let msg_bytes = &out_buf[0..out_len];
+    let msg_str = unsafe { std::str::from_utf8_unchecked(msg_bytes) };
+
+    msg!(msg_str);
+
+    Ok(())
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPSettleRecord {
+    pub record_id: u64,
+    // previous settle unix timestamp
+    pub last_ts: i64,
+    // previous settle slot
+    pub last_slot: u64,
+    // current settle unix timestamp
+    pub ts: i64,
+    // current slot
+    pub slot: u64,
+    // amm perp market index
+    pub perp_market_index: u16,
+    // token amount to settle to lp (positive is from amm to lp, negative lp to amm)
+    pub settle_to_lp_amount: i64,
+    // quote pnl of amm since last settle
+    pub perp_amm_pnl_delta: i64,
+    // exchange fees earned by market/amm since last settle
+    pub perp_amm_ex_fee_delta: i64,
+    // current aum of lp
+    pub lp_aum: u128,
+    // current mint price of lp
+    pub lp_price: u128,
+    // lp pool pubkey
+    pub lp_pool: Pubkey,
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPSwapRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub authority: Pubkey,
+    /// precision: out market mint precision, gross fees
+    pub out_amount: u128,
+    /// precision: in market mint precision, gross fees
+    pub in_amount: u128,
+    /// precision: fee on amount_out, in market mint precision
+    pub out_fee: i128,
+    /// precision: fee on amount_in, out market mint precision
+    pub in_fee: i128,
+    // out spot market index
+    pub out_spot_market_index: u16,
+    // in spot market index
+    pub in_spot_market_index: u16,
+    // out constituent index
+    pub out_constituent_index: u16,
+    // in constituent index
+    pub in_constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub out_oracle_price: i64,
+    /// precision: PRICE_PRECISION
+    pub in_oracle_price: i64,
+    /// LPPool last_aum, QUOTE_PRECISION
+    pub last_aum: u128,
+    pub last_aum_slot: u64,
+    /// PERCENTAGE_PRECISION
+    pub in_market_current_weight: i64,
+    /// PERCENTAGE_PRECISION
+    pub out_market_current_weight: i64,
+    /// PERCENTAGE_PRECISION
+    pub in_market_target_weight: i64,
+    /// PERCENTAGE_PRECISION
+    pub out_market_target_weight: i64,
+    pub in_swap_id: u64,
+    pub out_swap_id: u64,
+    // lp pool pubkey
+    pub lp_pool: Pubkey,
+}
+
+impl Size for LPSwapRecord {
+    const SIZE: usize = 408;
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPMintRedeemRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub authority: Pubkey,
+    pub description: u8,
+    /// precision: continutent mint precision, gross fees
+    pub amount: u128,
+    /// precision: fee on amount, constituent market mint precision
+    pub fee: i128,
+    // spot market index
+    pub spot_market_index: u16,
+    // constituent index
+    pub constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub oracle_price: i64,
+    /// token mint
+    pub mint: Pubkey,
+    /// lp amount, lp mint precision
+    pub lp_amount: u64,
+    /// lp fee, lp mint precision
+    pub lp_fee: i64,
+    /// the fair price of the lp token, PRICE_PRECISION
+    pub lp_price: u128,
+    pub mint_redeem_id: u64,
+    /// LPPool last_aum
+    pub last_aum: u128,
+    pub last_aum_slot: u64,
+    /// PERCENTAGE_PRECISION
+    pub in_market_current_weight: i64,
+    pub in_market_target_weight: i64,
+    // lp pool pubkey
+    pub lp_pool: Pubkey,
+}
+
+impl Size for LPMintRedeemRecord {
+    const SIZE: usize = 360;
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPBorrowLendDepositRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub spot_market_index: u16,
+    pub constituent_index: u16,
+    pub direction: DepositDirection,
+    pub token_balance: i64,
+    pub last_token_balance: i64,
+    pub interest_accrued_token_amount: i64,
+    pub amount_deposit_withdraw: u64,
+    pub lp_pool: Pubkey,
+}
+
+impl Size for LPBorrowLendDepositRecord {
+    const SIZE: usize = 104;
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default, Debug)]
+pub enum TransferFeeAndPnlPoolDirection {
+    #[default]
+    FeeToPnlPool,
+    PnlToFeePool,
+}
+
+#[event]
+#[derive(Default)]
+pub struct TransferFeeAndPnlPoolRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub perp_market_index_with_fee_pool: u16,
+    pub perp_market_index_with_pnl_pool: u16,
+    pub direction: TransferFeeAndPnlPoolDirection,
+    pub amount: u64,
+}
+
+/// unusued placeholder event to force include signed msg types into velocity IDL
+#[event]
+#[derive(Default)]
+struct _SignedMsgOrderParamsExport {
+    _a: SignedMsgOrderParamsMessage,
+    _b: SignedMsgOrderParamsDelegateMessage,
+}
+
+impl Size for _SignedMsgOrderParamsExport {
+    const SIZE: usize = 0;
+}

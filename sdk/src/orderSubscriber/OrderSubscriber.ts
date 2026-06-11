@@ -21,10 +21,6 @@ import { ZERO } from '../constants/numericConstants';
 
 export class OrderSubscriber {
 	velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	public get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription | grpcSubscription;
 	commitment: Commitment;
@@ -40,11 +36,9 @@ export class OrderSubscriber {
 	fetchAllNonIdleUsers?: boolean;
 
 	constructor(config: OrderSubscriberConfig) {
-		const velocityClient = config.velocityClient ?? config.driftClient;
+		const velocityClient = config.velocityClient;
 		if (!velocityClient) {
-			throw new Error(
-				'OrderSubscriber: velocityClient (or deprecated driftClient) must be provided'
-			);
+			throw new Error('OrderSubscriber: velocityClient must be provided');
 		}
 		this.velocityClient = velocityClient;
 		this.commitment = config.subscriptionConfig.commitment || 'processed';

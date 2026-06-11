@@ -741,32 +741,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "drift"
-version = "2.162.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "arrayref",
- "base64 0.13.1",
- "borsh",
- "bytemuck",
- "byteorder",
- "bytes",
- "drift-macros",
- "enumflags2",
- "hex",
- "num-integer",
- "num-traits",
- "pyth",
- "pyth-client",
- "pyth_lazer",
- "solana-program",
- "solana-security-txt",
- "static_assertions",
- "uint",
-]
-
-[[package]]
 name = "drift-macros"
 version = "0.1.0"
 source = "git+https://github.com/drift-labs/drift-macros.git?rev=c57d87#c57d87e073d13d43f4d1fb09fe6822915a4ccc11"
@@ -3065,6 +3039,32 @@ checksum = "5ac8b6f42ead25368cf5b098aeb3dc8a1a2c05a3eee8a9a1a68c640edbfc79d9"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "velocity"
+version = "2.162.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "arrayref",
+ "base64 0.13.1",
+ "borsh",
+ "bytemuck",
+ "byteorder",
+ "bytes",
+ "drift-macros",
+ "enumflags2",
+ "hex",
+ "num-integer",
+ "num-traits",
+ "pyth",
+ "pyth-client",
+ "pyth_lazer",
+ "solana-program",
+ "solana-security-txt",
+ "static_assertions",
+ "uint",
 ]
 
 [[package]]

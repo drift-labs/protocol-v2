@@ -41,15 +41,15 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('referrer', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let referrerDriftClient: TestClient;
+	let referrerVelocityClient: TestClient;
 
 	let refereeKeyPair: Keypair;
-	let refereeDriftClient: TestClient;
+	let refereeVelocityClient: TestClient;
 	let refereeUSDCAccount: Keypair;
 
-	let fillerDriftClient: TestClient;
+	let fillerVelocityClient: TestClient;
 
 	let eventSubscriber: EventSubscriber;
 
@@ -116,7 +116,7 @@ describe('referrer', () => {
 				source: OracleSource.PYTH_LAZER,
 			},
 		];
-		referrerDriftClient = new TestClient({
+		referrerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -135,15 +135,15 @@ describe('referrer', () => {
 			},
 		});
 
-		await referrerDriftClient.initialize(usdcMint.publicKey, true);
-		await referrerDriftClient.subscribe();
-		await referrerDriftClient.updatePerpAuctionDuration(0);
+		await referrerVelocityClient.initialize(usdcMint.publicKey, true);
+		await referrerVelocityClient.subscribe();
+		await referrerVelocityClient.updatePerpAuctionDuration(0);
 		// Enable builder-codes so the RevenueShareEscrow referral path is active.
-		await referrerDriftClient.updateFeatureBitFlagsBuilderCodes(true);
+		await referrerVelocityClient.updateFeatureBitFlagsBuilderCodes(true);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await referrerDriftClient.initializePerpMarket(
+		await referrerVelocityClient.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
@@ -152,9 +152,9 @@ describe('referrer', () => {
 			new BN(100).mul(PEG_PRECISION)
 		);
 
-		await initializeQuoteSpotMarket(referrerDriftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(referrerVelocityClient, usdcMint.publicKey);
 
-		await referrerDriftClient.initializeUserAccountAndDepositCollateral(
+		await referrerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			referrerUSDCAccount.publicKey
 		);
@@ -167,7 +167,7 @@ describe('referrer', () => {
 			refereeKeyPair.publicKey
 		);
 
-		refereeDriftClient = new TestClient({
+		refereeVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(refereeKeyPair),
 			programID: chProgram.programId,
@@ -185,9 +185,9 @@ describe('referrer', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await refereeDriftClient.subscribe();
+		await refereeVelocityClient.subscribe();
 
-		[fillerDriftClient] = await createUserWithUSDCAccount(
+		[fillerVelocityClient] = await createUserWithUSDCAccount(
 			bankrunContextWrapper,
 			usdcMint,
 			chProgram,
@@ -198,32 +198,34 @@ describe('referrer', () => {
 			bulkAccountLoader
 		);
 
-		escrowMap = new RevenueShareEscrowMap(refereeDriftClient, false);
+		escrowMap = new RevenueShareEscrowMap(refereeVelocityClient, false);
 	});
 
 	after(async () => {
-		await referrerDriftClient.unsubscribe();
-		await refereeDriftClient.unsubscribe();
-		await fillerDriftClient.unsubscribe();
+		await referrerVelocityClient.unsubscribe();
+		await refereeVelocityClient.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('initialize referrer name account', async () => {
-		await referrerDriftClient.initializeReferrerName('crisp');
+		await referrerVelocityClient.initializeReferrerName('crisp');
 		const referrerNameAccount =
-			await referrerDriftClient.fetchReferrerNameAccount('crisp');
+			await referrerVelocityClient.fetchReferrerNameAccount('crisp');
 		assert(decodeName(referrerNameAccount.name) === 'crisp');
-		assert(referrerNameAccount.authority.equals(referrerDriftClient.authority));
+		assert(
+			referrerNameAccount.authority.equals(referrerVelocityClient.authority)
+		);
 		assert(
 			referrerNameAccount.user.equals(
-				await referrerDriftClient.getUserAccountPublicKey()
+				await referrerVelocityClient.getUserAccountPublicKey()
 			)
 		);
 	});
 
 	it('initialize with referrer', async () => {
 		const [txSig] =
-			await refereeDriftClient.initializeUserAccountAndDepositCollateral(
+			await refereeVelocityClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				refereeUSDCAccount.publicKey,
 				0,
@@ -231,8 +233,8 @@ describe('referrer', () => {
 				'crisp',
 				undefined,
 				{
-					referrer: await referrerDriftClient.getUserAccountPublicKey(),
-					referrerStats: referrerDriftClient.getUserStatsAccountPublicKey(),
+					referrer: await referrerVelocityClient.getUserAccountPublicKey(),
+					referrerStats: referrerVelocityClient.getUserStatsAccountPublicKey(),
 				}
 			);
 
@@ -245,8 +247,8 @@ describe('referrer', () => {
 			)
 		);
 
-		await refereeDriftClient.fetchAccounts();
-		const refereeStats = refereeDriftClient.getUserStats().getAccount();
+		await refereeVelocityClient.fetchAccounts();
+		const refereeStats = refereeVelocityClient.getUserStats().getAccount();
 		assert(
 			refereeStats.referrer.equals(
 				bankrunContextWrapper.provider.wallet.publicKey
@@ -254,31 +256,31 @@ describe('referrer', () => {
 		);
 		assert((refereeStats.referrerStatus & ReferrerStatus.IsReferred) > 0);
 
-		const referrerStats = referrerDriftClient.getUserStats().getAccount();
+		const referrerStats = referrerVelocityClient.getUserStats().getAccount();
 		assert((referrerStats.referrerStatus & ReferrerStatus.IsReferrer) > 0);
 	});
 
 	it('referrer can initialize a RevenueShare account', async () => {
-		await referrerDriftClient.initializeRevenueShare(
-			referrerDriftClient.wallet.publicKey
+		await referrerVelocityClient.initializeRevenueShare(
+			referrerVelocityClient.wallet.publicKey
 		);
 
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
 			getRevenueShareAccountPublicKey(
-				referrerDriftClient.program.programId,
-				referrerDriftClient.wallet.publicKey
+				referrerVelocityClient.program.programId,
+				referrerVelocityClient.wallet.publicKey
 			)
 		);
 		assert(accountInfo !== null, 'RevenueShare account should exist');
 
 		const revShare: RevenueShareAccount =
-			referrerDriftClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+			referrerVelocityClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
 				'revenueShare',
 				accountInfo.data
 			);
 		assert(
 			revShare.authority.toBase58() ===
-				referrerDriftClient.wallet.publicKey.toBase58()
+				referrerVelocityClient.wallet.publicKey.toBase58()
 		);
 		assert(revShare.totalReferrerRewards.toNumber() === 0);
 	});
@@ -287,23 +289,23 @@ describe('referrer', () => {
 		// The referee already has its referrer set on UserStats (from the
 		// 'initialize with referrer' test), so initializing the escrow stamps
 		// escrow.referrer with the referrer's authority.
-		await refereeDriftClient.initializeRevenueShareEscrow(
-			refereeDriftClient.wallet.publicKey,
+		await refereeVelocityClient.initializeRevenueShareEscrow(
+			refereeVelocityClient.wallet.publicKey,
 			3
 		);
 
 		await escrowMap.slowSync();
 		const escrow = (await escrowMap.mustGet(
-			refereeDriftClient.wallet.publicKey.toBase58()
+			refereeVelocityClient.wallet.publicKey.toBase58()
 		)) as RevenueShareEscrowAccount;
 		assert(
 			escrow.authority.toBase58() ===
-				refereeDriftClient.wallet.publicKey.toBase58()
+				refereeVelocityClient.wallet.publicKey.toBase58()
 		);
 		assert(
 			escrow.referrer.toBase58() ===
-				referrerDriftClient.wallet.publicKey.toBase58(),
-			`escrow.referrer ${escrow.referrer.toBase58()} !== referrer ${referrerDriftClient.wallet.publicKey.toBase58()}`
+				referrerVelocityClient.wallet.publicKey.toBase58(),
+			`escrow.referrer ${escrow.referrer.toBase58()} !== referrer ${referrerVelocityClient.wallet.publicKey.toBase58()}`
 		);
 	});
 
@@ -315,7 +317,7 @@ describe('referrer', () => {
 		// referee's RevenueShareEscrow as a remaining account so the on-chain
 		// referral reward can be routed into the escrow's Referral order slot.
 		const price = new BN(101).mul(PRICE_PRECISION);
-		await refereeDriftClient.placePerpOrder(
+		await refereeVelocityClient.placePerpOrder(
 			getLimitOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.LONG,
@@ -324,12 +326,12 @@ describe('referrer', () => {
 			})
 		);
 
-		await refereeDriftClient.fetchAccounts();
-		const order = refereeDriftClient.getUser().getOpenOrders()[0];
+		await refereeVelocityClient.fetchAccounts();
+		const order = refereeVelocityClient.getUser().getOpenOrders()[0];
 
-		const txSig = await fillerDriftClient.fillPerpOrder(
-			await refereeDriftClient.getUserAccountPublicKey(),
-			refereeDriftClient.getUserAccount(),
+		const txSig = await fillerVelocityClient.fillPerpOrder(
+			await refereeVelocityClient.getUserAccountPublicKey(),
+			refereeVelocityClient.getUserAccount(),
 			{ marketIndex, orderId: order.orderId },
 			undefined,
 			undefined,
@@ -344,14 +346,14 @@ describe('referrer', () => {
 		assert(eventRecord.referrerReward > 0);
 		const referrerReward = new BN(eventRecord.referrerReward);
 
-		const refereeStats = refereeDriftClient.getUserStats().getAccount();
+		const refereeStats = refereeVelocityClient.getUserStats().getAccount();
 		assert(refereeStats.fees.totalRefereeDiscount.gt(ZERO));
 
 		// The referral reward should now be sitting in a Referral-flagged order
 		// in the referee's escrow, waiting to be settled.
 		await escrowMap.slowSync();
 		let escrow = (await escrowMap.mustGet(
-			refereeDriftClient.wallet.publicKey.toBase58()
+			refereeVelocityClient.wallet.publicKey.toBase58()
 		)) as RevenueShareEscrowAccount;
 		const referralOrder = escrow.orders.find(
 			(o) => isBuilderOrderReferral(o) && o.marketIndex === marketIndex
@@ -367,12 +369,12 @@ describe('referrer', () => {
 		const revShareBeforeInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
 				getRevenueShareAccountPublicKey(
-					referrerDriftClient.program.programId,
-					referrerDriftClient.wallet.publicKey
+					referrerVelocityClient.program.programId,
+					referrerVelocityClient.wallet.publicKey
 				)
 			);
 		const revShareBefore: RevenueShareAccount =
-			referrerDriftClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+			referrerVelocityClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
 				'revenueShare',
 				revShareBeforeInfo.data
 			);
@@ -381,10 +383,10 @@ describe('referrer', () => {
 
 		// Settle the referee's pnl; the escrow map drives the SDK to include the
 		// referrer's User + RevenueShare accounts so the sweep can credit them.
-		await refereeDriftClient.fetchAccounts();
-		await referrerDriftClient.settlePNL(
-			await refereeDriftClient.getUserAccountPublicKey(),
-			refereeDriftClient.getUserAccount(),
+		await refereeVelocityClient.fetchAccounts();
+		await referrerVelocityClient.settlePNL(
+			await refereeVelocityClient.getUserAccountPublicKey(),
+			refereeVelocityClient.getUserAccount(),
 			marketIndex,
 			undefined,
 			undefined,
@@ -394,7 +396,7 @@ describe('referrer', () => {
 		// Referral slot in the escrow is reset after sweep.
 		await escrowMap.slowSync();
 		escrow = (await escrowMap.mustGet(
-			refereeDriftClient.wallet.publicKey.toBase58()
+			refereeVelocityClient.wallet.publicKey.toBase58()
 		)) as RevenueShareEscrowAccount;
 		const referralOrderAfter = escrow.orders.find(
 			(o) => isBuilderOrderReferral(o) && o.marketIndex === marketIndex
@@ -409,12 +411,12 @@ describe('referrer', () => {
 		const revShareAfterInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
 				getRevenueShareAccountPublicKey(
-					referrerDriftClient.program.programId,
-					referrerDriftClient.wallet.publicKey
+					referrerVelocityClient.program.programId,
+					referrerVelocityClient.wallet.publicKey
 				)
 			);
 		const revShareAfter: RevenueShareAccount =
-			referrerDriftClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+			referrerVelocityClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
 				'revenueShare',
 				revShareAfterInfo.data
 			);
@@ -428,7 +430,7 @@ describe('referrer', () => {
 	});
 
 	it('withdraw', async () => {
-		const txSig = await refereeDriftClient.withdraw(
+		const txSig = await refereeVelocityClient.withdraw(
 			usdcAmount.div(new BN(2)),
 			0,
 			refereeUSDCAccount.publicKey

@@ -140,9 +140,6 @@ export type VelocityEvent =
 	| Event<LPBorrowLendDepositRecord>
 	| Event<CuUsage>;
 
-/** @deprecated Use `VelocityEvent` instead. `DriftEvent` will be removed in a future major. */
-export type DriftEvent = VelocityEvent;
-
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
 }

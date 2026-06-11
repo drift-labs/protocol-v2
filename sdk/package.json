@@ -1,13 +1,12 @@
 {
 	"name": "@velocity-exchange/sdk",
-	"version": "0.0.5",
+	"version": "0.1.0",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"module": "./lib/browser/index.js",
-	"homepage": "https://www.drift.trade/",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:drift-labs/protocol-v2.git"
+		"url": "git@github.com:drift-labs/protocol-v2-shadow.git"
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet --format unix",
@@ -22,7 +21,7 @@
 		"test:ci": "mocha -r ts-node/register tests/ci/**/*.ts",
 		"test:dlob": "mocha -r ts-node/register tests/dlob/**/*.ts",
 		"test:events": "mocha -r ts-node/register tests/events/**/*.ts",
-		"test:driftcore": "bun test tests/DriftCore",
+		"test:velocitycore": "bun test tests/VelocityCore",
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
 		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'",
@@ -30,8 +29,8 @@
 		"circular-deps": "bunx madge --circular --circular --extensions ts src"
 	},
 	"keywords": [
-		"drift-labs",
-		"drift",
+		"velocity-exchange",
+		"velocity",
 		"perps",
 		"velocity",
 		"velocity-exchange"
@@ -100,7 +99,7 @@
 		"typescript": "5.4.5",
 		"vm-browserify": "1.1.2"
 	},
-	"description": "SDK for Drift Protocol",
+	"description": "SDK for Velocity Protocol",
 	"engines": {
 		"node": "^24.0.0"
 	},

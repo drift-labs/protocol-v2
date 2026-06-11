@@ -28,14 +28,14 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('user order id', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
-	let driftClient: TestClient;
-	let driftClientUser: User;
+	let velocityClient: TestClient;
+	let velocityClientUser: User;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -83,7 +83,7 @@ describe('user order id', () => {
 			{ publicKey: btcUsd, source: OracleSource.PYTH_LAZER },
 		];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -100,19 +100,19 @@ describe('user order id', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(
-			driftClient.getStateAccount().exchangeStatus === ExchangeStatus.ACTIVE
+			velocityClient.getStateAccount().exchangeStatus === ExchangeStatus.ACTIVE
 		);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -125,9 +125,9 @@ describe('user order id', () => {
 			undefined,
 			false
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			1,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
@@ -143,34 +143,34 @@ describe('user order id', () => {
 			undefined,
 			false
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(
-			isVariant(driftClient.getPerpMarketAccount(1).status, 'initialized')
+			isVariant(velocityClient.getPerpMarketAccount(1).status, 'initialized')
 		);
 
-		await driftClient.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
-		await driftClient.fetchAccounts();
-		assert(isVariant(driftClient.getPerpMarketAccount(1).status, 'active'));
+		await velocityClient.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
+		await velocityClient.fetchAccounts();
+		assert(isVariant(velocityClient.getPerpMarketAccount(1).status, 'active'));
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('place order', async () => {
@@ -188,11 +188,11 @@ describe('user order id', () => {
 			reduceOnly,
 			userOrderId,
 		});
-		await driftClient.placePerpOrder(orderParams);
+		await velocityClient.placePerpOrder(orderParams);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getUserAccount().orders[0];
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === userOrderId);
 	});
@@ -214,7 +214,7 @@ describe('user order id', () => {
 		});
 
 		try {
-			await driftClient.placePerpOrder(orderParams);
+			await velocityClient.placePerpOrder(orderParams);
 		} catch (_) {
 			//
 			return;
@@ -223,11 +223,11 @@ describe('user order id', () => {
 	});
 
 	it('cancel ', async () => {
-		await driftClient.cancelOrderByUserId(1);
+		await velocityClient.cancelOrderByUserId(1);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getUserAccount().orders[0];
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getUserAccount().orders[0];
 
 		assert(isVariant(order.status, 'canceled'));
 	});

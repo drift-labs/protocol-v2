@@ -56,7 +56,7 @@ export class grpcSubscription {
 					this.grpcConfigs,
 					'OrderSubscriber',
 					'user',
-					this.orderSubscriber.driftClient.program,
+					this.orderSubscriber.velocityClient.program,
 					this.orderSubscriber.decodeFn,
 					{
 						filters: [getUserFilter(), getNonIdleUserFilter()],
@@ -68,7 +68,7 @@ export class grpcSubscription {
 				this.grpcConfigs,
 				'OrderSubscriber',
 				'user',
-				this.orderSubscriber.driftClient.program,
+				this.orderSubscriber.velocityClient.program,
 				this.orderSubscriber.decodeFn,
 				{
 					filters: [getUserFilter(), getNonIdleUserFilter()],

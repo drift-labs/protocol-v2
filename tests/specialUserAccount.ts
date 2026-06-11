@@ -26,10 +26,10 @@ import {
 } from './testHelpers';
 
 describe('special user account', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let adminClient: TestClient;
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint;
@@ -63,11 +63,11 @@ describe('special user account', () => {
 			direction,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.placeAndTakePerpOrder(orderParams);
 	};
 
 	const flattenPosition = async (subAccountId = 0) => {
-		const position = driftClient
+		const position = velocityClient
 			.getUser(subAccountId)
 			.getPerpPosition(marketIndex).baseAssetAmount;
 
@@ -75,7 +75,7 @@ describe('special user account', () => {
 			return;
 		}
 
-		await driftClient.switchActiveUser(subAccountId);
+		await velocityClient.switchActiveUser(subAccountId);
 		await placePerpMarketOrder(
 			position.gt(new BN(0)) ? PositionDirection.SHORT : PositionDirection.LONG,
 			position.abs()
@@ -102,7 +102,7 @@ describe('special user account', () => {
 			10000
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -143,14 +143,14 @@ describe('special user account', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 		await adminClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(0);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(0);
 		const periodicity = new BN(60 * 60);
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			marketIndex,
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
@@ -158,43 +158,46 @@ describe('special user account', () => {
 			periodicity,
 			new BN(initialSolPrice).mul(PEG_PRECISION)
 		);
-		await driftClient.updatePerpMarketStatus(marketIndex, MarketStatus.ACTIVE);
+		await velocityClient.updatePerpMarketStatus(
+			marketIndex,
+			MarketStatus.ACTIVE
+		);
 
-		await driftClient.initializeUserAccount();
-		userAccountPublicKey = await driftClient.getUserAccountPublicKey();
-		await driftClient.initializeUserAccount(1);
-		userSubaccount1PublicKey = await driftClient.getUserAccountPublicKey(1);
+		await velocityClient.initializeUserAccount();
+		userAccountPublicKey = await velocityClient.getUserAccountPublicKey();
+		await velocityClient.initializeUserAccount(1);
+		userSubaccount1PublicKey = await velocityClient.getUserAccountPublicKey(1);
 
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount.muln(2),
 			bankrunContextWrapper,
-			driftClient.wallet.publicKey
+			velocityClient.wallet.publicKey
 		);
-		await driftClient.deposit(
+		await velocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
-		await driftClient.switchActiveUser(1);
-		await driftClient.deposit(
+		await velocityClient.switchActiveUser(1);
+		await velocityClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
-		await driftClient.switchActiveUser(0);
+		await velocityClient.switchActiveUser(0);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 	});
 
 	after(async () => {
 		await adminClient.unsubscribe();
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('defaults to no special status', async () => {
-		await driftClient.fetchAccounts();
-		const userAccount = driftClient.getUserAccount();
+		await velocityClient.fetchAccounts();
+		const userAccount = velocityClient.getUserAccount();
 		assert(userAccount.specialUserStatus === 0);
 	});
 
@@ -203,15 +206,15 @@ describe('special user account', () => {
 			userAccountPublicKey,
 			SpecialUserStatus.VAMM_HEDGER
 		);
-		await driftClient.fetchAccounts();
-		const userAccount = driftClient.getUserAccount();
+		await velocityClient.fetchAccounts();
+		const userAccount = velocityClient.getUserAccount();
 		assert(userAccount.specialUserStatus === SpecialUserStatus.VAMM_HEDGER);
 	});
 
 	it('clears special status back to zero', async () => {
 		await adminClient.updateSpecialUserStatus(userAccountPublicKey, 0);
-		await driftClient.fetchAccounts();
-		const userAccount = driftClient.getUserAccount();
+		await velocityClient.fetchAccounts();
+		const userAccount = velocityClient.getUserAccount();
 		assert(userAccount.specialUserStatus === 0);
 	});
 
@@ -228,9 +231,9 @@ describe('special user account', () => {
 	it('fails transfer when user is not flagged special', async () => {
 		await adminClient.updateSpecialUserStatus(userAccountPublicKey, 0);
 		await placePerpMarketOrder(PositionDirection.LONG, BASE_PRECISION);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const userPositionBeforeTransfer = driftClient
+		const userPositionBeforeTransfer = velocityClient
 			.getUser()
 			.getPerpPosition(marketIndex);
 
@@ -240,14 +243,14 @@ describe('special user account', () => {
 		);
 
 		await expectFail(() =>
-			driftClient.specialTransferPerpPositionToVamm(
+			velocityClient.specialTransferPerpPositionToVamm(
 				userAccountPublicKey,
 				marketIndex
 			)
 		);
 
 		await flattenPosition(0);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 	});
 
 	it('fails transfer when position would increase vamm exposure', async () => {
@@ -256,9 +259,9 @@ describe('special user account', () => {
 			SpecialUserStatus.VAMM_HEDGER
 		);
 		await placePerpMarketOrder(PositionDirection.LONG, BASE_PRECISION.divn(2));
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const userSubaccount0PositionBeforeInvalidTransfer = driftClient
+		const userSubaccount0PositionBeforeInvalidTransfer = velocityClient
 			.getUser(0)
 			.getPerpPosition(marketIndex);
 
@@ -269,18 +272,18 @@ describe('special user account', () => {
 			'subaccount 0 position should exist after placing long order'
 		);
 
-		await driftClient.switchActiveUser(1);
+		await velocityClient.switchActiveUser(1);
 		await adminClient.updateSpecialUserStatus(
 			userSubaccount1PublicKey,
 			SpecialUserStatus.VAMM_HEDGER
 		);
 		await placePerpMarketOrder(PositionDirection.SHORT, BASE_PRECISION.divn(4));
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		const marketBeforeInvalidTransfer =
-			driftClient.getPerpMarketAccount(marketIndex);
+			velocityClient.getPerpMarketAccount(marketIndex);
 
-		const userSubaccount1PositionBeforeInvalidTransfer = driftClient
+		const userSubaccount1PositionBeforeInvalidTransfer = velocityClient
 			.getUser(1)
 			.getPerpPosition(marketIndex);
 
@@ -297,17 +300,17 @@ describe('special user account', () => {
 		);
 
 		await expectFail(() =>
-			driftClient.specialTransferPerpPositionToVamm(
+			velocityClient.specialTransferPerpPositionToVamm(
 				userSubaccount1PublicKey,
 				marketIndex
 			)
 		);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		const marketAfterInvalidTransfer =
-			driftClient.getPerpMarketAccount(marketIndex);
-		const userSubaccount1PositionAfterInvalidTransfer = driftClient
+			velocityClient.getPerpMarketAccount(marketIndex);
+		const userSubaccount1PositionAfterInvalidTransfer = velocityClient
 			.getUser(1)
 			.getPerpPosition(marketIndex);
 
@@ -324,12 +327,12 @@ describe('special user account', () => {
 			'user position should be unchanged when transfer fails'
 		);
 
-		await driftClient.switchActiveUser(0);
+		await velocityClient.switchActiveUser(0);
 		await flattenPosition(0);
-		await driftClient.switchActiveUser(1);
+		await velocityClient.switchActiveUser(1);
 		await flattenPosition(1);
-		await driftClient.switchActiveUser(0);
-		await driftClient.fetchAccounts();
+		await velocityClient.switchActiveUser(0);
+		await velocityClient.fetchAccounts();
 	});
 
 	it('transfers 50% of position when amount is provided', async () => {
@@ -339,8 +342,8 @@ describe('special user account', () => {
 		);
 
 		await placePerpMarketOrder(PositionDirection.LONG, BASE_PRECISION);
-		await driftClient.fetchAccounts();
-		const userPositionAfterPlace = driftClient
+		await velocityClient.fetchAccounts();
+		const userPositionAfterPlace = velocityClient
 			.getUser()
 			.getPerpPosition(marketIndex);
 		assert(
@@ -350,16 +353,17 @@ describe('special user account', () => {
 
 		const halfPosition = BASE_PRECISION.divn(2);
 		const userPositionBeforeTransfer = userPositionAfterPlace;
-		const marketBeforeTransfer = driftClient.getPerpMarketAccount(marketIndex);
+		const marketBeforeTransfer =
+			velocityClient.getPerpMarketAccount(marketIndex);
 
-		await driftClient.specialTransferPerpPositionToVamm(
+		await velocityClient.specialTransferPerpPositionToVamm(
 			userAccountPublicKey,
 			marketIndex,
 			halfPosition
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const userPositionAfterTransfer = driftClient
+		const userPositionAfterTransfer = velocityClient
 			.getUser()
 			.getPerpPosition(marketIndex);
 		assert(
@@ -369,7 +373,8 @@ describe('special user account', () => {
 			'special user position should be reduced by transfer amount'
 		);
 
-		const marketAfterTransfer = driftClient.getPerpMarketAccount(marketIndex);
+		const marketAfterTransfer =
+			velocityClient.getPerpMarketAccount(marketIndex);
 		assert(
 			marketAfterTransfer.amm.baseAssetAmountWithAmm.eq(
 				marketBeforeTransfer.amm.baseAssetAmountWithAmm.sub(halfPosition)
@@ -377,13 +382,13 @@ describe('special user account', () => {
 			'baseAssetAmountWithAmm should be reduced by transfer amount'
 		);
 
-		await driftClient.specialTransferPerpPositionToVamm(
+		await velocityClient.specialTransferPerpPositionToVamm(
 			userAccountPublicKey,
 			marketIndex
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const userPositionAfterFullTransfer = driftClient
+		const userPositionAfterFullTransfer = velocityClient
 			.getUser()
 			.getPerpPosition(marketIndex);
 		assert(

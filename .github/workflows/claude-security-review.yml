@@ -1,6 +1,6 @@
 name: Claude Security Review
 
-# AI-powered security review of PR diffs covering programs/drift/ (Rust) and
+# AI-powered security review of PR diffs covering programs/velocity/ (Rust) and
 # sdk/src/ (TypeScript). Advisory only: posts findings as PR comments and
 # never blocks the merge.
 #
@@ -36,10 +36,10 @@ jobs:
         uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda # main @ 2026-02-11
         with:
           claude-api-key: ${{ secrets.CLAUDE_SECURITY_API_KEY }}
-          claude-model: claude-opus-4-8
+          claude-model: claude-fable-5
           comment-pr: 'true'
           false-positive-filtering-instructions: .github/claude-security-guidance.md
           # Action only supports directory exclusions (not file globs). File-level
-          # exclusions (e.g. sdk/src/idl/drift.json, **/*.md) are handled in the
+          # exclusions (e.g. sdk/src/idl/velocity.json, **/*.md) are handled in the
           # guidance file above.
           exclude-directories: tests,target,node_modules,sdk/lib,sdk/dist

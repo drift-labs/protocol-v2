@@ -4,7 +4,7 @@
 
 **Branch:** `feat/decouple-amm`. Single-PR refactor; not incremental.
 
-**Current state — 832 unit tests pass, fmt + clippy clean.** `cargo test -p drift --lib` is green. The big architectural pieces are landed; remaining work is the fill-path refactor (Task 10), boundary tightening (Task 12), and SDK/IDL/TS catch-up (Task 13-15).
+**Current state — 832 unit tests pass, fmt + clippy clean.** `cargo test -p velocity --lib` is green. The big architectural pieces are landed; remaining work is the fill-path refactor (Task 10), boundary tightening (Task 12), and SDK/IDL/TS catch-up (Task 13-15).
 
 ### Done
 
@@ -37,7 +37,7 @@
 - `controller/perp_pools.rs`: hosts `update_pool_balances`, `update_pnl_pool_and_user_balance`, `calculate_revenue_pool_transfer` (moved out of `controller/amm.rs`).
 - `math/perp_market.rs`: hosts `calculate_perp_market_amm_summary_stats` (moved out of `controller/amm.rs`).
 - `controller::matching::fill_perp_market_against_amm` — sole-AMM fill helper wrapping `fill_amm_only`. Drop-in replacement for legacy `swap_base_asset` + manual bookkeeping. The post-fill AMM bookkeeping (reserves, net counterparty position, cached spread-reserve refresh) lives in `AmmQuoter::commit_fill`; no separate post-match wrapper is needed. (The old `apply_match_to_perp_market` was a no-op once the spread cache moved into `commit_fill`, and was deleted.)
-- Tuple-return cleanup: `calculate_base_swap_output` returns `AmmSwapOutput { new_base_asset_reserve, new_quote_asset_reserve, quote_asset_amount, quote_asset_amount_surplus }`. No `DriftResult<(_, _, _)>` in branch-authored code.
+- Tuple-return cleanup: `calculate_base_swap_output` returns `AmmSwapOutput { new_base_asset_reserve, new_quote_asset_reserve, quote_asset_amount, quote_asset_amount_surplus }`. No `VelocityResult<(_, _, _)>` in branch-authored code.
 
 ### Soft spots (deferred)
 
@@ -51,9 +51,9 @@
 3. **Move AMM-stays fields per design.** Position counters, protocol fees (split half), funding state, oracle identity, order parameters move from AMM to PerpMarket. ~1,605 reach-through `market.amm.X` accesses to mass-substitute.
 4. **Move AMM to the tail of PerpMarket.** Forces future excision to be a clean truncate.
 5. **Task 12 — `pub(in crate::state::amm)` boundary.** Move AMM into its own `state::amm` module, tighten field visibility. Compile error wherever there's still a `market.amm.X` reach-through is the migration checklist.
-6. **Task 13 — IDL regen + SDK migration** (`sdk/src/idl/drift.{json,ts}`, `sdk/src/user.ts`, `sdk/src/math/*`, `sdk/src/decode/user.ts`). Wait until layout stabilises.
+6. **Task 13 — IDL regen + SDK migration** (`sdk/src/idl/velocity.{json,ts}`, `sdk/src/user.ts`, `sdk/src/math/*`, `sdk/src/decode/user.ts`). Wait until layout stabilises.
 7. **Task 14 — TypeScript integration tests** (`tests/*.ts`).
-8. **Task 15 — Final verification:** `cargo fmt && cargo clippy -p drift && cargo test -p drift && bash test-scripts/run-anchor-tests.sh`, SDK lint/test, CU benchmarks within ~10% of baseline, litmus greps return zero.
+8. **Task 15 — Final verification:** `cargo fmt && cargo clippy -p velocity && cargo test -p velocity && bash test-scripts/run-anchor-tests.sh`, SDK lint/test, CU benchmarks within ~10% of baseline, litmus greps return zero.
 
 **Post-merge (NOT part of PR):** devnet wipe-and-reinit per CLAUDE.md runbook.
 
@@ -227,15 +227,15 @@ pub struct QuoterFill {
 }
 
 pub trait Quoter {
-    fn setup(&mut self, _ctx: &QuoteContext) -> DriftResult<()> { Ok(()) }
+    fn setup(&mut self, _ctx: &QuoteContext) -> VelocityResult<()> { Ok(()) }
 
     /// The maker's single quoted price on this side (no-quote sentinel
     /// otherwise: u64::MAX for Long, 0 for Short).
-    fn best_price(&self, ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64>;
+    fn best_price(&self, ctx: &QuoteContext, side: PositionDirection) -> VelocityResult<u64>;
 
     /// Full fillable base at `best_price`. Cheap and non-mutating — analytic,
     /// never runs the actual fill. The discrete walk sizes each level with it.
-    fn level_capacity(&self, ctx: &QuoteContext, side: PositionDirection) -> DriftResult<u64>;
+    fn level_capacity(&self, ctx: &QuoteContext, side: PositionDirection) -> VelocityResult<u64>;
 
     fn is_prio(&self) -> bool { false }
     fn is_fee_exempt(&self) -> bool { false }
@@ -247,14 +247,14 @@ pub trait Quoter {
         ctx: &QuoteContext,
         side: PositionDirection,
         target_size: u64,
-    ) -> DriftResult<Option<QuoterFill>> {
+    ) -> VelocityResult<Option<QuoterFill>> {
         Ok(None)
     }
 }
 
 pub trait QuoterCommit: Quoter {
-    fn commit_fill(&mut self, ctx: &QuoteContext, fill: &QuoterFill) -> DriftResult<()>;
-    fn on_market_event(&mut self, _ctx: &QuoteContext, _event: &MarketEvent) -> DriftResult<()> { Ok(()) }
+    fn commit_fill(&mut self, ctx: &QuoteContext, fill: &QuoterFill) -> VelocityResult<()>;
+    fn on_market_event(&mut self, _ctx: &QuoteContext, _event: &MarketEvent) -> VelocityResult<()> { Ok(()) }
 }
 ```
 
@@ -347,15 +347,15 @@ AMM field visibility is `pub(crate)` scoped to `state/amm.rs` and submodules. Tr
 
 Post-refactor litmus tests:
 
-- `rg 'perp_market\.amm\.|market\.amm\.' programs/drift/src/` outside `state/amm.rs`, `controller/amm*.rs`, `math/amm*.rs`, `math/cp_curve.rs` returns zero.
-- `rg 'PerpMarket' programs/drift/src/state/amm.rs programs/drift/src/controller/amm*.rs programs/drift/src/math/amm*.rs programs/drift/src/math/cp_curve.rs` returns zero matches in function signatures (only `use` imports).
+- `rg 'perp_market\.amm\.|market\.amm\.' programs/velocity/src/` outside `state/amm.rs`, `controller/amm*.rs`, `math/amm*.rs`, `math/cp_curve.rs` returns zero.
+- `rg 'PerpMarket' programs/velocity/src/state/amm.rs programs/velocity/src/controller/amm*.rs programs/velocity/src/math/amm*.rs programs/velocity/src/math/cp_curve.rs` returns zero matches in function signatures (only `use` imports).
 - An external module attempting `market.amm.total_fee` (or any AMM field) is a compile error.
 
 ## Out of scope
 
 - **Cross-program `Quoter`** (CPI to maker programs in other on-chain programs). For now the trait is in-program Rust polymorphism. The cross-program form would require serialized-curve returns + read-only CPI; design when needed.
 - **Tolerance-band pro-rata** (distributing pro-rata across makers whose prices are within ε of each other rather than exactly tied). The matcher ships with strict price priority and pro-rata only at exactly-tied ticks. Tolerance-band is a future policy knob.
-- **Cross-program AMM excision itself.** This refactor structures the code along the future split line but keeps everything in `programs/drift`. The actual move to a separate AMM program is a follow-up.
+- **Cross-program AMM excision itself.** This refactor structures the code along the future split line but keeps everything in `programs/velocity`. The actual move to a separate AMM program is a follow-up.
 - **Parametric-curve quoters** (Phoenix-style spline liquidity). These will land as additional `Quoter` impls without matcher changes.
 
 ## File layout after the refactor
@@ -365,7 +365,7 @@ docs/
   amm-decoupling-and-maker-interface.md      this file
   alignment-and-native-offsets.md            updated offsets
 
-programs/drift/src/
+programs/velocity/src/
   state/
     perp_market.rs       PerpMarket; market_stats: MarketStats; amm: AMM (tail)
     amm.rs               new: AMM { quote, books }, AmmQuoter, AmmMakerMut impls
@@ -391,8 +391,8 @@ programs/drift/src/
 
 Before merging:
 
-- `cargo fmt && cargo clippy -p drift` clean.
-- `cargo test -p drift` — full unit suite. Particular scrutiny: `size`, `market_index_offset`, `native_instruction_offsets`, matcher property tests, AMM-JIT differential tests.
+- `cargo fmt && cargo clippy -p velocity` clean.
+- `cargo test -p velocity` — full unit suite. Particular scrutiny: `size`, `market_index_offset`, `native_instruction_offsets`, matcher property tests, AMM-JIT differential tests.
 - `bash test-scripts/run-anchor-tests.sh` — full integration suite.
 - `cd sdk && bun run prettify && bun run lint && bun run test:ci && bun run test:dlob`.
 - CU benchmarks on representative fills: pure-AMM, AMM-JIT, JIT-auction-with-residual. Each within ~10% of pre-refactor baseline.

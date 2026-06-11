@@ -1,0 +1,220 @@
+use crate::msg;
+
+use crate::controller::position::PositionDirection;
+use crate::controller::spot_balance::update_spot_balances;
+use crate::error::ErrorCode;
+use crate::error::VelocityResult;
+use crate::math::casting::Cast;
+use crate::math::safe_math::SafeMath;
+use crate::math::spot_withdraw::check_withdraw_limits;
+use crate::math_error;
+use crate::safe_decrement;
+use crate::safe_increment;
+use crate::state::market_status::MarketStatus;
+use crate::state::paused_operations::SpotOperation;
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::user::{SpotPosition, User};
+
+use crate::validate;
+
+#[cfg(test)]
+mod tests;
+
+pub fn increase_spot_open_bids_and_asks(
+    spot_position: &mut SpotPosition,
+    direction: &PositionDirection,
+    base_asset_amount_unfilled: u64,
+    update: bool,
+) -> VelocityResult {
+    if !update {
+        return Ok(());
+    }
+
+    match direction {
+        PositionDirection::Long => {
+            spot_position.open_bids = spot_position
+                .open_bids
+                .safe_add(base_asset_amount_unfilled.cast()?)?;
+        }
+        PositionDirection::Short => {
+            spot_position.open_asks = spot_position
+                .open_asks
+                .safe_sub(base_asset_amount_unfilled.cast()?)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn decrease_spot_open_bids_and_asks(
+    spot_position: &mut SpotPosition,
+    direction: &PositionDirection,
+    base_asset_amount_unfilled: u64,
+    update: bool,
+) -> VelocityResult {
+    if !update {
+        return Ok(());
+    }
+
+    match direction {
+        PositionDirection::Long => {
+            spot_position.open_bids = spot_position
+                .open_bids
+                .safe_sub(base_asset_amount_unfilled.cast()?)?
+                .max(0);
+        }
+        PositionDirection::Short => {
+            spot_position.open_asks = spot_position
+                .open_asks
+                .safe_add(base_asset_amount_unfilled.cast()?)?
+                .min(0);
+        }
+    }
+
+    Ok(())
+}
+
+pub fn update_spot_balances_and_cumulative_deposits(
+    token_amount: u128,
+    update_direction: &SpotBalanceType,
+    spot_market: &mut SpotMarket,
+    spot_position: &mut SpotPosition,
+    is_leaving_velocity: bool,
+    cumulative_deposit_delta: Option<u128>,
+) -> VelocityResult {
+    update_spot_balances(
+        token_amount,
+        update_direction,
+        spot_market,
+        spot_position,
+        is_leaving_velocity,
+    )?;
+
+    let cumulative_deposit_delta = cumulative_deposit_delta.unwrap_or(token_amount);
+    match update_direction {
+        SpotBalanceType::Deposit => {
+            safe_increment!(
+                spot_position.cumulative_deposits,
+                cumulative_deposit_delta.cast()?
+            )
+        }
+        SpotBalanceType::Borrow => {
+            safe_decrement!(
+                spot_position.cumulative_deposits,
+                cumulative_deposit_delta.cast()?
+            )
+        }
+    }
+
+    Ok(())
+}
+
+pub fn update_spot_balances_and_cumulative_deposits_with_limits(
+    token_amount: u128,
+    update_direction: &SpotBalanceType,
+    spot_market: &mut SpotMarket,
+    user: &mut User,
+) -> VelocityResult {
+    let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
+
+    update_spot_balances_and_cumulative_deposits(
+        token_amount,
+        update_direction,
+        spot_market,
+        &mut user.spot_positions[spot_position_index],
+        true,
+        None,
+    )?;
+
+    let valid_withdraw = check_withdraw_limits(spot_market, Some(user), Some(token_amount))?;
+
+    validate!(
+        valid_withdraw,
+        ErrorCode::DailyWithdrawLimit,
+        "Spot Market {} has hit daily withdraw limit. Attempted withdraw amount of {} by {}",
+        spot_market.market_index,
+        token_amount,
+        user.authority
+    )?;
+
+    validate!(
+        matches!(
+            spot_market.status,
+            MarketStatus::Active | MarketStatus::ReduceOnly | MarketStatus::Settlement
+        ),
+        ErrorCode::MarketWithdrawPaused,
+        "Spot Market {} withdraws are currently paused, market not active or in settlement",
+        spot_market.market_index
+    )?;
+
+    validate!(
+        !spot_market.is_operation_paused(SpotOperation::Withdraw),
+        ErrorCode::MarketWithdrawPaused,
+        "Spot Market {} withdraws are currently paused",
+        spot_market.market_index
+    )?;
+
+    validate!(
+        !(spot_market.asset_tier == AssetTier::Protected
+            && user.spot_positions[spot_position_index].balance_type() == &SpotBalanceType::Borrow),
+        ErrorCode::ProtectedAssetTierViolation,
+        "Spot Market {} has Protected status and cannot be borrowed",
+        spot_market.market_index
+    )?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+pub fn transfer_spot_position_deposit(
+    token_amount: i128,
+    spot_market: &mut SpotMarket,
+    from_spot_position: &mut SpotPosition,
+    to_spot_position: &mut SpotPosition,
+) -> VelocityResult {
+    validate!(
+        from_spot_position.market_index == to_spot_position.market_index,
+        ErrorCode::UnequalMarketIndexForSpotTransfer,
+        "transfer market indexes arent equal",
+    )?;
+
+    if token_amount < 0 {
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Deposit,
+            spot_market,
+            from_spot_position,
+            false,
+            None,
+        )?;
+
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Borrow,
+            spot_market,
+            to_spot_position,
+            false,
+            None,
+        )?;
+    } else {
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Deposit,
+            spot_market,
+            to_spot_position,
+            false,
+            None,
+        )?;
+
+        update_spot_balances_and_cumulative_deposits(
+            token_amount.unsigned_abs(),
+            &SpotBalanceType::Borrow,
+            spot_market,
+            from_spot_position,
+            false,
+            None,
+        )?;
+    }
+
+    Ok(())
+}

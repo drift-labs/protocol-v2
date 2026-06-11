@@ -107,8 +107,8 @@ export async function makeMockUser(
 	const umap = new MockUserMap();
 	const mockUser: User = await umap.mustGet('1');
 	mockUser._isSubscribed = true;
-	mockUser.driftClient._isSubscribed = true;
-	mockUser.driftClient.accountSubscriber.isSubscribed = true;
+	mockUser.velocityClient._isSubscribed = true;
+	mockUser.velocityClient.accountSubscriber.isSubscribed = true;
 	const getStateAccount = () =>
 		({
 			data: {
@@ -116,7 +116,7 @@ export async function makeMockUser(
 			},
 			slot: 0,
 		}) as any;
-	mockUser.driftClient.getStateAccount = getStateAccount;
+	mockUser.velocityClient.getStateAccount = getStateAccount;
 
 	const oraclePriceMap: Record<string, number> = {};
 	for (let i = 0; i < myMockPerpMarkets.length; i++) {
@@ -172,14 +172,14 @@ export async function makeMockUser(
 	}
 
 	mockUser.getUserAccount = getMockUserAccount;
-	mockUser.driftClient.getPerpMarketAccount = getMockPerpMarket as any;
-	mockUser.driftClient.getSpotMarketAccount = getMockSpotMarket as any;
-	mockUser.driftClient.getOraclePriceDataAndSlot = getMockOracle as any;
-	mockUser.driftClient.getOracleDataForPerpMarket =
+	mockUser.velocityClient.getPerpMarketAccount = getMockPerpMarket as any;
+	mockUser.velocityClient.getSpotMarketAccount = getMockSpotMarket as any;
+	mockUser.velocityClient.getOraclePriceDataAndSlot = getMockOracle as any;
+	mockUser.velocityClient.getOracleDataForPerpMarket =
 		getOracleDataForPerpMarket as any;
-	mockUser.driftClient.getOracleDataForSpotMarket =
+	mockUser.velocityClient.getOracleDataForSpotMarket =
 		getOracleDataForSpotMarket as any;
-	mockUser.driftClient.getMMOracleDataForPerpMarket =
+	mockUser.velocityClient.getMMOracleDataForPerpMarket =
 		getMMOracleDataForPerpMarket as any;
 	return mockUser;
 }

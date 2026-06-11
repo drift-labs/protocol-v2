@@ -36,9 +36,9 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('place and make signedMsg order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let makerDriftClient: TestClient;
+	let makerVelocityClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -76,7 +76,7 @@ describe('place and make signedMsg order', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -93,25 +93,25 @@ describe('place and make signedMsg order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClient.subscribe();
+		await makerVelocityClient.subscribe();
 	});
 
 	after(async () => {
-		await makerDriftClient.unsubscribe();
+		await makerVelocityClient.unsubscribe();
 	});
 
 	it('maker can create ws delegate', async () => {
 		const newPubkey = new Keypair().publicKey;
-		await makerDriftClient.initializeSignedMsgWsDelegatesAccount(
-			makerDriftClient.wallet.publicKey,
+		await makerVelocityClient.initializeSignedMsgWsDelegatesAccount(
+			makerVelocityClient.wallet.publicKey,
 			[newPubkey]
 		);
 
 		const delegateAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
 				getSignedMsgWsDelegatesAccountPublicKey(
-					makerDriftClient.program.programId,
-					makerDriftClient.wallet.publicKey
+					makerVelocityClient.program.programId,
+					makerVelocityClient.wallet.publicKey
 				)
 			);
 
@@ -123,21 +123,21 @@ describe('place and make signedMsg order', () => {
 	it('maker can add ws delegates', async () => {
 		const newPubkey = new Keypair().publicKey;
 		const newPubkey2 = new Keypair().publicKey;
-		await makerDriftClient.addSignedMsgWsDelegate(
-			makerDriftClient.wallet.publicKey,
+		await makerVelocityClient.addSignedMsgWsDelegate(
+			makerVelocityClient.wallet.publicKey,
 			newPubkey
 		);
 
-		await makerDriftClient.addSignedMsgWsDelegate(
-			makerDriftClient.wallet.publicKey,
+		await makerVelocityClient.addSignedMsgWsDelegate(
+			makerVelocityClient.wallet.publicKey,
 			newPubkey2
 		);
 
 		const delegateAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
 				getSignedMsgWsDelegatesAccountPublicKey(
-					makerDriftClient.program.programId,
-					makerDriftClient.wallet.publicKey
+					makerVelocityClient.program.programId,
+					makerVelocityClient.wallet.publicKey
 				)
 			);
 
@@ -151,21 +151,21 @@ describe('place and make signedMsg order', () => {
 		const newPubkey = new Keypair().publicKey;
 		const newPubkey2 = new Keypair().publicKey;
 
-		await makerDriftClient.addSignedMsgWsDelegate(
-			makerDriftClient.wallet.publicKey,
+		await makerVelocityClient.addSignedMsgWsDelegate(
+			makerVelocityClient.wallet.publicKey,
 			newPubkey
 		);
 
-		await makerDriftClient.addSignedMsgWsDelegate(
-			makerDriftClient.wallet.publicKey,
+		await makerVelocityClient.addSignedMsgWsDelegate(
+			makerVelocityClient.wallet.publicKey,
 			newPubkey2
 		);
 
 		let delegateAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
 				getSignedMsgWsDelegatesAccountPublicKey(
-					makerDriftClient.program.programId,
-					makerDriftClient.wallet.publicKey
+					makerVelocityClient.program.programId,
+					makerVelocityClient.wallet.publicKey
 				)
 			);
 
@@ -174,20 +174,20 @@ describe('place and make signedMsg order', () => {
 		);
 		assert(pubkeysBefore.length === 5);
 
-		await makerDriftClient.removeSignedMsgWsDelegate(
-			makerDriftClient.wallet.publicKey,
+		await makerVelocityClient.removeSignedMsgWsDelegate(
+			makerVelocityClient.wallet.publicKey,
 			newPubkey
 		);
 
-		await makerDriftClient.removeSignedMsgWsDelegate(
-			makerDriftClient.wallet.publicKey,
+		await makerVelocityClient.removeSignedMsgWsDelegate(
+			makerVelocityClient.wallet.publicKey,
 			newPubkey2
 		);
 
 		delegateAccountInfo = await bankrunContextWrapper.connection.getAccountInfo(
 			getSignedMsgWsDelegatesAccountPublicKey(
-				makerDriftClient.program.programId,
-				makerDriftClient.wallet.publicKey
+				makerVelocityClient.program.programId,
+				makerVelocityClient.wallet.publicKey
 			)
 		);
 

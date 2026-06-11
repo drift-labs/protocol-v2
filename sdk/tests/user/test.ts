@@ -39,8 +39,8 @@ async function makeMockUser(
 	const umap = new MockUserMap();
 	const mockUser: User = await umap.mustGet('1');
 	mockUser._isSubscribed = true;
-	mockUser.driftClient._isSubscribed = true;
-	mockUser.driftClient.accountSubscriber.isSubscribed = true;
+	mockUser.velocityClient._isSubscribed = true;
+	mockUser.velocityClient.accountSubscriber.isSubscribed = true;
 
 	const oraclePriceMap = {};
 	// console.log(perpOraclePriceList, myMockPerpMarkets.length);
@@ -105,12 +105,14 @@ async function makeMockUser(
 	}
 
 	mockUser.getUserAccount = getMockUserAccount;
-	mockUser.driftClient.getPerpMarketAccount = getMockPerpMarket;
-	mockUser.driftClient.getSpotMarketAccount = getMockSpotMarket;
-	mockUser.driftClient.getOraclePriceDataAndSlot = getMockOracle;
-	mockUser.driftClient.getOracleDataForPerpMarket = getOracleDataForPerpMarket;
-	mockUser.driftClient.getOracleDataForSpotMarket = getOracleDataForSpotMarket;
-	mockUser.driftClient.getMMOracleDataForPerpMarket =
+	mockUser.velocityClient.getPerpMarketAccount = getMockPerpMarket;
+	mockUser.velocityClient.getSpotMarketAccount = getMockSpotMarket;
+	mockUser.velocityClient.getOraclePriceDataAndSlot = getMockOracle;
+	mockUser.velocityClient.getOracleDataForPerpMarket =
+		getOracleDataForPerpMarket;
+	mockUser.velocityClient.getOracleDataForSpotMarket =
+		getOracleDataForSpotMarket;
+	mockUser.velocityClient.getMMOracleDataForPerpMarket =
 		getMMOracleDataForPerpMarket;
 	return mockUser;
 }
@@ -177,14 +179,15 @@ describe('User Tests', () => {
 		assert(uA.perpPositions[0].quoteAssetAmount.eq(new BN('10000000'))); // $10
 		assert(mockUser.getFreeCollateral().eq(ZERO));
 
-		const quotePrice = mockUser.driftClient.getOracleDataForSpotMarket(0).price;
+		const quotePrice =
+			mockUser.velocityClient.getOracleDataForSpotMarket(0).price;
 		console.log('quotePrice:', quotePrice.toString());
 		assert(quotePrice.eq(new BN('1000000')));
 		const pnl1 = calculatePositionPNL(
 			myMockPerpMarkets[0],
 			activePerps[0],
 			false,
-			mockUser.driftClient.getOracleDataForPerpMarket(0)
+			mockUser.velocityClient.getOracleDataForPerpMarket(0)
 		);
 		console.log('pnl1:', pnl1.toString());
 		assert(pnl1.eq(new BN('10000000')));

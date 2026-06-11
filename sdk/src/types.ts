@@ -1,12 +1,12 @@
 /**
- * Shared TypeScript types for the Drift SDK.
+ * Shared TypeScript types for the Velocity SDK.
  *
  * Contains TypeScript mirrors of all on-chain account structs (UserAccount, PerpMarketAccount,
  * SpotMarketAccount, StateAccount, OracleData, etc.), instruction parameter types (OrderParams,
  * ModifyOrderParams), enums (MarketType, OrderType, PositionDirection, OracleSource), and
  * precision constants used throughout the SDK.
  *
- * The authoritative layout source is `sdk/src/idl/drift.json` (generated from the program).
+ * The authoritative layout source is `sdk/src/idl/velocity.json` (generated from the program).
  * Do not edit struct shapes here without a corresponding on-chain change.
  */
 import {
@@ -1164,6 +1164,10 @@ export type OrderParams = {
 	maxTs: BN | null;
 	auctionStartPrice: BN | null;
 	auctionEndPrice: BN | null;
+	/** index into the placing user's RevenueShareEscrow.approved_builders list (non-swift builder codes) */
+	builderIdx?: number | null;
+	/** builder fee on this order, in tenths of a bps, e.g. 100 = 0.01% */
+	builderFeeTenthBps?: number | null;
 };
 
 export class PostOnlyParams {
@@ -1257,6 +1261,8 @@ export const DefaultOrderParams: OrderParams = {
 	maxTs: null,
 	auctionStartPrice: null,
 	auctionEndPrice: null,
+	builderIdx: null,
+	builderFeeTenthBps: null,
 };
 
 export type SignedMsgOrderParamsMessage = {
@@ -1312,6 +1318,8 @@ export type ReferrerInfo = {
 export enum ReferrerStatus {
 	IsReferrer = 1,
 	IsReferred = 2,
+	/** set when the user's RevenueShareEscrow was initialized with a referrer */
+	BuilderReferral = 4,
 }
 
 export enum PlaceAndTakeOrderSuccessCondition {
@@ -1489,9 +1497,6 @@ export interface VelocityClientMetricsEvents {
 	preTxSigned: void;
 }
 
-/** @deprecated Use `VelocityClientMetricsEvents` instead. `DriftClientMetricsEvents` will be removed in a future major. */
-export interface DriftClientMetricsEvents extends VelocityClientMetricsEvents {}
-
 export type SignedTxData = {
 	txSig: string;
 	signedTx: Transaction | VersionedTransaction;
@@ -1528,7 +1533,7 @@ export type IfRebalanceConfigParams = {
 };
 
 /* Represents proof of a signed msg taker order
- * It can be provided to drift program to fill a signed msg order
+ * It can be provided to velocity program to fill a signed msg order
  */
 export interface SignedMsgOrderParams {
 	/**

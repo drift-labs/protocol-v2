@@ -29,10 +29,6 @@ export class ReferrerMap {
 	 */
 	private referrerReferrerInfoMap = new Map<string, ReferrerInfo>();
 	private velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	private get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	private parallelSync: boolean;
 
 	private fetchPromise?: Promise<void>;

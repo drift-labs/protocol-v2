@@ -1,6 +1,6 @@
 [workspace]
 members = [
-	"programs/drift",
+	"programs/velocity",
 	"programs/pyth",
 	"programs/pyth-lazer",
 	"programs/token_faucet",

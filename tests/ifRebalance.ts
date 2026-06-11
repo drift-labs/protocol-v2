@@ -43,9 +43,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot swap', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let makerDriftClient: TestClient;
+	let makerVelocityClient: TestClient;
 	let makerWSOL: PublicKey;
 	let eventSubscriber: EventSubscriber;
 
@@ -60,7 +60,7 @@ describe('spot swap', () => {
 	let usdcMint;
 	let makerUSDC: Keypair;
 
-	let takerDriftClient: TestClient;
+	let takerVelocityClient: TestClient;
 	let takerWSOL: PublicKey;
 	let takerUSDC: PublicKey;
 	let takerOpenOrders: PublicKey;
@@ -122,7 +122,7 @@ describe('spot swap', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -140,36 +140,36 @@ describe('spot swap', () => {
 			},
 		});
 
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
-		await makerDriftClient.subscribe();
-		await makerDriftClient.initializeUserAccount();
+		await makerVelocityClient.initialize(usdcMint.publicKey, true);
+		await makerVelocityClient.subscribe();
+		await makerVelocityClient.initializeUserAccount();
 
-		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(makerDriftClient, solOracle);
-		await makerDriftClient.updateSpotMarketStepSizeAndTickSize(
+		await initializeQuoteSpotMarket(makerVelocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(makerVelocityClient, solOracle);
+		await makerVelocityClient.updateSpotMarketStepSizeAndTickSize(
 			1,
 			new BN(100000000),
 			new BN(100)
 		);
-		await makerDriftClient.updateSpotAuctionDuration(0);
+		await makerVelocityClient.updateSpotAuctionDuration(0);
 
-		await makerDriftClient.depositIntoSpotMarketRevenuePool(
+		await makerVelocityClient.depositIntoSpotMarketRevenuePool(
 			0,
 			usdcAmount,
 			makerUSDC.publicKey
 		);
 
-		await makerDriftClient.fetchAccounts();
+		await makerVelocityClient.fetchAccounts();
 
-		console.log(await makerDriftClient.getSpotMarketAccount(0));
+		console.log(await makerVelocityClient.getSpotMarketAccount(0));
 
-		await makerDriftClient.updateSpotMarketRevenueSettlePeriod(0, new BN(1));
+		await makerVelocityClient.updateSpotMarketRevenueSettlePeriod(0, new BN(1));
 
-		await makerDriftClient.updateSpotMarketIfFactor(0, new BN(0), new BN(1));
+		await makerVelocityClient.updateSpotMarketIfFactor(0, new BN(0), new BN(1));
 
 		await bankrunContextWrapper.moveTimeForward(2);
 
-		await makerDriftClient.settleRevenueToInsuranceFund(0);
+		await makerVelocityClient.settleRevenueToInsuranceFund(0);
 
 		const { sharesTokenAmount, protocolShares } =
 			await getIfSharesAndVaultBalance(0);
@@ -177,7 +177,7 @@ describe('spot swap', () => {
 		assert(sharesTokenAmount.eq(new BN(200000000)));
 		assert(protocolShares.eq(new BN(200000000)));
 
-		await makerDriftClient.initializeIfRebalanceConfig({
+		await makerVelocityClient.initializeIfRebalanceConfig({
 			inMarketIndex: 0,
 			outMarketIndex: 1,
 			totalInAmount: new BN(200000000),
@@ -188,7 +188,7 @@ describe('spot swap', () => {
 			status: 0,
 		});
 
-		[takerDriftClient, takerWSOL, takerUSDC, takerKeypair] =
+		[takerVelocityClient, takerWSOL, takerUSDC, takerKeypair] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -210,12 +210,12 @@ describe('spot swap', () => {
 			takerKeypair,
 			10 * LAMPORTS_PER_SOL
 		);
-		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);
+		await takerVelocityClient.deposit(usdcAmount, 0, takerUSDC);
 	});
 
 	after(async () => {
-		await makerDriftClient.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await makerVelocityClient.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -257,11 +257,11 @@ describe('spot swap', () => {
 		const createOpenOrdersIx = await OpenOrders.makeCreateAccountTransaction(
 			bankrunContextWrapper.connection.toConnection(),
 			market.address,
-			takerDriftClient.wallet.publicKey,
+			takerVelocityClient.wallet.publicKey,
 			openOrdersAccount.publicKey,
 			market.programId
 		);
-		await takerDriftClient.sendTransaction(
+		await takerVelocityClient.sendTransaction(
 			new Transaction().add(createOpenOrdersIx),
 			[openOrdersAccount]
 		);
@@ -274,12 +274,13 @@ describe('spot swap', () => {
 	const getIfSharesAndVaultBalance = async (marketIndex: number) => {
 		const ifVaultBalance = (
 			await bankrunContextWrapper.connection.getTokenAccount(
-				makerDriftClient.getSpotMarketAccount(marketIndex).insuranceFund.vault
+				makerVelocityClient.getSpotMarketAccount(marketIndex).insuranceFund
+					.vault
 			)
 		).amount;
 
 		const protocolShares =
-			makerDriftClient.getSpotMarketAccount(marketIndex).insuranceFund
+			makerVelocityClient.getSpotMarketAccount(marketIndex).insuranceFund
 				.totalShares;
 
 		const sharesTokenAmount = unstakeSharesToAmount(
@@ -292,7 +293,7 @@ describe('spot swap', () => {
 	};
 
 	it('swap usdc for sol', async () => {
-		await makerDriftClient.updateAdmin(takerDriftClient.wallet.publicKey);
+		await makerVelocityClient.updateAdmin(takerVelocityClient.wallet.publicKey);
 
 		const market = await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
@@ -330,7 +331,7 @@ describe('spot swap', () => {
 
 		const amountIn = new BN(200).mul(QUOTE_PRECISION);
 		const { beginSwapIx, endSwapIx } =
-			await takerDriftClient.getInsuranceFundSwapIx({
+			await takerVelocityClient.getInsuranceFundSwapIx({
 				amountIn: amountIn,
 				inMarketIndex: 0,
 				outMarketIndex: 1,
@@ -343,7 +344,7 @@ describe('spot swap', () => {
 			bankrunContextWrapper.connection.toConnection(),
 			{
 				// @ts-ignore
-				owner: takerDriftClient.wallet,
+				owner: takerVelocityClient.wallet,
 				payer: takerUSDC,
 				side: 'buy',
 				price: 100,
@@ -359,7 +360,7 @@ describe('spot swap', () => {
 		const settleFundsIx = DexInstructions.settleFunds({
 			market: market.publicKey,
 			openOrders: takerOpenOrders,
-			owner: takerDriftClient.wallet.publicKey,
+			owner: takerVelocityClient.wallet.publicKey,
 			// @ts-ignore
 			baseVault: market._decoded.baseVault,
 			// @ts-ignore
@@ -381,7 +382,7 @@ describe('spot swap', () => {
 			.add(settleFundsIx)
 			.add(endSwapIx);
 
-		const { txSig } = await takerDriftClient.sendTransaction(tx);
+		const { txSig } = await takerVelocityClient.sendTransaction(tx);
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -400,13 +401,13 @@ describe('spot swap', () => {
 		assert(solProtocolShares.eq(new BN(1000000000)));
 
 		const rebalanceConfigKey = await getIfRebalanceConfigPublicKey(
-			makerDriftClient.program.programId,
+			makerVelocityClient.program.programId,
 			0,
 			1
 		);
 
 		const rebalanceConfig =
-			(await takerDriftClient.program.account.ifRebalanceConfig.fetch(
+			(await takerVelocityClient.program.account.ifRebalanceConfig.fetch(
 				rebalanceConfigKey
 			)) as IfRebalanceConfigAccount;
 
@@ -439,7 +440,7 @@ describe('spot swap', () => {
 		assert(swapRecord.inMarketIndex === 0);
 		assert(swapRecord.outMarketIndex === 1);
 
-		await takerDriftClient.transferProtocolIfSharesToRevenuePool(
+		await takerVelocityClient.transferProtocolIfSharesToRevenuePool(
 			1,
 			0,
 			new BN(1000000000)
@@ -456,25 +457,25 @@ describe('spot swap', () => {
 
 		const revenuePoolVaultAmount = (
 			await bankrunContextWrapper.connection.getTokenAccount(
-				makerDriftClient.getSpotMarketAccount(1).vault
+				makerVelocityClient.getSpotMarketAccount(1).vault
 			)
 		).amount;
 
 		assert(revenuePoolVaultAmount.toString() === '1000000000');
 
-		const revenuePoolBalance = await takerDriftClient.getSpotMarketAccount(1)
+		const revenuePoolBalance = await takerVelocityClient.getSpotMarketAccount(1)
 			.revenuePool.scaledBalance;
 
 		const revenuePoolTokenAmount = getTokenAmount(
 			revenuePoolBalance,
-			takerDriftClient.getSpotMarketAccount(1),
+			takerVelocityClient.getSpotMarketAccount(1),
 			SpotBalanceType.DEPOSIT
 		);
 
 		assert(revenuePoolTokenAmount.toString() === '1000000000');
 
 		const rebalanceConfigAfter =
-			(await takerDriftClient.program.account.ifRebalanceConfig.fetch(
+			(await takerVelocityClient.program.account.ifRebalanceConfig.fetch(
 				rebalanceConfigKey
 			)) as IfRebalanceConfigAccount;
 

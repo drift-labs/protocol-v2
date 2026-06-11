@@ -35,9 +35,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('oracle fill guardrails', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let fillerDriftClient: TestClient;
+	let fillerVelocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -94,7 +94,7 @@ describe('oracle fill guardrails', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		fillerDriftClient = new TestClient({
+		fillerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -111,15 +111,15 @@ describe('oracle fill guardrails', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.initialize(usdcMint.publicKey, true);
-		await fillerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
+		await fillerVelocityClient.initialize(usdcMint.publicKey, true);
+		await fillerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(fillerVelocityClient, usdcMint.publicKey);
 		// dont fill against the vamm
-		await fillerDriftClient.updatePerpAuctionDuration(new BN(100));
+		await fillerVelocityClient.updatePerpAuctionDuration(new BN(100));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerDriftClient.initializePerpMarket(
+		await fillerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -127,37 +127,37 @@ describe('oracle fill guardrails', () => {
 			periodicity,
 			new BN(20 * PEG_PRECISION.toNumber())
 		);
-		await fillerDriftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await fillerVelocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await fillerDriftClient.updatePerpMarketBaseSpread(
+		await fillerVelocityClient.updatePerpMarketBaseSpread(
 			0,
 			PRICE_PRECISION.toNumber() / 8
 		);
 
-		await fillerDriftClient.updatePerpMarketMarginRatio(
+		await fillerVelocityClient.updatePerpMarketMarginRatio(
 			0,
 			MARGIN_PRECISION.toNumber() / 2,
 			MARGIN_PRECISION.toNumber() / 3
 		);
 
-		await fillerDriftClient.updatePerpMarketMaxSpread(
+		await fillerVelocityClient.updatePerpMarketMaxSpread(
 			0,
 			PRICE_PRECISION.toNumber() / 5
 		);
 
-		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
+		await fillerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		await fillerDriftClient.updatePerpMarketPausedOperations(
+		await fillerVelocityClient.updatePerpMarketPausedOperations(
 			0,
 			PerpOperation.AMM_FILL
 		);
 	});
 
 	beforeEach(async () => {
-		await fillerDriftClient.moveAmmPrice(
+		await fillerVelocityClient.moveAmmPrice(
 			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
@@ -165,12 +165,12 @@ describe('oracle fill guardrails', () => {
 	});
 
 	after(async () => {
-		await fillerDriftClient.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('taker long solUsd', async () => {
-		const [takerDriftClient, takerUSDCAccount] =
+		const [takerVelocityClient, takerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -182,9 +182,9 @@ describe('oracle fill guardrails', () => {
 				bulkAccountLoader
 			);
 
-		await takerDriftClient.deposit(usdcAmount, 0, takerUSDCAccount);
+		await takerVelocityClient.deposit(usdcAmount, 0, takerUSDCAccount);
 
-		const [makerDriftClient, makerUSDCAccount] =
+		const [makerVelocityClient, makerUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -196,10 +196,10 @@ describe('oracle fill guardrails', () => {
 				bulkAccountLoader
 			);
 
-		await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
+		await makerVelocityClient.deposit(usdcAmount, 0, makerUSDCAccount);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 14, solUsd);
-		await makerDriftClient.placePerpOrder({
+		await makerVelocityClient.placePerpOrder({
 			marketIndex: 0,
 			direction: PositionDirection.SHORT,
 			price: new BN(14).mul(PRICE_PRECISION),
@@ -209,7 +209,7 @@ describe('oracle fill guardrails', () => {
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 31, solUsd);
 
-		await takerDriftClient.placePerpOrder({
+		await takerVelocityClient.placePerpOrder({
 			marketIndex: 0,
 			orderType: OrderType.LIMIT,
 			auctionStartPrice: new BN(100).mul(PRICE_PRECISION),
@@ -225,15 +225,15 @@ describe('oracle fill guardrails', () => {
 
 		const makerInfo = [
 			{
-				maker: await makerDriftClient.getUserAccountPublicKey(),
-				makerUserAccount: makerDriftClient.getUserAccount(),
-				makerStats: await makerDriftClient.getUserStatsAccountPublicKey(),
+				maker: await makerVelocityClient.getUserAccountPublicKey(),
+				makerUserAccount: makerVelocityClient.getUserAccount(),
+				makerStats: await makerVelocityClient.getUserStatsAccountPublicKey(),
 			},
 		];
-		const firstFillTxSig = await fillerDriftClient.fillPerpOrder(
-			await takerDriftClient.getUserAccountPublicKey(),
-			takerDriftClient.getUserAccount(),
-			takerDriftClient.getOrder(1),
+		const firstFillTxSig = await fillerVelocityClient.fillPerpOrder(
+			await takerVelocityClient.getUserAccountPublicKey(),
+			takerVelocityClient.getUserAccount(),
+			takerVelocityClient.getOrder(1),
 			makerInfo
 		);
 		bankrunContextWrapper.printTxLogs(firstFillTxSig);
@@ -244,7 +244,7 @@ describe('oracle fill guardrails', () => {
 		// console.log(eventSubscriber.getEventsArray('OrderActionRecord'));
 		assert(isVariant(orderActionRecord.action, 'cancel'));
 
-		await makerDriftClient.placePerpOrder({
+		await makerVelocityClient.placePerpOrder({
 			marketIndex: 0,
 			direction: PositionDirection.SHORT,
 			price: new BN(31).mul(PRICE_PRECISION),
@@ -255,10 +255,10 @@ describe('oracle fill guardrails', () => {
 
 		let error = false;
 		try {
-			const txSig = await fillerDriftClient.fillPerpOrder(
-				await takerDriftClient.getUserAccountPublicKey(),
-				takerDriftClient.getUserAccount(),
-				takerDriftClient.getOrder(1),
+			const txSig = await fillerVelocityClient.fillPerpOrder(
+				await takerVelocityClient.getUserAccountPublicKey(),
+				takerVelocityClient.getUserAccount(),
+				takerVelocityClient.getOrder(1),
 				makerInfo
 			);
 			bankrunContextWrapper.printTxLogs(txSig);
@@ -269,7 +269,7 @@ describe('oracle fill guardrails', () => {
 
 		assert(error);
 
-		await takerDriftClient.unsubscribe();
-		await makerDriftClient.unsubscribe();
+		await takerVelocityClient.unsubscribe();
+		await makerVelocityClient.unsubscribe();
 	});
 });

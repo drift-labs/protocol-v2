@@ -52,7 +52,11 @@
 		"lint": "eslint . --ext ts --quiet --format unix",
 		"lint:fix": "eslint . --ext ts --fix",
 		"bench:native-cu": "RUST_LOG=error ts-mocha -t 1000000 ./tests/nativeCuBench.ts",
-		"update-idl": "anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json"
+		"program:sync-idl": "cp target/idl/velocity.json sdk/src/idl/velocity.json && cp target/types/velocity.ts sdk/src/idl/velocity.ts",
+		"program:build": "anchor build --skip-lint --ignore-keys -- --no-default-features --features no-entrypoint,anchor-test && bun run program:sync-idl",
+		"program:build:devnet": "bash deploy-scripts/build-devnet.sh",
+		"program:build:mainnet": "anchor build --skip-lint",
+		"program:idl": "anchor idl build --skip-lint -p velocity -o target/idl/velocity.json -- --no-default-features --features no-entrypoint,anchor-test && cp target/idl/velocity.json sdk/src/idl/velocity.json && anchor idl type sdk/src/idl/velocity.json --out sdk/src/idl/velocity.ts"
 	},
 	"engines": {
 		"node": ">=12"

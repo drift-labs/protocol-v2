@@ -63,7 +63,7 @@ import {
 dotenv.config();
 
 describe('LP Pool', () => {
-	const program = anchor.workspace.Drift as Program;
+	const program = anchor.workspace.Velocity as Program;
 	// Align account (de)serialization with on-chain zero-copy layouts
 	// @ts-ignore
 	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
@@ -77,7 +77,7 @@ describe('LP Pool', () => {
 
 	let serumMarketPublicKey: PublicKey;
 
-	let serumDriftClient: TestClient;
+	let serumVelocityClient: TestClient;
 	let serumWSOL: PublicKey;
 	let serumUSDC: PublicKey;
 	let serumKeypair: Keypair;
@@ -287,7 +287,7 @@ describe('LP Pool', () => {
 			adminSolAta
 		);
 
-		[serumDriftClient, serumWSOL, serumUSDC, serumKeypair] =
+		[serumVelocityClient, serumWSOL, serumUSDC, serumKeypair] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -309,12 +309,12 @@ describe('LP Pool', () => {
 			serumKeypair,
 			50 * LAMPORTS_PER_SOL
 		);
-		await serumDriftClient.deposit(usdcAmount, 0, serumUSDC);
+		await serumVelocityClient.deposit(usdcAmount, 0, serumUSDC);
 	});
 
 	after(async () => {
 		await adminClient.unsubscribe();
-		await serumDriftClient.unsubscribe();
+		await serumVelocityClient.unsubscribe();
 	});
 
 	it('LP Pool init properly', async () => {
@@ -759,11 +759,11 @@ describe('LP Pool', () => {
 		const createOpenOrdersIx = await OpenOrders.makeCreateAccountTransaction(
 			bankrunContextWrapper.connection.toConnection(),
 			serumMarket.address,
-			serumDriftClient.wallet.publicKey,
+			serumVelocityClient.wallet.publicKey,
 			serumOpenOrdersAccount.publicKey,
 			serumMarket.programId
 		);
-		await serumDriftClient.sendTransaction(
+		await serumVelocityClient.sendTransaction(
 			new Transaction().add(createOpenOrdersIx),
 			[serumOpenOrdersAccount]
 		);
@@ -832,7 +832,7 @@ describe('LP Pool', () => {
 			bankrunContextWrapper.connection.toConnection(),
 			serumMarket,
 			{
-				owner: serumDriftClient.wallet,
+				owner: serumVelocityClient.wallet,
 				payer: serumWSOL,
 				side: 'sell',
 				price: 100,
@@ -851,7 +851,7 @@ describe('LP Pool', () => {
 			return Keypair.fromSecretKey(signer.secretKey);
 		});
 
-		await serumDriftClient.sendTransaction(transaction, signerKeypairs);
+		await serumVelocityClient.sendTransaction(transaction, signerKeypairs);
 
 		const amountIn = new BN(200).muln(
 			10 ** adminClient.getSpotMarketAccount(0).decimals

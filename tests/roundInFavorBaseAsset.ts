@@ -26,7 +26,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('round in favor', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -34,7 +34,7 @@ describe('round in favor', () => {
 
 	let usdcMint;
 
-	let primaryDriftClient: TestClient;
+	let primaryVelocityClient: TestClient;
 
 	// ammInvariant == k == x * y
 	const ammInitialQuoteAssetReserve = new anchor.BN(
@@ -75,7 +75,7 @@ describe('round in favor', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		primaryDriftClient = new TestClient({
+		primaryVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -92,15 +92,15 @@ describe('round in favor', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await primaryDriftClient.initialize(usdcMint.publicKey, true);
-		await primaryDriftClient.subscribe();
+		await primaryVelocityClient.initialize(usdcMint.publicKey, true);
+		await primaryVelocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(primaryDriftClient, usdcMint.publicKey);
-		await primaryDriftClient.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(primaryVelocityClient, usdcMint.publicKey);
+		await primaryVelocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await primaryDriftClient.initializePerpMarket(
+		await primaryVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -108,11 +108,11 @@ describe('round in favor', () => {
 			periodicity,
 			new BN(63000000000)
 		);
-		await primaryDriftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await primaryVelocityClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 	});
 
 	after(async () => {
-		await primaryDriftClient.unsubscribe();
+		await primaryVelocityClient.unsubscribe();
 	});
 
 	it('short', async () => {
@@ -125,7 +125,7 @@ describe('round in favor', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
@@ -142,12 +142,12 @@ describe('round in favor', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(789640);
@@ -156,24 +156,26 @@ describe('round in favor', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.placeAndTakePerpOrder(orderParams);
 
-		assert(driftClient.getQuoteAssetTokenAmount().eq(new BN(9999000)));
+		assert(velocityClient.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
-		await driftClient.fetchAccounts();
-		await driftClient.closePosition(marketIndex);
+		await velocityClient.fetchAccounts();
+		await velocityClient.closePosition(marketIndex);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteAssetAmount.eq(new BN(-88262))
 		);
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('long', async () => {
@@ -186,7 +188,7 @@ describe('round in favor', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
@@ -203,13 +205,13 @@ describe('round in favor', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
+		await velocityClient.subscribe();
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(789566);
@@ -218,21 +220,23 @@ describe('round in favor', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.placeAndTakePerpOrder(orderParams);
 
-		assert(driftClient.getQuoteAssetTokenAmount().eq(new BN(9999000)));
+		assert(velocityClient.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
-		await driftClient.closePosition(marketIndex);
-		await driftClient.fetchAccounts();
+		await velocityClient.closePosition(marketIndex);
+		await velocityClient.fetchAccounts();
 
 		console.log(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.toString()
+			velocityClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			driftClient
+			velocityClient
 				.getUserAccount()
 				.perpPositions[0].quoteAssetAmount.eq(new BN(-88268))
 		);
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 });

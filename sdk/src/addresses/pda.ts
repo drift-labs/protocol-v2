@@ -1,5 +1,5 @@
 /**
- * PDA derivation helpers for all Drift protocol accounts.
+ * PDA derivation helpers for all Velocity protocol accounts.
  * Covers: User, UserStats, PerpMarket, SpotMarket, InsuranceFundStake,
  * HighLeverageModeConfig, State, and vault PDAs.
  * All functions are pure (no RPC calls).
@@ -18,23 +18,16 @@ export async function getVelocityStateAccountPublicKeyAndNonce(
 	programId: PublicKey
 ): Promise<[PublicKey, number]> {
 	return PublicKey.findProgramAddress(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_state'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('velocity_state'))],
 		programId
 	);
 }
-
-/** @deprecated Use `getVelocityStateAccountPublicKeyAndNonce` instead. `getDriftStateAccountPublicKeyAndNonce` will be removed in a future major. */
-export const getDriftStateAccountPublicKeyAndNonce =
-	getVelocityStateAccountPublicKeyAndNonce;
 
 export async function getVelocityStateAccountPublicKey(
 	programId: PublicKey
 ): Promise<PublicKey> {
 	return (await getVelocityStateAccountPublicKeyAndNonce(programId))[0];
 }
-
-/** @deprecated Use `getVelocityStateAccountPublicKey` instead. `getDriftStateAccountPublicKey` will be removed in a future major. */
-export const getDriftStateAccountPublicKey = getVelocityStateAccountPublicKey;
 
 export async function getUserAccountPublicKeyAndNonce(
 	programId: PublicKey,
@@ -218,13 +211,10 @@ export function getInsuranceFundStakeAccountPublicKey(
 
 export function getVelocitySignerPublicKey(programId: PublicKey): PublicKey {
 	return PublicKey.findProgramAddressSync(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_signer'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('velocity_signer'))],
 		programId
 	)[0];
 }
-
-/** @deprecated Use `getVelocitySignerPublicKey` instead. `getDriftSignerPublicKey` will be removed in a future major. */
-export const getDriftSignerPublicKey = getVelocitySignerPublicKey;
 
 export function getReferrerNamePublicKeySync(
 	programId: PublicKey,

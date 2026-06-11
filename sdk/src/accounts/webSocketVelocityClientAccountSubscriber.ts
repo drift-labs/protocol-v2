@@ -710,10 +710,3 @@ export class WebSocketVelocityClientAccountSubscriber
 		return this.getOraclePriceDataAndSlot(oracleId);
 	}
 }
-
-/** @deprecated Use `WebSocketVelocityClientAccountSubscriber` instead. `WebSocketDriftClientAccountSubscriber` will be removed in a future major. */
-export const WebSocketDriftClientAccountSubscriber =
-	WebSocketVelocityClientAccountSubscriber;
-/** @deprecated Use `WebSocketVelocityClientAccountSubscriber` instead. `WebSocketDriftClientAccountSubscriber` will be removed in a future major. */
-export type WebSocketDriftClientAccountSubscriber =
-	WebSocketVelocityClientAccountSubscriber;

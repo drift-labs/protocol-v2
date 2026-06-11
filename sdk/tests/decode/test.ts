@@ -1,5 +1,5 @@
 import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
-import driftIDL from '../../src/idl/drift.json';
+import velocityIDL from '../../src/idl/velocity.json';
 import { Connection, Keypair } from '@solana/web3.js';
 import {
 	decodeUser,
@@ -21,7 +21,7 @@ describe('Custom user decode', () => {
 		const wallet = new Wallet(new Keypair());
 		// @ts-ignore
 		const provider = new AnchorProvider(connection, wallet);
-		const program = new Program(driftIDL as Idl, provider);
+		const program = new Program(velocityIDL as Idl, provider);
 
 		let totalAnchorSize = 0;
 		let totalCustomSize = 0;

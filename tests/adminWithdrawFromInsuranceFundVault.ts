@@ -43,9 +43,9 @@ const IF_WITHDRAWAL_RECIPIENT = new PublicKey(
 );
 
 describe('admin withdraw from insurance fund vault', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -68,7 +68,7 @@ describe('admin withdraw from insurance fund vault', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 22500);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -84,11 +84,11 @@ describe('admin withdraw from insurance fund vault', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
 
 		// --- Clone production IF vault state into the test-derived accounts ---
 
@@ -122,8 +122,8 @@ describe('admin withdraw from insurance fund vault', () => {
 			IF_OFFSET_OLD + IF_SIZE
 		);
 
-		await driftClient.fetchAccounts();
-		const testSpotMarket = driftClient.getSpotMarketAccount(
+		await velocityClient.fetchAccounts();
+		const testSpotMarket = velocityClient.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
@@ -139,7 +139,7 @@ describe('admin withdraw from insurance fund vault', () => {
 			userFactor: ifBytes.readUInt32LE(108),
 		};
 		await overWriteSpotMarket(
-			driftClient,
+			velocityClient,
 			bankrunContextWrapper,
 			spotMarketPk,
 			testSpotMarket
@@ -157,7 +157,7 @@ describe('admin withdraw from insurance fund vault', () => {
 			prodIfVaultAmount
 		);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
 		// Recipient must be owned by the program-designated treasury pubkey.
 		recipientUSDCAccount = await mockUserUSDCAccount(
@@ -169,12 +169,12 @@ describe('admin withdraw from insurance fund vault', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('admin withdraws from insurance fund vault to recipient', async () => {
-		await driftClient.fetchAccounts();
-		const spotMarket = driftClient.getSpotMarketAccount(
+		await velocityClient.fetchAccounts();
+		const spotMarket = velocityClient.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
@@ -218,7 +218,7 @@ describe('admin withdraw from insurance fund vault', () => {
 		console.log('withdraw amount:', withdrawAmount.toString());
 		assert(withdrawAmount.gt(ZERO), 'withdraw amount must be > 0');
 
-		const txSig = await driftClient.adminWithdrawFromInsuranceFundVault(
+		const txSig = await velocityClient.adminWithdrawFromInsuranceFundVault(
 			QUOTE_SPOT_MARKET_INDEX,
 			withdrawAmount,
 			recipientUSDCAccount.publicKey
@@ -259,8 +259,8 @@ describe('admin withdraw from insurance fund vault', () => {
 				.toString()}, got ${recipientBalanceAfter.toString()}`
 		);
 
-		await driftClient.fetchAccounts();
-		const spotMarketAfter = driftClient.getSpotMarketAccount(
+		await velocityClient.fetchAccounts();
+		const spotMarketAfter = velocityClient.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 

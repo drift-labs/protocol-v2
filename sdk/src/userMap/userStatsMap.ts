@@ -27,10 +27,6 @@ export class UserStatsMap {
 	 */
 	private userStatsMap = new Map<string, UserStats>();
 	private velocityClient: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	private get driftClient(): VelocityClient {
-		return this.velocityClient;
-	}
 	private bulkAccountLoader: BulkAccountLoader;
 	private decode;
 	private syncConfig: SyncConfig;

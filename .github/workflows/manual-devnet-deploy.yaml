@@ -11,9 +11,9 @@ on:
         description: "Program to deploy"
         required: true
         type: choice
-        default: drift
+        default: velocity
         options:
-          - drift
+          - velocity
           - token_faucet
       branch:
         description: "Branch (or ref) to build from"
@@ -30,7 +30,7 @@ env:
   ANCHOR_VERSION: 1.0.0
   NODE_VERSION: "24.x.x"
   VERIFIABLE_BUILD_IMAGE: solanafoundation/solana-verifiable-build:3.1.14
-  DRIFT_DEVNET_PROGRAM_ID: vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P
+  VELOCITY_DEVNET_PROGRAM_ID: vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P
   TOKEN_FAUCET_DEVNET_PROGRAM_ID: V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           case "${{ inputs.program }}" in
-            drift)        PID="${{ env.DRIFT_DEVNET_PROGRAM_ID }}" ;;
+            velocity)        PID="${{ env.VELOCITY_DEVNET_PROGRAM_ID }}" ;;
             token_faucet) PID="${{ env.TOKEN_FAUCET_DEVNET_PROGRAM_ID }}" ;;
             *) echo "Unknown program '${{ inputs.program }}'" >&2; exit 1 ;;
           esac

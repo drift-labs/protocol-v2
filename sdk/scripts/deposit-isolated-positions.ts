@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import dotenv from 'dotenv';
 import { AnchorProvider, Idl, Program, ProgramAccount, BN } from '@coral-xyz/anchor';
-import driftIDL from '../src/idl/drift.json';
+import velocityIDL from '../src/idl/velocity.json';
 import {
 	VELOCITY_PROGRAM_ID,
 	PerpMarketAccount,
@@ -35,7 +35,7 @@ async function main() {
 		commitment: 'processed',
 	});
 	const programId = new PublicKey(VELOCITY_PROGRAM_ID);
-	const program = new Program(driftIDL as Idl, programId, provider);
+	const program = new Program(velocityIDL as Idl, programId, provider);
 
 	const allPerpMarketProgramAccounts =
 		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];

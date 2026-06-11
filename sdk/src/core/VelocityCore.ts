@@ -9,8 +9,8 @@ import * as pdas from '../addresses/pda';
 import * as constants from '../constants';
 import { decodeUser } from '../decode/user';
 import { CustomBorshCoder } from '../decode/customCoder';
-import driftIDL from '../idl/drift.json';
-import type { Drift } from '../idl/drift';
+import velocityIDL from '../idl/velocity.json';
+import type { Velocity } from '../idl/velocity';
 import type { UserAccount } from '../types';
 import type { VelocityProgram } from '../config';
 import { fetchAccount } from '../accounts/fetch';
@@ -40,15 +40,12 @@ import * as remainingAccounts from './remainingAccounts';
 import * as signedMsg from './signedMsg';
 
 export type VelocityCoreContext = {
-	/** Drift program id. */
+	/** Velocity program id. */
 	programId: PublicKey;
 
-	/** Anchor IDL json for Drift (defaults to bundled `idl/drift.json`). */
-	idl?: Drift;
+	/** Anchor IDL json for Velocity (defaults to bundled `idl/velocity.json`). */
+	idl?: Velocity;
 };
-
-/** @deprecated Use `VelocityCoreContext` instead. `DriftCoreContext` will be removed in a future major. */
-export type DriftCoreContext = VelocityCoreContext;
 
 /**
  * VelocityCore is the minimal, core SDK surface:
@@ -68,20 +65,20 @@ export class VelocityCore {
 	static readonly remainingAccounts = remainingAccounts;
 	static readonly signedMsg = signedMsg;
 
-	static defaultIdl(): Drift {
-		return driftIDL as unknown as Drift;
+	static defaultIdl(): Velocity {
+		return velocityIDL as unknown as Velocity;
 	}
 
-	static coder(idl: Drift = VelocityCore.defaultIdl()): CustomBorshCoder {
+	static coder(idl: Velocity = VelocityCore.defaultIdl()): CustomBorshCoder {
 		return new CustomBorshCoder(idl as any);
 	}
 
-	/** Decode a Drift `User` account buffer without creating a Program. */
+	/** Decode a Velocity `User` account buffer without creating a Program. */
 	static decodeUserAccount(buffer: Buffer): UserAccount {
 		return decodeUser(buffer);
 	}
 
-	/** Fetch and decode a Drift `User` account. */
+	/** Fetch and decode a Velocity `User` account. */
 	static async fetchUserAccount(
 		connection: Connection,
 		userAccountPublicKey: PublicKey
@@ -116,7 +113,7 @@ export class VelocityCore {
 		state: PublicKey;
 		spotMarket: PublicKey;
 		spotMarketVault: PublicKey;
-		driftSigner: PublicKey;
+		velocitySigner: PublicKey;
 		user: PublicKey;
 		userStats: PublicKey;
 		userTokenAccount: PublicKey;
@@ -329,9 +326,3 @@ export class VelocityCore {
 		return [];
 	}
 }
-
-/** @deprecated Use `VelocityCore` instead. `DriftCore` will be removed in a future major. */
-export const DriftCore = VelocityCore;
-
-/** @deprecated Use `VelocityCore` instead. `DriftCore` will be removed in a future major. */
-export type DriftCore = VelocityCore;

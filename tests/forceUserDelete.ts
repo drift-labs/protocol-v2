@@ -31,7 +31,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -44,12 +44,12 @@ describe('spot deposit and withdraw', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientWSOLAccount: PublicKey;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientWSOLAccount: PublicKey;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
+	let secondUserVelocityClient: TestClient;
+	let secondUserVelocityClientWSOLAccount: PublicKey;
 
 	const usdcAmount = new BN(10 ** 6 / 20);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -112,8 +112,8 @@ describe('spot deposit and withdraw', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
+		await secondUserVelocityClient.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -190,9 +190,9 @@ describe('spot deposit and withdraw', () => {
 
 	it('First User Deposit USDC', async () => {
 		[
-			firstUserDriftClient,
-			firstUserDriftClientWSOLAccount,
-			firstUserDriftClientUSDCAccount,
+			firstUserVelocityClient,
+			firstUserVelocityClientWSOLAccount,
+			firstUserVelocityClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -207,17 +207,17 @@ describe('spot deposit and withdraw', () => {
 
 		const marketIndex = 0;
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		const txSig = await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		const txSig = await firstUserVelocityClient.deposit(
 			usdcAmount,
 			marketIndex,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 	});
 
 	it('Second User Deposit SOL', async () => {
-		[secondUserDriftClient, secondUserDriftClientWSOLAccount] =
+		[secondUserVelocityClient, secondUserVelocityClientWSOLAccount] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -231,10 +231,10 @@ describe('spot deposit and withdraw', () => {
 			);
 
 		const marketIndex = 1;
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserDriftClientWSOLAccount
+			secondUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 	});
@@ -242,47 +242,47 @@ describe('spot deposit and withdraw', () => {
 	it('First User Borrow SOL', async () => {
 		const marketIndex = 1;
 		const withdrawAmount = solAmount.div(new BN(1000));
-		const txSig = await firstUserDriftClient.withdraw(
+		const txSig = await firstUserVelocityClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			firstUserDriftClientWSOLAccount
+			firstUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 	});
 
 	it('Force delete', async () => {
-		await firstUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
 		// @ts-ignore
 		await createWSolTokenAccountForUser(
 			bankrunContextWrapper,
-			secondUserDriftClient.wallet,
+			secondUserVelocityClient.wallet,
 			new BN(LAMPORTS_PER_SOL)
 		);
 		// @ts-ignore
-		await secondUserDriftClient.sendTransaction(
-			await secondUserDriftClient.buildTransaction([
-				await secondUserDriftClient.createAssociatedTokenAccountIdempotentInstruction(
-					await secondUserDriftClient.getAssociatedTokenAccount(0),
-					secondUserDriftClient.wallet.publicKey,
-					secondUserDriftClient.wallet.publicKey,
-					secondUserDriftClient.getSpotMarketAccount(0).mint
+		await secondUserVelocityClient.sendTransaction(
+			await secondUserVelocityClient.buildTransaction([
+				await secondUserVelocityClient.createAssociatedTokenAccountIdempotentInstruction(
+					await secondUserVelocityClient.getAssociatedTokenAccount(0),
+					secondUserVelocityClient.wallet.publicKey,
+					secondUserVelocityClient.wallet.publicKey,
+					secondUserVelocityClient.getSpotMarketAccount(0).mint
 				),
 			])
 		);
 		const ixs = [];
 		ixs.push(
-			await secondUserDriftClient.getForceDeleteUserIx(
-				await firstUserDriftClient.getUserAccountPublicKey(),
-				await firstUserDriftClient.getUserAccount()
+			await secondUserVelocityClient.getForceDeleteUserIx(
+				await firstUserVelocityClient.getUserAccountPublicKey(),
+				await firstUserVelocityClient.getUserAccount()
 			)
 		);
 		// @ts-ignore
-		await secondUserDriftClient.sendTransaction(
-			await secondUserDriftClient.buildTransaction(ixs)
+		await secondUserVelocityClient.sendTransaction(
+			await secondUserVelocityClient.buildTransaction(ixs)
 		);
 
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			await firstUserDriftClient.getUserAccountPublicKey()
+			await firstUserVelocityClient.getUserAccountPublicKey()
 		);
 		assert(accountInfo === null);
 	});

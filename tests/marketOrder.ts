@@ -39,10 +39,10 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('market order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
-	let driftClientUser: User;
+	let velocityClient: TestClient;
+	let velocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
@@ -65,7 +65,7 @@ describe('market order', () => {
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
-	let fillerDriftClient: TestClient;
+	let fillerVelocityClient: TestClient;
 	let fillerUser: User;
 
 	const marketIndex = 0;
@@ -118,7 +118,7 @@ describe('market order', () => {
 			{ publicKey: btcUsd, source: OracleSource.PYTH_LAZER },
 		];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -135,14 +135,14 @@ describe('market order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -150,7 +150,7 @@ describe('market order', () => {
 			periodicity
 		);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			1,
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
@@ -159,25 +159,25 @@ describe('market order', () => {
 			new BN(60000).mul(PEG_PRECISION) // btc-ish price level
 		);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 		const discountMintKeypair = await mockUSDCMint(bankrunContextWrapper);
 
 		discountMint = discountMintKeypair.publicKey;
 
-		await driftClient.updateDiscountMint(discountMint);
+		await velocityClient.updateDiscountMint(discountMint);
 
 		const discountTokenAccountAddress = getAssociatedTokenAddressSync(
 			discountMint,
@@ -210,7 +210,7 @@ describe('market order', () => {
 			bankrunContextWrapper,
 			fillerKeyPair.publicKey
 		);
-		fillerDriftClient = new TestClient({
+		fillerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,
@@ -227,16 +227,17 @@ describe('market order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.subscribe();
+		await fillerVelocityClient.subscribe();
 
-		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
+		await fillerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			fillerUSDCAccount.publicKey
 		);
 
 		fillerUser = new User({
-			driftClient: fillerDriftClient,
-			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+			velocityClient: fillerVelocityClient,
+			userAccountPublicKey:
+				await fillerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -246,10 +247,10 @@ describe('market order', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 		await fillerUser.unsubscribe();
-		await fillerDriftClient.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -264,23 +265,23 @@ describe('market order', () => {
 			baseAssetAmount,
 			price,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.placeAndTakePerpOrder(orderParams);
 		const orderIndex = new BN(0);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
 		const order =
-			driftClientUser.getUserAccount().orders[orderIndex.toString()];
+			velocityClientUser.getUserAccount().orders[orderIndex.toString()];
 
-		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(1001);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
 		assert(order.baseAssetAmount.eq(order.baseAssetAmountFilled));
 
-		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
+		const firstPosition = velocityClientUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(-1000001);
@@ -304,7 +305,7 @@ describe('market order', () => {
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(
 			orderActionRecord.taker.equals(
-				await driftClientUser.getUserAccountPublicKey()
+				await velocityClientUser.getUserAccountPublicKey()
 			)
 		);
 		assert(orderActionRecord.fillerReward.eq(ZERO));
@@ -320,13 +321,13 @@ describe('market order', () => {
 			direction,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(orderParams);
+		await velocityClient.placeAndTakePerpOrder(orderParams);
 
-		await driftClient.fetchAccounts();
-		await driftClientUser.fetchAccounts();
+		await velocityClient.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
+		const firstPosition = velocityClientUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 
 		assert(firstPosition.quoteBreakEvenAmount.eq(ZERO));
@@ -347,7 +348,7 @@ describe('market order', () => {
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(
 			orderActionRecord.taker.equals(
-				await driftClientUser.getUserAccountPublicKey()
+				await velocityClientUser.getUserAccountPublicKey()
 			)
 		);
 		assert(orderActionRecord.fillerReward.eq(ZERO));

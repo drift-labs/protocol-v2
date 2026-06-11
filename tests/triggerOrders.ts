@@ -39,14 +39,14 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('trigger orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
-	let fillerDriftClient: TestClient;
-	let fillerDriftClientUser: User;
+	let fillerVelocityClient: TestClient;
+	let fillerVelocityClientUser: User;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -102,7 +102,7 @@ describe('trigger orders', () => {
 			},
 		];
 
-		fillerDriftClient = new TestClient({
+		fillerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -119,10 +119,10 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.initialize(usdcMint.publicKey, true);
-		await fillerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
-		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
+		await fillerVelocityClient.initialize(usdcMint.publicKey, true);
+		await fillerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(fillerVelocityClient, usdcMint.publicKey);
+		await fillerVelocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
@@ -137,11 +137,11 @@ describe('trigger orders', () => {
 			},
 		};
 
-		await fillerDriftClient.updateOracleGuardRails(oracleGuardRails);
+		await fillerVelocityClient.updateOracleGuardRails(oracleGuardRails);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerDriftClient.initializePerpMarket(
+		await fillerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -149,24 +149,25 @@ describe('trigger orders', () => {
 			periodicity
 		);
 
-		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
+		await fillerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		fillerDriftClientUser = new User({
-			driftClient: fillerDriftClient,
-			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+		fillerVelocityClientUser = new User({
+			velocityClient: fillerVelocityClient,
+			userAccountPublicKey:
+				await fillerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClientUser.subscribe();
+		await fillerVelocityClientUser.subscribe();
 	});
 
 	beforeEach(async () => {
-		await fillerDriftClient.moveAmmPrice(
+		await fillerVelocityClient.moveAmmPrice(
 			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
@@ -175,8 +176,8 @@ describe('trigger orders', () => {
 	});
 
 	after(async () => {
-		await fillerDriftClient.unsubscribe();
-		await fillerDriftClientUser.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
+		await fillerVelocityClientUser.unsubscribe();
 	});
 
 	it('stop market for long', async () => {
@@ -189,7 +190,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -206,20 +207,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -228,7 +229,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -238,16 +239,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopOrderParams);
+		await velocityClient.placePerpOrder(stopOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -256,7 +257,7 @@ describe('trigger orders', () => {
 		}
 
 		const newOraclePrice = 0.49;
-		await fillerDriftClient.moveAmmToPrice(
+		await fillerVelocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
@@ -267,25 +268,27 @@ describe('trigger orders', () => {
 			10000
 		);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('stop limit for long', async () => {
@@ -298,7 +301,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -315,20 +318,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
@@ -337,7 +340,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
@@ -350,16 +353,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopLimitOrderParams);
+		await velocityClient.placePerpOrder(stopLimitOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -368,7 +371,7 @@ describe('trigger orders', () => {
 		}
 
 		const newOraclePrice = 0.49;
-		await fillerDriftClient.moveAmmToPrice(
+		await fillerVelocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
@@ -379,25 +382,27 @@ describe('trigger orders', () => {
 			10000
 		);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('stop market for short', async () => {
@@ -410,7 +415,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -427,20 +432,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -449,7 +454,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -459,16 +464,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopOrderParams);
+		await velocityClient.placePerpOrder(stopOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -477,7 +482,7 @@ describe('trigger orders', () => {
 		}
 
 		const newOraclePrice = 2.01;
-		await fillerDriftClient.moveAmmToPrice(
+		await fillerVelocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
@@ -488,25 +493,27 @@ describe('trigger orders', () => {
 			10000
 		);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('stop limit for short', async () => {
@@ -519,7 +526,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -536,20 +543,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
@@ -558,7 +565,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const triggerPrice = PRICE_PRECISION.mul(new BN(6)).div(new BN(5));
 		const limitPrice = triggerPrice.add(PRICE_PRECISION.div(new BN(50)));
@@ -571,16 +578,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopLimitOrderParams);
+		await velocityClient.placePerpOrder(stopLimitOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -588,16 +595,16 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const totalCollateral0 = driftClientUser.getTotalCollateral();
+		const totalCollateral0 = velocityClientUser.getTotalCollateral();
 		console.log(
 			'user total collateral 0:',
 			convertToNumber(totalCollateral0, QUOTE_PRECISION)
 		);
 
 		const newOraclePrice = 1.201;
-		await fillerDriftClient.moveAmmToPrice(
+		await fillerVelocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
@@ -608,34 +615,36 @@ describe('trigger orders', () => {
 			10000
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
-		const totalCollateral = driftClientUser.getTotalCollateral();
+		const totalCollateral = velocityClientUser.getTotalCollateral();
 		console.log(
 			'user total collateral after:',
 			convertToNumber(totalCollateral, QUOTE_PRECISION)
 		);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 		// await printTxLogs(connection, txSig);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('take profit for long', async () => {
@@ -648,7 +657,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -665,20 +674,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -687,7 +696,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -697,16 +706,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopOrderParams);
+		await velocityClient.placePerpOrder(stopOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -714,32 +723,34 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await fillerDriftClient.moveAmmPrice(
+		await fillerVelocityClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetReserve.div(new BN(2)),
 			ammInitialQuoteAssetReserve
 		);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 2.01, solUsd, 10000);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('take profit limit for long', async () => {
@@ -752,7 +763,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -769,20 +780,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
@@ -791,7 +802,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const triggerPrice = PRICE_PRECISION.mul(new BN(2));
 		const limitPrice = triggerPrice.sub(PRICE_PRECISION.div(new BN(50)));
@@ -804,16 +815,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopLimitOrderParams);
+		await velocityClient.placePerpOrder(stopLimitOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -822,7 +833,7 @@ describe('trigger orders', () => {
 		}
 
 		const newOraclePrice = 2.01;
-		await fillerDriftClient.moveAmmToPrice(
+		await fillerVelocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
@@ -833,25 +844,27 @@ describe('trigger orders', () => {
 			10000
 		);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('take profit for short', async () => {
@@ -864,7 +877,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -881,20 +894,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -903,7 +916,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -913,16 +926,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopOrderParams);
+		await velocityClient.placePerpOrder(stopOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -930,32 +943,34 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await fillerDriftClient.moveAmmPrice(
+		await fillerVelocityClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(2)),
 			ammInitialQuoteAssetReserve
 		);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.49, solUsd, 10000);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 
 	it('take profit limit for short', async () => {
@@ -968,7 +983,7 @@ describe('trigger orders', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const driftClient = new TestClient({
+		const velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
@@ -985,20 +1000,20 @@ describe('trigger orders', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.subscribe();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.subscribe();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const driftClientUser = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		const velocityClientUser = new User({
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientUser.subscribe();
+		await velocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
@@ -1007,7 +1022,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await driftClient.placeAndTakePerpOrder(marketOrderParams);
+		await velocityClient.placeAndTakePerpOrder(marketOrderParams);
 
 		const triggerPrice = PRICE_PRECISION.div(new BN(2));
 		const limitPrice = triggerPrice.add(PRICE_PRECISION.div(new BN(50)));
@@ -1020,16 +1035,16 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await driftClient.placePerpOrder(stopLimitOrderParams);
+		await velocityClient.placePerpOrder(stopLimitOrderParams);
 
-		await driftClientUser.fetchAccounts();
-		const order = driftClientUser.getOrderByUserOrderId(1);
+		await velocityClientUser.fetchAccounts();
+		const order = velocityClientUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerDriftClient.fillPerpOrder(
-				await driftClientUser.getUserAccountPublicKey(),
-				driftClientUser.getUserAccount(),
+			await fillerVelocityClient.fillPerpOrder(
+				await velocityClientUser.getUserAccountPublicKey(),
+				velocityClientUser.getUserAccount(),
 				order
 			);
 			assert(false);
@@ -1038,7 +1053,7 @@ describe('trigger orders', () => {
 		}
 
 		const newOraclePrice = 0.49;
-		await fillerDriftClient.moveAmmToPrice(
+		await fillerVelocityClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
@@ -1049,24 +1064,26 @@ describe('trigger orders', () => {
 			10000
 		);
 
-		await fillerDriftClient.triggerOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.triggerOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
-		await fillerDriftClient.fillPerpOrder(
-			await driftClientUser.getUserAccountPublicKey(),
-			driftClientUser.getUserAccount(),
+		await fillerVelocityClient.fillPerpOrder(
+			await velocityClientUser.getUserAccountPublicKey(),
+			velocityClientUser.getUserAccount(),
 			order
 		);
 
-		await driftClientUser.fetchAccounts();
+		await velocityClientUser.fetchAccounts();
 
 		assert(
-			driftClientUser.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			velocityClientUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
-		await driftClient.unsubscribe();
-		await driftClientUser.unsubscribe();
+		await velocityClient.unsubscribe();
+		await velocityClientUser.unsubscribe();
 	});
 });

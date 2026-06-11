@@ -5,8 +5,6 @@ import { GrpcConfigs } from '../accounts/types';
 
 export type OrderSubscriberConfig = {
 	velocityClient?: VelocityClient;
-	/** @deprecated Use `velocityClient` instead. `driftClient` will be removed in a future major. */
-	driftClient?: VelocityClient;
 	subscriptionConfig:
 		| {
 				type: 'polling';

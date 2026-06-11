@@ -27,9 +27,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('max deposit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -60,7 +60,7 @@ describe('max deposit', () => {
 
 		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -78,8 +78,8 @@ describe('max deposit', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
 		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 			new BN(2)
@@ -92,7 +92,7 @@ describe('max deposit', () => {
 		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		const imfFactor = 0;
 
-		await driftClient.initializeSpotMarket(
+		await velocityClient.initializeSpotMarket(
 			usdcMint.publicKey,
 			optimalUtilization,
 			optimalRate,
@@ -111,16 +111,16 @@ describe('max deposit', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('delete', async () => {
-		const txSig = await driftClient.deleteInitializedSpotMarket(0);
+		const txSig = await velocityClient.deleteInitializedSpotMarket(0);
 
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
 		const spotMarketKey = await getSpotMarketPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			0
 		);
 
@@ -132,7 +132,7 @@ describe('max deposit', () => {
 		assert(result.value === null);
 
 		const spotMarketVaultKey = await getSpotMarketVaultPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			0
 		);
 
@@ -143,7 +143,7 @@ describe('max deposit', () => {
 		assert(result.value === null);
 
 		const ifVaultKey = await getInsuranceFundVaultPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			0
 		);
 
@@ -167,7 +167,7 @@ describe('max deposit', () => {
 		const imfFactor = 0;
 
 		try {
-			await driftClient.initializeSpotMarket(
+			await velocityClient.initializeSpotMarket(
 				usdcMint.publicKey,
 				optimalUtilization,
 				optimalRate,

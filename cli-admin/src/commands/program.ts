@@ -123,7 +123,7 @@ export function registerProgram(parent: Command): void {
 	const prog = parent
 		.command('program')
 		.description(
-			'Manage the on-chain drift program itself (upgrade authority operations).'
+			'Manage the on-chain velocity program itself (upgrade authority operations).'
 		);
 
 	withGlobalOptions(
@@ -132,8 +132,8 @@ export function registerProgram(parent: Command): void {
 			.description(
 				[
 					'Emergency-halt: deploy sbpf-asm-abort.so to a fresh buffer and propose',
-					'a BPFLoaderUpgradeable::upgrade swapping drift bytecode for it.',
-					'After execution every drift instruction fails with',
+					'a BPFLoaderUpgradeable::upgrade swapping velocity bytecode for it.',
+					'After execution every velocity instruction fails with',
 					'ProgramFailedToComplete until the upgrade authority redeploys real',
 					'bytecode.',
 					'',
@@ -290,7 +290,7 @@ export function registerProgram(parent: Command): void {
 				provider,
 				[ix],
 				opts.multisig ? new PublicKey(opts.multisig) : undefined,
-				`drift-admin program halt buffer=${bufferKp.publicKey.toBase58()}`
+				`velocity-admin program halt buffer=${bufferKp.publicKey.toBase58()}`
 			);
 			reportDispatch(
 				`program halt — upgrading ${programId.toBase58()} with buffer ${bufferKp.publicKey.toBase58()} (authority=${upgradeAuthority.toBase58()}, spill=${spill.toBase58()})`,

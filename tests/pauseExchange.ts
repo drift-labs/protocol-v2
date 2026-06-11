@@ -23,9 +23,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('Pause exchange', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -66,7 +66,7 @@ describe('Pause exchange', () => {
 		const solOracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -90,10 +90,10 @@ describe('Pause exchange', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
@@ -101,16 +101,16 @@ describe('Pause exchange', () => {
 			periodicity
 		);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
 		const marketIndex = 0;
 		const incrementalUSDCNotionalAmount = usdcAmount.mul(new BN(5));
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			incrementalUSDCNotionalAmount,
 			marketIndex
@@ -118,18 +118,18 @@ describe('Pause exchange', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 	});
 
 	it('Pause exchange', async () => {
-		await driftClient.updateExchangeStatus(ExchangeStatus.PAUSED);
-		const state = driftClient.getStateAccount();
+		await velocityClient.updateExchangeStatus(ExchangeStatus.PAUSED);
+		const state = velocityClient.getStateAccount();
 		assert(state.exchangeStatus === ExchangeStatus.PAUSED);
 	});
 
 	it('Block open position', async () => {
 		try {
-			await driftClient.openPosition(PositionDirection.LONG, usdcAmount, 0);
+			await velocityClient.openPosition(PositionDirection.LONG, usdcAmount, 0);
 		} catch (e) {
 			console.log(e);
 			assert(e.message.includes('0x1788')); //Error Number: 6024. Error Message: Exchange is paused.
@@ -140,7 +140,7 @@ describe('Pause exchange', () => {
 
 	it('Block close position', async () => {
 		try {
-			await driftClient.closePosition(0);
+			await velocityClient.closePosition(0);
 		} catch (e) {
 			console.log(e.msg);
 
@@ -152,7 +152,7 @@ describe('Pause exchange', () => {
 
 	it('Block withdrawal', async () => {
 		try {
-			await driftClient.withdraw(
+			await velocityClient.withdraw(
 				usdcAmount,
 				QUOTE_SPOT_MARKET_INDEX,
 				userUSDCAccount.publicKey

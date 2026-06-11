@@ -1,6 +1,6 @@
 if [ "$1" != "--skip-build" ]; then
   anchor build -- --features anchor-test &&
-    cp target/idl/drift.json sdk/src/idl/
+    cp target/idl/velocity.json sdk/src/idl/
 fi
 
 export ANCHOR_WALLET=~/.config/solana/id.json

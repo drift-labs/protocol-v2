@@ -10,7 +10,7 @@ import {
 	calculateBidAskPrice,
 	convertToNumber,
 	BASE_PRECISION,
-	DriftClient,
+	VelocityClient,
 	calculateReferencePriceOffset,
 	PERCENTAGE_PRECISION,
 	calculateInventoryLiquidityRatio,
@@ -56,7 +56,7 @@ const oracleSnapshotBytes =
 const usdcMintAmount = new BN(100_000_000).mul(QUOTE_PRECISION);
 
 describe('Reference Price Offset E2E', () => {
-	const program = anchor.workspace.Drift as Program;
+	const program = anchor.workspace.Velocity as Program;
 	// @ts-ignore
 	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
 	let bankrunContextWrapper: BankrunContextWrapper;
@@ -65,7 +65,7 @@ describe('Reference Price Offset E2E', () => {
 	let eventSubscriber: EventSubscriber;
 
 	let adminClient: TestClient;
-	let fillerDriftClient: DriftClient;
+	let fillerVelocityClient: VelocityClient;
 	let usdcMint: Keypair;
 
 	let userUSDCAccount: Keypair;
@@ -181,7 +181,7 @@ describe('Reference Price Offset E2E', () => {
 
 		const keypair2 = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair2, 50 * LAMPORTS_PER_SOL);
-		fillerDriftClient = new TestClient({
+		fillerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new anchor.Wallet(keypair2),
 			programID: program.programId,
@@ -203,15 +203,15 @@ describe('Reference Price Offset E2E', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await fillerDriftClient.subscribe();
+		await fillerVelocityClient.subscribe();
 
-		await fillerDriftClient.initializeUserAccount();
+		await fillerVelocityClient.initializeUserAccount();
 	});
 
 	afterEach(async () => {
 		await eventSubscriber.unsubscribe();
 		await adminClient.unsubscribe();
-		await fillerDriftClient.unsubscribe();
+		await fillerVelocityClient.unsubscribe();
 	});
 
 	it('Reference price offset should shift vAMM mid', async () => {
@@ -456,7 +456,7 @@ describe('Reference Price Offset E2E', () => {
 				bankrunContextWrapper,
 				orderClient: adminClient,
 				// @ts-ignore
-				fillerClient: fillerDriftClient,
+				fillerClient: fillerVelocityClient,
 				marketIndex,
 				baseAssetAmount: new BN(100).mul(BASE_PRECISION),
 				auctionStartPrice,
@@ -600,7 +600,7 @@ describe('Reference Price Offset E2E', () => {
 			bankrunContextWrapper,
 			orderClient: adminClient,
 			// @ts-ignore
-			fillerClient: fillerDriftClient,
+			fillerClient: fillerVelocityClient,
 			marketIndex,
 			baseAssetAmount: BASE_PRECISION.muln(5),
 			auctionStartPrice: newOraclePrice.muln(101).divn(100),

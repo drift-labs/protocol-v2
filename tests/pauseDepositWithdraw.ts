@@ -37,7 +37,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw 22', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -50,8 +50,8 @@ describe('spot deposit and withdraw 22', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -117,7 +117,7 @@ describe('spot deposit and withdraw 22', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -184,7 +184,7 @@ describe('spot deposit and withdraw 22', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
+		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -198,11 +198,11 @@ describe('spot deposit and withdraw 22', () => {
 
 		const marketIndex = 0;
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		const txSig = await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		const txSig = await firstUserVelocityClient.deposit(
 			usdcAmount,
 			marketIndex,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -225,11 +225,14 @@ describe('spot deposit and withdraw 22', () => {
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		const spotPosition = firstUserDriftClient.getUserAccount().spotPositions[0];
+		const spotPosition =
+			firstUserVelocityClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
-		assert(firstUserDriftClient.getUserAccount().totalDeposits.eq(usdcAmount));
+		assert(
+			firstUserVelocityClient.getUserAccount().totalDeposits.eq(usdcAmount)
+		);
 	});
 
 	it('Pause Deposit Withdraw Fails', async () => {

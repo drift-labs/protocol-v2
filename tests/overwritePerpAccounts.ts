@@ -28,7 +28,7 @@ import {
 dotenv.config();
 
 describe('Bankrun Overwrite Accounts', () => {
-	const program = anchor.workspace.Drift as Program;
+	const program = anchor.workspace.Velocity as Program;
 	// @ts-ignore
 	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
 	let bankrunContextWrapper: BankrunContextWrapper;

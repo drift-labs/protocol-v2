@@ -52,13 +52,13 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
 
 	// // send $50 to market from IF
-	const txSig00 = await driftClient.depositIntoPerpMarketFeePool(
+	const txSig00 = await velocityClient.depositIntoPerpMarketFeePool(
 		0,
 		ifAmount,
 		userUSDCAccount.publicKey
@@ -119,9 +119,9 @@ function examineSpread(
 }
 
 describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
@@ -132,12 +132,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	let userUSDCAccount;
 	let userUSDCAccount2;
 
-	let driftClientLoser: TestClient;
-	let driftClientLoserUser: User;
+	let velocityClientLoser: TestClient;
+	let velocityClientLoserUser: User;
 
-	let liquidatorDriftClient: TestClient;
-	let liquidatorDriftClientWSOLAccount: PublicKey;
-	let liquidatorDriftClientWUSDCAccount: PublicKey;
+	let liquidatorVelocityClient: TestClient;
+	let liquidatorVelocityClientWSOLAccount: PublicKey;
+	let liquidatorVelocityClientWUSDCAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -189,7 +189,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 43.1337);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -212,26 +212,26 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			},
 		});
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		const oracleGuardrails = driftClient.getStateAccount().oracleGuardRails;
+		const oracleGuardrails = velocityClient.getStateAccount().oracleGuardRails;
 		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			12
 		).mul(PERCENTAGE_PRECISION);
-		await driftClient.updateOracleGuardRails(oracleGuardrails);
+		await velocityClient.updateOracleGuardRails(oracleGuardrails);
 
 		try {
-			await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-			await initializeSolSpotMarket(driftClient, solOracle);
+			await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+			await initializeSolSpotMarket(velocityClient, solOracle);
 		} catch (e) {
 			console.error(e);
 		}
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
@@ -249,10 +249,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			250,
 			500
 		);
-		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
+		await velocityClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 		await sleep(100);
-		await driftClient.fetchAccounts();
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.fetchAccounts();
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -264,7 +264,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			bankrunContextWrapper,
 			userKeypair.publicKey
 		);
-		driftClientLoser = new TestClient({
+		velocityClientLoser = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(userKeypair),
 			programID: chProgram.programId,
@@ -286,42 +286,42 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientLoser.subscribe();
+		await velocityClientLoser.subscribe();
 		await sleep(100);
-		await driftClientLoser.fetchAccounts();
-		await driftClientLoser.initializeUserAccountAndDepositCollateral(
+		await velocityClientLoser.fetchAccounts();
+		await velocityClientLoser.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount2.publicKey
 		);
 
-		driftClientLoserUser = new User({
-			driftClient: driftClientLoser,
-			userAccountPublicKey: await driftClientLoser.getUserAccountPublicKey(),
+		velocityClientLoserUser = new User({
+			velocityClient: velocityClientLoser,
+			userAccountPublicKey: await velocityClientLoser.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await driftClientLoserUser.subscribe();
+		await velocityClientLoserUser.subscribe();
 	});
 
 	it('update amm', async () => {
-		const marketAccount0 = driftClient.getPerpMarketAccount(0);
+		const marketAccount0 = velocityClient.getPerpMarketAccount(0);
 		assert(marketAccount0.amm.totalFee.eq(ZERO));
 		assert(marketAccount0.amm.pegMultiplier.eq(new BN(42500000)));
 		assert(marketAccount0.amm.totalFeeMinusDistributions.eq(ZERO));
 
-		await depositToFeePoolFromIF(1000, driftClient, userUSDCAccount);
+		await depositToFeePoolFromIF(1000, velocityClient, userUSDCAccount);
 
 		const newPrice = 42.52;
 		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solOracle);
 		console.log('price move to $', newPrice);
 
-		const txSig1 = await driftClient.updateAMMs([0]);
+		const txSig1 = await velocityClient.updateAMMs([0]);
 
 		bankrunContextWrapper.connection.printTxLogs(txSig1);
 
-		const txSig = await driftClient.openPosition(
+		const txSig = await velocityClient.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION,
 			0,
@@ -330,13 +330,13 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		await driftClient.fetchAccounts();
-		const userAccount = driftClient.getUserAccount();
+		await velocityClient.fetchAccounts();
+		const userAccount = velocityClient.getUserAccount();
 		assert(
 			userAccount.perpPositions[0].baseAssetAmount.abs().eq(BASE_PRECISION)
 		);
 
-		const marketAccount = driftClient.getPerpMarketAccount(0);
+		const marketAccount = velocityClient.getPerpMarketAccount(0);
 		assert(marketAccount.amm.totalFee.gt(ZERO));
 		assert(marketAccount.amm.pegMultiplier.eq(new BN(42520000)));
 		assert(marketAccount.amm.totalFeeMinusDistributions.gt(ZERO));
@@ -345,12 +345,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice2, solOracle);
 		console.log('price move to $', newPrice2);
 
-		const txSig2 = await driftClient.updateAMMs([0]);
+		const txSig2 = await velocityClient.updateAMMs([0]);
 		bankrunContextWrapper.connection.printTxLogs(txSig2);
 	});
 
 	it('put market in big drawdown and net user negative pnl', async () => {
-		const uL = driftClientLoserUser.getUserAccount();
+		const uL = velocityClientLoserUser.getUserAccount();
 		console.log(
 			'uL.spotPositions[0].scaledBalance:',
 			uL.spotPositions[0].scaledBalance.toString()
@@ -361,21 +361,21 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			)
 		);
 
-		const bank0Value = driftClientLoserUser.getSpotMarketAssetValue(0);
+		const bank0Value = velocityClientLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value:', bank0Value.toString());
 		assert(bank0Value.eq(new BN(1000 * QUOTE_PRECISION.toNumber())));
 
-		const driftClientLoserUserValue = convertToNumber(
-			driftClientLoserUser.getTotalCollateral(),
+		const velocityClientLoserUserValue = convertToNumber(
+			velocityClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 
-		console.log('driftClientLoserUserValue:', driftClientLoserUserValue);
-		assert(driftClientLoserUserValue == 1000); // ??
+		console.log('velocityClientLoserUserValue:', velocityClientLoserUserValue);
+		assert(velocityClientLoserUserValue == 1000); // ??
 
 		// todo
 		try {
-			const txSig = await driftClientLoser.openPosition(
+			const txSig = await velocityClientLoser.openPosition(
 				PositionDirection.LONG,
 				BASE_PRECISION.mul(new BN(205)),
 				0,
@@ -383,45 +383,45 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			);
 			bankrunContextWrapper.connection.printTxLogs(txSig);
 		} catch (e) {
-			console.log('failed driftClientLoserc.openPosition');
+			console.log('failed velocityClientLoserc.openPosition');
 
 			console.error(e);
 		}
 
-		await driftClientLoser.fetchAccounts();
-		await driftClientLoserUser.fetchAccounts();
+		await velocityClientLoser.fetchAccounts();
+		await velocityClientLoserUser.fetchAccounts();
 
-		const driftClientLoserUserLeverage = convertToNumber(
-			driftClientLoserUser.getLeverage(),
+		const velocityClientLoserUserLeverage = convertToNumber(
+			velocityClientLoserUser.getLeverage(),
 			MARGIN_PRECISION
 		);
-		const driftClientLoserUserLiqPrice = convertToNumber(
-			driftClientLoserUser.liquidationPrice(0),
+		const velocityClientLoserUserLiqPrice = convertToNumber(
+			velocityClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
 		console.log(
-			'driftClientLoserUser.getLeverage:',
-			driftClientLoserUserLeverage,
-			'driftClientLoserUserLiqPrice:',
-			driftClientLoserUserLiqPrice
+			'velocityClientLoserUser.getLeverage:',
+			velocityClientLoserUserLeverage,
+			'velocityClientLoserUserLiqPrice:',
+			velocityClientLoserUserLiqPrice
 		);
 
-		assert(driftClientLoserUserLeverage < 8.95);
-		assert(driftClientLoserUserLeverage > 8.5);
-		assert(driftClientLoserUserLiqPrice < 42);
-		assert(driftClientLoserUserLiqPrice > 30.5);
+		assert(velocityClientLoserUserLeverage < 8.95);
+		assert(velocityClientLoserUserLeverage > 8.5);
+		assert(velocityClientLoserUserLiqPrice < 42);
+		assert(velocityClientLoserUserLiqPrice > 30.5);
 
-		const bank00 = driftClient.getSpotMarketAccount(0);
-		const market00 = driftClient.getPerpMarketAccount(0);
+		const bank00 = velocityClient.getSpotMarketAccount(0);
+		const market00 = velocityClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		console.log('market00 oracle string:', market00.oracle.toString());
-		const oraclePriceData00Test = driftClient.getOraclePriceDataAndSlot(
+		const oraclePriceData00Test = velocityClient.getOraclePriceDataAndSlot(
 			market00.oracle
 		);
 		console.log(oraclePriceData00Test);
-		const oraclePriceData00 = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData00 = velocityClient.getOracleDataForPerpMarket(
 			market00.marketIndex
 		);
 
@@ -435,15 +435,18 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log('pnlimbalance00:', imbalance00.toString());
 		assert(imbalance00.eq(new BN(-1009821952)));
 
-		const bank0Value1p5 = driftClientLoserUser.getSpotMarketAssetValue(0);
+		const bank0Value1p5 = velocityClientLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
 
-		const driftClientLoserUserValue1p5 = convertToNumber(
-			driftClientLoserUser.getTotalCollateral(),
+		const velocityClientLoserUserValue1p5 = convertToNumber(
+			velocityClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 
-		console.log('driftClientLoserUserValue1p5:', driftClientLoserUserValue1p5);
+		console.log(
+			'velocityClientLoserUserValue1p5:',
+			velocityClientLoserUserValue1p5
+		);
 
 		const [bid0, ask0] = examineSpread(market00, oraclePriceData00);
 		console.log(bid0.toString(), ask0.toString());
@@ -451,16 +454,16 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(ask0.eq(new BN(42505272)));
 
 		// sol rallys big
-		// await driftClient.moveAmmToPrice(
+		// await velocityClient.moveAmmToPrice(
 		// 	new BN(0),
 		// 	new BN(260.5 * PRICE_PRECISION.toNumber())
 		// );
 		await setFeedPriceNoProgram(bankrunContextWrapper, 260.5, solOracle);
 		console.log('price move to $260.5');
 		await sleep(1000);
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const oraclePriceData00Again = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData00Again = velocityClient.getOracleDataForPerpMarket(
 			market00.marketIndex
 		);
 		const newAmm00 = calculateUpdatedAMM(market00.amm, oraclePriceData00Again);
@@ -477,50 +480,53 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		assert(ask0After.eq(new BN(585978468)));
 		try {
-			const txSig = await driftClient.updateAMMs([0]);
+			const txSig = await velocityClient.updateAMMs([0]);
 			bankrunContextWrapper.connection.printTxLogs(txSig);
 		} catch (e) {
 			console.error(e);
 		}
 
-		await driftClientLoser.fetchAccounts();
-		await driftClientLoserUser.fetchAccounts();
+		await velocityClientLoser.fetchAccounts();
+		await velocityClientLoserUser.fetchAccounts();
 
-		const driftClientLoserUserLeverage2 = convertToNumber(
-			driftClientLoserUser.getLeverage(),
+		const velocityClientLoserUserLeverage2 = convertToNumber(
+			velocityClientLoserUser.getLeverage(),
 			MARGIN_PRECISION
 		);
-		const driftClientLoserUserLiqPrice2 = convertToNumber(
-			driftClientLoserUser.liquidationPrice(0),
+		const velocityClientLoserUserLiqPrice2 = convertToNumber(
+			velocityClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
-		const bank0Value2 = driftClientLoserUser.getSpotMarketAssetValue(0);
+		const bank0Value2 = velocityClientLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value2:', bank0Value2.toString());
 
-		const driftClientLoserUserValue2 = convertToNumber(
-			driftClientLoserUser.getTotalCollateral(),
+		const velocityClientLoserUserValue2 = convertToNumber(
+			velocityClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 
-		console.log('driftClientLoserUserValue2:', driftClientLoserUserValue2);
+		console.log(
+			'velocityClientLoserUserValue2:',
+			velocityClientLoserUserValue2
+		);
 
 		console.log(
-			'driftClientLoserUser.getLeverage2:',
-			driftClientLoserUserLeverage2,
-			'driftClientLoserUserLiqPrice2:',
-			driftClientLoserUserLiqPrice2,
+			'velocityClientLoserUser.getLeverage2:',
+			velocityClientLoserUserLeverage2,
+			'velocityClientLoserUserLiqPrice2:',
+			velocityClientLoserUserLiqPrice2,
 			'bank0Value2:',
 			bank0Value2.toString(),
-			'driftClientLoserUserValue2:',
-			driftClientLoserUserValue2.toString()
+			'velocityClientLoserUserValue2:',
+			velocityClientLoserUserValue2.toString()
 		);
 
 		const solAmount = new BN(1 * 10 ** 9);
 		[
-			liquidatorDriftClient,
-			liquidatorDriftClientWSOLAccount,
-			liquidatorDriftClientWUSDCAccount,
+			liquidatorVelocityClient,
+			liquidatorVelocityClientWSOLAccount,
+			liquidatorVelocityClientWUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -537,24 +543,24 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			],
 			bulkAccountLoader
 		);
-		await liquidatorDriftClient.subscribe();
+		await liquidatorVelocityClient.subscribe();
 
 		const bankIndex = 1;
-		await liquidatorDriftClient.deposit(
+		await liquidatorVelocityClient.deposit(
 			solAmount,
 			bankIndex,
-			liquidatorDriftClientWSOLAccount
+			liquidatorVelocityClientWSOLAccount
 		);
-		await liquidatorDriftClient.deposit(
+		await liquidatorVelocityClient.deposit(
 			usdcAmount.mul(new BN(10)),
 			0,
-			liquidatorDriftClientWUSDCAccount
+			liquidatorVelocityClientWUSDCAccount
 		);
 
-		const bank0 = driftClient.getSpotMarketAccount(0);
-		let market0 = driftClient.getPerpMarketAccount(0);
-		const winnerUser = driftClient.getUserAccount();
-		const loserUser = driftClientLoser.getUserAccount();
+		const bank0 = velocityClient.getSpotMarketAccount(0);
+		let market0 = velocityClient.getPerpMarketAccount(0);
+		const winnerUser = velocityClient.getUserAccount();
+		const loserUser = velocityClientLoser.getUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
@@ -565,7 +571,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				)
 			)
 		);
-		const oraclePriceData0 = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData0 = velocityClient.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 		const [bid1, ask1] = examineSpread(market0, oraclePriceData0);
@@ -611,16 +617,16 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			);
 
 			try {
-				const txSig = await driftClient.updateAMMs([0]);
+				const txSig = await velocityClient.updateAMMs([0]);
 				bankrunContextWrapper.connection.printTxLogs(txSig);
 			} catch (e) {
 				console.error(e);
 			}
-			driftClient.fetchAccounts();
+			velocityClient.fetchAccounts();
 
-			market0 = driftClient.getPerpMarketAccount(0);
+			market0 = velocityClient.getPerpMarketAccount(0);
 		}
-		const oraclePriceData = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData = velocityClient.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 
@@ -662,16 +668,16 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const marketIndex = 0;
 
 		try {
-			const txSig = await driftClient.updateAMMs([0]);
+			const txSig = await velocityClient.updateAMMs([0]);
 			bankrunContextWrapper.connection.printTxLogs(txSig);
 		} catch (e) {
 			console.error(e);
 		}
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = velocityClient.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
-		const oraclePriceData0 = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData0 = velocityClient.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
@@ -680,10 +686,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		assert(market0.unrealizedPnlMaxImbalance.eq(ZERO));
 
-		await driftClient.updatePerpMarketContractTier(0, ContractTier.A);
-		await driftClient.fetchAccounts();
+		await velocityClient.updatePerpMarketContractTier(0, ContractTier.A);
+		await velocityClient.fetchAccounts();
 		// try {
-		const tx1 = await driftClient.updatePerpMarketMaxImbalances(
+		const tx1 = await velocityClient.updatePerpMarketMaxImbalances(
 			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),
 			QUOTE_PRECISION,
@@ -695,14 +701,14 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		// }
 
 		await sleep(1000);
-		driftClient.fetchAccounts();
+		velocityClient.fetchAccounts();
 
-		const perpMarket = driftClient.getPerpMarketAccount(marketIndex);
-		const quoteSpotMarket = driftClient.getSpotMarketAccount(
+		const perpMarket = velocityClient.getPerpMarketAccount(marketIndex);
+		const quoteSpotMarket = velocityClient.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const oraclePriceData = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData = velocityClient.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 
@@ -741,32 +747,32 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			perpMarket.amm.totalFeeMinusDistributions.toString()
 		);
 
-		await driftClientLoserUser.fetchAccounts();
+		await velocityClientLoserUser.fetchAccounts();
 
-		const driftClientLoserUserLeverage = convertToNumber(
-			driftClientLoserUser.getLeverage(),
+		const velocityClientLoserUserLeverage = convertToNumber(
+			velocityClientLoserUser.getLeverage(),
 			MARGIN_PRECISION
 		);
-		const driftClientLoserUserLiqPrice = convertToNumber(
-			driftClientLoserUser.liquidationPrice(0),
+		const velocityClientLoserUserLiqPrice = convertToNumber(
+			velocityClientLoserUser.liquidationPrice(0),
 			PRICE_PRECISION
 		);
 
 		console.log(
-			'driftClientLoserUser.getLeverage:',
-			driftClientLoserUserLeverage,
-			'driftClientLoserUserLiqPrice:',
-			driftClientLoserUserLiqPrice
+			'velocityClientLoserUser.getLeverage:',
+			velocityClientLoserUserLeverage,
+			'velocityClientLoserUserLiqPrice:',
+			velocityClientLoserUserLiqPrice
 		);
-		assert(driftClientLoserUserLeverage > 1);
+		assert(velocityClientLoserUserLeverage > 1);
 	});
 
 	it('whale takes tiny profit', async () => {
-		const market0 = driftClient.getPerpMarketAccount(0);
+		const market0 = velocityClient.getPerpMarketAccount(0);
 		assert(market0.marginRatioInitial == 1000);
 		assert(market0.marginRatioMaintenance == 500);
 
-		const oraclePriceData0 = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData0 = velocityClient.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 		oraclePriceData0.confidence = new BN(0); //oraclePriceData0.price.div(new BN(1000));
@@ -802,7 +808,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const price = bid.mul(new BN(1000)).div(new BN(1049)); // dont breach oracle price bands
 
 		assert(
-			driftClientLoser
+			velocityClientLoser
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.gt(ZERO)
 		);
@@ -813,12 +819,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			price,
 		});
 
-		const txSig = await driftClientLoser.placeAndTakePerpOrder(orderParams);
+		const txSig = await velocityClientLoser.placeAndTakePerpOrder(orderParams);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		const market1 = driftClient.getPerpMarketAccount(0);
+		const market1 = velocityClient.getPerpMarketAccount(0);
 
-		const oraclePriceData1 = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData1 = velocityClient.getOracleDataForPerpMarket(
 			market1.marketIndex
 		);
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
@@ -838,15 +844,15 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log('usdc balance:', usdcbalance);
 		assert(usdcbalance == '9998000000000');
 
-		await driftClient.initializeInsuranceFundStake(bankIndex);
+		await velocityClient.initializeInsuranceFundStake(bankIndex);
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
-			driftClient.program.programId,
+			velocityClient.program.programId,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			bankIndex
 		);
 		const ifStakeAccount =
-			(await driftClient.program.account.insuranceFundStake.fetch(
+			(await velocityClient.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 		assert(ifStakeAccount.marketIndex === bankIndex);
@@ -856,18 +862,18 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			)
 		);
 
-		const txSig = await driftClient.addInsuranceFundStake({
+		const txSig = await velocityClient.addInsuranceFundStake({
 			marketIndex: bankIndex,
 			amount: QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
 			collateralAccountPublicKey: userUSDCAccount.publicKey,
 		});
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		const market0 = driftClient.getPerpMarketAccount(marketIndex);
+		const market0 = velocityClient.getPerpMarketAccount(marketIndex);
 
 		//will fail
 		try {
-			const txSig2 = await driftClient.resolvePerpPnlDeficit(
+			const txSig2 = await velocityClient.resolvePerpPnlDeficit(
 				bankIndex,
 				marketIndex
 			);
@@ -889,8 +895,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			},
 		};
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
-		const txSig2 = await driftClient.resolvePerpPnlDeficit(
+		await velocityClient.updateOracleGuardRails(oracleGuardRails);
+		const txSig2 = await velocityClient.resolvePerpPnlDeficit(
 			bankIndex,
 			marketIndex
 		);
@@ -906,14 +912,14 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		assert(ifRecord.amount.eq(new BN('-1000000')));
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		const perpMarket = driftClient.getPerpMarketAccount(marketIndex);
-		const quoteSpotMarket = driftClient.getSpotMarketAccount(
+		const perpMarket = velocityClient.getPerpMarketAccount(marketIndex);
+		const quoteSpotMarket = velocityClient.getSpotMarketAccount(
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const oraclePriceData = driftClient.getOracleDataForPerpMarket(
+		const oraclePriceData = velocityClient.getOracleDataForPerpMarket(
 			perpMarket.marketIndex
 		);
 
@@ -983,59 +989,59 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 	// it('liq and settle expired market position', async () => {
 	// 	const marketIndex = 0;
-	// 	const loserUser0 = driftClientLoser.getUserAccount();
+	// 	const loserUser0 = velocityClientLoser.getUserAccount();
 	// 	assert(loserUser0.perpPositions[0].baseAssetAmount.gt(0));
 	// 	assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(0));
 	// 	// console.log(loserUser0.perpPositions[0]);
 
-	// 	const liquidatorDriftClientUser = new User({
-	// 		driftClient: liquidatorDriftClient,
+	// 	const liquidatorVelocityClientUser = new User({
+	// 		velocityClient: liquidatorVelocityClient,
 	// 		userAccountPublicKey:
-	// 			await liquidatorDriftClient.getUserAccountPublicKey(),
+	// 			await liquidatorVelocityClient.getUserAccountPublicKey(),
 	// 	});
-	// 	await liquidatorDriftClientUser.subscribe();
+	// 	await liquidatorVelocityClientUser.subscribe();
 
-	// 	const liquidatorDriftClientValue = convertToNumber(
-	// 		liquidatorDriftClientUser.getTotalCollateral(),
+	// 	const liquidatorVelocityClientValue = convertToNumber(
+	// 		liquidatorVelocityClientUser.getTotalCollateral(),
 	// 		QUOTE_PRECISION
 	// 	);
 	// 	console.log(
-	// 		'liquidatorDriftClientValue:',
-	// 		liquidatorDriftClientValue.toString()
+	// 		'liquidatorVelocityClientValue:',
+	// 		liquidatorVelocityClientValue.toString()
 	// 	);
 
-	// 	const txSigLiq = await liquidatorDriftClient.liquidatePerp(
-	// 		await driftClientLoser.getUserAccountPublicKey(),
-	// 		driftClientLoser.getUserAccount(),
+	// 	const txSigLiq = await liquidatorVelocityClient.liquidatePerp(
+	// 		await velocityClientLoser.getUserAccountPublicKey(),
+	// 		velocityClientLoser.getUserAccount(),
 	// 		marketIndex,
 	// 		BASE_PRECISION.mul(new BN(290))
 	// 	);
 
 	// 	console.log(txSigLiq);
 
-	// 	const liquidatorDriftClientValueAfter = convertToNumber(
-	// 		liquidatorDriftClientUser.getTotalCollateral(),
+	// 	const liquidatorVelocityClientValueAfter = convertToNumber(
+	// 		liquidatorVelocityClientUser.getTotalCollateral(),
 	// 		QUOTE_PRECISION
 	// 	);
 	// 	console.log(
-	// 		'liquidatorDriftClientValueAfter:',
-	// 		liquidatorDriftClientValueAfter.toString()
+	// 		'liquidatorVelocityClientValueAfter:',
+	// 		liquidatorVelocityClientValueAfter.toString()
 	// 	);
 
-	// 	console.log('settle position driftClientLoser');
-	// 	const txSig = await driftClientLoser.settleExpiredPosition(
-	// 		await driftClientLoser.getUserAccountPublicKey(),
-	// 		driftClientLoser.getUserAccount(),
+	// 	console.log('settle position velocityClientLoser');
+	// 	const txSig = await velocityClientLoser.settleExpiredPosition(
+	// 		await velocityClientLoser.getUserAccountPublicKey(),
+	// 		velocityClientLoser.getUserAccount(),
 	// 		marketIndex
 	// 	);
 	// 	await printTxLogs(connection, txSig);
 
-	// 	console.log('settle pnl driftClientLoser');
+	// 	console.log('settle pnl velocityClientLoser');
 
 	// 	try {
-	// 		await driftClient.settlePNL(
-	// 			await driftClient.getUserAccountPublicKey(),
-	// 			driftClient.getUserAccount(),
+	// 		await velocityClient.settlePNL(
+	// 			await velocityClient.getUserAccountPublicKey(),
+	// 			velocityClient.getUserAccount(),
 	// 			marketIndex
 	// 		);
 	// 	} catch (e) {
@@ -1048,12 +1054,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 	// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
 	// 	// console.log(settleRecord);
 
-	// 	await driftClientLoser.fetchAccounts();
-	// 	const loserUser = driftClientLoser.getUserAccount();
+	// 	await velocityClientLoser.fetchAccounts();
+	// 	const loserUser = velocityClientLoser.getUserAccount();
 	// 	// console.log(loserUser.perpPositions[0]);
 	// 	assert(loserUser.perpPositions[0].baseAssetAmount.eq(0));
 	// 	assert(loserUser.perpPositions[0].quoteAssetAmount.eq(0));
-	// 	const marketAfter0 = driftClient.getPerpMarketAccount(marketIndex);
+	// 	const marketAfter0 = velocityClient.getPerpMarketAccount(marketIndex);
 
 	// 	const finalPnlResultMin0 = new BN(1415296436 - 11090);
 	// 	const finalPnlResultMax0 = new BN(1415296436 + 111090);
@@ -1069,6 +1075,6 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 		marketAfter0.totalExchangeFee.toString()
 	// 	);
 	// 	assert(marketAfter0.amm.feePool.scaledBalance.eq(new BN(4356250)));
-	// 	await liquidatorDriftClientUser.unsubscribe();
+	// 	await liquidatorVelocityClientUser.unsubscribe();
 	// });
 });

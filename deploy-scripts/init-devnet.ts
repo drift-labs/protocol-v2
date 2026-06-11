@@ -1,7 +1,7 @@
 /**
- * Devnet initialization runbook for the drift program.
+ * Devnet initialization runbook for the velocity program.
  *
- * Run AFTER `anchor deploy` has published the drift and token_faucet programs
+ * Run AFTER `anchor deploy` has published the velocity and token_faucet programs
  * to devnet. Executes phases 0 + A–H:
  *
  *   0)  create dUSDT SPL mint + initialize token_faucet for distribution
@@ -72,7 +72,7 @@ import {
 	AssetTier,
 	BASE_PRECISION,
 	ContractTier,
-	DRIFT_DEVNET_PROGRAM_ID,
+	VELOCITY_DEVNET_PROGRAM_ID,
 	OracleSource,
 	PEG_PRECISION,
 	PERCENTAGE_PRECISION,
@@ -85,7 +85,7 @@ import {
 	ZERO,
 	getAmmCachePublicKey,
 	getConstituentPublicKey,
-	getDriftStateAccountPublicKey,
+	getVelocityStateAccountPublicKey,
 	getLpPoolPublicKey,
 	getPerpMarketPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
@@ -255,7 +255,7 @@ async function main() {
 	const connection = new Connection(rpcUrl, 'confirmed');
 	const keypair = loadKeypair(adminPath);
 	const wallet = new Wallet(keypair);
-	const programId = new PublicKey(DRIFT_DEVNET_PROGRAM_ID);
+	const programId = new PublicKey(VELOCITY_DEVNET_PROGRAM_ID);
 	const tokenFaucetProgramId = new PublicKey(
 		process.env.TOKEN_FAUCET_PROGRAM_ID ?? TOKEN_FAUCET_DEFAULT_PROGRAM_ID
 	);
@@ -277,7 +277,7 @@ async function main() {
 	}
 	const willCreateUsdt = usdtMint === null;
 
-	console.log(`drift program: ${programId.toBase58()}`);
+	console.log(`velocity program: ${programId.toBase58()}`);
 	console.log(`faucet prog:   ${tokenFaucetProgramId.toBase58()}`);
 	console.log(`rpc:           ${rpcUrl}`);
 	console.log(`admin:         ${keypair.publicKey.toBase58()}`);
@@ -294,7 +294,7 @@ async function main() {
 	const programInfo = await connection.getAccountInfo(programId, 'confirmed');
 	if (!programInfo || !programInfo.executable) {
 		throw new Error(
-			`drift program ${programId.toBase58()} is not deployed/executable on ${rpcUrl}. Run \`anchor deploy\` first.`
+			`velocity program ${programId.toBase58()} is not deployed/executable on ${rpcUrl}. Run \`anchor deploy\` first.`
 		);
 	}
 	const faucetInfo = await connection.getAccountInfo(
@@ -319,7 +319,7 @@ async function main() {
 
 	await confirm('Proceed with this configuration?', [
 		`cluster:        ${rpcUrl}`,
-		`drift program:  ${programId.toBase58()} (executable ✓)`,
+		`velocity program:  ${programId.toBase58()} (executable ✓)`,
 		`faucet program: ${tokenFaucetProgramId.toBase58()} (executable ✓)`,
 		`admin:          ${keypair.publicKey.toBase58()} (${adminSol.toFixed(4)} SOL)`,
 		`USDT mint:      ${
@@ -527,7 +527,7 @@ async function main() {
 		'AmmCache pre-allocates room for 16 perp markets (required before any perp init).',
 	]);
 	// === Phase A.1: global State ===
-	const statePk = await getDriftStateAccountPublicKey(programId);
+	const statePk = await getVelocityStateAccountPublicKey(programId);
 	if (await pdaExists(connection, statePk)) {
 		logStep('State already initialized', statePk.toBase58());
 		receipt.state = { pubkey: statePk.toBase58() };
@@ -555,7 +555,7 @@ async function main() {
 	await confirm('Begin Phase B — dUSDT spot market at index 0?', [
 		`mint = ${quoteMint.toBase58()}`,
 		'oracleSource = QUOTE_ASSET, assetTier = COLLATERAL, name = "dUSDT"',
-		'Creates spot_market_vault and insurance_fund_vault owned by drift_signer.',
+		'Creates spot_market_vault and insurance_fund_vault owned by velocity_signer.',
 	]);
 	// === Phase B: dUSDT spot market at index 0 ===
 	const spot0Pk = await getSpotMarketPublicKey(programId, 0);

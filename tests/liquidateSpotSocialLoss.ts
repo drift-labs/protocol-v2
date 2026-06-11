@@ -33,9 +33,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate spot w/ social loss', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -45,8 +45,8 @@ describe('liquidate spot w/ social loss', () => {
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorDriftClient: TestClient;
-	let liquidatorDriftClientWSOLAccount: PublicKey;
+	let liquidatorVelocityClient: TestClient;
+	let liquidatorVelocityClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -85,7 +85,7 @@ describe('liquidate spot w/ social loss', () => {
 			10000
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -115,72 +115,75 @@ describe('liquidate spot w/ social loss', () => {
 
 		await eventSubscriber.subscribe();
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
-		await driftClient.updateInitialPctToLiquidate(
+		await velocityClient.updateInitialPctToLiquidate(
 			LIQUIDATION_PCT_PRECISION.toNumber()
 		);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
 
-		const oracleGuardrails = await driftClient.getStateAccount()
+		const oracleGuardrails = await velocityClient.getStateAccount()
 			.oracleGuardRails;
 		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			100
 		).mul(PERCENTAGE_PRECISION);
-		await driftClient.updateOracleGuardRails(oracleGuardrails);
+		await velocityClient.updateOracleGuardRails(oracleGuardrails);
 
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
 		const solAmount = new BN(10 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway] =
-			await createUserWithUSDCAndWSOLAccount(
-				bankrunContextWrapper,
-				usdcMint,
-				chProgram,
-				solAmount,
-				usdcAmount,
-				[],
-				[0, 1],
-				[
-					{
-						publicKey: solOracle,
-						source: OracleSource.PYTH_LAZER,
-					},
-				],
-				bulkAccountLoader
-			);
+		[
+			liquidatorVelocityClient,
+			liquidatorVelocityClientWSOLAccount,
+			_throwaway,
+		] = await createUserWithUSDCAndWSOLAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			solAmount,
+			usdcAmount,
+			[],
+			[0, 1],
+			[
+				{
+					publicKey: solOracle,
+					source: OracleSource.PYTH_LAZER,
+				},
+			],
+			bulkAccountLoader
+		);
 
 		const marketIndex = 1;
 
-		await liquidatorDriftClient.deposit(
+		await liquidatorVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			liquidatorDriftClientWSOLAccount
+			liquidatorVelocityClientWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
+		await velocityClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
-		await liquidatorDriftClient.unsubscribe();
+		await velocityClient.unsubscribe();
+		await liquidatorVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 200, solOracle, 10000);
-		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
-		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
+		const spotMarketBefore = velocityClient.getSpotMarketAccount(0);
+		const spotMarket1Before = velocityClient.getSpotMarketAccount(1);
 
-		const txSig = await liquidatorDriftClient.liquidateSpot(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		const txSig = await liquidatorVelocityClient.liquidateSpot(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			0,
 			1,
 			new BN(6 * 10 ** 8)
@@ -191,13 +194,13 @@ describe('liquidate spot w/ social loss', () => {
 		console.log('compute units', computeUnits);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		console.log(driftClient.getUserAccount().status);
-		// assert(driftClient.getUserAccount().isBeingLiquidated);
-		assert(driftClient.getUserAccount().status === UserStatus.BANKRUPT);
+		console.log(velocityClient.getUserAccount().status);
+		// assert(velocityClient.getUserAccount().isBeingLiquidated);
+		assert(velocityClient.getUserAccount().status === UserStatus.BANKRUPT);
 
-		assert(driftClient.getUserAccount().nextLiquidationId === 2);
+		assert(velocityClient.getUserAccount().nextLiquidationId === 2);
 		// assert(
-		// 	driftClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
+		// 	velocityClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
 		// );
 
 		const liquidationRecord =
@@ -243,9 +246,9 @@ describe('liquidate spot w/ social loss', () => {
 				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
 			)
 		);
-		await driftClient.fetchAccounts();
-		const spotMarket = driftClient.getSpotMarketAccount(0);
-		const spotMarket1 = driftClient.getSpotMarketAccount(1);
+		await velocityClient.fetchAccounts();
+		const spotMarket = velocityClient.getSpotMarketAccount(0);
+		const spotMarket1 = velocityClient.getSpotMarketAccount(1);
 
 		console.log(
 			'usdc borrows in spotMarket:',
@@ -337,25 +340,25 @@ describe('liquidate spot w/ social loss', () => {
 	});
 
 	it('resolve bankruptcy', async () => {
-		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
-		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
+		const spotMarketBefore = velocityClient.getSpotMarketAccount(0);
+		const spotMarket1Before = velocityClient.getSpotMarketAccount(1);
 
 		const spotMarketCumulativeDepositInterestBefore =
-			driftClient.getSpotMarketAccount(1).cumulativeDepositInterest;
+			velocityClient.getSpotMarketAccount(1).cumulativeDepositInterest;
 
-		await liquidatorDriftClient.resolveSpotBankruptcy(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
+		await liquidatorVelocityClient.resolveSpotBankruptcy(
+			await velocityClient.getUserAccountPublicKey(),
+			velocityClient.getUserAccount(),
 			1
 		);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 
-		assert(driftClient.getUserAccount().status === 0);
+		assert(velocityClient.getUserAccount().status === 0);
 
-		// assert(!driftClient.getUserAccount().isBankrupt);
+		// assert(!velocityClient.getUserAccount().isBankrupt);
 		// assert(
-		// 	driftClient.getUserAccount().spotPositions[1].scaledBalance.eq(ZERO)
+		// 	velocityClient.getUserAccount().spotPositions[1].scaledBalance.eq(ZERO)
 		// );
 
 		const bankruptcyRecord =
@@ -364,7 +367,7 @@ describe('liquidate spot w/ social loss', () => {
 		console.log(bankruptcyRecord.spotBankruptcy);
 		assert(bankruptcyRecord.spotBankruptcy.marketIndex === 1);
 		console.log(bankruptcyRecord.spotBankruptcy.borrowAmount.toString());
-		const spotMarket = driftClient.getSpotMarketAccount(1);
+		const spotMarket = velocityClient.getSpotMarketAccount(1);
 		assert(
 			spotMarket.cumulativeDepositInterest.eq(
 				spotMarketCumulativeDepositInterestBefore.sub(
@@ -373,9 +376,9 @@ describe('liquidate spot w/ social loss', () => {
 			)
 		);
 
-		await driftClient.fetchAccounts();
-		const spotMarket0 = driftClient.getSpotMarketAccount(0);
-		const spotMarket1 = driftClient.getSpotMarketAccount(1);
+		await velocityClient.fetchAccounts();
+		const spotMarket0 = velocityClient.getSpotMarketAccount(0);
+		const spotMarket1 = velocityClient.getSpotMarketAccount(1);
 
 		console.log(
 			'usdc borrows in spotMarket:',

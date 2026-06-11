@@ -166,9 +166,9 @@ describe('AMM Curve', () => {
 	// 	return kSqrtI;
 	// }
 
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -207,7 +207,7 @@ describe('AMM Curve', () => {
 			initialSOLPrice
 		);
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -236,12 +236,12 @@ describe('AMM Curve', () => {
 			bankrunContextWrapper
 		);
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const kSqrtNorm = normAssetAmount(kSqrt, initialSOLPriceBN);
-		await driftClient.initializePerpMarket(
+		await velocityClient.initializePerpMarket(
 			0,
 
 			solUsdOracle,
@@ -250,10 +250,10 @@ describe('AMM Curve', () => {
 			periodicity,
 			initialSOLPriceBN
 		);
-		await driftClient.initializeUserAccount();
+		await velocityClient.initializeUserAccount();
 		userAccount = new User({
-			driftClient,
-			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			velocityClient,
+			userAccountPublicKey: await velocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -263,13 +263,14 @@ describe('AMM Curve', () => {
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await userAccount.unsubscribe();
 	});
 
 	const showBook = (marketIndex) => {
-		const market = driftClient.getPerpMarketAccount(marketIndex);
-		const oraclePriceData = driftClient.getOracleDataForPerpMarket(marketIndex);
+		const market = velocityClient.getPerpMarketAccount(marketIndex);
+		const oraclePriceData =
+			velocityClient.getOracleDataForPerpMarket(marketIndex);
 		const currentMark = calculateReservePrice(market, oraclePriceData);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -303,11 +304,11 @@ describe('AMM Curve', () => {
 	};
 
 	it('After Deposit', async () => {
-		await driftClient.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
+		await velocityClient.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
 	});
 
 	it('After Position Taken', async () => {
-		await driftClient.openPosition(
+		await velocityClient.openPosition(
 			PositionDirection.LONG,
 			solPositionInitialValue,
 			marketIndex
@@ -316,7 +317,7 @@ describe('AMM Curve', () => {
 		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * PRICE_PRECISION.toNumber()),
-			driftClient.getPerpMarketAccount(0)
+			velocityClient.getPerpMarketAccount(0)
 		)[0];
 		showBook(marketIndex);
 
@@ -325,16 +326,16 @@ describe('AMM Curve', () => {
 		);
 
 		const [_direction, tradeSize, _] = calculateTargetPriceTrade(
-			driftClient.getPerpMarketAccount(marketIndex),
+			velocityClient.getPerpMarketAccount(marketIndex),
 			targetPriceUp
 		);
 
-		await driftClient.moveAmmToPrice(marketIndex, targetPriceUp);
+		await velocityClient.moveAmmToPrice(marketIndex, targetPriceUp);
 
 		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * PRICE_PRECISION.toNumber()),
-			driftClient.getPerpMarketAccount(0)
+			velocityClient.getPerpMarketAccount(0)
 		)[0];
 
 		showBook(marketIndex);

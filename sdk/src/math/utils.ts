@@ -104,7 +104,7 @@ export function isBNSafe(number: number): boolean {
 /**
  * Converts a number to BN makes sure the number is safe to convert to BN (that it does not overflow number after multiplying by precision)
  * @param number the number to convert to BN
- * @param precision the BN precision to use (i.e. QUOTE_PRECISION and BASE_PRECISION from drift sdk)
+ * @param precision the BN precision to use (i.e. QUOTE_PRECISION and BASE_PRECISION from velocity sdk)
  */
 export function numberToSafeBN(number: number, precision: BN): BN {
 	// check if number has decimals

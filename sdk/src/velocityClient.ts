@@ -52,6 +52,7 @@ import {
 	PositionDirection,
 	ReferrerInfo,
 	ReferrerNameAccount,
+	RevenueShareEscrowAccount,
 	ScaleOrderParams,
 	SettlePnlMode,
 	SignedTxData,
@@ -167,7 +168,7 @@ import {
 	VelocityProgram,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 } from './config';
-import { Drift } from './idl/drift';
+import { Velocity } from './idl/velocity';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -202,6 +203,8 @@ import { RevenueShareEscrowMap } from './userMap/revenueShareEscrowMap';
 import {
 	isBuilderOrderReferral,
 	isBuilderOrderCompleted,
+	escrowHasReferrer,
+	hasBuilderParams,
 } from './math/builder';
 import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
 import { UnifiedSwapClient } from './swap/UnifiedSwapClient';
@@ -329,8 +332,8 @@ export class VelocityClient {
 			config.wallet,
 			this.opts
 		);
-		this.program = new Program<Drift>(
-			VelocityCore.defaultIdl() as unknown as Drift,
+		this.program = new Program<Velocity>(
+			VelocityCore.defaultIdl() as unknown as Velocity,
 			this.provider,
 			config.coder
 		);
@@ -471,7 +474,6 @@ export class VelocityClient {
 		} else if (config.accountSubscription?.type === 'grpc') {
 			const accountSubscriberClass: any =
 				config.accountSubscription?.velocityClientAccountSubscriber ??
-				config.accountSubscription?.driftClientAccountSubscriber ??
 				grpcVelocityClientAccountSubscriber;
 			this.accountSubscriber = new accountSubscriberClass(
 				config.accountSubscription.grpcConfigs,
@@ -489,7 +491,6 @@ export class VelocityClient {
 		} else {
 			const accountSubscriberClass: any =
 				config.accountSubscription?.velocityClientAccountSubscriber ??
-				config.accountSubscription?.driftClientAccountSubscriber ??
 				WebSocketVelocityClientAccountSubscriber;
 			this.accountSubscriber = new accountSubscriberClass(
 				this.program as any,
@@ -751,7 +752,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Update the wallet to use for drift transactions and linked user account
+	 * Update the wallet to use for velocity transactions and linked user account
 	 * @param newWallet
 	 * @param subAccountIds
 	 * @param activeSubAccountId
@@ -770,8 +771,8 @@ export class VelocityClient {
 			newWallet,
 			this.opts
 		);
-		const newProgram = new Program<Drift>(
-			VelocityCore.defaultIdl() as unknown as Drift,
+		const newProgram = new Program<Velocity>(
+			VelocityCore.defaultIdl() as unknown as Velocity,
 			newProvider
 		);
 
@@ -944,7 +945,7 @@ export class VelocityClient {
 	 * Adds and subscribes to users based on params set by the constructor or by updateWallet.
 	 */
 	public async addAndSubscribeToUsers(authority?: PublicKey): Promise<boolean> {
-		// save the rpc calls if driftclient is initialized without a real wallet
+		// save the rpc calls if velocityclient is initialized without a real wallet
 		if (this.skipLoadUsers) return true;
 
 		let result = true;
@@ -2204,7 +2205,7 @@ export class VelocityClient {
 				userStats,
 				authority,
 				state: await this.getStatePublicKey(),
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				keeper: this.wallet.publicKey,
 			},
 			remainingAccounts,
@@ -2470,7 +2471,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Each drift instruction must include perp and sport market accounts in the ix remaining accounts.
+	 * Each velocity instruction must include perp and sport market accounts in the ix remaining accounts.
 	 * Use this function to force a subset of markets to be included in the remaining accounts for every ix
 	 *
 	 * @param perpMarketIndexes
@@ -3644,7 +3645,7 @@ export class VelocityClient {
 			state: await this.getStatePublicKey(),
 			spotMarket: spotMarketAccount.pubkey,
 			spotMarketVault: spotMarketAccount.vault,
-			driftSigner: this.getSignerPublicKey(),
+			velocitySigner: this.getSignerPublicKey(),
 			user,
 			userStats: this.getUserStatsAccountPublicKey(),
 			userTokenAccount,
@@ -3960,7 +3961,7 @@ export class VelocityClient {
 					).vault,
 					borrowToSpotMarketVault:
 						this.getSpotMarketAccount(borrowToMarketIndex).vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 				},
 				remainingAccounts,
 			}
@@ -4344,7 +4345,7 @@ export class VelocityClient {
 					authority: this.wallet.publicKey,
 					userTokenAccount: userTokenAccount,
 					tokenProgram: this.getTokenProgramForSpotMarket(spotMarketAccount),
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 				},
 				remainingAccounts,
 			}
@@ -4625,6 +4626,65 @@ export class VelocityClient {
 		return txSig;
 	}
 
+	/**
+	 * Returns the RevenueShareEscrow account meta for the placing user when `orderParams`
+	 * carries a builder code (`builderIdx` + `builderFeeTenthBps`), otherwise `undefined`.
+	 * The on-chain handlers peek for this account last in `remaining_accounts`, so callers
+	 * must push it after the market/oracle/maker accounts.
+	 */
+	private getBuilderEscrowAccountMeta(
+		orderParams: Pick<OrderParams, 'builderIdx' | 'builderFeeTenthBps'>,
+		subAccountId?: number
+	): AccountMeta | undefined {
+		if (!hasBuilderParams(orderParams)) {
+			return undefined;
+		}
+		const authority =
+			this.getUserAccount(subAccountId)?.authority ?? this.authority;
+		return {
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				authority
+			),
+			isWritable: true,
+			isSigner: false,
+		};
+	}
+
+	/**
+	 * Returns the AccountMeta for the taker's RevenueShareEscrow when a fill of the
+	 * taker's order must include it: the order carries a builder code, or the taker
+	 * is referred (their escrow was initialized with a referrer). Returns `undefined`
+	 * when neither applies so no account meta is added to the transaction. The
+	 * on-chain handlers peek for this account last in `remaining_accounts`, so
+	 * callers must push it after the market/oracle/maker accounts.
+	 *
+	 * Throws when `takerEscrow` does not belong to `takerAuthority`.
+	 */
+	private getTakerEscrowAccountMeta(
+		takerAuthority: PublicKey,
+		orderHasBuilder: boolean,
+		takerEscrow?: RevenueShareEscrowAccount
+	): AccountMeta | undefined {
+		if (takerEscrow && !takerEscrow.authority.equals(takerAuthority)) {
+			throw new Error(
+				'takerEscrow.authority does not match the taker user account authority'
+			);
+		}
+		const takerIsReferred = takerEscrow && escrowHasReferrer(takerEscrow);
+		if (!orderHasBuilder && !takerIsReferred) {
+			return undefined;
+		}
+		return {
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				takerAuthority
+			),
+			isWritable: true,
+			isSigner: false,
+		};
+	}
+
 	public async getPlacePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		subAccountId?: number,
@@ -4655,6 +4715,14 @@ export class VelocityClient {
 				? [depositToTradeArgs?.depositMarketIndex]
 				: undefined,
 		});
+
+		const builderEscrow = this.getBuilderEscrowAccountMeta(
+			orderParams,
+			subAccountId
+		);
+		if (builderEscrow) {
+			remainingAccounts.push(builderEscrow);
+		}
 
 		return await VelocityCore.buildPlacePerpOrderInstruction({
 			program: this.program,
@@ -5145,6 +5213,19 @@ export class VelocityClient {
 		const formattedParams = params.map((item) => getOrderParams(item));
 		const authority = overrides?.authority ?? this.wallet.publicKey;
 
+		// The handler loads a single RevenueShareEscrow for the placing user, so push it once
+		// if any order in the batch carries a builder code.
+		const builderParam = formattedParams.find((p) => hasBuilderParams(p));
+		if (builderParam) {
+			const builderEscrow = this.getBuilderEscrowAccountMeta(
+				builderParam,
+				subAccountId
+			);
+			if (builderEscrow) {
+				remainingAccounts.push(builderEscrow);
+			}
+		}
+
 		return await VelocityCore.buildPlaceOrdersInstruction({
 			program: this.program,
 			formattedParams,
@@ -5305,7 +5386,8 @@ export class VelocityClient {
 		txParams?: TxParams,
 		fillerSubAccountId?: number,
 		fillerAuthority?: PublicKey,
-		hasBuilderFee?: boolean
+		hasBuilderFee?: boolean,
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -5317,7 +5399,8 @@ export class VelocityClient {
 					fillerSubAccountId,
 					undefined,
 					fillerAuthority,
-					hasBuilderFee
+					hasBuilderFee,
+					takerEscrow
 				),
 				txParams
 			),
@@ -5335,7 +5418,12 @@ export class VelocityClient {
 		fillerSubAccountId?: number,
 		isSignedMsg?: boolean,
 		fillerAuthority?: PublicKey,
-		hasBuilderFee?: boolean
+		hasBuilderFee?: boolean,
+		// The program rejects fills that omit the taker's RevenueShareEscrow when the
+		// order has a builder OR the taker is referred with an escrow. The builder case
+		// is detected from the order bitflags; pass the taker's decoded escrow (e.g.
+		// from a RevenueShareEscrowMap) so referred takers also get it attached.
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -5418,15 +5506,13 @@ export class VelocityClient {
 			}
 		}
 
-		if (withBuilder) {
-			remainingAccounts.push({
-				pubkey: getRevenueShareEscrowAccountPublicKey(
-					this.program.programId,
-					userAccount.authority
-				),
-				isWritable: true,
-				isSigner: false,
-			});
+		const takerEscrowMeta = this.getTakerEscrowAccountMeta(
+			userAccount.authority,
+			withBuilder,
+			takerEscrow
+		);
+		if (takerEscrowMeta) {
+			remainingAccounts.push(takerEscrowMeta);
 		}
 
 		const orderId = isSignedMsg ? null : order.orderId;
@@ -5508,7 +5594,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Swap tokens in drift account using titan or jupiter
+	 * Swap tokens in velocity account using titan or jupiter
 	 * @param swapClient swap client to find routes and instructions (Titan or Jupiter)
 	 * @param jupiterClient @deprecated Use swapClient instead. Legacy parameter for backward compatibility
 	 * @param outMarketIndex the market index of the token you're buying
@@ -5519,7 +5605,7 @@ export class VelocityClient {
 	 * @param slippageBps the max slippage passed to the swap provider api
 	 * @param swapMode swap provider swapMode (ExactIn or ExactOut), default is ExactIn
 	 * @param route the swap provider route to use for the swap
-	 * @param reduceOnly specify if In or Out token on the drift account must reduceOnly, checked at end of swap
+	 * @param reduceOnly specify if In or Out token on the velocity account must reduceOnly, checked at end of swap
 	 * @param v6 pass in the quote response from swap provider quote's API (deprecated, use quote instead)
 	 * @param quote pass in the quote response from swap provider quote's API
 	 * @param txParams
@@ -5738,7 +5824,7 @@ export class VelocityClient {
 			slippageBps,
 			swapMode: isExactOut ? TitanSwapMode.ExactOut : TitanSwapMode.ExactIn,
 			onlyDirectRoutes,
-			sizeConstraint: MAX_TX_BYTE_SIZE - 375, // buffer for drift instructions
+			sizeConstraint: MAX_TX_BYTE_SIZE - 375, // buffer for velocity instructions
 		});
 
 		const titanInstructions = titanClient.getTitanInstructions({
@@ -5898,7 +5984,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Get the drift begin_swap and end_swap instructions
+	 * Get the velocity begin_swap and end_swap instructions
 	 *
 	 * @param outMarketIndex the market index of the token you're buying
 	 * @param inMarketIndex the market index of the token you're selling
@@ -6003,7 +6089,7 @@ export class VelocityClient {
 					inTokenAccount,
 					outTokenAccount,
 					tokenProgram: inTokenProgram,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -6026,7 +6112,7 @@ export class VelocityClient {
 					inTokenAccount,
 					outTokenAccount,
 					tokenProgram: inTokenProgram,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -6143,7 +6229,7 @@ export class VelocityClient {
 			amountInForBeginSwap = amount;
 		}
 
-		// Get drift swap instructions for begin and end
+		// Get velocity swap instructions for begin and end
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
@@ -6502,7 +6588,8 @@ export class VelocityClient {
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		auctionDurationPercentage?: number,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -6511,7 +6598,9 @@ export class VelocityClient {
 					makerInfo,
 					successCondition,
 					auctionDurationPercentage,
-					subAccountId
+					subAccountId,
+					undefined,
+					takerEscrow
 				),
 				txParams
 			),
@@ -6778,7 +6867,12 @@ export class VelocityClient {
 		subAccountId?: number,
 		overrides?: {
 			authority?: PublicKey;
-		}
+		},
+		// place_and_take fills the placing user's (the taker's) order in-instruction, so
+		// their RevenueShareEscrow must be attached for BOTH builder fees and referrer
+		// revenue share. The builder case is detected from orderParams; pass the user's
+		// decoded escrow (e.g. from a RevenueShareEscrowMap) to cover the referred case.
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
@@ -6814,6 +6908,15 @@ export class VelocityClient {
 			});
 		}
 
+		const takerEscrowMeta = this.getTakerEscrowAccountMeta(
+			this.getUserAccount(subAccountId)?.authority ?? this.authority,
+			hasBuilderParams(orderParams),
+			takerEscrow
+		);
+		if (takerEscrowMeta) {
+			remainingAccounts.push(takerEscrowMeta);
+		}
+
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6838,14 +6941,16 @@ export class VelocityClient {
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getPlaceAndMakePerpOrderIx(
 					orderParams,
 					takerInfo,
-					subAccountId
+					subAccountId,
+					takerEscrow
 				),
 				txParams
 			),
@@ -6861,7 +6966,12 @@ export class VelocityClient {
 	public async getPlaceAndMakePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		subAccountId?: number
+		subAccountId?: number,
+		// place_and_make fills the taker's order in-instruction, so the TAKER's
+		// RevenueShareEscrow must be attached when their order has a builder or they
+		// are referred with an escrow. The builder case is detected from the taker
+		// order bitflags; pass the taker's decoded escrow to cover the referred case.
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
@@ -6877,15 +6987,13 @@ export class VelocityClient {
 		});
 
 		const takerOrderId = takerInfo.order.orderId;
-		if (hasBuilder(takerInfo.order)) {
-			remainingAccounts.push({
-				pubkey: getRevenueShareEscrowAccountPublicKey(
-					this.program.programId,
-					takerInfo.takerUserAccount.authority
-				),
-				isWritable: true,
-				isSigner: false,
-			});
+		const takerEscrowMeta = this.getTakerEscrowAccountMeta(
+			takerInfo.takerUserAccount.authority,
+			hasBuilder(takerInfo.order),
+			takerEscrow
+		);
+		if (takerEscrowMeta) {
+			remainingAccounts.push(takerEscrowMeta);
 		}
 		return await VelocityCore.buildPlaceAndMakePerpOrderInstruction({
 			program: this.program,
@@ -6921,7 +7029,7 @@ export class VelocityClient {
 	/**
 	 * Builds a deposit and place request for Swift service
 	 *
-	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `buildSwiftDepositTx`)
+	 * @param depositTx - The signed tx containing a velocity deposit (e.g. see `buildSwiftDepositTx`)
 	 * @param orderParamsMessage - The order parameters message to sign
 	 * @param delegateSigner - Whether this is a delegate signer
 	 *
@@ -7059,10 +7167,7 @@ export class VelocityClient {
 			writableSpotMarketIndexes,
 		});
 
-		if (
-			signedMessage.builderFeeTenthBps !== null &&
-			signedMessage.builderIdx !== null
-		) {
+		if (hasBuilderParams(signedMessage)) {
 			remainingAccounts.push({
 				pubkey: getRevenueShareEscrowAccountPublicKey(
 					this.program.programId,
@@ -7128,7 +7233,8 @@ export class VelocityClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideCustomIxIndex?: number
+		overrideCustomIxIndex?: number,
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			signedSignedMsgOrderParams,
@@ -7137,7 +7243,8 @@ export class VelocityClient {
 			orderParams,
 			subAccountId,
 			precedingIxs,
-			overrideCustomIxIndex
+			overrideCustomIxIndex,
+			takerEscrow
 		);
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -7161,7 +7268,11 @@ export class VelocityClient {
 		orderParams: OptionalOrderParams,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideCustomIxIndex?: number
+		overrideCustomIxIndex?: number,
+		// fills the taker's order in-instruction; pass the taker's decoded escrow so a
+		// referred taker's escrow is attached even when the signed order carries no
+		// builder fee
+		takerEscrow?: RevenueShareEscrowAccount
 	): Promise<TransactionInstruction[]> {
 		const [signedMsgOrderSignatureIx, placeTakerSignedMsgPerpOrderIx] =
 			await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -7197,18 +7308,13 @@ export class VelocityClient {
 			borshBuf,
 			isDelegateSigner
 		);
-		if (
-			signedMessage.builderFeeTenthBps !== null &&
-			signedMessage.builderIdx !== null
-		) {
-			remainingAccounts.push({
-				pubkey: getRevenueShareEscrowAccountPublicKey(
-					this.program.programId,
-					takerInfo.takerUserAccount.authority
-				),
-				isWritable: true,
-				isSigner: false,
-			});
+		const takerEscrowMeta = this.getTakerEscrowAccountMeta(
+			takerInfo.takerUserAccount.authority,
+			hasBuilderParams(signedMessage),
+			takerEscrow
+		);
+		if (takerEscrowMeta) {
+			remainingAccounts.push(takerEscrowMeta);
 		}
 
 		const placeAndMakeIx =
@@ -7800,7 +7906,7 @@ export class VelocityClient {
 							isWritable: true,
 						});
 					}
-					if (!escrow.referrer.equals(PublicKey.default)) {
+					if (escrowHasReferrer(escrow)) {
 						this.addBuilderToRemainingAccounts(
 							[escrow.referrer],
 							remainingAccounts
@@ -8003,7 +8109,7 @@ export class VelocityClient {
 					}
 
 					// Add referrer's User and RevenueShare accounts
-					if (!escrow.referrer.equals(PublicKey.default)) {
+					if (escrowHasReferrer(escrow)) {
 						this.addBuilderToRemainingAccounts(
 							[escrow.referrer],
 							remainingAccounts
@@ -8434,7 +8540,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * Get the drift liquidate_spot_with_swap instructions
+	 * Get the velocity liquidate_spot_with_swap instructions
 	 *
 	 * @param liabilityMarketIndex the market index of the token you're buying
 	 * @param assetMarketIndex the market index of the token you're selling
@@ -8537,7 +8643,7 @@ export class VelocityClient {
 						assetTokenAccount: assetTokenAccount,
 						liabilityTokenAccount: liabilityTokenAccount,
 						tokenProgram: assetTokenProgram,
-						driftSigner: this.getStateAccount().signer,
+						velocitySigner: this.getStateAccount().signer,
 						instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 					},
 					remainingAccounts,
@@ -8558,7 +8664,7 @@ export class VelocityClient {
 					assetTokenAccount: assetTokenAccount,
 					liabilityTokenAccount: liabilityTokenAccount,
 					tokenProgram: assetTokenProgram,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -8637,7 +8743,7 @@ export class VelocityClient {
 					inTokenAccount,
 					ifRebalanceConfig: ifRebalanceConfig,
 					tokenProgram: TOKEN_PROGRAM_ID,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -8657,7 +8763,7 @@ export class VelocityClient {
 					inTokenAccount,
 					ifRebalanceConfig: ifRebalanceConfig,
 					tokenProgram: TOKEN_PROGRAM_ID,
-					driftSigner: this.getStateAccount().signer,
+					velocitySigner: this.getStateAccount().signer,
 					instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
 				remainingAccounts,
@@ -8877,7 +8983,7 @@ export class VelocityClient {
 					liquidatorStats: liquidatorStatsPublicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				remainingAccounts: remainingAccounts,
@@ -8949,7 +9055,7 @@ export class VelocityClient {
 				liquidator,
 				spotMarketVault: spotMarket.vault,
 				insuranceFundVault: spotMarket.insuranceFund.vault,
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				tokenProgram: tokenProgramId,
 			},
 			remainingAccounts: remainingAccounts,
@@ -9283,7 +9389,7 @@ export class VelocityClient {
 					authority: this.wallet.publicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					userTokenAccount: collateralAccountPublicKey,
 					tokenProgram,
 				},
@@ -9597,7 +9703,7 @@ export class VelocityClient {
 					),
 					authority: this.wallet.publicKey,
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					userTokenAccount: tokenAccount,
 					tokenProgram,
 				},
@@ -9741,7 +9847,7 @@ export class VelocityClient {
 					state: await this.getStatePublicKey(),
 					spotMarket: spotMarketAccount.pubkey,
 					spotMarketVault: spotMarketAccount.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
 					tokenProgram: tokenProgramId,
 				},
@@ -9789,7 +9895,7 @@ export class VelocityClient {
 					authority: this.wallet.publicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					tokenProgram: tokenProgramId,
 				},
 				remainingAccounts: remainingAccounts,
@@ -9832,7 +9938,7 @@ export class VelocityClient {
 	}
 
 	/**
-	 * This ix will donate your funds to drift revenue pool. It does not deposit into your user account
+	 * This ix will donate your funds to velocity revenue pool. It does not deposit into your user account
 	 * @param marketIndex
 	 * @param amount
 	 * @param userTokenAccountPublicKey
@@ -10504,7 +10610,7 @@ export class VelocityClient {
 			{
 				remainingAccounts,
 				accounts: {
-					driftSigner: this.getSignerPublicKey(),
+					velocitySigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool,
 					constituentTargetBase,
@@ -10862,7 +10968,7 @@ export class VelocityClient {
 				{
 					remainingAccounts,
 					accounts: {
-						driftSigner: this.getSignerPublicKey(),
+						velocitySigner: this.getSignerPublicKey(),
 						state: await this.getStatePublicKey(),
 						lpPool: lpPool.pubkey,
 						authority: this.wallet.publicKey,
@@ -11176,7 +11282,7 @@ export class VelocityClient {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		return this.program.instruction.settlePerpToLpPool({
 			accounts: {
-				driftSigner: this.getSignerPublicKey(),
+				velocitySigner: this.getSignerPublicKey(),
 				state: await this.getStatePublicKey(),
 				keeper: this.wallet.publicKey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
@@ -11370,9 +11476,3 @@ export class VelocityClient {
 		return currentBase.add(orderBaseAmount).abs().gt(currentBase.abs());
 	}
 }
-
-/** @deprecated Use `VelocityClient` instead. `DriftClient` will be removed in a future major. */
-export const DriftClient = VelocityClient;
-
-/** @deprecated Use `VelocityClient` instead. `DriftClient` will be removed in a future major. */
-export type DriftClient = VelocityClient;

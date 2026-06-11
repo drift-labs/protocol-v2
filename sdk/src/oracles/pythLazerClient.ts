@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
 import { AnchorProvider, BN, Program } from '../isomorphic/anchor';
-import { Drift } from '../idl/drift';
+import { Velocity } from '../idl/velocity';
 import { VelocityProgram } from '../config';
 import {
 	ONE,
@@ -10,7 +10,7 @@ import {
 	TEN,
 } from '../constants/numericConstants';
 import { Wallet } from '../wallet';
-import driftIDL from '../idl/drift.json';
+import velocityIDL from '../idl/velocity.json';
 
 export class PythLazerClient implements OracleClient {
 	private connection: Connection;
@@ -35,7 +35,7 @@ export class PythLazerClient implements OracleClient {
 				commitment: connection.commitment,
 			}
 		);
-		this.program = new Program<Drift>(driftIDL as Drift, provider);
+		this.program = new Program<Velocity>(velocityIDL as Velocity, provider);
 		this.decodeFunc = (
 			this.program.account as any
 		).pythLazerOracle.coder.accounts.decodeUnchecked.bind(

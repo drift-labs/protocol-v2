@@ -46,12 +46,12 @@ import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { DRIFT_PROGRAM_ID } from '../sdk/src';
+import { VELOCITY_PROGRAM_ID } from '../sdk/src';
 
 describe('spot swap', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let makerDriftClient: TestClient;
+	let makerVelocityClient: TestClient;
 	let makerWSOL: PublicKey;
 	let eventSubscriber: EventSubscriber;
 
@@ -66,7 +66,7 @@ describe('spot swap', () => {
 	let usdcMint;
 	let makerUSDC;
 
-	let takerDriftClient: TestClient;
+	let takerVelocityClient: TestClient;
 	let takerWSOL: PublicKey;
 	let takerUSDC: PublicKey;
 	let takerOpenOrders: PublicKey;
@@ -132,7 +132,7 @@ describe('spot swap', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -150,20 +150,20 @@ describe('spot swap', () => {
 			},
 		});
 
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
-		await makerDriftClient.subscribe();
-		await makerDriftClient.initializeUserAccount();
+		await makerVelocityClient.initialize(usdcMint.publicKey, true);
+		await makerVelocityClient.subscribe();
+		await makerVelocityClient.initializeUserAccount();
 
-		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(makerDriftClient, solOracle);
-		await makerDriftClient.updateSpotMarketStepSizeAndTickSize(
+		await initializeQuoteSpotMarket(makerVelocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(makerVelocityClient, solOracle);
+		await makerVelocityClient.updateSpotMarketStepSizeAndTickSize(
 			1,
 			new BN(100000000),
 			new BN(100)
 		);
-		await makerDriftClient.updateSpotAuctionDuration(0);
+		await makerVelocityClient.updateSpotAuctionDuration(0);
 
-		[takerDriftClient, takerWSOL, takerUSDC, takerKeypair] =
+		[takerVelocityClient, takerWSOL, takerUSDC, takerKeypair] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -185,12 +185,12 @@ describe('spot swap', () => {
 			takerKeypair,
 			10 * LAMPORTS_PER_SOL
 		);
-		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);
+		await takerVelocityClient.deposit(usdcAmount, 0, takerUSDC);
 	});
 
 	after(async () => {
-		await takerDriftClient.unsubscribe();
-		await makerDriftClient.unsubscribe();
+		await takerVelocityClient.unsubscribe();
+		await makerVelocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -217,7 +217,7 @@ describe('spot swap', () => {
 
 		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
-		await makerDriftClient.initializeSerumFulfillmentConfig(
+		await makerVelocityClient.initializeSerumFulfillmentConfig(
 			solSpotMarketIndex,
 			serumMarketPublicKey,
 			SERUM
@@ -238,11 +238,11 @@ describe('spot swap', () => {
 		const createOpenOrdersIx = await OpenOrders.makeCreateAccountTransaction(
 			bankrunContextWrapper.connection.toConnection(),
 			market.address,
-			takerDriftClient.wallet.publicKey,
+			takerVelocityClient.wallet.publicKey,
 			openOrdersAccount.publicKey,
 			market.programId
 		);
-		await takerDriftClient.sendTransaction(
+		await takerVelocityClient.sendTransaction(
 			new Transaction().add(createOpenOrdersIx),
 			[openOrdersAccount]
 		);
@@ -265,7 +265,9 @@ describe('spot swap', () => {
 		openOrdersAccounts.push(openOrdersAccount);
 
 		const serumFulfillmentConfigAccount =
-			await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
+			await makerVelocityClient.getSerumV3FulfillmentConfig(
+				serumMarketPublicKey
+			);
 		openOrdersAccounts.push(serumFulfillmentConfigAccount.serumOpenOrders);
 
 		const consumeEventsIx = await market.makeConsumeEventsInstruction(
@@ -327,7 +329,7 @@ describe('spot swap', () => {
 		await bankrunContextWrapper.sendTransaction(transaction, signerKeypairs);
 
 		const amountIn = new BN(200).mul(QUOTE_PRECISION);
-		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+		const { beginSwapIx, endSwapIx } = await takerVelocityClient.getSwapIx({
 			amountIn: amountIn,
 			inMarketIndex: 0,
 			outMarketIndex: 1,
@@ -340,7 +342,7 @@ describe('spot swap', () => {
 			bankrunContextWrapper.connection.toConnection(),
 			{
 				// @ts-ignore
-				owner: takerDriftClient.wallet,
+				owner: takerVelocityClient.wallet,
 				payer: takerUSDC,
 				side: 'buy',
 				price: 100,
@@ -353,13 +355,13 @@ describe('spot swap', () => {
 			}
 		);
 
-		const serumConfig = await takerDriftClient.getSerumV3FulfillmentConfig(
+		const serumConfig = await takerVelocityClient.getSerumV3FulfillmentConfig(
 			market.publicKey
 		);
 		const settleFundsIx = DexInstructions.settleFunds({
 			market: market.publicKey,
 			openOrders: takerOpenOrders,
-			owner: takerDriftClient.wallet.publicKey,
+			owner: takerVelocityClient.wallet.publicKey,
 			// @ts-ignore
 			baseVault: serumConfig.serumBaseVault,
 			// @ts-ignore
@@ -380,23 +382,23 @@ describe('spot swap', () => {
 			.add(settleFundsIx)
 			.add(endSwapIx);
 
-		const { txSig } = await takerDriftClient.sendTransaction(tx);
+		const { txSig } = await takerVelocityClient.sendTransaction(tx);
 
 		bankrunContextWrapper.printTxLogs(txSig);
 		// await printTxLogs(connection, txSig);
 
-		const takerSOLAmount = await takerDriftClient.getTokenAmount(1);
+		const takerSOLAmount = await takerVelocityClient.getTokenAmount(1);
 		assert(takerSOLAmount.eq(new BN(1000000000)));
-		const takerUSDCAmount = await takerDriftClient.getTokenAmount(0);
+		const takerUSDCAmount = await takerVelocityClient.getTokenAmount(0);
 		assert(takerUSDCAmount.eq(new BN(99959999)));
 
 		// const cumulativeSpotFees =
-		// 	takerDriftClient.getUserAccount().cumulativeSpotFees;
+		// 	takerVelocityClient.getUserAccount().cumulativeSpotFees;
 		// assert(cumulativeSpotFees.eq(new BN(-50000)));
 
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
-			new PublicKey(DRIFT_PROGRAM_ID),
-			takerDriftClient.wallet.publicKey
+			new PublicKey(VELOCITY_PROGRAM_ID),
+			takerVelocityClient.wallet.publicKey
 		);
 
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
@@ -404,30 +406,30 @@ describe('spot swap', () => {
 		);
 
 		const userStatsAccount = accountInfo
-			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
+			? (takerVelocityClient.program.account.user.coder.accounts.decodeUnchecked(
 					'userStats',
 					accountInfo.data
 			  ) as UserStatsAccount)
 			: undefined;
 
-		await takerDriftClient.fetchAccounts();
+		await takerVelocityClient.fetchAccounts();
 		const accountInfo2 = await bankrunContextWrapper.connection.getAccountInfo(
 			userStatsPublicKey
 		);
 		const _userStatsAccount2 = accountInfo2
-			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
+			? (takerVelocityClient.program.account.user.coder.accounts.decodeUnchecked(
 					'userStats',
 					accountInfo2.data
 			  ) as UserStatsAccount)
 			: undefined;
 
-		await takerDriftClient.fetchAccounts();
+		await takerVelocityClient.fetchAccounts();
 
 		const accountInfo3 = await bankrunContextWrapper.connection.getAccountInfo(
 			userStatsPublicKey
 		);
 		const _userStatsAccount3 = accountInfo3
-			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
+			? (takerVelocityClient.program.account.user.coder.accounts.decodeUnchecked(
 					'userStats',
 					accountInfo3.data
 			  ) as UserStatsAccount)
@@ -443,7 +445,7 @@ describe('spot swap', () => {
 		// assert(swapRecord.fee.eq(new BN(500000)));
 		assert(swapRecord.fee.eq(new BN(0)));
 
-		const solSpotMarket = takerDriftClient.getSpotMarketAccount(1);
+		const solSpotMarket = takerVelocityClient.getSpotMarketAccount(1);
 
 		// assert(solSpotMarket.totalSwapFee.eq(new BN(500000)));
 		assert(solSpotMarket.totalSwapFee.eq(new BN(0)));
@@ -496,7 +498,7 @@ describe('spot swap', () => {
 		const amountIn = new BN(1).mul(new BN(LAMPORTS_PER_SOL));
 		// .mul(new BN(1999))
 		// .div(new BN(2000)); // .9995 SOL
-		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+		const { beginSwapIx, endSwapIx } = await takerVelocityClient.getSwapIx({
 			amountIn: amountIn,
 			inMarketIndex: 1,
 			outMarketIndex: 0,
@@ -509,7 +511,7 @@ describe('spot swap', () => {
 			bankrunContextWrapper.connection.toConnection(),
 			{
 				// @ts-ignore
-				owner: takerDriftClient.wallet,
+				owner: takerVelocityClient.wallet,
 				payer: takerWSOL,
 				side: 'sell',
 				price: 100,
@@ -522,13 +524,13 @@ describe('spot swap', () => {
 			}
 		);
 
-		const serumConfig = await takerDriftClient.getSerumV3FulfillmentConfig(
+		const serumConfig = await takerVelocityClient.getSerumV3FulfillmentConfig(
 			market.publicKey
 		);
 		const settleFundsIx = DexInstructions.settleFunds({
 			market: market.publicKey,
 			openOrders: takerOpenOrders,
-			owner: takerDriftClient.wallet.publicKey,
+			owner: takerVelocityClient.wallet.publicKey,
 			// @ts-ignore
 			baseVault: serumConfig.serumBaseVault,
 			// @ts-ignore
@@ -549,24 +551,24 @@ describe('spot swap', () => {
 			.add(settleFundsIx)
 			.add(endSwapIx);
 
-		const { txSig } = await takerDriftClient.sendTransaction(tx);
+		const { txSig } = await takerVelocityClient.sendTransaction(tx);
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		const takerSOLAmount = await takerDriftClient.getTokenAmount(1);
+		const takerSOLAmount = await takerVelocityClient.getTokenAmount(1);
 		assert(takerSOLAmount.eq(new BN(0)));
-		const takerUSDCAmount = await takerDriftClient.getTokenAmount(0);
+		const takerUSDCAmount = await takerVelocityClient.getTokenAmount(0);
 		console.log(takerUSDCAmount.toString());
 		assert(takerUSDCAmount.eq(new BN(199919999)));
 
 		// const cumulativeSpotFees =
-		// 	takerDriftClient.getUserAccount().cumulativeSpotFees;
+		// 	takerVelocityClient.getUserAccount().cumulativeSpotFees;
 		// assert(cumulativeSpotFees.eq(new BN(-99980)));
 
 		// const userStatsAccount = await fetchUserStatsAccount(
 		// 	connection,
-		// 	takerDriftClient.program,
-		// 	takerDriftClient.wallet.publicKey
+		// 	takerVelocityClient.program,
+		// 	takerVelocityClient.wallet.publicKey
 		// );
 		// assert(userStatsAccount.fees.totalFeePaid.eq(new BN(99980)));
 
@@ -577,7 +579,7 @@ describe('spot swap', () => {
 		assert(swapRecord.inMarketIndex === 1);
 		// assert(swapRecord.fee.eq(new BN(0)));
 
-		// const usdcSpotMarket = takerDriftClient.getSpotMarketAccount(0);
+		// const usdcSpotMarket = takerVelocityClient.getSpotMarketAccount(0);
 		//
 		// assert(usdcSpotMarket.totalSwapFee.eq(new BN(49980)));
 		//
@@ -593,7 +595,7 @@ describe('spot swap', () => {
 
 	it('invalid swaps', async () => {
 		const amountIn = new BN(100).mul(QUOTE_PRECISION);
-		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+		const { beginSwapIx, endSwapIx } = await takerVelocityClient.getSwapIx({
 			amountIn,
 			inMarketIndex: 0,
 			outMarketIndex: 1,
@@ -605,7 +607,7 @@ describe('spot swap', () => {
 
 		let failed = false;
 		try {
-			await takerDriftClient.sendTransaction(tx);
+			await takerVelocityClient.sendTransaction(tx);
 		} catch (e) {
 			const err = e as Error;
 			if (err.toString().includes('0x1868')) {
@@ -618,7 +620,7 @@ describe('spot swap', () => {
 
 		failed = false;
 		try {
-			const txO = await takerDriftClient.sendTransaction(tx);
+			const txO = await takerVelocityClient.sendTransaction(tx);
 			const txL = await bankrunContextWrapper.connection.getTransaction(
 				txO.txSig,
 				{
@@ -642,7 +644,7 @@ describe('spot swap', () => {
 
 		failed = false;
 		try {
-			await takerDriftClient.sendTransaction(tx);
+			await takerVelocityClient.sendTransaction(tx);
 		} catch (e) {
 			const err = e as Error;
 			if (err.toString().includes('0x1868')) {
@@ -655,7 +657,7 @@ describe('spot swap', () => {
 
 		failed = false;
 		try {
-			await takerDriftClient.sendTransaction(tx);
+			await takerVelocityClient.sendTransaction(tx);
 		} catch (e) {
 			const err = e as Error;
 			if (err.toString().includes('0x1868')) {
@@ -665,21 +667,23 @@ describe('spot swap', () => {
 		assert(failed);
 
 		// Try making end swap be signed from different user
-		const { endSwapIx: invalidEndSwapIx } = await makerDriftClient.getSwapIx({
-			amountIn,
-			inMarketIndex: 0,
-			outMarketIndex: 1,
-			outTokenAccount: takerWSOL,
-			inTokenAccount: takerUSDC,
-		});
+		const { endSwapIx: invalidEndSwapIx } = await makerVelocityClient.getSwapIx(
+			{
+				amountIn,
+				inMarketIndex: 0,
+				outMarketIndex: 1,
+				outTokenAccount: takerWSOL,
+				inTokenAccount: takerUSDC,
+			}
+		);
 
 		tx = new Transaction().add(beginSwapIx).add(invalidEndSwapIx);
 
 		failed = false;
 		try {
-			await takerDriftClient.sendTransaction(tx, [
+			await takerVelocityClient.sendTransaction(tx, [
 				// @ts-ignore
-				makerDriftClient.wallet.payer,
+				makerVelocityClient.wallet.payer,
 			]);
 		} catch (e) {
 			const err = e as Error;
@@ -692,7 +696,7 @@ describe('spot swap', () => {
 
 	it('close non-swap token account after end_swap fails', async () => {
 		const amountIn = new BN(100).mul(QUOTE_PRECISION);
-		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+		const { beginSwapIx, endSwapIx } = await takerVelocityClient.getSwapIx({
 			amountIn,
 			inMarketIndex: 0,
 			outMarketIndex: 1,
@@ -704,15 +708,15 @@ describe('spot swap', () => {
 		const randomAccount = Keypair.generate().publicKey;
 		const closeIx = createCloseAccountInstruction(
 			randomAccount,
-			takerDriftClient.wallet.publicKey,
-			takerDriftClient.wallet.publicKey
+			takerVelocityClient.wallet.publicKey,
+			takerVelocityClient.wallet.publicKey
 		);
 
 		const tx = new Transaction().add(beginSwapIx).add(endSwapIx).add(closeIx);
 
 		let failed = false;
 		try {
-			await takerDriftClient.sendTransaction(tx);
+			await takerVelocityClient.sendTransaction(tx);
 		} catch (e) {
 			const err = e as Error;
 			if (err.toString().includes('0x1868')) {
@@ -725,7 +729,7 @@ describe('spot swap', () => {
 	it.skip('swap and close token account after end_swap', async () => {
 		// takerUSDC has 0 balance - it can be closed after endSwap
 		const amountIn = new BN(100).mul(QUOTE_PRECISION);
-		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+		const { beginSwapIx, endSwapIx } = await takerVelocityClient.getSwapIx({
 			amountIn,
 			inMarketIndex: 0,
 			outMarketIndex: 1,
@@ -737,7 +741,7 @@ describe('spot swap', () => {
 		const transferIn = createTransferInstruction(
 			takerUSDC,
 			makerUSDC.publicKey,
-			takerDriftClient.wallet.publicKey,
+			takerVelocityClient.wallet.publicKey,
 			amountIn.toNumber()
 		);
 
@@ -745,15 +749,15 @@ describe('spot swap', () => {
 		const transferOut = createTransferInstruction(
 			makerWSOL,
 			takerWSOL,
-			makerDriftClient.wallet.publicKey,
+			makerVelocityClient.wallet.publicKey,
 			LAMPORTS_PER_SOL
 		);
 
 		// Close takerUSDC after endSwap (balance will be 0)
 		const closeIx = createCloseAccountInstruction(
 			takerUSDC,
-			takerDriftClient.wallet.publicKey,
-			takerDriftClient.wallet.publicKey,
+			takerVelocityClient.wallet.publicKey,
+			takerVelocityClient.wallet.publicKey,
 			undefined,
 			TOKEN_PROGRAM_ID
 		);
@@ -765,9 +769,9 @@ describe('spot swap', () => {
 			.add(endSwapIx)
 			.add(closeIx);
 
-		const { txSig } = await takerDriftClient.sendTransaction(tx, [
+		const { txSig } = await takerVelocityClient.sendTransaction(tx, [
 			// @ts-ignore
-			makerDriftClient.wallet.payer,
+			makerVelocityClient.wallet.payer,
 		]);
 
 		bankrunContextWrapper.printTxLogs(txSig);
@@ -780,7 +784,7 @@ describe('spot swap', () => {
 	});
 
 	it('donate to revenue pool for a great feature!', async () => {
-		const solSpotMarket = takerDriftClient.getSpotMarketAccount(1);
+		const solSpotMarket = takerVelocityClient.getSpotMarketAccount(1);
 
 		const solRevPool = getTokenAmount(
 			solSpotMarket.revenuePool.scaledBalance,
@@ -790,13 +794,13 @@ describe('spot swap', () => {
 		assert(solRevPool.eq(ZERO));
 
 		const charity = new BN(1);
-		await takerDriftClient.depositIntoSpotMarketRevenuePool(
+		await takerVelocityClient.depositIntoSpotMarketRevenuePool(
 			1,
 			charity,
 			takerWSOL
 		);
-		await takerDriftClient.fetchAccounts();
-		const solSpotMarketAfter = takerDriftClient.getSpotMarketAccount(1);
+		await takerVelocityClient.fetchAccounts();
+		const solSpotMarketAfter = takerVelocityClient.getSpotMarketAccount(1);
 
 		const solRevPoolAfter = getTokenAmount(
 			solSpotMarketAfter.revenuePool.scaledBalance,

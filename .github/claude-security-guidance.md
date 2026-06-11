@@ -1,8 +1,8 @@
-# Drift Protocol — Security Review Guidance
+# Velocity Protocol — Security Review Guidance
 
 This file is consumed by the `anthropics/claude-code-security-review` GitHub
 Action as false-positive filtering instructions. It documents intentional
-patterns in the Drift codebase that a generic security model is likely to flag
+patterns in the Velocity codebase that a generic security model is likely to flag
 incorrectly. Treat these as expected and **do not report them as findings**
 unless the change clearly violates the documented invariant.
 
@@ -13,7 +13,7 @@ and `docs/alignment-and-native-offsets.md`.
 
 ### 1. Zero-copy struct layout with explicit padding
 
-Anchor zero-copy account structs in `programs/drift/src/state/` use `repr(C)` and
+Anchor zero-copy account structs in `programs/velocity/src/state/` use `repr(C)` and
 manual padding bytes so that `(SIZE - 8) % 16 == 0` and all `u128`/`i128` fields
 are ordered before any `PoolBalance` fields. This ensures `sizeof` matches the
 on-chain SBF layout regardless of whether the host is Rust 1.76 (older
@@ -28,7 +28,7 @@ on x86_64). `const_assert_eq!` guards enforce the invariant at compile time.
 
 ### 2. Custom native entrypoint with `[0xFF, 0xFF, 0xFF, 0xFF, opcode]` discriminator
 
-Drift dispatches certain high-frequency keeper instructions through a custom
+Velocity dispatches certain high-frequency keeper instructions through a custom
 native entrypoint that bypasses Anchor's instruction discriminator and account
 deserialization. The leading bytes `[0xFF, 0xFF, 0xFF, 0xFF, <opcode>]` are the
 documented signal for this dispatch path. Manual deserialization of accounts
@@ -44,11 +44,11 @@ inside this entrypoint is expected.
 Many instructions accept variable numbers of oracle accounts, spot markets, or
 maker accounts via Anchor's `remaining_accounts`. These are *not* validated by
 the `Accounts` struct macro; instead, validation lives in
-`programs/drift/src/validation/` and in per-instruction logic.
+`programs/velocity/src/validation/` and in per-instruction logic.
 
 - "Unvalidated `remaining_accounts`" is **only** a finding if the instruction in
   question does not call into the validation layer. Check
-  `programs/drift/src/validation/` and the instruction's controller before
+  `programs/velocity/src/validation/` and the instruction's controller before
   reporting.
 
 ### 4. `AccountLoader` zero-copy on large accounts
@@ -67,7 +67,7 @@ invariant in (1).
 Diffs in the following paths add no security signal beyond reviewing their
 upstream sources, and you can skip them entirely:
 
-- `sdk/src/idl/drift.json` — regenerated from the Anchor program. Any
+- `sdk/src/idl/velocity.json` — regenerated from the Anchor program. Any
   meaningful change is already visible in the corresponding Rust diff.
 - Pure markdown changes (`**/*.md`) — documentation, no executable behavior.
 - Lockfile diffs (`yarn.lock`, `bun.lockb`, `package-lock.json`, `Cargo.lock`)
@@ -85,7 +85,7 @@ Focus reports on:
   margin or settlement math.
 - Authority/signer checks missing on admin or keeper instructions.
 - Integer overflow/underflow in pricing, funding, or PnL math
-  (`programs/drift/src/math/`).
+  (`programs/velocity/src/math/`).
 - SDK code that constructs transactions with attacker-controllable fields
   without bounds-checking.
 - Secret material, API keys, or RPC endpoints accidentally committed.

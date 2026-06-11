@@ -31,10 +31,10 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('place and make perp order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let makerDriftClient: TestClient;
-	let makerDriftClientUser: User;
+	let makerVelocityClient: TestClient;
+	let makerVelocityClientUser: User;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -91,7 +91,7 @@ describe('place and make perp order', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
-		makerDriftClient = new TestClient({
+		makerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -108,12 +108,12 @@ describe('place and make perp order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClient.initialize(usdcMint.publicKey, true);
-		await makerDriftClient.subscribe();
-		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
+		await makerVelocityClient.initialize(usdcMint.publicKey, true);
+		await makerVelocityClient.subscribe();
+		await initializeQuoteSpotMarket(makerVelocityClient, usdcMint.publicKey);
 
 		const periodicity = new BN(0);
-		await makerDriftClient.initializePerpMarket(
+		await makerVelocityClient.initializePerpMarket(
 			0,
 			solUsd,
 			ammInitialBaseAssetReserve,
@@ -122,30 +122,30 @@ describe('place and make perp order', () => {
 			new BN(32 * PEG_PRECISION.toNumber())
 		);
 
-		await makerDriftClient.updatePerpMarketPausedOperations(
+		await makerVelocityClient.updatePerpMarketPausedOperations(
 			0,
 			PerpOperation.AMM_FILL
 		);
 
-		await makerDriftClient.initializeUserAccountAndDepositCollateral(
+		await makerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		makerDriftClientUser = new User({
-			driftClient: makerDriftClient,
-			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+		makerVelocityClientUser = new User({
+			velocityClient: makerVelocityClient,
+			userAccountPublicKey: await makerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await makerDriftClientUser.subscribe();
+		await makerVelocityClientUser.subscribe();
 	});
 
 	after(async () => {
-		await makerDriftClient.unsubscribe();
-		await makerDriftClientUser.unsubscribe();
+		await makerVelocityClient.unsubscribe();
+		await makerVelocityClientUser.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -160,7 +160,7 @@ describe('place and make perp order', () => {
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
-		const takerDriftClient = new TestClient({
+		const takerVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
@@ -178,20 +178,20 @@ describe('place and make perp order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		await takerVelocityClient.subscribe();
+		await takerVelocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+		const takerVelocityClientUser = new User({
+			velocityClient: takerVelocityClient,
+			userAccountPublicKey: await takerVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -206,9 +206,9 @@ describe('place and make perp order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		await takerDriftClient.placePerpOrder(takerOrderParams);
-		await takerDriftClientUser.fetchAccounts();
-		const order = takerDriftClientUser.getOrderByUserOrderId(1);
+		await takerVelocityClient.placePerpOrder(takerOrderParams);
+		await takerVelocityClientUser.fetchAccounts();
+		const order = takerVelocityClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
 
 		const makerOrderParams = getLimitOrderParams({
@@ -221,25 +221,25 @@ describe('place and make perp order', () => {
 			bitFlags: 1,
 		});
 
-		const txSig = await makerDriftClient.placeAndMakePerpOrder(
+		const txSig = await makerVelocityClient.placeAndMakePerpOrder(
 			makerOrderParams,
 			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				order: takerDriftClient.getOrderByUserId(1),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				taker: await takerVelocityClient.getUserAccountPublicKey(),
+				order: takerVelocityClient.getOrderByUserId(1),
+				takerUserAccount: takerVelocityClient.getUserAccount(),
+				takerStats: takerVelocityClient.getUserStatsAccountPublicKey(),
 			}
 		);
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		const makerPosition = makerVelocityClient.getUser().getPerpPosition(0);
 		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
 
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerVelocityClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
+		await takerVelocityClient.unsubscribe();
 	});
 });

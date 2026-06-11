@@ -41,7 +41,7 @@ import {
 	OracleInfo,
 	PerpMarketAccount,
 	PositionDirection,
-	DriftClient,
+	VelocityClient,
 	OrderType,
 	ReferrerInfo,
 	ConstituentAccount,
@@ -62,7 +62,7 @@ import {
 	BankrunConnection,
 } from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { DRIFT_PROGRAM_ID } from '../sdk/src/config';
+import { VELOCITY_PROGRAM_ID } from '../sdk/src/config';
 import * as crypto from 'crypto';
 
 export const MOCK_ORACLE_SOURCE = OracleSource.PYTH_LAZER;
@@ -105,7 +105,7 @@ export async function mockOracleNoProgram(
 	postedSlotOffset = 0
 ): Promise<PublicKey> {
 	const currentSlot = Number(await context.connection.getSlot());
-	const driftProgramId = new PublicKey(DRIFT_PROGRAM_ID);
+	const velocityProgramId = new PublicKey(VELOCITY_PROGRAM_ID);
 
 	const scaledPrice = BigInt(Math.round(price * 10 ** -expo));
 	const scaledConf = confidence
@@ -134,7 +134,7 @@ export async function mockOracleNoProgram(
 		newAccountPubkey: oracleKeypair.publicKey,
 		space: 48,
 		lamports,
-		programId: driftProgramId,
+		programId: velocityProgramId,
 	});
 	const tx = new Transaction().add(createAccountIx);
 	tx.feePayer = context.context.payer.publicKey;
@@ -144,7 +144,7 @@ export async function mockOracleNoProgram(
 
 	context.context.setAccount(oracleKeypair.publicKey, {
 		executable: false,
-		owner: driftProgramId,
+		owner: velocityProgramId,
 		lamports,
 		data: oracleData,
 		rentEpoch: 0,
@@ -416,7 +416,7 @@ export async function createUSDCAccountForUser(
 	return userUSDCAccount.publicKey;
 }
 
-export async function initializeAndSubscribeDriftClient(
+export async function initializeAndSubscribeVelocityClient(
 	connection: Connection,
 	program: Program,
 	userKeyPair: Keypair,
@@ -426,7 +426,7 @@ export async function initializeAndSubscribeDriftClient(
 	accountLoader?: TestBulkAccountLoader,
 	referrerInfo?: ReferrerInfo
 ): Promise<TestClient> {
-	const driftClient = new TestClient({
+	const velocityClient = new TestClient({
 		connection,
 		wallet: new Wallet(userKeyPair),
 		programID: program.programId,
@@ -448,9 +448,9 @@ export async function initializeAndSubscribeDriftClient(
 					type: 'websocket',
 			  },
 	});
-	await driftClient.subscribe();
-	await driftClient.initializeUserAccount(0, undefined, referrerInfo);
-	return driftClient;
+	await velocityClient.subscribe();
+	await velocityClient.initializeUserAccount(0, undefined, referrerInfo);
+	return velocityClient;
 }
 
 export async function createUserWithUSDCAccount(
@@ -471,7 +471,7 @@ export async function createUserWithUSDCAccount(
 		usdcMint,
 		usdcAmount
 	);
-	const driftClient = await initializeAndSubscribeDriftClient(
+	const velocityClient = await initializeAndSubscribeVelocityClient(
 		context.connection.toConnection(),
 		chProgram,
 		userKeyPair,
@@ -482,7 +482,7 @@ export async function createUserWithUSDCAccount(
 		referrerInfo
 	);
 
-	return [driftClient, usdcAccount, userKeyPair];
+	return [velocityClient, usdcAccount, userKeyPair];
 }
 
 export async function createWSolTokenAccountForUser(
@@ -562,7 +562,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 		usdcMint,
 		usdcAmount
 	);
-	const driftClient = await initializeAndSubscribeDriftClient(
+	const velocityClient = await initializeAndSubscribeVelocityClient(
 		context.connection.toConnection(),
 		chProgram,
 		keypair,
@@ -572,7 +572,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 		accountLoader
 	);
 
-	return [driftClient, solAccount, usdcAccount, keypair];
+	return [velocityClient, solAccount, usdcAccount, keypair];
 }
 
 export async function printTxLogs(
@@ -627,7 +627,7 @@ export async function initUserAccounts(
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
-	const driftClients = [];
+	const velocityClients = [];
 	const userAccountInfos = [];
 
 	let userAccountPublicKey: PublicKey;
@@ -646,9 +646,9 @@ export async function initUserAccounts(
 			ownerWallet.publicKey
 		);
 
-		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
+		const chProgram = anchor.workspace.Velocity as anchor.Program; // this.program-ify
 
-		const driftClient1 = new TestClient({
+		const velocityClient1 = new TestClient({
 			connection: context.connection.toConnection(),
 			//@ts-ignore
 			wallet: ownerWallet,
@@ -670,16 +670,16 @@ export async function initUserAccounts(
 				  },
 		});
 
-		// await driftClient1.initialize(usdcMint.publicKey, false);
-		await driftClient1.subscribe();
+		// await velocityClient1.initialize(usdcMint.publicKey, false);
+		await velocityClient1.subscribe();
 
 		userUSDCAccounts.push(newUserAcct);
-		driftClients.push(driftClient1);
+		velocityClients.push(velocityClient1);
 		// var last_idx = userUSDCAccounts.length - 1;
 
 		// try {
 		[, userAccountPublicKey] =
-			await driftClient1.initializeUserAccountAndDepositCollateral(
+			await velocityClient1.initializeUserAccountAndDepositCollateral(
 				// marketPublicKey,
 				usdcAmount,
 				newUserAcct.publicKey
@@ -687,8 +687,8 @@ export async function initUserAccounts(
 
 		// const userAccount = 0;
 		const userAccount = new User({
-			driftClient: driftClient1,
-			userAccountPublicKey: await driftClient1.getUserAccountPublicKey(),
+			velocityClient: velocityClient1,
+			userAccountPublicKey: await velocityClient1.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: accountLoader,
@@ -704,7 +704,7 @@ export async function initUserAccounts(
 
 		user_keys.push(userAccountPublicKey);
 	}
-	return [userUSDCAccounts, user_keys, driftClients, userAccountInfos];
+	return [userUSDCAccounts, user_keys, velocityClients, userAccountInfos];
 }
 
 const empty32Buffer = buffer.Buffer.alloc(32);
@@ -859,7 +859,7 @@ export const getFeedDataNoProgram = async (
 	try {
 		return parsePriceData(info.value.data);
 	} catch (_e) {
-		// Bankrun tests often use mockOracleNoProgram(), which writes Drift's
+		// Bankrun tests often use mockOracleNoProgram(), which writes Velocity's
 		// PythLazerOracle account layout (48 bytes) instead of legacy Pyth price account bytes.
 		const data = info.value.data as Buffer;
 		if (data.length === 48) {
@@ -1270,16 +1270,16 @@ export async function initializeSolSpotMarket(
 }
 
 export async function overWritePerpMarket(
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
 	perpMarketKey: PublicKey,
 	perpMarket: PerpMarketAccount
 ) {
 	bankrunContextWrapper.context.setAccount(perpMarketKey, {
 		executable: false,
-		owner: driftClient.program.programId,
+		owner: velocityClient.program.programId,
 		lamports: LAMPORTS_PER_SOL,
-		data: await driftClient.program.account.perpMarket.coder.accounts.encode(
+		data: await velocityClient.program.account.perpMarket.coder.accounts.encode(
 			'perpMarket',
 			perpMarket
 		),
@@ -1287,16 +1287,16 @@ export async function overWritePerpMarket(
 }
 
 export async function overWriteSpotMarket(
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
 	spotMarketKey: PublicKey,
 	spotMarket: SpotMarketAccount
 ) {
 	bankrunContextWrapper.context.setAccount(spotMarketKey, {
 		executable: false,
-		owner: driftClient.program.programId,
+		owner: velocityClient.program.programId,
 		lamports: LAMPORTS_PER_SOL,
-		data: await driftClient.program.account.spotMarket.coder.accounts.encode(
+		data: await velocityClient.program.account.spotMarket.coder.accounts.encode(
 			'spotMarket',
 			spotMarket
 		),
@@ -1304,7 +1304,7 @@ export async function overWriteSpotMarket(
 }
 
 export async function getPerpMarketDecoded(
-	driftClient: TestClient,
+	velocityClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
 	perpMarketPublicKey: PublicKey
 ): Promise<PerpMarketAccount> {
@@ -1312,7 +1312,10 @@ export async function getPerpMarketDecoded(
 		perpMarketPublicKey
 	);
 	const perpMarketAccount: PerpMarketAccount =
-		driftClient.program.coder.accounts.decode('perpMarket', accountInfo!.data);
+		velocityClient.program.coder.accounts.decode(
+			'perpMarket',
+			accountInfo!.data
+		);
 	return perpMarketAccount;
 }
 
@@ -1383,7 +1386,7 @@ export async function overWriteMintAccount(
 export type placeAndFillVammTradeParams = {
 	bankrunContextWrapper: BankrunContextWrapper;
 	orderClient: TestClient;
-	fillerClient: DriftClient;
+	fillerClient: VelocityClient;
 	marketIndex: number;
 	baseAssetAmount: BN;
 	auctionStartPrice: BN;

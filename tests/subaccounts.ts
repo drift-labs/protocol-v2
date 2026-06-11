@@ -34,9 +34,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('subaccounts', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
-	let driftClient: TestClient;
+	let velocityClient: TestClient;
 	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -78,7 +78,7 @@ describe('subaccounts', () => {
 		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0, 1];
 
-		driftClient = new TestClient({
+		velocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
@@ -98,15 +98,15 @@ describe('subaccounts', () => {
 
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(driftClient, solOracle);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
+		await velocityClient.initialize(usdcMint.publicKey, true);
+		await velocityClient.subscribe();
+		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(velocityClient, solOracle);
+		await velocityClient.updatePerpAuctionDuration(new BN(0));
 	});
 
 	after(async () => {
-		await driftClient.unsubscribe();
+		await velocityClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -114,7 +114,7 @@ describe('subaccounts', () => {
 		const donationAmount = LAMPORTS_PRECISION;
 		const subAccountId = 0;
 		const name = 'CRISP';
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			LAMPORTS_PRECISION,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			1,
@@ -124,17 +124,17 @@ describe('subaccounts', () => {
 			undefined,
 			donationAmount
 		);
-		await driftClient.fetchAccounts();
-		assert(driftClient.getUserAccount().subAccountId === subAccountId);
-		assert(decodeName(driftClient.getUserAccount().name) === name);
+		await velocityClient.fetchAccounts();
+		assert(velocityClient.getUserAccount().subAccountId === subAccountId);
+		assert(decodeName(velocityClient.getUserAccount().name) === name);
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 
 		assert(userStats.numberOfSubAccounts === 1);
-		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
-		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(1)));
+		assert(velocityClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
+		assert(velocityClient.getStateAccount().numberOfSubAccounts.eq(new BN(1)));
 
-		const solSpotMarket = driftClient.getSpotMarketAccount(1);
+		const solSpotMarket = velocityClient.getSpotMarketAccount(1);
 		const revenuePool = solSpotMarket.revenuePool;
 		const tokenAmount = getTokenAmount(
 			revenuePool.scaledBalance,
@@ -148,7 +148,7 @@ describe('subaccounts', () => {
 		const donationAmount = LAMPORTS_PRECISION;
 		const subAccountId = 1;
 		const name = 'LIL PERP';
-		await driftClient.initializeUserAccountAndDepositCollateral(
+		await velocityClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			usdcAccount.publicKey,
 			0,
@@ -158,21 +158,21 @@ describe('subaccounts', () => {
 			undefined,
 			donationAmount
 		);
-		await driftClient.fetchAccounts();
-		await driftClient.addUser(1);
-		await driftClient.switchActiveUser(1);
+		await velocityClient.fetchAccounts();
+		await velocityClient.addUser(1);
+		await velocityClient.switchActiveUser(1);
 
-		assert(driftClient.getUserAccount().subAccountId === subAccountId);
-		assert(decodeName(driftClient.getUserAccount().name) === name);
+		assert(velocityClient.getUserAccount().subAccountId === subAccountId);
+		assert(decodeName(velocityClient.getUserAccount().name) === name);
 
-		const userStats = driftClient.getUserStats().getAccount();
+		const userStats = velocityClient.getUserStats().getAccount();
 
 		assert(userStats.numberOfSubAccounts === 2);
 		assert(userStats.numberOfSubAccountsCreated === 2);
-		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
-		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(2)));
+		assert(velocityClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
+		assert(velocityClient.getStateAccount().numberOfSubAccounts.eq(new BN(2)));
 
-		const solSpotMarket = driftClient.getSpotMarketAccount(1);
+		const solSpotMarket = velocityClient.getSpotMarketAccount(1);
 		const revenuePool = solSpotMarket.revenuePool;
 		const tokenAmount = getTokenAmount(
 			revenuePool.scaledBalance,
@@ -193,15 +193,15 @@ describe('subaccounts', () => {
 	});
 
 	it('Deposit and transfer between accounts', async () => {
-		const txSig = await driftClient.transferDeposit(
+		const txSig = await velocityClient.transferDeposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			1,
 			0
 		);
-		await driftClient.switchActiveUser(0);
+		await velocityClient.switchActiveUser(0);
 
-		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(velocityClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 
 		await eventSubscriber.awaitTx(txSig);
 		const depositRecords = eventSubscriber.getEventsArray('DepositRecord');
@@ -228,10 +228,10 @@ describe('subaccounts', () => {
 	it('Update user name', async () => {
 		const subAccountId = 0;
 		const name = 'lil perp v2';
-		await driftClient.updateUserName(name, subAccountId);
+		await velocityClient.updateUserName(name, subAccountId);
 
-		await driftClient.fetchAccounts();
-		assert(decodeName(driftClient.getUserAccount().name) === name);
+		await velocityClient.fetchAccounts();
+		assert(decodeName(velocityClient.getUserAccount().name) === name);
 	});
 
 	it('Update custom margin ratio', async () => {
@@ -239,28 +239,30 @@ describe('subaccounts', () => {
 		const customMarginRatio = MARGIN_PRECISION.toNumber() * 2;
 
 		const updates = [{ marginRatio: customMarginRatio, subAccountId }];
-		await driftClient.updateUserCustomMarginRatio(updates);
+		await velocityClient.updateUserCustomMarginRatio(updates);
 
-		await driftClient.fetchAccounts();
-		assert(driftClient.getUserAccount().maxMarginRatio === customMarginRatio);
+		await velocityClient.fetchAccounts();
+		assert(
+			velocityClient.getUserAccount().maxMarginRatio === customMarginRatio
+		);
 	});
 
 	it('Update delegate', async () => {
 		const delegateKeyPair = await createFundedKeyPair(bankrunContextWrapper);
-		await driftClient.updateUserDelegate(delegateKeyPair.publicKey);
+		await velocityClient.updateUserDelegate(delegateKeyPair.publicKey);
 
-		await driftClient.fetchAccounts();
+		await velocityClient.fetchAccounts();
 		assert(
-			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
+			velocityClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
 		);
 	});
 
 	it('delete user', async () => {
-		await driftClient.switchActiveUser(1);
+		await velocityClient.switchActiveUser(1);
 
 		let deleteFailed = false;
 		try {
-			const txSig = await driftClient.deleteUser(0);
+			const txSig = await velocityClient.deleteUser(0);
 			bankrunContextWrapper.printTxLogs(txSig);
 		} catch (e) {
 			deleteFailed = true;
@@ -268,10 +270,10 @@ describe('subaccounts', () => {
 
 		assert(deleteFailed);
 
-		await driftClient.deleteUser(1);
+		await velocityClient.deleteUser(1);
 
-		assert(driftClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
-		assert(driftClient.getStateAccount().numberOfSubAccounts.eq(new BN(1)));
+		assert(velocityClient.getStateAccount().numberOfAuthorities.eq(new BN(1)));
+		assert(velocityClient.getStateAccount().numberOfSubAccounts.eq(new BN(1)));
 	});
 
 	it('fail to reinitialize subaccount 0', async () => {
@@ -280,7 +282,7 @@ describe('subaccounts', () => {
 
 		let initializeFailed = false;
 		try {
-			await driftClient.initializeUserAccount(subAccountId, name);
+			await velocityClient.initializeUserAccount(subAccountId, name);
 		} catch (e) {
 			assert(e.toString().includes('0x1846'));
 			initializeFailed = true;

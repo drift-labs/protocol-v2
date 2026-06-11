@@ -206,7 +206,7 @@ export async function createUSDCAccountForUser(
 	);
 	return userUSDCAccount.publicKey;
 }
-export async function initializeAndSubscribeDriftClient(
+export async function initializeAndSubscribeVelocityClient(
 	connection: Connection,
 	program: Program,
 	userKeyPair: Keypair,
@@ -215,7 +215,7 @@ export async function initializeAndSubscribeDriftClient(
 	oracleInfos: OracleInfo[] = [],
 	accountLoader?: BulkAccountLoader
 ): Promise<TestClient> {
-	const driftClient = new TestClient({
+	const velocityClient = new TestClient({
 		connection,
 		wallet: new Wallet(userKeyPair),
 		programID: program.programId,
@@ -235,9 +235,9 @@ export async function initializeAndSubscribeDriftClient(
 					type: 'websocket',
 			  },
 	});
-	await driftClient.subscribe();
-	await driftClient.initializeUserAccount();
-	return driftClient;
+	await velocityClient.subscribe();
+	await velocityClient.initializeUserAccount();
+	return velocityClient;
 }
 
 export async function createUserWithUSDCAccount(
@@ -257,7 +257,7 @@ export async function createUserWithUSDCAccount(
 		usdcMint,
 		usdcAmount
 	);
-	const driftClient = await initializeAndSubscribeDriftClient(
+	const velocityClient = await initializeAndSubscribeVelocityClient(
 		provider.connection,
 		chProgram,
 		userKeyPair,
@@ -266,7 +266,7 @@ export async function createUserWithUSDCAccount(
 		oracleInfos,
 		accountLoader
 	);
-	return [driftClient, usdcAccount, userKeyPair];
+	return [velocityClient, usdcAccount, userKeyPair];
 }
 
 export async function createWSolTokenAccountForUser(
@@ -311,7 +311,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 		usdcMint,
 		usdcAmount
 	);
-	const driftClient = await initializeAndSubscribeDriftClient(
+	const velocityClient = await initializeAndSubscribeVelocityClient(
 		provider.connection,
 		chProgram,
 		userKeyPair,
@@ -321,7 +321,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 		accountLoader
 	);
 
-	return [driftClient, solAccount, usdcAccount, userKeyPair];
+	return [velocityClient, solAccount, usdcAccount, userKeyPair];
 }
 
 export async function printTxLogs(
@@ -373,7 +373,7 @@ export async function initUserAccounts(
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
-	const driftClients = [];
+	const velocityClients = [];
 	const userAccountInfos = [];
 	let userAccountPublicKey: PublicKey;
 	for (let i = 0; i < NUM_USERS; i++) {
@@ -390,9 +390,9 @@ export async function initUserAccounts(
 			ownerWallet.publicKey
 		);
 
-		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
+		const chProgram = anchor.workspace.Velocity as anchor.Program; // this.program-ify
 
-		const driftClient1 = new TestClient({
+		const velocityClient1 = new TestClient({
 			connection: provider.connection,
 			//@ts-ignore
 			wallet: ownerWallet,
@@ -413,22 +413,22 @@ export async function initUserAccounts(
 						type: 'websocket',
 				  },
 		});
-		// await driftClient1.initialize(usdcMint.publicKey, false);
-		await driftClient1.subscribe();
+		// await velocityClient1.initialize(usdcMint.publicKey, false);
+		await velocityClient1.subscribe();
 		userUSDCAccounts.push(newUserAcct);
-		driftClients.push(driftClient1);
+		velocityClients.push(velocityClient1);
 		// var last_idx = userUSDCAccounts.length - 1;
 		// try {
 		[, userAccountPublicKey] =
-			await driftClient1.initializeUserAccountAndDepositCollateral(
+			await velocityClient1.initializeUserAccountAndDepositCollateral(
 				// marketPublicKey,
 				usdcAmount,
 				newUserAcct.publicKey
 			);
 		// const userAccount = 0;
 		const userAccount = new User({
-			driftClient: driftClient1,
-			userAccountPublicKey: await driftClient1.getUserAccountPublicKey(),
+			velocityClient: velocityClient1,
+			userAccountPublicKey: await velocityClient1.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 
@@ -438,7 +438,7 @@ export async function initUserAccounts(
 		// }
 		user_keys.push(userAccountPublicKey);
 	}
-	return [userUSDCAccounts, user_keys, driftClients, userAccountInfos];
+	return [userUSDCAccounts, user_keys, velocityClients, userAccountInfos];
 }
 const empty32Buffer = buffer.Buffer.alloc(32);
 const PKorNull = (data) =>

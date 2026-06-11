@@ -52,7 +52,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('test function when spot market at >= 100% util', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Velocity as Program;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -65,12 +65,12 @@ describe('test function when spot market at >= 100% util', () => {
 
 	let usdcMint;
 
-	let firstUserDriftClient: TestClient;
-	let firstUserDriftClientUSDCAccount: PublicKey;
+	let firstUserVelocityClient: TestClient;
+	let firstUserVelocityClientUSDCAccount: PublicKey;
 
-	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
-	let secondUserDriftClientUSDCAccount: PublicKey;
+	let secondUserVelocityClient: TestClient;
+	let secondUserVelocityClientWSOLAccount: PublicKey;
+	let secondUserVelocityClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -133,9 +133,9 @@ describe('test function when spot market at >= 100% util', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserDriftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
-		// await thirdUserDriftClient.unsubscribe();
+		await firstUserVelocityClient.unsubscribe();
+		await secondUserVelocityClient.unsubscribe();
+		// await thirdUserVelocityClient.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -301,7 +301,7 @@ describe('test function when spot market at >= 100% util', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
+		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -315,11 +315,11 @@ describe('test function when spot market at >= 100% util', () => {
 
 		const marketIndex = 0;
 		await sleep(100);
-		await firstUserDriftClient.fetchAccounts();
-		const txSig = await firstUserDriftClient.deposit(
+		await firstUserVelocityClient.fetchAccounts();
+		const txSig = await firstUserVelocityClient.deposit(
 			usdcAmount,
 			marketIndex,
-			firstUserDriftClientUSDCAccount
+			firstUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -342,18 +342,21 @@ describe('test function when spot market at >= 100% util', () => {
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		const spotPosition = firstUserDriftClient.getUserAccount().spotPositions[0];
+		const spotPosition =
+			firstUserVelocityClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
-		assert(firstUserDriftClient.getUserAccount().totalDeposits.eq(usdcAmount));
+		assert(
+			firstUserVelocityClient.getUserAccount().totalDeposits.eq(usdcAmount)
+		);
 	});
 
 	it('Second User Deposit SOL', async () => {
 		[
-			secondUserDriftClient,
-			secondUserDriftClientWSOLAccount,
-			secondUserDriftClientUSDCAccount,
+			secondUserVelocityClient,
+			secondUserVelocityClientWSOLAccount,
+			secondUserVelocityClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -367,10 +370,10 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 
 		const marketIndex = 1;
-		const txSig = await secondUserDriftClient.deposit(
+		const txSig = await secondUserVelocityClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserDriftClientWSOLAccount
+			secondUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -408,12 +411,12 @@ describe('test function when spot market at >= 100% util', () => {
 			SpotBalanceType.DEPOSIT
 		);
 		const spotPosition =
-			secondUserDriftClient.getUserAccount().spotPositions[1];
+			secondUserVelocityClient.getUserAccount().spotPositions[1];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
 		assert(
-			secondUserDriftClient
+			secondUserVelocityClient
 				.getUserAccount()
 				.totalDeposits.eq(new BN(30).mul(PRICE_PRECISION))
 		);
@@ -422,10 +425,10 @@ describe('test function when spot market at >= 100% util', () => {
 	it('Second User Withdraw all USDC', async () => {
 		const marketIndex = 0;
 		const withdrawAmount = usdcAmount.sub(ONE); // cause borrow rounding
-		const txSig = await secondUserDriftClient.withdraw(
+		const txSig = await secondUserVelocityClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserDriftClientUSDCAccount
+			secondUserVelocityClientUSDCAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -450,30 +453,33 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 
 		const spotPosition =
-			secondUserDriftClient.getUserAccount().spotPositions[0];
+			secondUserVelocityClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'borrow'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
 		assert(
-			secondUserDriftClient.getUserAccount().totalWithdraws.eq(withdrawAmount)
+			secondUserVelocityClient
+				.getUserAccount()
+				.totalWithdraws.eq(withdrawAmount)
 		);
 	});
 
 	it('Update Cumulative Interest with 100% utilization', async () => {
 		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(200);
 
-		const txSig = await firstUserDriftClient.updateSpotMarketCumulativeInterest(
-			usdcmarketIndex
-		);
+		const txSig =
+			await firstUserVelocityClient.updateSpotMarketCumulativeInterest(
+				usdcmarketIndex
+			);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await firstUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
 		const newSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldSpotMarketAccount,
@@ -512,18 +518,19 @@ describe('test function when spot market at >= 100% util', () => {
 	it('Update Cumulative Interest with 100% utilization (again)', async () => {
 		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(10000);
 
-		const txSig = await firstUserDriftClient.updateSpotMarketCumulativeInterest(
-			usdcmarketIndex
-		);
+		const txSig =
+			await firstUserVelocityClient.updateSpotMarketCumulativeInterest(
+				usdcmarketIndex
+			);
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await firstUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
 		const newSpotMarketAccount =
-			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
+			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldSpotMarketAccount,
@@ -561,7 +568,7 @@ describe('test function when spot market at >= 100% util', () => {
 
 	it('trade spot at 100% util', async () => {
 		const spotMarketAccountAfter =
-			secondUserDriftClient.getSpotMarketAccount(0);
+			secondUserVelocityClient.getSpotMarketAccount(0);
 		const util12 = calculateUtilization(spotMarketAccountAfter, ZERO);
 		console.log('USDC utilization:', util12.toNumber() / 1e4, '%');
 
@@ -569,24 +576,26 @@ describe('test function when spot market at >= 100% util', () => {
 
 		const updates = [{ marginTradingEnabled: true, subAccountId: 0 }];
 
-		await firstUserDriftClient.updateUserMarginTradingEnabled(updates);
+		await firstUserVelocityClient.updateUserMarginTradingEnabled(updates);
 
-		const takerDriftClientUser = new User({
-			driftClient: firstUserDriftClient,
+		const takerVelocityClientUser = new User({
+			velocityClient: firstUserVelocityClient,
 			userAccountPublicKey:
-				await firstUserDriftClient.getUserAccountPublicKey(),
+				await firstUserVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
-		const takerUSDCBefore = takerDriftClientUser.getTokenAmount(0);
-		const takerSOLBefore = takerDriftClientUser.getTokenAmount(1);
+		const takerUSDCBefore = takerVelocityClientUser.getTokenAmount(0);
+		const takerSOLBefore = takerVelocityClientUser.getTokenAmount(1);
 
-		const makerUSDCBefore = secondUserDriftClient.getUser().getTokenAmount(0);
-		const makerSOLBefore = secondUserDriftClient.getUser().getTokenAmount(1);
+		const makerUSDCBefore = secondUserVelocityClient
+			.getUser()
+			.getTokenAmount(0);
+		const makerSOLBefore = secondUserVelocityClient.getUser().getTokenAmount(1);
 
 		const baseAssetAmount = BASE_PRECISION;
 		const takerOrderParams = getLimitOrderParams({
@@ -600,9 +609,9 @@ describe('test function when spot market at >= 100% util', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		await firstUserDriftClient.placeSpotOrder(takerOrderParams);
-		await takerDriftClientUser.fetchAccounts();
-		const order = takerDriftClientUser.getOrderByUserOrderId(1);
+		await firstUserVelocityClient.placeSpotOrder(takerOrderParams);
+		await takerVelocityClientUser.fetchAccounts();
+		const order = takerVelocityClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
 
 		const makerOrderParams = getLimitOrderParams({
@@ -615,25 +624,25 @@ describe('test function when spot market at >= 100% util', () => {
 			bitFlags: 1,
 		});
 
-		const txSig2 = await secondUserDriftClient.placeAndMakeSpotOrder(
+		const txSig2 = await secondUserVelocityClient.placeAndMakeSpotOrder(
 			makerOrderParams,
 			{
-				taker: await firstUserDriftClient.getUserAccountPublicKey(),
-				order: firstUserDriftClient.getOrderByUserId(1),
-				takerUserAccount: firstUserDriftClient.getUserAccount(),
-				takerStats: firstUserDriftClient.getUserStatsAccountPublicKey(),
+				taker: await firstUserVelocityClient.getUserAccountPublicKey(),
+				order: firstUserVelocityClient.getOrderByUserId(1),
+				takerUserAccount: firstUserVelocityClient.getUserAccount(),
+				takerStats: firstUserVelocityClient.getUserStatsAccountPublicKey(),
 			}
 		);
 		bankrunContextWrapper.printTxLogs(txSig2);
-		await firstUserDriftClient.fetchAccounts();
-		await takerDriftClientUser.fetchAccounts();
-		await secondUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 
-		const takerUSDCAfter = takerDriftClientUser.getTokenAmount(0);
-		const takerSOLAfter = takerDriftClientUser.getTokenAmount(1);
+		const takerUSDCAfter = takerVelocityClientUser.getTokenAmount(0);
+		const takerSOLAfter = takerVelocityClientUser.getTokenAmount(1);
 
-		const makerUSDCAfter = secondUserDriftClient.getUser().getTokenAmount(0);
-		const makerSOLAfter = secondUserDriftClient.getUser().getTokenAmount(1);
+		const makerUSDCAfter = secondUserVelocityClient.getUser().getTokenAmount(0);
+		const makerSOLAfter = secondUserVelocityClient.getUser().getTokenAmount(1);
 
 		console.log(
 			'taker usdc:',
@@ -666,12 +675,12 @@ describe('test function when spot market at >= 100% util', () => {
 		assert(takerSOLBefore.eq(ZERO));
 		assert(takerSOLAfter.gt(ZERO));
 
-		await takerDriftClientUser.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
 	});
 
 	it('trade/settle perp pnl at 100% util', async () => {
 		const spotMarketAccountAfter =
-			secondUserDriftClient.getSpotMarketAccount(0);
+			secondUserVelocityClient.getSpotMarketAccount(0);
 		const util12 = calculateUtilization(spotMarketAccountAfter, ZERO);
 		console.log('USDC utilization:', util12.toNumber() / 1e4, '%');
 
@@ -689,28 +698,28 @@ describe('test function when spot market at >= 100% util', () => {
 			postOnly: PostOnlyParams.NONE,
 		});
 
-		const takerDriftClientUser = new User({
-			driftClient: firstUserDriftClient,
+		const takerVelocityClientUser = new User({
+			velocityClient: firstUserVelocityClient,
 			userAccountPublicKey:
-				await firstUserDriftClient.getUserAccountPublicKey(),
+				await firstUserVelocityClient.getUserAccountPublicKey(),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		await takerDriftClientUser.subscribe();
+		await takerVelocityClientUser.subscribe();
 
-		const firstUserSpot = await takerDriftClientUser.getSpotPosition(0);
-		console.log('takerDriftClientUser spot 0:', firstUserSpot);
+		const firstUserSpot = await takerVelocityClientUser.getSpotPosition(0);
+		console.log('takerVelocityClientUser spot 0:', firstUserSpot);
 		console.log(
 			'taker token amount:',
-			takerDriftClientUser.getTokenAmount(0).toString()
+			takerVelocityClientUser.getTokenAmount(0).toString()
 		);
 		assert(isVariant(firstUserSpot.balanceType, 'borrow'));
 
-		await firstUserDriftClient.placePerpOrder(takerOrderParams);
-		await takerDriftClientUser.fetchAccounts();
-		const order = takerDriftClientUser.getOrderByUserOrderId(1);
+		await firstUserVelocityClient.placePerpOrder(takerOrderParams);
+		await takerVelocityClientUser.fetchAccounts();
+		const order = takerVelocityClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
 
 		const makerOrderParams = getLimitOrderParams({
@@ -722,84 +731,86 @@ describe('test function when spot market at >= 100% util', () => {
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			bitFlags: 1,
 		});
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
-		const takerPos = takerDriftClientUser.getPerpPosition(0);
+		const takerPos = takerVelocityClientUser.getPerpPosition(0);
 		console.log(
 			'takerPos.baseAssetAmount:',
 			takerPos.baseAssetAmount.toString()
 		);
 		assert(takerPos.baseAssetAmount.eq(ZERO));
 
-		const secondUserSpot = (await secondUserDriftClient.getUserAccount())
+		const secondUserSpot = (await secondUserVelocityClient.getUserAccount())
 			.spotPositions[0];
-		console.log('secondUserDriftClient spot 0:', secondUserSpot);
+		console.log('secondUserVelocityClient spot 0:', secondUserSpot);
 		assert(isVariant(secondUserSpot.balanceType, 'deposit'));
 		console.log(
 			'maker token amount:',
-			secondUserDriftClient.getUser().getTokenAmount(0).toString()
+			secondUserVelocityClient.getUser().getTokenAmount(0).toString()
 		);
 
-		const txSig = await secondUserDriftClient.placeAndMakePerpOrder(
+		const txSig = await secondUserVelocityClient.placeAndMakePerpOrder(
 			makerOrderParams,
 			{
-				taker: await firstUserDriftClient.getUserAccountPublicKey(),
-				order: firstUserDriftClient.getOrderByUserId(1),
-				takerUserAccount: firstUserDriftClient.getUserAccount(),
-				takerStats: firstUserDriftClient.getUserStatsAccountPublicKey(),
+				taker: await firstUserVelocityClient.getUserAccountPublicKey(),
+				order: firstUserVelocityClient.getOrderByUserId(1),
+				takerUserAccount: firstUserVelocityClient.getUserAccount(),
+				takerStats: firstUserVelocityClient.getUserStatsAccountPublicKey(),
 			}
 		);
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
-		await takerDriftClientUser.fetchAccounts();
+		await takerVelocityClientUser.fetchAccounts();
 
-		const takerPos2 = takerDriftClientUser.getPerpPosition(0);
+		const takerPos2 = takerVelocityClientUser.getPerpPosition(0);
 		console.log(
 			'takerPos.baseAssetAmount after:',
 			takerPos2.baseAssetAmount.toString()
 		);
 		assert(takerPos2.baseAssetAmount.gt(ZERO));
 
-		const takerUSDCBefore = takerDriftClientUser.getTokenAmount(0);
-		// const takerSOLBefore = takerDriftClientUser.getTokenAmount(1);
+		const takerUSDCBefore = takerVelocityClientUser.getTokenAmount(0);
+		// const takerSOLBefore = takerVelocityClientUser.getTokenAmount(1);
 
-		const makerUSDCBefore = secondUserDriftClient.getUser().getTokenAmount(0);
-		// const makerSOLBefore = secondUserDriftClient.getUser().getTokenAmount(1);
+		const makerUSDCBefore = secondUserVelocityClient
+			.getUser()
+			.getTokenAmount(0);
+		// const makerSOLBefore = secondUserVelocityClient.getUser().getTokenAmount(1);
 
 		//ensure that borrow cant borrow more to settle pnl
 		console.log('set pyth price to 32.99');
 		await setFeedPriceNoProgram(bankrunContextWrapper, 32.99, solOracle);
-		await firstUserDriftClient.fetchAccounts();
-		await secondUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 
 		// settle losing short maker (who has usdc deposit) first
-		const settleTx2 = await firstUserDriftClient.settlePNL(
-			await secondUserDriftClient.getUserAccountPublicKey(),
-			secondUserDriftClient.getUserAccount(),
+		const settleTx2 = await firstUserVelocityClient.settlePNL(
+			await secondUserVelocityClient.getUserAccountPublicKey(),
+			secondUserVelocityClient.getUserAccount(),
 			marketIndex
 		);
 		bankrunContextWrapper.printTxLogs(settleTx2);
 
-		const settleTx1 = await firstUserDriftClient.settlePNL(
-			await firstUserDriftClient.getUserAccountPublicKey(),
-			firstUserDriftClient.getUserAccount(),
+		const settleTx1 = await firstUserVelocityClient.settlePNL(
+			await firstUserVelocityClient.getUserAccountPublicKey(),
+			firstUserVelocityClient.getUserAccount(),
 			marketIndex
 		);
 		bankrunContextWrapper.printTxLogs(settleTx1);
-		await secondUserDriftClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 
-		const takerUSDCAfter = takerDriftClientUser.getTokenAmount(0);
-		// const takerSOLAfter = takerDriftClientUser.getTokenAmount(1);
+		const takerUSDCAfter = takerVelocityClientUser.getTokenAmount(0);
+		// const takerSOLAfter = takerVelocityClientUser.getTokenAmount(1);
 
-		const makerUSDCAfter = secondUserDriftClient.getUser().getTokenAmount(0);
-		const solPerpMarketAfter = secondUserDriftClient.getPerpMarketAccount(0);
+		const makerUSDCAfter = secondUserVelocityClient.getUser().getTokenAmount(0);
+		const solPerpMarketAfter = secondUserVelocityClient.getPerpMarketAccount(0);
 		console.log(
 			'solPerpMarketAfter.pnlPool.scaledBalance:',
 			solPerpMarketAfter.pnlPool.scaledBalance
 		);
 		assert(solPerpMarketAfter.pnlPool.scaledBalance.eq(ZERO));
-		// const makerSOLAfter = secondUserDriftClient.getUser().getTokenAmount(1);
+		// const makerSOLAfter = secondUserVelocityClient.getUser().getTokenAmount(1);
 
 		assert(makerUSDCBefore.gt(makerUSDCAfter));
 		assert(makerUSDCAfter.eq(ZERO));
@@ -808,23 +819,23 @@ describe('test function when spot market at >= 100% util', () => {
 		//allow that deposit to settle negative pnl for borrow
 		console.log('set pyth price to 27.4');
 		await setFeedPriceNoProgram(bankrunContextWrapper, 27.4, solOracle);
-		await firstUserDriftClient.fetchAccounts();
-		await secondUserDriftClient.fetchAccounts();
+		await firstUserVelocityClient.fetchAccounts();
+		await secondUserVelocityClient.fetchAccounts();
 
-		const settleTx1Good = await firstUserDriftClient.settlePNL(
-			await firstUserDriftClient.getUserAccountPublicKey(),
-			firstUserDriftClient.getUserAccount(),
+		const settleTx1Good = await firstUserVelocityClient.settlePNL(
+			await firstUserVelocityClient.getUserAccountPublicKey(),
+			firstUserVelocityClient.getUserAccount(),
 			marketIndex
 		);
 		bankrunContextWrapper.printTxLogs(settleTx1Good);
 
-		const settleTx2Good = await firstUserDriftClient.settlePNL(
-			await secondUserDriftClient.getUserAccountPublicKey(),
-			secondUserDriftClient.getUserAccount(),
+		const settleTx2Good = await firstUserVelocityClient.settlePNL(
+			await secondUserVelocityClient.getUserAccountPublicKey(),
+			secondUserVelocityClient.getUserAccount(),
 			marketIndex
 		);
 		bankrunContextWrapper.printTxLogs(settleTx2Good);
 
-		await takerDriftClientUser.unsubscribe();
+		await takerVelocityClientUser.unsubscribe();
 	});
 });

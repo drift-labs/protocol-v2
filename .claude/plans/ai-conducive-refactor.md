@@ -18,7 +18,7 @@ Structural changes to reduce context explosion and improve discoverability for A
 
 | Area | Worst Offender | Size | Action |
 |---|---|---|---|
-| SDK | `sdk/src/driftClient.ts` | 12,933 lines | Split by domain |
+| SDK | `sdk/src/velocityClient.ts` | 12,933 lines | Split by domain |
 | SDK | `sdk/src/adminClient.ts` | 6,515 lines | Split by domain |
 | SDK | `sdk/src/user.ts` | 4,651 lines | Split by domain |
 | Instructions | `instructions/admin.rs` | 6,067 lines | Split into submodule |
@@ -46,7 +46,7 @@ Steps are ordered by ROI-to-risk ratio. Each step is independently shippable and
 7. **Split `instructions/keeper.rs`** (distinct domain, moderate size)
 8. **Split `instructions/admin.rs`**
 9. **Split `instructions/user.rs`**
-10. **Split `sdk/src/driftClient.ts`** (largest single file in repo)
+10. **Split `sdk/src/velocityClient.ts`** (largest single file in repo)
 11. **Split `sdk/src/adminClient.ts`**
 12. **Split `sdk/src/user.ts`**
 13. **Update `CLAUDE.md`** (reflect new paths, add ARCHITECTURE.md pointer)
@@ -59,51 +59,51 @@ Steps are ordered by ROI-to-risk ratio. Each step is independently shippable and
 
 **Files to update and suggested comment:**
 
-- `programs/drift/src/controller/mod.rs`
+- `programs/velocity/src/controller/mod.rs`
   ```rust
   //! Stateful protocol operations: fills, liquidations, position mutations, funding settlements.
   //! Pure math lives in `crate::math`. Instruction handlers (account validation) live in `crate::instructions`.
   ```
 
-- `programs/drift/src/instructions/mod.rs`
+- `programs/velocity/src/instructions/mod.rs`
   ```rust
   //! Anchor instruction handlers: account constraints, deserialization, delegation to `controller`.
   //! user.rs = trading (orders, deposits, LP). keeper.rs = cranks (funding, settlement, liquidation). admin.rs = governance.
   ```
 
-- `programs/drift/src/math/mod.rs`
+- `programs/velocity/src/math/mod.rs`
   ```rust
   //! Pure numeric logic: margin, fees, funding, AMM pricing, oracle validation.
   //! No account I/O. All functions are deterministic given inputs.
   ```
 
-- `programs/drift/src/state/mod.rs`
+- `programs/velocity/src/state/mod.rs`
   ```rust
   //! On-chain account structs and their accessor/mutation methods.
   //! Zero-copy types (User, PerpMarket, SpotMarket) use AccountLoader. Enums and params are Copy.
   ```
 
-- `programs/drift/src/controller/orders.rs` (top of file, before use statements)
+- `programs/velocity/src/controller/orders.rs` (top of file, before use statements)
   ```rust
   //! Order lifecycle: placement validation, cancellation, and fill matching (perp + spot).
   //! Margin math → `crate::math::margin`. Liquidation fills → `crate::controller::liquidation`.
   //! AMM JIT and fuel accounting are in submodule tests but share this file's logic.
   ```
 
-- `programs/drift/src/controller/liquidation.rs`
+- `programs/velocity/src/controller/liquidation.rs`
   ```rust
   //! Liquidation engine: margin checks, position reduction, social loss, insurance draws.
   //! Liquidation instruction entry points → `crate::instructions::keeper`.
   ```
 
-- `programs/drift/src/lib.rs` (crate-level, before `#![allow(...)]` lines)
+- `programs/velocity/src/lib.rs` (crate-level, before `#![allow(...)]` lines)
   ```rust
-  //! Drift Protocol v2 — Solana perpetuals and spot trading.
+  //! Velocity Protocol v2 — Solana perpetuals and spot trading.
   //! Custom high-frequency entrypoint at discriminator `[0xFF, 0xFF, 0xFF, 0xFF, opcode]` bypasses Anchor overhead.
   //! Standard Anchor `#[program]` entrypoint handles all other instructions.
   ```
 
-**Verify:** `cargo build -p drift` passes.
+**Verify:** `cargo build -p velocity` passes.
 
 ---
 
@@ -160,7 +160,7 @@ pub use keeper::{FillPerpOrder, SettlePnl, UpdateFundingRate, LiquidatePerp, /* 
 pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* ... */};
 ```
 
-**Verify:** `cargo build -p drift` — all call sites resolve.
+**Verify:** `cargo build -p velocity` — all call sites resolve.
 
 ---
 
@@ -197,7 +197,7 @@ pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* .
 | `tests/markets/` | curve.ts, oracleDiffSources.ts, oracleFillPriceGuardrails.ts, repegAndSpread.ts, updateAMM.ts, updateK.ts, cappedSymFunding.ts, delistMarket.ts, delistMarketLiq.ts, imbalancePerpPnl.ts, switchOracle.ts, pyth.ts, pythLazerBankrun.ts, perpMarketConfig.ts, prelisting.ts, pauseExchange.ts |
 | `tests/spot/` | spotDepositWithdraw.ts, spotDepositWithdraw22.ts, spotDepositWithdraw22TransferHooks.ts, fillSpot.ts, spotSwap.ts, spotSwap22.ts, spotMarketPoolIds.ts, depositIntoSpotMarketVault.ts, maxDeposit.ts, pauseDepositWithdraw.ts, assetTier.ts |
 | `tests/admin/` | admin.ts, deleteInitializedSpotMarket.ts, adminWithdrawFromInsuranceFundVault.ts, insuranceFundStake.ts, ifRebalance.ts, builderCodes.ts |
-| `tests/users/` | userAccount.ts, subaccounts.ts, userDelegate.ts, referrer.ts, driftClient.ts, decodeUser.ts, isolatedPositionDriftClient.ts, highLeverageMode.ts |
+| `tests/users/` | userAccount.ts, subaccounts.ts, userDelegate.ts, referrer.ts, velocityClient.ts, decodeUser.ts, isolatedPositionVelocityClient.ts, highLeverageMode.ts |
 | `tests/` (keep root) | lpPool.ts, lpPoolSwap.ts, openbookTest.ts, phoenixTest.ts, serumTest.ts, switchboardTxCus.ts, settlePNLInvariant.ts, postOnlyAmmFulfillment.ts, fuel.ts, fuelSweep.ts, surgePricing.ts, transferPerpPosition.ts, whitelist.ts |
 
 **After moving files:**
@@ -212,7 +212,7 @@ pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* .
 
 **Why:** Hottest-path file for trading and PropAMM work. Every fill, placement, and cancellation query forces loading 5,752 lines. Splitting enables targeted context loading.
 
-**Create `programs/drift/src/controller/orders/` directory:**
+**Create `programs/velocity/src/controller/orders/` directory:**
 
 | New file | Contents |
 |---|---|
@@ -223,7 +223,7 @@ pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* .
 
 **`orders/mod.rs` must re-export all public symbols** that currently live in `orders.rs` so zero call sites change.
 
-**Verify:** `cargo test -p drift` passes with no logic changes.
+**Verify:** `cargo test -p velocity` passes with no logic changes.
 
 ---
 
@@ -231,7 +231,7 @@ pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* .
 
 **Why:** keeper.rs is not in the existing split plan but at 4,193 lines it has distinct, separable domains: funding rate cranks, PnL settlement, and liquidation entry points. These are rarely edited together.
 
-**Create `programs/drift/src/instructions/keeper/` directory:**
+**Create `programs/velocity/src/instructions/keeper/` directory:**
 
 | New file | Contents |
 |---|---|
@@ -241,13 +241,13 @@ pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* .
 | `keeper/fill.rs` | `fill_perp_order`, `fill_spot_order`, keeper-side fill dispatch |
 | `keeper/mod.rs` | `//!` doc comment + `pub use` re-exports |
 
-**Verify:** `cargo test -p drift` passes.
+**Verify:** `cargo test -p velocity` passes.
 
 ---
 
 ## Step 8 — Split `instructions/admin.rs` (6,067 lines, ~126 handlers)
 
-**Create `programs/drift/src/instructions/admin/` directory:**
+**Create `programs/velocity/src/instructions/admin/` directory:**
 
 | New file | Contents |
 |---|---|
@@ -261,13 +261,13 @@ pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* .
 
 **Update `instructions/mod.rs`** to use the same explicit re-export style established in Step 3.
 
-**Verify:** `cargo test -p drift` + `ts-mocha -t 300000 ./tests/admin/admin.ts` pass.
+**Verify:** `cargo test -p velocity` + `ts-mocha -t 300000 ./tests/admin/admin.ts` pass.
 
 ---
 
 ## Step 9 — Split `instructions/user.rs` (5,252 lines)
 
-**Create `programs/drift/src/instructions/user/` directory:**
+**Create `programs/velocity/src/instructions/user/` directory:**
 
 | New file | Contents |
 |---|---|
@@ -281,28 +281,28 @@ pub use admin::{InitializeMarket, UpdatePerpMarket, UpdateOracleGuardRails, /* .
 
 ---
 
-## Step 10 — Split `sdk/src/driftClient.ts` (12,933 lines)
+## Step 10 — Split `sdk/src/velocityClient.ts` (12,933 lines)
 
 **Why:** The largest single file in the repo and the one most queried by AI when building integrations or debugging. No plan previously addressed the SDK side at all. Every SDK query forces loading this monolith.
 
 **Strategy:** Decompose by instruction domain into a directory-based class composition pattern.
 
-**Create `sdk/src/driftClient/` directory:**
+**Create `sdk/src/velocityClient/` directory:**
 
 | New file | Contents |
 |---|---|
-| `driftClient/orders.ts` | `placePerpOrder`, `cancelOrder`, `modifyOrder`, `placeAndMake*` methods |
-| `driftClient/positions.ts` | `settlePnl`, `closePosition`, LP add/remove, position query methods |
-| `driftClient/deposits.ts` | `deposit`, `withdraw`, `transferBetweenSubAccounts` |
-| `driftClient/markets.ts` | Market info queries, oracle price fetching, funding rate reads |
-| `driftClient/accounts.ts` | `initializeUser`, `deleteUser`, subaccount management, delegate ops |
-| `driftClient/subscribe.ts` | Account subscription setup, slot tracking, connection management |
-| `driftClient/index.ts` | `DriftClient` class that extends/composes the above, re-exports all types |
+| `velocityClient/orders.ts` | `placePerpOrder`, `cancelOrder`, `modifyOrder`, `placeAndMake*` methods |
+| `velocityClient/positions.ts` | `settlePnl`, `closePosition`, LP add/remove, position query methods |
+| `velocityClient/deposits.ts` | `deposit`, `withdraw`, `transferBetweenSubAccounts` |
+| `velocityClient/markets.ts` | Market info queries, oracle price fetching, funding rate reads |
+| `velocityClient/accounts.ts` | `initializeUser`, `deleteUser`, subaccount management, delegate ops |
+| `velocityClient/subscribe.ts` | Account subscription setup, slot tracking, connection management |
+| `velocityClient/index.ts` | `VelocityClient` class that extends/composes the above, re-exports all types |
 
-**Maintain backward compatibility:** `sdk/src/driftClient.ts` becomes a re-export barrel:
+**Maintain backward compatibility:** `sdk/src/velocityClient.ts` becomes a re-export barrel:
 ```typescript
-export { DriftClient } from './driftClient/index';
-export * from './driftClient/index';
+export { VelocityClient } from './velocityClient/index';
+export * from './velocityClient/index';
 ```
 
 **Verify:** `cd sdk && bun run build` passes. `cd sdk && bun run test:ci` passes.
@@ -348,7 +348,7 @@ export * from './driftClient/index';
 **Changes required:**
 
 - **Architecture → Programs section:** Update `src/instructions/` bullet points to reflect the new subdirectory layout (e.g., `user/` instead of `user.rs`, with a note that each subdirectory has a `mod.rs` that re-exports its handlers)
-- **Architecture → SDK section:** Update `driftClient.ts` and `user.ts` entries to reference the new `driftClient/` and `user/` directories; note the barrel re-export pattern
+- **Architecture → SDK section:** Update `velocityClient.ts` and `user.ts` entries to reference the new `velocityClient/` and `user/` directories; note the barrel re-export pattern
 - **Architecture → Tests section:** Update test count and note the subdirectory organization (orders/, liquidation/, markets/, etc.)
 - **Add a navigation pointer:** After the Architecture heading, add a one-liner: `For a detailed execution flow map and module responsibility matrix, see [ARCHITECTURE.md](./ARCHITECTURE.md).`
 - **Do not change:** Build commands, test commands, design patterns section — these remain accurate
@@ -372,7 +372,7 @@ Each step has its own verify block. Full suite after all steps complete:
 
 ```bash
 # Rust
-cargo test -p drift
+cargo test -p velocity
 
 # TypeScript integration (full suite, ~70 tests)
 bash test-scripts/run-anchor-tests.sh --skip-build
