@@ -13412,7 +13412,10 @@
           "writable": true
         },
         {
-          "name": "oracle"
+          "name": "oracle",
+          "relations": [
+            "spot_market"
+          ]
         }
       ],
       "args": [

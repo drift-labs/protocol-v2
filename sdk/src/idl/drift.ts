@@ -13418,7 +13418,10 @@ export type Drift = {
           "writable": true
         },
         {
-          "name": "oracle"
+          "name": "oracle",
+          "relations": [
+            "spotMarket"
+          ]
         }
       ],
       "args": [

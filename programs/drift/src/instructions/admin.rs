@@ -1616,7 +1616,6 @@ pub fn handle_update_spot_market_liquidation_fee(
 
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
-    valid_oracle_for_spot_market(&ctx.accounts.oracle, &ctx.accounts.spot_market)
 )]
 pub fn handle_update_withdraw_guard_threshold(
     ctx: Context<AdminUpdateSpotMarketWithdrawGuardThreshold>,
@@ -3794,9 +3793,12 @@ pub struct AdminUpdateSpotMarketWithdrawGuardThreshold<'info> {
     #[account(constraint = check_warm(&admin.key(), &state)?)]
     pub admin: Signer<'info>,
     pub state: AccountLoader<'info, State>,
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = oracle @ ErrorCode::InvalidOracle,
+    )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
-    /// CHECK: checked in `valid_oracle_for_spot_market` ix access control
+    /// CHECK: validated against `spot_market.oracle` by the `has_one` constraint
     pub oracle: UncheckedAccount<'info>,
 }
 
