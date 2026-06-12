@@ -21,6 +21,7 @@ import {
 	LogProviderType,
 	StreamingLogProviderConfig,
 	PollingLogProviderConfig,
+	LogProviderConfig,
 } from './types';
 import { TxEventCache } from './txEventCache';
 import { EventList } from './eventList';
@@ -39,12 +40,21 @@ export class EventSubscriber {
 	private txEventCache: TxEventCache;
 	private awaitTxPromises = new Map<string, Promise<void>>();
 	private awaitTxResolver = new Map<string, () => void>();
-	private logProvider: LogProvider;
+	private _logProvider?: LogProvider;
 	private _currentProviderType: LogProviderType;
 	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
-	private lastSeenSlot: number;
+	private lastSeenSlot: number | undefined;
 	private lastSeenBlockTime: number | undefined;
-	public lastSeenTxSig: string;
+	public lastSeenTxSig: string | undefined;
+
+	private get logProvider(): LogProvider {
+		if (!this._logProvider) {
+			throw new Error(
+				'EventSubscriber: logProvider accessed before initializeLogProvider()'
+			);
+		}
+		return this._logProvider;
+	}
 
 	public constructor(
 		private connection: Connection,
@@ -57,8 +67,22 @@ export class EventSubscriber {
 		this.eventListMap = new Map<EventType, EventList<EventType>>();
 		this.eventEmitter = new EventEmitter();
 
-		this._currentProviderType = this.options.logProviderConfig.type;
+		this._currentProviderType = this.getLogProviderConfig().type;
 		this.initializeLogProvider();
+	}
+
+	private getLogProviderConfig(): LogProviderConfig {
+		if (this.options.logProviderConfig === undefined) {
+			throw new Error('EventSubscriber: logProviderConfig is not set');
+		}
+		return this.options.logProviderConfig;
+	}
+
+	private getEventTypes(): EventType[] {
+		if (this.options.eventTypes === undefined) {
+			throw new Error('EventSubscriber: eventTypes is not set');
+		}
+		return this.options.eventTypes;
 	}
 
 	get currentProviderType() {
@@ -66,17 +90,15 @@ export class EventSubscriber {
 	}
 
 	private initializeLogProvider(subscribe = false) {
-		const logProviderConfig = this.options.logProviderConfig;
+		const logProviderConfig = this.getLogProviderConfig();
 
 		if (this._currentProviderType === 'websocket') {
-			this.logProvider = new WebSocketLogProvider(
+			this._logProvider = new WebSocketLogProvider(
 				// @ts-ignore
 				this.connection,
 				this.address,
-				this.options.commitment,
-				(
-					this.options.logProviderConfig as WebSocketLogProviderConfig
-				).resubTimeoutMs
+				this.options.commitment ?? 'confirmed',
+				(logProviderConfig as WebSocketLogProviderConfig).resubTimeoutMs
 			);
 		} else if (this._currentProviderType === 'polling') {
 			const frequency =
@@ -88,18 +110,18 @@ export class EventSubscriber {
 					? (logProviderConfig as PollingLogProviderConfig).batchSize
 					: (logProviderConfig as StreamingLogProviderConfig).fallbackBatchSize;
 
-			this.logProvider = new PollingLogProvider(
+			this._logProvider = new PollingLogProvider(
 				// @ts-ignore
 				this.connection,
 				this.address,
-				this.options.commitment,
+				this.options.commitment ?? 'confirmed',
 				frequency,
 				batchSize
 			);
 		} else if (this._currentProviderType === 'events-server') {
-			this.logProvider = new EventsServerLogProvider(
+			this._logProvider = new EventsServerLogProvider(
 				(logProviderConfig as EventsServerLogProviderConfig).url,
-				this.options.eventTypes,
+				this.getEventTypes(),
 				this.options.address ? this.options.address.toString() : undefined
 			);
 		} else {
@@ -126,14 +148,26 @@ export class EventSubscriber {
 	}
 
 	private populateInitialEventListMap() {
-		for (const eventType of this.options.eventTypes) {
+		const maxEventsPerType = this.options.maxEventsPerType;
+		const orderBy = this.options.orderBy;
+		const orderDir = this.options.orderDir;
+		if (
+			maxEventsPerType === undefined ||
+			orderBy === undefined ||
+			orderDir === undefined
+		) {
+			throw new Error(
+				'EventSubscriber: maxEventsPerType, orderBy and orderDir must be set'
+			);
+		}
+		for (const eventType of this.getEventTypes()) {
 			this.eventListMap.set(
 				eventType,
 				new EventList(
 					eventType,
-					this.options.maxEventsPerType,
-					getSortFn(this.options.orderBy, this.options.orderDir),
-					this.options.orderDir
+					maxEventsPerType,
+					getSortFn(orderBy, orderDir),
+					orderDir
 				)
 			);
 		}
@@ -175,30 +209,33 @@ export class EventSubscriber {
 			this.populateInitialEventListMap();
 
 			if (
-				this.options.logProviderConfig.type === 'websocket' ||
-				this.options.logProviderConfig.type === 'events-server'
+				this.getLogProviderConfig().type === 'websocket' ||
+				this.getLogProviderConfig().type === 'events-server'
 			) {
-				const logProviderConfig = this.options
-					.logProviderConfig as StreamingLogProviderConfig;
+				const logProviderConfig =
+					this.getLogProviderConfig() as StreamingLogProviderConfig;
+				// `maxReconnectAttempts` is optional; when unset the original
+				// `reconnectAttempts > undefined` comparison was always false, so
+				// fall back to Infinity to preserve that never-trigger behavior.
+				const maxReconnectAttempts =
+					logProviderConfig.maxReconnectAttempts ?? Infinity;
 
-				if (this.logProvider.eventEmitter) {
-					this.logProvider.eventEmitter.on(
-						'reconnect',
-						async (reconnectAttempts) => {
-							if (reconnectAttempts > logProviderConfig.maxReconnectAttempts) {
-								console.log(
-									`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${logProviderConfig.maxReconnectAttempts}, reconnecting...`
-								);
-								this.logProvider.eventEmitter.removeAllListeners('reconnect');
-								await this.unsubscribe();
-								this.updateFallbackProviderType(
-									reconnectAttempts,
-									logProviderConfig.maxReconnectAttempts
-								);
-								this.initializeLogProvider(true);
-							}
+				const eventEmitter = this.logProvider.eventEmitter;
+				if (eventEmitter) {
+					eventEmitter.on('reconnect', async (reconnectAttempts) => {
+						if (reconnectAttempts > maxReconnectAttempts) {
+							console.log(
+								`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${maxReconnectAttempts}, reconnecting...`
+							);
+							eventEmitter.removeAllListeners('reconnect');
+							await this.unsubscribe();
+							this.updateFallbackProviderType(
+								reconnectAttempts,
+								maxReconnectAttempts
+							);
+							this.initializeLogProvider(true);
 						}
-					);
+					});
 				}
 			}
 			this.logProvider.subscribe(
@@ -243,7 +280,13 @@ export class EventSubscriber {
 		);
 
 		for (const wrappedEvent of wrappedEvents) {
-			this.eventListMap.get(wrappedEvent.eventType).insert(wrappedEvent);
+			const eventList = this.eventListMap.get(wrappedEvent.eventType);
+			if (eventList === undefined) {
+				throw new Error(
+					`EventSubscriber: no EventList for eventType ${wrappedEvent.eventType}`
+				);
+			}
+			eventList.insert(wrappedEvent);
 		}
 
 		// dont emit event till we've added all the events to the eventListMap
@@ -253,7 +296,10 @@ export class EventSubscriber {
 
 		if (this.awaitTxPromises.has(txSig)) {
 			this.awaitTxPromises.delete(txSig);
-			this.awaitTxResolver.get(txSig)();
+			const resolver = this.awaitTxResolver.get(txSig);
+			if (resolver !== undefined) {
+				resolver();
+			}
 			this.awaitTxResolver.delete(txSig);
 		}
 
@@ -264,7 +310,8 @@ export class EventSubscriber {
 
 		if (
 			this.lastSeenBlockTime === undefined ||
-			mostRecentBlockTime > this.lastSeenBlockTime
+			(mostRecentBlockTime !== undefined &&
+				mostRecentBlockTime > this.lastSeenBlockTime)
 		) {
 			this.lastSeenBlockTime = mostRecentBlockTime;
 		}
@@ -278,9 +325,13 @@ export class EventSubscriber {
 		}
 
 		let txFetched = 0;
-		let beforeTx: TransactionSignature = undefined;
-		const untilTx: TransactionSignature = this.options.untilTx;
-		while (txFetched < this.options.maxTx) {
+		let beforeTx: TransactionSignature | undefined = undefined;
+		const untilTx: TransactionSignature | undefined = this.options.untilTx;
+		const maxTx = this.options.maxTx;
+		if (maxTx === undefined) {
+			throw new Error('EventSubscriber: maxTx is not set');
+		}
+		while (txFetched < maxTx) {
 			const response = await fetchLogs(
 				// @ts-ignore
 				this.connection,
@@ -343,8 +394,9 @@ export class EventSubscriber {
 	}
 
 	public awaitTx(txSig: TransactionSignature): Promise<void> {
-		if (this.awaitTxPromises.has(txSig)) {
-			return this.awaitTxPromises.get(txSig);
+		const existingPromise = this.awaitTxPromises.get(txSig);
+		if (existingPromise !== undefined) {
+			return existingPromise;
 		}
 
 		if (this.txEventCache.has(txSig)) {
@@ -373,7 +425,13 @@ export class EventSubscriber {
 	public getEventsArray<Type extends EventType>(
 		eventType: Type
 	): EventMap[Type][] {
-		return this.eventListMap.get(eventType).toArray() as EventMap[Type][];
+		const eventList = this.eventListMap.get(eventType);
+		if (eventList === undefined) {
+			throw new Error(
+				`EventSubscriber: no EventList for eventType ${eventType}`
+			);
+		}
+		return eventList.toArray() as EventMap[Type][];
 	}
 
 	public getEventsByTx(txSig: TransactionSignature): WrappedEvents | undefined {

@@ -10,9 +10,9 @@ import { fetchLogs } from './fetchLogs';
 
 export class PollingLogProvider implements LogProvider {
 	private finality: Finality;
-	private intervalId: ReturnType<typeof setTimeout>;
+	private intervalId?: ReturnType<typeof setTimeout>;
 	private mostRecentSeenTx?: TransactionSignature;
-	private mutex: number;
+	private mutex = 0;
 	private firstFetch = true;
 
 	public constructor(

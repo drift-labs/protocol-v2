@@ -101,6 +101,11 @@ export class TokenFaucet {
 			},
 		});
 		const tx = new Transaction().add(ix);
+		if (!this.context) {
+			throw new Error(
+				'TokenFaucet: initialize() requires a BankrunContextWrapper context'
+			);
+		}
 		const txSig = await this.context.sendTransaction(tx);
 		return txSig;
 	}
@@ -134,6 +139,11 @@ export class TokenFaucet {
 		if (this.context) {
 			return await this.context.sendTransaction(tx);
 		} else {
+			if (!this.program.provider.sendAndConfirm) {
+				throw new Error(
+					'TokenFaucet: program provider does not support sendAndConfirm'
+				);
+			}
 			return await this.program.provider.sendAndConfirm(tx, [], this.opts);
 		}
 	}
@@ -180,8 +190,9 @@ export class TokenFaucet {
 		let associatedTokenAccountExists = false;
 
 		try {
-			const assosciatedTokenAccount =
-				await this.context.connection.getAccountInfo(associatedTokenPublicKey);
+			const assosciatedTokenAccount = this.context
+				? await this.context.connection.getAccountInfo(associatedTokenPublicKey)
+				: await this.connection.getAccountInfo(associatedTokenPublicKey);
 
 			associatedTokenAccountExists = !!assosciatedTokenAccount;
 		} catch (e) {
@@ -199,6 +210,11 @@ export class TokenFaucet {
 		if (this.context) {
 			txSig = await this.context.sendTransaction(tx);
 		} else {
+			if (!this.program.provider.sendAndConfirm) {
+				throw new Error(
+					'TokenFaucet: program provider does not support sendAndConfirm'
+				);
+			}
 			txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
 		}
 
@@ -257,7 +273,10 @@ export class TokenFaucet {
 			props.callback(await this.getTokenAccountInfo(props));
 
 			// Couldn't find a way to do it using anchor framework subscription — fall back to onAccountChange.
-			this.context.connection.onAccountChange(
+			const subscribeConnection = this.context
+				? this.context.connection
+				: this.connection;
+			subscribeConnection.onAccountChange(
 				tokenAccountKey,
 				async (
 					_accountInfo /* accountInfo is a buffer which we don't know how to deserialize */

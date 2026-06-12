@@ -98,6 +98,12 @@ export class ConstituentMap implements ConstituentMapInterface {
 					config.subscriptionConfig.commitment,
 					this.getFilters()
 				);
+		} else {
+			throw new Error(
+				`ConstituentMap: unsupported subscriptionConfig type: ${
+					(config.subscriptionConfig as { type: string }).type
+				}`
+			);
 		}
 
 		// Listen for account updates from the subscriber
@@ -184,7 +190,8 @@ export class ConstituentMap implements ConstituentMapInterface {
 			);
 			await Promise.all(promises);
 		} catch (error) {
-			console.log(`ConstituentMap.sync() error: ${error.message}`);
+			const message = error instanceof Error ? error.message : String(error);
+			console.log(`ConstituentMap.sync() error: ${message}`);
 		}
 	}
 

@@ -21,7 +21,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	decode: (name, buffer) => UserAccount;
+	decode: (name: string, buffer: Buffer) => UserAccount;
 
 	user?: DataAndSlot<UserAccount>;
 
@@ -29,7 +29,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		connection: Connection,
 		userAccountPublicKey: PublicKey,
 		accountLoader: BulkAccountLoader,
-		decode: (name, buffer) => UserAccount
+		decode: (name: string, buffer: Buffer) => UserAccount
 	) {
 		this.isSubscribed = false;
 		this.connection = connection;
@@ -88,7 +88,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	}
 
 	async fetchIfUnloaded(): Promise<void> {
-		if (this.user === undefined) {
+		if (!this.doesAccountExist()) {
 			await this.fetch();
 		}
 	}
@@ -99,20 +99,24 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 				this.userAccountPublicKey,
 				this.accountLoader.commitment
 			);
-			if (dataAndContext.context.slot > (this.user?.slot ?? 0)) {
+			if (
+				dataAndContext.value !== null &&
+				dataAndContext.context.slot > (this.user?.slot ?? 0)
+			) {
 				this.user = {
 					data: this.decode('user', dataAndContext.value.data),
 					slot: dataAndContext.context.slot,
 				};
 			}
 		} catch (e) {
+			const err = e instanceof Error ? e : new Error(String(e));
 			console.log(
-				`PollingUserAccountSubscriber.fetch() UserAccount does not exist: ${e.message}-${e.stack}`
+				`PollingUserAccountSubscriber.fetch() UserAccount does not exist: ${err.message}-${err.stack}`
 			);
 		}
 	}
 
-	doesAccountExist(): boolean {
+	doesAccountExist(): this is { user: DataAndSlot<UserAccount> } {
 		return this.user !== undefined;
 	}
 
@@ -121,14 +125,18 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			return;
 		}
 
-		this.accountLoader.removeAccount(
-			this.userAccountPublicKey,
-			this.callbackId
-		);
-		this.callbackId = undefined;
+		if (this.callbackId) {
+			this.accountLoader.removeAccount(
+				this.userAccountPublicKey,
+				this.callbackId
+			);
+			this.callbackId = undefined;
+		}
 
-		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
-		this.errorCallbackId = undefined;
+		if (this.errorCallbackId) {
+			this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
+			this.errorCallbackId = undefined;
+		}
 
 		this.isSubscribed = false;
 	}
@@ -141,12 +149,8 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
-		if (!this.doesAccountExist()) {
-			throw new NotSubscribedError(
-				'You must call `subscribe` or `fetch` before using this function'
-			);
-		}
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
+		this.assertIsSubscribed();
 		return this.user;
 	}
 

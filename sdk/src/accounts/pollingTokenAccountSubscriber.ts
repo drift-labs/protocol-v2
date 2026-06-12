@@ -76,9 +76,14 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
-		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
-			this.publicKey
-		);
+		const bufferAndSlot = this.accountLoader.getBufferAndSlot(this.publicKey);
+		if (!bufferAndSlot) {
+			return;
+		}
+		const { buffer, slot } = bufferAndSlot;
+		if (!buffer) {
+			return;
+		}
 		this.tokenAccountAndSlot = {
 			data: parseTokenAccount(buffer, this.publicKey),
 			slot,
@@ -90,11 +95,15 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 			return;
 		}
 
-		this.accountLoader.removeAccount(this.publicKey, this.callbackId);
-		this.callbackId = undefined;
+		if (this.callbackId) {
+			this.accountLoader.removeAccount(this.publicKey, this.callbackId);
+			this.callbackId = undefined;
+		}
 
-		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
-		this.errorCallbackId = undefined;
+		if (this.errorCallbackId) {
+			this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
+			this.errorCallbackId = undefined;
+		}
 
 		this.isSubscribed = false;
 	}
@@ -109,7 +118,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 
 	public getTokenAccountAndSlot(): DataAndSlot<Account> {
 		this.assertIsSubscribed();
-		return this.tokenAccountAndSlot;
+		return this.tokenAccountAndSlot!;
 	}
 
 	didSubscriptionSucceed(): boolean {

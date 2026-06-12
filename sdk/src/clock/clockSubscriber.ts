@@ -14,17 +14,17 @@ export interface ClockSubscriberEvent {
 }
 
 export class ClockSubscriber {
-	private _latestSlot: number;
-	private _currentTs: number;
-	private subscriptionId: number;
+	private _latestSlot?: number;
+	private _currentTs?: number;
+	private subscriptionId?: number;
 	commitment: Commitment;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClockSubscriberEvent>;
 
-	public get latestSlot(): number {
+	public get latestSlot(): number | undefined {
 		return this._latestSlot;
 	}
 
-	public get currentTs(): number {
+	public get currentTs(): number | undefined {
 		return this._currentTs;
 	}
 
@@ -41,7 +41,7 @@ export class ClockSubscriber {
 		this.eventEmitter = new EventEmitter();
 		this.resubTimeoutMs = config?.resubTimeoutMs;
 		this.commitment = config?.commitment || 'confirmed';
-		if (this.resubTimeoutMs < 1000) {
+		if (this.resubTimeoutMs !== undefined && this.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
@@ -63,12 +63,13 @@ export class ClockSubscriber {
 						this.setTimeout();
 					}
 					this._latestSlot = context.slot;
-					this._currentTs = new BN(
+					const currentTs = new BN(
 						acctInfo.data.subarray(32, 39),
 						undefined,
 						'le'
 					).toNumber();
-					this.eventEmitter.emit('clockUpdate', this.currentTs);
+					this._currentTs = currentTs;
+					this.eventEmitter.emit('clockUpdate', currentTs);
 				}
 			},
 			this.commitment
@@ -98,7 +99,7 @@ export class ClockSubscriber {
 		}, this.resubTimeoutMs);
 	}
 
-	public getUnixTs(): number {
+	public getUnixTs(): number | undefined {
 		return this.currentTs;
 	}
 

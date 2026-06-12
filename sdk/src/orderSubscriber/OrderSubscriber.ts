@@ -27,9 +27,9 @@ export class OrderSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
 	fetchPromise?: Promise<void>;
-	fetchPromiseResolver: () => void;
+	fetchPromiseResolver!: () => void; // set synchronously inside the Promise executor in fetch()
 
-	mostRecentSlot: number;
+	mostRecentSlot = 0;
 	decodeFn: (name: string, data: Buffer) => UserAccount;
 	decodeData?: boolean;
 
@@ -276,7 +276,7 @@ export class OrderSubscriber {
 				userAccountPublicKey,
 				this.commitment
 			);
-		if (accountInfo) {
+		if (accountInfo.value) {
 			this.tryUpdateUserAccount(
 				userAccountPublicKey.toString(),
 				'buffer',
@@ -290,7 +290,13 @@ export class OrderSubscriber {
 		if (!this.usersAccounts.has(key)) {
 			await this.addPubkey(new PublicKey(key));
 		}
-		return this.usersAccounts.get(key).userAccount;
+		const slotAndUserAccount = this.usersAccounts.get(key);
+		if (!slotAndUserAccount) {
+			throw new Error(
+				`OrderSubscriber: user account ${key} not found after addPubkey`
+			);
+		}
+		return slotAndUserAccount.userAccount;
 	}
 
 	public async unsubscribe(): Promise<void> {

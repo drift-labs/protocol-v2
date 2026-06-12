@@ -179,6 +179,8 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			status = OrderStatus.INIT;
 		} else if (orderStatusNum === 1) {
 			status = OrderStatus.OPEN;
+		} else {
+			throw new Error(`decodeUser: unknown order status ${orderStatusNum}`);
 		}
 		offset += 1;
 		const orderTypeNum = buffer.readUInt8(offset);
@@ -193,6 +195,8 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			orderType = OrderType.TRIGGER_LIMIT;
 		} else if (orderTypeNum === 4) {
 			orderType = OrderType.ORACLE;
+		} else {
+			throw new Error(`decodeUser: unknown order type ${orderTypeNum}`);
 		}
 		offset += 1;
 		const marketTypeNum = buffer.readUInt8(offset);
@@ -237,6 +241,10 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			triggerCondition = OrderTriggerCondition.TRIGGERED_ABOVE;
 		} else if (triggerConditionNum === 3) {
 			triggerCondition = OrderTriggerCondition.TRIGGERED_BELOW;
+		} else {
+			throw new Error(
+				`decodeUser: unknown trigger condition ${triggerConditionNum}`
+			);
 		}
 		offset += 1;
 		const auctionDuration = buffer.readUInt8(offset);
@@ -250,7 +258,6 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			slot,
 			price,
 			baseAssetAmount,
-			quoteAssetAmount: undefined,
 			baseAssetAmountFilled,
 			quoteAssetAmountFilled,
 			triggerPrice,

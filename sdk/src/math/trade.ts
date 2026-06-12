@@ -376,7 +376,7 @@ export function calculateTargetPriceTrade(
 
 	assert(tp1.sub(tp2).lte(originalDiff), 'Target Price Calculation incorrect');
 	assert(
-		tp2.lte(tp1) || tp2.sub(tp1).abs() < 100000,
+		tp2.lte(tp1) || tp2.sub(tp1).abs().ltn(100000),
 		'Target Price Calculation incorrect' +
 			tp2.toString() +
 			'>=' +

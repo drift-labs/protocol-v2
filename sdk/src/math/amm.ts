@@ -159,7 +159,7 @@ export function calculateNewAmm(
 export function calculateUpdatedAMM(
 	amm: AMM,
 	totalExchangeFee: BN,
-	mmOraclePriceData: MMOraclePriceData
+	mmOraclePriceData?: MMOraclePriceData
 ): AMM {
 	if (amm.curveUpdateIntensity == 0 || mmOraclePriceData === undefined) {
 		return amm;
@@ -203,7 +203,7 @@ export function calculateUpdatedAMMSpreadReserves(
 	marketStats: MarketStats,
 	totalExchangeFee: BN,
 	direction: PositionDirection,
-	mmOraclePriceData: MMOraclePriceData,
+	mmOraclePriceData?: MMOraclePriceData,
 	latestSlot?: BN
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
 	const newAmm = calculateUpdatedAMM(amm, totalExchangeFee, mmOraclePriceData);
@@ -614,6 +614,76 @@ export function calculateVolSpreadBN(
 	return [longVolSpread, shortVolSpread];
 }
 
+export interface SpreadTerms {
+	longVolSpread: number;
+	shortVolSpread: number;
+	longSpreadwPS: number;
+	shortSpreadwPS: number;
+	maxTargetSpread: number;
+	inventorySpreadScale: number;
+	longSpreadwInvScale: number;
+	shortSpreadwInvScale: number;
+	effectiveLeverage: number;
+	effectiveLeverageCapped: number;
+	longSpreadwEL: number;
+	shortSpreadwEL: number;
+	revenueRetreatAmount: number;
+	halfRevenueRetreatAmount: number;
+	longSpreadwRevRetreat: number;
+	shortSpreadwRevRetreat: number;
+	longSpreadwOffsetShrink: number;
+	shortSpreadwOffsetShrink: number;
+	totalSpread: number;
+	longSpread: number;
+	shortSpread: number;
+}
+
+export function calculateSpreadBN(
+	baseSpread: number,
+	lastOracleReservePriceSpreadPct: BN,
+	lastOracleConfPct: BN,
+	maxSpread: number,
+	quoteAssetReserve: BN,
+	terminalQuoteAssetReserve: BN,
+	pegMultiplier: BN,
+	baseAssetAmountWithAmm: BN,
+	reservePrice: BN,
+	totalFeeMinusDistributions: BN,
+	netRevenueSinceLastFunding: BN,
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN,
+	markStd: BN,
+	oracleStd: BN,
+	longIntensity: BN,
+	shortIntensity: BN,
+	volume24H: BN,
+	ammInventorySpreadAdjustment: number,
+	returnTerms?: false
+): [number, number];
+export function calculateSpreadBN(
+	baseSpread: number,
+	lastOracleReservePriceSpreadPct: BN,
+	lastOracleConfPct: BN,
+	maxSpread: number,
+	quoteAssetReserve: BN,
+	terminalQuoteAssetReserve: BN,
+	pegMultiplier: BN,
+	baseAssetAmountWithAmm: BN,
+	reservePrice: BN,
+	totalFeeMinusDistributions: BN,
+	netRevenueSinceLastFunding: BN,
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN,
+	markStd: BN,
+	oracleStd: BN,
+	longIntensity: BN,
+	shortIntensity: BN,
+	volume24H: BN,
+	ammInventorySpreadAdjustment: number,
+	returnTerms: true
+): SpreadTerms;
 export function calculateSpreadBN(
 	baseSpread: number,
 	lastOracleReservePriceSpreadPct: BN,
@@ -636,7 +706,7 @@ export function calculateSpreadBN(
 	volume24H: BN,
 	ammInventorySpreadAdjustment: number,
 	returnTerms = false
-) {
+): [number, number] | SpreadTerms {
 	assert(Number.isInteger(baseSpread));
 	assert(Number.isInteger(maxSpread));
 
@@ -856,7 +926,7 @@ export function calculateSpreadBN(
 export function calculateSpread(
 	amm: AMM,
 	marketStats: MarketStats,
-	oraclePriceData: OraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	now?: BN,
 	reservePrice?: BN
 ): [number, number] {
@@ -942,7 +1012,7 @@ export function calculateSpread(
 export function calculateSpreadReserves(
 	amm: AMM,
 	marketStats: MarketStats,
-	mmOraclePriceData: MMOraclePriceData,
+	mmOraclePriceData?: MMOraclePriceData,
 	now?: BN,
 	latestSlot?: BN
 ) {
@@ -951,8 +1021,8 @@ export function calculateSpreadReserves(
 		direction: PositionDirection,
 		amm: AMM
 	): {
-		baseAssetReserve;
-		quoteAssetReserve;
+		baseAssetReserve: BN;
+		quoteAssetReserve: BN;
 	} {
 		if (spread === 0) {
 			return {
@@ -1181,7 +1251,7 @@ export function calculateMaxBaseAssetAmountToTrade(
 	marketStats: MarketStats,
 	limit_price: BN,
 	direction: PositionDirection,
-	mmOraclePriceData?: MMOraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	now?: BN
 ): [BN, PositionDirection] {
 	const invariant = amm.sqrtK.mul(amm.sqrtK);

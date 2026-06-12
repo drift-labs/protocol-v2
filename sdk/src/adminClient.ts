@@ -7,6 +7,7 @@
  * pause/unpause exchange, and all ~126 admin instruction handlers in `instructions/admin.rs`.
  */
 import {
+	AccountMeta,
 	AddressLookupTableAccount,
 	Keypair,
 	LAMPORTS_PER_SOL,
@@ -227,7 +228,11 @@ export class AdminClient extends VelocityClient {
 			spotMarketIndex
 		);
 
-		const tokenProgram = (await this.connection.getAccountInfo(mint)).owner;
+		const mintAccountInfo = await this.connection.getAccountInfo(mint);
+		if (!mintAccountInfo) {
+			throw new Error(`Mint account ${mint.toString()} not found`);
+		}
+		const tokenProgram = mintAccountInfo.owner;
 
 		const nameBuffer = encodeName(name);
 		const initializeIx = await this.program.instruction.initializeSpotMarket(
@@ -528,13 +533,14 @@ export class AdminClient extends VelocityClient {
 	public async getAddMarketToAmmCacheIx(
 		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		return await this.program.instruction.addMarketToAmmCache({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.useHotWalletAdmin
 					? this.wallet.publicKey
 					: this.getStateAccount().coldAdmin,
-				perpMarket: this.getPerpMarketAccount(perpMarketIndex).pubkey,
+				perpMarket: perpMarketAccount.pubkey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
 				rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
@@ -788,6 +794,7 @@ export class AdminClient extends VelocityClient {
 		perpMarketIndex: number,
 		sqrtK: BN
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		return await this.program.instruction.updateK(sqrtK, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -798,7 +805,7 @@ export class AdminClient extends VelocityClient {
 					this.program.programId,
 					perpMarketIndex
 				),
-				oracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
+				oracle: perpMarketAccount.oracle,
 			},
 		});
 	}
@@ -866,6 +873,7 @@ export class AdminClient extends VelocityClient {
 		perpMarketIndex: number,
 		depth: BN
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		return await this.program.instruction.recenterPerpMarketAmmCrank(
 			depth ?? null,
 			{
@@ -882,7 +890,7 @@ export class AdminClient extends VelocityClient {
 						this.program.programId,
 						QUOTE_SPOT_MARKET_INDEX
 					),
-					oracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
+					oracle: perpMarketAccount.oracle,
 				},
 			}
 		);
@@ -1016,7 +1024,7 @@ export class AdminClient extends VelocityClient {
 		perpMarketIndex: number,
 		targetPrice: BN
 	): Promise<TransactionInstruction> {
-		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
+		const perpMarket = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 
 		const [direction, tradeSize, _] = calculateTargetPriceTrade(
 			perpMarket,
@@ -1079,7 +1087,7 @@ export class AdminClient extends VelocityClient {
 			this.program.programId,
 			perpMarketIndex
 		);
-		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 
 		return await this.program.instruction.repegAmmCurve(newPeg, {
 			accounts: {
@@ -1109,7 +1117,7 @@ export class AdminClient extends VelocityClient {
 	public async getUpdatePerpMarketAmmOracleTwapIx(
 		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
-		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -1143,7 +1151,7 @@ export class AdminClient extends VelocityClient {
 	public async getResetPerpMarketAmmOracleTwapIx(
 		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
-		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -1274,9 +1282,9 @@ export class AdminClient extends VelocityClient {
 		amount: BN,
 		sourceVault: PublicKey
 	): Promise<TransactionInstruction> {
-		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
+		const spotMarket = this.getSpotMarketAccountOrThrow(spotMarketIndex);
 
-		const remainingAccounts = [];
+		const remainingAccounts: AccountMeta[] = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
 		if (this.isTransferHook(spotMarket)) {
 			await this.addExtraAccountMetasToRemainingAccounts(
@@ -1450,6 +1458,7 @@ export class AdminClient extends VelocityClient {
 		netUnsettledFundingPnl?: BN,
 		excludeTotalLiqFee?: boolean
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
 			{
 				updateAmmSummaryStats: updateAmmSummaryStats ?? null,
@@ -1470,7 +1479,7 @@ export class AdminClient extends VelocityClient {
 						this.program.programId,
 						QUOTE_SPOT_MARKET_INDEX
 					),
-					oracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
+					oracle: perpMarketAccount.oracle,
 				},
 			}
 		);
@@ -2380,6 +2389,7 @@ export class AdminClient extends VelocityClient {
 		oracleSource: OracleSource,
 		skipInvaraintCheck = false
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		return await this.program.instruction.updatePerpMarketOracle(
 			oracle,
 			oracleSource,
@@ -2395,7 +2405,7 @@ export class AdminClient extends VelocityClient {
 						perpMarketIndex
 					),
 					oracle: oracle,
-					oldOracle: this.getPerpMarketAccount(perpMarketIndex).oracle,
+					oldOracle: perpMarketAccount.oracle,
 					ammCache: getAmmCachePublicKey(this.program.programId),
 				},
 			}
@@ -2630,6 +2640,7 @@ export class AdminClient extends VelocityClient {
 		oracleSource: OracleSource,
 		skipInvaraintCheck = false
 	): Promise<TransactionInstruction> {
+		const spotMarketAccount = this.getSpotMarketAccountOrThrow(spotMarketIndex);
 		return await this.program.instruction.updateSpotMarketOracle(
 			oracle,
 			oracleSource,
@@ -2645,7 +2656,7 @@ export class AdminClient extends VelocityClient {
 						spotMarketIndex
 					),
 					oracle: oracle,
-					oldOracle: this.getSpotMarketAccount(spotMarketIndex).oracle,
+					oldOracle: spotMarketAccount.oracle,
 				},
 			}
 		);
@@ -3282,6 +3293,7 @@ export class AdminClient extends VelocityClient {
 		perpMarketIndex: number,
 		maxSlippageRatio: number
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		return await (this.program.instruction as any).updateMaxSlippageRatio(
 			maxSlippageRatio,
 			{
@@ -3290,7 +3302,7 @@ export class AdminClient extends VelocityClient {
 						? this.getStateAccount().coldAdmin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					perpMarket: this.getPerpMarketAccount(perpMarketIndex).pubkey,
+					perpMarket: perpMarketAccount.pubkey,
 				},
 			}
 		);
@@ -3777,7 +3789,7 @@ export class AdminClient extends VelocityClient {
 		amount: BN,
 		recipientTokenAccount: PublicKey
 	): Promise<TransactionInstruction> {
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.getSpotMarketAccountOrThrow(marketIndex);
 		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarket);
 
 		const remainingAccounts: {
@@ -4168,7 +4180,7 @@ export class AdminClient extends VelocityClient {
 		adminTokenAccount?: PublicKey
 	): Promise<TransactionInstruction> {
 		const state = await this.getStatePublicKey();
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.getSpotMarketAccountOrThrow(marketIndex);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
@@ -4361,7 +4373,7 @@ export class AdminClient extends VelocityClient {
 		delegate: PublicKey
 	): Promise<TransactionInstruction> {
 		const marketIndex = GOV_SPOT_MARKET_INDEX;
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.getSpotMarketAccountOrThrow(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			delegate,
@@ -4417,7 +4429,7 @@ export class AdminClient extends VelocityClient {
 		insuranceFundStakePublicKey: PublicKey,
 		userTokenAccountPublicKey: PublicKey
 	): Promise<TransactionInstruction> {
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.getSpotMarketAccountOrThrow(marketIndex);
 		return await this.program.instruction.depositIntoInsuranceFundStake(
 			marketIndex,
 			amount,
@@ -4680,7 +4692,7 @@ export class AdminClient extends VelocityClient {
 			lpPool,
 			spotMarketIndex
 		);
-		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+		const spotMarketAccount = this.getSpotMarketAccountOrThrow(spotMarketIndex);
 
 		return [
 			this.program.instruction.initializeConstituent(
@@ -5171,8 +5183,8 @@ export class AdminClient extends VelocityClient {
 				userAccountPublicKey,
 			});
 		}
-		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
-		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
+		const outSpotMarket = this.getSpotMarketAccountOrThrow(outMarketIndex);
+		const inSpotMarket = this.getSpotMarketAccountOrThrow(inMarketIndex);
 
 		const outTokenProgram = this.getTokenProgramForSpotMarket(outSpotMarket);
 		const inTokenProgram = this.getTokenProgramForSpotMarket(inSpotMarket);
@@ -5221,7 +5233,7 @@ export class AdminClient extends VelocityClient {
 			}
 		);
 
-		const remainingAccounts = [];
+		const remainingAccounts: AccountMeta[] = [];
 		remainingAccounts.push({
 			pubkey: outTokenProgram,
 			isWritable: false,
@@ -5278,8 +5290,8 @@ export class AdminClient extends VelocityClient {
 		ixs: TransactionInstruction[];
 		lookupTables: AddressLookupTableAccount[];
 	}> {
-		const outMarket = this.getSpotMarketAccount(outMarketIndex);
-		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+		const outMarket = this.getSpotMarketAccountOrThrow(outMarketIndex);
+		const inMarket = this.getSpotMarketAccountOrThrow(inMarketIndex);
 
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
@@ -5395,8 +5407,10 @@ export class AdminClient extends VelocityClient {
 		inSpotMarketIndex: number,
 		outSpotMarketIndex: number
 	): Promise<TransactionInstruction[]> {
-		const inSpotMarketAccount = this.getSpotMarketAccount(inSpotMarketIndex);
-		const outSpotMarketAccount = this.getSpotMarketAccount(outSpotMarketIndex);
+		const inSpotMarketAccount =
+			this.getSpotMarketAccountOrThrow(inSpotMarketIndex);
+		const outSpotMarketAccount =
+			this.getSpotMarketAccountOrThrow(outSpotMarketIndex);
 
 		const outTokenAccount = await this.getAssociatedTokenAccount(
 			outSpotMarketAccount.marketIndex,
@@ -5464,6 +5478,8 @@ export class AdminClient extends VelocityClient {
 		minOutAmount: BN,
 		externalUserAuthority: PublicKey
 	) {
+		const inMarket = this.getSpotMarketAccountOrThrow(inMarketIndex);
+		const outMarket = this.getSpotMarketAccountOrThrow(outMarketIndex);
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx(
 			{
 				lpPoolId,
@@ -5489,13 +5505,13 @@ export class AdminClient extends VelocityClient {
 			await this.getAssociatedTokenAccount(
 				inMarketIndex,
 				false,
-				getTokenProgramForSpotMarket(this.getSpotMarketAccount(inMarketIndex)),
+				getTokenProgramForSpotMarket(inMarket),
 				externalUserAuthority
 			),
 			await this.getAssociatedTokenAccount(
 				outMarketIndex,
 				false,
-				getTokenProgramForSpotMarket(this.getSpotMarketAccount(outMarketIndex)),
+				getTokenProgramForSpotMarket(outMarket),
 				externalUserAuthority
 			),
 			inMarketIndex,
@@ -5541,8 +5557,10 @@ export class AdminClient extends VelocityClient {
 		withdrawIx: TransactionInstruction;
 	}> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
-		const depositSpotMarket = this.getSpotMarketAccount(depositMarketIndex);
-		const withdrawSpotMarket = this.getSpotMarketAccount(borrowMarketIndex);
+		const depositSpotMarket =
+			this.getSpotMarketAccountOrThrow(depositMarketIndex);
+		const withdrawSpotMarket =
+			this.getSpotMarketAccountOrThrow(borrowMarketIndex);
 
 		const depositTokenProgram =
 			this.getTokenProgramForSpotMarket(depositSpotMarket);
@@ -5690,6 +5708,7 @@ export class AdminClient extends VelocityClient {
 		lpFeeTransferScalar?: number,
 		lpExchangeFeeExcluscionScalar?: number
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(marketIndex);
 		return this.program.instruction.updatePerpMarketLpPoolFeeTransferScalar(
 			lpFeeTransferScalar ?? null,
 			lpExchangeFeeExcluscionScalar ?? null,
@@ -5699,7 +5718,7 @@ export class AdminClient extends VelocityClient {
 						? this.wallet.publicKey
 						: this.getStateAccount().coldAdmin,
 					state: await this.getStatePublicKey(),
-					perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+					perpMarket: perpMarketAccount.pubkey,
 				},
 			}
 		);
@@ -5722,6 +5741,7 @@ export class AdminClient extends VelocityClient {
 		marketIndex: number,
 		pausedOperations: number
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(marketIndex);
 		return this.program.instruction.updatePerpMarketLpPoolPausedOperations(
 			pausedOperations,
 			{
@@ -5730,7 +5750,7 @@ export class AdminClient extends VelocityClient {
 						? this.wallet.publicKey
 						: this.getStateAccount().coldAdmin,
 					state: await this.getStatePublicKey(),
-					perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+					perpMarket: perpMarketAccount.pubkey,
 				},
 			}
 		);
@@ -5795,13 +5815,14 @@ export class AdminClient extends VelocityClient {
 		marketIndex: number,
 		marketConfig: number
 	): Promise<TransactionInstruction> {
+		const perpMarketAccount = this.getPerpMarketAccountOrThrow(marketIndex);
 		return this.program.instruction.updatePerpMarketConfig(marketConfig, {
 			accounts: {
 				admin: this.useHotWalletAdmin
 					? this.wallet.publicKey
 					: this.getStateAccount().coldAdmin,
 				state: await this.getStatePublicKey(),
-				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+				perpMarket: perpMarketAccount.pubkey,
 			},
 		});
 	}

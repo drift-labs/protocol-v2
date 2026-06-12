@@ -20,12 +20,7 @@ type ResolveReference = {
 };
 
 export class WhileValidTxSender extends BaseTxSender {
-	connection: Connection;
-	wallet: IWallet;
-	opts: ConfirmOptions;
-	timeout: number;
 	retrySleep: number;
-	additionalConnections: Connection[];
 	timoutCount = 0;
 	untilValid = new Map<
 		string,
@@ -75,7 +70,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		wallet: IWallet;
 		opts?: ConfirmOptions;
 		retrySleep?: number;
-		additionalConnections?;
+		additionalConnections?: Connection[];
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		confirmationStrategy?: ConfirmationStrategy;
 		txHandler?: TxHandler;
@@ -120,6 +115,12 @@ export class WhileValidTxSender extends BaseTxSender {
 		let latestBlockhash =
 			await this.txHandler.getLatestBlockhashForTransaction();
 
+		if (!latestBlockhash) {
+			throw new Error(
+				'WhileValidTxSender: failed to fetch latest blockhash for transaction'
+			);
+		}
+
 		// handle tx
 		let signedTx = tx;
 		if (!preSigned) {
@@ -141,9 +142,18 @@ export class WhileValidTxSender extends BaseTxSender {
 		}
 
 		// handle subclass-specific side effects
-		const txSig = bs58.encode(
-			signedTx?.signature || signedTx.signatures[0]?.signature
-		);
+		const signature = signedTx?.signature || signedTx.signatures[0]?.signature;
+		if (!signature) {
+			throw new Error(
+				'WhileValidTxSender: signed transaction is missing a signature'
+			);
+		}
+		const txSig = bs58.encode(signature);
+		if (!latestBlockhash) {
+			throw new Error(
+				'WhileValidTxSender: failed to resolve latest blockhash for transaction'
+			);
+		}
 		this.untilValid.set(txSig, latestBlockhash);
 
 		return signedTx;
@@ -157,6 +167,12 @@ export class WhileValidTxSender extends BaseTxSender {
 	): Promise<TxSigAndSlot> {
 		let latestBlockhash =
 			await this.txHandler.getLatestBlockhashForTransaction();
+
+		if (!latestBlockhash) {
+			throw new Error(
+				'WhileValidTxSender: failed to fetch latest blockhash for transaction'
+			);
+		}
 
 		let signedTx;
 		if (preSigned) {
@@ -184,7 +200,7 @@ export class WhileValidTxSender extends BaseTxSender {
 				});
 			signedTx = await this.txHandler.signVersionedTx(
 				tx,
-				additionalSigners,
+				additionalSigners ?? [],
 				latestBlockhash
 			);
 		}
@@ -193,7 +209,18 @@ export class WhileValidTxSender extends BaseTxSender {
 			opts = this.opts;
 		}
 
-		const txSig = bs58.encode(signedTx.signatures[0]);
+		const signature = signedTx.signatures[0];
+		if (!signature) {
+			throw new Error(
+				'WhileValidTxSender: signed transaction is missing a signature'
+			);
+		}
+		const txSig = bs58.encode(signature);
+		if (!latestBlockhash) {
+			throw new Error(
+				'WhileValidTxSender: failed to resolve latest blockhash for transaction'
+			);
+		}
 		this.untilValid.set(txSig, latestBlockhash);
 
 		return this.sendRawTransaction(signedTx.serialize(), opts);
@@ -235,24 +262,26 @@ export class WhileValidTxSender extends BaseTxSender {
 			}
 		})();
 
-		let slot: number;
+		let slot: number | undefined;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 
 			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result?.value);
+			if (result) {
+				await this.checkConfirmationResultForError(txid, result.value);
 
-			if (result?.value?.err && this.throwOnTransactionError) {
-				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
-				throw new SendTransactionError({
-					action: 'send',
-					signature: txid,
-					transactionMessage: `Transaction Failed`,
-				});
+				if (result.value?.err && this.throwOnTransactionError) {
+					// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
+					throw new SendTransactionError({
+						action: 'send',
+						signature: txid,
+						transactionMessage: `Transaction Failed`,
+					});
+				}
+
+				slot = result.context.slot;
 			}
-
-			slot = result?.context?.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

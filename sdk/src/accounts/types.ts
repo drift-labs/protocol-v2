@@ -128,7 +128,7 @@ export interface UserAccountSubscriber {
 	updateData(userAccount: UserAccount, slot: number): void;
 	unsubscribe(): Promise<void>;
 
-	getUserAccountAndSlot(): DataAndSlot<UserAccount>;
+	getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined;
 }
 
 export interface TokenAccountEvents {
@@ -186,7 +186,7 @@ export interface OracleAccountSubscriber {
 }
 
 export type AccountToPoll = {
-	key: string;
+	key: 'state' | 'perpMarket' | 'spotMarket';
 	publicKey: PublicKey;
 	eventType: string;
 	callbackId?: string;
@@ -231,7 +231,7 @@ export interface UserStatsAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount>;
+	getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount> | undefined;
 }
 
 type BaseGrpcConfigs = {

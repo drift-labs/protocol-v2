@@ -52,7 +52,10 @@ export class DLOBSubscriber {
 				await this.updateDLOB();
 				this.eventEmitter.emit('update', this.dlob);
 			} catch (e) {
-				this.eventEmitter.emit('error', e);
+				this.eventEmitter.emit(
+					'error',
+					e instanceof Error ? e : new Error(String(e))
+				);
 			}
 		}, this.updateFrequency);
 	}
@@ -111,44 +114,52 @@ export class DLOBSubscriber {
 			}
 		}
 
-		let oraclePriceData;
 		const isPerp = isVariant(marketType, 'perp');
 		if (isPerp) {
 			const perpMarketAccount =
-				this.velocityClient.getPerpMarketAccount(marketIndex);
-			oraclePriceData = this.velocityClient.getOracleDataForPerpMarket(
+				this.velocityClient.getPerpMarketAccountOrThrow(marketIndex);
+			const oraclePriceData = this.velocityClient.getMMOracleDataForPerpMarket(
 				perpMarketAccount.marketIndex
 			);
-		} else {
-			oraclePriceData =
-				this.velocityClient.getOracleDataForSpotMarket(marketIndex);
-		}
 
-		if (isPerp && includeVamm) {
-			if (fallbackL2Generators.length > 0) {
-				throw new Error(
-					'includeVamm can only be used if fallbackL2Generators is empty'
-				);
+			if (includeVamm) {
+				if (fallbackL2Generators.length > 0) {
+					throw new Error(
+						'includeVamm can only be used if fallbackL2Generators is empty'
+					);
+				}
+
+				fallbackL2Generators = [
+					getVammL2Generator({
+						marketAccount: perpMarketAccount,
+						mmOraclePriceData:
+							this.velocityClient.getMMOracleDataForPerpMarket(marketIndex),
+						numOrders: numVammOrders ?? depth,
+						topOfBookQuoteAmounts:
+							marketIndex < 3
+								? MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS
+								: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
+						latestSlot,
+					}),
+				];
 			}
 
-			fallbackL2Generators = [
-				getVammL2Generator({
-					marketAccount: this.velocityClient.getPerpMarketAccount(marketIndex),
-					mmOraclePriceData:
-						this.velocityClient.getMMOracleDataForPerpMarket(marketIndex),
-					numOrders: numVammOrders ?? depth,
-					topOfBookQuoteAmounts:
-						marketIndex < 3
-							? MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS
-							: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
-					latestSlot,
-				}),
-			];
+			return this.dlob.getL2({
+				marketIndex,
+				marketType: MarketType.PERP,
+				depth,
+				oraclePriceData,
+				slot: this.slotSource.getSlot(),
+				fallbackL2Generators: fallbackL2Generators,
+			});
 		}
+
+		const oraclePriceData =
+			this.velocityClient.getOracleDataForSpotMarket(marketIndex);
 
 		return this.dlob.getL2({
 			marketIndex,
-			marketType,
+			marketType: MarketType.SPOT,
 			depth,
 			oraclePriceData,
 			slot: this.slotSource.getSlot(),
@@ -188,19 +199,25 @@ export class DLOBSubscriber {
 			}
 		}
 
-		let oraclePriceData;
 		const isPerp = isVariant(marketType, 'perp');
 		if (isPerp) {
-			oraclePriceData =
-				this.velocityClient.getOracleDataForPerpMarket(marketIndex);
-		} else {
-			oraclePriceData =
-				this.velocityClient.getOracleDataForSpotMarket(marketIndex);
+			const oraclePriceData =
+				this.velocityClient.getMMOracleDataForPerpMarket(marketIndex);
+
+			return this.dlob.getL3({
+				marketIndex,
+				marketType: MarketType.PERP,
+				oraclePriceData,
+				slot: this.slotSource.getSlot(),
+			});
 		}
+
+		const oraclePriceData =
+			this.velocityClient.getOracleDataForSpotMarket(marketIndex);
 
 		return this.dlob.getL3({
 			marketIndex,
-			marketType,
+			marketType: MarketType.SPOT,
 			oraclePriceData,
 			slot: this.slotSource.getSlot(),
 		});

@@ -21,7 +21,16 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 	userAccountPublicKey: PublicKey;
 
-	userDataAccountSubscriber: AccountSubscriber<UserAccount>;
+	private _userDataAccountSubscriber?: AccountSubscriber<UserAccount>;
+	get userDataAccountSubscriber(): AccountSubscriber<UserAccount> {
+		if (!this._userDataAccountSubscriber) {
+			throw new Error('userDataAccountSubscriber accessed before subscribe()');
+		}
+		return this._userDataAccountSubscriber;
+	}
+	set userDataAccountSubscriber(subscriber: AccountSubscriber<UserAccount>) {
+		this._userDataAccountSubscriber = subscriber;
+	}
 
 	public constructor(
 		program: VelocityProgram,
@@ -87,7 +96,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
-	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
+	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
 		this.assertIsSubscribed();
 		return this.userDataAccountSubscriber.dataAndSlot;
 	}

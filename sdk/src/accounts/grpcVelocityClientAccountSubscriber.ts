@@ -135,9 +135,11 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 				undefined,
 				this.resubOpts
 			);
-		accountSubscriber.setData(
-			this.initialSpotMarketAccountData.get(marketIndex)
-		);
+		const initialSpotMarketData =
+			this.initialSpotMarketAccountData?.get(marketIndex);
+		if (initialSpotMarketData) {
+			accountSubscriber.setData(initialSpotMarketData);
+		}
 		await accountSubscriber.subscribe((data: SpotMarketAccount) => {
 			this.eventEmitter.emit('spotMarketAccountUpdate', data);
 			this.eventEmitter.emit('update');
@@ -160,9 +162,11 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 				undefined,
 				this.resubOpts
 			);
-		accountSubscriber.setData(
-			this.initialPerpMarketAccountData.get(marketIndex)
-		);
+		const initialPerpMarketData =
+			this.initialPerpMarketAccountData?.get(marketIndex);
+		if (initialPerpMarketData) {
+			accountSubscriber.setData(initialPerpMarketData);
+		}
 		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
 			this.eventEmitter.emit('perpMarketAccountUpdate', data);
 			this.eventEmitter.emit('update');
@@ -178,6 +182,9 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 			this.program.provider.connection,
 			this.program
 		);
+		if (!client) {
+			return false;
+		}
 		const accountSubscriber =
 			await grpcAccountSubscriber.create<OraclePriceData>(
 				this.grpcConfigs,
@@ -189,7 +196,10 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 				},
 				this.resubOpts
 			);
-		accountSubscriber.setData(this.initialOraclePriceData.get(oracleId));
+		const initialOraclePriceData = this.initialOraclePriceData?.get(oracleId);
+		if (initialOraclePriceData) {
+			accountSubscriber.setData(initialOraclePriceData);
+		}
 		await accountSubscriber.subscribe((data: OraclePriceData) => {
 			this.eventEmitter.emit(
 				'oraclePriceUpdate',

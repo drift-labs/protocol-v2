@@ -262,8 +262,15 @@ export class TransactionConfirmationManager {
 
 			if (status.err) {
 				this.pendingConfirmations.delete(request.txSig);
+				const txError = await getTransactionErrorFromTxSig(
+					request.txSig,
+					this.connection
+				);
 				request.reject(
-					await getTransactionErrorFromTxSig(request.txSig, this.connection)
+					txError ??
+						new Error(
+							`Transaction failed but no error could be resolved for signature ${request.txSig}`
+						)
 				);
 				continue;
 			}

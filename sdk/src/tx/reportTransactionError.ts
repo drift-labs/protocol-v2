@@ -29,10 +29,15 @@ const getTransactionResult = async (
 	txSig: string,
 	connection: Connection,
 	commitment?: Commitment
-): Promise<VersionedTransactionResponse> => {
-	const finality = commitmentToFinality(
-		commitment || connection.commitment || DEFAULT_CONFIRMATION_OPTS.commitment
-	);
+): Promise<VersionedTransactionResponse | null> => {
+	const resolvedCommitment =
+		commitment || connection.commitment || DEFAULT_CONFIRMATION_OPTS.commitment;
+	if (!resolvedCommitment) {
+		throw new Error(
+			'No commitment available when reporting transaction error. Provide a commitment, set one on the connection, or configure DEFAULT_CONFIRMATION_OPTS.'
+		);
+	}
+	const finality = commitmentToFinality(resolvedCommitment);
 	return await connection.getTransaction(txSig, {
 		maxSupportedTransactionVersion: 0,
 		commitment: finality,
@@ -43,7 +48,7 @@ const getTransactionResultWithRetry = async (
 	txSig: string,
 	connection: Connection,
 	commitment?: Commitment
-): Promise<VersionedTransactionResponse> => {
+): Promise<VersionedTransactionResponse | null> => {
 	const start = Date.now();
 
 	const retryTimeout = 3_000; // Timeout after 3 seconds
@@ -111,7 +116,7 @@ export const getTransactionErrorFromTxSig = async (
 	txSig: string,
 	connection: Connection,
 	commitment?: Commitment
-): Promise<SendTransactionError> => {
+): Promise<SendTransactionError | undefined> => {
 	const transactionResult = await getTransactionResultWithRetry(
 		txSig,
 		connection,
@@ -137,7 +142,7 @@ export const getTransactionErrorFromTxSig = async (
 
 export const getTransactionError = (
 	transactionResult: VersionedTransactionResponse
-): SendTransactionError => {
+): SendTransactionError | undefined => {
 	if (!transactionResult?.meta?.err) {
 		return;
 	}
