@@ -467,7 +467,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		maxTokenDeposits: new BN(100),
 		marketIndex: 2,
 		pubkey: PublicKey.default,
-		mint: DevnetSpotMarkets[2].mint,
+		// DevnetSpotMarkets only has 2 entries; mock market 2 uses a
+		// placeholder mint like its other placeholder pubkeys
+		mint: PublicKey.default,
 		vault: PublicKey.default,
 		revenuePool: {
 			scaledBalance: new BN(0),
