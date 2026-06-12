@@ -43,7 +43,7 @@ import { assert } from '../assert/assert';
  */
 export function calculateReservePrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	mmOraclePriceData?: MMOraclePriceData
 ): BN {
 	const newAmm = calculateUpdatedAMM(
 		market.amm,
@@ -65,7 +65,7 @@ export function calculateReservePrice(
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData,
+	mmOraclePriceData?: MMOraclePriceData,
 	latestSlot?: BN
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
@@ -89,7 +89,7 @@ export function calculateBidPrice(
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData,
+	mmOraclePriceData?: MMOraclePriceData,
 	latestSlot?: BN
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
@@ -316,6 +316,9 @@ export function calculateAvailablePerpLiquidity(
 		MarketType.PERP,
 		mmOraclePriceData
 	)) {
+		if (!bid.order) {
+			continue;
+		}
 		bids = bids.add(
 			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
 		);
@@ -327,6 +330,9 @@ export function calculateAvailablePerpLiquidity(
 		MarketType.PERP,
 		mmOraclePriceData
 	)) {
+		if (!ask.order) {
+			continue;
+		}
 		asks = asks.add(
 			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)
 		);

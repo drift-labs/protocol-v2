@@ -125,7 +125,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 			}
 		})();
 
-		let slot: number;
+		let slot: number | undefined;
 		try {
 			const result = await this.confirmTransaction(
 				encodedTxSig,

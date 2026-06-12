@@ -51,7 +51,7 @@ export class EventList<Type extends EventType> {
 			}
 
 			newNode.next = currentNode.next;
-			if (currentNode.next !== undefined) {
+			if (newNode.next !== undefined) {
 				newNode.next.prev = newNode;
 			} else {
 				this.tail = newNode;
@@ -68,6 +68,9 @@ export class EventList<Type extends EventType> {
 
 	detach(): void {
 		const node = this.tail;
+		if (node === undefined) {
+			return;
+		}
 		if (node.prev !== undefined) {
 			node.prev.next = node.next;
 		} else {

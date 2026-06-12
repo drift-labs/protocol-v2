@@ -48,7 +48,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 		if (insuranceFundStake) {
 			this.insuranceFundStakeAccountAndSlot = {
 				data: insuranceFundStake,
-				slot: undefined,
+				slot: 0,
 			};
 		}
 
@@ -97,7 +97,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 	}
 
 	async fetchIfUnloaded(): Promise<void> {
-		if (this.insuranceFundStakeAccountAndSlot === undefined) {
+		if (!this.doesAccountExist()) {
 			await this.fetch();
 		}
 	}
@@ -121,12 +121,16 @@ export class PollingInsuranceFundStakeAccountSubscriber
 			}
 		} catch (e) {
 			console.log(
-				`PollingInsuranceFundStakeAccountSubscriber.fetch() InsuranceFundStake does not exist: ${e.message}`
+				`PollingInsuranceFundStakeAccountSubscriber.fetch() InsuranceFundStake does not exist: ${
+					e instanceof Error ? e.message : String(e)
+				}`
 			);
 		}
 	}
 
-	doesAccountExist(): boolean {
+	doesAccountExist(): this is {
+		insuranceFundStakeAccountAndSlot: DataAndSlot<InsuranceFundStake>;
+	} {
 		return this.insuranceFundStakeAccountAndSlot !== undefined;
 	}
 
@@ -155,7 +159,9 @@ export class PollingInsuranceFundStakeAccountSubscriber
 		}
 	}
 
-	public getInsuranceFundStakeAccountAndSlot(): DataAndSlot<InsuranceFundStake> {
+	public getInsuranceFundStakeAccountAndSlot():
+		| DataAndSlot<InsuranceFundStake>
+		| undefined {
 		this.assertIsSubscribed();
 		return this.insuranceFundStakeAccountAndSlot;
 	}

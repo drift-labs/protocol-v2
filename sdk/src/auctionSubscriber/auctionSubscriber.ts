@@ -14,7 +14,7 @@ export class AuctionSubscriber {
 	private resubOpts?: ResubOpts;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, AuctionSubscriberEvents>;
-	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
+	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 
 	constructor({
 		velocityClient,
@@ -30,8 +30,9 @@ export class AuctionSubscriber {
 	}
 
 	public async subscribe() {
-		if (!this.subscriber) {
-			this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
+		let subscriber = this.subscriber;
+		if (!subscriber) {
+			subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
 				'AuctionSubscriber',
 				'user',
 				this.velocityClient.program,
@@ -46,9 +47,10 @@ export class AuctionSubscriber {
 				},
 				this.resubOpts
 			);
+			this.subscriber = subscriber;
 		}
 
-		await this.subscriber.subscribe(
+		await subscriber.subscribe(
 			(accountId: PublicKey, data: UserAccount, context: Context) => {
 				this.eventEmitter.emit(
 					'onAccountUpdate',

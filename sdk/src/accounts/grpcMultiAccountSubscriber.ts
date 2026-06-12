@@ -38,7 +38,15 @@ function commitmentLevelToCommitment(
 
 export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
-	private stream: ClientDuplexStream;
+	private _stream?: ClientDuplexStream;
+	private get stream(): ClientDuplexStream {
+		if (!this._stream) {
+			throw new Error(
+				'grpcMultiAccountSubscriber: stream accessed before subscribe()'
+			);
+		}
+		return this._stream;
+	}
 	private commitmentLevel: CommitmentLevel;
 	private program: VelocityProgram;
 	private accountName: string;
@@ -58,7 +66,12 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private subscribedAccounts = new Set<string>();
 	private onChangeMap = new Map<
 		string,
-		(data: T, context: Context, buffer: Buffer, accountProps: U) => void
+		(
+			data: T,
+			context: Context,
+			buffer: Buffer,
+			accountProps: U | undefined
+		) => void
 	>();
 
 	private dataMap = new Map<string, DataAndSlot<T>>();
@@ -82,7 +95,9 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		this.decodeBufferFn = decodeBuffer;
 		this.resubOpts = resubOpts;
 		this.onUnsubscribe = onUnsubscribe;
-		this.accountPropsMap = accountPropsMap;
+		if (accountPropsMap) {
+			this.accountPropsMap = accountPropsMap;
+		}
 	}
 
 	public static async create<T, U = undefined>(
@@ -119,7 +134,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	}
 
 	setAccountData(accountPubkey: string, data: T, slot?: number): void {
-		this.dataMap.set(accountPubkey, { data, slot });
+		this.dataMap.set(accountPubkey, { data, slot: slot ?? 0 });
 	}
 
 	getAccountData(accountPubkey: string): DataAndSlot<T> | undefined {
@@ -205,7 +220,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			data: T,
 			context: Context,
 			buffer: Buffer,
-			accountProps: U
+			accountProps: U | undefined
 		) => void
 	): Promise<void> {
 		if (this.resubOpts?.logResubMessages) {
@@ -225,7 +240,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			});
 		}
 
-		this.stream =
+		this._stream =
 			(await this.client.subscribe()) as unknown as typeof this.stream;
 		const request: SubscribeRequest = {
 			slots: {},
@@ -246,7 +261,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		};
 
 		this.stream.on('data', (chunk: SubscribeUpdate) => {
-			if (!chunk.account) {
+			if (!chunk.account || !chunk.account.account) {
 				return;
 			}
 			const slot = Number(chunk.account.slot);
@@ -300,11 +315,11 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			const handleDataBuffer = (
 				context: Context,
 				buffer: Buffer,
-				accountProps: U
+				accountProps: U | undefined
 			) => {
 				const data = this.decodeBufferFn
 					? this.decodeBufferFn(buffer, accountPubkey, accountProps)
-					: this.program.account[this.accountName].coder.accounts.decode(
+					: this.program.coder.accounts.decode(
 							this.capitalize(this.accountName),
 							buffer
 					  );

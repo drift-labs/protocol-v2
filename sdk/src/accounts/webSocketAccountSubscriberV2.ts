@@ -77,8 +77,17 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	logAccountName: string;
 	program: VelocityProgram;
 	accountPublicKey: PublicKey;
-	decodeBufferFn: (buffer: Buffer) => T;
-	onChange: (data: T) => void;
+	decodeBufferFn?: (buffer: Buffer) => T;
+	private _onChange?: (data: T) => void;
+	get onChange(): (data: T) => void {
+		if (!this._onChange) {
+			throw new Error('onChange callback function must be set');
+		}
+		return this._onChange;
+	}
+	set onChange(onChange: (data: T) => void) {
+		this._onChange = onChange;
+	}
 	listenerId?: number;
 
 	resubOpts: ResubOpts;
@@ -131,7 +140,10 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			usePollingInsteadOfResub: true,
 			logResubMessages: false,
 		};
-		if (this.resubOpts.resubTimeoutMs < 1000) {
+		if (
+			this.resubOpts.resubTimeoutMs != null &&
+			this.resubOpts.resubTimeoutMs < 1000
+		) {
 			console.log(
 				`resubTimeoutMs should be at least 1000ms to avoid spamming resub ${this.logAccountName}`
 			);
@@ -139,7 +151,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		this.receivingData = false;
 		if (
 			['recent', 'single', 'singleGossip', 'root', 'max'].includes(
-				(this.program.provider as AnchorProvider).opts.commitment
+				(this.program.provider as AnchorProvider).opts.commitment ?? ''
 			)
 		) {
 			console.warn(
@@ -264,7 +276,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 		this.dataAndSlot = {
 			data,
-			slot,
+			slot: newSlot,
 		};
 	}
 
@@ -274,7 +286,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		 * `resubOpts.resubTimeoutMs` and `receivingData` is true, trigger either
 		 * a polling loop or a resubscribe depending on options.
 		 */
-		if (!this.onChange) {
+		if (!this._onChange) {
 			throw new Error('onChange callback function must be set');
 		}
 		this.timeoutId = setTimeout(async () => {

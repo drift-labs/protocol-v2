@@ -27,7 +27,7 @@ function mapTransactionResponseToLog(
 	return {
 		txSig: transaction.transaction.signatures[0],
 		slot: transaction.slot,
-		logs: transaction.meta.logMessages,
+		logs: transaction.meta?.logMessages ?? [],
 	};
 }
 
@@ -39,7 +39,7 @@ export async function fetchLogs(
 	untilTx?: TransactionSignature,
 	limit?: number,
 	batchSize = 25
-): Promise<FetchLogsResponse> {
+): Promise<FetchLogsResponse | undefined> {
 	const signatures = await connection.getSignaturesForAddress(
 		address,
 		{
@@ -85,7 +85,7 @@ export async function fetchLogs(
 		mostRecentTx: mostRecent.signature,
 		earliestSlot: earliest.slot,
 		mostRecentSlot: mostRecent.slot,
-		mostRecentBlockTime: mostRecent.blockTime,
+		mostRecentBlockTime: mostRecent.blockTime ?? undefined,
 	};
 }
 

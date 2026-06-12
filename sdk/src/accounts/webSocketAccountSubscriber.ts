@@ -16,8 +16,17 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	logAccountName: string;
 	program: VelocityProgram;
 	accountPublicKey: PublicKey;
-	decodeBufferFn: (buffer: Buffer) => T;
-	onChange: (data: T) => void;
+	decodeBufferFn?: (buffer: Buffer) => T;
+	private _onChange?: (data: T) => void;
+	get onChange(): (data: T) => void {
+		if (!this._onChange) {
+			throw new Error('onChange callback function must be set');
+		}
+		return this._onChange;
+	}
+	set onChange(onChange: (data: T) => void) {
+		this._onChange = onChange;
+	}
 	listenerId?: number;
 
 	resubOpts?: ResubOpts;
@@ -43,7 +52,10 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.accountPublicKey = accountPublicKey;
 		this.decodeBufferFn = decodeBuffer;
 		this.resubOpts = resubOpts;
-		if (this.resubOpts?.resubTimeoutMs < 1000) {
+		if (
+			this.resubOpts?.resubTimeoutMs != null &&
+			this.resubOpts.resubTimeoutMs < 1000
+		) {
 			console.log(
 				`resubTimeoutMs should be at least 1000ms to avoid spamming resub ${this.logAccountName}`
 			);
@@ -97,12 +109,12 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 		this.dataAndSlot = {
 			data,
-			slot,
+			slot: newSlot,
 		};
 	}
 
 	protected setTimeout(): void {
-		if (!this.onChange) {
+		if (!this._onChange) {
 			throw new Error('onChange callback function must be set');
 		}
 		this.timeoutId = setTimeout(
@@ -149,7 +161,10 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 				this.accountPublicKey,
 				(this.program.provider as AnchorProvider).opts.commitment
 			);
-		this.handleRpcResponse(rpcResponse.context, rpcResponse?.value);
+		this.handleRpcResponse(
+			rpcResponse.context,
+			rpcResponse?.value ?? undefined
+		);
 	}
 
 	handleRpcResponse(context: Context, accountInfo?: AccountInfo<Buffer>): void {
@@ -245,6 +260,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			return promise;
 		} else {
 			this.isUnsubscribing = false;
+			return Promise.resolve();
 		}
 	}
 }

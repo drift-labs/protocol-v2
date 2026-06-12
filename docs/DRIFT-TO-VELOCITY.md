@@ -126,6 +126,10 @@ Config fields `SERUM_V3`, `PHOENIX`, `OPENBOOK`, `SERUM_LOOKUP_TABLE`,
 
 - **`oraclePriceOffset` is now `BN`** (was `number`) on `Order` and `OrderParams` —
   widened to i64 on-chain in #51. Code passing raw numbers must wrap in `new BN(...)`.
+- **`Order.quoteAssetAmount` removed.** This field never existed on the on-chain `Order`
+  struct (which only has `quoteAssetAmountFilled`); it was a vestigial SDK-type member that
+  the decoder always populated with `0`. The TS `Order` type now matches the IDL. Read
+  filled quote from `quoteAssetAmountFilled` instead.
 - `PerpMarketAccount`: oracle fields (`oracle`, `oracleSource`, …) moved from `amm.*` to
   the top level; aggregate position/funding stats moved into the market; new
   `marketStats` and `hedgeConfig` sub-structs; fuel/PMM/HLM/LP fields removed.

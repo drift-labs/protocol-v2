@@ -224,13 +224,14 @@ export class User {
 		this.isSubscribed = false;
 	}
 
-	public getUserAccount(): UserAccount {
-		return this.accountSubscriber.getUserAccountAndSlot().data;
+	public getUserAccount(): UserAccount | undefined {
+		return this.accountSubscriber.getUserAccountAndSlot()?.data;
 	}
 
-	public async forceGetUserAccount(): Promise<UserAccount> {
+	public async forceGetUserAccount(): Promise<UserAccount | undefined> {
 		await this.fetchAccounts();
-		return this.accountSubscriber.getUserAccountAndSlot().data;
+		const account = this.accountSubscriber.getUserAccountAndSlot();
+		return account?.data;
 	}
 
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
@@ -3772,12 +3773,13 @@ export class User {
 	): { canDelete: boolean; reason?: string } {
 		const userAccount = this.getUserAccount();
 		const userStatsAccountToUse =
-			userStatsAccount || this.velocityClient.getUserStats().getAccount();
+			userStatsAccount ?? this.velocityClient.getUserStats().getAccount();
 		const nowInSeconds = now || new BN(Math.floor(Date.now() / 1000));
 		const stateAccount = this.velocityClient.getStateAccount();
 
 		// Referrer cannot delete sub_account_id 0
 		const isReferrer =
+			userStatsAccountToUse !== undefined &&
 			(userStatsAccountToUse.referrerStatus & ReferrerStatus.IsReferrer) > 0;
 		if (isReferrer && userAccount.subAccountId === 0) {
 			return { canDelete: false, reason: 'is-subaccount-0-referrer' };
@@ -3813,7 +3815,7 @@ export class User {
 		}
 
 		// Fresh account (< 13 days) with init fee must be idle
-		if (stateAccount.maxInitializeUserFee > 0) {
+		if (stateAccount.maxInitializeUserFee > 0 && userStatsAccountToUse) {
 			const minActionTs = BN.min(
 				userStatsAccountToUse.lastFillerVolume30DTs,
 				BN.min(

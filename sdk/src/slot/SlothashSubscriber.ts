@@ -18,8 +18,16 @@ export type Slothash = {
 };
 
 export class SlothashSubscriber {
-	currentSlothash: Slothash;
-	subscriptionId: number;
+	private _currentSlothash?: Slothash;
+	private get currentSlothash(): Slothash {
+		if (!this._currentSlothash) {
+			throw new Error(
+				'SlothashSubscriber: slothash accessed before subscribe()'
+			);
+		}
+		return this._currentSlothash;
+	}
+	subscriptionId?: number;
 	commitment: Commitment;
 
 	// Reconnection
@@ -34,7 +42,7 @@ export class SlothashSubscriber {
 	) {
 		this.resubTimeoutMs = config?.resubTimeoutMs;
 		this.commitment = config?.commitment ?? 'processed';
-		if (this.resubTimeoutMs < 1000) {
+		if (this.resubTimeoutMs != null && this.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
@@ -53,18 +61,21 @@ export class SlothashSubscriber {
 		if (currentAccountData == null) {
 			throw new Error('Failed to retrieve current slot hash');
 		}
-		this.currentSlothash = deserializeSlothash(currentAccountData.data);
+		this._currentSlothash = deserializeSlothash(currentAccountData.data);
 
 		this.subscriptionId = this.connection.onAccountChange(
 			SYSVAR_SLOT_HASHES_PUBKEY,
 			(slothashInfo, context) => {
-				if (!this.currentSlothash || this.currentSlothash.slot < context.slot) {
+				if (
+					!this._currentSlothash ||
+					this._currentSlothash.slot < context.slot
+				) {
 					if (this.resubTimeoutMs && !this.isUnsubscribing) {
 						this.receivingData = true;
 						clearTimeout(this.timeoutId);
 						this.setTimeout();
 					}
-					this.currentSlothash = deserializeSlothash(slothashInfo.data);
+					this._currentSlothash = deserializeSlothash(slothashInfo.data);
 				}
 			},
 			this.commitment

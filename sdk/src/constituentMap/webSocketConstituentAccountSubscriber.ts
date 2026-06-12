@@ -21,7 +21,15 @@ export class WebSocketConstituentAccountSubscriber
 	program: VelocityProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, ConstituentAccountEvents>;
 
-	constituentDataAccountSubscriber: WebSocketProgramAccountSubscriber<ConstituentAccount>;
+	private _constituentDataAccountSubscriber?: WebSocketProgramAccountSubscriber<ConstituentAccount>;
+	private get constituentDataAccountSubscriber(): WebSocketProgramAccountSubscriber<ConstituentAccount> {
+		if (!this._constituentDataAccountSubscriber) {
+			throw new Error(
+				'WebSocketConstituentAccountSubscriber: constituentDataAccountSubscriber accessed before subscribe()'
+			);
+		}
+		return this._constituentDataAccountSubscriber;
+	}
 	constituentMap: ConstituentMap;
 	private additionalFilters?: MemcmpFilter[];
 
@@ -45,7 +53,7 @@ export class WebSocketConstituentAccountSubscriber
 		if (this.isSubscribed) {
 			return true;
 		}
-		this.constituentDataAccountSubscriber =
+		this._constituentDataAccountSubscriber =
 			new WebSocketProgramAccountSubscriber<ConstituentAccount>(
 				'LpPoolConstituent',
 				'constituent',
@@ -85,10 +93,11 @@ export class WebSocketConstituentAccountSubscriber
 			await this.constituentMap.sync();
 			this.eventEmitter.emit('update');
 		} catch (error) {
+			const err = error instanceof Error ? error : new Error(String(error));
 			console.log(
-				`WebSocketConstituentAccountSubscriber.sync() error: ${error.message}`
+				`WebSocketConstituentAccountSubscriber.sync() error: ${err.message}`
 			);
-			this.eventEmitter.emit('error', error);
+			this.eventEmitter.emit('error', err);
 		}
 	}
 

@@ -19,7 +19,7 @@ import {
 } from './velocityPriorityFeeMethod';
 
 export class PriorityFeeSubscriber {
-	connection: Connection;
+	connection?: Connection;
 	frequencyMs: number;
 	addresses: string[];
 	velocityMarkets?: VelocityMarketInfo[];
@@ -64,7 +64,7 @@ export class PriorityFeeSubscriber {
 
 			if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
 				if (config.heliusRpcUrl === undefined) {
-					if (this.connection.rpcEndpoint.includes('helius')) {
+					if (this.connection?.rpcEndpoint.includes('helius')) {
 						this.heliusRpcUrl = this.connection.rpcEndpoint;
 					} else {
 						throw new Error(
@@ -103,8 +103,13 @@ export class PriorityFeeSubscriber {
 	}
 
 	private async loadForSolana(): Promise<void> {
+		if (this.connection === undefined) {
+			throw new Error(
+				'connection must be provided to use SOLANA priority fee API'
+			);
+		}
 		const samples = await fetchSolanaPriorityFee(
-			this.connection!,
+			this.connection,
 			this.lookbackDistance,
 			this.addresses
 		);
@@ -121,6 +126,11 @@ export class PriorityFeeSubscriber {
 	}
 
 	private async loadForHelius(): Promise<void> {
+		if (this.heliusRpcUrl === undefined) {
+			throw new Error(
+				'heliusRpcUrl must be provided to use PriorityFeeMethod.HELIUS'
+			);
+		}
 		const sample = await fetchHeliusPriorityFee(
 			this.heliusRpcUrl,
 			this.lookbackDistance,
@@ -134,7 +144,7 @@ export class PriorityFeeSubscriber {
 			this.lastMaxStrategyResult =
 				this.lastHeliusSample[HeliusPriorityLevel.UNSAFE_MAX];
 			if (this.customStrategy) {
-				this.lastCustomStrategyResult = this.customStrategy.calculate(sample!);
+				this.lastCustomStrategyResult = this.customStrategy.calculate(sample);
 			}
 		}
 	}
@@ -143,8 +153,13 @@ export class PriorityFeeSubscriber {
 		if (!this.velocityMarkets) {
 			return;
 		}
+		if (this.velocityPriorityFeeEndpoint === undefined) {
+			throw new Error(
+				'velocityPriorityFeeEndpoint must be provided to use PriorityFeeMethod.VELOCITY'
+			);
+		}
 		const sample = await fetchVelocityPriorityFee(
-			this.velocityPriorityFeeEndpoint!,
+			this.velocityPriorityFeeEndpoint,
 			this.velocityMarkets.map((m) => m.marketType),
 			this.velocityMarkets.map((m) => m.marketIndex)
 		);

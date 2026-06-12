@@ -634,6 +634,18 @@ export class VelocityClient {
 	}
 
 	/**
+	 * Like {@link getPerpMarketAccount} but throws if the market is not loaded,
+	 * for call sites that require a guaranteed account.
+	 */
+	public getPerpMarketAccountOrThrow(marketIndex: number): PerpMarketAccount {
+		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+		if (!perpMarketAccount) {
+			throw new Error(`Perp market ${marketIndex} not found`);
+		}
+		return perpMarketAccount;
+	}
+
+	/**
 	 * Forces a fetch to rpc before returning accounts. Useful for anchor tests.
 	 * @param marketIndex
 	 */
@@ -663,6 +675,18 @@ export class VelocityClient {
 		marketIndex: number
 	): SpotMarketAccount | undefined {
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+	}
+
+	/**
+	 * Like {@link getSpotMarketAccount} but throws if the market is not loaded,
+	 * for call sites that require a guaranteed account.
+	 */
+	public getSpotMarketAccountOrThrow(marketIndex: number): SpotMarketAccount {
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		if (!spotMarketAccount) {
+			throw new Error(`Spot market ${marketIndex} not found`);
+		}
+		return spotMarketAccount;
 	}
 
 	/**
@@ -1578,7 +1602,16 @@ export class VelocityClient {
 				this.wallet.publicKey
 			);
 		} else {
-			userStatsAccount = userStats.getAccount();
+			const account = userStats.getAccount();
+			if (!account) {
+				userStatsAccount = await fetchUserStatsAccount(
+					this.connection,
+					this.program,
+					this.wallet.publicKey
+				);
+			} else {
+				userStatsAccount = account;
+			}
 		}
 		return userStatsAccount.numberOfSubAccountsCreated;
 	}

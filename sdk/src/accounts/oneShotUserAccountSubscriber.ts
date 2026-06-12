@@ -60,7 +60,9 @@ export class OneShotUserAccountSubscriber
 			}
 		} catch (e) {
 			console.error(
-				`OneShotUserAccountSubscriber.fetch() UserAccount does not exist: ${e.message}`
+				`OneShotUserAccountSubscriber.fetch() UserAccount does not exist: ${
+					e instanceof Error ? e.message : String(e)
+				}`
 			);
 		}
 	}

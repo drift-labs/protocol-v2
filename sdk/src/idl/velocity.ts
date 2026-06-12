@@ -13451,6 +13451,12 @@ export type Velocity = {
         {
           "name": "spotMarket",
           "writable": true
+        },
+        {
+          "name": "oracle",
+          "relations": [
+            "spotMarket"
+          ]
         }
       ],
       "args": [
@@ -16372,6 +16378,11 @@ export type Velocity = {
       "code": 6351,
       "name": "invalidAdminTier",
       "msg": "Signer is not authorized for this admin tier"
+    },
+    {
+      "code": 6352,
+      "name": "withdrawGuardThresholdNotionalTooLarge",
+      "msg": "Withdraw guard threshold notional exceeds max"
     }
   ],
   "types": [

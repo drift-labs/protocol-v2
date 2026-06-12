@@ -12,8 +12,8 @@ export interface SlotSubscriberEvents {
 }
 
 export class SlotSubscriber {
-	currentSlot: number;
-	subscriptionId: number;
+	currentSlot = 0;
+	subscriptionId?: number;
 	eventEmitter: StrictEventEmitter<EventEmitter, SlotSubscriberEvents>;
 
 	// Reconnection
@@ -28,7 +28,7 @@ export class SlotSubscriber {
 	) {
 		this.eventEmitter = new EventEmitter();
 		this.resubTimeoutMs = config?.resubTimeoutMs;
-		if (this.resubTimeoutMs < 1000) {
+		if (this.resubTimeoutMs !== undefined && this.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);

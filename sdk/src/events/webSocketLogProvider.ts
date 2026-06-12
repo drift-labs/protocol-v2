@@ -9,7 +9,7 @@ import {
 import { EventEmitter } from 'events';
 
 export class WebSocketLogProvider implements LogProvider {
-	private subscriptionId: number;
+	private subscriptionId?: number;
 	private isUnsubscribing = false;
 	private externalUnsubscribe = false;
 	private receivingData = false;
@@ -113,8 +113,10 @@ export class WebSocketLogProvider implements LogProvider {
 				await this.unsubscribe();
 				this.receivingData = false;
 				this.reconnectAttempts++;
-				this.eventEmitter.emit('reconnect', this.reconnectAttempts);
-				this.subscribe(this.callback);
+				this.eventEmitter?.emit('reconnect', this.reconnectAttempts);
+				if (this.callback) {
+					this.subscribe(this.callback);
+				}
 			}
 		}, this.resubTimeoutMs);
 	}

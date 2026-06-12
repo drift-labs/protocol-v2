@@ -26,6 +26,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
+	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
 import {
 	getBalance,
@@ -154,7 +155,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		const txSig = await admin.updateWithdrawGuardThreshold(
 			0,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 0)
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await admin.fetchAccounts();
@@ -217,7 +218,7 @@ describe('spot deposit and withdraw', () => {
 
 		const txSig = await admin.updateWithdrawGuardThreshold(
 			1,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 1)
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await admin.fetchAccounts();

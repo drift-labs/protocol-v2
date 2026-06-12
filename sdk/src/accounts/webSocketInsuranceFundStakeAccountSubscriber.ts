@@ -25,7 +25,20 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 	>;
 	insuranceFundStakeAccountPublicKey: PublicKey;
 
-	insuranceFundStakeDataAccountSubscriber: AccountSubscriber<InsuranceFundStake>;
+	private _insuranceFundStakeDataAccountSubscriber?: AccountSubscriber<InsuranceFundStake>;
+	get insuranceFundStakeDataAccountSubscriber(): AccountSubscriber<InsuranceFundStake> {
+		if (!this._insuranceFundStakeDataAccountSubscriber) {
+			throw new Error(
+				'insuranceFundStakeDataAccountSubscriber accessed before subscribe()'
+			);
+		}
+		return this._insuranceFundStakeDataAccountSubscriber;
+	}
+	set insuranceFundStakeDataAccountSubscriber(
+		subscriber: AccountSubscriber<InsuranceFundStake>
+	) {
+		this._insuranceFundStakeDataAccountSubscriber = subscriber;
+	}
 
 	public constructor(
 		program: VelocityProgram,

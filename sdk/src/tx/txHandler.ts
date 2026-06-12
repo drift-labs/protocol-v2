@@ -104,7 +104,7 @@ export class TxHandler {
 	) => void;
 
 	private blockhashCommitment: Commitment =
-		DEFAULT_CONFIRMATION_OPTS.commitment;
+		DEFAULT_CONFIRMATION_OPTS.commitment ?? 'confirmed';
 	private blockHashFetcher: BlockhashFetcher;
 
 	constructor(props: {
@@ -182,6 +182,22 @@ export class TxHandler {
 	}
 
 	/**
+	 * Resolves a usable recent blockhash, preferring a caller-provided one and
+	 * otherwise fetching the latest. Throws if no blockhash can be obtained,
+	 * since a transaction cannot be built or signed without one.
+	 */
+	private async resolveRecentBlockhash(
+		recentBlockhash?: BlockhashWithExpiryBlockHeight
+	): Promise<BlockhashWithExpiryBlockHeight> {
+		const resolved =
+			recentBlockhash ?? (await this.getLatestBlockhashForTransaction());
+		if (!resolved) {
+			throw new Error('TxHandler: failed to fetch a recent blockhash');
+		}
+		return resolved;
+	}
+
+	/**
 	 * Applies recent blockhash and signs a given transaction
 	 * @param tx
 	 * @param additionalSigners
@@ -206,17 +222,17 @@ export class TxHandler {
 		[wallet, confirmationOpts] = this.getProps(wallet, confirmationOpts);
 
 		tx.feePayer = wallet.publicKey;
-		recentBlockhash = recentBlockhash
-			? recentBlockhash
-			: await this.getLatestBlockhashForTransaction();
-		tx.recentBlockhash = recentBlockhash.blockhash;
+		const resolvedBlockhash = await this.resolveRecentBlockhash(
+			recentBlockhash
+		);
+		tx.recentBlockhash = resolvedBlockhash.blockhash;
 
-		this.addHashAndExpiryToLookup(recentBlockhash);
+		this.addHashAndExpiryToLookup(resolvedBlockhash);
 
 		const signedTx = await this.signTx(tx, additionalSigners);
 
 		// @ts-ignore
-		signedTx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
+		signedTx.SIGNATURE_BLOCK_AND_EXPIRY = resolvedBlockhash;
 
 		return signedTx;
 	}
@@ -237,20 +253,30 @@ export class TxHandler {
 				Buffer.from((signedTx as VersionedTransaction).signatures[0])
 			) as string;
 		} else {
-			return bs58.encode(
-				Buffer.from((signedTx as Transaction).signature)
-			) as string;
+			const signature = (signedTx as Transaction).signature;
+			if (!signature) {
+				throw new Error(
+					'TxHandler: cannot derive txSig from an unsigned legacy transaction'
+				);
+			}
+			return bs58.encode(Buffer.from(signature)) as string;
 		}
 	}
 
 	private getBlockhashFromSignedTx(
 		signedTx: Transaction | VersionedTransaction
-	) {
-		if (this.isVersionedTransaction(signedTx)) {
-			return (signedTx as VersionedTransaction).message.recentBlockhash;
-		} else {
-			return (signedTx as Transaction).recentBlockhash;
+	): string {
+		const blockHash = this.isVersionedTransaction(signedTx)
+			? (signedTx as VersionedTransaction).message.recentBlockhash
+			: (signedTx as Transaction).recentBlockhash;
+
+		if (!blockHash) {
+			throw new Error(
+				'TxHandler: signed transaction is missing a recentBlockhash'
+			);
 		}
+
+		return blockHash;
 	}
 
 	private async signTx(
@@ -328,13 +354,13 @@ export class TxHandler {
 
 	private handleSignedTxData(
 		txData: Omit<SignedTxData, 'lastValidBlockHeight'>[]
-	) {
+	): SignedTxData[] {
 		if (!this.returnBlockHeightsWithSignedTxCallbackData) {
 			if (this.onSignedCb) {
 				this.onSignedCb(txData);
 			}
 
-			return;
+			return [];
 		}
 
 		const signedTxData = txData.map((tx) => {
@@ -377,14 +403,14 @@ export class TxHandler {
 				}) as Promise<VersionedTransaction>,
 			processConfig: {
 				useSimulatedComputeUnits:
-					txBuildingProps.txParams.useSimulatedComputeUnits,
+					txBuildingProps.txParams?.useSimulatedComputeUnits,
 				computeUnitsBufferMultiplier:
-					txBuildingProps.txParams.computeUnitsBufferMultiplier,
+					txBuildingProps.txParams?.computeUnitsBufferMultiplier,
 				useSimulatedComputeUnitsForCUPriceCalculation:
 					txBuildingProps.txParams
-						.useSimulatedComputeUnitsForCUPriceCalculation,
+						?.useSimulatedComputeUnitsForCUPriceCalculation,
 				getCUPriceFromComputeUnits:
-					txBuildingProps.txParams.getCUPriceFromComputeUnits,
+					txBuildingProps.txParams?.getCUPriceFromComputeUnits,
 			},
 			processParams: {
 				connection: this.connection,
@@ -468,8 +494,9 @@ export class TxHandler {
 			instructions: (TransactionInstruction | TransactionInstruction[])[];
 		}
 	) {
-		const recentBlockhash =
-			props?.recentBlockhash ?? (await this.getLatestBlockhashForTransaction());
+		const recentBlockhash = await this.resolveRecentBlockhash(
+			props?.recentBlockhash
+		);
 
 		return await Promise.all(
 			props.instructions.map((ix) => {
@@ -567,7 +594,11 @@ export class TxHandler {
 		// # Create Tx Instructions
 		const allIx = [];
 		const computeUnits = baseTxParams?.computeUnits;
-		if (computeUnits > 0 && !hasSetComputeUnitLimitIx) {
+		if (
+			computeUnits !== undefined &&
+			computeUnits > 0 &&
+			!hasSetComputeUnitLimitIx
+		) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitLimit({
 					units: computeUnits,
@@ -583,7 +614,11 @@ export class TxHandler {
 					microLamports: 0,
 				})
 			);
-		} else if (computeUnitsPrice > 0 && !hasSetComputeUnitPriceIx) {
+		} else if (
+			computeUnitsPrice !== undefined &&
+			computeUnitsPrice > 0 &&
+			!hasSetComputeUnitPriceIx
+		) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: computeUnitsPrice,
@@ -593,8 +628,9 @@ export class TxHandler {
 
 		allIx.push(...instructionsToUse);
 
-		const recentBlockhash =
-			props?.recentBlockhash ?? (await this.getLatestBlockhashForTransaction());
+		const recentBlockhash = await this.resolveRecentBlockhash(
+			props?.recentBlockhash
+		);
 
 		// # Create and return Transaction
 		if (txVersion === 'legacy') {
@@ -659,19 +695,19 @@ export class TxHandler {
 		commitment?: Commitment,
 		recentBlockhash?: BlockhashWithExpiryBlockHeight
 	) {
-		recentBlockhash = recentBlockhash
-			? recentBlockhash
-			: await this.getLatestBlockhashForTransaction();
+		const resolvedBlockhash = await this.resolveRecentBlockhash(
+			recentBlockhash
+		);
 
-		this.addHashAndExpiryToLookup(recentBlockhash);
+		this.addHashAndExpiryToLookup(resolvedBlockhash);
 
 		for (const tx of Object.values(txsMap)) {
 			if (!tx) continue;
-			tx.recentBlockhash = recentBlockhash.blockhash;
+			tx.recentBlockhash = resolvedBlockhash.blockhash;
 			tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
 
 			// @ts-ignore
-			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
+			tx.SIGNATURE_BLOCK_AND_EXPIRY = resolvedBlockhash;
 		}
 
 		return this.getSignedTransactionMap(txsMap, wallet);
@@ -698,12 +734,18 @@ export class TxHandler {
 		const txsToSignEntries = Object.entries(txsToSignMap);
 
 		// Create a map of the same keys as the input map, but with the values set to undefined. We'll populate the filtered (non-undefined) values with signed transactions.
-		const signedTxMap = txsToSignEntries.reduce((acc, [key]) => {
-			acc[key] = undefined;
-			return acc;
-		}, {}) as T;
+		const signedTxMap = txsToSignEntries.reduce(
+			(acc, [key]) => {
+				acc[key] = undefined;
+				return acc;
+			},
+			{} as Record<string, Transaction | VersionedTransaction | undefined>
+		) as T;
 
-		const filteredTxEntries = txsToSignEntries.filter(([_, tx]) => !!tx);
+		const filteredTxEntries = txsToSignEntries.filter(
+			(entry): entry is [string, Transaction | VersionedTransaction] =>
+				!!entry[1]
+		);
 
 		// Extra handling for legacy transactions
 		for (const [_key, tx] of filteredTxEntries) {
@@ -761,10 +803,13 @@ export class TxHandler {
 			instructions: Object.values(props.instructionsMap),
 		});
 
-		return Object.keys(props.instructionsMap).reduce((acc, key, index) => {
-			acc[key] = builtTxs[index];
-			return acc;
-		}, {}) as MappedRecord<T, Transaction | VersionedTransaction>;
+		return Object.keys(props.instructionsMap).reduce(
+			(acc, key, index) => {
+				acc[key] = builtTxs[index];
+				return acc;
+			},
+			{} as Record<string, Transaction | VersionedTransaction | undefined>
+		) as MappedRecord<T, Transaction | VersionedTransaction>;
 	}
 
 	/**

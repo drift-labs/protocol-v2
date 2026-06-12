@@ -40,7 +40,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalConnections: Connection[];
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
-	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
+	additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 	txHandler: TxHandler;
 	trackTxLandRate?: boolean;
 	throwOnTimeoutError: boolean;
@@ -72,7 +72,7 @@ export abstract class BaseTxSender implements TxSender {
 		wallet: IWallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
-		additionalConnections?;
+		additionalConnections?: Connection[];
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
@@ -181,7 +181,7 @@ export abstract class BaseTxSender implements TxSender {
 		} else {
 			signedTx = await this.txHandler.signVersionedTx(
 				tx,
-				additionalSigners,
+				additionalSigners ?? [],
 				undefined,
 				this.wallet
 			);
@@ -221,7 +221,7 @@ export abstract class BaseTxSender implements TxSender {
 	async confirmTransactionWebSocket(
 		signature: TransactionSignature,
 		commitment?: Commitment
-	): Promise<RpcResponseAndContext<SignatureResult>> {
+	): Promise<RpcResponseAndContext<SignatureResult> | undefined> {
 		let decodedSignature;
 		try {
 			decodedSignature = bs58.decode(signature);
@@ -234,11 +234,11 @@ export abstract class BaseTxSender implements TxSender {
 		const start = Date.now();
 		const subscriptionCommitment = commitment || this.opts.commitment;
 
-		const subscriptionIds = new Array<number>();
+		const subscriptionIds = new Array<number | undefined>();
 		const connections = [this.connection, ...this.additionalConnections];
 		let response: RpcResponseAndContext<SignatureResult> | null = null;
 		const promises = connections.map((connection, i) => {
-			let subscriptionId;
+			let subscriptionId: number | undefined;
 			const confirmPromise = new Promise((resolve, reject) => {
 				try {
 					subscriptionId = connection.onSignature(
@@ -301,7 +301,7 @@ export abstract class BaseTxSender implements TxSender {
 			}
 		}
 
-		return response;
+		return response ?? undefined;
 	}
 
 	async confirmTransactionPolling(
@@ -349,7 +349,7 @@ export abstract class BaseTxSender implements TxSender {
 	async confirmTransaction(
 		signature: TransactionSignature,
 		commitment?: Commitment
-	): Promise<RpcResponseAndContext<SignatureResult>> {
+	): Promise<RpcResponseAndContext<SignatureResult> | undefined> {
 		if (
 			this.confirmationStrategy === ConfirmationStrategy.WebSocket ||
 			this.confirmationStrategy === ConfirmationStrategy.Combo
@@ -431,7 +431,7 @@ export abstract class BaseTxSender implements TxSender {
 	}
 
 	public getTxLandRate(): number {
-		if (!this.trackTxLandRate) {
+		if (!this.trackTxLandRate || !this.txSigCache) {
 			return this.txLandRate;
 		}
 		const keys = this.txSigCache.keys();
@@ -453,7 +453,7 @@ export abstract class BaseTxSender implements TxSender {
 	private defaultLandRateToFeeFunc(txLandRate: number) {
 		if (
 			txLandRate >= BASELINE_TX_LAND_RATE ||
-			this.txSigCache.keys().length < 3
+			(this.txSigCache?.keys().length ?? 0) < 3
 		) {
 			return 1;
 		}

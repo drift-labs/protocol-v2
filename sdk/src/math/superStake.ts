@@ -95,7 +95,7 @@ export async function findBestSuperStakeIxs({
 	} else if (marketIndex === 8) {
 		return findBestLstSuperStakeIxs({
 			amount,
-			lstMint: velocityClient.getSpotMarketAccount(8).mint,
+			lstMint: velocityClient.getSpotMarketAccountOrThrow(8).mint,
 			lstMarketIndex: 8,
 			jupiterClient,
 			velocityClient,
@@ -137,10 +137,10 @@ export async function findBestMSolSuperStakeIxs({
 		price = await getMarinadeMSolPrice(marinadeProgram);
 	}
 
-	const solSpotMarketAccount = velocityClient.getSpotMarketAccount(1);
-	const mSolSpotMarketAccount = velocityClient.getSpotMarketAccount(2);
+	const solSpotMarketAccount = velocityClient.getSpotMarketAccountOrThrow(1);
+	const mSolSpotMarketAccount = velocityClient.getSpotMarketAccountOrThrow(2);
 
-	let jupiterPrice: number;
+	let jupiterPrice: number | undefined;
 	let quote = jupiterQuote;
 	if (!jupiterQuote) {
 		try {
@@ -152,7 +152,7 @@ export async function findBestMSolSuperStakeIxs({
 				onlyDirectRoutes,
 			});
 
-			jupiterPrice = +quote.outAmount / +quote.inAmount;
+			jupiterPrice = +fetchedQuote.outAmount / +fetchedQuote.inAmount;
 
 			quote = fetchedQuote;
 		} catch (e) {
@@ -216,7 +216,7 @@ export async function findBestJitoSolSuperStakeIxs({
 		velocityClient,
 		userAccountPublicKey,
 		onlyDirectRoutes,
-		lstMint: velocityClient.getSpotMarketAccount(6).mint,
+		lstMint: velocityClient.getSpotMarketAccountOrThrow(6).mint,
 		lstMarketIndex: 6,
 		jupiterQuote,
 	});
@@ -436,7 +436,7 @@ export async function calculateSolEarned({
 
 	let lstRatios = new Map<number, number>();
 
-	const getMsolPrice = async (timestamp) => {
+	const getMsolPrice = async (timestamp: number) => {
 		const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
 		const swaggerApiDateTime = date.toISOString(); // Format date as swagger API date-time
 		const url = `https://api.marinade.finance/msol/price_sol?time=${swaggerApiDateTime}`;
@@ -465,7 +465,10 @@ export async function calculateSolEarned({
 	if (marketIndex === 2) {
 		await Promise.all(timestamps.map(getMsolPrice));
 	} else if (marketIndex === 6) {
-		lstRatios = await getJitoSolHistoricalPriceMap(timestamps);
+		const jitoSolRatios = await getJitoSolHistoricalPriceMap(timestamps);
+		if (jitoSolRatios) {
+			lstRatios = jitoSolRatios;
+		}
 	} else if (marketIndex === 8) {
 		await getBSolPrice(timestamps);
 	}
@@ -484,6 +487,11 @@ export async function calculateSolEarned({
 			record.marketIndex === 8
 		) {
 			const lstRatio = lstRatios.get(record.ts.toNumber());
+			if (lstRatio === undefined) {
+				throw new Error(
+					`Missing LST/SOL ratio for deposit record at timestamp ${record.ts.toNumber()}`
+				);
+			}
 			const lstRatioBN = new BN(lstRatio * LAMPORTS_PER_SOL);
 
 			const solAmount = record.amount.mul(lstRatioBN).div(LAMPORTS_PRECISION);
@@ -497,6 +505,9 @@ export async function calculateSolEarned({
 
 	const currentLstTokenAmount = await user.getTokenAmount(marketIndex);
 	const currentLstRatio = lstRatios.get(now);
+	if (currentLstRatio === undefined) {
+		throw new Error(`Missing current LST/SOL ratio for timestamp ${now}`);
+	}
 	const currentLstRatioBN = new BN(currentLstRatio * LAMPORTS_PER_SOL);
 
 	solEarned = solEarned.add(

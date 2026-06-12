@@ -24,17 +24,14 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
+	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
 import { getBalance } from '../sdk/src/math/spotBalance';
 import {
 	createBurnInstruction,
 	TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
-import {
-	QUOTE_PRECISION,
-	SPOT_MARKET_BALANCE_PRECISION,
-	SpotOperation,
-} from '../sdk';
+import { SPOT_MARKET_BALANCE_PRECISION, SpotOperation } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -159,7 +156,7 @@ describe('spot deposit and withdraw 22', () => {
 		);
 		const txSig = await admin.updateWithdrawGuardThreshold(
 			0,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 0)
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await admin.fetchAccounts();

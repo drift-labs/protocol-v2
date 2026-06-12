@@ -86,6 +86,9 @@ export function* getL2GeneratorFromDLOBNodes(
 	slot: number
 ): Generator<L2Level> {
 	for (const dlobNode of dlobNodes) {
+		if (!dlobNode.order) {
+			continue;
+		}
 		const size = dlobNode.baseAssetAmount.sub(
 			dlobNode.order.baseAssetAmountFilled
 		) as BN;
@@ -111,16 +114,21 @@ export function* mergeL2LevelGenerators(
 	l2LevelGenerators: Generator<L2Level>[],
 	compare: (a: L2Level, b: L2Level) => boolean
 ): Generator<L2Level> {
-	const generators = l2LevelGenerators.map((generator) => {
+	type GeneratorState = {
+		generator: Generator<L2Level>;
+		next: IteratorResult<L2Level>;
+	};
+
+	const generators: GeneratorState[] = l2LevelGenerators.map((generator) => {
 		return {
 			generator,
 			next: generator.next(),
 		};
 	});
 
-	let next;
+	let next: GeneratorState | undefined;
 	do {
-		next = generators.reduce((best, next) => {
+		next = generators.reduce<GeneratorState | undefined>((best, next) => {
 			if (next.next.done) {
 				return best;
 			}
@@ -154,9 +162,13 @@ export function createL2Levels(
 		if (levels.length > 0 && levels[levels.length - 1].price.eq(price)) {
 			const currentLevel = levels[levels.length - 1];
 			currentLevel.size = currentLevel.size.add(size);
-			for (const [source, size] of Object.entries(level.sources)) {
-				if (currentLevel.sources[source]) {
-					currentLevel.sources[source] = currentLevel.sources[source].add(size);
+			for (const [source, size] of Object.entries(level.sources) as [
+				liquiditySource,
+				BN,
+			][]) {
+				const existingSize = currentLevel.sources[source];
+				if (existingSize) {
+					currentLevel.sources[source] = existingSize.add(size);
 				} else {
 					currentLevel.sources[source] = size;
 				}
@@ -354,9 +366,13 @@ function groupL2Levels(
 			);
 
 			currentLevel.size = currentLevel.size.add(size);
-			for (const [source, size] of Object.entries(level.sources)) {
-				if (currentLevel.sources[source]) {
-					currentLevel.sources[source] = currentLevel.sources[source].add(size);
+			for (const [source, size] of Object.entries(level.sources) as [
+				liquiditySource,
+				BN,
+			][]) {
+				const existingSize = currentLevel.sources[source];
+				if (existingSize) {
+					currentLevel.sources[source] = existingSize.add(size);
 				} else {
 					currentLevel.sources[source] = size;
 				}
@@ -386,12 +402,16 @@ const mergeByPrice = (bidsOrAsks: L2Level[]) => {
 	const merged = new Map<string, L2Level>();
 	for (const level of bidsOrAsks) {
 		const key = level.price.toString();
-		if (merged.has(key)) {
-			const existing = merged.get(key);
+		const existing = merged.get(key);
+		if (existing) {
 			existing.size = existing.size.add(level.size);
-			for (const [source, size] of Object.entries(level.sources)) {
-				if (existing.sources[source]) {
-					existing.sources[source] = existing.sources[source].add(size);
+			for (const [source, size] of Object.entries(level.sources) as [
+				liquiditySource,
+				BN,
+			][]) {
+				const existingSize = existing.sources[source];
+				if (existingSize) {
+					existing.sources[source] = existingSize.add(size);
 				} else {
 					existing.sources[source] = size;
 				}
@@ -449,11 +469,15 @@ export function uncrossL2(
 			levels[levels.length - 1].size = levels[levels.length - 1].size.add(
 				oldLevel.size
 			);
-			for (const [source, size] of Object.entries(oldLevel.sources)) {
-				if (levels[levels.length - 1].sources[source]) {
+			for (const [source, size] of Object.entries(oldLevel.sources) as [
+				liquiditySource,
+				BN,
+			][]) {
+				const existingSize = levels[levels.length - 1].sources[source];
+				if (existingSize) {
 					levels[levels.length - 1].sources = {
 						...levels[levels.length - 1].sources,
-						[source]: levels[levels.length - 1].sources[source].add(size),
+						[source]: existingSize.add(size),
 					};
 				} else {
 					levels[levels.length - 1].sources[source] = size;
@@ -473,8 +497,8 @@ export function uncrossL2(
 
 	let bidIndex = 0;
 	let askIndex = 0;
-	let maxBid: BN;
-	let minAsk: BN;
+	let maxBid: BN | undefined;
+	let minAsk: BN | undefined;
 
 	const getPriceAndSetBound = (newPrice: BN, direction: PositionDirection) => {
 		if (isVariant(direction, 'long')) {

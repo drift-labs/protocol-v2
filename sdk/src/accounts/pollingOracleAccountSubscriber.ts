@@ -83,9 +83,14 @@ export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
-		const { buffer, slot } = this.accountLoader.getBufferAndSlot(
-			this.publicKey
-		);
+		const bufferAndSlot = this.accountLoader.getBufferAndSlot(this.publicKey);
+		if (!bufferAndSlot) {
+			return;
+		}
+		const { buffer, slot } = bufferAndSlot;
+		if (!buffer) {
+			return;
+		}
 		this.oraclePriceData = {
 			data: await this.oracleClient.getOraclePriceDataFromBuffer(buffer),
 			slot,
@@ -97,11 +102,15 @@ export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 			return;
 		}
 
-		this.accountLoader.removeAccount(this.publicKey, this.callbackId);
-		this.callbackId = undefined;
+		if (this.callbackId) {
+			this.accountLoader.removeAccount(this.publicKey, this.callbackId);
+			this.callbackId = undefined;
+		}
 
-		this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
-		this.errorCallbackId = undefined;
+		if (this.errorCallbackId) {
+			this.accountLoader.removeErrorCallbacks(this.errorCallbackId);
+			this.errorCallbackId = undefined;
+		}
 
 		this.isSubscribed = false;
 	}
@@ -116,7 +125,7 @@ export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 
 	public getOraclePriceData(): DataAndSlot<OraclePriceData> {
 		this.assertIsSubscribed();
-		return this.oraclePriceData;
+		return this.oraclePriceData!;
 	}
 
 	didSubscriptionSucceed(): boolean {

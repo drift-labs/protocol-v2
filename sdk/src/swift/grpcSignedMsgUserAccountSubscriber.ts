@@ -10,7 +10,6 @@ import {
 
 export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrdersAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
-	override subscriber: grpcProgramAccountSubscriber<SignedMsgUserOrdersAccount>;
 
 	constructor({
 		grpcConfigs,
@@ -23,8 +22,8 @@ export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrder
 	}
 
 	public async subscribe(): Promise<void> {
-		if (!this.subscriber) {
-			this.subscriber =
+		if (!this._subscriber) {
+			this._subscriber =
 				await grpcProgramAccountSubscriber.create<SignedMsgUserOrdersAccount>(
 					this.grpcConfigs,
 					'SingedMsgUserOrdersAccountMap',
@@ -71,9 +70,9 @@ export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrder
 	}
 
 	public async unsubscribe(): Promise<void> {
-		if (!this.subscriber) return;
-		await this.subscriber.unsubscribe();
-		this.subscriber = undefined;
+		if (!this._subscriber) return;
+		await this._subscriber.unsubscribe();
+		this._subscriber = undefined;
 		if (this.resyncTimeoutId !== undefined) {
 			clearTimeout(this.resyncTimeoutId);
 			this.resyncTimeoutId = undefined;

@@ -1,7 +1,7 @@
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
-import { PublicKey } from '@solana/web3.js';
+import { AccountInfo, PublicKey } from '@solana/web3.js';
 import { findAllMarketAndOracles, VelocityProgram } from '../config';
 import {
 	getVelocityStateAccountPublicKey,
@@ -70,8 +70,8 @@ export class grpcVelocityClientAccountSubscriberV2
 	oracleClientCache = new OracleClientCache();
 	private resubOpts?: ResubOpts;
 
-	private subscriptionPromise: Promise<boolean>;
-	protected subscriptionPromiseResolver: (val: boolean) => void;
+	protected subscriptionPromiseResolver: (val: boolean) => void = () => {};
+	private subscriptionPromise: Promise<boolean> = Promise.resolve(false);
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
@@ -130,7 +130,9 @@ export class grpcVelocityClientAccountSubscriberV2
 			).flat();
 			this.initialPerpMarketAccountData = new Map(
 				perpMarketAccountInfos
-					.filter((accountInfo) => !!accountInfo)
+					.filter(
+						(accountInfo): accountInfo is AccountInfo<Buffer> => !!accountInfo
+					)
 					.map((accountInfo) => {
 						const perpMarket = this.program.coder.accounts.decode(
 							'perpMarket',
@@ -158,7 +160,9 @@ export class grpcVelocityClientAccountSubscriberV2
 			).flat();
 			this.initialSpotMarketAccountData = new Map(
 				spotMarketAccountInfos
-					.filter((accountInfo) => !!accountInfo)
+					.filter(
+						(accountInfo): accountInfo is AccountInfo<Buffer> => !!accountInfo
+					)
 					.map((accountInfo) => {
 						const spotMarket = this.program.coder.accounts.decode(
 							'spotMarket',
@@ -181,24 +185,31 @@ export class grpcVelocityClientAccountSubscriberV2
 			)
 		).flat();
 		this.initialOraclePriceData = new Map(
-			this.oracleInfos.reduce((result, oracleInfo, i) => {
-				if (!oracleAccountInfos[i]) {
+			this.oracleInfos.reduce<[string, OraclePriceData][]>(
+				(result, oracleInfo, i) => {
+					const oracleAccountInfo = oracleAccountInfos[i];
+					if (!oracleAccountInfo) {
+						return result;
+					}
+					const oracleClient = this.oracleClientCache.get(
+						oracleInfo.source,
+						connection,
+						this.program
+					);
+					if (!oracleClient) {
+						return result;
+					}
+					const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
+						oracleAccountInfo.data
+					);
+					result.push([
+						getOracleId(oracleInfo.publicKey, oracleInfo.source),
+						oraclePriceData,
+					]);
 					return result;
-				}
-				const oracleClient = this.oracleClientCache.get(
-					oracleInfo.source,
-					connection,
-					this.program
-				);
-				const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
-					oracleAccountInfos[i].data
-				);
-				result.push([
-					getOracleId(oracleInfo.publicKey, oracleInfo.source),
-					oraclePriceData,
-				]);
-				return result;
-			}, [])
+				},
+				[]
+			)
 		);
 	}
 
@@ -334,7 +345,7 @@ export class grpcVelocityClientAccountSubscriberV2
 
 	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
-		return this.stateAccountSubscriber.dataAndSlot;
+		return this.stateAccountSubscriber!.dataAndSlot!;
 	}
 
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
@@ -350,17 +361,23 @@ export class grpcVelocityClientAccountSubscriberV2
 	getMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined {
-		return this.perpMarketsSubscriber?.getAccountData(
-			this.perpMarketIndexToAccountPubkeyMap.get(marketIndex)
-		);
+		const accountPubkey =
+			this.perpMarketIndexToAccountPubkeyMap.get(marketIndex);
+		if (!accountPubkey) {
+			return undefined;
+		}
+		return this.perpMarketsSubscriber?.getAccountData(accountPubkey);
 	}
 
 	getSpotMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined {
-		return this.spotMarketsSubscriber?.getAccountData(
-			this.spotMarketIndexToAccountPubkeyMap.get(marketIndex)
-		);
+		const accountPubkey =
+			this.spotMarketIndexToAccountPubkeyMap.get(marketIndex);
+		if (!accountPubkey) {
+			return undefined;
+		}
+		return this.spotMarketsSubscriber?.getAccountData(accountPubkey);
 	}
 
 	public getOraclePriceDataAndSlot(
@@ -382,8 +399,8 @@ export class grpcVelocityClientAccountSubscriberV2
 			return undefined;
 		}
 
-		if (!perpMarketAccount.data.oracle.equals(oracle)) {
-			// If the oracle has changed, we need to update the oracle map in background
+		if (!oracle || !perpMarketAccount.data.oracle.equals(oracle)) {
+			// If the oracle has changed (or not yet cached), update the oracle map in background
 			this.setPerpOracleMap();
 		}
 
@@ -400,8 +417,8 @@ export class grpcVelocityClientAccountSubscriberV2
 			return undefined;
 		}
 
-		if (!spotMarketAccount.data.oracle.equals(oracle)) {
-			// If the oracle has changed, we need to update the oracle map in background
+		if (!oracle || !spotMarketAccount.data.oracle.equals(oracle)) {
+			// If the oracle has changed (or not yet cached), update the oracle map in background
 			this.setSpotOracleMap();
 		}
 
@@ -410,7 +427,7 @@ export class grpcVelocityClientAccountSubscriberV2
 
 	async setPerpOracleMap() {
 		const perpMarketsMap = this.perpMarketsSubscriber?.getAccountDataMap();
-		const perpMarkets = Array.from(perpMarketsMap.values());
+		const perpMarkets = Array.from(perpMarketsMap?.values() ?? []);
 		const addOraclePromises = [];
 		for (const perpMarket of perpMarkets) {
 			if (!perpMarket || !perpMarket.data) {
@@ -436,7 +453,7 @@ export class grpcVelocityClientAccountSubscriberV2
 
 	async setSpotOracleMap() {
 		const spotMarketsMap = this.spotMarketsSubscriber?.getAccountDataMap();
-		const spotMarkets = Array.from(spotMarketsMap.values());
+		const spotMarkets = Array.from(spotMarketsMap?.values() ?? []);
 		const addOraclePromises = [];
 		for (const spotMarket of spotMarkets) {
 			if (!spotMarket || !spotMarket.data) {
@@ -604,7 +621,7 @@ export class grpcVelocityClientAccountSubscriberV2
 			if (!oraclePubkeyToInfosMap.has(pubkey)) {
 				oraclePubkeyToInfosMap.set(pubkey, []);
 			}
-			oraclePubkeyToInfosMap.get(pubkey).push(info);
+			oraclePubkeyToInfosMap.get(pubkey)!.push(info);
 		}
 
 		const oraclePubkeys = Array.from(
@@ -623,11 +640,18 @@ export class grpcVelocityClientAccountSubscriberV2
 					throw new Error('Oracle pubkey missing in decode');
 				}
 
+				if (!accountProps) {
+					throw new Error('Oracle accountProps missing in decode');
+				}
+
 				const client = this.oracleClientCache.get(
 					accountProps.source,
 					this.program.provider.connection,
 					this.program
 				);
+				if (!client) {
+					throw new Error('Oracle client missing in decode');
+				}
 				const price = client.getOraclePriceDataFromBuffer(buffer);
 				return price;
 			},
@@ -660,6 +684,9 @@ export class grpcVelocityClientAccountSubscriberV2
 		await this.oracleMultiSubscriber.subscribe(
 			oraclePubkeys,
 			(accountId, data, context, _b, accountProps) => {
+				if (accountProps === undefined) {
+					return;
+				}
 				const oracleId = getOracleId(accountId, accountProps.source);
 				this.oracleIdToOracleDataMap.set(oracleId, {
 					data,
@@ -698,21 +725,21 @@ export class grpcVelocityClientAccountSubscriberV2
 					this.perpMarketIndexToAccountPubkeyMap.get(marketIndex);
 				return pubkeyString ? new PublicKey(pubkeyString) : null;
 			})
-			.filter((pubkey) => pubkey !== null) as PublicKey[];
+			.filter((pubkey): pubkey is PublicKey => pubkey !== null);
 
 		// Build array of oracle pubkeys to remove
 		const oraclePubkeysToRemove = oracles.map((oracle) => oracle.publicKey);
 
 		// Remove accounts in batches - perp markets
 		if (perpMarketPubkeysToRemove.length > 0) {
-			await this.perpMarketsSubscriber.removeAccounts(
+			await this.perpMarketsSubscriber?.removeAccounts(
 				perpMarketPubkeysToRemove
 			);
 		}
 
 		// Remove accounts in batches - oracles
 		if (oraclePubkeysToRemove.length > 0) {
-			await this.oracleMultiSubscriber.removeAccounts(oraclePubkeysToRemove);
+			await this.oracleMultiSubscriber?.removeAccounts(oraclePubkeysToRemove);
 		}
 	}
 

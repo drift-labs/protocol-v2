@@ -32,7 +32,8 @@ export class ReferrerMap {
 	private parallelSync: boolean;
 
 	private fetchPromise?: Promise<void>;
-	private fetchPromiseResolver: () => void;
+	// Set synchronously inside the Promise executor in sync(); the only idiomatic bang.
+	private fetchPromiseResolver!: () => void;
 
 	/**
 	 * Creates a new UserStatsMap instance.
@@ -72,12 +73,16 @@ export class ReferrerMap {
 				this.velocityClient.program.programId,
 				new PublicKey(authority)
 			);
-			const buffer = (
-				await this.velocityClient.connection.getAccountInfo(
-					userStatsAccountPublicKey,
-					'processed'
-				)
-			).data;
+			const accountInfo = await this.velocityClient.connection.getAccountInfo(
+				userStatsAccountPublicKey,
+				'processed'
+			);
+			if (!accountInfo) {
+				throw new Error(
+					`ReferrerMap: UserStats account not found for authority ${authority}`
+				);
+			}
+			const buffer = accountInfo.data;
 
 			const referrer = bs58.encode(buffer.subarray(40, 72));
 
@@ -173,7 +178,7 @@ export class ReferrerMap {
 		const rpcRequestArgs = [
 			this.velocityClient.program.programId.toBase58(),
 			{
-				commitment: this.velocityClient.opts.commitment,
+				commitment: this.velocityClient.opts?.commitment,
 				filters: [getUserStatsFilter()],
 				encoding: 'base64',
 				dataSlice: {
@@ -213,7 +218,7 @@ export class ReferrerMap {
 		const rpcRequestArgs = [
 			this.velocityClient.program.programId.toBase58(),
 			{
-				commitment: this.velocityClient.opts.commitment,
+				commitment: this.velocityClient.opts?.commitment,
 				filters: [getUserStatsFilter(), referrerFilter],
 				encoding: 'base64',
 				dataSlice: {

@@ -21,15 +21,13 @@ export class EventsServerLogProvider implements LogProvider {
 	private lastHeartbeat = 0;
 	private timeoutId?: ReturnType<typeof setTimeout>;
 	private reconnectAttempts = 0;
-	eventEmitter?: EventEmitter;
+	eventEmitter: EventEmitter = new EventEmitter();
 
 	public constructor(
 		private readonly url: string,
 		private readonly eventTypes: EventType[],
 		private readonly userAccount?: string
-	) {
-		this.eventEmitter = new EventEmitter();
-	}
+	) {}
 
 	public isSubscribed(): boolean {
 		return this.ws !== undefined;
@@ -39,24 +37,29 @@ export class EventsServerLogProvider implements LogProvider {
 		if (this.ws !== undefined) {
 			return true;
 		}
-		this.ws = new WebSocketImpl(this.url);
+		const ws = new WebSocketImpl(this.url);
+		this.ws = ws;
 
 		this.callback = callback;
-		this.ws.addEventListener('open', () => {
+		ws.addEventListener('open', () => {
 			for (const channel of this.eventTypes) {
-				const subscribeMessage = {
+				const subscribeMessage: {
+					type: string;
+					channel: EventType;
+					user?: string;
+				} = {
 					type: 'subscribe',
 					channel: channel,
 				};
 				if (this.userAccount) {
-					subscribeMessage['user'] = this.userAccount;
+					subscribeMessage.user = this.userAccount;
 				}
-				this.ws.send(JSON.stringify(subscribeMessage));
+				ws.send(JSON.stringify(subscribeMessage));
 			}
 			this.reconnectAttempts = 0;
 		});
 
-		this.ws.addEventListener('message', (data) => {
+		ws.addEventListener('message', (data) => {
 			try {
 				if (!this.isUnsubscribing) {
 					clearTimeout(this.timeoutId);
@@ -78,6 +81,9 @@ export class EventsServerLogProvider implements LogProvider {
 					return;
 				}
 				const event = JSON.parse(parsedData.data);
+				if (this.callback === undefined) {
+					return;
+				}
 				this.callback(
 					event.txSig,
 					event.slot,
@@ -94,11 +100,11 @@ export class EventsServerLogProvider implements LogProvider {
 			}
 		});
 
-		this.ws.addEventListener('close', () => {
+		ws.addEventListener('close', () => {
 			console.log('eventsServerLogProvider: WebSocket closed');
 		});
 
-		this.ws.addEventListener('error', (error) => {
+		ws.addEventListener('error', (error) => {
 			console.error('eventsServerLogProvider: WebSocket error:', error);
 		});
 
@@ -142,10 +148,13 @@ export class EventsServerLogProvider implements LogProvider {
 						this.reconnectAttempts + 1
 					}`
 				);
+				const callback = this.callback;
 				await this.unsubscribe();
 				this.reconnectAttempts++;
 				this.eventEmitter.emit('reconnect', this.reconnectAttempts);
-				this.subscribe(this.callback);
+				if (callback !== undefined) {
+					this.subscribe(callback);
+				}
 			}
 		}, EVENT_SERVER_HEARTBEAT_INTERVAL_MS * 2);
 	}

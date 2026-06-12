@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
@@ -23,8 +23,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
+	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
-import { QUOTE_PRECISION, ZERO } from '../sdk';
+import { ZERO } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -140,7 +141,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await admin.updateWithdrawGuardThreshold(
 			0,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 0)
 		);
 		await admin.fetchAccounts();
 		const spotMarket = await admin.getSpotMarketAccount(0);
@@ -166,7 +167,7 @@ describe('spot deposit and withdraw', () => {
 		await admin.updateSpotMarketStatus(1, MarketStatus.ACTIVE);
 		await admin.updateWithdrawGuardThreshold(
 			1,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 1)
 		);
 		await admin.fetchAccounts();
 		await admin.fetchAccounts();
@@ -210,7 +211,7 @@ describe('spot deposit and withdraw', () => {
 
 		const txSig = await admin.updateWithdrawGuardThreshold(
 			2,
-			new BN(10 ** 10).mul(new BN(LAMPORTS_PER_SOL))
+			await getMaxWithdrawGuardThreshold(admin, 2)
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await admin.fetchAccounts();
@@ -238,7 +239,7 @@ describe('spot deposit and withdraw', () => {
 		await admin.updateSpotMarketStatus(3, MarketStatus.ACTIVE);
 		await admin.updateWithdrawGuardThreshold(
 			3,
-			new BN(10 ** 10).mul(new BN(LAMPORTS_PER_SOL))
+			await getMaxWithdrawGuardThreshold(admin, 3)
 		);
 		await admin.fetchAccounts();
 		const spotMarket1 = await admin.getSpotMarketAccount(3);

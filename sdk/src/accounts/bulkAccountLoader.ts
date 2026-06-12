@@ -18,11 +18,11 @@ export class BulkAccountLoader {
 	pollingFrequency: number;
 	accountsToLoad = new Map<string, AccountToLoad>();
 	bufferAndSlotMap = new Map<string, BufferAndSlot>();
-	errorCallbacks = new Map<string, (e) => void>();
+	errorCallbacks = new Map<string, (e: Error) => void>();
 	intervalId?: ReturnType<typeof setTimeout>;
 	// to handle clients spamming load
 	loadPromise?: Promise<void>;
-	loadPromiseResolver: () => void;
+	loadPromiseResolver: () => void = () => {};
 	lastTimeLoadingPromiseCleared = Date.now();
 	mostRecentSlot = 0;
 
@@ -73,7 +73,13 @@ export class BulkAccountLoader {
 		return callbackId;
 	}
 
-	public removeAccount(publicKey: PublicKey, callbackId: string): void {
+	public removeAccount(
+		publicKey: PublicKey,
+		callbackId: string | undefined
+	): void {
+		if (callbackId === undefined) {
+			return;
+		}
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
 		if (existingAccountToLoad) {
 			existingAccountToLoad.callbacks.delete(callbackId);
@@ -94,7 +100,10 @@ export class BulkAccountLoader {
 		return callbackId;
 	}
 
-	public removeErrorCallbacks(callbackId: string): void {
+	public removeErrorCallbacks(callbackId: string | undefined): void {
+		if (callbackId === undefined) {
+			return;
+		}
 		this.errorCallbacks.delete(callbackId);
 	}
 
@@ -137,8 +146,9 @@ export class BulkAccountLoader {
 		} catch (e) {
 			console.error(`Error in bulkAccountLoader.load()`);
 			console.error(e);
+			const error = e instanceof Error ? e : new Error(String(e));
 			for (const [_, callback] of this.errorCallbacks) {
-				callback(e);
+				callback(error);
 			}
 		} finally {
 			this.loadPromiseResolver();
@@ -179,7 +189,7 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		rpcResponses.forEach((rpcResponse, i) => {
+		rpcResponses.forEach((rpcResponse: any, i: number) => {
 			if (!rpcResponse.result) {
 				console.error('rpc response missing result:');
 				console.log(JSON.stringify(rpcResponse));
@@ -234,9 +244,12 @@ export class BulkAccountLoader {
 
 	handleAccountCallbacks(
 		accountToLoad: AccountToLoad,
-		buffer: Buffer,
+		buffer: Buffer | undefined,
 		slot: number
 	): void {
+		if (buffer === undefined) {
+			return;
+		}
 		for (const [_, callback] of accountToLoad.callbacks) {
 			try {
 				callback(buffer, slot);

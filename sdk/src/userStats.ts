@@ -83,27 +83,28 @@ export class UserStats {
 		this.isSubscribed = false;
 	}
 
-	public getAccountAndSlot(): DataAndSlot<UserStatsAccount> {
+	public getAccountAndSlot(): DataAndSlot<UserStatsAccount> | undefined {
 		return this.accountSubscriber.getUserStatsAccountAndSlot();
 	}
 
-	public getAccount(): UserStatsAccount {
-		return this.accountSubscriber.getUserStatsAccountAndSlot().data;
+	public getAccount(): UserStatsAccount | undefined {
+		return this.accountSubscriber.getUserStatsAccountAndSlot()?.data;
 	}
 
 	public getReferrerInfo(): ReferrerInfo | undefined {
-		if (this.getAccount().referrer.equals(PublicKey.default)) {
+		const account = this.getAccount();
+		if (!account || account.referrer.equals(PublicKey.default)) {
 			return undefined;
 		} else {
 			return {
 				referrer: getUserAccountPublicKeySync(
 					this.velocityClient.program.programId,
-					this.getAccount().referrer,
+					account.referrer,
 					0
 				),
 				referrerStats: getUserStatsAccountPublicKey(
 					this.velocityClient.program.programId,
-					this.getAccount().referrer
+					account.referrer
 				),
 			};
 		}

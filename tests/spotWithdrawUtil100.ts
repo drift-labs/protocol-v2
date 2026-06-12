@@ -2,7 +2,10 @@ import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
-import { setFeedPriceNoProgram } from './testHelpers';
+import {
+	setFeedPriceNoProgram,
+	getMaxWithdrawGuardThreshold,
+} from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 import {
 	PositionDirection,
@@ -23,7 +26,6 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
-	QUOTE_PRECISION,
 	ZERO,
 	ONE,
 	SPOT_MARKET_BALANCE_PRECISION,
@@ -160,7 +162,7 @@ describe('test function when spot market at >= 100% util', () => {
 		);
 		const txSig = await admin.updateWithdrawGuardThreshold(
 			0,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 0)
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await admin.fetchAccounts();
@@ -251,7 +253,7 @@ describe('test function when spot market at >= 100% util', () => {
 
 		const txSig = await admin.updateWithdrawGuardThreshold(
 			1,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 1)
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await admin.fetchAccounts();
