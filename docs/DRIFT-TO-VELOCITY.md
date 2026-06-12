@@ -67,7 +67,7 @@ or reworked.
 | **MM oracle validation** | #60 | Slot-gap and step-cap checks on MM oracle updates. |
 | **Special user status** | #17 | New `User.special_user_status` field (`SpecialUserStatus::VammHedger`). |
 | **Builder codes** (*pending, PR #68*) | #68 | Optional `builder_idx` / `builder_fee_tenth_bps` on `OrderParams`; new `change_approved_builder` instruction and `RevenueShareEscrow` account. Existing order placements are unaffected (fields are optional). |
-| **Funding bias spread widening** (*pending*) | — | New `AMM.funding_bias_sensitivity` field (consumes one byte of `padding_post_amm`, sizes unchanged) widens the vAMM's paying-side spread while it pays funding, up to `1 + sensitivity/100` at the funding offset floor. New admin instruction `update_perp_market_funding_bias_sensitivity`; SDK gains `AdminClient.updatePerpMarketFundingBiasSensitivity`. Default 0 = off, no quote change until enabled. |
+| **Funding bias spread widening** (*pending*) | — | New `AMM.funding_bias_sensitivity` field (consumes one byte of `padding_post_amm`, sizes unchanged) widens the vAMM's paying-side spread while it pays funding, up to `1 + sensitivity/100` at the funding offset floor. New admin instruction `update_perp_market_funding_bias_sensitivity`; SDK gains `AdminClient.updatePerpMarketFundingBiasSensitivity`. Default 0 = off, no quote change until enabled. Alongside this, `last_funding_oracle_twap` moved from `PerpMarket` to `MarketStats` (carved out of `MarketStats.padding`; the old `PerpMarket` slot became `_padding_funding_twap`, so all offsets and sizes are unchanged and existing accounts need no migration). SDK: `PerpMarketAccount.lastFundingOracleTwap` is now `marketStats.lastFundingOracleTwap`. |
 | **Revenue-share fill enforcement** (*pending, PR #68*) | #68 | Perp fills fail with `UnableToLoadRevenueShareAccount` (6324 / `0x18b4`) unless the taker's `RevenueShareEscrow` is passed in remaining accounts when (a) the taker order carries a builder code, or (b) the taker's `UserStats.referrer_status` has the `BuilderReferral` bit (escrow exists with a referrer). Liquidation fills and the feature-flag-off state are exempt. Fillers must attach the escrow for any taker that has one with a referrer — see SDK §4.4. Referral rewards also no longer accrue (and referral slots are no longer created) for escrows without a referrer. |
 
 ---
@@ -201,7 +201,7 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
 | #67 | Remove legacy fee path |
 | #68 *(open)* | Builder codes on non-swift orders; fill-time enforcement of builder + referral revenue share (escrow required when taker has a builder order or a referred escrow) |
 | #70 *(open)* | Rebrand program crate drift → velocity |
-| *(open)* | Funding bias spread widening: `AMM.funding_bias_sensitivity` + `update_perp_market_funding_bias_sensitivity` admin ix |
+| *(open)* | Funding bias spread widening: `AMM.funding_bias_sensitivity` + `update_perp_market_funding_bias_sensitivity` admin ix; `last_funding_oracle_twap` moved `PerpMarket` → `MarketStats` (offset-preserving) |
 
 ---
 

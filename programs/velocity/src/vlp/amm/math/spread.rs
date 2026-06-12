@@ -130,7 +130,7 @@ pub fn update_amm_quote_state(
             market_stats.volume_24h,
             amm.amm_inventory_spread_adjustment,
             market_stats.last_24h_avg_funding_rate,
-            market_stats.historical_oracle_data.last_oracle_price_twap,
+            market_stats.last_funding_oracle_twap,
             amm.funding_bias_sensitivity,
         )?
     } else {
@@ -689,7 +689,8 @@ pub fn calculate_max_target_spread(
 ///
 /// q = net user position the vAMM faces (`base_asset_amount_with_amm`),
 /// f = 24h avg funding rate normalized to a daily fraction of the oracle
-/// twap (FUNDING_RATE_PRECISION). f carries the funding offset, so f = 0 is
+/// twap captured at the last funding update (FUNDING_RATE_PRECISION), the
+/// same twap the rate accrued against. f carries the funding offset, so f = 0 is
 /// the paying/receiving zero-crossing, not zero premium. The vAMM pays when
 /// f * q < 0: f > 0 with q < 0 (vAMM long), or f < 0 with q > 0 (vAMM short).
 ///
@@ -704,10 +705,10 @@ pub fn calculate_max_target_spread(
 pub fn calculate_spread_funding_bias_scale(
     base_asset_amount_with_amm: i128,
     last_24h_avg_funding_rate: i64,
-    oracle_price_twap: i64,
+    last_funding_oracle_twap: i64,
     funding_bias_sensitivity: u8,
 ) -> VelocityResult<u64> {
-    if funding_bias_sensitivity == 0 || oracle_price_twap <= 0 {
+    if funding_bias_sensitivity == 0 || last_funding_oracle_twap <= 0 {
         return Ok(BID_ASK_SPREAD_PRECISION);
     }
 
@@ -715,7 +716,7 @@ pub fn calculate_spread_funding_bias_scale(
     let f_norm = last_24h_avg_funding_rate
         .cast::<i128>()?
         .safe_mul(PRICE_PRECISION_I128)?
-        .safe_div(oracle_price_twap.cast::<i128>()?)?
+        .safe_div(last_funding_oracle_twap.cast::<i128>()?)?
         .safe_mul(24)?;
 
     // f * q >= 0: vAMM receives (or rate/inventory is zero), β = 1
@@ -762,7 +763,7 @@ pub fn calculate_spread(
     volume_24h: u64,
     amm_inventory_spread_adjustment: i8,
     last_24h_avg_funding_rate: i64,
-    oracle_price_twap: i64,
+    last_funding_oracle_twap: i64,
     funding_bias_sensitivity: u8,
 ) -> VelocityResult<(u32, u32)> {
     let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
@@ -887,7 +888,7 @@ pub fn calculate_spread(
     let funding_bias_scale = calculate_spread_funding_bias_scale(
         base_asset_amount_with_amm,
         last_24h_avg_funding_rate,
-        oracle_price_twap,
+        last_funding_oracle_twap,
         funding_bias_sensitivity,
     )?;
     if funding_bias_scale > BID_ASK_SPREAD_PRECISION {

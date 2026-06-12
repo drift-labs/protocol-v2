@@ -87,6 +87,7 @@ mod get_trigger_price {
             market_stats: MarketStats {
                 last_mark_price_twap: 109146153042,
                 funding_period: 3600,
+                last_funding_oracle_twap: 109198342833,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap_5min: 109143803911,
                     ..HistoricalOracleData::default()
@@ -96,7 +97,6 @@ mod get_trigger_price {
             amm: AMM { ..AMM::default() },
             last_funding_rate: 1410520875,
             last_funding_rate_ts: 1752080410,
-            last_funding_oracle_twap: 109198342833,
             ..PerpMarket::default()
         };
 
@@ -136,6 +136,7 @@ mod get_trigger_price {
             market_stats: MarketStats {
                 last_mark_price_twap: 109146153042,
                 funding_period: 3600,
+                last_funding_oracle_twap: 109198342833,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap_5min: 109143803911,
                     ..HistoricalOracleData::default()
@@ -145,7 +146,6 @@ mod get_trigger_price {
             amm: AMM { ..AMM::default() },
             last_funding_rate: 1410520875,
             last_funding_rate_ts: 1752080410,
-            last_funding_oracle_twap: 109198342833,
             ..PerpMarket::default()
         };
 

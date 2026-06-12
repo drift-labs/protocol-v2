@@ -19721,14 +19721,25 @@ export type Velocity = {
           {
             "name": "padding",
             "docs": [
-              "Padding so historical_oracle_data is 8-aligned."
+              "Padding so last_funding_oracle_twap is 8-aligned."
             ],
             "type": {
               "array": [
                 "u8",
-                11
+                3
               ]
             }
+          },
+          {
+            "name": "lastFundingOracleTwap",
+            "docs": [
+              "Oracle TWAP captured at last funding update, the normalizer",
+              "`last_24h_avg_funding_rate` accrued against. Read by the AMM's",
+              "funding bias spread and `get_last_funding_basis`. Migrated from",
+              "`PerpMarket` so the AMM reads only from `MarketStats`.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
           },
           {
             "name": "historicalOracleData",
@@ -21171,11 +21182,17 @@ export type Velocity = {
             "type": "i64"
           },
           {
-            "name": "lastFundingOracleTwap",
+            "name": "paddingFundingTwap",
             "docs": [
-              "oracle TWAP captured at last funding update"
+              "Explicit padding where `last_funding_oracle_twap` used to live",
+              "(moved to `MarketStats`); keeps every later field at its old offset."
             ],
-            "type": "i64"
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           },
           {
             "name": "orderStepSize",

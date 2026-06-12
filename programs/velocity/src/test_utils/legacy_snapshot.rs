@@ -302,7 +302,6 @@ pub fn regenerate_perp_market_snapshot(old_b64: &str) -> String {
     pm.last_funding_rate_short = la.last_funding_rate_short;
     pm.last_funding_rate_ts = la.last_funding_rate_ts;
     pm.net_unsettled_funding_pnl = la.net_unsettled_funding_pnl;
-    pm.last_funding_oracle_twap = la.last_funding_oracle_twap;
     pm.order_step_size = la.order_step_size;
     pm.order_tick_size = la.order_tick_size;
     pm.oracle_source = unsafe { std::mem::transmute::<u8, OracleSource>(la.oracle_source) };
@@ -332,7 +331,8 @@ pub fn regenerate_perp_market_snapshot(old_b64: &str) -> String {
         last_oracle_normalised_price: la.last_oracle_normalised_price,
         last_reference_price_offset: la.reference_price_offset,
         last_oracle_valid: la.last_oracle_valid,
-        padding: [0; 11],
+        padding: [0; 3],
+        last_funding_oracle_twap: la.last_funding_oracle_twap,
         historical_oracle_data: la.historical_oracle_data,
     };
 

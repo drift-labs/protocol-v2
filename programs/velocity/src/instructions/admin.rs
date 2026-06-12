@@ -691,7 +691,7 @@ pub fn handle_initialize_perp_market(
         last_funding_rate_short: 0,
         last_funding_rate_ts: now,
         net_unsettled_funding_pnl: 0,
-        last_funding_oracle_twap: 0,
+        _padding_funding_twap: [0; 8],
         order_step_size,
         order_tick_size,
         base_asset_amount_long: 0,

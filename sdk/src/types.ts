@@ -868,7 +868,6 @@ export type PerpMarketAccount = {
 	lastFundingRateShort: BN;
 	lastFundingRateTs: BN;
 	netUnsettledFundingPnl: BN;
-	lastFundingOracleTwap: BN;
 	orderStepSize: BN;
 	orderTickSize: BN;
 };
@@ -1033,6 +1032,7 @@ export type MarketStats = {
 	lastOracleNormalisedPrice: BN;
 	lastReferencePriceOffset: number;
 	lastOracleValid: boolean;
+	lastFundingOracleTwap: BN;
 	historicalOracleData: HistoricalOracleData;
 };
 
