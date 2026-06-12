@@ -1008,6 +1008,7 @@ export type AMM = {
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
 	referencePriceOffsetDeadbandPct: number;
+	fundingBiasSensitivity: number;
 };
 
 export type MarketStats = {

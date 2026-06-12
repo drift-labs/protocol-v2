@@ -1106,6 +1106,26 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
     Ok(())
 }
 
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_funding_bias_sensitivity(
+    ctx: Context<HotAdminUpdatePerpMarket>,
+    funding_bias_sensitivity: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    msg!(
+        "perp_market.amm.funding_bias_sensitivity: {:?} -> {:?}",
+        perp_market.amm.funding_bias_sensitivity,
+        funding_bias_sensitivity
+    );
+
+    perp_market.amm.funding_bias_sensitivity = funding_bias_sensitivity;
+    Ok(())
+}
+
 pub fn handle_update_amm_spread_adjustment_native(
     accounts: &[AccountInfo],
     data: &[u8],

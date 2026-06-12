@@ -10633,6 +10633,38 @@
       ]
     },
     {
+      "name": "update_perp_market_funding_bias_sensitivity",
+      "discriminator": [
+        143,
+        62,
+        234,
+        145,
+        184,
+        237,
+        110,
+        116
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "perp_market",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "funding_bias_sensitivity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "update_perp_market_funding_period",
       "discriminator": [
         171,
@@ -16636,11 +16668,20 @@
             "type": "u8"
           },
           {
+            "name": "funding_bias_sensitivity",
+            "docs": [
+              "s in the funding bias β(f) = 1 + s * ρ(f): how much the paying-side",
+              "spread widens while the vAMM pays funding on its inventory.",
+              "0 disables the bias."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding_post_amm",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           }

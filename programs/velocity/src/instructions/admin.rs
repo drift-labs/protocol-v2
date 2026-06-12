@@ -768,7 +768,8 @@ pub fn handle_initialize_perp_market(
             long_spread: 0,
             short_spread: 0,
             reference_price_offset: 0,
-            padding_post_amm: [0; 3],
+            funding_bias_sensitivity: 0,
+            padding_post_amm: [0; 2],
         },
     };
 

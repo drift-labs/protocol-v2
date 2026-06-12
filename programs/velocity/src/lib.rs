@@ -1536,6 +1536,13 @@ pub mod velocity {
         )
     }
 
+    pub fn update_perp_market_funding_bias_sensitivity(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        funding_bias_sensitivity: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_funding_bias_sensitivity(ctx, funding_bias_sensitivity)
+    }
+
     pub fn update_perp_market_oracle_slot_delay_override(
         ctx: Context<HotAdminUpdatePerpMarket>,
         oracle_slot_delay_override: i8,

@@ -10639,6 +10639,38 @@ export type Velocity = {
       ]
     },
     {
+      "name": "updatePerpMarketFundingBiasSensitivity",
+      "discriminator": [
+        143,
+        62,
+        234,
+        145,
+        184,
+        237,
+        110,
+        116
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "perpMarket",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "fundingBiasSensitivity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketFundingPeriod",
       "discriminator": [
         171,
@@ -16642,11 +16674,20 @@ export type Velocity = {
             "type": "u8"
           },
           {
+            "name": "fundingBiasSensitivity",
+            "docs": [
+              "s in the funding bias β(f) = 1 + s * ρ(f): how much the paying-side",
+              "spread widens while the vAMM pays funding on its inventory.",
+              "0 disables the bias."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "paddingPostAmm",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           }
