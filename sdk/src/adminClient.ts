@@ -32,6 +32,7 @@ import {
 	ConstituentStatus,
 	LPPoolAccount,
 	TransferFeeAndPnlPoolDirection,
+	SpotMarketAccount,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from './isomorphic/anchor';
@@ -2053,12 +2054,14 @@ export class AdminClient extends VelocityClient {
 
 	public async updateWithdrawGuardThreshold(
 		spotMarketIndex: number,
-		withdrawGuardThreshold: BN
+		withdrawGuardThreshold: BN,
+		oracle?: PublicKey
 	): Promise<TransactionSignature> {
 		const updateWithdrawGuardThresholdIx =
 			await this.getUpdateWithdrawGuardThresholdIx(
 				spotMarketIndex,
-				withdrawGuardThreshold
+				withdrawGuardThreshold,
+				oracle
 			);
 
 		const tx = await this.buildTransaction(updateWithdrawGuardThresholdIx);
@@ -2070,8 +2073,34 @@ export class AdminClient extends VelocityClient {
 
 	public async getUpdateWithdrawGuardThresholdIx(
 		spotMarketIndex: number,
-		withdrawGuardThreshold: BN
+		withdrawGuardThreshold: BN,
+		oracle?: PublicKey
 	): Promise<TransactionInstruction> {
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			spotMarketIndex
+		);
+
+		if (!oracle) {
+			const cachedSpotMarket = this.isSubscribed
+				? this.getSpotMarketAccount(spotMarketIndex)
+				: undefined;
+			if (cachedSpotMarket) {
+				oracle = cachedSpotMarket.oracle;
+			} else {
+				const accountInfo = await this.connection.getAccountInfo(
+					spotMarketPublicKey
+				);
+				const spotMarket = (
+					this.program.account as any
+				).spotMarket.coder.accounts.decodeUnchecked(
+					'spotMarket',
+					accountInfo.data
+				) as SpotMarketAccount;
+				oracle = spotMarket.oracle;
+			}
+		}
+
 		return await this.program.instruction.updateWithdrawGuardThreshold(
 			withdrawGuardThreshold,
 			{
@@ -2080,10 +2109,8 @@ export class AdminClient extends VelocityClient {
 						? this.getStateAccount().coldAdmin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
+					spotMarket: spotMarketPublicKey,
+					oracle,
 				},
 			}
 		);

@@ -1143,7 +1143,7 @@ pub mod velocity {
     }
 
     pub fn update_withdraw_guard_threshold(
-        ctx: Context<AdminUpdateSpotMarket>,
+        ctx: Context<AdminUpdateSpotMarketWithdrawGuardThreshold>,
         withdraw_guard_threshold: u64,
     ) -> Result<()> {
         handle_update_withdraw_guard_threshold(ctx, withdraw_guard_threshold)

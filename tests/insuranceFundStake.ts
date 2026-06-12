@@ -66,7 +66,9 @@ describe('insurance fund stake', () => {
 
 	let solOracle: PublicKey;
 
-	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
+	// sized so the half-deposit borrow ($5k) stays under the program's $10k
+	// withdraw guard threshold notional cap
+	const usdcAmount = new BN(10000 * 10 ** 6); //10k
 
 	let secondUserVelocityClient: TestClient;
 	let secondUserVelocityClientWSOLAccount: PublicKey;
@@ -74,7 +76,7 @@ describe('insurance fund stake', () => {
 
 	let velocityClientUser: User;
 
-	const solAmount = new BN(10000 * 10 ** 9);
+	const solAmount = new BN(100 * 10 ** 9);
 
 	before(async () => {
 		const context = await startAnchor('', [], []);
@@ -342,7 +344,7 @@ describe('insurance fund stake', () => {
 			)
 		).amount;
 		console.log('usdc balance:', usdcbalance);
-		assert(usdcbalance.toString() == '500000000000');
+		assert(usdcbalance.toString() == '5000000000');
 
 		const ifStakeAccount =
 			(await velocityClient.program.account.insuranceFundStake.fetch(
@@ -466,7 +468,7 @@ describe('insurance fund stake', () => {
 			)
 		).amount;
 		console.log('usdc balance:', usdcbalance);
-		assert(usdcbalance.toString() == '999999999999');
+		assert(usdcbalance.toString() == '9999999999');
 	});
 
 	it('Second User Deposit SOL', async () => {
@@ -536,7 +538,7 @@ describe('insurance fund stake', () => {
 
 		await velocityClient.fetchAccounts();
 		const spotMarket = await velocityClient.getSpotMarketAccount(marketIndex);
-		const expectedBorrowBalance = new BN(500000000000001);
+		const expectedBorrowBalance = new BN(5000000000001);
 		console.log(
 			'spotMarket.borrowBalance:',
 			spotMarket.borrowBalance.toString()
@@ -679,7 +681,7 @@ describe('insurance fund stake', () => {
 			).amount
 		);
 		console.log('usdc balance:', usdcbalance);
-		assert(usdcbalance.toString() == '999999999999');
+		assert(usdcbalance.toString() == '9999999999');
 
 		try {
 			const txSig = await velocityClient.addInsuranceFundStake({
@@ -711,7 +713,7 @@ describe('insurance fund stake', () => {
 		);
 		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
 		assert(spotMarket0.insuranceFund.totalShares.gt(usdcAmount));
-		assert(spotMarket0.insuranceFund.totalShares.gt(new BN('1000000004698')));
+		assert(spotMarket0.insuranceFund.totalShares.gt(new BN('10000000001')));
 		// totalIfShares lower bound, kinda random basd on timestamps
 
 		assert(spotMarket0.insuranceFund.userShares.eq(new BN(usdcbalance)));
@@ -763,8 +765,11 @@ describe('insurance fund stake', () => {
 			amountFromShare
 		);
 
-		console.log('letting interest accum (2s)');
+		console.log('letting interest accum (2s + 200s warp)');
 		await sleep(2000);
+		// warp the chain clock so the smaller borrow (scaled down for the $10k
+		// withdraw guard cap) still accrues enough interest to rebase if shares
+		await bankrunContextWrapper.moveTimeForward(200);
 		await velocityClient.updateSpotMarketCumulativeInterest(0);
 		await velocityClient.fetchAccounts();
 		const spotMarketIUpdate = await velocityClient.getSpotMarketAccount(
@@ -959,17 +964,17 @@ describe('insurance fund stake', () => {
 		assert(isVariant(beforebb0.balanceType, 'borrow'));
 		assert(isVariant(beforebb1.balanceType, 'deposit'));
 
-		assert(beforeLiquiderUSDCDeposit.gt(new BN('1000000066000')));
+		assert(beforeLiquiderUSDCDeposit.gt(new BN('10000000660')));
 		assert(beforeLiquiderSOLDeposit.eq(new BN('0')));
-		assert(beforeLiquiteeUSDCBorrow.gt(new BN('500000033001')));
-		assert(beforeLiquiteeSOLDeposit.gt(new BN('10000000997')));
+		assert(beforeLiquiteeUSDCBorrow.gt(new BN('5000000330')));
+		assert(beforeLiquiteeSOLDeposit.gt(new BN('100000009')));
 
 		const txSig = await velocityClient.liquidateSpot(
 			await secondUserVelocityClient.getUserAccountPublicKey(),
 			secondUserVelocityClient.getUserAccount(),
 			1,
 			0,
-			new BN(6 * 10 ** 8)
+			new BN(6 * 10 ** 6)
 		);
 
 		const computeUnits =
@@ -1034,8 +1039,8 @@ describe('insurance fund stake', () => {
 		assert(isVariant(bb0.balanceType, 'borrow'));
 		assert(isVariant(bb1.balanceType, 'deposit'));
 
-		assert(afterLiquiderUSDCDeposit.gt(new BN('999400065806')));
-		assert(afterLiquiderSOLDeposit.gt(new BN('266660042')));
+		assert(afterLiquiderUSDCDeposit.gt(new BN('9994000658')));
+		assert(afterLiquiderSOLDeposit.gt(new BN('2666600')));
 		console.log(afterLiquiteeUSDCBorrow.toString());
 		console.log(afterLiquiteeSOLDeposit.toString());
 		// assert(afterLiquiteeUSDCBorrow.gte(new BN('499406444150')));
@@ -1079,7 +1084,7 @@ describe('insurance fund stake', () => {
 		assert(liquidationRecord.liquidateSpot.liabilityMarketIndex === 0);
 		console.log(liquidationRecord.liquidateSpot.liabilityTransfer.toString());
 		assert(
-			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(600000000))
+			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(6000000))
 		);
 		console.log(liquidationRecord.liquidateSpot.ifFee.toString());
 		console.log(spotMarketBefore.liquidatorFee.toString());
@@ -1107,7 +1112,7 @@ describe('insurance fund stake', () => {
 		);
 		console.log('ifPoolBalance: 0 ->', ifPoolBalanceAfter.toString());
 
-		assert(ifPoolBalanceAfter.gte(new BN('8840')));
+		assert(ifPoolBalanceAfter.gte(new BN('88')));
 		assert(ifPoolBalanceAfter.lte(new BN('30080')));
 
 		// assert(ifPoolBalanceAfter.gte(new BN('6004698'))); // before IF fee change

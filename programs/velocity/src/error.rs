@@ -755,6 +755,8 @@ pub enum ErrorCode {
     SpotDlobTradingDisabled,
     #[msg("Signer is not authorized for this admin tier")]
     InvalidAdminTier,
+    #[msg("Withdraw guard threshold notional exceeds max")]
+    WithdrawGuardThresholdNotionalTooLarge,
 }
 
 #[macro_export]

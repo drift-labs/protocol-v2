@@ -18,6 +18,15 @@ use anchor_lang::prelude::*;
 use crate::error::ErrorCode;
 use crate::state::state::{HotRole, State};
 
+/// Anchor `constraint = ...` helper. Returns `Ok(true)` iff the signer is the
+/// cold admin. Reserved for actions that can undermine other safety rails
+/// (e.g. swapping a market's oracle, which prices the withdraw guard
+/// threshold notional cap).
+pub fn check_cold(signer: &Pubkey, state: &AccountLoader<'_, State>) -> Result<bool> {
+    let state = state.load()?;
+    Ok(state.is_cold(signer))
+}
+
 /// Anchor `constraint = ...` helper. Loads State via the AccountLoader so the
 /// constraint can be expressed as `check_warm(&signer.key(), &state)?` inside
 /// `#[derive(Accounts)]`. Returns `Ok(true)` iff the signer is cold or warm.

@@ -22,8 +22,8 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
+	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
-import { QUOTE_PRECISION } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -135,7 +135,7 @@ describe('spot deposit and withdraw', () => {
 		);
 		await admin.updateWithdrawGuardThreshold(
 			0,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 0)
 		);
 		await admin.fetchAccounts();
 		const spotMarket = await admin.getSpotMarketAccount(0);
@@ -161,7 +161,7 @@ describe('spot deposit and withdraw', () => {
 		await admin.updateSpotMarketStatus(1, MarketStatus.ACTIVE);
 		await admin.updateWithdrawGuardThreshold(
 			0,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 0)
 		);
 		await admin.fetchAccounts();
 		await admin.fetchAccounts();
