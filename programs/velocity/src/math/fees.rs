@@ -6,9 +6,7 @@ use crate::error::VelocityResult;
 use crate::math::casting::Cast;
 
 use crate::math::constants::{
-    FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE, ONE_MILLION_QUOTE,
-    ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE, TWENTY_FIVE_THOUSAND_QUOTE,
-    TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
+    FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_MILLION_QUOTE, TEN_BPS, TEN_MILLION_QUOTE,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
@@ -16,7 +14,7 @@ use crate::math::safe_math::SafeMath;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
-use crate::math::constants::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
+use crate::math::constants::FEE_ADJUSTMENT_MAX;
 use crate::msg;
 
 #[cfg(test)]
@@ -347,7 +345,6 @@ fn determine_perp_fee_tier(
     fee_structure: &FeeStructure,
 ) -> VelocityResult<FeeTier> {
     let total_30d_volume = user_stats.get_total_30d_volume()?;
-    let staked_gov_token_amount = user_stats.if_staked_gov_token_amount;
 
     const TIER_LENGTH: usize = 5;
 
@@ -359,16 +356,6 @@ fn determine_perp_fee_tier(
         ONE_HUNDRED_MILLION_QUOTE * 2,
     ];
 
-    const STAKE_THRESHOLDS: [u64; TIER_LENGTH] = [
-        ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
-        TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
-        (TWENTY_FIVE_THOUSAND_QUOTE * 2) - QUOTE_PRECISION_U64,
-        ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
-        TWO_HUNDRED_FIFTY_THOUSAND_QUOTE - QUOTE_PRECISION_U64 * 5,
-    ];
-
-    const STAKE_BENEFIT_FRAC: [u32; TIER_LENGTH + 1] = [0, 5, 10, 20, 30, 40];
-
     let mut fee_tier_index = TIER_LENGTH;
     for i in 0..TIER_LENGTH {
         if total_30d_volume < VOLUME_THRESHOLDS[i] {
@@ -377,48 +364,7 @@ fn determine_perp_fee_tier(
         }
     }
 
-    let mut stake_benefit_index = TIER_LENGTH;
-    for i in 0..TIER_LENGTH {
-        if staked_gov_token_amount < STAKE_THRESHOLDS[i] {
-            stake_benefit_index = i;
-            break;
-        }
-    }
-
-    let stake_benefit = STAKE_BENEFIT_FRAC[stake_benefit_index];
-
-    let mut tier = fee_structure.fee_tiers[fee_tier_index];
-
-    if stake_benefit > 0 {
-        if let Some(div_scalar) = match stake_benefit {
-            5 => Some(20),
-            10 => Some(10),
-            20 => Some(5),
-            _ => None,
-        } {
-            // Fast path for 5%, 10%, 20% using no mul
-            tier.fee_numerator = tier
-                .fee_numerator
-                .saturating_sub(tier.fee_numerator.safe_div_ceil(div_scalar)?);
-
-            tier.maker_rebate_numerator = tier
-                .maker_rebate_numerator
-                .safe_add(tier.maker_rebate_numerator.safe_div(div_scalar)?)?;
-        } else {
-            // General path with mul/div
-            tier.fee_numerator = tier
-                .fee_numerator
-                .safe_mul(100_u32.saturating_sub(stake_benefit))?
-                .safe_div_ceil(100_u32)?;
-
-            tier.maker_rebate_numerator = tier
-                .maker_rebate_numerator
-                .safe_mul(100_u32.saturating_add(stake_benefit))?
-                .safe_div(100_u32)?;
-        }
-    }
-
-    Ok(tier)
+    Ok(fee_structure.fee_tiers[fee_tier_index])
 }
 
 fn determine_spot_fee_tier<'a>(

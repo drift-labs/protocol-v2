@@ -708,18 +708,6 @@ pub mod velocity {
         handle_update_user_quote_asset_insurance_stake(ctx)
     }
 
-    pub fn update_user_gov_token_insurance_stake(
-        ctx: Context<UpdateUserGovTokenInsuranceStake>,
-    ) -> Result<()> {
-        handle_update_user_gov_token_insurance_stake(ctx)
-    }
-
-    pub fn update_delegate_user_gov_token_insurance_stake(
-        ctx: Context<UpdateDelegateUserGovTokenInsuranceStake>,
-    ) -> Result<()> {
-        handle_update_delegate_user_gov_token_insurance_stake(ctx)
-    }
-
     pub fn initialize_insurance_fund_stake(
         ctx: Context<InitializeInsuranceFundStake>,
         market_index: u16,

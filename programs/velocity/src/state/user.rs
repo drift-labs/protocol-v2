@@ -1810,8 +1810,9 @@ pub struct UserStats {
     pub disable_update_perp_bid_ask_twap: u8,
     pub paused_operations: u8,
 
-    /// The amount of tokens staked in the governance spot markets if
-    pub if_staked_gov_token_amount: u64,
+    /// 9 bytes: 1 byte of former repr(C) alignment padding + the removed
+    /// 8-byte `if_staked_gov_token_amount` field (gov-token stake fee discount)
+    pub padding1: [u8; 9],
 
     /// Delegate permissions across all sub accounts
     pub delegate_permissions: u8,
@@ -1836,7 +1837,7 @@ impl Default for UserStats {
             referrer_status: 0,
             disable_update_perp_bid_ask_twap: 0,
             paused_operations: 0,
-            if_staked_gov_token_amount: 0,
+            padding1: [0; 9],
             delegate_permissions: 0,
             padding: [0; 63],
         }

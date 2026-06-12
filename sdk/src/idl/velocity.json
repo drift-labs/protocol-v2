@@ -9359,107 +9359,6 @@
       ]
     },
     {
-      "name": "update_delegate_user_gov_token_insurance_stake",
-      "discriminator": [
-        241,
-        29,
-        215,
-        228,
-        142,
-        116,
-        22,
-        160
-      ],
-      "accounts": [
-        {
-          "name": "spot_market",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "insurance_fund_stake"
-        },
-        {
-          "name": "user_stats",
-          "writable": true
-        },
-        {
-          "name": "admin",
-          "signer": true
-        },
-        {
-          "name": "insurance_fund_vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "state"
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "update_discount_mint",
       "discriminator": [
         32,
@@ -12840,108 +12739,6 @@
           "type": "pubkey"
         }
       ]
-    },
-    {
-      "name": "update_user_gov_token_insurance_stake",
-      "discriminator": [
-        143,
-        99,
-        235,
-        187,
-        20,
-        159,
-        184,
-        84
-      ],
-      "accounts": [
-        {
-          "name": "state"
-        },
-        {
-          "name": "spot_market",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "insurance_fund_stake",
-          "writable": true
-        },
-        {
-          "name": "user_stats",
-          "writable": true
-        },
-        {
-          "name": "signer",
-          "signer": true
-        },
-        {
-          "name": "insurance_fund_vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        }
-      ],
-      "args": []
     },
     {
       "name": "update_user_idle",
@@ -24133,11 +23930,17 @@
             "type": "u8"
           },
           {
-            "name": "if_staked_gov_token_amount",
+            "name": "padding1",
             "docs": [
-              "The amount of tokens staked in the governance spot markets if"
+              "9 bytes: 1 byte of former repr(C) alignment padding + the removed",
+              "8-byte `if_staked_gov_token_amount` field (gov-token stake fee discount)"
             ],
-            "type": "u64"
+            "type": {
+              "array": [
+                "u8",
+                9
+              ]
+            }
           },
           {
             "name": "delegate_permissions",
