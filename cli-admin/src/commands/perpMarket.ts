@@ -38,4 +38,42 @@ export function registerPerpMarket(parent: Command): void {
 			await client.unsubscribe();
 		}
 	});
+
+	withGlobalOptions(
+		pm
+			.command('set-funding-bias-sensitivity <market> <sensitivity>')
+			.description(
+				'Funding bias sensitivity (u8, hundredths): paying-side spread widens up to 1 + sensitivity/100 while the vAMM pays funding. 50 => up to 1.5x, 0 disables.'
+			)
+	).action(
+		async (market: string, sensitivity: string, _flags, cmd: Command) => {
+			const opts = readGlobalOpts(cmd);
+			const provider = buildProvider(opts);
+			const client = await buildAdminClient(opts);
+			try {
+				const value = Number.parseInt(sensitivity, 10);
+				if (!Number.isInteger(value) || value < 0 || value > 255) {
+					throw new Error(
+						`sensitivity must be an integer in [0, 255], got "${sensitivity}"`
+					);
+				}
+				const ix = await client.getUpdatePerpMarketFundingBiasSensitivityIx(
+					Number.parseInt(market, 10),
+					value
+				);
+				const result = await sendOrPropose(
+					provider,
+					[ix],
+					opts.multisig ? new PublicKey(opts.multisig) : undefined,
+					'velocity-admin perp-market set-funding-bias-sensitivity'
+				);
+				reportDispatch(
+					`perp-market[${market}] funding_bias_sensitivity = ${value}`,
+					result
+				);
+			} finally {
+				await client.unsubscribe();
+			}
+		}
+	);
 }

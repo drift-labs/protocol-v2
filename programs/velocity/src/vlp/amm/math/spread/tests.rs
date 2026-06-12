@@ -245,6 +245,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, (base_spread * 10 / 2));
@@ -275,6 +278,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread2, 16667);
@@ -304,6 +310,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -341,6 +350,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert!(short_spread4 < long_spread4);
@@ -370,6 +382,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -540,6 +555,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
 
@@ -566,6 +584,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -621,6 +642,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
 
@@ -670,6 +694,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
@@ -698,6 +725,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 345);
@@ -724,6 +754,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -775,6 +808,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199926);
@@ -801,6 +837,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199951);
@@ -826,6 +865,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -1184,6 +1226,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
 
@@ -1225,6 +1270,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             -50,
+            0,
+            0,
+            0,
         )
         .unwrap();
 
@@ -1252,6 +1300,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             -100,
+            0,
+            0,
+            0,
         )
         .unwrap();
 
@@ -1278,6 +1329,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -1306,6 +1360,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 197666);
@@ -1331,6 +1388,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -1432,6 +1492,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
 
@@ -1473,6 +1536,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
 
@@ -1500,6 +1566,9 @@ mod test {
             short_intensity_volume,
             volume_24h,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 197814); // big cause of oracel pct
@@ -1525,6 +1594,9 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -1557,6 +1629,9 @@ mod test {
             72230366233,
             432067603632,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 89746);
@@ -1584,6 +1659,9 @@ mod test {
             72230366233,
             432067603632,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 89746);
@@ -1610,6 +1688,9 @@ mod test {
             12358265776,
             72230366233,
             432067603632,
+            0,
+            0,
+            0,
             0,
         )
         .unwrap();
@@ -1639,9 +1720,133 @@ mod test {
             53979922148,
             427588331503,
             0,
+            0,
+            0,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 11068);
         assert_eq!(short_spread, 135916);
+    }
+
+    #[test]
+    fn calculate_spread_funding_bias_scale_tests() {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
+        let twap = 100 * PRICE_PRECISION_I64;
+        // hourly rate matching the funding offset floor f_ref (~10.95%/yr)
+        // on a $100 oracle twap: f_norm = 1_250_000 * 1e6 / 1e8 * 24 = 300_000
+        let saturating_rate = 1_250_000_i64;
+        let q_amm_long = -BASE_PRECISION_I128; // users net short
+        let q_amm_short = BASE_PRECISION_I128; // users net long
+
+        // s = 0 disables
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_long, saturating_rate, twap, 0).unwrap(),
+            BID_ASK_SPREAD_PRECISION
+        );
+
+        // f * q >= 0: vAMM receives (or zero rate/inventory), β = 1
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_short, saturating_rate, twap, 50).unwrap(),
+            BID_ASK_SPREAD_PRECISION
+        );
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_long, -saturating_rate, twap, 50).unwrap(),
+            BID_ASK_SPREAD_PRECISION
+        );
+        assert_eq!(
+            calculate_spread_funding_bias_scale(0, saturating_rate, twap, 50).unwrap(),
+            BID_ASK_SPREAD_PRECISION
+        );
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_long, 0, twap, 50).unwrap(),
+            BID_ASK_SPREAD_PRECISION
+        );
+
+        // paying at f_ref: ρ ~= 1, β ~= 1 + s/100 (off by integer rounding
+        // of f_ref = 1e9 / 3333)
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_long, saturating_rate, twap, 50).unwrap(),
+            1_499_950
+        );
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_short, -saturating_rate, twap, 50).unwrap(),
+            1_499_950
+        );
+
+        // half ramp: β = 1 + s/100 * 0.5
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_long, saturating_rate / 2, twap, 50).unwrap(),
+            1_249_975
+        );
+
+        // past f_ref the ramp clamps at 1: β = 1 + s/100 exactly
+        assert_eq!(
+            calculate_spread_funding_bias_scale(q_amm_long, saturating_rate * 10, twap, 100)
+                .unwrap(),
+            2 * BID_ASK_SPREAD_PRECISION
+        );
+    }
+
+    #[test]
+    fn calculate_spread_funding_bias_tests() {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
+        let base_spread = 1000;
+        let max_spread = 2000;
+        let quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let peg_multiplier = 34000000;
+        // tiny vAMM-long inventory so σ = λ = 1 and the bias is isolated
+        let base_asset_amount_with_amm = -1_000_i128;
+        let reserve_price = 34562304;
+        let total_fee_minus_distributions = QUOTE_PRECISION_I128 * 10;
+        let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
+        let min_base_asset_reserve = 0_u128;
+        let max_base_asset_reserve = AMM_RESERVE_PRECISION * 100000;
+        let twap = 100 * PRICE_PRECISION_I64;
+        let saturating_rate = 12_500_000_i64; // well past f_ref
+
+        let calc = |rate: i64, s: u8| {
+            calculate_spread(
+                base_spread,
+                0,
+                0,
+                max_spread,
+                quote_asset_reserve,
+                terminal_quote_asset_reserve,
+                peg_multiplier,
+                base_asset_amount_with_amm,
+                reserve_price,
+                total_fee_minus_distributions,
+                0,
+                base_asset_reserve,
+                min_base_asset_reserve,
+                max_base_asset_reserve,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                rate,
+                twap,
+                s,
+            )
+            .unwrap()
+        };
+
+        let (long0, short0) = calc(saturating_rate, 0);
+        assert_eq!((long0, short0), (500, 500));
+
+        // vAMM long + positive funding: pays, short side doubles at s = 100
+        let (long1, short1) = calc(saturating_rate, 100);
+        assert_eq!(long1, long0);
+        assert_eq!(short1, short0 * 2);
+
+        // negative funding with the same inventory: vAMM receives, no-op
+        let (long2, short2) = calc(-saturating_rate, 100);
+        assert_eq!((long2, short2), (long0, short0));
     }
 }

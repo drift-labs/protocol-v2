@@ -13,6 +13,7 @@ import {
 	PERCENTAGE_PRECISION,
 	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
 	FUNDING_RATE_BUFFER_PRECISION,
+	FUNDING_RATE_OFFSET_PERCENTAGE,
 	TWO,
 } from '../constants/numericConstants';
 import {
@@ -614,6 +615,54 @@ export function calculateVolSpreadBN(
 	return [longVolSpread, shortVolSpread];
 }
 
+/**
+ * Funding bias β(f) (BID_ASK_SPREAD_PRECISION): bounded multiplier for the
+ * paying-side spread while the vAMM is paying funding. Mirrors the program's
+ * `calculate_spread_funding_bias_scale`.
+ *
+ *   ρ(f) = clamp(|f| / f_ref, 0, 1),  f_ref = FUNDING_RATE_OFFSET_PERCENTAGE
+ *   β(f) = 1 + s * ρ(f),              s = fundingBiasSensitivity / 100
+ *
+ * f = 24h avg funding rate normalized to a daily fraction of the oracle twap
+ * captured at the last funding update. The vAMM pays when f * q < 0
+ * (q = baseAssetAmountWithAmm). Returns 1x when the vAMM receives funding or
+ * s = 0.
+ */
+export function calculateSpreadFundingBiasScale(
+	baseAssetAmountWithAmm: BN,
+	last24HAvgFundingRate: BN,
+	lastFundingOracleTwap: BN,
+	fundingBiasSensitivity: number
+): number {
+	const one = BID_ASK_SPREAD_PRECISION.toNumber();
+	if (fundingBiasSensitivity === 0 || lastFundingOracleTwap.lte(ZERO)) {
+		return one;
+	}
+
+	// f: daily funding rate as a fraction of price, FUNDING_RATE_PRECISION
+	const fNorm = last24HAvgFundingRate
+		.mul(PRICE_PRECISION)
+		.div(lastFundingOracleTwap)
+		.muln(24);
+
+	// f * q >= 0: vAMM receives (or rate/inventory is zero), β = 1
+	if (fNorm.isZero() || baseAssetAmountWithAmm.isZero()) {
+		return one;
+	}
+	if (fNorm.isNeg() === baseAssetAmountWithAmm.isNeg()) {
+		return one;
+	}
+
+	// ρ = clamp(|f| / f_ref, 0, 1), PERCENTAGE_PRECISION
+	const ramp = BN.min(
+		fNorm.abs().mul(PERCENTAGE_PRECISION).div(FUNDING_RATE_OFFSET_PERCENTAGE),
+		PERCENTAGE_PRECISION
+	).toNumber();
+
+	// β = 1 + s * ρ
+	return one + Math.floor((fundingBiasSensitivity * ramp) / 100);
+}
+
 export interface SpreadTerms {
 	longVolSpread: number;
 	shortVolSpread: number;
@@ -631,6 +680,9 @@ export interface SpreadTerms {
 	halfRevenueRetreatAmount: number;
 	longSpreadwRevRetreat: number;
 	shortSpreadwRevRetreat: number;
+	fundingBiasScale: number;
+	longSpreadwFundingBias: number;
+	shortSpreadwFundingBias: number;
 	longSpreadwOffsetShrink: number;
 	shortSpreadwOffsetShrink: number;
 	totalSpread: number;
@@ -659,6 +711,9 @@ export function calculateSpreadBN(
 	shortIntensity: BN,
 	volume24H: BN,
 	ammInventorySpreadAdjustment: number,
+	last24HAvgFundingRate?: BN,
+	lastFundingOracleTwap?: BN,
+	fundingBiasSensitivity?: number,
 	returnTerms?: false
 ): [number, number];
 export function calculateSpreadBN(
@@ -682,6 +737,9 @@ export function calculateSpreadBN(
 	shortIntensity: BN,
 	volume24H: BN,
 	ammInventorySpreadAdjustment: number,
+	last24HAvgFundingRate: BN,
+	lastFundingOracleTwap: BN,
+	fundingBiasSensitivity: number,
 	returnTerms: true
 ): SpreadTerms;
 export function calculateSpreadBN(
@@ -705,6 +763,9 @@ export function calculateSpreadBN(
 	shortIntensity: BN,
 	volume24H: BN,
 	ammInventorySpreadAdjustment: number,
+	last24HAvgFundingRate: BN = ZERO,
+	lastFundingOracleTwap: BN = ZERO,
+	fundingBiasSensitivity = 0,
 	returnTerms = false
 ): [number, number] | SpreadTerms {
 	assert(Number.isInteger(baseSpread));
@@ -727,6 +788,9 @@ export function calculateSpreadBN(
 		halfRevenueRetreatAmount: 0,
 		longSpreadwRevRetreat: 0,
 		shortSpreadwRevRetreat: 0,
+		fundingBiasScale: 0,
+		longSpreadwFundingBias: 0,
+		shortSpreadwFundingBias: 0,
 		longSpreadwOffsetShrink: 0,
 		shortSpreadwOffsetShrink: 0,
 		totalSpread: 0,
@@ -873,6 +937,32 @@ export function calculateSpreadBN(
 	spreadTerms.longSpreadwRevRetreat = longSpread;
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
+	// funding bias: w_pay = min(w_max, (w_0 * σ(q) * λ(q) + r(q)) * β(f)).
+	// β multiplies the fully built paying side only, selected by sign(q)
+	// (the same side σ widens); the max-spread cap below still bounds it.
+	// β = 1 when the vAMM receives.
+	const fundingBiasScale = calculateSpreadFundingBiasScale(
+		baseAssetAmountWithAmm,
+		last24HAvgFundingRate,
+		lastFundingOracleTwap,
+		fundingBiasSensitivity
+	);
+	const spreadPrecision = BID_ASK_SPREAD_PRECISION.toNumber();
+	if (fundingBiasScale > spreadPrecision) {
+		if (baseAssetAmountWithAmm.gt(ZERO)) {
+			longSpread = Math.floor(
+				(longSpread * fundingBiasScale) / spreadPrecision
+			);
+		} else if (baseAssetAmountWithAmm.lt(ZERO)) {
+			shortSpread = Math.floor(
+				(shortSpread * fundingBiasScale) / spreadPrecision
+			);
+		}
+	}
+	spreadTerms.fundingBiasScale = fundingBiasScale;
+	spreadTerms.longSpreadwFundingBias = longSpread;
+	spreadTerms.shortSpreadwFundingBias = shortSpread;
+
 	if (ammInventorySpreadAdjustment < 0) {
 		const adjustment = Math.abs(ammInventorySpreadAdjustment);
 
@@ -981,7 +1071,10 @@ export function calculateSpread(
 		marketStats.longIntensityVolume,
 		marketStats.shortIntensityVolume,
 		marketStats.volume24H,
-		amm.ammInventorySpreadAdjustment
+		amm.ammInventorySpreadAdjustment,
+		marketStats.last24HAvgFundingRate,
+		marketStats.lastFundingOracleTwap,
+		amm.fundingBiasSensitivity
 	);
 	let longSpread = spreads[0];
 	let shortSpread = spreads[1];

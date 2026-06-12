@@ -427,7 +427,7 @@ pub fn update_funding_rate(
 
     // ---- Remaining PerpMarket-level updates. ----
     market.last_funding_rate = funding_rate;
-    market.last_funding_oracle_twap = oracle_price_twap;
+    market.market_stats.last_funding_oracle_twap = oracle_price_twap;
     market.last_funding_rate_long = funding_rate_long_value.cast()?;
     market.last_funding_rate_short = funding_rate_short_value.cast()?;
     market.market_stats.last_24h_avg_funding_rate = calculate_new_twap(

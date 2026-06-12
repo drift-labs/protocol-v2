@@ -4094,6 +4094,46 @@ export class AdminClient extends VelocityClient {
 		);
 	}
 
+	public async updatePerpMarketFundingBiasSensitivity(
+		perpMarketIndex: number,
+		fundingBiasSensitivity: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketFundingBiasSensitivityIx =
+			await this.getUpdatePerpMarketFundingBiasSensitivityIx(
+				perpMarketIndex,
+				fundingBiasSensitivity
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketFundingBiasSensitivityIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketFundingBiasSensitivityIx(
+		perpMarketIndex: number,
+		fundingBiasSensitivity: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketFundingBiasSensitivity(
+			fundingBiasSensitivity,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().coldAdmin,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async initializeIfRebalanceConfig(
 		params: IfRebalanceConfigParams
 	): Promise<TransactionSignature> {

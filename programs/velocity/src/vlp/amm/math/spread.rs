@@ -10,9 +10,10 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
     DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER,
-    FUNDING_RATE_OFFSET_DENOMINATOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
-    PRICE_PRECISION_I128, PRICE_PRECISION_I64,
+    FUNDING_RATE_OFFSET_DENOMINATOR, FUNDING_RATE_OFFSET_PERCENTAGE,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
+    PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::state::oracle::MMOraclePriceData;
@@ -128,6 +129,9 @@ pub fn update_amm_quote_state(
             market_stats.short_intensity_volume,
             market_stats.volume_24h,
             amm.amm_inventory_spread_adjustment,
+            market_stats.last_24h_avg_funding_rate,
+            market_stats.last_funding_oracle_twap,
+            amm.funding_bias_sensitivity,
         )?
     } else {
         let half_base_spread = amm.base_spread.safe_div(2)?;
@@ -680,6 +684,62 @@ pub fn calculate_max_target_spread(
     Ok(max_target_spread)
 }
 
+/// Funding bias β(f) (BID_ASK_SPREAD_PRECISION): bounded multiplier for the
+/// paying-side spread while the vAMM is paying funding.
+///
+/// q = net user position the vAMM faces (`base_asset_amount_with_amm`),
+/// f = 24h avg funding rate normalized to a daily fraction of the oracle
+/// twap captured at the last funding update (FUNDING_RATE_PRECISION), the
+/// same twap the rate accrued against. f carries the funding offset, so f = 0 is
+/// the paying/receiving zero-crossing, not zero premium. The vAMM pays when
+/// f * q < 0: f > 0 with q < 0 (vAMM long), or f < 0 with q > 0 (vAMM short).
+///
+///   ρ(f) = clamp(|f| / f_ref, 0, 1),  f_ref = FUNDING_RATE_OFFSET_PERCENTAGE
+///   β(f) = 1 + s * ρ(f),              s = funding_bias_sensitivity / 100
+///
+/// β ∈ [1, 1 + s], saturating at f_ref (~10.95%/yr, the offset floor), so in
+/// the common ρ = 1 regime the paying side widens by exactly 1 + s. β depends
+/// on f, not |q|: at low inventory (σ ≈ 1) it dominates and deters the first
+/// adverse trades, then σ takes over as |q| grows. Returns 1 when the vAMM
+/// receives funding or s = 0.
+pub fn calculate_spread_funding_bias_scale(
+    base_asset_amount_with_amm: i128,
+    last_24h_avg_funding_rate: i64,
+    last_funding_oracle_twap: i64,
+    funding_bias_sensitivity: u8,
+) -> VelocityResult<u64> {
+    if funding_bias_sensitivity == 0 || last_funding_oracle_twap <= 0 {
+        return Ok(BID_ASK_SPREAD_PRECISION);
+    }
+
+    // f: daily funding rate as a fraction of price, FUNDING_RATE_PRECISION
+    let f_norm = last_24h_avg_funding_rate
+        .cast::<i128>()?
+        .safe_mul(PRICE_PRECISION_I128)?
+        .safe_div(last_funding_oracle_twap.cast::<i128>()?)?
+        .safe_mul(24)?;
+
+    // f * q >= 0: vAMM receives (or rate/inventory is zero), β = 1
+    if f_norm.signum() * base_asset_amount_with_amm.signum() >= 0 {
+        return Ok(BID_ASK_SPREAD_PRECISION);
+    }
+
+    // ρ = clamp(|f| / f_ref, 0, 1), PERCENTAGE_PRECISION
+    let ramp = f_norm
+        .unsigned_abs()
+        .safe_mul(PERCENTAGE_PRECISION)?
+        .safe_div(FUNDING_RATE_OFFSET_PERCENTAGE.cast::<u128>()?)?
+        .min(PERCENTAGE_PRECISION);
+
+    // β = 1 + s * ρ
+    BID_ASK_SPREAD_PRECISION.safe_add(
+        funding_bias_sensitivity
+            .cast::<u64>()?
+            .safe_mul(ramp.cast::<u64>()?)?
+            .safe_div(100)?,
+    )
+}
+
 #[allow(clippy::comparison_chain)]
 pub fn calculate_spread(
     base_spread: u32,
@@ -702,6 +762,9 @@ pub fn calculate_spread(
     short_intensity_volume: u64,
     volume_24h: u64,
     amm_inventory_spread_adjustment: i8,
+    last_24h_avg_funding_rate: i64,
+    last_funding_oracle_twap: i64,
+    funding_bias_sensitivity: u8,
 ) -> VelocityResult<(u32, u32)> {
     let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
         last_oracle_conf_pct,
@@ -713,6 +776,7 @@ pub fn calculate_spread(
         volume_24h,
     )?;
 
+    // w_0 / 2 per side: base spread before any skew, floored by vol spread
     let half_base_spread_u64 = (base_spread / 2) as u64;
 
     let mut long_spread = max(half_base_spread_u64, long_vol_spread);
@@ -745,7 +809,7 @@ pub fn calculate_spread(
         );
     }
 
-    // inventory scale
+    // σ(q): inventory scale, multiplies the side selected by sign(q)
     let inventory_scale_capped = calculate_spread_inventory_scale(
         base_asset_amount_with_amm,
         base_asset_reserve,
@@ -777,7 +841,7 @@ pub fn calculate_spread(
             .saturating_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     } else {
-        // effective leverage scale
+        // λ(q): effective leverage scale, multiplies the same side as σ
         let effective_leverage_capped = calculate_spread_leverage_scale(
             quote_asset_reserve,
             terminal_quote_asset_reserve,
@@ -798,6 +862,7 @@ pub fn calculate_spread(
         }
     }
 
+    // r(q): additive revenue retreat, full on the sign(q) side, half opposite
     let revenue_retreat_amount = calculate_spread_revenue_retreat_amount(
         base_spread,
         max_target_spread,
@@ -813,6 +878,28 @@ pub fn calculate_spread(
         } else {
             long_spread = long_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
             short_spread = short_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
+        }
+    }
+
+    // funding bias: w_pay = min(w_max, (w_0 * σ(q) * λ(q) + r(q)) * β(f)).
+    // β multiplies the fully built paying side only, selected by sign(q)
+    // (the same side σ widens); cap_to_max_spread below still bounds it.
+    // β = 1 when the vAMM receives.
+    let funding_bias_scale = calculate_spread_funding_bias_scale(
+        base_asset_amount_with_amm,
+        last_24h_avg_funding_rate,
+        last_funding_oracle_twap,
+        funding_bias_sensitivity,
+    )?;
+    if funding_bias_scale > BID_ASK_SPREAD_PRECISION {
+        if base_asset_amount_with_amm > 0 {
+            long_spread = long_spread
+                .safe_mul(funding_bias_scale)?
+                .safe_div(BID_ASK_SPREAD_PRECISION)?;
+        } else if base_asset_amount_with_amm < 0 {
+            short_spread = short_spread
+                .safe_mul(funding_bias_scale)?
+                .safe_div(BID_ASK_SPREAD_PRECISION)?;
         }
     }
 
@@ -844,6 +931,7 @@ pub fn calculate_spread(
         );
     }
 
+    // w_max: cap, bounds w_long + w_short (catches any β/σ/λ blowup)
     let (long_spread, short_spread) =
         cap_to_max_spread(long_spread, short_spread, max_target_spread)?;
 
