@@ -47,6 +47,14 @@ pub fn validate_withdraw_guard_threshold(
     decimals: u32,
     oracle_price: i64,
 ) -> VelocityResult {
+    // a zeroed/broken oracle would price any threshold at 0 notional
+    validate!(
+        withdraw_guard_threshold == 0 || oracle_price > 0,
+        ErrorCode::InvalidOracle,
+        "invalid oracle price ({}) for withdraw guard threshold",
+        oracle_price
+    )?;
+
     let notional = get_token_value(
         withdraw_guard_threshold.cast::<i128>()?,
         decimals,
@@ -106,5 +114,10 @@ mod tests {
 
         // zero disables the exemption entirely and is always allowed
         assert!(validate_withdraw_guard_threshold(0, 6, PRICE_PRECISION_I64).is_ok());
+
+        // a zeroed or negative oracle price can't sneak a threshold through
+        assert!(validate_withdraw_guard_threshold(1, 6, 0).is_err());
+        assert!(validate_withdraw_guard_threshold(1, 6, -1).is_err());
+        assert!(validate_withdraw_guard_threshold(0, 6, 0).is_ok());
     }
 }

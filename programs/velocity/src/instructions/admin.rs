@@ -15,7 +15,7 @@ use anchor_spl::{
 };
 
 use crate::{
-    auth::{check_hot, check_pause, check_warm, require_pause_only_added},
+    auth::{check_cold, check_hot, check_pause, check_warm, require_pause_only_added},
     controller,
     controller::token::{close_vault, initialize_immutable_owner, initialize_token_account},
     error::ErrorCode,
@@ -56,7 +56,7 @@ use crate::{
         oracle::{
             get_oracle_price, get_prelaunch_price, get_pyth_price, HistoricalIndexData,
             HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
-            PrelaunchOracleParams,
+            PrelaunchOracleParams, StrictOraclePrice,
         },
         oracle_map::OracleMap,
         paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation},
@@ -1634,10 +1634,22 @@ pub fn handle_update_withdraw_guard_threshold(
     )?
     .price;
 
+    // price the notional cap with the max of the live price and the 5min
+    // twap so a momentarily manipulated-down oracle can't let an oversized
+    // threshold through
+    let strict_oracle_price = StrictOraclePrice::new(
+        oracle_price,
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        true,
+    );
+    strict_oracle_price.validate()?;
+
     validate_withdraw_guard_threshold(
         withdraw_guard_threshold,
         spot_market.decimals,
-        oracle_price,
+        strict_oracle_price.max(),
     )?;
 
     msg!(
@@ -3804,7 +3816,9 @@ pub struct AdminUpdateSpotMarketWithdrawGuardThreshold<'info> {
 
 #[derive(Accounts)]
 pub struct AdminUpdateSpotMarketOracle<'info> {
-    #[account(constraint = check_warm(&admin.key(), &state)?)]
+    // cold-only: a lesser admin swapping the oracle could re-price the
+    // withdraw guard threshold notional cap (and all margin math) at will
+    #[account(constraint = check_cold(&admin.key(), &state)?)]
     pub admin: Signer<'info>,
     pub state: AccountLoader<'info, State>,
     #[account(mut)]
@@ -3817,7 +3831,8 @@ pub struct AdminUpdateSpotMarketOracle<'info> {
 
 #[derive(Accounts)]
 pub struct AdminUpdatePerpMarketOracle<'info> {
-    #[account(constraint = check_warm(&admin.key(), &state)?)]
+    // cold-only: see AdminUpdateSpotMarketOracle
+    #[account(constraint = check_cold(&admin.key(), &state)?)]
     pub admin: Signer<'info>,
     pub state: AccountLoader<'info, State>,
     #[account(mut)]
