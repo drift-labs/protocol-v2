@@ -53,6 +53,7 @@ or reworked.
 | **Switchboard oracles** | #14 | Both classic and on-demand removed from SDK; `OracleSource` discriminants preserved as `Deprecated*`. |
 | **HLM** | #2, #47 | Dead code removed. |
 | **Legacy fee path** | #67 | `total_fee_lower_bound` accounting removed; fees use the AMM protocol floor directly. |
+| **Gov-token (DRIFT) stake fee discount** | — | Staking the governance token in the spot-market-15 insurance fund no longer grants a fee discount: perp fee tiers are now determined by 30-day volume only. Instructions `update_user_gov_token_insurance_stake` and `update_delegate_user_gov_token_insurance_stake` deleted; `UserStats.if_staked_gov_token_amount` replaced by padding. Spot market 15 has no special treatment anymore (the gov-specific IF revenue-settle APR cap was removed; the general cap applies). |
 
 ## 3. Feature additions
 
@@ -122,6 +123,13 @@ plus types `LPRecord`, `LPAction`, `FuelSeasonRecord`, `FuelSweepRecord`,
 Config fields `SERUM_V3`, `PHOENIX`, `OPENBOOK`, `SERUM_LOOKUP_TABLE`,
 `PYTH_PULL_ORACLE_LOOKUP_TABLE` were dropped from the env config object.
 
+Gov-token stake fee discount removal: `VelocityClient.updateUserGovTokenInsuranceStake`
+/ `getUpdateUserGovTokenInsuranceStakeIx`,
+`AdminClient.updateDelegateUserGovTokenInsuranceStake` /
+`getUpdateDelegateUserGovTokenInsuranceStakeIx`, and constants
+`GOV_SPOT_MARKET_INDEX` and `MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT_GOV`
+(the `constants/insuranceFund` module) were removed.
+
 ### 4.4 Type-level breaking changes
 
 - **`oraclePriceOffset` is now `BN`** (was `number`) on `Order` and `OrderParams` —
@@ -135,6 +143,8 @@ Config fields `SERUM_V3`, `PHOENIX`, `OPENBOOK`, `SERUM_LOOKUP_TABLE`,
   `marketStats` and `hedgeConfig` sub-structs; fuel/PMM/HLM/LP fields removed.
 - `PerpPosition`: `lpShares`, `lastQuoteAssetAmountPerLp`, `perLpBase` removed.
 - `StateAccount`: single `admin` replaced by the cold/warm/hot key set.
+- `UserStatsAccount`: `ifStakedGovTokenAmount` removed (gov-stake fee discount removal).
+  `getUserFeeTier` no longer applies a stake-based discount.
 - `CurveRecord` event → `AmmCurveChanged` (fields changed too).
 - **Revenue-share escrow on fills** (PR #68): `ReferrerStatus` enum gains
   `BuilderReferral = 4`; new `isBuilderReferral(userStats)`, `escrowHasReferrer(escrow)`,
@@ -170,6 +180,11 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
   but expect `Deprecated*` names for retired features.
 - **PDA seed strings unchanged** (`drift_state`, `user`, `spot_market_vault`, …) — only
   the program ID changed, so all derived addresses differ from Drift's.
+- **`UserStats` layout preserved** after the gov-stake fee discount removal:
+  `if_staked_gov_token_amount` was replaced in place by padding, so the account size
+  (240 bytes) and every other field offset are unchanged — existing accounts stay valid.
+  The `update_user_gov_token_insurance_stake` and
+  `update_delegate_user_gov_token_insurance_stake` instructions no longer exist.
 - **Oracle support**: Pyth (push), Pyth Lazer, Prelaunch, QuoteAsset. Switchboard and
   legacy Pyth pull are deprecated enum stubs.
 
@@ -206,6 +221,7 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
 | #68 *(open)* | Builder codes on non-swift orders; fill-time enforcement of builder + referral revenue share (escrow required when taker has a builder order or a referred escrow) |
 | #70 *(open)* | Rebrand program crate drift → velocity |
 | #77 *(open)* | Funding bias spread widening: `AMM.funding_bias_sensitivity` + `update_perp_market_funding_bias_sensitivity` admin ix; `last_funding_oracle_twap` moved `PerpMarket` → `MarketStats` (offset-preserving) |
+| — *(open, `feat/rm-drift-stake`)* | Remove gov-token (DRIFT) stake fee discount: gov stake-sync instructions, `UserStats.if_staked_gov_token_amount` (→ padding), gov IF revenue-settle APR cap, `GOV_SPOT_MARKET_INDEX` |
 
 ---
 

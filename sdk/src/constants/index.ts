@@ -1,9 +1,8 @@
 /**
  * Protocol constants: numeric precision bases, market indices, transaction size limits,
- * insurance fund parameters, and perp/spot market config arrays.
+ * and perp/spot market config arrays.
  * Import specific submodules to avoid pulling in unused market lists.
  */
-export * from './insuranceFund';
 export * from './numericConstants';
 export * from './perpMarkets';
 export * from './spotMarkets';

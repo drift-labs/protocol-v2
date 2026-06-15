@@ -47,6 +47,12 @@ mod size {
         let expected_size = std::mem::size_of::<UserStats>() + 8;
         let actual_size = UserStats::SIZE;
         assert_eq!(actual_size, expected_size);
+
+        // `padding1` replaced the removed `if_staked_gov_token_amount: u64` plus the
+        // 1 byte of repr(C) alignment padding that preceded it; offsets of the fields
+        // around it must not move for existing on-chain accounts to stay valid.
+        assert_eq!(std::mem::offset_of!(UserStats, padding1), 159);
+        assert_eq!(std::mem::offset_of!(UserStats, delegate_permissions), 168);
     }
 
     #[test]

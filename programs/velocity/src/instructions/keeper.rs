@@ -42,8 +42,8 @@ use crate::{
     math::{
         casting::Cast,
         constants::{
-            BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT, GOV_SPOT_MARKET_INDEX,
-            QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+            BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
+            QUOTE_SPOT_MARKET_INDEX,
         },
         margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement},
         orders::{
@@ -2686,35 +2686,6 @@ pub fn handle_update_user_quote_asset_insurance_stake(
     Ok(())
 }
 
-pub fn handle_update_user_gov_token_insurance_stake(
-    ctx: Context<UpdateUserGovTokenInsuranceStake>,
-) -> Result<()> {
-    let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-
-    validate!(
-        insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX,
-        ErrorCode::IncorrectSpotMarketAccountPassed,
-        "insurance_fund_stake is not for governance market index = {}",
-        GOV_SPOT_MARKET_INDEX
-    )?;
-
-    if insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX
-        && spot_market.market_index == GOV_SPOT_MARKET_INDEX
-    {
-        update_user_stats_if_stake_amount(
-            0,
-            ctx.accounts.insurance_fund_vault.amount,
-            insurance_fund_stake,
-            user_stats,
-            spot_market,
-        )?;
-    }
-
-    Ok(())
-}
-
 pub fn handle_force_delete_user<'c: 'info, 'info>(
     ctx: Context<'info, ForceDeleteUser<'info>>,
 ) -> Result<()> {
@@ -3457,31 +3428,6 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateUserGovTokenInsuranceStake<'info> {
-    pub state: AccountLoader<'info, State>,
-    #[account(
-        mut,
-        seeds = [b"spot_market", 15_u16.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        constraint = is_stats_for_if_stake(&insurance_fund_stake, &user_stats)?
-    )]
-    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
-    #[account(mut)]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub signer: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"insurance_fund_vault".as_ref(), 15_u16.to_le_bytes().as_ref()],
         bump,
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,

@@ -9365,107 +9365,6 @@ export type Velocity = {
       ]
     },
     {
-      "name": "updateDelegateUserGovTokenInsuranceStake",
-      "discriminator": [
-        241,
-        29,
-        215,
-        228,
-        142,
-        116,
-        22,
-        160
-      ],
-      "accounts": [
-        {
-          "name": "spotMarket",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "insuranceFundStake"
-        },
-        {
-          "name": "userStats",
-          "writable": true
-        },
-        {
-          "name": "admin",
-          "signer": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "state"
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "updateDiscountMint",
       "discriminator": [
         32,
@@ -12878,108 +12777,6 @@ export type Velocity = {
           "type": "pubkey"
         }
       ]
-    },
-    {
-      "name": "updateUserGovTokenInsuranceStake",
-      "discriminator": [
-        143,
-        99,
-        235,
-        187,
-        20,
-        159,
-        184,
-        84
-      ],
-      "accounts": [
-        {
-          "name": "state"
-        },
-        {
-          "name": "spotMarket",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "insuranceFundStake",
-          "writable": true
-        },
-        {
-          "name": "userStats",
-          "writable": true
-        },
-        {
-          "name": "signer",
-          "signer": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  15,
-                  0
-                ]
-              }
-            ]
-          }
-        }
-      ],
-      "args": []
     },
     {
       "name": "updateUserIdle",
@@ -24212,11 +24009,17 @@ export type Velocity = {
             "type": "u8"
           },
           {
-            "name": "ifStakedGovTokenAmount",
+            "name": "padding1",
             "docs": [
-              "The amount of tokens staked in the governance spot markets if"
+              "9 bytes: 1 byte of former repr(C) alignment padding + the removed",
+              "8-byte `if_staked_gov_token_amount` field (gov-token stake fee discount)"
             ],
-            "type": "u64"
+            "type": {
+              "array": [
+                "u8",
+                9
+              ]
+            }
           },
           {
             "name": "delegatePermissions",

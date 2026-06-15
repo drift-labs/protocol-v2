@@ -30,13 +30,13 @@ use crate::{
         casting::Cast,
         constants::{
             DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, EPOCH_DURATION, FEE_ADJUSTMENT_MAX,
-            FEE_POOL_TO_REVENUE_POOL_THRESHOLD, GOV_SPOT_MARKET_INDEX, IF_FACTOR_PRECISION,
-            INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX,
-            LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-            MM_ORACLE_MAX_STEP_PCT_PRECISION, MM_ORACLE_MIN_SLOT_GAP, PERCENTAGE_PRECISION,
-            PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION_I64,
-            QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
-            SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+            FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX,
+            INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
+            MAX_CONCENTRATION_COEFFICIENT, MM_ORACLE_MAX_STEP_PCT_PRECISION,
+            MM_ORACLE_MIN_SLOT_GAP, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128,
+            PERCENTAGE_PRECISION_I64, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX,
+            SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
+            SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
         },
         orders::is_multiple_of_step_size,
         safe_math::SafeMath,
@@ -51,7 +51,7 @@ use crate::{
             DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
         },
         if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams},
-        insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig},
+        insurance_fund_stake::ProtocolIfSharesTransferConfig,
         market_status::MarketStatus,
         oracle::{
             get_oracle_price, get_prelaunch_price, get_pyth_price, HistoricalIndexData,
@@ -3384,35 +3384,6 @@ pub fn handle_update_feature_bit_flags_median_trigger_price(
     Ok(())
 }
 
-pub fn handle_update_delegate_user_gov_token_insurance_stake(
-    ctx: Context<UpdateDelegateUserGovTokenInsuranceStake>,
-) -> Result<()> {
-    let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-
-    validate!(
-        insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX,
-        ErrorCode::IncorrectSpotMarketAccountPassed,
-        "insurance_fund_stake is not for governance market index = {}",
-        GOV_SPOT_MARKET_INDEX
-    )?;
-
-    if insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX
-        && spot_market.market_index == GOV_SPOT_MARKET_INDEX
-    {
-        crate::controller::insurance::update_user_stats_if_stake_amount(
-            0,
-            ctx.accounts.insurance_fund_vault.amount,
-            insurance_fund_stake,
-            user_stats,
-            spot_market,
-        )?;
-    }
-
-    Ok(())
-}
-
 pub fn handle_update_feature_bit_flags_builder_codes(
     ctx: Context<HotAdminUpdateState>,
     enable: bool,
@@ -4008,28 +3979,6 @@ pub struct UpdateIfRebalanceConfig<'info> {
     pub admin: Signer<'info>,
     #[account(mut)]
     pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
-    pub state: AccountLoader<'info, State>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateDelegateUserGovTokenInsuranceStake<'info> {
-    #[account(
-        mut,
-        seeds = [b"spot_market", 15_u16.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
-    #[account(mut)]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(constraint = check_warm(&admin.key(), &state)?)]
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"insurance_fund_vault".as_ref(), 15_u16.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     pub state: AccountLoader<'info, State>,
 }
 

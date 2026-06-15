@@ -138,7 +138,6 @@ import {
 import { TxSender, TxSigAndSlot } from './tx/types';
 import {
 	BASE_PRECISION,
-	GOV_SPOT_MARKET_INDEX,
 	MARGIN_PRECISION,
 	MIN_I64,
 	ONE,
@@ -9795,45 +9794,6 @@ export class VelocityClient {
 		);
 
 		const ix = this.program.instruction.updateUserQuoteAssetInsuranceStake({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarket.pubkey,
-				insuranceFundStake: ifStakeAccountPublicKey,
-				userStats: userStatsPublicKey,
-				signer: this.wallet.publicKey,
-				insuranceFundVault: spotMarket.insuranceFund.vault,
-			},
-		});
-
-		return ix;
-	}
-
-	public async updateUserGovTokenInsuranceStake(
-		authority: PublicKey,
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const ix = await this.getUpdateUserGovTokenInsuranceStakeIx(authority);
-		const tx = await this.buildTransaction(ix, txParams);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
-	}
-
-	public async getUpdateUserGovTokenInsuranceStakeIx(
-		authority: PublicKey
-	): Promise<TransactionInstruction> {
-		const marketIndex = GOV_SPOT_MARKET_INDEX;
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
-			this.program.programId,
-			authority,
-			marketIndex
-		);
-		const userStatsPublicKey = getUserStatsAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-
-		const ix = this.program.instruction.updateUserGovTokenInsuranceStake({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,

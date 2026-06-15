@@ -50,7 +50,6 @@ import {
 	getPythLazerOraclePublicKey,
 	getTokenProgramForSpotMarket,
 	getIfRebalanceConfigPublicKey,
-	getInsuranceFundStakeAccountPublicKey,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
 	getConstituentTargetBasePublicKey,
@@ -78,7 +77,6 @@ import {
 	ONE,
 	BASE_PRECISION,
 	PRICE_PRECISION,
-	GOV_SPOT_MARKET_INDEX,
 } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
@@ -4388,56 +4386,6 @@ export class AdminClient extends VelocityClient {
 				},
 			}
 		);
-	}
-
-	public async updateDelegateUserGovTokenInsuranceStake(
-		authority: PublicKey,
-		delegate: PublicKey
-	): Promise<TransactionSignature> {
-		const updateDelegateUserGovTokenInsuranceStakeIx =
-			await this.getUpdateDelegateUserGovTokenInsuranceStakeIx(
-				authority,
-				delegate
-			);
-
-		const tx = await this.buildTransaction(
-			updateDelegateUserGovTokenInsuranceStakeIx
-		);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getUpdateDelegateUserGovTokenInsuranceStakeIx(
-		authority: PublicKey,
-		delegate: PublicKey
-	): Promise<TransactionInstruction> {
-		const marketIndex = GOV_SPOT_MARKET_INDEX;
-		const spotMarket = this.getSpotMarketAccountOrThrow(marketIndex);
-		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
-			this.program.programId,
-			delegate,
-			marketIndex
-		);
-		const userStatsPublicKey = getUserStatsAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-
-		const ix = (
-			this.program.instruction as any
-		).getUpdateDelegateUserGovTokenInsuranceStakeIx({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarket.pubkey,
-				insuranceFundStake: ifStakeAccountPublicKey,
-				userStats: userStatsPublicKey,
-				signer: this.wallet.publicKey,
-				insuranceFundVault: spotMarket.insuranceFund.vault,
-			},
-		});
-
-		return ix;
 	}
 
 	public async depositIntoInsuranceFundStake(
