@@ -35,7 +35,10 @@ export class TransactionParamProcessor {
 		bufferMultiplier: number, // Making this a mandatory param to force the user to remember that simulated CU's can be inaccurate and a buffer should be applied
 		lowerBoundCu?: number,
 		simulatedTx?: SimulatedTransactionResponse
-	): Promise<{ success: boolean; computeUnits: number }> {
+	): Promise<
+		| { success: true; computeUnits: number }
+		| { success: false; computeUnits: undefined }
+	> {
 		try {
 			if (TEST_SIMS_ALWAYS_FAIL)
 				throw new Error('Test Error::SIMS_ALWAYS_FAIL');
@@ -54,6 +57,12 @@ export class TransactionParamProcessor {
 
 			const computeUnits = await this.getComputeUnitsFromSim(simTxResult);
 
+			if (computeUnits === undefined) {
+				throw new Error(
+					'TransactionParamProcessor: simulation did not return units consumed'
+				);
+			}
+
 			// Apply the buffer, but round down to the MAX_COMPUTE_UNITS, and round up to the nearest whole number
 			let bufferedComputeUnits = Math.ceil(
 				Math.min(computeUnits * bufferMultiplier, MAX_COMPUTE_UNITS)
@@ -68,7 +77,7 @@ export class TransactionParamProcessor {
 			}
 
 			return {
-				success: true,
+				success: true as const,
 				computeUnits: bufferedComputeUnits,
 			};
 		} catch (e) {
@@ -78,7 +87,7 @@ export class TransactionParamProcessor {
 			);
 
 			return {
-				success: false,
+				success: false as const,
 				computeUnits: undefined,
 			};
 		}
@@ -145,6 +154,12 @@ export class TransactionParamProcessor {
 			}
 
 			const simulatedComputeUnits = finalTxParams.computeUnits;
+
+			if (simulatedComputeUnits === undefined) {
+				throw new Error(
+					`encountered useSimulatedComputeUnitsForFees=true, but simulated compute units are unavailable (simulation likely failed)`
+				);
+			}
 
 			const computeUnitPrice = processConfig.getCUPriceFromComputeUnits(
 				simulatedComputeUnits

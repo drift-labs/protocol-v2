@@ -66,8 +66,10 @@ export class PollingVelocityClientAccountSubscriber
 	delistedMarketSetting: DelistedMarketSetting;
 
 	private isSubscribing = false;
-	private subscriptionPromise: Promise<boolean>;
-	private subscriptionPromiseResolver: (val: boolean) => void;
+	private subscriptionPromiseResolver: (val: boolean) => void = () => {};
+	private subscriptionPromise: Promise<boolean> = new Promise((res) => {
+		this.subscriptionPromiseResolver = res;
+	});
 
 	public constructor(
 		program: VelocityProgram,
@@ -249,6 +251,38 @@ export class PollingVelocityClientAccountSubscriber
 		});
 	}
 
+	/**
+	 * Routes a freshly-decoded account into the correct container based on
+	 * its poll key. Replaces dynamic `this[key]` indexing with explicit,
+	 * type-checked dispatch.
+	 */
+	private storeDecodedAccount(
+		accountToPoll: AccountToPoll,
+		account: any,
+		slot: number
+	): void {
+		const dataAndSlot = { data: account, slot };
+		switch (accountToPoll.key) {
+			case 'perpMarket':
+				if (accountToPoll.mapKey !== undefined) {
+					this.perpMarket.set(accountToPoll.mapKey, dataAndSlot);
+				}
+				break;
+			case 'spotMarket':
+				if (accountToPoll.mapKey !== undefined) {
+					this.spotMarket.set(accountToPoll.mapKey, dataAndSlot);
+				}
+				break;
+			case 'state':
+				this.state = dataAndSlot;
+				break;
+			default: {
+				const _exhaustive: never = accountToPoll.key;
+				throw new Error(`Unhandled account poll key: ${String(_exhaustive)}`);
+			}
+		}
+	}
+
 	async addAccountToAccountLoader(accountToPoll: AccountToPoll): Promise<void> {
 		accountToPoll.callbackId = await this.accountLoader.addAccount(
 			accountToPoll.publicKey,
@@ -259,15 +293,7 @@ export class PollingVelocityClientAccountSubscriber
 					accountToPoll.key,
 					buffer
 				);
-				const dataAndSlot = {
-					data: account,
-					slot,
-				};
-				if (accountToPoll.mapKey != undefined) {
-					this[accountToPoll.key].set(accountToPoll.mapKey, dataAndSlot);
-				} else {
-					this[accountToPoll.key] = dataAndSlot;
-				}
+				this.storeDecodedAccount(accountToPoll, account, slot);
 
 				// @ts-ignore
 				this.eventEmitter.emit(accountToPoll.eventType, account);
@@ -293,6 +319,7 @@ export class PollingVelocityClientAccountSubscriber
 			oracleToPoll.publicKey,
 			(buffer: Buffer, slot: number) => {
 				if (!buffer) return;
+				if (!oracleClient) return;
 
 				const oraclePriceData =
 					oracleClient.getOraclePriceDataFromBuffer(buffer);
@@ -332,17 +359,7 @@ export class PollingVelocityClientAccountSubscriber
 					accountToPoll.key,
 					buffer
 				);
-				if (accountToPoll.mapKey != undefined) {
-					this[accountToPoll.key].set(accountToPoll.mapKey, {
-						data: account,
-						slot,
-					});
-				} else {
-					this[accountToPoll.key] = {
-						data: account,
-						slot,
-					};
-				}
+				this.storeDecodedAccount(accountToPoll, account, slot);
 			}
 		}
 
@@ -363,6 +380,9 @@ export class PollingVelocityClientAccountSubscriber
 					this.program.provider.connection,
 					this.program
 				);
+				if (!oracleClient) {
+					continue;
+				}
 				const oraclePriceData =
 					oracleClient.getOraclePriceDataFromBuffer(buffer);
 				this.oracles.set(
@@ -418,6 +438,9 @@ export class PollingVelocityClientAccountSubscriber
 		await this.addSpotMarketAccountToPoll(marketIndex);
 
 		const accountToPoll = this.accountsToPoll.get(marketPublicKey.toString());
+		if (!accountToPoll) {
+			return false;
+		}
 
 		await this.addAccountToAccountLoader(accountToPoll);
 		this.setSpotOracleMap();
@@ -436,6 +459,9 @@ export class PollingVelocityClientAccountSubscriber
 
 		await this.addPerpMarketAccountToPoll(marketIndex);
 		const accountToPoll = this.accountsToPoll.get(marketPublicKey.toString());
+		if (!accountToPoll) {
+			return false;
+		}
 		await this.addAccountToAccountLoader(accountToPoll);
 		await this.setPerpOracleMap();
 		return true;
@@ -455,7 +481,9 @@ export class PollingVelocityClientAccountSubscriber
 		if (!this.oraclesToPoll.has(oracleId)) {
 			this.addOracleToPoll(oracleInfo);
 			const oracleToPoll = this.oraclesToPoll.get(oracleId);
-			await this.addOracleToAccountLoader(oracleToPoll);
+			if (oracleToPoll) {
+				await this.addOracleToAccountLoader(oracleToPoll);
+			}
 		}
 
 		await this.pauseForOracleToBeAdded(3, oracleInfo.publicKey.toBase58());
@@ -535,10 +563,22 @@ export class PollingVelocityClientAccountSubscriber
 		);
 
 		for (const perpMarketIndex of perpMarketIndexes) {
-			const perpMarketPubkey = this.perpMarket.get(perpMarketIndex).data.pubkey;
-			const callbackId = this.accountsToPoll.get(
+			const perpMarketData = this.perpMarket.get(perpMarketIndex);
+			if (!perpMarketData) {
+				throw new Error(
+					`PollingVelocityClientAccountSubscriber: delisted perp market ${perpMarketIndex} not found in perpMarket map`
+				);
+			}
+			const perpMarketPubkey = perpMarketData.data.pubkey;
+			const accountToPoll = this.accountsToPoll.get(
 				perpMarketPubkey.toBase58()
-			).callbackId;
+			);
+			if (!accountToPoll) {
+				throw new Error(
+					`PollingVelocityClientAccountSubscriber: delisted perp market ${perpMarketIndex} not found in accountsToPoll map`
+				);
+			}
+			const callbackId = accountToPoll.callbackId;
 			this.accountLoader.removeAccount(perpMarketPubkey, callbackId);
 			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
 				this.perpMarket.delete(perpMarketIndex);
@@ -547,7 +587,13 @@ export class PollingVelocityClientAccountSubscriber
 
 		for (const oracle of oracles) {
 			const oracleId = getOracleId(oracle.publicKey, oracle.source);
-			const callbackId = this.oraclesToPoll.get(oracleId).callbackId;
+			const oracleToPoll = this.oraclesToPoll.get(oracleId);
+			if (!oracleToPoll) {
+				throw new Error(
+					`PollingVelocityClientAccountSubscriber: delisted oracle ${oracleId} not found in oraclesToPoll map`
+				);
+			}
+			const callbackId = oracleToPoll.callbackId;
 			this.accountLoader.removeAccount(oracle.publicKey, callbackId);
 			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
 				this.oracles.delete(oracleId);
@@ -565,7 +611,7 @@ export class PollingVelocityClientAccountSubscriber
 
 	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
-		return this.state;
+		return this.state!;
 	}
 
 	public getMarketAccountAndSlot(
@@ -609,7 +655,7 @@ export class PollingVelocityClientAccountSubscriber
 		const oracle = this.perpOracleMap.get(marketIndex);
 		const oracleId = this.perpOracleStringMap.get(marketIndex);
 
-		if (!perpMarketAccount || !oracle) {
+		if (!perpMarketAccount || !oracle || !oracleId) {
 			return undefined;
 		}
 
@@ -627,7 +673,7 @@ export class PollingVelocityClientAccountSubscriber
 		const spotMarketAccount = this.getSpotMarketAccountAndSlot(marketIndex);
 		const oracle = this.spotOracleMap.get(marketIndex);
 		const oracleId = this.spotOracleStringMap.get(marketIndex);
-		if (!spotMarketAccount || !oracle) {
+		if (!spotMarketAccount || !oracle || !oracleId) {
 			return undefined;
 		}
 

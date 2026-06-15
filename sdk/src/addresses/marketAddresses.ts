@@ -7,8 +7,9 @@ export async function getMarketAddress(
 	marketIndex: number
 ): Promise<PublicKey> {
 	const cacheKey = `${programId.toString()}-${marketIndex.toString()}`;
-	if (CACHE.has(cacheKey)) {
-		return CACHE.get(cacheKey);
+	const cached = CACHE.get(cacheKey);
+	if (cached !== undefined) {
+		return cached;
 	}
 
 	const publicKey = await getPerpMarketPublicKey(programId, marketIndex);

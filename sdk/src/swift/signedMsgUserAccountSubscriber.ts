@@ -42,12 +42,20 @@ export class SignedMsgUserOrdersAccountSubscriber {
 		string,
 		{ slot: number; signedMsgUserOrdersAccount: SignedMsgUserOrdersAccount }
 	>();
-	mostRecentSlot: number;
+	mostRecentSlot = 0;
 
 	fetchPromise?: Promise<void>;
-	fetchPromiseResolver: () => void;
+	fetchPromiseResolver!: () => void; // set synchronously inside the fetchPromise executor
 
-	protected subscriber: WebSocketProgramAccountSubscriber<SignedMsgUserOrdersAccount>;
+	protected _subscriber?: WebSocketProgramAccountSubscriber<SignedMsgUserOrdersAccount>;
+	protected get subscriber(): WebSocketProgramAccountSubscriber<SignedMsgUserOrdersAccount> {
+		if (!this._subscriber) {
+			throw new Error(
+				'SignedMsgUserOrdersAccountSubscriber: subscriber accessed before subscribe()'
+			);
+		}
+		return this._subscriber;
+	}
 	public eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		SignedMsgUserOrdersAccountSubscriberEvents
@@ -78,9 +86,9 @@ export class SignedMsgUserOrdersAccountSubscriber {
 	}
 
 	public async subscribe(): Promise<void> {
-		if (!this.subscriber) {
+		if (!this._subscriber) {
 			const filters = [getSignedMsgUserOrdersFilter()];
-			this.subscriber =
+			this._subscriber =
 				new WebSocketProgramAccountSubscriber<SignedMsgUserOrdersAccount>(
 					'SingedMsgUserOrdersAccountMap',
 					'signedMsgUserOrders',
@@ -232,9 +240,9 @@ export class SignedMsgUserOrdersAccountSubscriber {
 	}
 
 	public async unsubscribe(): Promise<void> {
-		if (!this.subscriber) return;
-		await this.subscriber.unsubscribe();
-		this.subscriber = undefined;
+		if (!this._subscriber) return;
+		await this._subscriber.unsubscribe();
+		this._subscriber = undefined;
 		if (this.resyncTimeoutId !== undefined) {
 			clearTimeout(this.resyncTimeoutId);
 			this.resyncTimeoutId = undefined;

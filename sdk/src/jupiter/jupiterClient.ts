@@ -6,7 +6,7 @@ import {
 	TransactionMessage,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import fetch from 'node-fetch';
+import fetch, { RequestInit } from 'node-fetch';
 import { BN } from '../isomorphic/anchor';
 import { SwapMode } from '../swap/UnifiedSwapClient';
 
@@ -302,6 +302,22 @@ export class JupiterClient {
 		maxAutoSlippageBps?: number;
 		usdEstimate?: number;
 	}): Promise<QuoteResponse> {
+		if (autoSlippage && maxAutoSlippageBps === undefined) {
+			throw new Error(
+				'JupiterClient.getQuote: maxAutoSlippageBps is required when autoSlippage is enabled'
+			);
+		}
+		if (autoSlippage && usdEstimate === undefined) {
+			throw new Error(
+				'JupiterClient.getQuote: usdEstimate is required when autoSlippage is enabled'
+			);
+		}
+		const maxAutoSlippageBpsParam =
+			autoSlippage && maxAutoSlippageBps !== undefined
+				? maxAutoSlippageBps.toString()
+				: '0';
+		const autoSlippageCollisionUsdValueParam =
+			autoSlippage && usdEstimate !== undefined ? usdEstimate.toString() : '0';
 		const params = new URLSearchParams({
 			inputMint: inputMint.toString(),
 			outputMint: outputMint.toString(),
@@ -311,10 +327,8 @@ export class JupiterClient {
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 			maxAccounts: maxAccounts.toString(),
 			autoSlippage: autoSlippage.toString(),
-			maxAutoSlippageBps: autoSlippage ? maxAutoSlippageBps.toString() : '0',
-			autoSlippageCollisionUsdValue: autoSlippage
-				? usdEstimate.toString()
-				: '0',
+			maxAutoSlippageBps: maxAutoSlippageBpsParam,
+			autoSlippageCollisionUsdValue: autoSlippageCollisionUsdValueParam,
 			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
 		});
 		if (swapMode === 'ExactOut') {
@@ -409,7 +423,9 @@ export class JupiterClient {
 					return await this.getLookupTable(lookup.accountKey);
 				})
 			)
-		).filter((lookup) => lookup);
+		).filter(
+			(lookup): lookup is AddressLookupTableAccount => lookup !== undefined
+		);
 
 		const transactionMessage = TransactionMessage.decompile(message, {
 			addressLookupTableAccounts: lookupTables,
@@ -422,12 +438,16 @@ export class JupiterClient {
 
 	async getLookupTable(
 		accountKey: PublicKey
-	): Promise<AddressLookupTableAccount> {
-		if (this.lookupTableCahce.has(accountKey.toString())) {
-			return this.lookupTableCahce.get(accountKey.toString());
+	): Promise<AddressLookupTableAccount | undefined> {
+		const cached = this.lookupTableCahce.get(accountKey.toString());
+		if (cached !== undefined) {
+			return cached;
 		}
 
-		return (await this.connection.getAddressLookupTable(accountKey)).value;
+		return (
+			(await this.connection.getAddressLookupTable(accountKey)).value ??
+			undefined
+		);
 	}
 
 	/**

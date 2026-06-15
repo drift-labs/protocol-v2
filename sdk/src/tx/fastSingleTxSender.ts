@@ -22,11 +22,11 @@ export class FastSingleTxSender extends BaseTxSender {
 	blockhashRefreshInterval: number;
 	additionalConnections: Connection[];
 	timoutCount = 0;
-	recentBlockhash: BlockhashWithExpiryBlockHeight;
+	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	skipConfirmation: boolean;
 	confirmInBackground: boolean;
 	blockhashCommitment: Commitment;
-	blockhashIntervalId: NodeJS.Timer;
+	blockhashIntervalId?: NodeJS.Timer;
 
 	public constructor({
 		connection,
@@ -50,7 +50,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		opts?: ConfirmOptions;
 		timeout?: number;
 		blockhashRefreshInterval?: number;
-		additionalConnections?;
+		additionalConnections?: Connection[];
 		skipConfirmation?: boolean;
 		confirmInBackground?: boolean;
 		blockhashCommitment?: Commitment;
@@ -114,22 +114,26 @@ export class FastSingleTxSender extends BaseTxSender {
 			throw e;
 		}
 
-		let slot: number;
+		let slot: number | undefined;
 		if (!this.skipConfirmation) {
 			try {
 				if (this.confirmInBackground) {
 					this.confirmTransaction(txid, opts.commitment).then(
 						async (result) => {
-							this.txSigCache?.set(txid, true);
-							await this.checkConfirmationResultForError(txid, result?.value);
-							slot = result.context.slot;
+							if (result) {
+								this.txSigCache?.set(txid, true);
+								await this.checkConfirmationResultForError(txid, result.value);
+								slot = result.context.slot;
+							}
 						}
 					);
 				} else {
 					const result = await this.confirmTransaction(txid, opts.commitment);
 					this.txSigCache?.set(txid, true);
-					await this.checkConfirmationResultForError(txid, result?.value);
-					slot = result?.context?.slot;
+					if (result) {
+						await this.checkConfirmationResultForError(txid, result.value);
+						slot = result.context.slot;
+					}
 				}
 			} catch (e) {
 				console.error(e);

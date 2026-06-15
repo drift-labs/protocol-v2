@@ -63,7 +63,9 @@ export class OneShotUserStatsAccountSubscriber
 			}
 		} catch (e) {
 			console.error(
-				`OneShotUserStatsAccountSubscriber.fetch() UserStatsAccount does not exist: ${e.message}`
+				`OneShotUserStatsAccountSubscriber.fetch() UserStatsAccount does not exist: ${
+					e instanceof Error ? e.message : String(e)
+				}`
 			);
 		}
 	}

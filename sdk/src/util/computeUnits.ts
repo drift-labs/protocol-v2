@@ -11,13 +11,17 @@ export async function findComputeUnitConsumption(
 	connection: Connection,
 	txSignature: string,
 	commitment: Finality = 'confirmed'
-): Promise<number[]> {
+): Promise<string[]> {
 	const tx = await connection.getTransaction(txSignature, { commitment });
-	const computeUnits = [];
+	const computeUnits: string[] = [];
+	const logMessages = tx?.meta?.logMessages;
+	if (!logMessages) {
+		return computeUnits;
+	}
 	const regex = new RegExp(
 		`Program ${programId.toString()} consumed ([0-9]{0,6}) of ([0-9]{0,7}) compute units`
 	);
-	tx.meta.logMessages.forEach((logMessage) => {
+	logMessages.forEach((logMessage) => {
 		const match = logMessage.match(regex);
 		if (match && match[1]) {
 			computeUnits.push(match[1]);

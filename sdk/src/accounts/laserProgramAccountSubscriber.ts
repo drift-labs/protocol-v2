@@ -152,6 +152,9 @@ export class LaserstreamProgramAccountSubscriber<
 					if (update.account) {
 						const slot = Number(update.account.slot);
 						const acc = update.account.account;
+						if (!acc) {
+							return;
+						}
 
 						const accountInfo = {
 							owner: new PublicKey(acc.owner),

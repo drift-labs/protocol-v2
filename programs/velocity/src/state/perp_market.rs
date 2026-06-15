@@ -180,8 +180,9 @@ pub struct PerpMarket {
     pub last_funding_rate_ts: i64,
     /// unsettled funding pnl across the market (protocol-wide)
     pub net_unsettled_funding_pnl: i64,
-    /// oracle TWAP captured at last funding update
-    pub last_funding_oracle_twap: i64,
+    /// Explicit padding where `last_funding_oracle_twap` used to live
+    /// (moved to `MarketStats`); keeps every later field at its old offset.
+    pub _padding_funding_twap: [u8; 8],
     /// the base step size (increment) of orders
     /// precision: BASE_PRECISION
     pub order_step_size: u64,
@@ -324,7 +325,7 @@ impl Default for PerpMarket {
             last_funding_rate_short: 0,
             last_funding_rate_ts: 0,
             net_unsettled_funding_pnl: 0,
-            last_funding_oracle_twap: 0,
+            _padding_funding_twap: [0; 8],
             order_step_size: 0,
             order_tick_size: 0,
             unrealized_pnl_max_imbalance: 0,
@@ -800,12 +801,12 @@ impl PerpMarket {
 
     #[inline(always)]
     fn get_last_funding_basis(&self, oracle_price: i64, now: i64) -> VelocityResult<i64> {
-        if self.last_funding_oracle_twap > 0 {
+        if self.market_stats.last_funding_oracle_twap > 0 {
             let last_funding_rate = self
                 .last_funding_rate
                 .cast::<i128>()?
                 .safe_mul(PRICE_PRECISION_I128)?
-                .safe_div(self.last_funding_oracle_twap.cast::<i128>()?)?
+                .safe_div(self.market_stats.last_funding_oracle_twap.cast::<i128>()?)?
                 .safe_mul(24)?;
             let last_funding_rate_pre_adj =
                 last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE as i128)?;
@@ -1195,8 +1196,14 @@ pub struct MarketStats {
     /// Whether the oracle was valid at the most recent `_update_amm`.
     /// Read by settlement and fill paths to gate operations.
     pub last_oracle_valid: bool,
-    /// Padding so historical_oracle_data is 8-aligned.
-    pub padding: [u8; 11],
+    /// Padding so last_funding_oracle_twap is 8-aligned.
+    pub padding: [u8; 3],
+    /// Oracle TWAP captured at last funding update, the normalizer
+    /// `last_24h_avg_funding_rate` accrued against. Read by the AMM's
+    /// funding bias spread and `get_last_funding_basis`. Migrated from
+    /// `PerpMarket` so the AMM reads only from `MarketStats`.
+    /// precision: PRICE_PRECISION
+    pub last_funding_oracle_twap: i64,
     /// Historical oracle readings — TWAPs, last raw price, confidence, delay,
     /// timestamp. Market-wide data (any quoter would want it), updated by
     /// `_update_amm` / funding paths. Migrated from AMM.
@@ -1229,7 +1236,8 @@ impl Default for MarketStats {
             last_oracle_normalised_price: 0,
             last_reference_price_offset: 0,
             last_oracle_valid: false,
-            padding: [0; 11],
+            padding: [0; 3],
+            last_funding_oracle_twap: 0,
             historical_oracle_data: HistoricalOracleData::default(),
         }
     }

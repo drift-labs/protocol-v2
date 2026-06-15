@@ -19,12 +19,33 @@ export class WebSocketProgramAccountSubscriber<T>
 	bufferAndSlotMap: Map<string, BufferAndSlot> = new Map();
 	program: VelocityProgram;
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
-	onChange: (
+	private _onChange?: (
 		accountId: PublicKey,
 		data: T,
 		context: Context,
 		buffer: Buffer
 	) => void;
+	get onChange(): (
+		accountId: PublicKey,
+		data: T,
+		context: Context,
+		buffer: Buffer
+	) => void {
+		if (!this._onChange) {
+			throw new Error('onChange callback function must be set');
+		}
+		return this._onChange;
+	}
+	set onChange(
+		onChange: (
+			accountId: PublicKey,
+			data: T,
+			context: Context,
+			buffer: Buffer
+		) => void
+	) {
+		this._onChange = onChange;
+	}
 	listenerId?: number;
 	resubOpts?: ResubOpts;
 	isUnsubscribing = false;
@@ -48,7 +69,10 @@ export class WebSocketProgramAccountSubscriber<T>
 		this.program = program;
 		this.decodeBuffer = decodeBufferFn;
 		this.resubOpts = resubOpts;
-		if (this.resubOpts?.resubTimeoutMs < 1000) {
+		if (
+			this.resubOpts?.resubTimeoutMs != null &&
+			this.resubOpts.resubTimeoutMs < 1000
+		) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
@@ -95,7 +119,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	}
 
 	protected setTimeout(): void {
-		if (!this.onChange) {
+		if (!this._onChange) {
 			throw new Error('onChange callback function must be set');
 		}
 		this.timeoutId = setTimeout(
@@ -161,7 +185,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	}
 
 	unsubscribe(onResub = false): Promise<void> {
-		if (!onResub) {
+		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;
 		}
 		this.isUnsubscribing = true;
@@ -178,6 +202,7 @@ export class WebSocketProgramAccountSubscriber<T>
 			return promise;
 		} else {
 			this.isUnsubscribing = false;
+			return Promise.resolve();
 		}
 	}
 }

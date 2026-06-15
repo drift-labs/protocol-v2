@@ -85,23 +85,28 @@ export class UserMap implements UserMapInterface {
 	private filterByPoolId?: number;
 	private additionalFilters?: MemcmpFilter[];
 	private disableSyncOnTotalAccountsChange: boolean;
-	private lastNumberOfSubAccounts: BN;
+	private lastNumberOfSubAccounts?: BN;
 	private subscription:
 		| PollingSubscription
 		| WebsocketSubscription
 		| grpcSubscription;
 	private stateAccountUpdateCallback = async (state: StateAccount) => {
-		if (!state.numberOfSubAccounts.eq(this.lastNumberOfSubAccounts)) {
+		if (
+			this.lastNumberOfSubAccounts === undefined ||
+			!state.numberOfSubAccounts.eq(this.lastNumberOfSubAccounts)
+		) {
 			await this.sync();
 			this.lastNumberOfSubAccounts = state.numberOfSubAccounts;
 		}
 	};
-	private decode;
+	private decode: (name: string, buffer: Buffer) => UserAccount;
 	private mostRecentSlot = 0;
 	private syncConfig: SyncConfig;
 
 	private syncPromise?: Promise<void>;
-	private syncPromiseResolver: () => void;
+	// Set synchronously inside the Promise executor in defaultSync()/paginatedSync()
+	// before syncPromise resolves; TS can't prove the executor ran synchronously.
+	private syncPromiseResolver!: () => void;
 
 	private throwOnFailedSync: boolean;
 
@@ -117,20 +122,20 @@ export class UserMap implements UserMapInterface {
 			this.connection = this.velocityClient.connection;
 		}
 		this.commitment =
-			config.subscriptionConfig.type === 'websocket' ||
+			(config.subscriptionConfig.type === 'websocket' ||
 			config.subscriptionConfig.type === 'polling'
 				? config.subscriptionConfig.commitment ??
-				  this.velocityClient.opts.commitment
-				: this.velocityClient.opts.commitment;
+				  this.velocityClient.opts?.commitment
+				: this.velocityClient.opts?.commitment) ?? 'confirmed';
 		this.includeIdle = config.includeIdle ?? false;
 		this.filterByPoolId = config.filterByPoolId;
 		this.additionalFilters = config.additionalFilters;
 		this.disableSyncOnTotalAccountsChange =
 			config.disableSyncOnTotalAccountsChange ?? false;
 
-		let decodeFn;
+		let decodeFn: (name: string, buffer: Buffer) => UserAccount;
 		if (config.fastDecode ?? true) {
-			decodeFn = (name, buffer) => decodeUser(buffer);
+			decodeFn = (_name: string, buffer: Buffer) => decodeUser(buffer);
 		} else {
 			decodeFn = (
 				this.velocityClient.program.account as any
@@ -219,9 +224,15 @@ export class UserMap implements UserMapInterface {
 			},
 		});
 		await user.subscribe(userAccount);
+		const resolvedSlot = slot ?? user.getUserAccountAndSlot()?.slot;
+		if (resolvedSlot === undefined) {
+			throw new Error(
+				'UserMap.addPubkey: no slot available after subscribing user account'
+			);
+		}
 		this.userMap.set(userAccountPublicKey.toString(), {
 			data: user,
-			slot: slot ?? user.getUserAccountAndSlot()?.slot,
+			slot: resolvedSlot,
 		});
 		this.eventEmitter.emit('userUpdate', user);
 	}
@@ -259,7 +270,11 @@ export class UserMap implements UserMapInterface {
 				accountSubscription
 			);
 		}
-		return this.userMap.get(key).data;
+		const userWithSlot = this.userMap.get(key);
+		if (!userWithSlot) {
+			throw new Error(`UserMap.mustGet: no user found for ${key}`);
+		}
+		return userWithSlot.data;
 	}
 	public async mustGetWithSlot(
 		key: string,
@@ -273,7 +288,11 @@ export class UserMap implements UserMapInterface {
 				accountSubscription
 			);
 		}
-		return this.userMap.get(key);
+		const userWithSlot = this.userMap.get(key);
+		if (!userWithSlot) {
+			throw new Error(`UserMap.mustGetWithSlot: no user found for ${key}`);
+		}
+		return userWithSlot;
 	}
 
 	public async mustGetUserAccount(key: string): Promise<UserAccount> {
@@ -537,9 +556,12 @@ export class UserMap implements UserMapInterface {
 				(account) => account.pubkey
 			);
 
-			const limitConcurrency = async (tasks, limit) => {
-				const executing = [];
-				const results = [];
+			const limitConcurrency = async (
+				tasks: Array<() => Promise<void>>,
+				limit: number
+			) => {
+				const executing: Promise<void>[] = [];
+				const results: Promise<void>[] = [];
 
 				for (let i = 0; i < tasks.length; i++) {
 					const executor = Promise.resolve().then(tasks[i]);
@@ -565,7 +587,7 @@ export class UserMap implements UserMapInterface {
 
 			// @ts-ignore
 			const chunkSize = this.syncConfig.chunkSize ?? 100;
-			const tasks = [];
+			const tasks: Array<() => Promise<void>> = [];
 			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
 				const chunk = accountPublicKeys.slice(i, i + chunkSize);
 				tasks.push(async () => {

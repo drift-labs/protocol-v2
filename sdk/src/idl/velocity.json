@@ -10532,6 +10532,38 @@
       ]
     },
     {
+      "name": "update_perp_market_funding_bias_sensitivity",
+      "discriminator": [
+        143,
+        62,
+        234,
+        145,
+        184,
+        237,
+        110,
+        116
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "perp_market",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "funding_bias_sensitivity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "update_perp_market_funding_period",
       "discriminator": [
         171,
@@ -13210,6 +13242,12 @@
         {
           "name": "spot_market",
           "writable": true
+        },
+        {
+          "name": "oracle",
+          "relations": [
+            "spot_market"
+          ]
         }
       ],
       "args": [
@@ -16131,6 +16169,11 @@
       "code": 6351,
       "name": "InvalidAdminTier",
       "msg": "Signer is not authorized for this admin tier"
+    },
+    {
+      "code": 6352,
+      "name": "WithdrawGuardThresholdNotionalTooLarge",
+      "msg": "Withdraw guard threshold notional exceeds max"
     }
   ],
   "types": [
@@ -16433,11 +16476,24 @@
             "type": "u8"
           },
           {
+            "name": "funding_bias_sensitivity",
+            "docs": [
+              "s in the funding bias β(f) = 1 + s * ρ(f): how much the paying-side",
+              "spread widens while the vAMM pays funding on its inventory.",
+              "",
+              "s is stored in hundredths (s = value / 100), so at full ramp (ρ = 1)",
+              "the multiplier is 1 + value/100: 50 => 1.5x, 100 => 2x, u8 caps s at",
+              "2.55. Same convention as `amm_spread_adjustment` (100 = double).",
+              "0 disables the bias."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding_post_amm",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           }
@@ -19471,14 +19527,25 @@
           {
             "name": "padding",
             "docs": [
-              "Padding so historical_oracle_data is 8-aligned."
+              "Padding so last_funding_oracle_twap is 8-aligned."
             ],
             "type": {
               "array": [
                 "u8",
-                11
+                3
               ]
             }
+          },
+          {
+            "name": "last_funding_oracle_twap",
+            "docs": [
+              "Oracle TWAP captured at last funding update, the normalizer",
+              "`last_24h_avg_funding_rate` accrued against. Read by the AMM's",
+              "funding bias spread and `get_last_funding_basis`. Migrated from",
+              "`PerpMarket` so the AMM reads only from `MarketStats`.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
           },
           {
             "name": "historical_oracle_data",
@@ -20921,11 +20988,17 @@
             "type": "i64"
           },
           {
-            "name": "last_funding_oracle_twap",
+            "name": "_padding_funding_twap",
             "docs": [
-              "oracle TWAP captured at last funding update"
+              "Explicit padding where `last_funding_oracle_twap` used to live",
+              "(moved to `MarketStats`); keeps every later field at its old offset."
             ],
-            "type": "i64"
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           },
           {
             "name": "order_step_size",

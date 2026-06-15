@@ -22,8 +22,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
+	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
-import { QUOTE_PRECISION, getUserAccountPublicKey } from '../sdk/src';
+import { getUserAccountPublicKey } from '../sdk/src';
 import { calculateInitUserFee } from '../sdk/src/math/state';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -128,7 +129,7 @@ describe('surge pricing', () => {
 		);
 		const txSig = await admin.updateWithdrawGuardThreshold(
 			0,
-			new BN(10 ** 10).mul(QUOTE_PRECISION)
+			await getMaxWithdrawGuardThreshold(admin, 0)
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await admin.fetchAccounts();

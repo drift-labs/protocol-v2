@@ -78,9 +78,10 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 			currentNode = currentNode.next;
 		}
 
-		newNode.next = currentNode.next;
-		if (currentNode.next !== undefined) {
-			newNode.next.previous = newNode;
+		const nextNode = currentNode.next;
+		newNode.next = nextNode;
+		if (nextNode !== undefined) {
+			nextNode.previous = newNode;
 		}
 		currentNode.next = newNode;
 		newNode.previous = currentNode;
@@ -109,8 +110,8 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 
 	public update(order: Order, userAccount: string): void {
 		const orderId = getOrderSignature(order.orderId, userAccount);
-		if (this.nodeMap.has(orderId)) {
-			const node = this.nodeMap.get(orderId);
+		const node = this.nodeMap.get(orderId);
+		if (node !== undefined) {
 			Object.assign(node.order, order);
 			node.haveFilled = false;
 		}
@@ -118,8 +119,8 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 
 	public remove(order: Order, userAccount: string): void {
 		const orderId = getOrderSignature(order.orderId, userAccount);
-		if (this.nodeMap.has(orderId)) {
-			const node = this.nodeMap.get(orderId);
+		const node = this.nodeMap.get(orderId);
+		if (node !== undefined) {
 			if (node.next) {
 				node.next.previous = node.previous;
 			}

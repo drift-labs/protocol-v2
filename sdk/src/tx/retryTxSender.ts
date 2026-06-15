@@ -41,7 +41,7 @@ export class RetryTxSender extends BaseTxSender {
 		opts?: ConfirmOptions;
 		timeout?: number;
 		retrySleep?: number;
-		additionalConnections?;
+		additionalConnections?: Connection[];
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
@@ -115,14 +115,16 @@ export class RetryTxSender extends BaseTxSender {
 			}
 		})();
 
-		let slot: number;
+		let slot: number | undefined;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result?.value);
+			if (result) {
+				await this.checkConfirmationResultForError(txid, result.value);
 
-			slot = result?.context?.slot;
+				slot = result.context?.slot;
+			}
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

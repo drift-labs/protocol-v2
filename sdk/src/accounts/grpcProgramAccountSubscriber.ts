@@ -15,7 +15,15 @@ export class grpcProgramAccountSubscriber<
 	T,
 > extends WebSocketProgramAccountSubscriber<T> {
 	private client: Client;
-	private stream: Awaited<ReturnType<Client['subscribe']>>;
+	private _stream?: Awaited<ReturnType<Client['subscribe']>>;
+	private get stream(): Awaited<ReturnType<Client['subscribe']>> {
+		if (!this._stream) {
+			throw new Error(
+				'grpcProgramAccountSubscriber: stream accessed before subscribe()'
+			);
+		}
+		return this._stream;
+	}
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
 
@@ -95,7 +103,7 @@ export class grpcProgramAccountSubscriber<
 		this.onChange = onChange;
 
 		// Subscribe with grpc
-		this.stream = await this.client.subscribe();
+		this._stream = await this.client.subscribe();
 
 		const filters = this.options.filters.map((filter) => {
 			return {
@@ -125,7 +133,7 @@ export class grpcProgramAccountSubscriber<
 		};
 
 		this.stream.on('data', (chunk: SubscribeUpdate) => {
-			if (!chunk.account) {
+			if (!chunk.account || !chunk.account.account) {
 				return;
 			}
 			const slot = Number(chunk.account.slot);

@@ -1131,7 +1131,7 @@ pub mod velocity {
     }
 
     pub fn update_withdraw_guard_threshold(
-        ctx: Context<AdminUpdateSpotMarket>,
+        ctx: Context<AdminUpdateSpotMarketWithdrawGuardThreshold>,
         withdraw_guard_threshold: u64,
     ) -> Result<()> {
         handle_update_withdraw_guard_threshold(ctx, withdraw_guard_threshold)
@@ -1522,6 +1522,13 @@ pub mod velocity {
             amm_inventory_spread_adjustment,
             reference_price_offset,
         )
+    }
+
+    pub fn update_perp_market_funding_bias_sensitivity(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        funding_bias_sensitivity: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_funding_bias_sensitivity(ctx, funding_bias_sensitivity)
     }
 
     pub fn update_perp_market_oracle_slot_delay_override(

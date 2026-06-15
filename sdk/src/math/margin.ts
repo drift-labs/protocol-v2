@@ -226,7 +226,8 @@ export function calculateMarginUSDCRequiredForTrade(
 	userMaxMarginRatio?: number,
 	entryPrice?: BN
 ): BN {
-	const targetMarket = velocityClient.getPerpMarketAccount(targetMarketIndex);
+	const targetMarket =
+		velocityClient.getPerpMarketAccountOrThrow(targetMarketIndex);
 
 	const price =
 		entryPrice ??
@@ -269,7 +270,8 @@ export function calculateCollateralDepositRequiredForTrade(
 		estEntryPrice
 	);
 
-	const collateralMarket = velocityClient.getSpotMarketAccount(collateralIndex);
+	const collateralMarket =
+		velocityClient.getSpotMarketAccountOrThrow(collateralIndex);
 
 	const collateralOracleData =
 		velocityClient.getOracleDataForSpotMarket(collateralIndex);
@@ -298,7 +300,8 @@ export function calculateCollateralValueOfDeposit(
 	collateralIndex: number,
 	baseSize: BN
 ): BN {
-	const collateralMarket = velocityClient.getSpotMarketAccount(collateralIndex);
+	const collateralMarket =
+		velocityClient.getSpotMarketAccountOrThrow(collateralIndex);
 
 	const collateralOracleData =
 		velocityClient.getOracleDataForSpotMarket(collateralIndex);

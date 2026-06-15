@@ -187,7 +187,15 @@ pub struct AMM {
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_inventory_spread_adjustment: i8,
     pub reference_price_offset_deadband_pct: u8,
-    pub padding_post_amm: [u8; 3],
+    /// s in the funding bias β(f) = 1 + s * ρ(f): how much the paying-side
+    /// spread widens while the vAMM pays funding on its inventory.
+    ///
+    /// s is stored in hundredths (s = value / 100), so at full ramp (ρ = 1)
+    /// the multiplier is 1 + value/100: 50 => 1.5x, 100 => 2x, u8 caps s at
+    /// 2.55. Same convention as `amm_spread_adjustment` (100 = double).
+    /// 0 disables the bias.
+    pub funding_bias_sensitivity: u8,
+    pub padding_post_amm: [u8; 2],
 }
 
 impl AMM {

@@ -10538,6 +10538,38 @@ export type Velocity = {
       ]
     },
     {
+      "name": "updatePerpMarketFundingBiasSensitivity",
+      "discriminator": [
+        143,
+        62,
+        234,
+        145,
+        184,
+        237,
+        110,
+        116
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "perpMarket",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "fundingBiasSensitivity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketFundingPeriod",
       "discriminator": [
         171,
@@ -13216,6 +13248,12 @@ export type Velocity = {
         {
           "name": "spotMarket",
           "writable": true
+        },
+        {
+          "name": "oracle",
+          "relations": [
+            "spotMarket"
+          ]
         }
       ],
       "args": [
@@ -16137,6 +16175,11 @@ export type Velocity = {
       "code": 6351,
       "name": "invalidAdminTier",
       "msg": "Signer is not authorized for this admin tier"
+    },
+    {
+      "code": 6352,
+      "name": "withdrawGuardThresholdNotionalTooLarge",
+      "msg": "Withdraw guard threshold notional exceeds max"
     }
   ],
   "types": [
@@ -16439,11 +16482,24 @@ export type Velocity = {
             "type": "u8"
           },
           {
+            "name": "fundingBiasSensitivity",
+            "docs": [
+              "s in the funding bias β(f) = 1 + s * ρ(f): how much the paying-side",
+              "spread widens while the vAMM pays funding on its inventory.",
+              "",
+              "s is stored in hundredths (s = value / 100), so at full ramp (ρ = 1)",
+              "the multiplier is 1 + value/100: 50 => 1.5x, 100 => 2x, u8 caps s at",
+              "2.55. Same convention as `amm_spread_adjustment` (100 = double).",
+              "0 disables the bias."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "paddingPostAmm",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           }
@@ -19477,14 +19533,25 @@ export type Velocity = {
           {
             "name": "padding",
             "docs": [
-              "Padding so historical_oracle_data is 8-aligned."
+              "Padding so last_funding_oracle_twap is 8-aligned."
             ],
             "type": {
               "array": [
                 "u8",
-                11
+                3
               ]
             }
+          },
+          {
+            "name": "lastFundingOracleTwap",
+            "docs": [
+              "Oracle TWAP captured at last funding update, the normalizer",
+              "`last_24h_avg_funding_rate` accrued against. Read by the AMM's",
+              "funding bias spread and `get_last_funding_basis`. Migrated from",
+              "`PerpMarket` so the AMM reads only from `MarketStats`.",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
           },
           {
             "name": "historicalOracleData",
@@ -20927,11 +20994,17 @@ export type Velocity = {
             "type": "i64"
           },
           {
-            "name": "lastFundingOracleTwap",
+            "name": "paddingFundingTwap",
             "docs": [
-              "oracle TWAP captured at last funding update"
+              "Explicit padding where `last_funding_oracle_twap` used to live",
+              "(moved to `MarketStats`); keeps every later field at its old offset."
             ],
-            "type": "i64"
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           },
           {
             "name": "orderStepSize",

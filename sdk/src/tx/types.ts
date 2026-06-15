@@ -18,7 +18,7 @@ export enum ConfirmationStrategy {
 
 export type TxSigAndSlot = {
 	txSig: TransactionSignature;
-	slot: number;
+	slot: number | undefined;
 };
 
 export interface TxSender {

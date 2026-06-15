@@ -32,7 +32,7 @@ export class UserStatsMap {
 	private syncConfig: SyncConfig;
 
 	private syncPromise?: Promise<void>;
-	private syncPromiseResolver: () => void;
+	private syncPromiseResolver?: () => void;
 
 	/**
 	 * Creates a new UserStatsMap instance.
@@ -49,7 +49,7 @@ export class UserStatsMap {
 		if (!bulkAccountLoader) {
 			bulkAccountLoader = new BulkAccountLoader(
 				velocityClient.connection,
-				velocityClient.opts.commitment,
+				velocityClient.opts?.commitment ?? 'confirmed',
 				0
 			);
 		}
@@ -179,7 +179,7 @@ export class UserStatsMap {
 		return this.userStatsMap.has(authorityPublicKey);
 	}
 
-	public get(authorityPublicKey: string): UserStats {
+	public get(authorityPublicKey: string): UserStats | undefined {
 		return this.userStatsMap.get(authorityPublicKey);
 	}
 
@@ -197,7 +197,13 @@ export class UserStatsMap {
 				false
 			);
 		}
-		return this.get(authorityPublicKey);
+		const userStats = this.get(authorityPublicKey);
+		if (!userStats) {
+			throw new Error(
+				`UserStatsMap: UserStats missing for authority ${authorityPublicKey} after addUserStat`
+			);
+		}
+		return userStats;
 	}
 
 	public values(): IterableIterator<UserStats> {
@@ -262,9 +268,12 @@ export class UserStatsMap {
 				accountsToLoad = accountsPrefetch.map((account) => account.pubkey);
 			}
 
-			const limitConcurrency = async (tasks, limit) => {
-				const executing = [];
-				const results = [];
+			const limitConcurrency = async (
+				tasks: Array<() => Promise<void>>,
+				limit: number
+			) => {
+				const executing: Array<Promise<void>> = [];
+				const results: Array<Promise<void>> = [];
 
 				for (let i = 0; i < tasks.length; i++) {
 					const executor = Promise.resolve().then(tasks[i]);
@@ -290,7 +299,7 @@ export class UserStatsMap {
 
 			// @ts-ignore
 			const chunkSize = this.syncConfig.chunkSize ?? 100;
-			const tasks = [];
+			const tasks: Array<() => Promise<void>> = [];
 			for (let i = 0; i < accountsToLoad.length; i += chunkSize) {
 				const chunk = accountsToLoad.slice(i, i + chunkSize);
 				tasks.push(async () => {
@@ -298,7 +307,7 @@ export class UserStatsMap {
 						await this.velocityClient.connection.getMultipleAccountsInfoAndContext(
 							chunk,
 							{
-								commitment: this.velocityClient.opts.commitment,
+								commitment: this.velocityClient.opts?.commitment,
 							}
 						);
 

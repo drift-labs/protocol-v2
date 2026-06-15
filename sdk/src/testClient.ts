@@ -30,7 +30,7 @@ export class TestClient extends AdminClient {
 			this.accountSubscriber as PollingVelocityClientAccountSubscriber
 		).accountLoader.mostRecentSlot;
 		await this.fetchAccounts();
-		while (lastFetchedSlot < slot) {
+		while (slot !== undefined && lastFetchedSlot < slot) {
 			await this.fetchAccounts();
 			lastFetchedSlot = (
 				this.accountSubscriber as PollingVelocityClientAccountSubscriber

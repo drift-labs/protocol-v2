@@ -7,6 +7,7 @@ import {
 	PERCENTAGE_PRECISION,
 	calculateSpread,
 	calculateSpreadBN,
+	calculateSpreadFundingBiasScale,
 	ZERO,
 	sigNum,
 	ONE,
@@ -57,6 +58,9 @@ class AMMSpreadTerms {
 	halfRevenueRetreatAmount: number;
 	longSpreadwRevRetreat: number;
 	shortSpreadwRevRetreat: number;
+	fundingBiasScale: number;
+	longSpreadwFundingBias: number;
+	shortSpreadwFundingBias: number;
 	totalSpread: number;
 	longSpread: number;
 	shortSpread: number;
@@ -229,6 +233,116 @@ describe('AMM Tests', () => {
 		assert((3500 * iscale) / 1e6 == 0.06566799749999999); //6.5%
 	});
 
+	it('Funding Bias Scale', () => {
+		// values pinned to the program's calculate_spread_funding_bias_scale tests
+		const twap = new BN(100).mul(PRICE_PRECISION); // $100
+		// hourly rate matching the funding offset floor f_ref (~10.95%/yr):
+		// fNorm = 1_250_000 * 1e6 / 1e8 * 24 = 300_000
+		const saturatingRate = new BN(1_250_000);
+		const qAmmLong = BASE_PRECISION.neg(); // users net short
+		const qAmmShort = BASE_PRECISION; // users net long
+		const one = BID_ASK_SPREAD_PRECISION.toNumber();
+
+		// s = 0 disables
+		assert(
+			calculateSpreadFundingBiasScale(qAmmLong, saturatingRate, twap, 0) == one
+		);
+
+		// f * q >= 0: vAMM receives (or zero rate/inventory), β = 1
+		assert(
+			calculateSpreadFundingBiasScale(qAmmShort, saturatingRate, twap, 50) ==
+				one
+		);
+		assert(
+			calculateSpreadFundingBiasScale(
+				qAmmLong,
+				saturatingRate.neg(),
+				twap,
+				50
+			) == one
+		);
+		assert(
+			calculateSpreadFundingBiasScale(ZERO, saturatingRate, twap, 50) == one
+		);
+		assert(calculateSpreadFundingBiasScale(qAmmLong, ZERO, twap, 50) == one);
+
+		// paying at f_ref: ρ ~= 1, β ~= 1 + s/100
+		assert(
+			calculateSpreadFundingBiasScale(qAmmLong, saturatingRate, twap, 50) ==
+				1_499_950
+		);
+		assert(
+			calculateSpreadFundingBiasScale(
+				qAmmShort,
+				saturatingRate.neg(),
+				twap,
+				50
+			) == 1_499_950
+		);
+
+		// half ramp: β = 1 + s/100 * 0.5
+		assert(
+			calculateSpreadFundingBiasScale(
+				qAmmLong,
+				saturatingRate.divn(2),
+				twap,
+				50
+			) == 1_249_975
+		);
+
+		// past f_ref the ramp clamps at 1: β = 1 + s/100 exactly
+		assert(
+			calculateSpreadFundingBiasScale(
+				qAmmLong,
+				saturatingRate.muln(10),
+				twap,
+				100
+			) ==
+				2 * one
+		);
+
+		// integration: paying side doubles at s = 100, other side untouched,
+		// mirrors the program's calculate_spread_funding_bias_tests
+		const calc = (rate: BN, s: number) =>
+			calculateSpreadBN(
+				1000, // baseSpread
+				ZERO,
+				ZERO,
+				2000, // maxSpread
+				AMM_RESERVE_PRECISION.muln(10),
+				AMM_RESERVE_PRECISION.muln(10),
+				new BN(34000000),
+				new BN(-1000), // tiny vAMM-long inventory so σ = λ = 1
+				new BN(34562304),
+				QUOTE_PRECISION.muln(10),
+				ZERO,
+				AMM_RESERVE_PRECISION.muln(10),
+				ZERO,
+				AMM_RESERVE_PRECISION.muln(100000),
+				ZERO,
+				ZERO,
+				ZERO,
+				ZERO,
+				ZERO,
+				0,
+				rate,
+				twap,
+				s
+			) as [number, number];
+
+		const [long0, short0] = calc(saturatingRate.muln(10), 0);
+		assert(long0 == 500);
+		assert(short0 == 500);
+
+		const [long1, short1] = calc(saturatingRate.muln(10), 100);
+		assert(long1 == long0);
+		assert(short1 == short0 * 2);
+
+		const [long2, short2] = calc(saturatingRate.muln(10).neg(), 100);
+		assert(long2 == long0);
+		assert(short2 == short0);
+	});
+
 	it('Various Spreads', () => {
 		const baseSpread: number = 0.025 * 1e6;
 		const lastOracleReservePriceSpreadPct: BN = ZERO;
@@ -308,6 +422,9 @@ describe('AMM Tests', () => {
 			shortIntensity,
 			volume24H,
 			0,
+			ZERO,
+			ZERO,
+			0,
 			true
 		);
 		// console.log(terms1);
@@ -341,6 +458,9 @@ describe('AMM Tests', () => {
 			new BN(72230366233),
 			new BN(432067603632),
 			0,
+			ZERO,
+			ZERO,
+			0,
 			true
 		);
 
@@ -372,6 +492,9 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			0,
+			ZERO,
+			ZERO,
 			0,
 			true
 		);
@@ -407,6 +530,9 @@ describe('AMM Tests', () => {
 			new BN(72230366233),
 			new BN(432067603632),
 			0,
+			ZERO,
+			ZERO,
+			0,
 			true
 		);
 
@@ -440,6 +566,9 @@ describe('AMM Tests', () => {
 			new BN(768323534),
 			new BN(243875031),
 			new BN(130017761029),
+			0,
+			ZERO,
+			ZERO,
 			0,
 			true
 		);
@@ -607,6 +736,9 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
 			0,
+			ZERO,
+			ZERO,
+			0,
 			true
 		);
 
@@ -647,6 +779,9 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
 			0,
+			ZERO,
+			ZERO,
+			0,
 			true
 		);
 		console.log(termsSuiExampleMod1);
@@ -675,6 +810,9 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
+			0,
+			ZERO,
+			ZERO,
 			0,
 			true
 		);

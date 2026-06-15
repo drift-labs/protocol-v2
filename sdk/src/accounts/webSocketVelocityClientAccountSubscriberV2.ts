@@ -66,12 +66,38 @@ export class WebSocketVelocityClientAccountSubscriberV2
 
 	eventEmitter: StrictEventEmitter<EventEmitter, VelocityClientAccountEvents>;
 	stateAccountSubscriber?: WebSocketAccountSubscriberV2<StateAccount>;
-	perpMarketAllAccountsSubscriber: WebSocketProgramAccountsSubscriberV2<PerpMarketAccount>;
+	private _perpMarketAllAccountsSubscriber?: WebSocketProgramAccountsSubscriberV2<PerpMarketAccount>;
+	get perpMarketAllAccountsSubscriber(): WebSocketProgramAccountsSubscriberV2<PerpMarketAccount> {
+		if (!this._perpMarketAllAccountsSubscriber) {
+			throw new Error(
+				'perpMarketAllAccountsSubscriber accessed before subscribe()'
+			);
+		}
+		return this._perpMarketAllAccountsSubscriber;
+	}
+	set perpMarketAllAccountsSubscriber(
+		subscriber: WebSocketProgramAccountsSubscriberV2<PerpMarketAccount>
+	) {
+		this._perpMarketAllAccountsSubscriber = subscriber;
+	}
 	perpMarketAccountLatestData = new Map<
 		number,
 		DataAndSlot<PerpMarketAccount>
 	>();
-	spotMarketAllAccountsSubscriber: WebSocketProgramAccountsSubscriberV2<SpotMarketAccount>;
+	private _spotMarketAllAccountsSubscriber?: WebSocketProgramAccountsSubscriberV2<SpotMarketAccount>;
+	get spotMarketAllAccountsSubscriber(): WebSocketProgramAccountsSubscriberV2<SpotMarketAccount> {
+		if (!this._spotMarketAllAccountsSubscriber) {
+			throw new Error(
+				'spotMarketAllAccountsSubscriber accessed before subscribe()'
+			);
+		}
+		return this._spotMarketAllAccountsSubscriber;
+	}
+	set spotMarketAllAccountsSubscriber(
+		subscriber: WebSocketProgramAccountsSubscriberV2<SpotMarketAccount>
+	) {
+		this._spotMarketAllAccountsSubscriber = subscriber;
+	}
 	spotMarketAccountLatestData = new Map<
 		number,
 		DataAndSlot<SpotMarketAccount>
@@ -83,13 +109,13 @@ export class WebSocketVelocityClientAccountSubscriberV2
 	oracleSubscribers = new Map<string, AccountSubscriber<OraclePriceData>>();
 	delistedMarketSetting: DelistedMarketSetting;
 
-	initialPerpMarketAccountData: Map<number, PerpMarketAccount>;
-	initialSpotMarketAccountData: Map<number, SpotMarketAccount>;
-	initialOraclePriceData: Map<string, OraclePriceData>;
+	initialPerpMarketAccountData: Map<number, PerpMarketAccount> = new Map();
+	initialSpotMarketAccountData: Map<number, SpotMarketAccount> = new Map();
+	initialOraclePriceData: Map<string, OraclePriceData> = new Map();
 
 	protected isSubscribing = false;
-	protected subscriptionPromise: Promise<boolean>;
-	protected subscriptionPromiseResolver: (val: boolean) => void;
+	protected subscriptionPromiseResolver: (val: boolean) => void = () => {};
+	protected subscriptionPromise: Promise<boolean> = Promise.resolve(false);
 
 	private rpc: Rpc<any>;
 	private rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi> &
@@ -349,9 +375,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 			this.isSubscribed = true;
 			this.isSubscribing = false;
 			// Before calling subscriptionPromiseResolver, check if it's defined
-			if (this.subscriptionPromiseResolver) {
-				this.subscriptionPromiseResolver(true);
-			}
+			this.subscriptionPromiseResolver(true);
 
 			return true;
 		} catch (error) {
@@ -415,27 +439,34 @@ export class WebSocketVelocityClientAccountSubscriberV2
 			)
 		).flat();
 		this.initialOraclePriceData = new Map(
-			this.oracleInfos.reduce((result, oracleInfo, i) => {
-				if (!oracleAccountInfos[i]) {
+			this.oracleInfos.reduce(
+				(result, oracleInfo, i) => {
+					const oracleAccountInfo = oracleAccountInfos[i];
+					if (!oracleAccountInfo) {
+						return result;
+					}
+
+					const oracleClient = this.oracleClientCache.get(
+						oracleInfo.source,
+						connection,
+						this.program
+					);
+					if (!oracleClient) {
+						return result;
+					}
+
+					const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
+						oracleAccountInfo.data
+					);
+
+					result.push([
+						getOracleId(oracleInfo.publicKey, oracleInfo.source),
+						oraclePriceData,
+					]);
 					return result;
-				}
-
-				const oracleClient = this.oracleClientCache.get(
-					oracleInfo.source,
-					connection,
-					this.program
-				);
-
-				const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
-					oracleAccountInfos[i].data
-				);
-
-				result.push([
-					getOracleId(oracleInfo.publicKey, oracleInfo.source),
-					oraclePriceData,
-				]);
-				return result;
-			}, [])
+				},
+				[] as [string, OraclePriceData][]
+			)
 		);
 		const oracleSetupEndTime = performance.now();
 		const oracleSetupDuration = oracleSetupEndTime - oracleSetupStartTime;
@@ -503,6 +534,9 @@ export class WebSocketVelocityClientAccountSubscriberV2
 				this.program.provider.connection,
 				this.program
 			);
+			if (!client) {
+				return false;
+			}
 			const accountSubscriber =
 				new WebSocketAccountSubscriberV2<OraclePriceData>(
 					'oracle',
@@ -653,8 +687,9 @@ export class WebSocketVelocityClientAccountSubscriberV2
 
 		for (const oracle of oracles) {
 			const oracleId = getOracleId(oracle.publicKey, oracle.source);
-			if (this.oracleSubscribers.has(oracleId)) {
-				await this.oracleSubscribers.get(oracleId).unsubscribe();
+			const subscriber = this.oracleSubscribers.get(oracleId);
+			if (subscriber) {
+				await subscriber.unsubscribe();
 				if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
 					this.oracleSubscribers.delete(oracleId);
 				}
@@ -720,8 +755,8 @@ export class WebSocketVelocityClientAccountSubscriberV2
 			return undefined;
 		}
 
-		if (!perpMarketAccount.data.oracle.equals(oracle)) {
-			// If the oracle has changed, we need to update the oracle map in background
+		if (!oracle || !perpMarketAccount.data.oracle.equals(oracle)) {
+			// If the oracle has changed (or not yet cached), update the oracle map in background
 			this.setPerpOracleMap();
 		}
 
@@ -738,8 +773,8 @@ export class WebSocketVelocityClientAccountSubscriberV2
 			return undefined;
 		}
 
-		if (!spotMarketAccount.data.oracle.equals(oracle)) {
-			// If the oracle has changed, we need to update the oracle map in background
+		if (!oracle || !spotMarketAccount.data.oracle.equals(oracle)) {
+			// If the oracle has changed (or not yet cached), update the oracle map in background
 			this.setSpotOracleMap();
 		}
 

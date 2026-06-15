@@ -74,7 +74,7 @@ export class SwiftOrderSubscriber {
 	private ws: WebSocket | null = null;
 	private velocityClient: VelocityClient;
 	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
-	public onOrder: (
+	public onOrder?: (
 		orderMessageRaw: SwiftOrderMessage,
 		signedMessage:
 			| SignedMsgOrderParamsMessage
@@ -92,8 +92,8 @@ export class SwiftOrderSubscriber {
 
 	unsubscribe() {
 		if (this.subscribed) {
-			this.ws.removeAllListeners();
-			this.ws.terminate();
+			this.ws?.removeAllListeners();
+			this.ws?.terminate();
 			this.ws = null;
 			this.subscribed = false;
 		}
@@ -245,11 +245,8 @@ export class SwiftOrderSubscriber {
 			}, 5000);
 		});
 
-		ws.on('error', async (request, response) => {
-			console.error(
-				'WS closed from error, reconnecting in 1s:',
-				response.statusCode
-			);
+		ws.on('error', async (error: Error) => {
+			console.error('WS closed from error, reconnecting in 1s:', error);
 			setTimeout(() => {
 				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
 				this.reconnect();
@@ -343,8 +340,12 @@ export class SwiftOrderSubscriber {
 		}
 
 		console.log('Reconnecting to WebSocket...');
+		const onOrder = this.onOrder;
+		if (!onOrder) {
+			throw new Error('onOrder callback function must be set');
+		}
 		setTimeout(() => {
-			this.subscribe(this.onOrder);
+			this.subscribe(onOrder);
 		}, 1000);
 	}
 }

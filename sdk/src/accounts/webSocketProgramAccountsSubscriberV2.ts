@@ -101,12 +101,33 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 	bufferAndSlotMap: Map<string, BufferAndSlot> = new Map();
 	program: VelocityProgram;
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
-	onChange: (
+	private _onChange?: (
 		accountId: PublicKey,
 		data: T,
 		context: Context,
 		buffer: Buffer
 	) => void;
+	get onChange(): (
+		accountId: PublicKey,
+		data: T,
+		context: Context,
+		buffer: Buffer
+	) => void {
+		if (!this._onChange) {
+			throw new Error('onChange callback function must be set');
+		}
+		return this._onChange;
+	}
+	set onChange(
+		onChange: (
+			accountId: PublicKey,
+			data: T,
+			context: Context,
+			buffer: Buffer
+		) => void
+	) {
+		this._onChange = onChange;
+	}
 	listenerId?: number;
 	resubOpts: ResubOpts;
 	isUnsubscribing = false;
@@ -160,7 +181,10 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 			usePollingInsteadOfResub: true,
 			logResubMessages: false,
 		};
-		if (this.resubOpts?.resubTimeoutMs < 1000) {
+		if (
+			this.resubOpts.resubTimeoutMs != null &&
+			this.resubOpts.resubTimeoutMs < 1000
+		) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
@@ -319,7 +343,7 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 	}
 
 	protected setTimeout(): void {
-		if (!this.onChange) {
+		if (!this._onChange) {
 			throw new Error('onChange callback function must be set');
 		}
 		this.timeoutId = setTimeout(
@@ -389,7 +413,8 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 		// If this account was being polled, stop polling it if the buffer has changed
 		if (
 			this.accountsCurrentlyPolling.has(accountIdString) &&
-			!existingBufferAndSlot?.buffer.equals(newBuffer)
+			(!existingBufferAndSlot?.buffer ||
+				(newBuffer != null && !existingBufferAndSlot.buffer.equals(newBuffer)))
 		) {
 			this.accountsCurrentlyPolling.delete(accountIdString);
 
