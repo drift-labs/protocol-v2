@@ -15,6 +15,7 @@ pub use admin::*;
 pub use constraints::*;
 pub use if_staker::*;
 pub use keeper::*;
+pub use protocol_fees::*;
 pub use pyth_lazer_oracle::*;
 pub use user::*;
 
@@ -23,5 +24,6 @@ pub mod constraints;
 mod if_staker;
 mod keeper;
 pub mod optional_accounts;
+mod protocol_fees;
 mod pyth_lazer_oracle;
 mod user;

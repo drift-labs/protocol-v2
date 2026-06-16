@@ -315,7 +315,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -439,7 +441,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -32000);
-        assert_eq!(market.total_exchange_fee, 32000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 80000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 32000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -563,7 +567,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -36000);
-        assert_eq!(market.total_exchange_fee, 36000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 90000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 36000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -687,7 +693,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -28000);
-        assert_eq!(market.total_exchange_fee, 28000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 70000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 28000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -1394,7 +1402,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -30000);
-        assert_eq!(market.total_exchange_fee, 30000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 75000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 30000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -1515,7 +1525,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -1637,7 +1649,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -2034,7 +2048,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -2187,7 +2203,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -2333,7 +2351,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -2485,7 +2505,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -2617,7 +2639,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -2748,7 +2772,9 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(market.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.quote_asset_amount, -20000);
-        assert_eq!(market.total_exchange_fee, 20000);
+        assert_eq!(market.fee_ledger.total_exchange_fee, 50000);
+        assert_eq!(market.fee_ledger.pending_protocol_fee, 20000);
+        assert_eq!(market.fee_ledger.pending_if_fee, 0);
         assert_eq!(market.amm.total_fee, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, 0);
         assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -3157,10 +3183,16 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.quote_asset_amount, -50281374);
 
-        assert_eq!(market_after.total_exchange_fee, 32628);
-        assert_eq!(market_after.amm.total_fee, 22615);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 22615);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 22615);
+        assert_eq!(market_after.fee_ledger.total_exchange_fee, 50129);
+        // amm numerator is 0: the AMM books only its spread surplus; the
+        // remainders of BOTH halves (AMM fill 22614 + DLOB match 7502) are
+        // the protocol's pending carveout
+        assert_eq!(market_after.fee_ledger.pending_protocol_fee, 30116);
+        assert_eq!(market_after.fee_ledger.pending_if_fee, 0);
+        assert_eq!(market_after.fee_ledger.pending_amm_provision, 0);
+        assert_eq!(market_after.amm.total_fee, 1);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 1);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 1);
 
         let reserve_price = market_after.amm.reserve_price().unwrap();
         assert_eq!(reserve_price, 101_007_550);
@@ -3610,10 +3642,14 @@ pub mod fulfill_order {
                 + filler.perp_positions[0].quote_asset_amount as u64))
             as i128;
         assert_eq!(expected_market_fee, 30128);
-        assert_eq!(market_after.total_exchange_fee, 32642);
-        assert_eq!(market_after.amm.total_fee, 25147);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 25147);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 25147);
+        assert_eq!(market_after.fee_ledger.total_exchange_fee, 50143);
+        // amm numerator is 0: the AMM books only its spread surplus; both
+        // halves' remainders (== expected_market_fee) are the protocol's
+        // pending carveout
+        assert_eq!(market_after.fee_ledger.pending_protocol_fee, 30128);
+        assert_eq!(market_after.amm.total_fee, 2521);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 2521);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 2521);
 
         let reserve_price = market_after.amm.reserve_price().unwrap();
         assert_eq!(reserve_price, 101_058_054);
@@ -3813,7 +3849,9 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_long, 500000000);
         assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.quote_asset_amount, -10000);
-        assert_eq!(market_after.total_exchange_fee, 10000);
+        assert_eq!(market_after.fee_ledger.total_exchange_fee, 25000);
+        assert_eq!(market_after.fee_ledger.pending_protocol_fee, 10000);
+        assert_eq!(market_after.fee_ledger.pending_if_fee, 0);
         assert_eq!(market_after.amm.total_fee, 0);
         assert_eq!(market_after.amm.total_fee_minus_distributions, 0);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 0);
@@ -3980,9 +4018,12 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.base_asset_amount_short, 0);
         assert_eq!(market_after.quote_asset_amount, -101060608);
-        assert_eq!(market_after.amm.total_fee, 50506);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 50506);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 50506);
+        // amm numerator is 0: the taker-fee remainder is the protocol's
+        // pending carveout; the AMM books nothing (no surplus here)
+        assert_eq!(market_after.fee_ledger.pending_protocol_fee, 50506);
+        assert_eq!(market_after.amm.total_fee, 0);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 0);
     }
 
     #[test]
@@ -4543,9 +4584,12 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_long, 0);
         assert_eq!(market_after.base_asset_amount_short, -35032000);
         assert_eq!(market_after.quote_asset_amount, 3500868);
-        assert_eq!(market_after.amm.total_fee, 1105);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 1105);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 1105);
+        // amm numerator is 0: the spread-derived post-only house fee is the
+        // protocol's pending carveout; the AMM books nothing
+        assert_eq!(market_after.fee_ledger.pending_protocol_fee, 1105);
+        assert_eq!(market_after.amm.total_fee, 0);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
         let reserve_price = market_after.amm.reserve_price().unwrap();
@@ -4723,9 +4767,12 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_long, 34966000);
         assert_eq!(market_after.base_asset_amount_short, 0);
         assert_eq!(market_after.quote_asset_amount, -3498924);
-        assert_eq!(market_after.amm.total_fee, 1100);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 1100);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 1100);
+        // amm numerator is 0: the spread-derived post-only house fee is the
+        // protocol's pending carveout; the AMM books nothing
+        assert_eq!(market_after.fee_ledger.pending_protocol_fee, 1100);
+        assert_eq!(market_after.amm.total_fee, 0);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 0);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
         let reserve_price = market_after.amm.reserve_price().unwrap();
@@ -5348,7 +5395,9 @@ pub mod fulfill_order {
         assert_eq!(market_after.base_asset_amount_long, 500000000);
         assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.quote_asset_amount, -10000);
-        assert_eq!(market_after.total_exchange_fee, 10000);
+        assert_eq!(market_after.fee_ledger.total_exchange_fee, 25000);
+        assert_eq!(market_after.fee_ledger.pending_protocol_fee, 10000);
+        assert_eq!(market_after.fee_ledger.pending_if_fee, 0);
         assert_eq!(market_after.amm.total_fee, 0);
         assert_eq!(market_after.amm.total_fee_minus_distributions, 0);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 0);

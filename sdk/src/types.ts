@@ -647,40 +647,6 @@ export type DeleteUserRecord = {
 	keeper: PublicKey | null;
 };
 
-export type InsuranceFundSwapRecord = {
-	rebalanceConfig: PublicKey;
-	inIfTotalSharesBefore: BN;
-	outIfTotalSharesBefore: BN;
-	inIfUserSharesBefore: BN;
-	outIfUserSharesBefore: BN;
-	inIfTotalSharesAfter: BN;
-	outIfTotalSharesAfter: BN;
-	inIfUserSharesAfter: BN;
-	outIfUserSharesAfter: BN;
-	ts: BN;
-	inAmount: BN;
-	outAmount: BN;
-	outOraclePrice: BN;
-	outOraclePriceTwap: BN;
-	inVaultAmountBefore: BN;
-	outVaultAmountBefore: BN;
-	inFundVaultAmountAfter: BN;
-	outFundVaultAmountAfter: BN;
-	inMarketIndex: number;
-	outMarketIndex: number;
-};
-
-export type TransferProtocolIfSharesToRevenuePoolRecord = {
-	ts: BN;
-	marketIndex: number;
-	amount: BN;
-	shares: BN;
-	ifVaultAmountBefore: BN;
-	protocolSharesBefore: BN;
-	protocolSharesAfter: BN;
-	transferAmount: BN;
-};
-
 export type LPSwapRecord = {
 	ts: BN;
 	slot: BN;
@@ -766,13 +732,15 @@ export type StateAccount = {
 	hotLpCache: PublicKey;
 	hotLpSwap: PublicKey;
 	hotLpSettle: PublicKey;
-	hotIfRebalance: PublicKey;
 	hotFeatureFlag: PublicKey;
 	hotFuel: PublicKey;
 	hotUserFlag: PublicKey;
 	hotVaultDeposit: PublicKey;
 	hotMmOracleCrank: PublicKey;
 	hotAmmSpreadAdjust: PublicKey;
+	hotFeeWithdraw: PublicKey;
+	protocolFeeRecipientPerp: PublicKey;
+	protocolFeeRecipientSpot: PublicKey;
 	exchangeStatus: number;
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
@@ -816,8 +784,12 @@ export type PerpMarketAccount = {
 	nextFillRecordId: BN;
 	nextFundingRateRecordId: BN;
 	pnlPool: PoolBalance;
+	protocolFeePool: PoolBalance;
+	feeLedger: FeeLedger;
 	liquidatorFee: number;
 	ifLiquidationFee: number;
+	protocolLiquidationFee: number;
+	feePoolBufferTarget: BN;
 	imfFactor: number;
 	unrealizedPnlImfFactor: number;
 	unrealizedPnlMaxImbalance: BN;
@@ -859,8 +831,6 @@ export type PerpMarketAccount = {
 	quoteBreakEvenAmountShort: BN;
 	totalSocialLoss: BN;
 	maxOpenInterest: BN;
-	totalExchangeFee: BN;
-	totalLiquidationFee: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
 	lastFundingRate: BN;
@@ -912,13 +882,15 @@ export type SpotMarketAccount = {
 		unstakingPeriod: BN;
 		lastRevenueSettleTs: BN;
 		revenueSettlePeriod: BN;
-		totalFactor: number;
-		userFactor: number;
+		ifFeeFactor: number;
 	};
 
 	revenuePool: PoolBalance;
+	protocolFeePool: PoolBalance;
 
 	ifLiquidationFee: number;
+	protocolLiquidationFee: number;
+	protocolFeeFactor: number;
 
 	decimals: number;
 	optimalUtilization: number;
@@ -979,6 +951,18 @@ export type PoolBalance = {
 	marketIndex: number;
 };
 
+/// Consolidated per-market fee ledger: lifetime analytics counters plus the
+/// pending (not-yet-materialized) protocol/IF/AMM carveouts and the AMM's
+/// backstop-of-last-resort clawback cap.
+export type FeeLedger = {
+	totalExchangeFee: BN;
+	totalLiquidationFee: BN;
+	pendingProtocolFee: BN;
+	pendingIfFee: BN;
+	ammProtocolFeesReceived: BN;
+	pendingAmmProvision: BN;
+};
+
 export type AMM = {
 	feePool: PoolBalance;
 	baseAssetReserve: BN;
@@ -990,9 +974,15 @@ export type AMM = {
 	pegMultiplier: BN;
 	terminalQuoteAssetReserve: BN;
 	baseAssetAmountWithAmm: BN;
+	/// the AMM's own fee-derived income (provision + spread surplus) — the
+	/// market's gross fees are feeLedger.totalExchangeFee
 	totalFee: BN;
+	/// spread-capture component of totalFee (trading profit, not a paid fee)
 	totalMmFee: BN;
+	/// the AMM's equity ledger (retained earnings): fee income + funding/PnL
+	/// + credits − curve costs − bankruptcy clawbacks; AMM money only
 	totalFeeMinusDistributions: BN;
+	/// @deprecated frozen pre-isolation analytics counter
 	totalFeeWithdrawn: BN;
 	lastUpdateSlot: BN;
 	netRevenueSinceLastFunding: BN;
@@ -1378,7 +1368,8 @@ export type FeeStructure = {
 	feeTiers: FeeTier[];
 	fillerRewardStructure: OrderFillerRewardStructure;
 	flatFillerFee: BN;
-	referrerRewardEpochUpperBound: BN;
+	ammFeeNumerator: number;
+	ifFeeNumerator: number;
 };
 
 export type FeeTier = {
@@ -1501,34 +1492,6 @@ export type SignedTxData = {
 	signedTx: Transaction | VersionedTransaction;
 	lastValidBlockHeight?: number;
 	blockHash: string;
-};
-
-export type IfRebalanceConfigAccount = {
-	pubkey: PublicKey;
-	totalInAmount: BN;
-	currentInAmount: BN;
-	currentOutAmount: BN;
-	currentOutAmountTransferred: BN;
-	epochStartTs: BN;
-	epochInAmount: BN;
-	epochMaxInAmount: BN;
-	epochDuration: BN;
-	outMarketIndex: number;
-	inMarketIndex: number;
-	maxSlippageBps: number;
-	swapMode: number;
-	status: number;
-};
-
-export type IfRebalanceConfigParams = {
-	totalInAmount: BN;
-	epochMaxInAmount: BN;
-	epochDuration: BN;
-	outMarketIndex: number;
-	inMarketIndex: number;
-	maxSlippageBps: number;
-	swapMode: number;
-	status: number;
 };
 
 /* Represents proof of a signed msg taker order

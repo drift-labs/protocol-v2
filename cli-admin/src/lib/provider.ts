@@ -1,7 +1,12 @@
 import * as anchor from '@coral-xyz/anchor';
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { AdminClient, BulkAccountLoader, VelocityEnv, initialize } from '@velocity-exchange/sdk';
+import {
+	AdminClient,
+	BulkAccountLoader,
+	VelocityEnv,
+	initialize,
+} from '@velocity-exchange/sdk';
 import * as fs from 'fs';
 import * as os from 'os';
 
@@ -55,7 +60,11 @@ export async function buildAdminClient(
 		accountSubscription: subscribe
 			? {
 					type: 'polling',
-					accountLoader: new BulkAccountLoader(provider.connection, 'confirmed', 1000),
+					accountLoader: new BulkAccountLoader(
+						provider.connection,
+						'confirmed',
+						1000
+					),
 			  }
 			: undefined,
 	});

@@ -139,7 +139,7 @@ export function registerProgram(parent: Command): void {
 					'',
 					'Flow (the wallet pays rent for buffer setup; only the upgrade itself',
 					'is multisig-gated):',
-					"  1) create + initialize buffer (wallet signs, wallet is initial buffer authority)",
+					'  1) create + initialize buffer (wallet signs, wallet is initial buffer authority)',
 					'  2) write the 352-byte abort bytecode (wallet signs)',
 					'  3) if --multisig: transfer buffer authority to the vault PDA so the',
 					'     proposed upgrade can sign as it (wallet signs)',
@@ -197,18 +197,15 @@ export function registerProgram(parent: Command): void {
 			} else {
 				upgradeAuthority = provider.wallet.publicKey;
 			}
-			const spill = local.spill
-				? new PublicKey(local.spill)
-				: upgradeAuthority;
+			const spill = local.spill ? new PublicKey(local.spill) : upgradeAuthority;
 
 			// 1) Create buffer + initialize. Wallet is the initial buffer authority so
 			//    it can sign the Write ixs in step 2.
 			const bufferKp = Keypair.generate();
 			const bufferSize = BUFFER_HEADER_SIZE + bytecode.length;
-			const rent =
-				await provider.connection.getMinimumBalanceForRentExemption(
-					bufferSize
-				);
+			const rent = await provider.connection.getMinimumBalanceForRentExemption(
+				bufferSize
+			);
 
 			const bufferOutPath =
 				local.bufferOut ??
@@ -221,7 +218,9 @@ export function registerProgram(parent: Command): void {
 				JSON.stringify(Array.from(bufferKp.secretKey))
 			);
 			console.log(
-				`buffer keypair written to ${bufferOutPath} (close later to reclaim ${(rent / 1e9).toFixed(6)} SOL rent)`
+				`buffer keypair written to ${bufferOutPath} (close later to reclaim ${(
+					rent / 1e9
+				).toFixed(6)} SOL rent)`
 			);
 
 			const createTx = new Transaction().add(
@@ -243,7 +242,11 @@ export function registerProgram(parent: Command): void {
 			);
 
 			// 2) Write the bytecode in chunks. Each Write ix is its own tx.
-			for (let offset = 0; offset < bytecode.length; offset += WRITE_CHUNK_BYTES) {
+			for (
+				let offset = 0;
+				offset < bytecode.length;
+				offset += WRITE_CHUNK_BYTES
+			) {
 				const chunk = bytecode.subarray(
 					offset,
 					Math.min(offset + WRITE_CHUNK_BYTES, bytecode.length)

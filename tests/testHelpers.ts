@@ -39,12 +39,14 @@ import {
 	Wallet,
 	OraclePriceData,
 	OracleInfo,
+	getTokenAmount,
 	PerpMarketAccount,
 	PositionDirection,
 	VelocityClient,
 	OrderType,
 	ReferrerInfo,
 	ConstituentAccount,
+	SpotBalanceType,
 	SpotMarketAccount,
 } from '../sdk/src';
 import {
@@ -1496,4 +1498,24 @@ export async function overwriteConstituentAccount(
 			acc
 		),
 	});
+}
+
+/**
+ * The protocol's total cut of trade fees for a perp market: the still-pending
+ * ledger counter plus what the streaming sweep already materialized into
+ * `protocol_fee_pool`. The protocol drain is buffer-exempt and runs on every
+ * pnl settle, so tests that settle cannot assume the pending counter alone
+ * holds the full amount — assert against this conserved sum instead.
+ */
+export function getProtocolFeeTotal(
+	velocityClient: VelocityClient,
+	market: PerpMarketAccount
+): BN {
+	return market.feeLedger.pendingProtocolFee.add(
+		getTokenAmount(
+			market.protocolFeePool.scaledBalance,
+			velocityClient.getSpotMarketAccount(market.quoteSpotMarketIndex),
+			SpotBalanceType.DEPOSIT
+		)
+	);
 }

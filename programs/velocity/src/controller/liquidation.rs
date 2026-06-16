@@ -17,7 +17,8 @@ use crate::controller::position::{
     update_quote_asset_and_break_even_amount, PositionDirection,
 };
 use crate::controller::spot_balance::{
-    update_revenue_pool_balances, update_spot_balances, update_spot_market_and_check_validity,
+    transfer_spot_balances, update_protocol_fee_pool_balances, update_revenue_pool_balances,
+    update_spot_balances, update_spot_market_and_check_validity,
     update_spot_market_cumulative_interest,
 };
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
@@ -353,22 +354,32 @@ pub fn liquidate_perp(
         slot,
     )?;
 
-    let if_liquidation_fee = calculate_perp_if_fee(
+    // Compute the total insurance-side budget (margin-shortage aware) with the
+    // cap raised to `if_liquidation_fee + protocol_liquidation_fee`, then split
+    // IF-first: the IF receives exactly what it would have without the protocol
+    // fee; the protocol only captures margin headroom beyond that, up to its
+    // flat rate. This keeps the combined fee inside the margin budget so the
+    // protocol fee can never push a liquidation into spurious bankruptcy.
+    let total_if_side_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         user_base_asset_amount,
         margin_ratio_with_buffer,
         liquidator_fee,
         oracle_price,
         quote_oracle_price,
-        market.if_liquidation_fee,
+        market
+            .if_liquidation_fee
+            .safe_add(market.protocol_liquidation_fee)?,
     )?;
+    let if_liquidation_fee = total_if_side_fee.min(market.if_liquidation_fee);
+    let protocol_liquidation_fee = total_if_side_fee.safe_sub(if_liquidation_fee)?;
 
     let mut base_asset_amount_to_cover_margin_shortage =
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio_with_buffer,
             liquidator_fee,
-            if_liquidation_fee,
+            total_if_side_fee,
             oracle_price,
             quote_oracle_price,
         )?;
@@ -468,6 +479,12 @@ pub fn liquidate_perp(
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<i64>()?;
 
+    let protocol_fee = -base_asset_value
+        .cast::<u128>()?
+        .safe_mul(protocol_liquidation_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
+        .cast::<i64>()?;
+
     user_stats.update_taker_volume_30d(base_asset_value, now)?;
     liquidator_stats.update_maker_volume_30d(base_asset_value, now)?;
 
@@ -500,6 +517,7 @@ pub fn liquidate_perp(
         update_position_and_market(user_position, &mut market, &user_position_delta)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, liquidator_fee)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
+        update_quote_asset_and_break_even_amount(user_position, &mut market, protocol_fee)?;
 
         validate!(
             is_multiple_of_step_size(
@@ -534,9 +552,13 @@ pub fn liquidate_perp(
             market.order_step_size
         )?;
 
-        market.total_liquidation_fee = market
-            .total_liquidation_fee
-            .safe_add(if_fee.unsigned_abs().cast()?)?;
+        // both cuts accrue to pending counters, materialized into
+        // revenue_pool / protocol_fee_pool by `sweep_market_fees`
+        // (total_liquidation_fee remains a lifetime analytics counter)
+        market.fee_ledger.accrue_liquidation_fees(
+            if_fee.unsigned_abs().cast()?,
+            protocol_fee.unsigned_abs().cast()?,
+        )?;
 
         (
             user_existing_position_direction,
@@ -704,6 +726,7 @@ pub fn liquidate_perp(
             fill_record_id,
             liquidator_fee: liquidator_fee.abs().cast()?,
             if_fee: if_fee.abs().cast()?,
+            protocol_fee: protocol_fee.abs().cast()?,
         },
         bit_flags,
         ..LiquidationRecord::default()
@@ -958,21 +981,27 @@ pub fn liquidate_perp_with_fill(
         .get_price_data(&quote_spot_market.oracle_id())?
         .price;
     let liquidator_fee = market.liquidator_fee;
-    let if_liquidation_fee = calculate_perp_if_fee(
+    // total insurance-side budget with the cap raised to if + protocol rates,
+    // split IF-first (see liquidate_perp for rationale)
+    let total_if_side_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         user_base_asset_amount,
         margin_ratio_with_buffer,
         liquidator_fee,
         oracle_price,
         quote_oracle_price,
-        market.if_liquidation_fee,
+        market
+            .if_liquidation_fee
+            .safe_add(market.protocol_liquidation_fee)?,
     )?;
+    let if_liquidation_fee = total_if_side_fee.min(market.if_liquidation_fee);
+    let protocol_liquidation_fee = total_if_side_fee.safe_sub(if_liquidation_fee)?;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio_with_buffer,
             liquidator_fee,
-            if_liquidation_fee,
+            total_if_side_fee,
             oracle_price,
             quote_oracle_price,
         )?,
@@ -1104,15 +1133,23 @@ pub fn liquidate_perp_with_fill(
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<i64>()?;
 
+    let protocol_fee = -fill_quote_asset_amount
+        .cast::<u128>()?
+        .safe_mul(protocol_liquidation_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
+        .cast::<i64>()?;
+
     {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let user_position = user.get_perp_position_mut(market_index)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
+        update_quote_asset_and_break_even_amount(user_position, &mut market, protocol_fee)?;
 
-        market.total_liquidation_fee = market
-            .total_liquidation_fee
-            .safe_add(if_fee.unsigned_abs().cast()?)?;
+        market.fee_ledger.accrue_liquidation_fees(
+            if_fee.unsigned_abs().cast()?,
+            protocol_fee.unsigned_abs().cast()?,
+        )?;
     }
 
     let (margin_freed_for_perp_position, margin_calculation_after) = calculate_margin_freed(
@@ -1163,6 +1200,7 @@ pub fn liquidate_perp_with_fill(
             fill_record_id,
             liquidator_fee: 0,
             if_fee: if_fee.abs().cast()?,
+            protocol_fee: protocol_fee.abs().cast()?,
         },
         bit_flags,
         ..LiquidationRecord::default()
@@ -1472,6 +1510,7 @@ pub fn liquidate_spot(
                     liability_price,
                     liability_transfer: 0,
                     if_fee: 0,
+                    protocol_fee: 0,
                 },
                 ..LiquidationRecord::default()
             });
@@ -1490,7 +1529,16 @@ pub fn liquidate_spot(
     let liability_weight_with_buffer =
         liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
-    let liquidation_if_fee = calculate_spot_if_fee(
+    // total insurance-side budget (margin-shortage aware) with the cap raised to
+    // if + protocol rates, split IF-first (see liquidate_perp for rationale)
+    let (liability_if_liquidation_fee, liability_protocol_liquidation_fee) = {
+        let liability_market = spot_market_map.get_ref(&liability_market_index)?;
+        (
+            liability_market.if_liquidation_fee,
+            liability_market.protocol_liquidation_fee,
+        )
+    };
+    let total_if_side_fee = calculate_spot_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         liability_amount,
         asset_weight,
@@ -1499,10 +1547,10 @@ pub fn liquidate_spot(
         liability_liquidation_multiplier,
         liability_decimals,
         liability_price,
-        spot_market_map
-            .get_ref(&liability_market_index)?
-            .if_liquidation_fee,
+        liability_if_liquidation_fee.safe_add(liability_protocol_liquidation_fee)?,
     )?;
+    let liquidation_if_fee = total_if_side_fee.min(liability_if_liquidation_fee);
+    let liquidation_protocol_fee = total_if_side_fee.safe_sub(liquidation_if_fee)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
@@ -1514,7 +1562,7 @@ pub fn liquidate_spot(
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
-            liquidation_if_fee,
+            total_if_side_fee,
         )?;
 
     let max_pct_allowed = calculate_max_pct_to_liquidate(
@@ -1638,19 +1686,31 @@ pub fn liquidate_spot(
     let if_fee = liability_transfer
         .safe_mul(liquidation_if_fee.cast()?)?
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
+    let protocol_fee = liability_transfer
+        .safe_mul(liquidation_protocol_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
+        let user_liability_reduction = liability_transfer
+            .safe_sub(if_fee)?
+            .safe_sub(protocol_fee)?;
         update_spot_balances_and_cumulative_deposits(
-            liability_transfer.safe_sub(if_fee)?,
+            user_liability_reduction,
             &SpotBalanceType::Deposit,
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index)?,
             false,
-            Some(liability_transfer.safe_sub(if_fee)?),
+            Some(user_liability_reduction),
         )?;
 
         update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
+        update_protocol_fee_pool_balances(
+            protocol_fee,
+            &SpotBalanceType::Deposit,
+            &mut liability_market,
+            false,
+        )?;
 
         update_spot_balances_and_cumulative_deposits(
             liability_transfer,
@@ -1738,6 +1798,7 @@ pub fn liquidate_spot(
             liability_price,
             liability_transfer,
             if_fee: if_fee.cast()?,
+            protocol_fee: protocol_fee.cast()?,
         },
         ..LiquidationRecord::default()
     });
@@ -1858,6 +1919,7 @@ pub fn liquidate_spot_with_swap_begin(
         liability_decimals,
         liability_weight,
         liability_if_fee,
+        liability_protocol_fee,
         liability_pool_id,
         liability_oracle_delay,
     ) = {
@@ -1897,6 +1959,7 @@ pub fn liquidate_spot_with_swap_begin(
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             liability_market.if_liquidation_fee,
+            liability_market.protocol_liquidation_fee,
             liability_market.pool_id,
             liability_price_data.delay,
         )
@@ -1994,6 +2057,7 @@ pub fn liquidate_spot_with_swap_begin(
                 liability_price,
                 liability_transfer: 0,
                 if_fee: 0,
+                protocol_fee: 0,
             },
             ..LiquidationRecord::default()
         });
@@ -2013,6 +2077,13 @@ pub fn liquidate_spot_with_swap_begin(
     let liability_weight_with_buffer =
         liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
+    // The borrow reduction the user receives in `liquidate_spot_with_swap_end`
+    // is `liability_transfer - if_fee - protocol_fee`, so size the transfer
+    // against the combined insurance-side fee. Using only `if_fee` here would
+    // under-size the swap and leave the user with less margin relief than
+    // intended (matches the combined fee `liquidate_spot` sizes with).
+    let liability_total_if_side_fee = liability_if_fee.safe_add(liability_protocol_fee)?;
+
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     // assume 0 liquidator fee and swap is executed at oracle price
     let liability_transfer_to_cover_margin_shortage =
@@ -2024,7 +2095,7 @@ pub fn liquidate_spot_with_swap_begin(
             LIQUIDATION_FEE_PRECISION,
             liability_decimals,
             liability_price,
-            liability_if_fee,
+            liability_total_if_side_fee,
         )?;
 
     let max_pct_allowed = calculate_max_pct_to_liquidate(
@@ -2166,14 +2237,19 @@ pub fn liquidate_spot_with_swap_end(
         )
     };
 
-    let (liability_price, liability_decimals, liability_liquidation_multiplier, liquidation_if_fee) = {
+    let (
+        liability_price,
+        liability_decimals,
+        liability_liquidation_multiplier,
+        liquidation_if_fee,
+        liquidation_protocol_fee,
+    ) = {
         let liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         let (liability_price_data, _validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&liability_market.oracle_id())?;
 
         let liability_price = liability_price_data.price;
 
-        let liquidation_if_fee = liability_market.if_liquidation_fee;
         (
             liability_price,
             liability_market.decimals,
@@ -2181,7 +2257,8 @@ pub fn liquidate_spot_with_swap_end(
                 liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
-            liquidation_if_fee,
+            liability_market.if_liquidation_fee,
+            liability_market.protocol_liquidation_fee,
         )
     };
 
@@ -2216,19 +2293,33 @@ pub fn liquidate_spot_with_swap_end(
         .cast::<u128>()?
         .safe_mul(liquidation_if_fee.cast()?)?
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
+    let protocol_fee = liability_transfer
+        .cast::<u128>()?
+        .safe_mul(liquidation_protocol_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
+        let user_liability_reduction = liability_transfer
+            .cast::<u128>()?
+            .safe_sub(if_fee)?
+            .safe_sub(protocol_fee)?;
         update_spot_balances_and_cumulative_deposits(
-            liability_transfer.safe_sub(if_fee)?,
+            user_liability_reduction,
             &SpotBalanceType::Deposit,
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index)?,
             false,
-            Some(liability_transfer.safe_sub(if_fee)?),
+            Some(user_liability_reduction),
         )?;
 
         update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
+        update_protocol_fee_pool_balances(
+            protocol_fee,
+            &SpotBalanceType::Deposit,
+            &mut liability_market,
+            false,
+        )?;
     }
 
     {
@@ -2281,6 +2372,7 @@ pub fn liquidate_spot_with_swap_end(
             liability_price,
             liability_transfer,
             if_fee: if_fee.cast()?,
+            protocol_fee: protocol_fee.cast()?,
         },
         ..LiquidationRecord::default()
     });
@@ -3343,6 +3435,32 @@ pub fn resolve_perp_bankruptcy(
     // spot market's insurance fund draw attempt here (before social loss)
     // subtract 1 from available insurance_fund_vault_balance so deposits in insurance vault always remains >= 1
 
+    // Tranche 1: the market's own in-transit insurance fees (`pending_if_fee`)
+    // are consumed BEFORE the shared IF vault is tapped. Counter-only: the
+    // pending claim and the forgiven loss are both claims on future pnl-pool
+    // inflows, so canceling one against the other needs no token movement —
+    // the fee value that would have swept to the revenue pool stays in the
+    // pnl pool backing the counterparties this spares from socialization.
+    let pending_if_payment: u128 = {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
+
+        let pending_if_payment = loss
+            .unsigned_abs()
+            .min(perp_market.fee_ledger.pending_if_fee);
+
+        if pending_if_payment > 0 {
+            perp_market
+                .fee_ledger
+                .consume_pending_if(pending_if_payment)?;
+            msg!("bankruptcy pending_if_fee tranche: {}", pending_if_payment);
+        }
+
+        pending_if_payment
+    };
+
+    let loss_after_pending = loss.safe_add(pending_if_payment.cast::<i128>()?)?;
+
+    // Tranche 2: the shared insurance fund vault
     let if_payment = {
         let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
         let max_insurance_withdraw = perp_market
@@ -3351,7 +3469,7 @@ pub fn resolve_perp_bankruptcy(
             .safe_sub(perp_market.insurance_claim.quote_settled_insurance)?
             .cast::<u128>()?;
 
-        let if_payment = loss
+        let if_payment = loss_after_pending
             .unsigned_abs()
             .min(insurance_fund_vault_balance.saturating_sub(1).cast()?)
             .min(max_insurance_withdraw);
@@ -3377,42 +3495,82 @@ pub fn resolve_perp_bankruptcy(
         if_payment
     };
 
-    let losses_remaining: i128 = loss.safe_add(if_payment.cast::<i128>()?)?;
+    let losses_remaining: i128 = loss_after_pending.safe_add(if_payment.cast::<i128>()?)?;
     validate!(
         losses_remaining <= 0,
         ErrorCode::InvalidPerpPositionToLiquidate,
         "losses_remaining must be non-positive"
     )?;
 
-    let fee_pool_payment: i128 = if losses_remaining < 0 {
-        let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
+    // Tranche 3: claw back the AMM's fee provision — the backstop of LAST
+    // resort, capped at `amm_protocol_fees_received` (cumulative provision
+    // granted via the amm_fee_numerator cut, net of prior clawbacks). The
+    // AMM's own spread/trading capital beyond the provision is never tapped
+    // (nor is the external LP pool). Two phases:
+    //   3a. the not-yet-tokenized provision (`pending_amm_provision`) —
+    //       counter-only, like tranche 1: its token backing still sits in the
+    //       pnl pool, where it now backs the spared counterparties instead.
+    //   3b. the tokenized remainder — real tokens move amm.fee_pool ->
+    //       pnl_pool, capped by what the fee pool actually holds.
+    // Both phases debit the AMM's books (`record_amm_pnl`): the provision was
+    // booked into `total_fee_minus_distributions` at fill, and the dent to
+    // `net_revenue_since_last_funding` lets the drawdown breaker see the hit.
+    let amm_tranche_payment: i128 = if losses_remaining < 0 {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
+        // reborrow through the RefMut so disjoint field borrows split
+        let perp_market = &mut *perp_market;
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
-        let fee_pool_tokens = get_fee_pool_tokens(&perp_market.amm, spot_market)?;
-        msg!("fee_pool_tokens={:?}", fee_pool_tokens);
 
-        losses_remaining.abs().min(fee_pool_tokens.cast()?)
+        let clawback_budget: u128 = losses_remaining
+            .unsigned_abs()
+            .min(perp_market.fee_ledger.amm_protocol_fees_received);
+
+        // 3a. untokenized provision: counter-only
+        let untokenized = clawback_budget.min(perp_market.fee_ledger.pending_amm_provision);
+        if untokenized > 0 {
+            perp_market
+                .fee_ledger
+                .consume_pending_amm_provision(untokenized)?;
+            perp_market.fee_ledger.consume_amm_backstop(untokenized)?;
+            <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::record_amm_pnl(
+                &mut perp_market.amm,
+                -untokenized.cast::<i128>()?,
+            )?;
+            msg!(
+                "bankruptcy amm provision tranche (untokenized): {}",
+                untokenized
+            );
+        }
+
+        // 3b. tokenized provision: fee-pool tokens move to the pnl pool
+        let fee_pool_tokens: u128 = get_fee_pool_tokens(&perp_market.amm, spot_market)?
+            .max(0)
+            .cast()?;
+        let tokenized = clawback_budget.safe_sub(untokenized)?.min(fee_pool_tokens);
+        if tokenized > 0 {
+            transfer_spot_balances(
+                tokenized.cast()?,
+                spot_market,
+                &mut perp_market.amm.fee_pool,
+                &mut perp_market.pnl_pool,
+            )?;
+            perp_market.fee_ledger.consume_amm_backstop(tokenized)?;
+            <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::record_amm_pnl(
+                &mut perp_market.amm,
+                -tokenized.cast::<i128>()?,
+            )?;
+            msg!(
+                "bankruptcy amm provision tranche (tokenized): {}",
+                tokenized
+            );
+        }
+
+        untokenized.safe_add(tokenized)?.cast()?
     } else {
         0
     };
-    validate!(
-        fee_pool_payment >= 0,
-        ErrorCode::InvalidPerpPositionToLiquidate,
-        "fee_pool_payment must be non-negative"
-    )?;
 
-    if fee_pool_payment > 0 {
-        let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
-        msg!("fee_pool_payment={:?}", fee_pool_payment);
-        <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::withdraw_from_fee_pool(
-            &mut perp_market.amm,
-            fee_pool_payment.unsigned_abs(),
-            spot_market,
-            false,
-        )?;
-    }
-
-    let loss_to_socialize = losses_remaining.safe_add(fee_pool_payment.cast::<i128>()?)?;
+    let loss_to_socialize = losses_remaining.safe_add(amm_tranche_payment)?;
     validate!(
         loss_to_socialize <= 0,
         ErrorCode::InvalidPerpPositionToLiquidate,

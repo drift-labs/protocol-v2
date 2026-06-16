@@ -75,7 +75,9 @@ export function registerAuth(parent: Command): void {
 		auth
 			.command('set-hot-admin <role> <pubkey>')
 			.description(
-				`Rotate a hot-role pubkey. Roles: ${HOT_ROLES.join(', ')}. On-chain check requires warm or cold to sign.`
+				`Rotate a hot-role pubkey. Roles: ${HOT_ROLES.join(
+					', '
+				)}. On-chain check requires warm or cold to sign.`
 			)
 	).action(async (role: string, pubkey: string, _flags, cmd: Command) => {
 		const opts = readGlobalOpts(cmd);
@@ -97,5 +99,4 @@ export function registerAuth(parent: Command): void {
 			await client.unsubscribe();
 		}
 	});
-
 }

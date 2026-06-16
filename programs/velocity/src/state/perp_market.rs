@@ -113,6 +113,106 @@ pub enum MarketConfigFlag {
     DisableFormulaicKUpdate = 0b00000001,
 }
 
+/// All of a perp market's fee-split accounting in one ledger.
+/// Pure counters — token claims live in the pools
+/// (`protocol_fee_pool`, the quote `revenue_pool`, `AMM.fee_pool`).
+/// Convention: gross-fee counters record what the taker actually paid
+/// (post referee discount, pre carve-outs) on BOTH the AMM and DLOB-match
+/// paths.
+#[zero_copy(unsafe)]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct FeeLedger {
+    /// lifetime gross taker fees collected (analytics; not a routing driver)
+    /// precision: QUOTE_PRECISION
+    pub total_exchange_fee: u128,
+    /// lifetime liquidation fees charged to liquidatees (IF + protocol cuts;
+    /// pure analytics — routing happens via the pending counters).
+    /// precision: QUOTE_PRECISION
+    pub total_liquidation_fee: u128,
+    /// protocol (residual) carveouts accrued but not yet materialized into
+    /// `protocol_fee_pool`. precision: QUOTE_PRECISION
+    pub pending_protocol_fee: u128,
+    /// insurance-fund carveouts accrued but not yet materialized into the
+    /// quote `revenue_pool`; also the first bankruptcy tranche.
+    /// precision: QUOTE_PRECISION
+    pub pending_if_fee: u128,
+    /// cumulative fee provision granted to the AMM via `amm_fee_numerator` —
+    /// its backstop-of-last-resort tranche, drawable (and decremented) only in
+    /// bankruptcy. The AMM's own spread/trading capital beyond this provision
+    /// is never tapped. precision: QUOTE_PRECISION
+    pub amm_protocol_fees_received: u128,
+    /// AMM fee provision accrued at fill (already booked into the AMM's
+    /// `total_fee_minus_distributions`) but not yet tokenized into
+    /// `amm.fee_pool` by the sweep. Invariant: `<= amm_protocol_fees_received`.
+    /// precision: QUOTE_PRECISION
+    pub pending_amm_provision: u128,
+}
+
+impl FeeLedger {
+    /// Record a fill: gross taker fee for analytics plus the three-way split
+    /// carveouts (`protocol` pending, `if` pending, `amm` provision — the
+    /// last both grows the lifetime clawback cap and queues for tokenization).
+    pub fn accrue_fill_fees(
+        &mut self,
+        gross_taker_fee: u64,
+        protocol_fee: u64,
+        if_fee: u64,
+        amm_fee: u64,
+    ) -> VelocityResult {
+        self.total_exchange_fee = self.total_exchange_fee.safe_add(gross_taker_fee.cast()?)?;
+        self.pending_protocol_fee = self.pending_protocol_fee.safe_add(protocol_fee.cast()?)?;
+        self.pending_if_fee = self.pending_if_fee.safe_add(if_fee.cast()?)?;
+        self.amm_protocol_fees_received =
+            self.amm_protocol_fees_received.safe_add(amm_fee.cast()?)?;
+        self.pending_amm_provision = self.pending_amm_provision.safe_add(amm_fee.cast()?)?;
+        Ok(())
+    }
+
+    /// Record a liquidation's IF and protocol cuts. Both debit the liquidatee
+    /// without crediting the AMM's books, so both accumulate into
+    /// `total_liquidation_fee` (see its field doc).
+    pub fn accrue_liquidation_fees(&mut self, if_fee: u64, protocol_fee: u64) -> VelocityResult {
+        self.total_liquidation_fee = self
+            .total_liquidation_fee
+            .safe_add(if_fee.cast()?)?
+            .safe_add(protocol_fee.cast()?)?;
+        self.pending_if_fee = self.pending_if_fee.safe_add(if_fee.cast()?)?;
+        self.pending_protocol_fee = self.pending_protocol_fee.safe_add(protocol_fee.cast()?)?;
+        Ok(())
+    }
+
+    /// Fees accrued but not yet materialized — the floor funding/spending may
+    /// not eat into.
+    pub fn pending_fee_obligations(&self) -> VelocityResult<u128> {
+        self.pending_protocol_fee.safe_add(self.pending_if_fee)
+    }
+
+    pub fn consume_pending_if(&mut self, amount: u128) -> VelocityResult {
+        self.pending_if_fee = self.pending_if_fee.safe_sub(amount)?;
+        Ok(())
+    }
+
+    pub fn consume_pending_protocol(&mut self, amount: u128) -> VelocityResult {
+        self.pending_protocol_fee = self.pending_protocol_fee.safe_sub(amount)?;
+        Ok(())
+    }
+
+    /// Draw down the AMM's provisioned tranche (bankruptcy backstop of last
+    /// resort).
+    pub fn consume_amm_backstop(&mut self, amount: u128) -> VelocityResult {
+        self.amm_protocol_fees_received = self.amm_protocol_fees_received.safe_sub(amount)?;
+        Ok(())
+    }
+
+    /// Mark accrued AMM provision as tokenized into `amm.fee_pool` (sweep) or
+    /// consumed by a bankruptcy clawback before tokenization.
+    pub fn consume_pending_amm_provision(&mut self, amount: u128) -> VelocityResult {
+        self.pending_amm_provision = self.pending_amm_provision.safe_sub(amount)?;
+        Ok(())
+    }
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -152,17 +252,49 @@ pub struct PerpMarket {
     pub cumulative_funding_rate_long: i128,
     /// accumulated funding rate for shorts since inception in market
     pub cumulative_funding_rate_short: i128,
-    /// total fees collected by exchange fee schedule
-    /// precision: QUOTE_PRECISION
-    pub total_exchange_fee: u128,
-    /// all fees collected by market for liquidations
-    /// precision: QUOTE_PRECISION
-    pub total_liquidation_fee: u128,
+    /// The market's fee ledger: every fee-split counter in one place (gross
+    /// analytics, pending protocol/IF carveouts, and the AMM's backstop
+    /// tranche). Mutate through its accessor methods, not raw field writes.
+    pub fee_ledger: FeeLedger,
     /// oracle price data public key
     pub oracle: Pubkey,
     /// The market's pnl pool. When users settle negative pnl, the balance increases.
     /// When users settle positive pnl, the balance decreases. Can not go negative.
     pub pnl_pool: PoolBalance,
+    /// Protocol fees collected on this perp market, quote/USDC-denominated — a
+    /// protocol-owned Deposit-type claim against the quote spot market vault
+    /// (like `pnl_pool`; counted in the quote market's `deposit_balance`).
+    /// Owned by the protocol, not users, and never part of the insurance
+    /// backstop. `market_index` is set to `quote_spot_market_index`. Withdrawn
+    /// directly to `State.protocol_fee_recipient_perp`.
+    pub protocol_fee_pool: PoolBalance,
+    /// Protocol's cut of a perp liquidation, taken from the liquidatee.
+    /// precision: LIQUIDATOR_FEE_PRECISION
+    pub protocol_liquidation_fee: u32,
+    pub _padding_buffer: [u8; 4],
+    /// The pnl-pool retention buffer the streaming sweep's IF and
+    /// AMM-provision drains leave untouched: `sweep_market_fees` drains
+    /// those pendings only from what the pnl pool holds above
+    /// `max(net_user_pnl, 0) + fee_pool_buffer_target`. The protocol drain
+    /// is EXEMPT — it reserves only `max(net_user_pnl, 0)` and runs first;
+    /// it sweeps every settle, so each drain stays small, and its pending is
+    /// no bankruptcy tranche so retaining it buys nothing.
+    ///
+    /// Why a buffer on top of the user-claims reservation: `net_user_pnl`
+    /// is a mark-to-market snapshot, so a pool swept to the exact mark is
+    /// short on the next adverse oracle tick — and the sweep is a one-way
+    /// valve, so the slack can't be cheaply recalled (IF value returns only
+    /// through capped gated paths, the AMM provision only via bankruptcy
+    /// clawback). The buffer throttles those outflows per sweep; pool tokens
+    /// are fungible (pendings are counters, not segregated tokens), so
+    /// whichever cut lingers keeps settling winners in the meantime. This
+    /// delays materialization, it does not divert anyone's cut. Side
+    /// benefits: an unswept IF cut gives THIS market uncapped market-local
+    /// bankruptcy coverage (tranche 1) instead of capped shared-vault
+    /// coverage, and the buffer damps the IF settle ratchet (value settled
+    /// into the IF accrues to stakers permanently).
+    /// precision: QUOTE_PRECISION
+    pub fee_pool_buffer_target: u64,
     /// Encoded display name for the perp market e.g. SOL-PERP
     pub name: [u8; 32],
     /// The perp market's claim on the insurance fund
@@ -273,9 +405,10 @@ pub struct PerpMarket {
     pub oracle_low_risk_slot_delay_override: i8,
     /// Trailing padding so `market_stats` lands at the offset Rust naturally
     /// computes via `repr(C)` alignment and the `(SIZE - 8) % 16 == 0`
-    /// invariant holds. Bumped to 36 bytes (was 28) when `next_curve_record_id`
-    /// was removed.
-    pub padding: [u8; 36],
+    /// invariant holds. (32 bytes moved into `fee_ledger` as
+    /// `amm_protocol_fees_received` and then `pending_amm_provision` joined
+    /// it, keeping `market_stats` fixed.)
+    pub padding: [u8; 4],
     /// Market-wide stats shared across all makers: mark/oracle TWAPs, std,
     /// volume, intensity, mm-oracle snapshot, `historical_oracle_data`,
     /// `last_oracle_normalised_price`, `last_oracle_valid`. Writers (e.g.
@@ -314,8 +447,7 @@ impl Default for PerpMarket {
             total_social_loss: 0,
             cumulative_funding_rate_long: 0,
             cumulative_funding_rate_short: 0,
-            total_exchange_fee: 0,
-            total_liquidation_fee: 0,
+            fee_ledger: FeeLedger::default(),
             oracle: Pubkey::default(),
             pnl_pool: PoolBalance::default(),
             name: [0; 32],
@@ -359,11 +491,15 @@ impl Default for PerpMarket {
             oracle_source: OracleSource::default(),
             oracle_slot_delay_override: -1,
             oracle_low_risk_slot_delay_override: 0,
-            padding: [0; 36],
+            padding: [0; 4],
             market_stats: MarketStats::default(),
             _padding_align_amm: [0; 8],
             amm: AMM::default(),
             hedge_config: HedgeConfig::default(),
+            protocol_fee_pool: PoolBalance::default(),
+            protocol_liquidation_fee: 0,
+            _padding_buffer: [0; 4],
+            fee_pool_buffer_target: 0,
         }
     }
 }
@@ -375,7 +511,7 @@ impl Size for PerpMarket {
     // u64 last_spread_update_slot live back on AMM — refreshed by
     // `math::spread::update_amm_quote_state` on each crank/fill `setup` and
     // read directly by quote/fill paths and dashboards.
-    const SIZE: usize = 1224;
+    const SIZE: usize = 1304;
 }
 
 impl MarketIndexOffset for PerpMarket {
@@ -1751,5 +1887,4 @@ impl MarketStats {
     }
 }
 
-pub use crate::vlp::amm::state::AMM;
-pub use crate::vlp::hedge::state::HedgeConfig;
+pub use crate::vlp::{amm::state::AMM, hedge::state::HedgeConfig};

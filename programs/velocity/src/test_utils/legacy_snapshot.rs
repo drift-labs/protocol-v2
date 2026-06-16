@@ -294,8 +294,8 @@ pub fn regenerate_perp_market_snapshot(old_b64: &str) -> String {
     pm.total_social_loss = la.total_social_loss;
     pm.cumulative_funding_rate_long = la.cumulative_funding_rate_long;
     pm.cumulative_funding_rate_short = la.cumulative_funding_rate_short;
-    pm.total_exchange_fee = la.total_exchange_fee;
-    pm.total_liquidation_fee = la.total_liquidation_fee;
+    pm.fee_ledger.total_exchange_fee = la.total_exchange_fee;
+    pm.fee_ledger.total_liquidation_fee = la.total_liquidation_fee;
     pm.oracle = la.oracle;
     pm.last_funding_rate = la.last_funding_rate;
     pm.last_funding_rate_long = la.last_funding_rate_long;
@@ -372,9 +372,12 @@ mod tests {
         // 2×u32 long/short_spread, i32 reference_price_offset. The 5 former
         // lp_* config bytes moved into the 16-byte `hedge_config` at the tail,
         // growing the struct from 1200 to 1216 bytes; +8 for the Anchor
-        // discriminator = 1224.
-        assert_eq!(std::mem::size_of::<PerpMarket>(), 1216);
-        assert_eq!(PerpMarket::SIZE, 1224);
+        // discriminator = 1224. The protocol-fee redesign then appended
+        // `protocol_fee_pool` (32) + `pending_protocol_fee`/`pending_if_fee`
+        // (2×16) + `protocol_liquidation_fee` (4) + pad (12) = 80 bytes at the
+        // tail → 1296 content, 1304 with discriminator.
+        assert_eq!(std::mem::size_of::<PerpMarket>(), 1296);
+        assert_eq!(PerpMarket::SIZE, 1304);
     }
 
     /// One-shot regeneration helper. Run with:

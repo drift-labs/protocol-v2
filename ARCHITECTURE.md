@@ -56,6 +56,12 @@ Navigation map for `programs/velocity` and `sdk/`. Start here to find the right 
 
 ---
 
+## Fee & Revenue Flow
+
+The full fee and revenue documentation — per-fee flow, pool-movement diagrams, the protocol/staker insurance-fund split, and a snapshot of the old-program per-market fee parameters — lives in [FEES.md](./FEES.md).
+
+---
+
 ## Account Type Locations
 
 | Type | File | Notes |

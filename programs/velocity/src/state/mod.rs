@@ -10,7 +10,6 @@ pub mod events;
 pub mod fill_mode;
 pub mod fulfillment;
 pub mod fulfillment_params;
-pub mod if_rebalance_config;
 pub mod insurance_fund_stake;
 pub mod liquidation_mode;
 pub mod load_ref;

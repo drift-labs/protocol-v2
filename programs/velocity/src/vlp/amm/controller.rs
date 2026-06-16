@@ -163,7 +163,6 @@ pub fn formulaic_update_k(
     if !k_update_eligible {
         return Ok(());
     }
-    let total_fee_floor = market.amm.protocol_floor()?;
     let market_status = market.status;
     let min_order_size = market.market_stats.min_order_size;
     let long_spread = market.amm.long_spread;
@@ -173,7 +172,6 @@ pub fn formulaic_update_k(
     amm_maker.handle_funding_applied(
         funding_imbalance_cost,
         oracle_price_data,
-        total_fee_floor,
         long_spread,
         short_spread,
         market_status,
@@ -196,10 +194,9 @@ pub fn get_fee_pool_tokens(amm: &AMM, spot_market: &SpotMarket) -> VelocityResul
 // Market-level pool accounting lives in `controller::perp_pools` — it reads
 // AMM bookkeeping but the operations are protocol-level plumbing. Re-exported
 // here so `use crate::vlp::amm::controller::*` star-imports still resolve them.
-// Private helper re-export for `crate::vlp::amm::controller::tests`.
-#[cfg(test)]
-pub(crate) use crate::controller::perp_pools::calculate_revenue_pool_transfer;
-pub use crate::controller::perp_pools::{update_pnl_pool_and_user_balance, update_pool_balances};
+pub use crate::controller::perp_pools::{
+    sweep_market_fees, update_pnl_pool_and_user_balance, update_pool_balances,
+};
 // `move_price` / `recenter` moved to `impl AMM` in `amm::state`.
 
 // Cross-cutting AMM ↔ PerpMarket summary stat — lives in `math::perp_market`

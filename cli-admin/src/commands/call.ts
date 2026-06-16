@@ -59,9 +59,9 @@ export function registerCall(parent: Command): void {
 						new PublicKey(v),
 					])
 				);
-				const ix: TransactionInstruction = (
-					client.program.instruction as any
-				)[ixName](...args, { accounts });
+				const ix: TransactionInstruction = (client.program.instruction as any)[
+					ixName
+				](...args, { accounts });
 
 				const result = await sendOrPropose(
 					provider,

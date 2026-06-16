@@ -3,7 +3,7 @@ use crate::math::constants::{
     QUOTE_PRECISION,
 };
 use crate::state::oracle::HistoricalOracleData;
-use crate::state::perp_market::MarketStats;
+use crate::state::perp_market::{FeeLedger, MarketStats};
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::{PriceDivergenceGuardRails, State, ValidityGuardRails};
 use crate::test_utils::create_account_info;
@@ -56,7 +56,10 @@ fn calculate_optimal_peg_and_budget_test() {
         },
         margin_ratio_initial: 500,
 
-        total_exchange_fee: QUOTE_PRECISION,
+        fee_ledger: FeeLedger {
+            total_exchange_fee: QUOTE_PRECISION,
+            ..FeeLedger::default()
+        },
         market_stats: MarketStats {
             mark_std: PRICE_PRECISION as u64,
             last_mark_price_twap_ts: 0,
@@ -113,7 +116,7 @@ fn calculate_optimal_peg_and_budget_test() {
         calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 19496270752);
-    assert_eq!(budget, 39500000);
+    assert_eq!(budget, 40000000); // full tfmd: no protocol floor post-isolation
     assert!(check_lb);
 
     // positive target_price_gap 2 within max_spread?
@@ -136,7 +139,7 @@ fn calculate_optimal_peg_and_budget_test() {
         calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 19186822509);
-    assert_eq!(budget, 39500000);
+    assert_eq!(budget, 40000000); // full tfmd: no protocol floor post-isolation
     assert!(check_lb);
 
     // negative target_price_gap within max_spread
@@ -159,7 +162,7 @@ fn calculate_optimal_peg_and_budget_test() {
         calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 21042480468);
-    assert_eq!(budget, 39500000);
+    assert_eq!(budget, 40000000); // full tfmd: no protocol floor post-isolation
     assert!(check_lb);
 
     // negative target_price_gap exceeding max_spread (in favor of vAMM)
@@ -182,7 +185,7 @@ fn calculate_optimal_peg_and_budget_test() {
         calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 43735351562);
-    assert_eq!(budget, 39500000);
+    assert_eq!(budget, 40000000); // full tfmd: no protocol floor post-isolation
     assert!(check_lb);
 
     market.amm.base_asset_amount_with_amm = AMM_RESERVE_PRECISION as i128;
@@ -246,7 +249,10 @@ fn calculate_optimal_peg_and_budget_2_test() {
         },
         margin_ratio_initial: 500,
 
-        total_exchange_fee: 298628987,
+        fee_ledger: FeeLedger {
+            total_exchange_fee: 298628987,
+            ..FeeLedger::default()
+        },
         market_stats: MarketStats {
             mark_std: 43112524,
             last_mark_price_twap_ts: 0,
@@ -351,7 +357,10 @@ fn project_post_refresh_matches_dispatch_amm_refresh() {
                 ..AMM::default()
             },
             margin_ratio_initial: 500,
-            total_exchange_fee: 298628987,
+            fee_ledger: FeeLedger {
+                total_exchange_fee: 298628987,
+                ..FeeLedger::default()
+            },
             market_stats: MarketStats {
                 mark_std: 43112524,
                 last_mark_price_twap_ts: 0,
@@ -623,7 +632,7 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
     let mut lamports = 0;
 
     // SOL (as of slot 405286944)
-    let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hmz8RBQAAAAAAAAAAAAAAAAEAAAAAAAAA+qkRBQAAAABdsRIFAAAAAPXwrmkAAAAAp70SNM7//////////////2sMl0Xy//////////////+UyH9qzikiAAAAAAAAAAAAAAAAAAAAAADHNPWsFz2SAAAAAAAAAAAAhzHLjKM4kgAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAACLPpzseKCRAAAAAAAAAAAA97ORgfHVkgAAAAAAAAAAAIoIiZjdOpIAAAAAAAAAAAAdZxEFAAAAAAAAAAAAAAAAuEAQ2Nc6kgAAAAAAAAAAAICJC3h9gAEAAAAAAAAAAAAATAE0Tn3+////////////gNUMrMv9/////////////wAAAAAAAAAAAAAAAAAAAAAAAI1J/RoHAAAAAAAAAAAAfbeUXMsCAAAAAAAAAAAAALM6d4UT1f////////////9TaN/Uhi4AAAAAAAAAAAAAwJZAVILV/////////////1fY3ejmLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF+7w//////8X7vD//////xfu8P//////iZXt//////8BkLGF4hkAAAAAAAAAAAAA/9rK5xkKAAAAAAAAAAAAAIyTM6vsDwAAAAAAAAAAAAALZ/MIBA0AAAAAAAAAAAAAtl1xa5QHAAAAAAAAAAAAAAbyD4kRBQAAAAAAAAAAAADIlVF0CgAAAAAAAAAAAAAATToHaAoAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAADp2do2nzOSAAAAAAAAAAAAn64XVhxCkgAAAAAAAAAAAF/j6uMubJIAAAAAAAAAAAAow4/pnAmSAAAAAAAAAAAAmz8RBQAAAAAAAAAAAAAAAGcrEAUAAAAATN0RBQAAAABZBBEFAAAAADzvEQUAAAAAAjAoGAAAAAC+AAAAAAAAAJAyDfn/////iO6uaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACAwKBgAAAAA8fLbFL0TAADvZhhOZwAAAFsXAa20AAAA6vCuaQAAAACvZAEAAAAAANR/AQAAAAAA9fCuaQAAAADIAAAAIE4AAIoDAABACAAAILEQBQAAAACoYTIAaGQMAcDIUt4DFGT/IBbypJlMBgCAL3r//////9zgRcTl////cP7//+wAAAAscxEFAAAAAHcZvwS/fRUAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAdlCOnysAAAAy5K5pAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAANY49gAAAAAAKnIAAAAAAAC4EwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAcQ0AAKIJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAALcbg8FAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let sol_perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+kaykDYiceTDtpx7UpBfc/oj+uGEGwhrIUjzR4ifH+lS/hmz8RBQAAAAAAAAAAAAAAAAEAAAAAAAAA+qkRBQAAAABdsRIFAAAAAPXwrmkAAAAAp70SNM7//////////////2sMl0Xy//////////////+UyH9qzikiAAAAAAAAAAAAAAAAAAAAAADHNPWsFz2SAAAAAAAAAAAAhzHLjKM4kgAAAAAAAAAAAG5SDwAAAAAAAAAAAAAAAACLPpzseKCRAAAAAAAAAAAA97ORgfHVkgAAAAAAAAAAAIoIiZjdOpIAAAAAAAAAAAAdZxEFAAAAAAAAAAAAAAAAuEAQ2Nc6kgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAiQt4fYABAAAAAAAAAAAAAEwBNE59/v///////////4DVDKzL/f////////////8AAAAAAAAAAAAAAAAAAAAAAACNSf0aBwAAAAAAAAAAAH23lFzLAgAAAAAAAAAAAACzOneFE9X/////////////U2jf1IYuAAAAAAAAAAAAAMCWQFSC1f////////////9X2N3o5i0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABfu8P//////F+7w//////8X7vD//////4mV7f//////AZCxheIZAAAAAAAAAAAAAP/ayucZCgAAAAAAAAAAAACMkzOr7A8AAAAAAAAAAAAAC2fzCAQNAAAAAAAAAAAAALZdcWuUBwAAAAAAAAAAAAAG8g+JEQUAAAAAAAAAAAAAyJVRdAoAAAAAAAAAAAAAAE06B2gKAAAAAAAAAAAAAADBuPkMAQAAAAAAAAAAAAAA6dnaNhxCkgAAAAAAAAAAAF/j6uMubJIAAAAAAAAAAAAow4/pnAmSAAAAAAAAAAAAmz8RBQAAAAAAAAAAAAAAAGcrEAUAAAAATN0RBQAAAABZBBEFAAAAADzvEQUAAAAAAjAoGAAAAAC+AAAAAAAAAJAyDfn/////iO6uaQAAAAAQDgAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAACAwKBgAAAAA8fLbFL0TAADvZhhOZwAAAFsXAa20AAAA6vCuaQAAAACvZAEAAAAAANR/AQAAAAAA9fCuaQAAAADIAAAAIE4AAIoDAABACAAAILEQBQAAAACoYTIAaGQMAcDIUt4DFGT/IBbypJlMBgCAL3r//////9zgRcTl////cP7//+wAAAAscxEFAAAAAHcZvwS/fRUAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAAAQpdToAAAAdlCOnysAAAAy5K5pAAAAAEBCDwAAAAAAAAAAAAAAAAAAAAAAAAAAANY49gAAAAAAKnIAAAAAAAC4EwAAAAAAADIAAAAAAAAATB0AAEwdAAD0AQAALAEAAAAAAAAQJwAAcQ0AAKIJAAAAAAEAAQAAAAAAAAAAAGMAQgAAAAQBAALcbg8FAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
 
     let mut sol_perp_decoded = base64::decode(sol_perp_market_str).unwrap();
     let sol_perp_account_info = create_account_info(
@@ -673,7 +682,6 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
         &sol_perp_market,
         &usdc_spot_market,
         baseline_oracle_price_data.price,
-        true,
     )
     .unwrap();
 
@@ -746,7 +754,6 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
                 &adjusted_without_flag,
                 &usdc_spot_market,
                 new_oracle_price_data.price,
-                true,
             )
             .unwrap();
 
@@ -754,7 +761,6 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
             &adjusted_with_flag,
             &usdc_spot_market,
             new_oracle_price_data.price,
-            true,
         )
         .unwrap();
 
@@ -827,7 +833,6 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
                     &adjusted_without_flag,
                     &usdc_spot_market,
                     new_oracle_price_data.price,
-                    true,
                 )
                 .unwrap();
             let with_flag_new_total_fee_minus_distributions =
@@ -835,7 +840,6 @@ pub fn adjust_amm_with_market_config_flag_sol_perp() {
                     &adjusted_with_flag,
                     &usdc_spot_market,
                     new_oracle_price_data.price,
-                    true,
                 )
                 .unwrap();
 
@@ -882,7 +886,7 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
     let mut lamports = 0;
 
     // ETH (as of slot 405287065)
-    let eth_perp_market_str = String::from("Ct8MLGv1N/cP8V8Fb1epGNxhYovgt6QslGhUT6HV1zTpfCkrkbwLkndwx9kOHTTRdsq6+h4yZlyZWL2p6k8cVCwzZ4FGbCUqC9queAAAAAAAAAAAAAAAAAEAAAAAAAAA69KGeAAAAADnxs14AAAAADDxrmkAAAAAK2l1AgAAAAAAAAAAAAAAAA9wrAoAAAAAAAAAAAAAAAB1c9e2AjADAAAAAAAAAAAAAAAAAAAAAAC6LBzhfxUAAAAAAAAAAAAAc+TW3n8VAAAAAAAAAAAAAFdKDwAAAAAAAAAAAAAAAAAlZfx/dBUAAAAAAAAAAAAACf3/RYsVAAAAAAAAAAAAAI+I+d9/FQAAAAAAAAAAAAAzYMt4AAAAAAAAAAAAAAAAJM/4338VAAAAAAAAAAAAAAApz9B+AwAAAAAAAAAAAABA7A4ugfz/////////////QBXe/v///////////////wAAAAAAAAAAAAAAAAAAAAAAID2IeS0AAAAAAAAAAAAA8dNzMyoBAAAAAAAAAAAAAB8eSrpw9/////////////+oR/DymgkAAAAAAAAAAAAAIKXbq2n3/////////////y0GotS3CQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA86GD///////zoYP///////Ohg///////3Gp4//////95VwGwvAMAAAAAAAAAAAAAd+LVwbQBAAAAAAAAAAAAANZLJzENAgAAAAAAAAAAAAAHsDasfP//////////////89kg4EsBAAAAAAAAAAAAAJPpFitAAQAAAAAAAAAAAADZE9QXEwEAAAAAAAAAAAAACMDfthIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACp3ewFfRUAAAAAAAAAAAAARxZnuoIVAAAAAAAAAAAAANkITkGgFQAAAAAAAAAAAABQfSCvXxUAAAAAAAAAAAAAKUqweAAAAACNAwAAAAAAAM5MWngAAAAA1k2feAAAAABSzXx4AAAAAAs3v3gAAAAAmTAoGAAAAAAABQAAAAAAAK83AwAAAAAAiO6uaQAAAAAQDgAAAAAAAEBCDwAAAAAAECcAAAAAAABAQg8AAAAAAJkwKBgAAAAALaRyN+oCAABDkJ5NDAAAAEpq/00GAAAAC/GuaQAAAACw8iQAAAAAAJGvKQAAAAAAMPGuaQAAAACvAAAAECcAAA8EAACOLQAA/DWveAAAAAAgTjIAZQAMAcCmjPgAFBv/gPvMp5lMBgBAfkf3AQAAAHq8ojMAAAAAAAAAAAAFAAAUhXh4AAAAANmaVjsbBwMAAAAAAAAAAAAAAAAAAAAAAEVUSC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAA4fUFAAAAAP8PpdToAAAAup58GBIAAACkdwppAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAAtVXAAAAAAAym4AAAAAAABuEAAAAAAAAPoAAAAAAAAAiBMAAEwdAAD0AQAAyAAAAAAAAAAQJwAAwgIAAKoCAAACAAEAAYAAAAAAAAAAAGMAQgAAAAAAAADQ+rF4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let eth_perp_market_str = String::from("Ct8MLGv1N/cP8V8Fb1epGNxhYovgt6QslGhUT6HV1zTpfCkrkbwLkndwx9kOHTTRdsq6+h4yZlyZWL2p6k8cVCwzZ4FGbCUqC9queAAAAAAAAAAAAAAAAAEAAAAAAAAA69KGeAAAAADnxs14AAAAADDxrmkAAAAAK2l1AgAAAAAAAAAAAAAAAA9wrAoAAAAAAAAAAAAAAAB1c9e2AjADAAAAAAAAAAAAAAAAAAAAAAC6LBzhfxUAAAAAAAAAAAAAc+TW3n8VAAAAAAAAAAAAAFdKDwAAAAAAAAAAAAAAAAAlZfx/dBUAAAAAAAAAAAAACf3/RYsVAAAAAAAAAAAAAI+I+d9/FQAAAAAAAAAAAAAzYMt4AAAAAAAAAAAAAAAAJM/4338VAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKc/QfgMAAAAAAAAAAAAAQOwOLoH8/////////////0AV3v7///////////////8AAAAAAAAAAAAAAAAAAAAAACA9iHktAAAAAAAAAAAAAPHTczMqAQAAAAAAAAAAAAAfHkq6cPf/////////////qEfw8poJAAAAAAAAAAAAACCl26tp9/////////////8tBqLUtwkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPOhg///////86GD///////zoYP//////9xqeP//////eVcBsLwDAAAAAAAAAAAAAHfi1cG0AQAAAAAAAAAAAADWSycxDQIAAAAAAAAAAAAAB7A2rHz///////////////PZIOBLAQAAAAAAAAAAAACT6RYrQAEAAAAAAAAAAAAA2RPUFxMBAAAAAAAAAAAAAAjA37YSAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqd3sBYIVAAAAAAAAAAAAANkITkGgFQAAAAAAAAAAAABQfSCvXxUAAAAAAAAAAAAAKUqweAAAAACNAwAAAAAAAM5MWngAAAAA1k2feAAAAABSzXx4AAAAAAs3v3gAAAAAmTAoGAAAAAAABQAAAAAAAK83AwAAAAAAiO6uaQAAAAAQDgAAAAAAAEBCDwAAAAAAECcAAAAAAABAQg8AAAAAAJkwKBgAAAAALaRyN+oCAABDkJ5NDAAAAEpq/00GAAAAC/GuaQAAAACw8iQAAAAAAJGvKQAAAAAAMPGuaQAAAACvAAAAECcAAA8EAACOLQAA/DWveAAAAAAgTjIAZQAMAcCmjPgAFBv/gPvMp5lMBgBAfkf3AQAAAHq8ojMAAAAAAAAAAAAFAAAUhXh4AAAAANmaVjsbBwMAAAAAAAAAAAAAAAAAAAAAAEVUSC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAA4fUFAAAAAP8PpdToAAAAup58GBIAAACkdwppAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAAtVXAAAAAAAym4AAAAAAABuEAAAAAAAAPoAAAAAAAAAiBMAAEwdAAD0AQAAyAAAAAAAAAAQJwAAwgIAAKoCAAACAAEAAYAAAAAAAAAAAGMAQgAAAAAAAADQ+rF4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
 
     let mut eth_perp_decoded = base64::decode(eth_perp_market_str).unwrap();
     let eth_perp_account_info = create_account_info(
@@ -932,7 +936,6 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
         &eth_perp_market,
         &usdc_spot_market,
         baseline_oracle_price_data.price,
-        true,
     )
     .unwrap();
 
@@ -1005,7 +1008,6 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
                 &adjusted_without_flag,
                 &usdc_spot_market,
                 new_oracle_price_data.price,
-                true,
             )
             .unwrap();
 
@@ -1013,7 +1015,6 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
             &adjusted_with_flag,
             &usdc_spot_market,
             new_oracle_price_data.price,
-            true,
         )
         .unwrap();
 
@@ -1086,7 +1087,6 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
                     &adjusted_without_flag,
                     &usdc_spot_market,
                     new_oracle_price_data.price,
-                    true,
                 )
                 .unwrap();
             let with_flag_new_total_fee_minus_distributions =
@@ -1094,7 +1094,6 @@ pub fn adjust_amm_with_market_config_flag_eth_perp() {
                     &adjusted_with_flag,
                     &usdc_spot_market,
                     new_oracle_price_data.price,
-                    true,
                 )
                 .unwrap();
 

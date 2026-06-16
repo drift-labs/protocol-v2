@@ -114,7 +114,6 @@ export function calculateTradeSlippage(
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
 				market.marketStats,
-				market.totalExchangeFee,
 				direction,
 				mmOraclePriceData,
 				latestSlot
@@ -187,7 +186,6 @@ export function calculateTradeAcquiredAmounts(
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
 				market.marketStats,
-				market.totalExchangeFee,
 				direction,
 				mmOraclePriceData,
 				latestSlot
@@ -279,7 +277,6 @@ export function calculateTargetPriceTrade(
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
 				market.marketStats,
-				market.totalExchangeFee,
 				direction,
 				mmOraclePriceData,
 				latestSlot
@@ -443,7 +440,6 @@ export function calculateEstimatedPerpEntryPrice(
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			market.marketStats,
-			market.totalExchangeFee,
 			direction,
 			mmOraclePriceData,
 			new BN(slot)

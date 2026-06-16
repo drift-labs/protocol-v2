@@ -450,250 +450,6 @@ export type Velocity = {
       ]
     },
     {
-      "name": "adminWithdrawFromInsuranceFundVault",
-      "discriminator": [
-        228,
-        208,
-        191,
-        246,
-        169,
-        58,
-        189,
-        213
-      ],
-      "accounts": [
-        {
-          "name": "state"
-        },
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "spotMarket",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "insuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "recipientTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "tokenProgram"
-        },
-        {
-          "name": "velocitySigner"
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "beginInsuranceFundSwap",
-      "discriminator": [
-        176,
-        69,
-        143,
-        205,
-        32,
-        132,
-        163,
-        0
-      ],
-      "accounts": [
-        {
-          "name": "state"
-        },
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "outInsuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "outMarketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "inInsuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "inMarketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "outTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "inTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "ifRebalanceConfig",
-          "writable": true
-        },
-        {
-          "name": "tokenProgram"
-        },
-        {
-          "name": "velocitySigner"
-        },
-        {
-          "name": "instructions",
-          "docs": [
-            "Instructions Sysvar for instruction introspection"
-          ],
-          "address": "Sysvar1nstructions1111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "inMarketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "outMarketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amountIn",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "beginLpSwap",
       "discriminator": [
         64,
@@ -1792,193 +1548,6 @@ export type Velocity = {
       ]
     },
     {
-      "name": "depositIntoInsuranceFundStake",
-      "discriminator": [
-        4,
-        22,
-        226,
-        201,
-        124,
-        44,
-        82,
-        230
-      ],
-      "accounts": [
-        {
-          "name": "signer",
-          "signer": true
-        },
-        {
-          "name": "state",
-          "writable": true
-        },
-        {
-          "name": "spotMarket",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "insuranceFundStake",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  115,
-                  116,
-                  97,
-                  107,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "userStats"
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "userStats",
-          "writable": true
-        },
-        {
-          "name": "spotMarketVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "insuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "userTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "tokenProgram"
-        },
-        {
-          "name": "velocitySigner"
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "depositIntoIsolatedPerpPosition",
       "discriminator": [
         101,
@@ -2342,138 +1911,6 @@ export type Velocity = {
         {
           "name": "amount",
           "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "endInsuranceFundSwap",
-      "discriminator": [
-        206,
-        230,
-        98,
-        8,
-        249,
-        158,
-        169,
-        167
-      ],
-      "accounts": [
-        {
-          "name": "state"
-        },
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "outInsuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "outMarketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "inInsuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "inMarketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "outTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "inTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "ifRebalanceConfig",
-          "writable": true
-        },
-        {
-          "name": "tokenProgram"
-        },
-        {
-          "name": "velocitySigner"
-        },
-        {
-          "name": "instructions",
-          "docs": [
-            "Instructions Sysvar for instruction introspection"
-          ],
-          "address": "Sysvar1nstructions1111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "inMarketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "outMarketIndex",
-          "type": "u16"
         }
       ]
     },
@@ -3351,87 +2788,6 @@ export type Velocity = {
           "name": "newConstituentCorrelations",
           "type": {
             "vec": "i64"
-          }
-        }
-      ]
-    },
-    {
-      "name": "initializeIfRebalanceConfig",
-      "discriminator": [
-        8,
-        85,
-        184,
-        167,
-        176,
-        61,
-        173,
-        226
-      ],
-      "accounts": [
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "ifRebalanceConfig",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  102,
-                  95,
-                  114,
-                  101,
-                  98,
-                  97,
-                  108,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "params.in_market_index"
-              },
-              {
-                "kind": "arg",
-                "path": "params.out_market_index"
-              }
-            ]
-          }
-        },
-        {
-          "name": "state"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "params",
-          "type": {
-            "defined": {
-              "name": "ifRebalanceConfigParams"
-            }
           }
         }
       ]
@@ -8129,6 +7485,95 @@ export type Velocity = {
       ]
     },
     {
+      "name": "sweepPerpMarketFees",
+      "discriminator": [
+        194,
+        147,
+        181,
+        230,
+        193,
+        155,
+        241,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "state"
+        },
+        {
+          "name": "perpMarket",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  112,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "perpMarketIndex"
+              }
+            ]
+          }
+        },
+        {
+          "name": "spotMarket",
+          "docs": [
+            "The perp market's quote spot market (enforced by the PDA derivation)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "perpMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle",
+          "relations": [
+            "perpMarket"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "transferDeposit",
       "discriminator": [
         20,
@@ -8730,120 +8175,6 @@ export type Velocity = {
           "type": {
             "option": "u64"
           }
-        }
-      ]
-    },
-    {
-      "name": "transferProtocolIfSharesToRevenuePool",
-      "discriminator": [
-        236,
-        136,
-        147,
-        153,
-        146,
-        205,
-        104,
-        29
-      ],
-      "accounts": [
-        {
-          "name": "state"
-        },
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  105,
-                  110,
-                  115,
-                  117,
-                  114,
-                  97,
-                  110,
-                  99,
-                  101,
-                  95,
-                  102,
-                  117,
-                  110,
-                  100,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "spotMarketVault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  112,
-                  111,
-                  116,
-                  95,
-                  109,
-                  97,
-                  114,
-                  107,
-                  101,
-                  116,
-                  95,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "marketIndex"
-              }
-            ]
-          }
-        },
-        {
-          "name": "ifRebalanceConfig",
-          "writable": true
-        },
-        {
-          "name": "tokenProgram"
-        },
-        {
-          "name": "velocitySigner"
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
         }
       ]
     },
@@ -9661,43 +8992,6 @@ export type Velocity = {
         {
           "name": "newPubkey",
           "type": "pubkey"
-        }
-      ]
-    },
-    {
-      "name": "updateIfRebalanceConfig",
-      "discriminator": [
-        142,
-        245,
-        249,
-        66,
-        249,
-        181,
-        22,
-        83
-      ],
-      "accounts": [
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "ifRebalanceConfig",
-          "writable": true
-        },
-        {
-          "name": "state"
-        }
-      ],
-      "args": [
-        {
-          "name": "params",
-          "type": {
-            "defined": {
-              "name": "ifRebalanceConfigParams"
-            }
-          }
         }
       ]
     },
@@ -10538,6 +9832,38 @@ export type Velocity = {
       ]
     },
     {
+      "name": "updatePerpMarketFeePoolBufferTarget",
+      "discriminator": [
+        125,
+        234,
+        40,
+        44,
+        91,
+        26,
+        231,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "perpMarket",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "feePoolBufferTarget",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketFundingBiasSensitivity",
       "discriminator": [
         143,
@@ -10669,6 +9995,10 @@ export type Velocity = {
         },
         {
           "name": "ifLiquidationFee",
+          "type": "u32"
+        },
+        {
+          "name": "protocolLiquidationFee",
           "type": "u32"
         }
       ]
@@ -11659,6 +10989,48 @@ export type Velocity = {
       ]
     },
     {
+      "name": "updateProtocolFeeRecipient",
+      "docs": [
+        "Cold-only: set the treasury protocol fees may be withdrawn to.",
+        "Perp (quote) and spot (per-market token) recipients are configured",
+        "independently via `market_type`."
+      ],
+      "discriminator": [
+        213,
+        60,
+        21,
+        106,
+        42,
+        67,
+        60,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "state",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "protocolFeeRecipient",
+          "type": "pubkey"
+        },
+        {
+          "name": "marketType",
+          "type": {
+            "defined": {
+              "name": "marketType"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "updateSpecialUserStatus",
       "discriminator": [
         23,
@@ -11988,11 +11360,11 @@ export type Velocity = {
           "type": "u16"
         },
         {
-          "name": "userIfFactor",
+          "name": "ifFeeFactor",
           "type": "u32"
         },
         {
-          "name": "totalIfFactor",
+          "name": "protocolFeeFactor",
           "type": "u32"
         }
       ]
@@ -12061,6 +11433,10 @@ export type Velocity = {
         },
         {
           "name": "ifLiquidationFee",
+          "type": "u32"
+        },
+        {
+          "name": "protocolLiquidationFee",
           "type": "u32"
         }
       ]
@@ -13786,6 +13162,400 @@ export type Velocity = {
       ]
     },
     {
+      "name": "withdrawProtocolFeesPerp",
+      "docs": [
+        "Withdraw a perp market's accrued protocol fees (from the quote spot vault)",
+        "to `protocol_fee_recipient_perp` (auth: `FeeWithdraw` hot key)."
+      ],
+      "discriminator": [
+        227,
+        99,
+        23,
+        227,
+        168,
+        217,
+        136,
+        181
+      ],
+      "accounts": [
+        {
+          "name": "state"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "perpMarket",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  112,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "marketIndex"
+              }
+            ]
+          }
+        },
+        {
+          "name": "quoteSpotMarket",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "perpMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "spotMarketVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "perpMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "spotMarketVault"
+          ]
+        },
+        {
+          "name": "recipient"
+        },
+        {
+          "name": "recipientTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "recipient"
+              },
+              {
+                "kind": "account",
+                "path": "tokenProgram"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "tokenProgram"
+        },
+        {
+          "name": "velocitySigner"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawProtocolFeesSpot",
+      "docs": [
+        "Withdraw a spot market's accrued protocol fees to `protocol_fee_recipient_spot`",
+        "(auth: `FeeWithdraw` hot key)."
+      ],
+      "discriminator": [
+        177,
+        216,
+        30,
+        239,
+        253,
+        177,
+        123,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "state"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "spotMarket",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "marketIndex"
+              }
+            ]
+          }
+        },
+        {
+          "name": "spotMarketVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "marketIndex"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "spotMarketVault"
+          ]
+        },
+        {
+          "name": "recipient"
+        },
+        {
+          "name": "recipientTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "recipient"
+              },
+              {
+                "kind": "account",
+                "path": "tokenProgram"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "tokenProgram"
+        },
+        {
+          "name": "velocitySigner"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "zeroMmOracleFields",
       "discriminator": [
         192,
@@ -13877,19 +13647,6 @@ export type Velocity = {
         66,
         198,
         99
-      ]
-    },
-    {
-      "name": "ifRebalanceConfig",
-      "discriminator": [
-        214,
-        84,
-        40,
-        251,
-        107,
-        144,
-        173,
-        239
       ]
     },
     {
@@ -14077,19 +13834,6 @@ export type Velocity = {
   ],
   "events": [
     {
-      "name": "adminWithdrawFromInsuranceFundRecord",
-      "discriminator": [
-        230,
-        236,
-        10,
-        0,
-        196,
-        41,
-        147,
-        45
-      ]
-    },
-    {
       "name": "ammCurveChanged",
       "discriminator": [
         116,
@@ -14178,19 +13922,6 @@ export type Velocity = {
         148,
         250,
         114
-      ]
-    },
-    {
-      "name": "insuranceFundSwapRecord",
-      "discriminator": [
-        85,
-        190,
-        99,
-        203,
-        237,
-        33,
-        227,
-        100
       ]
     },
     {
@@ -14298,6 +14029,32 @@ export type Velocity = {
       ]
     },
     {
+      "name": "perpMarketFeeSweepRecord",
+      "discriminator": [
+        55,
+        107,
+        227,
+        104,
+        179,
+        8,
+        121,
+        33
+      ]
+    },
+    {
+      "name": "protocolFeeWithdrawRecord",
+      "discriminator": [
+        249,
+        158,
+        52,
+        81,
+        30,
+        11,
+        45,
+        149
+      ]
+    },
+    {
       "name": "revenueShareSettleRecord",
       "discriminator": [
         61,
@@ -14386,19 +14143,6 @@ export type Velocity = {
         86,
         247,
         12
-      ]
-    },
-    {
-      "name": "transferProtocolIfSharesToRevenuePoolRecord",
-      "discriminator": [
-        209,
-        118,
-        142,
-        167,
-        130,
-        46,
-        164,
-        151
       ]
     },
     {
@@ -16180,6 +15924,16 @@ export type Velocity = {
       "code": 6352,
       "name": "withdrawGuardThresholdNotionalTooLarge",
       "msg": "Withdraw guard threshold notional exceeds max"
+    },
+    {
+      "code": 6353,
+      "name": "invalidProtocolFeeRecipient",
+      "msg": "Recipient must be the configured protocol fee recipient"
+    },
+    {
+      "code": 6354,
+      "name": "insufficientProtocolFees",
+      "msg": "Insufficient protocol fees available to withdraw"
     }
   ],
   "types": [
@@ -16279,7 +16033,11 @@ export type Velocity = {
           {
             "name": "totalFee",
             "docs": [
-              "total fees collected by this perp market",
+              "Lifetime fee-derived income booked to the AMM ITSELF (analytics):",
+              "its fee provision (the `amm_fee` cut of trade-fee remainders) plus",
+              "spread surplus. NOT the market's gross fees — those live in",
+              "`PerpMarket.fee_ledger.total_exchange_fee`. Adjusted in lockstep with",
+              "`total_fee_minus_distributions` by admin summary-stats corrections.",
               "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
@@ -16287,7 +16045,9 @@ export type Velocity = {
           {
             "name": "totalMmFee",
             "docs": [
-              "total fees collected by the vAMM's bid/ask spread",
+              "Spread-capture component of `total_fee` (analytics): the gap between",
+              "the curve price and the execution price on AMM fills. Trading profit,",
+              "not a fee anyone explicitly pays.",
               "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
@@ -16295,7 +16055,14 @@ export type Velocity = {
           {
             "name": "totalFeeMinusDistributions",
             "docs": [
-              "total fees minus any recognized upnl and pool withdraws",
+              "The AMM's equity ledger (retained earnings) — broader than the name",
+              "suggests: fee income (`apply_fill_fees`) + funding and other P&L",
+              "(`record_amm_pnl`) + external credits (`record_credit`), minus",
+              "curve-adjustment costs (`apply_cost`) and bankruptcy clawbacks.",
+              "Contains ONLY the AMM's own money (protocol/IF carveouts never enter",
+              "it). Drives `is_underwater`, the drawdown breaker, and curve-cost",
+              "budgets; reconciled against pool balances by",
+              "`calculate_perp_market_amm_summary_stats`.",
               "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
@@ -16303,7 +16070,9 @@ export type Velocity = {
           {
             "name": "totalFeeWithdrawn",
             "docs": [
-              "sum of all fees from fee pool withdrawn to revenue pool",
+              "@deprecated frozen analytics counter from the pre-isolation design",
+              "(sum of fees withdrawn from the fee pool to the revenue pool). The",
+              "sweep no longer touches the AMM's pools, so nothing writes this.",
               "precision: QUOTE_PRECISION"
             ],
             "type": "u128"
@@ -16522,50 +16291,6 @@ export type Velocity = {
           {
             "name": "weight",
             "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "adminWithdrawFromInsuranceFundRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "admin",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "sharesBurned",
-            "type": "u128"
-          },
-          {
-            "name": "insuranceFundVaultAmountBefore",
-            "type": "u64"
-          },
-          {
-            "name": "protocolSharesBefore",
-            "type": "u128"
-          },
-          {
-            "name": "protocolSharesAfter",
-            "type": "u128"
-          },
-          {
-            "name": "recipientTokenAccount",
-            "type": "pubkey"
           }
         ]
       }
@@ -17550,6 +17275,80 @@ export type Velocity = {
       }
     },
     {
+      "name": "feeLedger",
+      "docs": [
+        "All of a perp market's fee-split accounting in one ledger.",
+        "Pure counters — token claims live in the pools",
+        "(`protocol_fee_pool`, the quote `revenue_pool`, `AMM.fee_pool`).",
+        "Convention: gross-fee counters record what the taker actually paid",
+        "(post referee discount, pre carve-outs) on BOTH the AMM and DLOB-match",
+        "paths."
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "totalExchangeFee",
+            "docs": [
+              "lifetime gross taker fees collected (analytics; not a routing driver)",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "totalLiquidationFee",
+            "docs": [
+              "lifetime liquidation fees charged to liquidatees (IF + protocol cuts;",
+              "pure analytics — routing happens via the pending counters).",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "pendingProtocolFee",
+            "docs": [
+              "protocol (residual) carveouts accrued but not yet materialized into",
+              "`protocol_fee_pool`. precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "pendingIfFee",
+            "docs": [
+              "insurance-fund carveouts accrued but not yet materialized into the",
+              "quote `revenue_pool`; also the first bankruptcy tranche.",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "ammProtocolFeesReceived",
+            "docs": [
+              "cumulative fee provision granted to the AMM via `amm_fee_numerator` —",
+              "its backstop-of-last-resort tranche, drawable (and decremented) only in",
+              "bankruptcy. The AMM's own spread/trading capital beyond this provision",
+              "is never tapped. precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "pendingAmmProvision",
+            "docs": [
+              "AMM fee provision accrued at fill (already booked into the AMM's",
+              "`total_fee_minus_distributions`) but not yet tokenized into",
+              "`amm.fee_pool` by the sweep. Invariant: `<= amm_protocol_fees_received`.",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
       "name": "feeStructure",
       "repr": {
         "kind": "c"
@@ -17583,13 +17382,26 @@ export type Velocity = {
             "type": "u64"
           },
           {
-            "name": "padding",
+            "name": "ammFeeNumerator",
             "docs": [
-              "Reserved padding. Kept so `size_of::<FeeStructure>()` stays a multiple of 16",
-              "(OrderFillerRewardStructure's u128 forces 16-byte alignment on host x86_64);",
-              "removing it would diverge host vs. SBF layout."
+              "Share of the trade-fee *remainder* (taker fee after maker rebate, referral,",
+              "referee discount, and filler reward are taken off the top) provisioned to",
+              "the AMM as liquidity (its backstop-of-last-resort tranche, tracked in",
+              "`PerpMarket.fee_ledger.amm_protocol_fees_received`). precision:",
+              "FEE_PERCENTAGE_DENOMINATOR. `amm_fee_numerator + if_fee_numerator` must",
+              "be <= FEE_PERCENTAGE_DENOMINATOR; the protocol receives the residual",
+              "(`remainder − amm − if`) into its withdrawable `protocol_fee_pool`.",
+              "(Was the reserved `padding: u64`, repartitioned into two u32s —",
+              "size/alignment unchanged.)"
             ],
-            "type": "u64"
+            "type": "u32"
+          },
+          {
+            "name": "ifFeeNumerator",
+            "docs": [
+              "Share of the trade-fee remainder routed to the insurance fund (`revenue_pool`)."
+            ],
+            "type": "u32"
           }
         ]
       }
@@ -17950,9 +17762,6 @@ export type Velocity = {
             "name": "lpSettle"
           },
           {
-            "name": "ifRebalance"
-          },
-          {
             "name": "featureFlag"
           },
           {
@@ -17969,160 +17778,9 @@ export type Velocity = {
           },
           {
             "name": "ammSpreadAdjust"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ifRebalanceConfig",
-      "serialization": "bytemuckunsafe",
-      "repr": {
-        "kind": "c"
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pubkey",
-            "type": "pubkey"
           },
           {
-            "name": "totalInAmount",
-            "docs": [
-              "total amount to be sold"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "currentInAmount",
-            "docs": [
-              "amount already sold"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "currentOutAmount",
-            "docs": [
-              "amount already bought"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "currentOutAmountTransferred",
-            "docs": [
-              "amount already transferred to revenue pool"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "currentInAmountSinceLastTransfer",
-            "docs": [
-              "amount already bought in epoch"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "epochStartTs",
-            "docs": [
-              "start time of epoch"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "epochInAmount",
-            "docs": [
-              "amount already bought in epoch"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "epochMaxInAmount",
-            "docs": [
-              "max amount to swap in epoch"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "epochDuration",
-            "docs": [
-              "duration of epoch"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "outMarketIndex",
-            "docs": [
-              "market index to sell"
-            ],
-            "type": "u16"
-          },
-          {
-            "name": "inMarketIndex",
-            "docs": [
-              "market index to buy"
-            ],
-            "type": "u16"
-          },
-          {
-            "name": "maxSlippageBps",
-            "type": "u16"
-          },
-          {
-            "name": "swapMode",
-            "type": "u8"
-          },
-          {
-            "name": "status",
-            "type": "u8"
-          },
-          {
-            "name": "padding2",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "ifRebalanceConfigParams",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "totalInAmount",
-            "type": "u64"
-          },
-          {
-            "name": "epochMaxInAmount",
-            "type": "u64"
-          },
-          {
-            "name": "epochDuration",
-            "type": "i64"
-          },
-          {
-            "name": "outMarketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "inMarketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "maxSlippageBps",
-            "type": "u16"
-          },
-          {
-            "name": "swapMode",
-            "type": "u8"
-          },
-          {
-            "name": "status",
-            "type": "u8"
+            "name": "feeWithdraw"
           }
         ]
       }
@@ -18215,15 +17873,33 @@ export type Velocity = {
           },
           {
             "name": "revenueSettlePeriod",
+            "docs": [
+              "How often `revenue_pool` may settle into the IF vault (seconds)."
+            ],
             "type": "i64"
           },
           {
-            "name": "totalFactor",
+            "name": "ifFeeFactor",
+            "docs": [
+              "Fraction of spot deposit-interest gains carved out to the insurance fund",
+              "(staker-owned). precision: IF_FACTOR_PRECISION. (Was `total_factor`; the",
+              "protocol-vs-staker split was removed — the IF is now 100% staker-owned,",
+              "so this is purely the staker IF carveout.)"
+            ],
             "type": "u32"
           },
           {
-            "name": "userFactor",
-            "type": "u32"
+            "name": "paddingIf",
+            "docs": [
+              "Was `user_factor` (the old protocol/staker split knob). The IF is now",
+              "100% staker-owned, so the split is gone; slot kept as padding."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }
@@ -18410,94 +18086,6 @@ export type Velocity = {
           {
             "name": "totalIfSharesAfter",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "insuranceFundSwapRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "rebalanceConfig",
-            "type": "pubkey"
-          },
-          {
-            "name": "inIfTotalSharesBefore",
-            "type": "u128"
-          },
-          {
-            "name": "outIfTotalSharesBefore",
-            "type": "u128"
-          },
-          {
-            "name": "inIfUserSharesBefore",
-            "type": "u128"
-          },
-          {
-            "name": "outIfUserSharesBefore",
-            "type": "u128"
-          },
-          {
-            "name": "inIfTotalSharesAfter",
-            "type": "u128"
-          },
-          {
-            "name": "outIfTotalSharesAfter",
-            "type": "u128"
-          },
-          {
-            "name": "inIfUserSharesAfter",
-            "type": "u128"
-          },
-          {
-            "name": "outIfUserSharesAfter",
-            "type": "u128"
-          },
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "inAmount",
-            "type": "u64"
-          },
-          {
-            "name": "outAmount",
-            "type": "u64"
-          },
-          {
-            "name": "outOraclePrice",
-            "type": "u64"
-          },
-          {
-            "name": "outOraclePriceTwap",
-            "type": "i64"
-          },
-          {
-            "name": "inVaultAmountBefore",
-            "type": "u64"
-          },
-          {
-            "name": "outVaultAmountBefore",
-            "type": "u64"
-          },
-          {
-            "name": "inFundVaultAmountAfter",
-            "type": "u64"
-          },
-          {
-            "name": "outFundVaultAmountAfter",
-            "type": "u64"
-          },
-          {
-            "name": "inMarketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "outMarketIndex",
-            "type": "u16"
           }
         ]
       }
@@ -19115,6 +18703,14 @@ export type Velocity = {
               "precision: QUOTE_PRECISION"
             ],
             "type": "u64"
+          },
+          {
+            "name": "protocolFee",
+            "docs": [
+              "protocol's cut, routed to the perp market's `protocol_fee_pool`",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -19154,6 +18750,14 @@ export type Velocity = {
           {
             "name": "ifFee",
             "docs": [
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "protocolFee",
+            "docs": [
+              "protocol's cut, routed to the liability market's `protocol_fee_pool`",
               "precision: token mint precision"
             ],
             "type": "u64"
@@ -20898,20 +20502,17 @@ export type Velocity = {
             "type": "i128"
           },
           {
-            "name": "totalExchangeFee",
+            "name": "feeLedger",
             "docs": [
-              "total fees collected by exchange fee schedule",
-              "precision: QUOTE_PRECISION"
+              "The market's fee ledger: every fee-split counter in one place (gross",
+              "analytics, pending protocol/IF carveouts, and the AMM's backstop",
+              "tranche). Mutate through its accessor methods, not raw field writes."
             ],
-            "type": "u128"
-          },
-          {
-            "name": "totalLiquidationFee",
-            "docs": [
-              "all fees collected by market for liquidations",
-              "precision: QUOTE_PRECISION"
-            ],
-            "type": "u128"
+            "type": {
+              "defined": {
+                "name": "feeLedger"
+              }
+            }
           },
           {
             "name": "oracle",
@@ -20931,6 +20532,67 @@ export type Velocity = {
                 "name": "poolBalance"
               }
             }
+          },
+          {
+            "name": "protocolFeePool",
+            "docs": [
+              "Protocol fees collected on this perp market, quote/USDC-denominated — a",
+              "protocol-owned Deposit-type claim against the quote spot market vault",
+              "(like `pnl_pool`; counted in the quote market's `deposit_balance`).",
+              "Owned by the protocol, not users, and never part of the insurance",
+              "backstop. `market_index` is set to `quote_spot_market_index`. Withdrawn",
+              "directly to `State.protocol_fee_recipient_perp`."
+            ],
+            "type": {
+              "defined": {
+                "name": "poolBalance"
+              }
+            }
+          },
+          {
+            "name": "protocolLiquidationFee",
+            "docs": [
+              "Protocol's cut of a perp liquidation, taken from the liquidatee.",
+              "precision: LIQUIDATOR_FEE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "paddingBuffer",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "feePoolBufferTarget",
+            "docs": [
+              "The pnl-pool retention buffer the streaming sweep's IF and",
+              "AMM-provision drains leave untouched: `sweep_market_fees` drains",
+              "those pendings only from what the pnl pool holds above",
+              "`max(net_user_pnl, 0) + fee_pool_buffer_target`. The protocol drain",
+              "is EXEMPT — it reserves only `max(net_user_pnl, 0)` and runs first;",
+              "it sweeps every settle, so each drain stays small, and its pending is",
+              "no bankruptcy tranche so retaining it buys nothing.",
+              "",
+              "Why a buffer on top of the user-claims reservation: `net_user_pnl`",
+              "is a mark-to-market snapshot, so a pool swept to the exact mark is",
+              "short on the next adverse oracle tick — and the sweep is a one-way",
+              "valve, so the slack can't be cheaply recalled (IF value returns only",
+              "through capped gated paths, the AMM provision only via bankruptcy",
+              "clawback). The buffer throttles those outflows per sweep; pool tokens",
+              "are fungible (pendings are counters, not segregated tokens), so",
+              "whichever cut lingers keeps settling winners in the meantime. This",
+              "delays materialization, it does not divert anyone's cut. Side",
+              "benefits: an unswept IF cut gives THIS market uncapped market-local",
+              "bankruptcy coverage (tranche 1) instead of capped shared-vault",
+              "coverage, and the buffer damps the IF settle ratchet (value settled",
+              "into the IF accrues to stakers permanently).",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
           },
           {
             "name": "name",
@@ -21283,13 +20945,14 @@ export type Velocity = {
             "docs": [
               "Trailing padding so `market_stats` lands at the offset Rust naturally",
               "computes via `repr(C)` alignment and the `(SIZE - 8) % 16 == 0`",
-              "invariant holds. Bumped to 36 bytes (was 28) when `next_curve_record_id`",
-              "was removed."
+              "invariant holds. (32 bytes moved into `fee_ledger` as",
+              "`amm_protocol_fees_received` and then `pending_amm_provision` joined",
+              "it, keeping `market_stats` fixed.)"
             ],
             "type": {
               "array": [
                 "u8",
-                36
+                4
               ]
             }
           },
@@ -21350,6 +21013,50 @@ export type Velocity = {
                 "name": "hedgeConfig"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "perpMarketFeeSweepRecord",
+      "docs": [
+        "Emitted by the streaming fee sweep (`sweep_market_fees`) when it",
+        "materializes pending fee carveouts out of a perp market's pnl pool."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "docs": [
+              "unix_timestamp of action"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "ifSwept",
+            "docs": [
+              "pending insurance cut moved to the quote spot market's revenue_pool"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "protocolSwept",
+            "docs": [
+              "pending protocol cut moved to the market's protocol_fee_pool"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "ammProvisionTokenized",
+            "docs": [
+              "AMM fee provision tokenized into amm.fee_pool (booked at fill)"
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -21627,6 +21334,51 @@ export type Velocity = {
           {
             "name": "oracleTwap5minPercentDivergence",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "protocolFeeWithdrawRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "docs": [
+              "unix_timestamp of action"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "marketIndex",
+            "docs": [
+              "perp market index for a perp-fee withdrawal, else the spot market index"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "isPerp",
+            "docs": [
+              "true if this withdrawal drained a perp market's protocol_fee_pool",
+              "(sourced from the quote spot vault), false for a spot market withdrawal"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "spotMarketIndex",
+            "docs": [
+              "the spot market the tokens were drawn from"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "recipientTokenAccount",
+            "type": "pubkey"
           }
         ]
       }
@@ -23012,11 +22764,57 @@ export type Velocity = {
             "type": "u8"
           },
           {
+            "name": "paddingAlignPfp",
+            "docs": [
+              "Aligns `protocol_fee_pool`'s leading u128 to a 16-byte struct offset so",
+              "host (x86_64, align 16) and SBF (align 8) layouts agree. Do not reorder."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "protocolFeePool",
+            "docs": [
+              "Protocol fees collected in this market's token (lending protocol carveout",
+              "+ spot-liquidation protocol fee). A protocol-owned Deposit-type claim",
+              "inside the spot vault (counted in `deposit_balance`, like `revenue_pool`)",
+              "— owned by the protocol, not users, and never part of the insurance",
+              "backstop. Withdrawn directly to `State.protocol_fee_recipient_spot`; the",
+              "withdrawal decrements this claim and re-validates the vault still covers",
+              "all remaining claims, so it can never tap user deposits."
+            ],
+            "type": {
+              "defined": {
+                "name": "poolBalance"
+              }
+            }
+          },
+          {
+            "name": "protocolLiquidationFee",
+            "docs": [
+              "Protocol's cut of a spot liquidation, taken from the liquidatee.",
+              "precision: LIQUIDATOR_FEE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "protocolFeeFactor",
+            "docs": [
+              "Protocol's carveout of lending deposit-interest gains, routed to",
+              "`protocol_fee_pool`. precision: IF_FACTOR_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                56
+                8
               ]
             }
           }
@@ -23196,7 +22994,7 @@ export type Velocity = {
           {
             "name": "warmAdmin",
             "docs": [
-              "Operational authority (e.g. multisig+timelock). Can rotate the 11 hot keys",
+              "Operational authority (e.g. multisig+timelock). Can rotate the 10 hot keys",
               "below. `Pubkey::default()` means unset — only `cold_admin` can act in that case."
             ],
             "type": "pubkey"
@@ -23229,10 +23027,6 @@ export type Velocity = {
           },
           {
             "name": "hotLpSettle",
-            "type": "pubkey"
-          },
-          {
-            "name": "hotIfRebalance",
             "type": "pubkey"
           },
           {
@@ -23366,6 +23160,35 @@ export type Velocity = {
           {
             "name": "lpPoolFeatureBitFlags",
             "type": "u8"
+          },
+          {
+            "name": "protocolFeeRecipientPerp",
+            "docs": [
+              "Treasury that PERP protocol fees (quote-denominated) may be withdrawn",
+              "to. Settable only by `cold_admin`. `withdraw_protocol_fees_perp` pays",
+              "this key's associated token account (recipient-locked).",
+              "`Pubkey::default()` (unset) makes perp withdrawals inert."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "protocolFeeRecipientSpot",
+            "docs": [
+              "Treasury that SPOT protocol fees (each market's own token: lending",
+              "carveouts + spot-liquidation cuts) may be withdrawn to. Settable only",
+              "by `cold_admin`. `withdraw_protocol_fees_spot` pays this key's",
+              "associated token account for the market's mint (recipient-locked).",
+              "`Pubkey::default()` (unset) makes spot withdrawals inert."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "hotFeeWithdraw",
+            "docs": [
+              "Hot key authorized for the `FeeWithdraw` role (triggers protocol-fee",
+              "withdrawals to the configured recipients)."
+            ],
+            "type": "pubkey"
           },
           {
             "name": "padding",
@@ -23537,42 +23360,6 @@ export type Velocity = {
       }
     },
     {
-      "name": "transferProtocolIfSharesToRevenuePoolRecord",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "shares",
-            "type": "u128"
-          },
-          {
-            "name": "ifVaultAmountBefore",
-            "type": "u64"
-          },
-          {
-            "name": "protocolSharesBefore",
-            "type": "u128"
-          },
-          {
-            "name": "transferAmount",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "updatePerpMarketSummaryStatsParams",
       "type": {
         "kind": "struct",
@@ -23585,12 +23372,6 @@ export type Velocity = {
           },
           {
             "name": "updateAmmSummaryStats",
-            "type": {
-              "option": "bool"
-            }
-          },
-          {
-            "name": "excludeTotalLiqFee",
             "type": {
               "option": "bool"
             }

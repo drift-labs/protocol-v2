@@ -438,6 +438,9 @@ pub struct LiquidatePerpRecord {
     pub liquidator_fee: u64,
     /// precision: QUOTE_PRECISION
     pub if_fee: u64,
+    /// protocol's cut, routed to the perp market's `protocol_fee_pool`
+    /// precision: QUOTE_PRECISION
+    pub protocol_fee: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
@@ -451,6 +454,9 @@ pub struct LiquidateSpotRecord {
     pub liability_transfer: u128,
     /// precision: token mint precision
     pub if_fee: u64,
+    /// protocol's cut, routed to the liability market's `protocol_fee_pool`
+    /// precision: token mint precision
+    pub protocol_fee: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
@@ -568,59 +574,6 @@ pub enum StakeAction {
     UnstakeTransfer,
     StakeTransfer,
     AdminDeposit,
-}
-
-#[event]
-#[derive(Default)]
-pub struct InsuranceFundSwapRecord {
-    pub rebalance_config: Pubkey,
-    pub in_if_total_shares_before: u128,
-    pub out_if_total_shares_before: u128,
-    pub in_if_user_shares_before: u128,
-    pub out_if_user_shares_before: u128,
-    pub in_if_total_shares_after: u128,
-    pub out_if_total_shares_after: u128,
-    pub in_if_user_shares_after: u128,
-    pub out_if_user_shares_after: u128,
-    pub ts: i64,
-    pub in_amount: u64,
-    pub out_amount: u64,
-    pub out_oracle_price: u64,
-    pub out_oracle_price_twap: i64,
-    pub in_vault_amount_before: u64,
-    pub out_vault_amount_before: u64,
-    pub in_fund_vault_amount_after: u64,
-    pub out_fund_vault_amount_after: u64,
-    pub in_market_index: u16,
-    pub out_market_index: u16,
-}
-
-#[event]
-pub struct TransferProtocolIfSharesToRevenuePoolRecord {
-    pub ts: i64,
-    pub market_index: u16,
-    pub amount: u64,
-    pub shares: u128,
-    pub if_vault_amount_before: u64,
-    pub protocol_shares_before: u128,
-    pub transfer_amount: u64,
-}
-
-#[event]
-pub struct AdminWithdrawFromInsuranceFundRecord {
-    pub ts: i64,
-    pub market_index: u16,
-    pub admin: Pubkey,
-    pub amount: u64,
-    pub shares_burned: u128,
-    pub insurance_fund_vault_amount_before: u64,
-    pub protocol_shares_before: u128,
-    pub protocol_shares_after: u128,
-    pub recipient_token_account: Pubkey,
-}
-
-impl Size for InsuranceFundSwapRecord {
-    const SIZE: usize = 256;
 }
 
 #[event]
@@ -885,4 +838,34 @@ struct _SignedMsgOrderParamsExport {
 
 impl Size for _SignedMsgOrderParamsExport {
     const SIZE: usize = 0;
+}
+
+#[event]
+pub struct ProtocolFeeWithdrawRecord {
+    /// unix_timestamp of action
+    pub ts: i64,
+    /// perp market index for a perp-fee withdrawal, else the spot market index
+    pub market_index: u16,
+    /// true if this withdrawal drained a perp market's protocol_fee_pool
+    /// (sourced from the quote spot vault), false for a spot market withdrawal
+    pub is_perp: bool,
+    /// the spot market the tokens were drawn from
+    pub spot_market_index: u16,
+    pub amount: u64,
+    pub recipient_token_account: Pubkey,
+}
+
+/// Emitted by the streaming fee sweep (`sweep_market_fees`) when it
+/// materializes pending fee carveouts out of a perp market's pnl pool.
+#[event]
+pub struct PerpMarketFeeSweepRecord {
+    /// unix_timestamp of action
+    pub ts: i64,
+    pub market_index: u16,
+    /// pending insurance cut moved to the quote spot market's revenue_pool
+    pub if_swept: u64,
+    /// pending protocol cut moved to the market's protocol_fee_pool
+    pub protocol_swept: u64,
+    /// AMM fee provision tokenized into amm.fee_pool (booked at fill)
+    pub amm_provision_tokenized: u64,
 }

@@ -252,11 +252,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 	const limitPrice = getLimitPrice(order, mmOraclePriceData, slot);
 	let baseAssetAmount;
 
-	const updatedAMM = calculateUpdatedAMM(
-		market.amm,
-		market.totalExchangeFee,
-		mmOraclePriceData
-	);
+	const updatedAMM = calculateUpdatedAMM(market.amm, mmOraclePriceData);
 	if (limitPrice !== undefined) {
 		baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 			order,

@@ -29,7 +29,7 @@ use crate::{
         bn,
         casting::Cast,
         constants::{
-            DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, EPOCH_DURATION, FEE_ADJUSTMENT_MAX,
+            DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_ADJUSTMENT_MAX,
             FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX,
             INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
             MAX_CONCENTRATION_COEFFICIENT, MM_ORACLE_MAX_STEP_PCT_PRECISION,
@@ -50,8 +50,6 @@ use crate::{
         events::{
             DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
         },
-        if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams},
-        insurance_fund_stake::ProtocolIfSharesTransferConfig,
         market_status::MarketStatus,
         oracle::{
             get_oracle_price, get_prelaunch_price, get_pyth_price, HistoricalIndexData,
@@ -61,8 +59,8 @@ use crate::{
         oracle_map::OracleMap,
         paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation},
         perp_market::{
-            ContractTier, ContractType, HedgeConfig, InsuranceClaim, MarketConfigFlag, MarketStats,
-            PerpMarket, PoolBalance, AMM,
+            ContractTier, ContractType, FeeLedger, HedgeConfig, InsuranceClaim, MarketConfigFlag,
+            MarketStats, PerpMarket, PoolBalance, AMM,
         },
         perp_market_map::{get_writable_perp_market_set, MarketSet},
         pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED},
@@ -72,7 +70,7 @@ use crate::{
             ExchangeStatus, FeeStructure, HotRole, LpPoolFeatureBitFlags, OracleGuardRails, State,
         },
         traits::Size,
-        user::{SpecialUserStatus, User, UserStats},
+        user::{MarketType, SpecialUserStatus, User, UserStats},
     },
     validate,
     validation::{
@@ -115,7 +113,6 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         hot_lp_cache: Pubkey::default(),
         hot_lp_swap: Pubkey::default(),
         hot_lp_settle: Pubkey::default(),
-        hot_if_rebalance: Pubkey::default(),
         hot_feature_flag: Pubkey::default(),
         hot_fuel: Pubkey::default(),
         hot_user_flag: Pubkey::default(),
@@ -138,6 +135,9 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         signer: velocity_signer,
         signer_nonce: velocity_signer_nonce,
         srm_vault: Pubkey::default(),
+        protocol_fee_recipient_perp: Pubkey::default(),
+        hot_fee_withdraw: Pubkey::default(),
+        protocol_fee_recipient_spot: Pubkey::default(),
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
         liquidation_duration: 0,
@@ -383,12 +383,19 @@ pub fn handle_initialize_spot_market(
         min_borrow_rate: 0,
         token_program_flag: token_program,
         pool_id: 0,
-        padding: [0; 56],
+        _padding_align_pfp: [0; 8],
+        protocol_fee_pool: PoolBalance {
+            scaled_balance: 0,
+            market_index: spot_market_index,
+            ..PoolBalance::default()
+        },
+        protocol_liquidation_fee: 0,
+        protocol_fee_factor: 0,
+        padding: [0; 8],
         insurance_fund: InsuranceFund {
             vault: ctx.accounts.insurance_fund_vault.key(),
             unstaking_period: THIRTEEN_DAY,
-            total_factor: if_total_factor,
-            user_factor: if_total_factor / 2,
+            if_fee_factor: if_total_factor,
             revenue_settle_period: 3600,
             ..InsuranceFund::default()
         },
@@ -654,8 +661,7 @@ pub fn handle_initialize_perp_market(
         imf_factor,
         next_fill_record_id: 1,
         next_funding_rate_record_id: 1,
-        total_exchange_fee: 0,
-        total_liquidation_fee: 0,
+        fee_ledger: FeeLedger::default(),
         pnl_pool: PoolBalance::default(),
         insurance_claim: InsuranceClaim {
             max_revenue_withdraw_per_period,
@@ -708,7 +714,7 @@ pub fn handle_initialize_perp_market(
         quote_break_even_amount_long: 0,
         quote_break_even_amount_short: 0,
         max_open_interest,
-        padding: [0; 36],
+        padding: [0; 4],
         market_stats: MarketStats {
             last_oracle_normalised_price: oracle_price,
             last_mark_price_twap: init_reserve_price,
@@ -777,6 +783,14 @@ pub fn handle_initialize_perp_market(
             funding_bias_sensitivity: 0,
             padding_post_amm: [0; 2],
         },
+        // protocol fees are quote/USDC-denominated; quote market is index 0
+        protocol_fee_pool: PoolBalance {
+            market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
+        },
+        protocol_liquidation_fee: 0,
+        _padding_buffer: [0; 4],
+        fee_pool_buffer_target: FEE_POOL_TO_REVENUE_POOL_THRESHOLD as u64,
     };
 
     safe_increment!(state.number_of_markets, 1);
@@ -1142,6 +1156,18 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         "outstanding quote_asset_amounts must be balanced"
     )?;
 
+    // With user base, AMM base, and net user cost basis all wound down,
+    // net_user_pnl is identically 0 — no live user claim remains on the pnl
+    // pool. This is what lets the final sweep below (and the full pnl-pool
+    // drain to the revenue pool) reserve nothing for users without consulting
+    // an oracle.
+    validate!(
+        perp_market.amm.base_asset_amount_with_amm == 0,
+        ErrorCode::DefaultError,
+        "amm base_asset_amount_with_amm must be balanced ({})",
+        perp_market.amm.base_asset_amount_with_amm
+    )?;
+
     // block when settlement_duration is default/unconfigured
     validate!(
         state.settlement_duration != 0,
@@ -1167,6 +1193,17 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         "must be escrow_period_before_transfer={} after market.expiry_ts",
         escrow_period_before_transfer
     )?;
+
+    // Materialize accrued fees before draining the pnl pool to the revenue
+    // pool. The pnl pool holds the un-swept fee value; without this sweep the
+    // `pending_protocol_fee` carveout (which the waterfall routes to the
+    // withdrawable `protocol_fee_pool`) would instead be dumped wholesale into
+    // the revenue pool / insurance fund and lost to the protocol, since no
+    // sweep can run once the market is Delisted. net_user_pnl is 0 here (see
+    // the wind-down validations above), so the full pnl-pool surplus is
+    // available to the waterfall. `force = true` overrides any standing
+    // SettleRevPool pause — this is the last sweep the market will ever get.
+    controller::perp_pools::sweep_market_fees(perp_market, spot_market, 0, now, true)?;
 
     let fee_pool_token_amount = perp_market.amm.fee_pool_token_amount(spot_market)?;
     let pnl_pool_token_amount = get_token_amount(
@@ -1490,6 +1527,7 @@ pub fn handle_update_perp_liquidation_fee(
     ctx: Context<AdminUpdatePerpMarket>,
     liquidator_fee: u32,
     if_liquidation_fee: u32,
+    protocol_liquidation_fee: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
@@ -1499,7 +1537,10 @@ pub fn handle_update_perp_liquidation_fee(
     );
 
     validate!(
-        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
+        liquidator_fee
+            .safe_add(if_liquidation_fee)?
+            .safe_add(protocol_liquidation_fee)?
+            < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
         "Total liquidation fee must be less than 100%"
     )?;
@@ -1508,6 +1549,12 @@ pub fn handle_update_perp_liquidation_fee(
         if_liquidation_fee < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
         "If liquidation fee must be less than 100%"
+    )?;
+
+    validate!(
+        protocol_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 10,
+        ErrorCode::DefaultError,
+        "protocol_liquidation_fee must be <= 10%"
     )?;
 
     perp_market.amm.validate_compatible_with_liquidation_fee(
@@ -1528,8 +1575,15 @@ pub fn handle_update_perp_liquidation_fee(
         if_liquidation_fee
     );
 
+    msg!(
+        "perp_market.protocol_liquidation_fee: {:?} -> {:?}",
+        perp_market.protocol_liquidation_fee,
+        protocol_liquidation_fee
+    );
+
     perp_market.liquidator_fee = liquidator_fee;
     perp_market.if_liquidation_fee = if_liquidation_fee;
+    perp_market.protocol_liquidation_fee = protocol_liquidation_fee;
     Ok(())
 }
 
@@ -1579,6 +1633,7 @@ pub fn handle_update_spot_market_liquidation_fee(
     ctx: Context<AdminUpdateSpotMarket>,
     liquidator_fee: u32,
     if_liquidation_fee: u32,
+    protocol_liquidation_fee: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     msg!(
@@ -1587,7 +1642,10 @@ pub fn handle_update_spot_market_liquidation_fee(
     );
 
     validate!(
-        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
+        liquidator_fee
+            .safe_add(if_liquidation_fee)?
+            .safe_add(protocol_liquidation_fee)?
+            < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
         "Total liquidation fee must be less than 100%"
     )?;
@@ -1596,6 +1654,12 @@ pub fn handle_update_spot_market_liquidation_fee(
         if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 10,
         ErrorCode::DefaultError,
         "if_liquidation_fee must be <= 10%"
+    )?;
+
+    validate!(
+        protocol_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 10,
+        ErrorCode::DefaultError,
+        "protocol_liquidation_fee must be <= 10%"
     )?;
 
     msg!(
@@ -1610,8 +1674,15 @@ pub fn handle_update_spot_market_liquidation_fee(
         if_liquidation_fee
     );
 
+    msg!(
+        "spot_market.protocol_liquidation_fee: {:?} -> {:?}",
+        spot_market.protocol_liquidation_fee,
+        protocol_liquidation_fee
+    );
+
     spot_market.liquidator_fee = liquidator_fee;
     spot_market.if_liquidation_fee = if_liquidation_fee;
+    spot_market.protocol_liquidation_fee = protocol_liquidation_fee;
     Ok(())
 }
 
@@ -1665,11 +1736,14 @@ pub fn handle_update_withdraw_guard_threshold(
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
+/// Set the lending-gain carveouts: `if_fee_factor` (to the insurance fund) and
+/// `protocol_fee_factor` (to the withdrawable protocol fee pool). Lenders receive
+/// deposit interest net of both.
 pub fn handle_update_spot_market_if_factor(
     ctx: Context<AdminUpdateSpotMarket>,
     spot_market_index: u16,
-    user_if_factor: u32,
-    total_if_factor: u32,
+    if_fee_factor: u32,
+    protocol_fee_factor: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
@@ -1681,31 +1755,32 @@ pub fn handle_update_spot_market_if_factor(
         "spot_market_index dne spot_market.index"
     )?;
 
+    // Strictly less than 100%: lenders must keep a nonzero configured share.
+    // At a full 100% carveout `deposit_interest_for_lenders` is 0, which skips
+    // the entire accrual block in `update_spot_market_cumulative_interest` —
+    // freezing borrower interest, the interest timestamp, and even the IF /
+    // protocol pool credits themselves. A strict `<` keeps the lender cut >= 1
+    // whenever deposit interest accrues, so the block always runs.
     validate!(
-        user_if_factor <= total_if_factor,
+        if_fee_factor.safe_add(protocol_fee_factor)? < IF_FACTOR_PRECISION.cast()?,
         ErrorCode::DefaultError,
-        "user_if_factor must be <= total_if_factor"
-    )?;
-
-    validate!(
-        total_if_factor <= IF_FACTOR_PRECISION.cast()?,
-        ErrorCode::DefaultError,
-        "total_if_factor must be <= 100%"
+        "if_fee_factor + protocol_fee_factor must be < 100%"
     )?;
 
     msg!(
-        "spot_market.user_if_factor: {:?} -> {:?}",
-        spot_market.insurance_fund.user_factor,
-        user_if_factor
-    );
-    msg!(
-        "spot_market.total_if_factor: {:?} -> {:?}",
-        spot_market.insurance_fund.total_factor,
-        total_if_factor
+        "spot_market.if_fee_factor: {:?} -> {:?}",
+        spot_market.insurance_fund.if_fee_factor,
+        if_fee_factor
     );
 
-    spot_market.insurance_fund.user_factor = user_if_factor;
-    spot_market.insurance_fund.total_factor = total_if_factor;
+    msg!(
+        "spot_market.protocol_fee_factor: {:?} -> {:?}",
+        spot_market.protocol_fee_factor,
+        protocol_fee_factor
+    );
+
+    spot_market.insurance_fund.if_fee_factor = if_fee_factor;
+    spot_market.protocol_fee_factor = protocol_fee_factor;
 
     Ok(())
 }
@@ -2614,6 +2689,23 @@ pub fn handle_update_perp_market_fee_adjustment(
     Ok(())
 }
 
+pub fn handle_update_perp_market_fee_pool_buffer_target(
+    ctx: Context<AdminUpdatePerpMarket>,
+    fee_pool_buffer_target: u64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    msg!(
+        "perp_market.fee_pool_buffer_target: {:?} -> {:?}",
+        perp_market.fee_pool_buffer_target,
+        fee_pool_buffer_target
+    );
+
+    perp_market.fee_pool_buffer_target = fee_pool_buffer_target;
+    Ok(())
+}
+
 pub fn handle_update_perp_market_number_of_users(
     ctx: Context<AdminUpdatePerpMarket>,
     number_of_users: Option<u32>,
@@ -2852,57 +2944,6 @@ pub fn handle_admin_update_user_stats_paused_operations(
     );
 
     user_stats.paused_operations = paused_operations;
-    Ok(())
-}
-
-pub fn handle_initialize_protocol_if_shares_transfer_config(
-    ctx: Context<InitializeProtocolIfSharesTransferConfig>,
-) -> Result<()> {
-    let mut config = ctx
-        .accounts
-        .protocol_if_shares_transfer_config
-        .load_init()?;
-
-    let now = Clock::get()?.unix_timestamp;
-    msg!(
-        "next_epoch_ts: {:?} -> {:?}",
-        config.next_epoch_ts,
-        now.safe_add(EPOCH_DURATION)?
-    );
-    config.next_epoch_ts = now.safe_add(EPOCH_DURATION)?;
-
-    Ok(())
-}
-
-pub fn handle_update_protocol_if_shares_transfer_config(
-    ctx: Context<UpdateProtocolIfSharesTransferConfig>,
-    whitelisted_signers: Option<[Pubkey; 4]>,
-    max_transfer_per_epoch: Option<u128>,
-) -> Result<()> {
-    let mut config = ctx.accounts.protocol_if_shares_transfer_config.load_mut()?;
-
-    if let Some(whitelisted_signers) = whitelisted_signers {
-        msg!(
-            "whitelisted_signers: {:?} -> {:?}",
-            config.whitelisted_signers,
-            whitelisted_signers
-        );
-        config.whitelisted_signers = whitelisted_signers;
-    } else {
-        msg!("whitelisted_signers: unchanged");
-    }
-
-    if let Some(max_transfer_per_epoch) = max_transfer_per_epoch {
-        msg!(
-            "max_transfer_per_epoch: {:?} -> {:?}",
-            config.max_transfer_per_epoch,
-            max_transfer_per_epoch
-        );
-        config.max_transfer_per_epoch = max_transfer_per_epoch;
-    } else {
-        msg!("max_transfer_per_epoch: unchanged");
-    }
-
     Ok(())
 }
 
@@ -3214,45 +3255,6 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_initialize_if_rebalance_config(
-    ctx: Context<InitializeIfRebalanceConfig>,
-    params: IfRebalanceConfigParams,
-) -> Result<()> {
-    let pubkey = ctx.accounts.if_rebalance_config.to_account_info().key;
-    let mut config = ctx.accounts.if_rebalance_config.load_init()?;
-
-    config.pubkey = *pubkey;
-    config.total_in_amount = params.total_in_amount;
-    config.current_in_amount = 0;
-    config.epoch_max_in_amount = params.epoch_max_in_amount;
-    config.epoch_duration = params.epoch_duration;
-    config.out_market_index = params.out_market_index;
-    config.in_market_index = params.in_market_index;
-    config.max_slippage_bps = params.max_slippage_bps;
-    config.swap_mode = params.swap_mode;
-    config.status = 0;
-
-    config.validate()?;
-
-    Ok(())
-}
-
-pub fn handle_update_if_rebalance_config(
-    ctx: Context<UpdateIfRebalanceConfig>,
-    params: IfRebalanceConfigParams,
-) -> Result<()> {
-    let mut config = load_mut!(ctx.accounts.if_rebalance_config)?;
-
-    config.total_in_amount = params.total_in_amount;
-    config.epoch_max_in_amount = params.epoch_max_in_amount;
-    config.epoch_duration = params.epoch_duration;
-    config.max_slippage_bps = params.max_slippage_bps;
-
-    config.validate()?;
-
-    Ok(())
-}
-
 pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
     let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
     perp_market.market_stats.mm_oracle_price = 0;
@@ -3263,16 +3265,16 @@ pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> R
 
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
     // Verify this ix is allowed. State byte offsets (from discriminator start):
-    //   hot_mm_oracle_crank: 392..424
-    //   feature_bit_flags:   1406
+    //   hot_mm_oracle_crank: 360..392
+    //   feature_bit_flags:   1374
     let state = &accounts[3].data.borrow();
-    assert!(state[1406] & 1 > 0, "ix disabled by admin state");
+    assert!(state[1374] & 1 > 0, "ix disabled by admin state");
 
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
     {
         let mut hot_mm_oracle_crank = [0u8; 32];
-        hot_mm_oracle_crank.copy_from_slice(&state[392..424]);
+        hot_mm_oracle_crank.copy_from_slice(&state[360..392]);
         let hot_key = anchor_lang::prelude::Pubkey::new_from_array(hot_mm_oracle_crank);
         assert!(
             signer_account.is_signer && *signer_account.key == hot_key,
@@ -3831,36 +3833,6 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeProtocolIfSharesTransferConfig<'info> {
-    #[account(mut, constraint = check_warm(&admin.key(), &state)?)]
-    pub admin: Signer<'info>,
-    #[account(
-        init,
-        seeds = [b"if_shares_transfer_config".as_ref()],
-        space = ProtocolIfSharesTransferConfig::SIZE,
-        bump,
-        payer = admin
-    )]
-    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
-    pub state: AccountLoader<'info, State>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateProtocolIfSharesTransferConfig<'info> {
-    #[account(mut, constraint = check_warm(&admin.key(), &state)?)]
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"if_shares_transfer_config".as_ref()],
-        bump,
-    )]
-    pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
-    pub state: AccountLoader<'info, State>,
-}
-
-#[derive(Accounts)]
 #[instruction(params: PrelaunchOracleParams,)]
 pub struct InitializePrelaunchOracle<'info> {
     #[account(mut, constraint = check_warm(&admin.key(), &state)?)]
@@ -3956,33 +3928,6 @@ pub struct AdminDeposit<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(params: IfRebalanceConfigParams)]
-pub struct InitializeIfRebalanceConfig<'info> {
-    #[account(mut, constraint = check_warm(&admin.key(), &state)?)]
-    pub admin: Signer<'info>,
-    #[account(
-        init,
-        seeds = [b"if_rebalance_config".as_ref(), params.in_market_index.to_le_bytes().as_ref(), params.out_market_index.to_le_bytes().as_ref()],
-        space = IfRebalanceConfig::SIZE,
-        bump,
-        payer = admin
-    )]
-    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
-    pub state: AccountLoader<'info, State>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateIfRebalanceConfig<'info> {
-    #[account(mut, constraint = check_warm(&admin.key(), &state)?)]
-    pub admin: Signer<'info>,
-    #[account(mut)]
-    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
-    pub state: AccountLoader<'info, State>,
-}
-
-#[derive(Accounts)]
 pub struct UpdateSpecialUserStatus<'info> {
     #[account(constraint = check_hot(&admin.key(), &state, HotRole::UserFlag)?)]
     pub admin: Signer<'info>,
@@ -4031,6 +3976,36 @@ pub fn handle_update_hot_admin(
     let prev = state.hot_key(role);
     state.set_hot_key(role, new_pubkey);
     msg!("hot_admin[{:?}]: {:?} -> {:?}", role, prev, new_pubkey);
+    Ok(())
+}
+
+/// Cold-only. Sets the treasury that protocol fees can be withdrawn to —
+/// perp (quote-denominated) and spot (per-market tokens) recipients are
+/// configured independently via `market_type`.
+pub fn handle_update_protocol_fee_recipient(
+    ctx: Context<ColdAdminUpdateState>,
+    protocol_fee_recipient: Pubkey,
+    market_type: MarketType,
+) -> Result<()> {
+    let mut state = ctx.accounts.state.load_mut()?;
+    match market_type {
+        MarketType::Perp => {
+            msg!(
+                "protocol_fee_recipient_perp: {:?} -> {:?}",
+                state.protocol_fee_recipient_perp,
+                protocol_fee_recipient
+            );
+            state.protocol_fee_recipient_perp = protocol_fee_recipient;
+        }
+        MarketType::Spot => {
+            msg!(
+                "protocol_fee_recipient_spot: {:?} -> {:?}",
+                state.protocol_fee_recipient_spot,
+                protocol_fee_recipient
+            );
+            state.protocol_fee_recipient_spot = protocol_fee_recipient;
+        }
+    }
     Ok(())
 }
 

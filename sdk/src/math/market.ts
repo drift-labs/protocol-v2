@@ -45,11 +45,7 @@ export function calculateReservePrice(
 	market: PerpMarketAccount,
 	mmOraclePriceData?: MMOraclePriceData
 ): BN {
-	const newAmm = calculateUpdatedAMM(
-		market.amm,
-		market.totalExchangeFee,
-		mmOraclePriceData
-	);
+	const newAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
 	return calculatePrice(
 		newAmm.baseAssetReserve,
 		newAmm.quoteAssetReserve,
@@ -72,7 +68,6 @@ export function calculateBidPrice(
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			market.marketStats,
-			market.totalExchangeFee,
 			PositionDirection.SHORT,
 			mmOraclePriceData,
 			latestSlot
@@ -96,7 +91,6 @@ export function calculateAskPrice(
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			market.marketStats,
-			market.totalExchangeFee,
 			PositionDirection.LONG,
 			mmOraclePriceData,
 			latestSlot

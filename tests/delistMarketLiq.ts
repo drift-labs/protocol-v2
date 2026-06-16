@@ -455,7 +455,10 @@ describe('delist market, liquidation of expired position', () => {
 		);
 		assert(market.expiryTs.eq(expiryTs));
 
-		console.log('totalExchangeFee:', market.totalExchangeFee.toString());
+		console.log(
+			'totalExchangeFee:',
+			market.feeLedger.totalExchangeFee.toString()
+		);
 		console.log('totalFee:', market.amm.totalFee.toString());
 		console.log('totalMMFee:', market.amm.totalMmFee.toString());
 		console.log(
@@ -775,9 +778,12 @@ describe('delist market, liquidation of expired position', () => {
 
 		// const ammPnlResult = new BN(0);
 		console.log('feePool:', marketAfter0.amm.feePool.scaledBalance.toString());
-		console.log('totalExchangeFee:', marketAfter0.totalExchangeFee.toString());
+		console.log(
+			'totalExchangeFee:',
+			marketAfter0.feeLedger.totalExchangeFee.toString()
+		);
 		assert(marketAfter0.amm.feePool.scaledBalance.eq(ZERO));
-		assert(marketAfter0.totalExchangeFee.eq(new BN(8712501)));
-		await liquidatorVelocityClientUser.unsubscribe();
+		assert(marketAfter0.feeLedger.totalExchangeFee.eq(new BN(8712501)));
+		await liquidatorDriftClientUser.unsubscribe();
 	});
 });

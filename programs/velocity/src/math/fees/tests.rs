@@ -14,6 +14,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -35,7 +37,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 100000);
         assert_eq!(maker_rebate, 60000);
-        assert_eq!(fee_to_market, 40000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 40000);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -57,6 +61,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -78,7 +84,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 100000);
         assert_eq!(maker_rebate, 60000);
-        assert_eq!(fee_to_market, 30000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 30000);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 10000);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -99,6 +107,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -120,7 +130,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 100000);
         assert_eq!(maker_rebate, 60000);
-        assert_eq!(fee_to_market, 30000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 30000);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 10000);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -141,6 +153,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -162,7 +176,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 100000);
         assert_eq!(maker_rebate, 60000);
-        assert_eq!(fee_to_market, 12200);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 12200);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 27800);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -181,6 +197,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -202,7 +220,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 90000);
         assert_eq!(maker_rebate, 60000);
-        assert_eq!(fee_to_market, 20000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 20000);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 10000);
         assert_eq!(referee_discount, 10000);
@@ -218,6 +238,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -239,7 +261,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 50000);
         assert_eq!(maker_rebate, 30000);
-        assert_eq!(fee_to_market, 20000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 20000);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -248,6 +272,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -269,7 +295,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 150000);
         assert_eq!(maker_rebate, 90000);
-        assert_eq!(fee_to_market, 60000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 60000);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -279,6 +307,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -300,7 +330,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 45000);
         assert_eq!(maker_rebate, 30000);
-        assert_eq!(fee_to_market, 10000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 10000);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 5000);
         assert_eq!(referee_discount, 5000);
@@ -310,6 +342,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -331,7 +365,9 @@ mod calculate_fee_for_taker_and_maker {
 
         assert_eq!(taker_fee, 45000);
         assert_eq!(maker_rebate, 30000);
-        assert_eq!(fee_to_market, 5500);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 5500);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 4500);
         assert_eq!(referrer_reward, 5000);
         assert_eq!(referee_discount, 5000);
@@ -347,6 +383,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -369,6 +407,8 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(taker_fee, 0);
         assert_eq!(maker_rebate, 0);
         assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 0);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -377,6 +417,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -399,6 +441,8 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(taker_fee, 0);
         assert_eq!(maker_rebate, 0);
         assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 0);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -407,6 +451,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -429,6 +475,8 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(taker_fee, 0);
         assert_eq!(maker_rebate, 0);
         assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 0);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -438,6 +486,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -460,6 +510,8 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(taker_fee, 0);
         assert_eq!(maker_rebate, 0);
         assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 0);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -469,6 +521,8 @@ mod calculate_fee_for_taker_and_maker {
             user_fee: taker_fee,
             maker_rebate,
             fee_to_market,
+            protocol_fee,
+            if_fee,
             filler_reward,
             referee_discount,
             referrer_reward,
@@ -491,6 +545,8 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(taker_fee, 0);
         assert_eq!(maker_rebate, 0);
         assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 0);
+        assert_eq!(if_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -516,6 +572,9 @@ mod calculate_fee_for_order_fulfill_against_amm {
             filler_reward,
             referee_discount,
             referrer_reward,
+            protocol_fee,
+            if_fee,
+            amm_fee,
             ..
         } = calculate_fee_for_fulfillment_with_amm(
             &taker_stats,
@@ -533,7 +592,12 @@ mod calculate_fee_for_order_fulfill_against_amm {
         .unwrap();
 
         assert_eq!(user_fee, 90000);
-        assert_eq!(fee_to_market, 80000);
+        // amm numerator is 0 in test_default: the AMM books nothing; the full
+        // 80000 remainder is the protocol's residual carveout
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 80000);
+        assert_eq!(if_fee, 0);
+        assert_eq!(amm_fee, 0);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 10000);
         assert_eq!(referee_discount, 10000);
@@ -552,6 +616,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             filler_reward,
             referee_discount,
             referrer_reward,
+            protocol_fee,
             ..
         } = calculate_fee_for_fulfillment_with_amm(
             &taker_stats,
@@ -569,7 +634,8 @@ mod calculate_fee_for_order_fulfill_against_amm {
         .unwrap();
 
         assert_eq!(user_fee, 50000);
-        assert_eq!(fee_to_market, 50000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 50000);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -580,6 +646,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             filler_reward,
             referee_discount,
             referrer_reward,
+            protocol_fee,
             ..
         } = calculate_fee_for_fulfillment_with_amm(
             &taker_stats,
@@ -597,7 +664,8 @@ mod calculate_fee_for_order_fulfill_against_amm {
         .unwrap();
 
         assert_eq!(user_fee, 150000);
-        assert_eq!(fee_to_market, 150000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 150000);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -609,6 +677,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             filler_reward,
             referee_discount,
             referrer_reward,
+            protocol_fee,
             ..
         } = calculate_fee_for_fulfillment_with_amm(
             &taker_stats,
@@ -626,7 +695,8 @@ mod calculate_fee_for_order_fulfill_against_amm {
         .unwrap();
 
         assert_eq!(user_fee, 45000);
-        assert_eq!(fee_to_market, 40000);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 40000);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 5000);
         assert_eq!(referee_discount, 5000);
@@ -638,6 +708,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             filler_reward,
             referee_discount,
             referrer_reward,
+            protocol_fee,
             ..
         } = calculate_fee_for_fulfillment_with_amm(
             &taker_stats,
@@ -655,7 +726,8 @@ mod calculate_fee_for_order_fulfill_against_amm {
         .unwrap();
 
         assert_eq!(user_fee, 45000);
-        assert_eq!(fee_to_market, 35500);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(protocol_fee, 35500);
         assert_eq!(filler_reward, 4500);
         assert_eq!(referrer_reward, 5000);
         assert_eq!(referee_discount, 5000);
@@ -745,7 +817,8 @@ mod calcuate_fee_tiers {
                 _padding: [0; 8],
             },
             flat_filler_fee: 10_000,
-            padding: 0,
+            amm_fee_numerator: 0,
+            if_fee_numerator: 0,
         };
 
         let res = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp).unwrap();

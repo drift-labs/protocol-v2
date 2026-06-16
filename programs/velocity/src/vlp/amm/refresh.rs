@@ -344,14 +344,10 @@ pub fn apply_cost_to_market(
     cost: i128,
     check_lower_bound: bool,
 ) -> VelocityResult<bool> {
-    // Compute the protocol's reserved floor from PerpMarket-level state
-    // (fields the AMM trait surface can't see), then dispatch the actual
-    // bookkeeping to the AMM's `apply_cost` method. No direct AMM field
-    // writes happen at this layer.
-    let total_fee_floor = market.amm.protocol_floor()?;
-    market
-        .amm
-        .apply_cost(cost, check_lower_bound, total_fee_floor)
+    // Dispatch the bookkeeping to the AMM's `apply_cost` method (floor is
+    // zero: tfmd contains only the AMM's own equity post-isolation). No
+    // direct AMM field writes happen at this layer.
+    market.amm.apply_cost(cost, check_lower_bound)
 }
 
 pub fn settle_expired_market(
@@ -380,12 +376,9 @@ pub fn settle_expired_market(
     )?;
 
     let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
-    let fee_reserved_for_protocol = market.amm.protocol_floor()?;
-    let budget = market
-        .amm
-        .total_fee_minus_distributions
-        .safe_sub(fee_reserved_for_protocol)?
-        .max(0);
+    // tfmd contains only the AMM's own equity post-isolation: the whole
+    // surplus is spendable on the expiry settlement (no protocol floor)
+    let budget = market.amm.total_fee_minus_distributions.max(0);
 
     let available_fee_pool = get_token_amount(
         market.amm.fee_pool.scaled_balance,
@@ -393,7 +386,6 @@ pub fn settle_expired_market(
         &SpotBalanceType::Deposit,
     )?
     .cast::<i128>()?
-    .safe_sub(fee_reserved_for_protocol)?
     .max(0);
 
     let fee_pool_transfer = budget.min(available_fee_pool);

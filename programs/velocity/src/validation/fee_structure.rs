@@ -31,11 +31,30 @@ pub fn validate_fee_structure(fee_structure: &FeeStructure) -> VelocityResult {
         fee_structure.filler_reward_structure.reward_denominator
     )?;
 
+    // The flat filler reward may not exceed the open-order margin floor
+    // (else fillers could farm dust orders profitably). `<=` so the shipped
+    // default (flat_filler_fee == OPEN_ORDER_MARGIN_REQUIREMENT == 1 cent)
+    // round-trips through fetch-modify-update flows.
     validate!(
-        fee_structure.flat_filler_fee < OPEN_ORDER_MARGIN_REQUIREMENT as u64 / 2,
+        fee_structure.flat_filler_fee <= OPEN_ORDER_MARGIN_REQUIREMENT as u64,
         ErrorCode::InvalidFeeStructure,
         "invalid flat filler fee {}",
         fee_structure.flat_filler_fee
+    )?;
+
+    // AMM/IF carveouts of the trade-fee remainder must not exceed 100%
+    // (the protocol receives the residual). If they did, the splits would
+    // underflow / over-accrue against what was actually collected.
+    validate!(
+        fee_structure
+            .amm_fee_numerator
+            .saturating_add(fee_structure.if_fee_numerator)
+            <= FEE_PERCENTAGE_DENOMINATOR,
+        ErrorCode::InvalidFeeStructure,
+        "amm_fee_numerator ({}) + if_fee_numerator ({}) exceeds {}",
+        fee_structure.amm_fee_numerator,
+        fee_structure.if_fee_numerator,
+        FEE_PERCENTAGE_DENOMINATOR
     )?;
 
     Ok(())

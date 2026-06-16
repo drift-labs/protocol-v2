@@ -12,10 +12,20 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotMarket};
 use crate::vlp::amm::math::amm::calculate_net_user_pnl;
 
-/// Recompute the AMM's `total_fee_minus_distributions` summary value from
-/// underlying pool balances, the AMM's net counterparty PnL, and accumulated
-/// liquidation fees. Used by admin and repeg paths to correct integer-math
-/// velocity that accumulates in `amm.total_fee_minus_distributions` over time.
+/// Recompute the AMM's `total_fee_minus_distributions` summary value from the
+/// market's balance-sheet identity. Used by admin paths to correct
+/// integer-math drift that accumulates in `amm.total_fee_minus_distributions`
+/// over time.
+///
+/// Identity: everything the market's pools hold that is neither claimable by
+/// users (`net_user_pnl`) nor earmarked for the protocol / insurance fund
+/// (the pending counters) is the AMM's equity. `pending_amm_provision` is
+/// deliberately NOT subtracted — the provision is already booked into tfmd at
+/// fill while its token backing (counted in the pools) waits in the pnl pool
+/// for tokenization; subtracting both sides would double-count it. The same
+/// symmetry is why liquidation fees need no special handling: their accrual
+/// raises the pendings exactly as it lowers `net_user_pnl`, and the sweep
+/// lowers the pendings exactly as it drains pool tokens.
 ///
 /// Returns the recomputed value; callers decide whether to overwrite the
 /// stored field.
@@ -23,7 +33,6 @@ pub fn calculate_perp_market_amm_summary_stats(
     perp_market: &PerpMarket,
     spot_market: &SpotMarket,
     perp_market_oracle_price: i64,
-    exclude_liquidation_fee: bool,
 ) -> VelocityResult<i128> {
     let pnl_pool_token_amount = get_token_amount(
         perp_market.pnl_pool.scaled_balance,
@@ -44,13 +53,8 @@ pub fn calculate_perp_market_amm_summary_stats(
         perp_market.net_unsettled_funding_pnl,
     )?;
 
-    // amm's mm_fee can be incorrect with drifting integer math error
-    let mut new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;
-
-    if exclude_liquidation_fee {
-        new_total_fee_minus_distributions = new_total_fee_minus_distributions
-            .safe_sub(perp_market.total_liquidation_fee.cast()?)?;
-    }
-
-    Ok(new_total_fee_minus_distributions)
+    pnl_tokens_available
+        .safe_sub(net_user_pnl)?
+        .safe_sub(perp_market.fee_ledger.pending_protocol_fee.cast()?)?
+        .safe_sub(perp_market.fee_ledger.pending_if_fee.cast()?)
 }

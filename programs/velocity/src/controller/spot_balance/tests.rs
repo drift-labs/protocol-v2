@@ -9,11 +9,12 @@ use crate::controller::spot_position::update_spot_balances_and_cumulative_deposi
 use crate::create_anchor_account_info;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-    PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-    QUOTE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION,
-    SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION,
+    AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, IF_FACTOR_PRECISION,
+    LIQUIDATION_FEE_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
+    QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
+    SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION, SPOT_UTILIZATION_PRECISION_U32,
+    SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
@@ -824,8 +825,7 @@ fn check_fee_collection() {
         ..User::default()
     };
 
-    spot_market.insurance_fund.user_factor = 900;
-    spot_market.insurance_fund.total_factor = 1000; //1_000_000
+    spot_market.insurance_fund.if_fee_factor = 1000; //1_000_000
 
     assert_eq!(spot_market.utilization_twap, 0);
     assert_eq!(spot_market.deposit_balance, 1000000000);
@@ -980,7 +980,9 @@ fn check_fee_collection() {
 
     assert_eq!(settle_amount, 626);
     assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
+    // no-staker bootstrap: total_shares is seeded 1:1 with the IF vault balance
+    // (protocol-owned backstop, share price ~1) so the first staker isn't griefed.
+    assert_eq!(spot_market.insurance_fund.total_shares, 2941);
     assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
     assert_eq!(spot_market.utilization_twap, 462005);
@@ -1189,8 +1191,7 @@ fn check_fee_collection_larger_nums() {
         ..User::default()
     };
 
-    spot_market.insurance_fund.user_factor = 90_000;
-    spot_market.insurance_fund.total_factor = 100_000;
+    spot_market.insurance_fund.if_fee_factor = 100_000;
 
     assert_eq!(spot_market.utilization_twap, 0);
     assert_eq!(
@@ -1352,7 +1353,8 @@ fn check_fee_collection_larger_nums() {
     .unwrap();
     assert_eq!(settle_amount, 229739282275);
     assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
+    // no-staker bootstrap: total_shares seeded 1:1 with IF vault balance.
+    assert_eq!(spot_market.insurance_fund.total_shares, 1328226103953);
     if_balance_2 += settle_amount;
     assert_eq!(if_balance_2, 229739282275);
     assert_eq!(if_tokens_3 - (settle_amount as u128), 868747539403); // w/ update interest for settle_spot_market_to_if
@@ -2025,4 +2027,70 @@ fn isolated_perp_position() {
     );
 
     assert_eq!(result, Err(ErrorCode::CantUpdateSpotBalanceType));
+}
+
+/// The lending three-way split: deposit-interest gains are carved into the
+/// staker-owned IF (`if_fee_factor` -> revenue_pool) and the withdrawable
+/// protocol cut (`protocol_fee_factor` -> protocol_fee_pool), with lenders
+/// receiving the rest. Equal factors must produce exactly equal pools (the
+/// protocol path mirrors the IF path's math and rounding), and both pools are
+/// Deposit-type claims counted inside `deposit_balance` — the combined
+/// `validate_spot_balances` tripwire must hold afterwards.
+#[test]
+fn lending_interest_carveout_three_way_split() {
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 1000 * SPOT_BALANCE_PRECISION,
+        borrow_balance: 500 * SPOT_BALANCE_PRECISION,
+        deposit_token_twap: 1000 * QUOTE_PRECISION_U64,
+        optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
+        optimal_borrow_rate: SPOT_RATE_PRECISION_U32 / 10, // 10% APR at optimal
+        max_borrow_rate: SPOT_RATE_PRECISION_U32,
+        // 10% to the IF, 10% to the protocol, 80% to lenders
+        protocol_fee_factor: (IF_FACTOR_PRECISION / 10) as u32,
+        insurance_fund: InsuranceFund {
+            if_fee_factor: (IF_FACTOR_PRECISION / 10) as u32,
+            ..InsuranceFund::default()
+        },
+        status: MarketStatus::Active,
+        ..SpotMarket::default()
+    };
+
+    let deposit_interest_before = spot_market.cumulative_deposit_interest;
+    let borrow_interest_before = spot_market.cumulative_borrow_interest;
+
+    // a year of interest at 50% utilization
+    update_spot_market_cumulative_interest(&mut spot_market, None, 60 * 60 * 24 * 365).unwrap();
+
+    assert!(
+        spot_market.cumulative_borrow_interest > borrow_interest_before,
+        "borrowers paid no interest"
+    );
+    assert!(
+        spot_market.cumulative_deposit_interest > deposit_interest_before,
+        "lenders received no interest"
+    );
+    assert!(
+        spot_market.revenue_pool.scaled_balance > 0,
+        "IF carveout did not accrue"
+    );
+    assert!(
+        spot_market.protocol_fee_pool.scaled_balance > 0,
+        "protocol carveout did not accrue"
+    );
+    // equal factors -> exactly equal carveouts (identical math path)
+    assert_eq!(
+        spot_market.protocol_fee_pool.scaled_balance,
+        spot_market.revenue_pool.scaled_balance
+    );
+
+    // both pools are Deposit-type subsets counted inside deposit_balance:
+    // the combined corruption tripwire must accept the post-accrual state
+    crate::math::spot_withdraw::validate_spot_balances(&spot_market).unwrap();
 }

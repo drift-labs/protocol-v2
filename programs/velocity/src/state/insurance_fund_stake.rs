@@ -1,7 +1,5 @@
 use crate::error::ErrorCode;
 use crate::error::VelocityResult;
-use crate::math::constants::EPOCH_DURATION;
-use crate::math::safe_math::SafeMath;
 use crate::math_error;
 use crate::safe_decrement;
 use crate::safe_increment;
@@ -9,9 +7,6 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
-
-#[cfg(test)]
-mod tests;
 
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
@@ -90,68 +85,6 @@ impl InsuranceFundStake {
     ) -> VelocityResult {
         self.validate_base(spot_market)?;
         self.if_shares = new_shares;
-
-        Ok(())
-    }
-}
-
-#[account(zero_copy(unsafe))]
-#[derive(Default, Eq, PartialEq, Debug)]
-#[repr(C)]
-pub struct ProtocolIfSharesTransferConfig {
-    pub whitelisted_signers: [Pubkey; 4],
-    pub max_transfer_per_epoch: u128,
-    pub current_epoch_transfer: u128,
-    pub next_epoch_ts: i64,
-    pub padding: [u128; 8],
-}
-
-// implement SIZE const for ProtocolIfSharesTransferConfig
-impl Size for ProtocolIfSharesTransferConfig {
-    const SIZE: usize = 304;
-}
-
-impl ProtocolIfSharesTransferConfig {
-    pub fn validate_signer(&self, signer: &Pubkey) -> VelocityResult {
-        validate!(
-            self.whitelisted_signers.contains(signer) && *signer != Pubkey::default(),
-            ErrorCode::DefaultError,
-            "signer {} not whitelisted",
-            signer
-        )?;
-
-        Ok(())
-    }
-
-    pub fn update_epoch(&mut self, now: i64) -> VelocityResult {
-        if now > self.next_epoch_ts {
-            let n_epoch_durations = now
-                .safe_sub(self.next_epoch_ts)?
-                .safe_div(EPOCH_DURATION)?
-                .safe_add(1)?;
-
-            self.next_epoch_ts = self
-                .next_epoch_ts
-                .safe_add(EPOCH_DURATION.safe_mul(n_epoch_durations)?)?;
-
-            self.current_epoch_transfer = 0;
-        }
-
-        Ok(())
-    }
-
-    pub fn validate_transfer(&self, requested_transfer: u128) -> VelocityResult {
-        let max_transfer = self
-            .max_transfer_per_epoch
-            .saturating_sub(self.current_epoch_transfer);
-
-        validate!(
-            requested_transfer < max_transfer,
-            ErrorCode::DefaultError,
-            "requested transfer {} exceeds max transfer {}",
-            requested_transfer,
-            max_transfer
-        )?;
 
         Ok(())
     }

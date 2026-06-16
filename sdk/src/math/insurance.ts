@@ -18,13 +18,11 @@ export function nextRevenuePoolSettleApr(
 	);
 
 	const payoutRatio = 0.1;
-	const ratioForStakers =
-		spotMarket.insuranceFund.totalFactor > 0 &&
-		spotMarket.insuranceFund.userFactor > 0 &&
-		spotMarket.insuranceFund.revenueSettlePeriod.gt(ZERO)
-			? spotMarket.insuranceFund.userFactor /
-			  spotMarket.insuranceFund.totalFactor
-			: 0;
+	// the insurance fund is 100% staker-owned: every settled token accrues to
+	// stakers as share-price appreciation (no protocol split)
+	const ratioForStakers = spotMarket.insuranceFund.revenueSettlePeriod.gt(ZERO)
+		? 1
+		: 0;
 
 	// Settle periods from on-chain data:
 	const revSettlePeriod =

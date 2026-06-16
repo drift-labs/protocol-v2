@@ -16,8 +16,6 @@ import {
 	SpotMarketVaultDepositRecord,
 	SignedMsgOrderRecord,
 	DeleteUserRecord,
-	InsuranceFundSwapRecord,
-	TransferProtocolIfSharesToRevenuePoolRecord,
 	LPMintRedeemRecord,
 	LPSettleRecord,
 	LPSwapRecord,
@@ -57,8 +55,6 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'SpotMarketVaultDepositRecord',
 		'SignedMsgOrderRecord',
 		'DeleteUserRecord',
-		'InsuranceFundSwapRecord',
-		'TransferProtocolIfSharesToRevenuePoolRecord',
 		'LPMintRedeemRecord',
 		'LPSettleRecord',
 		'LPSwapRecord',
@@ -106,8 +102,6 @@ export type EventMap = {
 	SpotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
 	SignedMsgOrderRecord: Event<SignedMsgOrderRecord>;
 	DeleteUserRecord: Event<DeleteUserRecord>;
-	InsuranceFundSwapRecord: Event<InsuranceFundSwapRecord>;
-	TransferProtocolIfSharesToRevenuePoolRecord: Event<TransferProtocolIfSharesToRevenuePoolRecord>;
 	LPSettleRecord: Event<LPSettleRecord>;
 	LPMintRedeemRecord: Event<LPMintRedeemRecord>;
 	LPSwapRecord: Event<LPSwapRecord>;
@@ -132,8 +126,6 @@ export type VelocityEvent =
 	| Event<SpotMarketVaultDepositRecord>
 	| Event<SignedMsgOrderRecord>
 	| Event<DeleteUserRecord>
-	| Event<InsuranceFundSwapRecord>
-	| Event<TransferProtocolIfSharesToRevenuePoolRecord>
 	| Event<LPSettleRecord>
 	| Event<LPMintRedeemRecord>
 	| Event<LPSwapRecord>

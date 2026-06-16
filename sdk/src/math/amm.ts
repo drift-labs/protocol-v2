@@ -54,7 +54,6 @@ export function calculatePegFromTargetPrice(
 
 export function calculateOptimalPegAndBudget(
 	amm: AMM,
-	totalExchangeFee: BN,
 	mmOraclePriceData: MMOraclePriceData
 ): [BN, BN, BN, boolean] {
 	const reservePriceBefore = calculatePrice(
@@ -70,8 +69,9 @@ export function calculateOptimalPegAndBudget(
 	);
 	const prePegCost = calculateRepegCost(amm, newPeg);
 
-	const totalFeeLB = totalExchangeFee.div(new BN(2));
-	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions.sub(totalFeeLB));
+	// no protocol floor post-isolation: tfmd contains only the AMM's own
+	// equity and is fully spendable on the repeg
+	const budget = BN.max(ZERO, amm.totalFeeMinusDistributions);
 
 	let checkLowerBound = true;
 	if (budget.lt(prePegCost)) {
@@ -104,9 +104,9 @@ export function calculateOptimalPegAndBudget(
 			checkLowerBound = false;
 
 			return [newTargetPrice, newOptimalPeg, newBudget, false];
-		} else if (
-			amm.totalFeeMinusDistributions.lt(totalExchangeFee.div(new BN(2)))
-		) {
+		} else if (budget.eq(ZERO)) {
+			// mirrors the program: budget = max(0, tfmd), so a zero budget
+			// means the AMM has no equity to spend (no floor post-isolation)
 			checkLowerBound = false;
 		}
 	}
@@ -116,14 +116,13 @@ export function calculateOptimalPegAndBudget(
 
 export function calculateNewAmm(
 	amm: AMM,
-	totalExchangeFee: BN,
 	mmOraclePriceData: MMOraclePriceData
 ): [BN, BN, BN, BN] {
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
 	const [targetPrice, _newPeg, budget, _checkLowerBound] =
-		calculateOptimalPegAndBudget(amm, totalExchangeFee, mmOraclePriceData);
+		calculateOptimalPegAndBudget(amm, mmOraclePriceData);
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
 
@@ -159,7 +158,6 @@ export function calculateNewAmm(
 
 export function calculateUpdatedAMM(
 	amm: AMM,
-	totalExchangeFee: BN,
 	mmOraclePriceData?: MMOraclePriceData
 ): AMM {
 	if (amm.curveUpdateIntensity == 0 || mmOraclePriceData === undefined) {
@@ -168,7 +166,6 @@ export function calculateUpdatedAMM(
 	const newAmm = Object.assign({}, amm);
 	const [prepegCost, pKNumer, pKDenom, newPeg] = calculateNewAmm(
 		amm,
-		totalExchangeFee,
 		mmOraclePriceData
 	);
 
@@ -202,12 +199,11 @@ export function calculateUpdatedAMM(
 export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
 	marketStats: MarketStats,
-	totalExchangeFee: BN,
 	direction: PositionDirection,
 	mmOraclePriceData?: MMOraclePriceData,
 	latestSlot?: BN
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculateUpdatedAMM(amm, totalExchangeFee, mmOraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
 		marketStats,
@@ -233,14 +229,13 @@ export function calculateUpdatedAMMSpreadReserves(
 export function calculateBidAskPrice(
 	amm: AMM,
 	marketStats: MarketStats,
-	totalExchangeFee: BN,
 	mmOraclePriceData: MMOraclePriceData,
 	withUpdate = true,
 	latestSlot?: BN
 ): [BN, BN] {
 	let newAmm: AMM;
 	if (withUpdate) {
-		newAmm = calculateUpdatedAMM(amm, totalExchangeFee, mmOraclePriceData);
+		newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
 	} else {
 		newAmm = amm;
 	}

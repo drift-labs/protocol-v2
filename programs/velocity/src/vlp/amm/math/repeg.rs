@@ -10,8 +10,7 @@ use crate::math::bn;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, PEG_PRECISION_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_NUMERATOR,
+    PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::oracle;
 use crate::math::oracle::OracleValidity;
@@ -412,29 +411,12 @@ pub fn calculate_optimal_peg_and_budget(
     Ok((optimal_peg, fee_budget, check_lower_bound))
 }
 
-/// Surplus the AMM can spend before hitting `protocol_floor`. AMM-only;
-/// see [`AMM::protocol_floor`] for the floor semantics.
+/// Surplus the AMM can spend on curve adjustments: its own retained equity.
+/// tfmd contains only the AMM's money post-isolation, so there is no
+/// protocol floor to reserve — the drawdown breaker and `is_underwater`
+/// remain the spending guards.
 pub fn calculate_fee_pool(amm: &AMM) -> VelocityResult<u128> {
-    let floor = amm.protocol_floor()?;
-    let fee_pool = if amm.total_fee_minus_distributions > floor {
-        amm.total_fee_minus_distributions.safe_sub(floor)?.cast()?
-    } else {
-        0
-    };
-    Ok(fee_pool)
-}
-
-/// Gross share of *all market-wide* fees the protocol retains for the
-/// insurance fund (before netting against AMM withdrawals). Distinct from
-/// `AMM::protocol_floor` / `AMM::total_fee_lower_bound` which are AMM-only
-/// and feed the AMM's own spending budget — this market-wide variant is
-/// what `controller::perp_pools::calculate_revenue_pool_transfer` uses to
-/// size the IF claim, which legitimately includes DLOB-fill fees too.
-pub fn get_total_fee_lower_bound(market: &PerpMarket) -> VelocityResult<u128> {
-    market
-        .total_exchange_fee
-        .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_NUMERATOR)?
-        .safe_div(SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_DENOMINATOR)
+    Ok(amm.total_fee_minus_distributions.max(0).cast()?)
 }
 
 /// PerpMarket-level scalars `project_post_refresh` needs but the AMM
@@ -557,7 +539,7 @@ impl ProjectedAmmState {
 /// Pure projection of "what (peg, reserves, sqrt_k) would the AMM be at if it
 /// refreshed right now?" — no mutation. Composes the existing
 /// `calculate_optimal_peg_and_budget` + `adjust_amm` pipeline and resolves
-/// the affordability check (`check_lower_bound` against `protocol_floor`) so
+/// the affordability check (`check_lower_bound` against zero) so
 /// callers receive the final values that would be written. Used by quote
 /// functions (read-only) and by `commit_fill` / `snap_to_oracle` (apply).
 pub fn project_post_refresh(
@@ -595,15 +577,13 @@ pub fn project_post_refresh(
         fee_budget,
         curve_update_intensity >= 100,
     )?;
-    let total_fee_floor = market.amm.protocol_floor()?;
-
     // Affordability: positive cost debits `total_fee_minus_distributions`;
-    // if `check_lower_bound` is set and the debit would push below the floor,
+    // if `check_lower_bound` is set and the debit would push tfmd negative,
     // the refresh is rejected. Matches `handle_refresh` / legacy
     // `apply_cost_to_market` semantics.
     let applied = if cost > 0 {
         let new_tfmd = market.amm.total_fee_minus_distributions.safe_sub(cost)?;
-        !(check_lower_bound && new_tfmd < total_fee_floor)
+        !(check_lower_bound && new_tfmd < 0)
     } else {
         true
     };

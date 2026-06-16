@@ -30,14 +30,10 @@ pub struct FundingMarketInputs {
     pub base_asset_amount_long: i128,
     /// Top-level `PerpMarket.base_asset_amount_short`.
     pub base_asset_amount_short: i128,
-    /// AMM-side `total_fee_minus_distributions` at decision time.
+    /// AMM-side `total_fee_minus_distributions` at decision time. Contains
+    /// ONLY the AMM's own equity — protocol/IF carveouts never enter it — so
+    /// funding may spend it down to zero.
     pub total_fee_minus_distributions: i128,
-    /// AMM-side `total_fee_withdrawn` (used by `calculate_fee_pool`).
-    pub total_fee_withdrawn: u128,
-    /// Top-level `PerpMarket.total_exchange_fee`.
-    pub total_exchange_fee: u128,
-    /// Top-level `PerpMarket.total_liquidation_fee`.
-    pub total_liquidation_fee: u128,
 }
 
 impl FundingMarketInputs {
@@ -52,41 +48,19 @@ impl FundingMarketInputs {
             base_asset_amount_long: market.base_asset_amount_long,
             base_asset_amount_short: market.base_asset_amount_short,
             total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
-            total_fee_withdrawn: market.amm.total_fee_withdrawn,
-            total_exchange_fee: market.total_exchange_fee,
-            total_liquidation_fee: market.total_liquidation_fee,
         }
     }
 
-    /// Protocol-retained floor on `total_fee_minus_distributions`. Mirrors
-    /// `repeg::get_total_fee_lower_bound(market)`.
-    pub fn total_fee_lower_bound(&self) -> VelocityResult<u128> {
-        use crate::math::constants::{
-            SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_DENOMINATOR,
-            SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_NUMERATOR,
-        };
-        self.total_exchange_fee
-            .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_NUMERATOR)?
-            .safe_div(SHARE_OF_FEES_ALLOCATED_TO_VELOCITY_DENOMINATOR)
-    }
-
-    /// Amount the protocol can spend on negative funding before hitting
-    /// its lower bound. Mirrors `repeg::calculate_fee_pool(market)`.
-    fn fee_pool(&self) -> VelocityResult<u128> {
-        let lower_bound_with_liq = self
-            .total_fee_lower_bound()?
-            .safe_add(self.total_liquidation_fee)?
-            .safe_sub(self.total_fee_withdrawn)?
-            .cast::<i128>()
-            .unwrap_or(0);
-        let pool = if self.total_fee_minus_distributions > lower_bound_with_liq {
-            self.total_fee_minus_distributions
-                .safe_sub(lower_bound_with_liq)?
-                .cast()?
-        } else {
-            0
-        };
-        Ok(pool)
+    /// Per-period budget for AMM-paid (negative) funding: 1/3 of the AMM's
+    /// retained equity per funding period, so a sustained imbalance can't
+    /// drain it in one settle. (The pre-isolation version also floored this
+    /// at the protocol/IF pendings that used to live inside tfmd; they no
+    /// longer do.) Mirrored by the SDK's `calculateFundingPool`.
+    fn available_fees(&self) -> VelocityResult<u128> {
+        self.total_fee_minus_distributions
+            .max(0)
+            .unsigned_abs()
+            .safe_div(3)
     }
 }
 
@@ -137,7 +111,8 @@ pub fn calculate_funding_rate_long_short(
 }
 
 /// Reject a funding update that would push `total_fee_minus_distributions`
-/// below the protocol-retained floor. Called by the orchestrator after
+/// negative — funding may spend the AMM's own equity but not drive it
+/// underwater. Called by the orchestrator after
 /// `calculate_funding_rate_long_short` and before dispatching
 /// `FundingUpdated`.
 pub fn validate_funding_pnl_profitability(
@@ -149,13 +124,10 @@ pub fn validate_funding_pnl_profitability(
     }
     let projected_total_fee_minus_distributions =
         inputs.total_fee_minus_distributions.safe_add(funding_pnl)?;
-    let total_fee_minus_distributions_lower_bound =
-        inputs.total_fee_lower_bound()?.cast::<i128>()?;
-    if projected_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
+    if projected_total_fee_minus_distributions < 0 {
         msg!(
-            "new_total_fee_minus_distributions={} < total_fee_minus_distributions_lower_bound={}",
+            "new_total_fee_minus_distributions={} < 0",
             projected_total_fee_minus_distributions,
-            total_fee_minus_distributions_lower_bound
         );
         return Err(ErrorCode::InvalidFundingProfitability);
     }
@@ -167,11 +139,9 @@ fn calculate_capped_funding_rate(
     uncapped_funding_pnl: i128, // if negative, users would net receive from protocol
     funding_rate: i128,
 ) -> VelocityResult<(i128, i128)> {
-    // The funding_rate_pnl_limit is the amount of fees the protocol can use before it hits it's lower bound
-    let fee_pool = inputs.fee_pool()?;
-
-    // limit to 1/3 of current fee pool per funding period
-    let funding_rate_pnl_limit = -fee_pool.cast::<i128>()?.safe_div(3)?;
+    // the most the AMM may pay out this period (already throttled to 1/3 of
+    // its retained equity by `available_fees`)
+    let funding_rate_pnl_limit = -inputs.available_fees()?.cast::<i128>()?;
 
     // if theres enough in fees, give user's uncapped funding
     // if theres a little/nothing in fees, give the user's capped outflow funding

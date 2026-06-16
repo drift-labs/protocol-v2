@@ -331,15 +331,32 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> VelocityResult<i64> {
     )?
     .cast()?;
 
+    let protocol_fee_amount: u64 = get_token_amount(
+        spot_market.protocol_fee_pool.scaled_balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?
+    .cast()?;
+
     let depositors_claim = depositors_amount
         .cast::<i64>()?
         .safe_sub(borrowers_amount.cast()?)?;
 
+    // revenue_pool and protocol_fee_pool are Deposit-type balances counted
+    // INSIDE deposit_balance (crediting a pool also credits the market
+    // total), so these disjoint subsets summed can never exceed the total.
+    // This is a corruption tripwire (a pool credited without the total, or
+    // the total debited without the pool), not an economic cap — depositor
+    // protection is the vault check (`validate_spot_market_vault_amount`)
+    // and the withdraw paths. Perp-market pools also live inside
+    // deposit_balance but are not visible from the spot account alone, so
+    // this check is necessarily partial.
     validate!(
-        revenue_amount <= depositors_amount,
+        revenue_amount.safe_add(protocol_fee_amount)? <= depositors_amount,
         ErrorCode::SpotMarketVaultInvariantViolated,
-        "revenue_amount={} greater or equal to the depositors_amount={} (depositors_claim={}, spot_market.deposit_balance={})",
+        "revenue_amount={} + protocol_fee_amount={} greater than depositors_amount={} (depositors_claim={}, spot_market.deposit_balance={})",
         revenue_amount,
+        protocol_fee_amount,
         depositors_amount,
         depositors_claim,
         spot_market.deposit_balance

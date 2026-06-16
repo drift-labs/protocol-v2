@@ -450,7 +450,11 @@ export function calculateDepositRate(
 	const utilization = currentUtilization ?? calculateUtilization(bank, delta);
 	const borrowRate = calculateBorrowRate(bank, delta, utilization);
 	const depositRate = borrowRate
-		.mul(PERCENTAGE_PRECISION.sub(new BN(bank.insuranceFund.totalFactor)))
+		.mul(
+			PERCENTAGE_PRECISION.sub(
+				new BN(bank.insuranceFund.ifFeeFactor + bank.protocolFeeFactor)
+			)
+		)
 		.mul(utilization)
 		.div(SPOT_MARKET_UTILIZATION_PRECISION)
 		.div(PERCENTAGE_PRECISION);

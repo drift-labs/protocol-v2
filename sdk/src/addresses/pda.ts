@@ -6,7 +6,6 @@
  */
 import { PublicKey } from '@solana/web3.js';
 import * as anchor from '../isomorphic/anchor';
-import { BN } from '../isomorphic/anchor';
 import {
 	getAssociatedTokenAddress,
 	TOKEN_2022_PROGRAM_ID,
@@ -229,15 +228,6 @@ export function getReferrerNamePublicKeySync(
 	)[0];
 }
 
-export function getProtocolIfSharesTransferConfigPublicKey(
-	programId: PublicKey
-): PublicKey {
-	return PublicKey.findProgramAddressSync(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('if_shares_transfer_config'))],
-		programId
-	)[0];
-}
-
 export function getPrelaunchOraclePublicKey(
 	programId: PublicKey,
 	marketIndex: number
@@ -275,21 +265,6 @@ export function getTokenProgramForSpotMarket(
 		return TOKEN_2022_PROGRAM_ID;
 	}
 	return TOKEN_PROGRAM_ID;
-}
-
-export function getIfRebalanceConfigPublicKey(
-	programId: PublicKey,
-	inMarketIndex: number,
-	outMarketIndex: number
-): PublicKey {
-	return PublicKey.findProgramAddressSync(
-		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('if_rebalance_config')),
-			new BN(inMarketIndex).toArrayLike(Buffer, 'le', 2),
-			new BN(outMarketIndex).toArrayLike(Buffer, 'le', 2),
-		],
-		programId
-	)[0];
 }
 
 export function getRevenueShareAccountPublicKey(

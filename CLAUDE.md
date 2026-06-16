@@ -38,6 +38,10 @@ cd sdk/ && bun install && bun run build
 
 NEVER hand-edit `sdk/src/idl/velocity.json` or `sdk/src/idl/velocity.ts` — they are generated artifacts. To change them, modify the Rust program and regenerate (`bun run program:build`, or `bun run program:idl` for the fast path). Manual edits will silently drift from on-chain layout and break clients. Note a full `anchor build` already emits both `target/idl/velocity.json` and `target/types/velocity.ts`; the scripts just copy them into `sdk/src/idl/` — no separate `anchor idl build`/`anchor idl type` step is needed after a full build.
 
+**Update the admin CLI when admin instructions change:**
+
+`cli-admin/` wraps the admin/keeper surface. Whenever admin instructions are added, removed, renamed, or change signature, update the CLI in the same change: add/remove the dedicated wrapper in `cli-admin/src/commands/` (mirroring the existing command style), update `cli-admin/README.md`'s command list, and verify with `cd cli-admin && bun install && bun run build && bun run lint` (CI builds it on every PR via the `cli-admin-build` job). The generic `call` dispatcher is an escape hatch, not a substitute for wrappers on routinely-used operations.
+
 ### macOS build environment
 
 Two pitfalls that fresh setups regularly hit. If you see either symptom, apply the matching fix before debugging anything else.
@@ -174,6 +178,12 @@ TypeScript library (`@velocity-exchange/sdk`). Key modules in `src/`:
 - `programs/velocity/src/controller/` — stateful operations (position updates, fills, liquidations)
 - `programs/velocity/src/validation/` — pre-instruction validation
 
+### Instruction module layout
+
+Preferred layout for instruction code (reference: `instructions/protocol_fees/`): each instruction domain is a **folder** under `src/instructions/` with **one file per instruction** and a `mod.rs` that holds the domain-level doc comment and re-exports. Within each instruction file, the `#[derive(Accounts)]` context struct goes at the **top**, the handler below it. Use this pattern for new instruction domains and when an existing domain is being substantially reworked anyway. However, if an instruction belongs under one of the existing monolithic instruction trees (`user.rs`, `keeper.rs`, `admin.rs`, …), follow that file's established structure instead — don't split a tree just to add one instruction.
+
+**Constraints over in-handler validates — when trivial.** Account *identity* checks belong on the accounts struct, not in the handler: PDA `seeds`/`bump` derivation (including deriving one account's seeds from another's loaded field, e.g. `seeds = [b"spot_market", perp_market.load()?.quote_spot_market_index.to_le_bytes().as_ref()]`), `has_one` for top-level pubkey fields (e.g. `has_one = oracle`), and `address =` locks. Only keep a check in the handler when it is genuinely non-trivial as a constraint: multi-account/stateful logic, math on loaded data, or a *data invariant* rather than an account identity. Don't contort complex logic into constraint expressions just to move it.
+
 ### Doc comments
 
 All modules have doc comments. When making feature or refactor changes, update any module-level doc comments that would be invalidated by the change.
@@ -198,6 +208,15 @@ The velocity program's `Error` enum is ABI-stable — on-chain clients identify 
 
 - **Add** new variants at the **bottom** only, never insert between existing ones.
 - **Remove** by marking the variant as deprecated (e.g., `/// @deprecated`) and leaving it in place — do not delete or reorder.
+
+### Oracle usage
+
+**Any time you read an oracle price to drive a value transfer, you must guard its validity — never trust a raw oracle price.** A stale, divergent, or low-confidence oracle can mis-size any amount derived from it (PnL, sweeps, settlements, liquidations, withdrawals). When adding or reviewing code that touches an oracle:
+
+- **Gate on validity before using the price.** Mirror the checks the comparable existing path already applies — e.g. `settle_pnl` runs `validate_market_within_price_band`, then (for curve-update markets) `is_recent_oracle_valid` → `get_price_data_and_validity` → `is_oracle_valid_for_action` / `is_price_divergence_ok_for_settle_pnl`, and requires the AMM to be fresh in the same slot (`is_fresh_at`). If you compute the same kind of value (e.g. `net_user_pnl`) elsewhere, apply the same gates — divergence between two code paths that value the same thing is a bug.
+- **Consider which price you should actually be using.** The spot/last oracle price is not always correct. Decide deliberately between the live price, the safe/confidence-bounded price, and the TWAP (`last_oracle_price_twap`, 5min twap, etc.) for the operation at hand — TWAPs resist manipulation for things like price-band and divergence checks; live prices suit immediate settlement once validity is confirmed.
+- **Prefer the shared helpers** in `math/oracle.rs` and `state/oracle_map.rs` (`get_price_data_and_validity`, `is_oracle_valid_for_action`, per-market `is_recent_oracle_valid` / `get_max_confidence_interval_multiplier`) over ad-hoc checks, so behavior stays consistent across instructions.
+- New `VelocityAction` variants exist precisely so each action can express its own validity tolerance — pick the matching action (or add one) rather than reusing an unrelated one.
 
 ### Key design patterns
 

@@ -16,7 +16,6 @@ use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
 use crate::state::events::TransferFeeAndPnlPoolDirection;
-use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::market_status::MarketStatus;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
@@ -667,6 +666,13 @@ pub mod velocity {
         handle_settle_revenue_to_insurance_fund(ctx, spot_market_index)
     }
 
+    pub fn sweep_perp_market_fees(
+        ctx: Context<SweepPerpMarketFees>,
+        perp_market_index: u16,
+    ) -> Result<()> {
+        handle_sweep_perp_market_fees(ctx, perp_market_index)
+    }
+
     pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {
         handle_update_funding_rate(ctx, market_index)
     }
@@ -745,54 +751,8 @@ pub mod velocity {
         handle_remove_insurance_fund_stake(ctx, market_index)
     }
 
-    // pub fn transfer_protocol_if_shares(
-    //     ctx: Context<TransferProtocolIfShares>,
-    //     market_index: u16,
-    //     shares: u128,
-    // ) -> Result<()> {
-    //     handle_transfer_protocol_if_shares(ctx, market_index, shares)
-    // }
-
-    pub fn begin_insurance_fund_swap<'c: 'info, 'info>(
-        ctx: Context<'info, InsuranceFundSwap<'info>>,
-        in_market_index: u16,
-        out_market_index: u16,
-        amount_in: u64,
-    ) -> Result<()> {
-        handle_begin_insurance_fund_swap(ctx, in_market_index, out_market_index, amount_in)
-    }
-
-    pub fn end_insurance_fund_swap<'c: 'info, 'info>(
-        ctx: Context<'info, InsuranceFundSwap<'info>>,
-        in_market_index: u16,
-        out_market_index: u16,
-    ) -> Result<()> {
-        handle_end_insurance_fund_swap(ctx, in_market_index, out_market_index)
-    }
-
-    pub fn transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
-        ctx: Context<'info, TransferProtocolIfSharesToRevenuePool<'info>>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
-    }
-
-    pub fn admin_withdraw_from_insurance_fund_vault<'c: 'info, 'info>(
-        ctx: Context<'info, AdminWithdrawFromInsuranceFundVault<'info>>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_admin_withdraw_from_insurance_fund_vault(ctx, market_index, amount)
-    }
-
-    pub fn deposit_into_insurance_fund_stake<'c: 'info, 'info>(
-        ctx: Context<'info, DepositIntoInsuranceFundStake<'info>>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_deposit_into_insurance_fund_stake(ctx, market_index, amount)
-    }
+    // Protocol IF-share withdraw/transfer removed: the insurance fund is
+    // staker-owned and its no-staker bootstrap backstop is non-withdrawable.
 
     pub fn pause_spot_market_deposit_withdraw(
         ctx: Context<PauseSpotMarketDepositWithdraw>,
@@ -1097,8 +1057,14 @@ pub mod velocity {
         ctx: Context<AdminUpdatePerpMarket>,
         liquidator_fee: u32,
         if_liquidation_fee: u32,
+        protocol_liquidation_fee: u32,
     ) -> Result<()> {
-        handle_update_perp_liquidation_fee(ctx, liquidator_fee, if_liquidation_fee)
+        handle_update_perp_liquidation_fee(
+            ctx,
+            liquidator_fee,
+            if_liquidation_fee,
+            protocol_liquidation_fee,
+        )
     }
 
     pub fn update_perp_market_lp_pool_id(
@@ -1126,8 +1092,14 @@ pub mod velocity {
         ctx: Context<AdminUpdateSpotMarket>,
         liquidator_fee: u32,
         if_liquidation_fee: u32,
+        protocol_liquidation_fee: u32,
     ) -> Result<()> {
-        handle_update_spot_market_liquidation_fee(ctx, liquidator_fee, if_liquidation_fee)
+        handle_update_spot_market_liquidation_fee(
+            ctx,
+            liquidator_fee,
+            if_liquidation_fee,
+            protocol_liquidation_fee,
+        )
     }
 
     pub fn update_withdraw_guard_threshold(
@@ -1140,10 +1112,15 @@ pub mod velocity {
     pub fn update_spot_market_if_factor(
         ctx: Context<AdminUpdateSpotMarket>,
         spot_market_index: u16,
-        user_if_factor: u32,
-        total_if_factor: u32,
+        if_fee_factor: u32,
+        protocol_fee_factor: u32,
     ) -> Result<()> {
-        handle_update_spot_market_if_factor(ctx, spot_market_index, user_if_factor, total_if_factor)
+        handle_update_spot_market_if_factor(
+            ctx,
+            spot_market_index,
+            if_fee_factor,
+            protocol_fee_factor,
+        )
     }
 
     pub fn update_spot_market_revenue_settle_period(
@@ -1493,6 +1470,13 @@ pub mod velocity {
         handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
     }
 
+    pub fn update_perp_market_fee_pool_buffer_target(
+        ctx: Context<AdminUpdatePerpMarket>,
+        fee_pool_buffer_target: u64,
+    ) -> Result<()> {
+        handle_update_perp_market_fee_pool_buffer_target(ctx, fee_pool_buffer_target)
+    }
+
     pub fn update_spot_market_fee_adjustment(
         ctx: Context<AdminUpdateSpotMarket>,
         fee_adjustment: i16,
@@ -1561,6 +1545,37 @@ pub mod velocity {
         handle_update_hot_admin(ctx, role, new_pubkey)
     }
 
+    /// Cold-only: set the treasury protocol fees may be withdrawn to.
+    /// Perp (quote) and spot (per-market token) recipients are configured
+    /// independently via `market_type`.
+    pub fn update_protocol_fee_recipient(
+        ctx: Context<ColdAdminUpdateState>,
+        protocol_fee_recipient: Pubkey,
+        market_type: MarketType,
+    ) -> Result<()> {
+        handle_update_protocol_fee_recipient(ctx, protocol_fee_recipient, market_type)
+    }
+
+    /// Withdraw a spot market's accrued protocol fees to `protocol_fee_recipient_spot`
+    /// (auth: `FeeWithdraw` hot key).
+    pub fn withdraw_protocol_fees_spot<'c: 'info, 'info>(
+        ctx: Context<'info, WithdrawProtocolFeesSpot<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_withdraw_protocol_fees_spot(ctx, market_index, amount)
+    }
+
+    /// Withdraw a perp market's accrued protocol fees (from the quote spot vault)
+    /// to `protocol_fee_recipient_perp` (auth: `FeeWithdraw` hot key).
+    pub fn withdraw_protocol_fees_perp<'c: 'info, 'info>(
+        ctx: Context<'info, WithdrawProtocolFeesPerp<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_withdraw_protocol_fees_perp(ctx, market_index, amount)
+    }
+
     /// Devnet-only escape hatch: cleans up accounts stranded by a layout-breaking
     /// program upgrade (or by a partial re-init). For each account passed via
     /// `remaining_accounts`:
@@ -1614,24 +1629,6 @@ pub mod velocity {
         handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
     }
 
-    // pub fn initialize_protocol_if_shares_transfer_config(
-    //     ctx: Context<InitializeProtocolIfSharesTransferConfig>,
-    // ) -> Result<()> {
-    //     handle_initialize_protocol_if_shares_transfer_config(ctx)
-    // }
-
-    // pub fn update_protocol_if_shares_transfer_config(
-    //     ctx: Context<UpdateProtocolIfSharesTransferConfig>,
-    //     whitelisted_signers: Option<[Pubkey; 4]>,
-    //     max_transfer_per_epoch: Option<u128>,
-    // ) -> Result<()> {
-    //     handle_update_protocol_if_shares_transfer_config(
-    //         ctx,
-    //         whitelisted_signers,
-    //         max_transfer_per_epoch,
-    //     )
-    // }
-
     pub fn initialize_prelaunch_oracle(
         ctx: Context<InitializePrelaunchOracle>,
         params: PrelaunchOracleParams,
@@ -1673,20 +1670,6 @@ pub mod velocity {
         amount: u64,
     ) -> Result<()> {
         handle_admin_deposit(ctx, market_index, amount)
-    }
-
-    pub fn initialize_if_rebalance_config(
-        ctx: Context<InitializeIfRebalanceConfig>,
-        params: IfRebalanceConfigParams,
-    ) -> Result<()> {
-        handle_initialize_if_rebalance_config(ctx, params)
-    }
-
-    pub fn update_if_rebalance_config(
-        ctx: Context<UpdateIfRebalanceConfig>,
-        params: IfRebalanceConfigParams,
-    ) -> Result<()> {
-        handle_update_if_rebalance_config(ctx, params)
     }
 
     pub fn update_feature_bit_flags_mm_oracle(

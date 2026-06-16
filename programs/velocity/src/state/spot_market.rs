@@ -192,7 +192,24 @@ pub struct SpotMarket {
     pub min_borrow_rate: u8,
     pub token_program_flag: u8,
     pub pool_id: u8,
-    pub padding: [u8; 56],
+    /// Aligns `protocol_fee_pool`'s leading u128 to a 16-byte struct offset so
+    /// host (x86_64, align 16) and SBF (align 8) layouts agree. Do not reorder.
+    pub _padding_align_pfp: [u8; 8],
+    /// Protocol fees collected in this market's token (lending protocol carveout
+    /// + spot-liquidation protocol fee). A protocol-owned Deposit-type claim
+    /// inside the spot vault (counted in `deposit_balance`, like `revenue_pool`)
+    /// — owned by the protocol, not users, and never part of the insurance
+    /// backstop. Withdrawn directly to `State.protocol_fee_recipient_spot`; the
+    /// withdrawal decrements this claim and re-validates the vault still covers
+    /// all remaining claims, so it can never tap user deposits.
+    pub protocol_fee_pool: PoolBalance,
+    /// Protocol's cut of a spot liquidation, taken from the liquidatee.
+    /// precision: LIQUIDATOR_FEE_PRECISION
+    pub protocol_liquidation_fee: u32,
+    /// Protocol's carveout of lending deposit-interest gains, routed to
+    /// `protocol_fee_pool`. precision: IF_FACTOR_PRECISION
+    pub protocol_fee_factor: u32,
+    pub padding: [u8; 8],
 }
 
 impl Default for SpotMarket {
@@ -256,7 +273,11 @@ impl Default for SpotMarket {
             min_borrow_rate: 0,
             token_program_flag: 0,
             pool_id: 0,
-            padding: [0; 56],
+            _padding_align_pfp: [0; 8],
+            protocol_fee_pool: PoolBalance::default(),
+            protocol_liquidation_fee: 0,
+            protocol_fee_factor: 0,
+            padding: [0; 8],
         }
     }
 }
@@ -677,15 +698,16 @@ pub struct InsuranceFund {
     pub shares_base: u128,     // exponent for lp shares (for rebasing)
     pub unstaking_period: i64, // if_unstaking_period
     pub last_revenue_settle_ts: i64,
+    /// How often `revenue_pool` may settle into the IF vault (seconds).
     pub revenue_settle_period: i64,
-    pub total_factor: u32, // percentage of interest for total insurance
-    pub user_factor: u32,  // percentage of interest for user staked insurance
-}
-
-impl InsuranceFund {
-    pub fn get_protocol_shares(&self) -> VelocityResult<u128> {
-        self.total_shares.safe_sub(self.user_shares)
-    }
+    /// Fraction of spot deposit-interest gains carved out to the insurance fund
+    /// (staker-owned). precision: IF_FACTOR_PRECISION. (Was `total_factor`; the
+    /// protocol-vs-staker split was removed — the IF is now 100% staker-owned,
+    /// so this is purely the staker IF carveout.)
+    pub if_fee_factor: u32,
+    /// Was `user_factor` (the old protocol/staker split knob). The IF is now
+    /// 100% staker-owned, so the split is gone; slot kept as padding.
+    pub _padding_if: [u8; 4],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

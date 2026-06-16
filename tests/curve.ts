@@ -99,6 +99,14 @@ describe('AMM Curve', () => {
 		await initializeQuoteSpotMarket(velocityClient, usdcMint.publicKey);
 		await velocityClient.updatePerpAuctionDuration(new BN(0));
 
+		// this suite repegs the curve out of accumulated trade fees. Post
+		// AMM-isolation the AMM only books its own provision, so route 100%
+		// of the trade-fee remainder to it (the on-chain default is 0%).
+		const feeStructure = velocityClient.getStateAccount().perpFeeStructure;
+		feeStructure.ammFeeNumerator = 100;
+		feeStructure.ifFeeNumerator = 0;
+		await velocityClient.updatePerpFeeStructure(feeStructure);
+
 		solUsdOracle = await mockOracleNoProgram(
 			bankrunContextWrapper,
 			initialSOLPrice,

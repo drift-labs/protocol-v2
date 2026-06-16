@@ -1,133 +1,163 @@
-//! Market-level pool accounting: revenue pool ↔ AMM fee pool, pnl pool ↔ user.
+//! Market-level pool accounting: pnl pool ↔ user settles plus the streaming
+//! fee sweep (pnl pool → revenue pool / protocol fee pool / AMM fee pool).
 //!
-//! Functions here move balances between the AMM's fee pool, the market's pnl
-//! pool, the protocol revenue pool (on the quote spot market), and users.
-//! Reads include AMM accounting fields (`fee_pool`, `total_fee_minus_distributions`,
-//! `total_fee_withdrawn`) but the operations themselves are pool plumbing, not
-//! AMM pricing — no reserves, spreads, or curve state touched.
+//! The pnl pool is where trade-fee value materializes (fees debit the payer's
+//! position; tokens arrive as fills settle), so the sweep sources every fee
+//! carveout from the pnl pool's surplus over live user claims. The AMM's
+//! ledger and token pool are never used as a conduit for non-AMM money — the
+//! only AMM-touching step is the tokenization of its own already-booked fee
+//! provision.
 //!
 //! Re-exported from `crate::vlp::amm::controller::*` so `use crate::vlp::amm::controller::*`
 //! still resolves these symbols.
 
-use std::cmp::{min, Ordering};
+use std::cmp::min;
 
 use anchor_lang::prelude::*;
 
-use crate::controller::spot_balance::{transfer_spot_balances, update_spot_balances};
+use crate::controller::spot_balance::{
+    transfer_spot_balance_to_revenue_pool, transfer_spot_balances, update_spot_balances,
+};
 use crate::error::{ErrorCode, VelocityResult};
 use crate::math::casting::Cast;
-use crate::math::constants::FEE_POOL_TO_REVENUE_POOL_THRESHOLD;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::{
     get_max_withdraw_for_market_with_token_amount, validate_spot_balances,
 };
 use crate::msg;
+use crate::state::events::PerpMarketFeeSweepRecord;
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::User;
 use crate::validate;
-use crate::vlp::amm::math::repeg::get_total_fee_lower_bound;
 
-pub(crate) fn calculate_revenue_pool_transfer(
-    market: &PerpMarket,
-    spot_market: &SpotMarket,
-    amm_fee_pool_token_amount_after: u128,
-    terminal_state_surplus: i128,
-) -> VelocityResult<i128> {
-    // Calculates the revenue pool transfer amount for a given market state (positive = send to revenue pool, negative = pull from revenue pool)
-    // If the AMM budget is above `FEE_POOL_TO_REVENUE_POOL_THRESHOLD` (in surplus), settle fees collected to the revenue pool depending on the health of the AMM state
-    // Otherwise, spull from the revenue pool (up to a constraint amount)
-
-    if market.is_operation_paused(PerpOperation::SettleRevPool) {
-        return Ok(0);
+/// Materialize accrued pending fees out of the pnl pool — the streaming
+/// sweep. The pnl pool is where fee value lands (fees debit the payer's
+/// position; tokens arrive as fills settle), so the sweep drains only the
+/// pool's surplus over live user claims. Waterfall order (seniority under
+/// scarcity):
+///   1. `pending_protocol_fee` -> `protocol_fee_pool` (withdrawable)
+///   2. `pending_if_fee`       -> quote `SpotMarket.revenue_pool` (insurance)
+///   3. `pending_amm_provision`-> `amm.fee_pool` (tokenizing the provision the
+///      AMM already booked at fill — NO ledger change here)
+/// The protocol drain is EXEMPT from the `fee_pool_buffer_target` retention
+/// margin (it reserves only `max(net_user_pnl, 0)`) and runs first: it sweeps
+/// every settle, so each drain is small, and unlike the other two its value
+/// is not recoverable in bankruptcy anyway. The IF and provision drains then
+/// leave the buffer behind on top of user claims — the buffer throttles the
+/// outflows whose value the bankruptcy waterfall can still reach.
+/// The AMM's ledger and token pool are never touched by steps 1-2: no non-AMM
+/// money transits the AMM. Un-drained remainders simply wait for the next
+/// sweep. This is the ONLY fee routing out of a perp market. Runs inline on
+/// every `update_pool_balances` (pnl settles, after the user's settle) and on
+/// demand via the `sweep_perp_market_fees` keeper instruction.
+///
+/// `force` bypasses the `SettleRevPool` operation pause. It exists for the
+/// final sweep on market delisting: that is the last chance to route the
+/// protocol carveout to `protocol_fee_pool` before the remaining pnl pool is
+/// drained to the revenue pool, so a standing pause must not strand it. The
+/// streaming/keeper callers pass `false` and continue to respect the pause.
+///
+/// Returns `(if_swept, protocol_swept, amm_provision_tokenized)`.
+pub fn sweep_market_fees(
+    market: &mut PerpMarket,
+    spot_market: &mut SpotMarket,
+    net_user_pnl: i128,
+    now: i64,
+    force: bool,
+) -> VelocityResult<(u128, u128, u128)> {
+    // market can perform withdraw from revenue pool
+    if spot_market.insurance_fund.last_revenue_settle_ts
+        > market.insurance_claim.last_revenue_withdraw_ts
+    {
+        validate!(now >= market.insurance_claim.last_revenue_withdraw_ts && now >= spot_market.insurance_fund.last_revenue_settle_ts,
+            ErrorCode::BlockchainClockInconsistency,
+            "issue with clock unix timestamp {} < market.insurance_claim.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
+            now,
+            market.insurance_claim.last_revenue_withdraw_ts,
+            spot_market.insurance_fund.last_revenue_settle_ts,
+        )?;
+        market.insurance_claim.revenue_withdraw_since_last_settle = 0;
     }
 
-    let amm_budget_surplus =
-        terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);
-
-    if amm_budget_surplus > 0 {
-        let fee_pool_threshold = amm_fee_pool_token_amount_after
-            .saturating_sub(
-                FEE_POOL_TO_REVENUE_POOL_THRESHOLD
-                    .safe_add(market.total_social_loss)?
-                    .cast()?,
-            )
-            .cast()?;
-
-        let total_liq_fees_for_revenue_pool = market
-            .total_liquidation_fee
-            .min(
-                market
-                    .insurance_claim
-                    .quote_settled_insurance
-                    .safe_add(market.insurance_claim.quote_max_insurance)?
-                    .cast()?,
-            )
-            .cast::<i128>()?;
-
-        let raw_cap = market
-            .insurance_claim
-            .revenue_withdraw_since_last_settle
-            .safe_add(
-                market
-                    .insurance_claim
-                    .max_revenue_withdraw_per_period
-                    .cast()?,
-            )?;
-        let max_revenue_to_settle = market.amm.cap_to_recent_revenue(raw_cap);
-
-        let total_fee_for_if = get_total_fee_lower_bound(market)?.cast::<i128>()?;
-
-        let revenue_pool_transfer = market.amm.proposed_revenue_outflow(
-            total_fee_for_if,
-            total_liq_fees_for_revenue_pool,
-            fee_pool_threshold,
-            max_revenue_to_settle.cast()?,
-        )?;
-
-        validate!(
-            revenue_pool_transfer >= 0,
-            ErrorCode::InsufficientPerpPnlPool,
-            "revenue_pool_transfer negative ({})",
-            revenue_pool_transfer
-        )?;
-
-        Ok(revenue_pool_transfer)
-    } else if amm_budget_surplus < 0 {
-        let max_revenue_withdraw_allowed = market
-            .insurance_claim
-            .max_revenue_withdraw_per_period
-            .cast::<i64>()?
-            .saturating_sub(market.insurance_claim.revenue_withdraw_since_last_settle)
-            .cast::<u128>()?
-            .min(
-                get_token_amount(
-                    spot_market.revenue_pool.scaled_balance,
-                    spot_market,
-                    &SpotBalanceType::Deposit,
-                )?
-                .cast()?,
-            )
-            .min(
-                market
-                    .insurance_claim
-                    .max_revenue_withdraw_per_period
-                    .cast()?,
-            );
-
-        if max_revenue_withdraw_allowed > 0 {
-            let revenue_pool_transfer = -(amm_budget_surplus
-                .abs()
-                .min(max_revenue_withdraw_allowed.cast()?));
-            Ok(revenue_pool_transfer)
-        } else {
-            Ok(0)
-        }
-    } else {
-        Ok(0)
+    if (!force && market.is_operation_paused(PerpOperation::SettleRevPool))
+        || (market.fee_ledger.pending_protocol_fee == 0
+            && market.fee_ledger.pending_if_fee == 0
+            && market.fee_ledger.pending_amm_provision == 0)
+    {
+        return Ok((0, 0, 0));
     }
+
+    let pnl_pool_tokens = get_token_amount(
+        market.pnl_pool.balance(),
+        spot_market,
+        market.pnl_pool.balance_type(),
+    )?;
+
+    // live user claims stay fully backed by every drain; the buffer is a
+    // retention margin on top that only the IF and AMM-provision drains
+    // respect — the protocol drain is exempt and goes first (its per-settle
+    // cadence keeps each drain small, and unlike the other two its value is
+    // not recoverable later anyway)
+    let reserved_claims: u128 = net_user_pnl.max(0).cast::<u128>()?;
+    let mut available_unbuffered: u128 = pnl_pool_tokens.saturating_sub(reserved_claims);
+
+    // 1. protocol's withdrawable cut (buffer-exempt: only user claims reserved)
+    let protocol_drain = market
+        .fee_ledger
+        .pending_protocol_fee
+        .min(available_unbuffered);
+    if protocol_drain > 0 {
+        transfer_spot_balances(
+            protocol_drain.cast()?,
+            spot_market,
+            &mut market.pnl_pool,
+            &mut market.protocol_fee_pool,
+        )?;
+        market.fee_ledger.consume_pending_protocol(protocol_drain)?;
+        available_unbuffered = available_unbuffered.safe_sub(protocol_drain)?;
+    }
+
+    // the remaining drains also leave the retention buffer behind
+    let mut available: u128 =
+        available_unbuffered.saturating_sub(market.fee_pool_buffer_target.cast()?);
+
+    // 2. insurance cut to the revenue pool (buffered)
+    let if_drain = market.fee_ledger.pending_if_fee.min(available);
+    if if_drain > 0 {
+        transfer_spot_balance_to_revenue_pool(if_drain, spot_market, &mut market.pnl_pool)?;
+        market.fee_ledger.consume_pending_if(if_drain)?;
+        available = available.safe_sub(if_drain)?;
+    }
+
+    // 3. tokenize the AMM's fee provision (buffered; already booked into
+    //    `total_fee_minus_distributions` at fill — token transfer only)
+    let provision_drain = market.fee_ledger.pending_amm_provision.min(available);
+    if provision_drain > 0 {
+        transfer_spot_balances(
+            provision_drain.cast()?,
+            spot_market,
+            &mut market.pnl_pool,
+            &mut market.amm.fee_pool,
+        )?;
+        market
+            .fee_ledger
+            .consume_pending_amm_provision(provision_drain)?;
+    }
+
+    if if_drain > 0 || protocol_drain > 0 || provision_drain > 0 {
+        emit!(PerpMarketFeeSweepRecord {
+            ts: now,
+            market_index: market.market_index,
+            if_swept: if_drain.cast()?,
+            protocol_swept: protocol_drain.cast()?,
+            amm_provision_tokenized: provision_drain.cast()?,
+        });
+    }
+
+    Ok((if_drain, protocol_drain, provision_drain))
 }
 
 pub fn update_pool_balances(
@@ -135,52 +165,9 @@ pub fn update_pool_balances(
     spot_market: &mut SpotMarket,
     user_quote_token_amount: i128,
     user_unsettled_pnl: i128,
+    net_user_pnl: i128,
     now: i64,
 ) -> VelocityResult<i128> {
-    {
-        let amm_fee_pool_token_amount = market.amm.fee_pool_token_amount(spot_market)?;
-        let terminal_state_surplus = market.amm.terminal_state_surplus()?;
-
-        // market can perform withdraw from revenue pool
-        if spot_market.insurance_fund.last_revenue_settle_ts
-            > market.insurance_claim.last_revenue_withdraw_ts
-        {
-            validate!(now >= market.insurance_claim.last_revenue_withdraw_ts && now >= spot_market.insurance_fund.last_revenue_settle_ts,
-                ErrorCode::BlockchainClockInconsistency,
-                "issue with clock unix timestamp {} < market.insurance_claim.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
-                now,
-                market.insurance_claim.last_revenue_withdraw_ts,
-                spot_market.insurance_fund.last_revenue_settle_ts,
-            )?;
-            market.insurance_claim.revenue_withdraw_since_last_settle = 0;
-        }
-
-        let revenue_pool_transfer = calculate_revenue_pool_transfer(
-            market,
-            spot_market,
-            amm_fee_pool_token_amount,
-            terminal_state_surplus,
-        )?;
-
-        match revenue_pool_transfer.cmp(&0) {
-            Ordering::Greater => {
-                <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::transfer_revenue_to_pool(
-                    &mut market.amm,
-                    revenue_pool_transfer.unsigned_abs(),
-                    spot_market,
-                )?;
-
-                market.insurance_claim.revenue_withdraw_since_last_settle = market
-                    .insurance_claim
-                    .revenue_withdraw_since_last_settle
-                    .safe_sub(revenue_pool_transfer.cast()?)?;
-                market.insurance_claim.last_revenue_withdraw_ts = now;
-            }
-            Ordering::Less => (),
-            Ordering::Equal => (),
-        }
-    }
-
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
     let pnl_pool_token_amount = get_token_amount(
         market.pnl_pool.balance(),
@@ -215,6 +202,12 @@ pub fn update_pool_balances(
         &mut market.pnl_pool,
         false,
     )?;
+
+    // sweep AFTER the user's settle: both draw the pnl pool now, and the
+    // sweep must not starve the settle that triggered it. The settle just
+    // moved `pnl_to_settle_with_user` out of (or into) aggregate user claims.
+    let net_user_pnl_after = net_user_pnl.safe_sub(pnl_to_settle_with_user)?;
+    sweep_market_fees(market, spot_market, net_user_pnl_after, now, false)?;
 
     let _depositors_claim = validate_spot_balances(spot_market)?;
 

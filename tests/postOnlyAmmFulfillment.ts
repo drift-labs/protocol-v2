@@ -373,13 +373,13 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const perpMarket = fillerVelocityClient.getPerpMarketAccount(0);
 		console.log(perpMarket.amm.totalFee.toString());
 		console.log(perpMarket.amm.totalFeeMinusDistributions.toString());
-		console.log(perpMarket.totalExchangeFee.toString());
+		console.log(perpMarket.feeLedger.totalExchangeFee.toString());
 		console.log(perpMarket.amm.totalMmFee.toString());
 		console.log(perpMarket.amm.totalFeeWithdrawn.toString());
 
 		assert(perpMarket.amm.totalFee.eq(new BN(32983)));
 		assert(perpMarket.amm.totalFeeMinusDistributions.eq(new BN(32983)));
-		assert(perpMarket.totalExchangeFee.eq(new BN(28961)));
+		assert(perpMarket.feeLedger.totalExchangeFee.eq(new BN(28961)));
 		assert(perpMarket.amm.totalMmFee.eq(new BN(4022)));
 		assert(perpMarket.amm.totalFeeWithdrawn.eq(ZERO));
 

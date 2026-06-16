@@ -6,24 +6,24 @@ This repo is a fork of [`drift-labs/protocol-v2`](https://github.com/drift-labs/
 reduced feature set, and a renamed SDK.
 
 This document tracks everything that changed between the two repos from an integrator's
-point of view. It reflects the state of `master` plus the two open PRs:
+point of view. It reflects the state of `master` plus the open PRs:
 
-- **PR #68** — builder codes on non-swift orders (marked *pending* below)
-- **PR #70** — full drift → velocity rebrand of the on-chain program
+- **PR #68** — builder codes on non-swift orders (marked _pending_ below)
+- **`fee-arch`** — fee redesign + AMM isolation (marked _pending_ below)
 
 ---
 
 ## 1. At a glance
 
-| | Drift (old) | Velocity (new) |
-|---|---|---|
-| Program ID | `dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH` | `vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P` (devnet & mainnet) |
-| npm package | `@drift-labs/sdk` `2.163.0-beta.0` | `@velocity-exchange/sdk` `0.0.5` (version reset) |
-| Main client class | `DriftClient` | `VelocityClient` — **no back-compat aliases** |
-| Anchor | 0.29.0 | 1.0 (`@anchor-lang/core@1.0.1`), new IDL format |
-| IDL | `drift.json` | `velocity.json` |
-| Rust crate | `drift` (`programs/drift/`) | `velocity` (`programs/velocity/`) |
-| Package manager | yarn | bun |
+|                   | Drift (old)                                   | Velocity (new)                                                   |
+| ----------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| Program ID        | `dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH` | `vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P` (devnet & mainnet) |
+| npm package       | `@drift-labs/sdk` `2.163.0-beta.0`            | `@velocity-exchange/sdk` `0.0.5` (version reset)                 |
+| Main client class | `DriftClient`                                 | `VelocityClient` — **no back-compat aliases**                    |
+| Anchor            | 0.29.0                                        | 1.0 (`@anchor-lang/core@1.0.1`), new IDL format                  |
+| IDL               | `drift.json`                                  | `velocity.json`                                                  |
+| Rust crate        | `drift` (`programs/drift/`)                   | `velocity` (`programs/velocity/`)                                |
+| Package manager   | yarn                                          | bun                                                              |
 
 Because the program ID is new, **every PDA address changes** (seed strings are unchanged,
 but the program ID input to derivation is different) and **no on-chain state carries
@@ -52,8 +52,9 @@ or reworked.
 | **Pyth pull/push (legacy)** | #7 | `pythPullClient`, `pythOracleUtils` deleted from SDK. Pyth Lazer is the supported Pyth path. Deprecated `OracleSource` discriminants are preserved (not reused). |
 | **Switchboard oracles** | #14 | Both classic and on-demand removed from SDK; `OracleSource` discriminants preserved as `Deprecated*`. |
 | **HLM** | #2, #47 | Dead code removed. |
-| **Legacy fee path** | #67 | `total_fee_lower_bound` accounting removed; fees use the AMM protocol floor directly. |
+| **Legacy fee path** | #67 | `total_fee_lower_bound` accounting removed. (Superseded again by the fee redesign below — the AMM protocol floor itself is now gone.) |
 | **Gov-token (DRIFT) stake fee discount** | — | Staking the governance token in the spot-market-15 insurance fund no longer grants a fee discount: perp fee tiers are now determined by 30-day volume only. Instructions `update_user_gov_token_insurance_stake` and `update_delegate_user_gov_token_insurance_stake` deleted; `UserStats.if_staked_gov_token_amount` replaced by padding. Spot market 15 has no special treatment anymore (the gov-specific IF revenue-settle APR cap was removed; the general cap applies). |
+| **Protocol-owned insurance fund shares & IF rebalance** (*pending, `fee-arch`*) | fee-arch | The IF is 100% staker-owned. Deleted: `admin_withdraw_from_insurance_fund_vault`, `transfer_protocol_if_shares_to_revenue_pool`, `begin/end_insurance_fund_swap`, `initialize/update_if_rebalance_config`, `initialize/update_protocol_if_shares_transfer_config`, `deposit_into_insurance_fund_stake`, the `IfRebalanceConfig` / `ProtocolIfSharesTransferConfig` accounts, and `HotRole::IfRebalance` (+ `State.hot_if_rebalance`). `InsuranceFund.total_factor`/`user_factor` are replaced by a single `if_fee_factor` (lending-yield carveout to stakers). Protocol revenue no longer flows through IF shares at all. |
 
 ## 3. Feature additions
 
@@ -67,9 +68,10 @@ or reworked.
 | **Funding rate clamp** | #12 | Funding-rate price divergence clamped (±3%) — changes funding dynamics vs Drift. |
 | **MM oracle validation** | #60 | Slot-gap and step-cap checks on MM oracle updates. |
 | **Special user status** | #17 | New `User.special_user_status` field (`SpecialUserStatus::VammHedger`). |
-| **Builder codes** (*pending, PR #68*) | #68 | Optional `builder_idx` / `builder_fee_tenth_bps` on `OrderParams`; new `change_approved_builder` instruction and `RevenueShareEscrow` account. Existing order placements are unaffected (fields are optional). |
+| **Builder codes** | #68 | Optional `builder_idx` / `builder_fee_tenth_bps` on `OrderParams`; new `change_approved_builder` instruction and `RevenueShareEscrow` account. Existing order placements are unaffected (fields are optional). |
 | **Funding bias spread widening** (*pending, PR #77*) | #77 | New `AMM.funding_bias_sensitivity` field (consumes one byte of `padding_post_amm`, sizes unchanged) widens the vAMM's paying-side spread while it pays funding, up to `1 + sensitivity/100` at the funding offset floor. New admin instruction `update_perp_market_funding_bias_sensitivity`; SDK gains `AdminClient.updatePerpMarketFundingBiasSensitivity`. Default 0 = off, no quote change until enabled. Alongside this, `last_funding_oracle_twap` moved from `PerpMarket` to `MarketStats` (carved out of `MarketStats.padding`; the old `PerpMarket` slot became `_padding_funding_twap`, so all offsets and sizes are unchanged and existing accounts need no migration). SDK: `PerpMarketAccount.lastFundingOracleTwap` is now `marketStats.lastFundingOracleTwap`. |
-| **Revenue-share fill enforcement** (*pending, PR #68*) | #68 | Perp fills fail with `UnableToLoadRevenueShareAccount` (6324 / `0x18b4`) unless the taker's `RevenueShareEscrow` is passed in remaining accounts when (a) the taker order carries a builder code, or (b) the taker's `UserStats.referrer_status` has the `BuilderReferral` bit (escrow exists with a referrer). Liquidation fills and the feature-flag-off state are exempt. Fillers must attach the escrow for any taker that has one with a referrer — see SDK §4.4. Referral rewards also no longer accrue (and referral slots are no longer created) for escrows without a referrer. |
+| **Revenue-share fill enforcement** | #68 | Perp fills fail with `UnableToLoadRevenueShareAccount` (6324 / `0x18b4`) unless the taker's `RevenueShareEscrow` is passed in remaining accounts when (a) the taker order carries a builder code, or (b) the taker's `UserStats.referrer_status` has the `BuilderReferral` bit (escrow exists with a referrer). Liquidation fills and the feature-flag-off state are exempt. Fillers must attach the escrow for any taker that has one with a referrer — see SDK §4.4. Referral rewards also no longer accrue (and referral slots are no longer created) for escrows without a referrer. |
+| **Fee redesign + AMM isolation** (_pending, `fee-arch`_) | fee-arch | Explicit per-fill three-way fee split (`FeeStructure.amm_fee_numerator` / `if_fee_numerator`; protocol = residual). Per-market `PerpMarket.fee_ledger: FeeLedger` tracks gross fees + pending carveouts. Protocol fees accrue to a withdrawable `protocol_fee_pool` (perp + spot) and exit via `withdraw_protocol_fees_perp/spot` (new `HotRole::FeeWithdraw` key; pays the ATA of `State.protocol_fee_recipient_perp` / `_spot` (separately configurable treasuries), created on demand). Streaming sweep (`sweep_perp_market_fees`, permissionless) materializes carveouts out of the pnl pool; emits `PerpMarketFeeSweepRecord`. The AMM's books contain only its own money — its configurable fee provision is clawed back in bankruptcy as the backstop of last resort. Liquidations gain a `protocol_liquidation_fee` cut (new `protocol_fee` field on liquidation records). Full design doc: [`FEES.md`](../FEES.md). |
 
 ---
 
@@ -96,19 +98,19 @@ npm install @velocity-exchange/sdk
 PR #37 originally shipped `@deprecated` Drift aliases; they have since been **removed**.
 The old names no longer exist.
 
-| Old | New |
-|---|---|
-| `DriftClient` | `VelocityClient` |
-| `DriftClientConfig` | `VelocityClientConfig` |
-| `DriftClientSubscriptionConfig` | `VelocityClientSubscriptionConfig` |
-| `DriftEnv` | `VelocityEnv` |
-| `DRIFT_PROGRAM_ID` | `VELOCITY_PROGRAM_ID` |
-| `DRIFT_ORACLE_RECEIVER_ID` | `VELOCITY_ORACLE_RECEIVER_ID` (same pubkey) |
-| `USDC_MINT_ADDRESS` | `QUOTE_MINT_ADDRESS` (devnet value changed; mainnet USDC unchanged) |
-| `WebSocketDriftClientAccountSubscriber(V2)` | `WebSocketVelocityClientAccountSubscriber(V2)` |
-| `pollingDriftClientAccountSubscriber` | `pollingVelocityClientAccountSubscriber` |
-| `grpcDriftClientAccountSubscriber(V2)` | `grpcVelocityClientAccountSubscriber(V2)` |
-| `Program<Drift>` | `Program<Velocity>` (alias `VelocityProgram`) |
+| Old                                         | New                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------- |
+| `DriftClient`                               | `VelocityClient`                                                    |
+| `DriftClientConfig`                         | `VelocityClientConfig`                                              |
+| `DriftClientSubscriptionConfig`             | `VelocityClientSubscriptionConfig`                                  |
+| `DriftEnv`                                  | `VelocityEnv`                                                       |
+| `DRIFT_PROGRAM_ID`                          | `VELOCITY_PROGRAM_ID`                                               |
+| `DRIFT_ORACLE_RECEIVER_ID`                  | `VELOCITY_ORACLE_RECEIVER_ID` (same pubkey)                         |
+| `USDC_MINT_ADDRESS`                         | `QUOTE_MINT_ADDRESS` (devnet value changed; mainnet USDC unchanged) |
+| `WebSocketDriftClientAccountSubscriber(V2)` | `WebSocketVelocityClientAccountSubscriber(V2)`                      |
+| `pollingDriftClientAccountSubscriber`       | `pollingVelocityClientAccountSubscriber`                            |
+| `grpcDriftClientAccountSubscriber(V2)`      | `grpcVelocityClientAccountSubscriber(V2)`                           |
+| `Program<Drift>`                            | `Program<Velocity>` (alias `VelocityProgram`)                       |
 
 ### 4.3 Removed exports
 
@@ -158,6 +160,21 @@ Gov-token stake fee discount removal: `VelocityClient.updateUserGovTokenInsuranc
   builders validate `takerEscrow.authority` against the taker's authority. The
   settle-PnL builders keep their map-based `revenueShareEscrowMap` param.
 
+_Pending, `fee-arch`:_
+
+- `PerpMarketAccount`: `totalExchangeFee` / `totalLiquidationFee` moved into a new
+  nested `feeLedger: FeeLedger` (with `pendingProtocolFee`, `pendingIfFee`,
+  `ammProtocolFeesReceived`, `pendingAmmProvision`); new `protocolFeePool`,
+  `protocolLiquidationFee`, `feePoolBufferTarget` fields.
+- `SpotMarketAccount`: new `protocolFeePool`, `protocolLiquidationFee`,
+  `protocolFeeFactor`; `insuranceFund.totalFactor`/`userFactor` → `ifFeeFactor`.
+- `StateAccount`: new `protocolFeeRecipient` / `hotFeeWithdraw`; `FeeStructure` gains
+  `ammFeeNumerator` / `ifFeeNumerator` (carved from reserved padding).
+- `calculateUpdatedAMM` / `calculateBidAskPrice` / `calculateUpdatedAMMSpreadReserves` /
+  `calculateOptimalPegAndBudget` / `calculateNewAmm` dropped their `totalExchangeFee`
+  parameter (the AMM no longer has a fee floor).
+- `updatePerpMarketAmmSummaryStats` dropped `excludeTotalLiqFee`.
+
 ### 4.5 New: `VelocityCore`
 
 A subscription-free instruction-building module (`export * from './core'`) for
@@ -172,8 +189,10 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
   `State`, `PerpMarket`, `SpotMarket`, …) — Anchor derives them from the account name.
   Same for surviving instruction discriminators.
 - **Layouts changed**: `User` is 4376 → 4496 bytes; `PerpMarket` is 1216 → 1224 bytes
-  with substantial field reorganization (u128/i128 fields front-loaded for alignment).
-  Any custom (non-IDL) decoder must be rebuilt against `sdk/src/idl/velocity.json`.
+  with substantial field reorganization (u128/i128 fields front-loaded for alignment) —
+  and 1224 → 1304 bytes once `fee-arch` lands (embedded `FeeLedger` + protocol fee
+  fields). Any custom (non-IDL) decoder must be rebuilt against
+  `sdk/src/idl/velocity.json`.
 - **Error codes are ABI-stable**: removed variants were renamed to `Deprecated*` stubs
   in place (numeric codes preserved); new variants are appended at the end
   (`InvalidAdminTier`, `SpotDlobTradingDisabled`, …). Decode errors by code as before,
@@ -218,10 +237,12 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
 | #65 | Decouple AMM from rest of codebase |
 | #66 | VLP module (vAMM + hedge) |
 | #67 | Remove legacy fee path |
-| #68 *(open)* | Builder codes on non-swift orders; fill-time enforcement of builder + referral revenue share (escrow required when taker has a builder order or a referred escrow) |
-| #70 *(open)* | Rebrand program crate drift → velocity |
+| #68 | Builder codes on non-swift orders; fill-time enforcement of builder + referral revenue share (escrow required when taker has a builder order or a referred escrow) |
+| #70 | Rebrand program crate drift → velocity |
+| #71 | This migration guide |
 | #77 *(open)* | Funding bias spread widening: `AMM.funding_bias_sensitivity` + `update_perp_market_funding_bias_sensitivity` admin ix; `last_funding_oracle_twap` moved `PerpMarket` → `MarketStats` (offset-preserving) |
-| — *(open, `feat/rm-drift-stake`)* | Remove gov-token (DRIFT) stake fee discount: gov stake-sync instructions, `UserStats.if_staked_gov_token_amount` (→ padding), gov IF revenue-settle APR cap, `GOV_SPOT_MARKET_INDEX` |
+| #80 | Remove gov-token (DRIFT) stake fee discount: gov stake-sync instructions, `UserStats.if_staked_gov_token_amount` (→ padding), gov IF revenue-settle APR cap, `GOV_SPOT_MARKET_INDEX` |
+| `fee-arch` _(open)_ | Fee redesign (explicit carveouts, withdrawable protocol fees, 100% staker-owned IF) + AMM isolation |
 
 ---
 
@@ -244,6 +265,10 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
    layouts (§5); discriminators match Drift's, so guard by program ID, not discriminator.
 9. **Re-test error handling**: codes are stable, but retired codes now decode to
    `Deprecated*` names and new codes exist past the old end of the enum.
-10. *(After PR #68 lands)* optionally adopt builder codes: approve builders via
+10. _(After PR #68 lands)_ optionally adopt builder codes: approve builders via
     `changeApprovedBuilder(...)` and set `builderIdx` / `builderFeeTenthBps` on
     `OrderParams`. No action needed if you don't use builders.
+11. _(After `fee-arch` lands)_ re-pull the IDL and types — `PerpMarket` grows to 1304
+    bytes and fee fields move into `feeLedger` (§4.4). IF stakers now receive 100% of
+    settled revenue (no protocol share mint). If you index fees, the authoritative
+    flow description is [`FEES.md`](../FEES.md).

@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { readGlobalOpts, withGlobalOptions } from '../lib/options';
 import { buildAdminClient, buildProvider } from '../lib/provider';
@@ -34,6 +35,33 @@ export function registerPerpMarket(parent: Command): void {
 				'velocity-admin perp-market set-status'
 			);
 			reportDispatch(`perp-market[${market}] status = ${status}`, result);
+		} finally {
+			await client.unsubscribe();
+		}
+	});
+
+	withGlobalOptions(
+		pm
+			.command('set-fee-buffer <market> <amount>')
+			.description(
+				'Pnl-pool retention buffer the streaming fee sweep leaves above live user claims for the IF/AMM-provision drains; the protocol drain is buffer-exempt (raw u64, QUOTE_PRECISION).'
+			)
+	).action(async (market: string, amount: string, _flags, cmd: Command) => {
+		const opts = readGlobalOpts(cmd);
+		const provider = buildProvider(opts);
+		const client = await buildAdminClient(opts);
+		try {
+			const ix = await client.getUpdatePerpMarketFeePoolBufferTargetIx(
+				Number.parseInt(market, 10),
+				new BN(amount)
+			);
+			const result = await sendOrPropose(
+				provider,
+				[ix],
+				opts.multisig ? new PublicKey(opts.multisig) : undefined,
+				'velocity-admin perp-market set-fee-buffer'
+			);
+			reportDispatch(`perp-market[${market}] fee buffer = ${amount}`, result);
 		} finally {
 			await client.unsubscribe();
 		}

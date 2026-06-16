@@ -143,13 +143,22 @@ pub fn update_spot_market_cumulative_interest(
     } = calculate_accumulated_interest(spot_market, now)?;
 
     if deposit_interest > 0 && borrow_interest > 1 {
-        // borrowers -> lenders IF fee here
-        let deposit_interest_for_stakers = deposit_interest
-            .safe_mul(spot_market.insurance_fund.total_factor as u128)?
+        // Explicit lending-gain carveouts (replaces the old single `total_factor`
+        // skim). Two independent cuts taken off the deposit-interest gain:
+        //   - `if_fee_factor`     -> insurance fund (revenue_pool, staker-owned)
+        //   - `protocol_fee_factor`  -> withdrawable protocol fees (protocol_fee_pool)
+        // Lenders receive whatever remains.
+        let deposit_interest_for_if = deposit_interest
+            .safe_mul(spot_market.insurance_fund.if_fee_factor as u128)?
             .safe_div(IF_FACTOR_PRECISION)?;
 
-        let deposit_interest_for_lenders =
-            deposit_interest.safe_sub(deposit_interest_for_stakers)?;
+        let deposit_interest_for_protocol = deposit_interest
+            .safe_mul(spot_market.protocol_fee_factor as u128)?
+            .safe_div(IF_FACTOR_PRECISION)?;
+
+        let deposit_interest_for_lenders = deposit_interest
+            .safe_sub(deposit_interest_for_if)?
+            .safe_sub(deposit_interest_for_protocol)?;
 
         if deposit_interest_for_lenders > 0 {
             spot_market.cumulative_deposit_interest = spot_market
@@ -161,14 +170,39 @@ pub fn update_spot_market_cumulative_interest(
                 .safe_add(borrow_interest)?;
             spot_market.last_interest_ts = now.cast()?;
 
-            // add deposit_interest_for_stakers as balance for revenue_pool
-            let token_amount = get_interest_token_amount(
+            // convert both carveouts to tokens against the SAME pre-credit
+            // deposit_balance — crediting the first pool grows deposit_balance,
+            // and converting the second cut against the grown balance would
+            // skew it above its stated factor (order-dependence)
+            let if_token_amount = get_interest_token_amount(
                 spot_market.deposit_balance,
                 spot_market,
-                deposit_interest_for_stakers,
+                deposit_interest_for_if,
+            )?;
+            let protocol_token_amount = get_interest_token_amount(
+                spot_market.deposit_balance,
+                spot_market,
+                deposit_interest_for_protocol,
             )?;
 
-            update_revenue_pool_balances(token_amount, &SpotBalanceType::Deposit, spot_market)?;
+            // IF cut -> revenue_pool (settles to IF vault for stakers)
+            if if_token_amount > 0 {
+                update_revenue_pool_balances(
+                    if_token_amount,
+                    &SpotBalanceType::Deposit,
+                    spot_market,
+                )?;
+            }
+
+            // protocol cut -> protocol_fee_pool (directly withdrawable)
+            if protocol_token_amount > 0 {
+                update_protocol_fee_pool_balances(
+                    protocol_token_amount,
+                    &SpotBalanceType::Deposit,
+                    spot_market,
+                    false,
+                )?;
+            }
 
             emit!(SpotInterestRecord {
                 ts: now,
@@ -203,6 +237,32 @@ pub fn update_revenue_pool_balances(
         false,
     )?;
     spot_market.revenue_pool = spot_balance;
+
+    Ok(())
+}
+
+/// Move tokens in/out of a spot market's `protocol_fee_pool` (the directly
+/// withdrawable protocol-fee claim). Mirrors `update_revenue_pool_balances`.
+/// The pool is a protocol-owned Deposit-type claim inside the spot vault —
+/// counted in `deposit_balance` like `revenue_pool`, but owned by the protocol
+/// (not users) and never part of the insurance backstop.
+/// `is_leaving_drift` should be true when the Borrow direction corresponds to
+/// tokens exiting the protocol (the recipient-wallet withdrawal).
+pub fn update_protocol_fee_pool_balances(
+    token_amount: u128,
+    update_direction: &SpotBalanceType,
+    spot_market: &mut SpotMarket,
+    is_leaving_drift: bool,
+) -> VelocityResult {
+    let mut spot_balance = spot_market.protocol_fee_pool;
+    update_spot_balances(
+        token_amount,
+        update_direction,
+        spot_market,
+        &mut spot_balance,
+        is_leaving_drift,
+    )?;
+    spot_market.protocol_fee_pool = spot_balance;
 
     Ok(())
 }

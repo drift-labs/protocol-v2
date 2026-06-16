@@ -219,21 +219,16 @@ pub fn settle_pnl(
         );
     }
 
-    let pnl_pool_token_amount = get_token_amount(
+    // user claims settle against the pnl pool only — the AMM's fee pool is
+    // the AMM's own money post-isolation and is never a settlement buffer.
+    // (Fee value now stays in the pnl pool until swept, so the pool is
+    // structurally better funded than under the old fee_pool/5 crutch.)
+    let pnl_tokens_available: i128 = get_token_amount(
         perp_market.pnl_pool.scaled_balance,
         &spot_market,
         perp_market.pnl_pool.balance_type(),
-    )?;
-
-    let fraction_of_fee_pool_token_amount = perp_market
-        .amm
-        .fee_pool_token_amount(&spot_market)?
-        .safe_div(5)?;
-
-    // add a buffer from fee pool for pnl pool balance
-    let pnl_tokens_available: i128 = pnl_pool_token_amount
-        .safe_add(fraction_of_fee_pool_token_amount)?
-        .cast()?;
+    )?
+    .cast()?;
 
     let net_user_pnl = calculate_net_user_pnl(
         &perp_market.amm,
@@ -266,6 +261,7 @@ pub fn settle_pnl(
         &mut spot_market,
         user_quote_token_amount,
         user_unsettled_pnl,
+        net_user_pnl,
         now,
     )?;
 

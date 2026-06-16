@@ -42,10 +42,9 @@ use crate::{
 /// to the vAMM — the things no other quoter can do:
 ///
 /// 1. **Moving P&L around** between the AMM's books and other protocol
-///    accounts: insurance-fund credits ([`record_credit`]), revenue-pool
-///    withdrawals ([`record_revenue_withdrawal`]), the AMM's per-fill
-///    earnings ([`apply_fill_fees`]), protocol funding flowing through the
-///    AMM ([`record_amm_pnl`]).
+///    accounts: insurance-fund credits ([`record_credit`]), the AMM's
+///    per-fill earnings ([`apply_fill_fees`]), protocol funding flowing
+///    through the AMM ([`record_amm_pnl`]).
 /// 2. **Taking over positions** the AMM was not actively making against:
 ///    settlement of expired user positions where the AMM becomes
 ///    counterparty ([`apply_settlement_counterparty`]).
@@ -61,12 +60,6 @@ pub trait AmmContract {
     /// covering a PnL deficit, etc.). The token movement itself happens at
     /// the spot-market layer; this records the AMM-side bookkeeping.
     fn record_credit(&mut self, amount: u64) -> VelocityResult<()>;
-
-    /// Record an outbound transfer from the AMM's earnings to the protocol's
-    /// revenue pool. The token movement itself happens at the spot-market
-    /// layer; this records the AMM-side bookkeeping (`total_fee_withdrawn`
-    /// up, `total_fee_minus_distributions` down).
-    fn record_revenue_withdrawal(&mut self, amount: u128) -> VelocityResult<()>;
 
     /// Apply a forced position change to the AMM's net counterparty
     /// position. Used when expired user positions are settled and the AMM
@@ -93,16 +86,6 @@ pub trait AmmContract {
     /// event — orchestrators that touch only one of them will leave AMM
     /// books out of sync with the curve.
     fn apply_fill_fees(&mut self, fee_to_maker: i64, mm_fee_surplus: i64) -> VelocityResult<()>;
-
-    /// Transfer SPL token balance from the AMM's fee_pool to the
-    /// protocol's revenue pool, updating both spot balances and
-    /// AMM-internal bookkeeping (`total_fee_withdrawn` ↑,
-    /// `total_fee_minus_distributions` ↓) atomically.
-    fn transfer_revenue_to_pool(
-        &mut self,
-        amount: u128,
-        spot_market: &mut crate::state::spot_market::SpotMarket,
-    ) -> VelocityResult<()>;
 
     /// Credit the AMM's fee_pool with SPL token balance. Updates spot
     /// balance only; does NOT touch AMM internal counters — callers use
@@ -146,14 +129,6 @@ impl AmmContract for AMM {
         Ok(())
     }
 
-    fn record_revenue_withdrawal(&mut self, amount: u128) -> VelocityResult<()> {
-        self.total_fee_withdrawn = self.total_fee_withdrawn.safe_add(amount)?;
-        self.total_fee_minus_distributions = self
-            .total_fee_minus_distributions
-            .safe_sub(amount.cast::<i128>()?)?;
-        Ok(())
-    }
-
     fn apply_settlement_counterparty(&mut self, base_delta: i128) -> VelocityResult<()> {
         self.base_asset_amount_with_amm = self.base_asset_amount_with_amm.safe_add(base_delta)?;
         Ok(())
@@ -171,23 +146,6 @@ impl AmmContract for AMM {
         self.total_fee = self.total_fee.safe_add(fee_to_maker.cast::<i128>()?)?;
         self.total_mm_fee = self.total_mm_fee.safe_add(mm_fee_surplus.cast::<i128>()?)?;
         self.record_amm_pnl(fee_to_maker.cast::<i128>()?)?;
-        Ok(())
-    }
-
-    fn transfer_revenue_to_pool(
-        &mut self,
-        amount: u128,
-        spot_market: &mut crate::state::spot_market::SpotMarket,
-    ) -> VelocityResult<()> {
-        crate::controller::spot_balance::transfer_spot_balance_to_revenue_pool(
-            amount,
-            spot_market,
-            &mut self.fee_pool,
-        )?;
-        self.total_fee_withdrawn = self.total_fee_withdrawn.safe_add(amount)?;
-        self.total_fee_minus_distributions = self
-            .total_fee_minus_distributions
-            .safe_sub(amount.cast::<i128>()?)?;
         Ok(())
     }
 
@@ -234,24 +192,15 @@ impl AmmContract for AMM {
 
 impl AMM {
     /// Apply a cost (positive = AMM pays; negative = AMM receives) to AMM
-    /// books, with an optional floor check on `total_fee_minus_distributions`.
-    /// Returns `false` if `check_lower_bound` is set and the cost would
-    /// push tfmd below `total_fee_floor`. Used by `_update_amm` cost
-    /// application, admin repeg, admin update_k, settle_expired_market.
-    ///
-    /// `total_fee_floor` is the protocol's reserved-for-protocol floor —
-    /// computed by the caller from PerpMarket-level fields the AMM doesn't
-    /// own (`total_exchange_fee` * fee-share + `total_liquidation_fee` −
-    /// `total_fee_withdrawn`).
-    pub fn apply_cost(
-        &mut self,
-        cost: i128,
-        check_lower_bound: bool,
-        total_fee_floor: i128,
-    ) -> VelocityResult<bool> {
+    /// books. Returns `false` if `check_lower_bound` is set and the cost
+    /// would push `total_fee_minus_distributions` negative — tfmd contains
+    /// only the AMM's own equity post-isolation, so zero is the floor. Used
+    /// by `_update_amm` cost application, admin repeg, admin update_k,
+    /// settle_expired_market.
+    pub fn apply_cost(&mut self, cost: i128, check_lower_bound: bool) -> VelocityResult<bool> {
         if cost > 0 {
             let new_tfmd = self.total_fee_minus_distributions.safe_sub(cost)?;
-            if check_lower_bound && new_tfmd < total_fee_floor {
+            if check_lower_bound && new_tfmd < 0 {
                 return Ok(false);
             }
             self.total_fee_minus_distributions = new_tfmd;
@@ -281,12 +230,6 @@ impl AMM {
         self.total_fee = self.total_fee.saturating_add(fee_delta);
         self.total_mm_fee = self.total_mm_fee.saturating_add(fee_delta);
         self.total_fee_minus_distributions = new_total_fee_minus_distributions;
-    }
-
-    /// Set `total_fee_minus_distributions` directly. Used by the
-    /// fee-pool ↔ pnl-pool transfer admin ix.
-    pub fn set_total_fee_minus_distributions(&mut self, new_value: i128) {
-        self.total_fee_minus_distributions = new_value;
     }
 }
 
@@ -630,7 +573,6 @@ impl<'a> QuoterCommit for AmmQuoter<'a> {
                 funding_rate: _,
                 oracle_price_data,
                 now,
-                total_fee_floor,
                 long_spread,
                 short_spread,
                 k_update_eligible,
@@ -664,7 +606,6 @@ impl<'a> QuoterCommit for AmmQuoter<'a> {
                     self.handle_funding_applied(
                         funding_imbalance_cost,
                         oracle_price_data,
-                        *total_fee_floor,
                         *long_spread,
                         *short_spread,
                         *market_status,
@@ -689,16 +630,13 @@ impl<'a> AmmQuoter<'a> {
     /// (reserves, `total_fee_minus_distributions`, `net_revenue_since_last_funding`),
     /// and returns a [`CurveSnapshot`] for the orchestrator to emit.
     ///
-    /// `total_fee_floor` is the protocol's lower bound on
-    /// `total_fee_minus_distributions` (computed from PerpMarket-level
-    /// `total_exchange_fee` + `total_liquidation_fee` − AMM's
-    /// `total_fee_withdrawn`). If applying the cost would push the AMM below
-    /// this floor, the k-update is skipped.
+    /// If applying the cost would push `total_fee_minus_distributions`
+    /// negative, the k-update is skipped — tfmd contains only the AMM's own
+    /// equity post-isolation, so zero is the floor.
     pub(crate) fn handle_funding_applied(
         &mut self,
         funding_imbalance_cost: i128,
         oracle_price_data: &OraclePriceData,
-        total_fee_floor: i128,
         long_spread: u32,
         short_spread: u32,
         market_status: crate::state::market_status::MarketStatus,
@@ -771,7 +709,7 @@ impl<'a> AmmQuoter<'a> {
         let adjustment_cost =
             crate::vlp::amm::math::cp_curve::adjust_k_cost(self.amm, &update_k_result)?;
 
-        if !self.apply_cost_to_amm(adjustment_cost, total_fee_floor)? {
+        if !self.apply_cost_to_amm(adjustment_cost)? {
             return Ok(());
         }
 
@@ -797,14 +735,14 @@ impl<'a> AmmQuoter<'a> {
     }
 
     /// Apply a cost (positive = AMM pays) to the AMM's bookkeeping. Returns
-    /// `false` if the cost would push `total_fee_minus_distributions` below
-    /// `total_fee_floor` (caller should treat this as "k-update not affordable,
+    /// `false` if the cost would push `total_fee_minus_distributions`
+    /// negative (caller should treat this as "k-update not affordable,
     /// skip"). Mirrors the AMM-side of the legacy
     /// `crate::vlp::amm::refresh::apply_cost_to_market`.
-    fn apply_cost_to_amm(&mut self, cost: i128, total_fee_floor: i128) -> VelocityResult<bool> {
+    fn apply_cost_to_amm(&mut self, cost: i128) -> VelocityResult<bool> {
         if cost > 0 {
             let new_tfmd = self.amm.total_fee_minus_distributions.safe_sub(cost)?;
-            if new_tfmd < total_fee_floor {
+            if new_tfmd < 0 {
                 return Ok(false);
             }
             self.amm.total_fee_minus_distributions = new_tfmd;

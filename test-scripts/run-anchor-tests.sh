@@ -42,8 +42,6 @@ test_files=(
   deleteInitializedSpotMarket.ts
   depositIntoSpotMarketVault.ts
   velocityClient.ts
-  # ifRebalance.ts # broken by spot fulfillment purge — needs migration to read serum vaults directly off the Market
-  # adminWithdrawFromInsuranceFundVault.ts # uses production-snapshot grafting with old struct layout — re-snapshot needed
   insuranceFundStake.ts
   isolatedPositionVelocityClient.ts
   isolatedPositionLiquidatePerp.ts
@@ -99,6 +97,7 @@ test_files=(
 
   # whitelist.ts
   transferFeeAndPnlPool.ts
+  protocolFees.ts
   specialUserAccount.ts
 )
 

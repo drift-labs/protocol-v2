@@ -197,11 +197,7 @@ export function getVammL2Generator({
 	topOfBookQuoteAmounts?: BN[];
 	latestSlot?: BN;
 }): L2OrderBookGenerator {
-	const updatedAmm = calculateUpdatedAMM(
-		marketAccount.amm,
-		marketAccount.totalExchangeFee,
-		mmOraclePriceData
-	);
+	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, mmOraclePriceData);
 	const paused = isOperationPaused(
 		marketAccount.pausedOperations,
 		PerpOperation.AMM_FILL

@@ -23,7 +23,9 @@ export function registerShow(parent: Command): void {
 			console.log('cold admin:', state.coldAdmin.toBase58());
 			console.log('warm admin:', state.warmAdmin.toBase58());
 			for (const role of Object.values(HotRole)) {
-				const key = `hot${role.charAt(0).toUpperCase()}${role.slice(1)}` as keyof typeof state;
+				const key = `hot${role.charAt(0).toUpperCase()}${role.slice(
+					1
+				)}` as keyof typeof state;
 				const value = state[key] as unknown as PublicKey | undefined;
 				const display =
 					value && !value.equals(PublicKey.default)
@@ -31,6 +33,27 @@ export function registerShow(parent: Command): void {
 						: '(unset)';
 				console.log(`hot.${role}:`, display);
 			}
+			const recipientPerp = state.protocolFeeRecipientPerp;
+			console.log(
+				'protocol fee recipient (perp):',
+				recipientPerp.equals(PublicKey.default)
+					? '(unset)'
+					: recipientPerp.toBase58()
+			);
+			const recipientSpot = state.protocolFeeRecipientSpot;
+			console.log(
+				'protocol fee recipient (spot):',
+				recipientSpot.equals(PublicKey.default)
+					? '(unset)'
+					: recipientSpot.toBase58()
+			);
+			console.log(
+				'trade-fee split: amm =',
+				`${state.perpFeeStructure.ammFeeNumerator}%,`,
+				'if =',
+				`${state.perpFeeStructure.ifFeeNumerator}%,`,
+				'protocol = residual'
+			);
 		} finally {
 			await client.unsubscribe();
 		}

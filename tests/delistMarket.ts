@@ -525,7 +525,10 @@ describe('delist market', () => {
 		);
 		assert(market.expiryTs.eq(expiryTs));
 
-		console.log('totalExchangeFee:', market.totalExchangeFee.toString());
+		console.log(
+			'totalExchangeFee:',
+			market.feeLedger.totalExchangeFee.toString()
+		);
 		console.log('totalFee:', market.amm.totalFee.toString());
 		console.log('totalMMFee:', market.amm.totalMmFee.toString());
 		console.log(
@@ -786,11 +789,14 @@ describe('delist market', () => {
 		assert(marketAfter.pnlPool.scaledBalance.lt(new BN(969643453000 + 109000)));
 
 		console.log('feePool:', marketAfter.amm.feePool.scaledBalance.toString());
-		console.log('totalExchangeFee:', marketAfter.totalExchangeFee.toString());
+		console.log(
+			'totalExchangeFee:',
+			marketAfter.feeLedger.totalExchangeFee.toString()
+		);
 		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(64700000)));
 
-		// assert(marketAfter.totalExchangeFee.eq(new BN(43134)));
-		assert(marketAfter.totalExchangeFee.eq(new BN(129401)));
+		// assert(marketAfter.feeLedger.totalExchangeFee.eq(new BN(43134)));
+		assert(marketAfter.feeLedger.totalExchangeFee.eq(new BN(129401)));
 	});
 
 	it('put settle market pools to revenue pool', async () => {

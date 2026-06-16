@@ -88,7 +88,9 @@ export function reportDispatch(label: string, result: DispatchResult): void {
 		console.log(`✓ ${label}`);
 		console.log(`  signature: ${result.signature}`);
 	} else {
-		console.log(`✓ ${label} proposed to multisig ${result.multisig.toBase58()}`);
+		console.log(
+			`✓ ${label} proposed to multisig ${result.multisig.toBase58()}`
+		);
 		console.log(`  transactionIndex: ${result.transactionIndex.toString()}`);
 		console.log(`  signature: ${result.signature}`);
 		console.log(

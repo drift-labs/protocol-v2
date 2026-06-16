@@ -54,7 +54,6 @@ export function calculateBaseAssetValue(
 				calculateUpdatedAMMSpreadReserves(
 					market.amm,
 					market.marketStats,
-					market.totalExchangeFee,
 					directionToClose,
 					mmOraclePriceData,
 					latestSlot
@@ -66,11 +65,7 @@ export function calculateBaseAssetValue(
 				pegMultiplier: newPeg,
 			};
 		} else {
-			prepegAmm = calculateUpdatedAMM(
-				market.amm,
-				market.totalExchangeFee,
-				mmOraclePriceData
-			);
+			prepegAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
 		}
 	} else {
 		prepegAmm = market.amm;

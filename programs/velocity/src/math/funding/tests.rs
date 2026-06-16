@@ -15,7 +15,7 @@ use crate::test_utils::get_pyth_price;
 // use crate::create_anchor_account_info;
 use crate::state::oracle::{HistoricalOracleData, MMOraclePriceData};
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
+use crate::state::perp_market::{ContractTier, FeeLedger, PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
@@ -73,7 +73,10 @@ fn balanced_funding_test() {
             },
             base_asset_amount_long: 12295081967,
             base_asset_amount_short: -12295081967,
-            total_exchange_fee: (count * 1000000783) / 2888,
+            fee_ledger: FeeLedger {
+                total_exchange_fee: (count * 1000000783) / 2888,
+                ..FeeLedger::default()
+            },
             market_stats: MarketStats {
                 funding_period: 3600,
                 last_mark_price_twap: (px * 999 / 1000) as u64,
@@ -137,7 +140,10 @@ fn balanced_funding_test() {
             },
             base_asset_amount_long: 7845926098328,
             base_asset_amount_short: -7845926098328,
-            total_exchange_fee: (count * 1000000783) / 2888,
+            fee_ledger: FeeLedger {
+                total_exchange_fee: (count * 1000000783) / 2888,
+                ..FeeLedger::default()
+            },
             market_stats: MarketStats {
                 funding_period: 3600,
                 last_mark_price_twap: (px * 999 / 1000) as u64,
@@ -209,7 +215,14 @@ fn capped_sym_funding_test() {
         },
         base_asset_amount_long: 12295081967,
         base_asset_amount_short: -12295081967 * 2,
-        total_exchange_fee: QUOTE_PRECISION / 2,
+        // pendings no longer floor the funding budget: tfmd contains only
+        // the AMM's own equity post-isolation, spendable down to zero
+        // (capped at 1/3 per period)
+        fee_ledger: FeeLedger {
+            total_exchange_fee: QUOTE_PRECISION / 2,
+            pending_protocol_fee: QUOTE_PRECISION / 4,
+            ..FeeLedger::default()
+        },
         market_stats: MarketStats {
             funding_period: 3600,
             last_mark_price_twap: 50 * PRICE_PRECISION_U64,
@@ -248,10 +261,10 @@ fn capped_sym_funding_test() {
 
     assert_eq!(long_funding, balanced_funding);
     assert!(long_funding > short_funding);
-    assert_eq!(short_funding, 24222164);
+    assert_eq!(short_funding, 27611040);
 
-    // only spend 1/3 of fee pool, ((.5-.416667)) * 3 < .25
-    assert_eq!(market.amm.total_fee_minus_distributions, 416667);
+    // only spend 1/3 of the (full, unfloored) 0.5-QUOTE fee pool
+    assert_eq!(market.amm.total_fee_minus_distributions, 333334);
 
     // more longs than shorts, positive funding, amm earns funding
     market = PerpMarket {
@@ -267,7 +280,10 @@ fn capped_sym_funding_test() {
         },
         base_asset_amount_long: 12295081967 * 2,
         base_asset_amount_short: -12295081967,
-        total_exchange_fee: QUOTE_PRECISION / 2,
+        fee_ledger: FeeLedger {
+            total_exchange_fee: QUOTE_PRECISION / 2,
+            ..FeeLedger::default()
+        },
         market_stats: MarketStats {
             funding_period: 3600,
             last_mark_price_twap: 50 * PRICE_PRECISION_U64,
@@ -341,7 +357,10 @@ fn max_funding_rates() {
         oracle_source: crate::state::oracle::OracleSource::PythLazer,
         base_asset_amount_long: 12295081967,
         base_asset_amount_short: -12295081967 * 2,
-        total_exchange_fee: QUOTE_PRECISION / 2,
+        fee_ledger: FeeLedger {
+            total_exchange_fee: QUOTE_PRECISION / 2,
+            ..FeeLedger::default()
+        },
         market_stats: MarketStats {
             funding_period: 3600,
             last_mark_price_twap: 50 * PRICE_PRECISION_U64,
@@ -434,7 +453,10 @@ fn unsettled_funding_pnl() {
         oracle_source: crate::state::oracle::OracleSource::PythLazer,
         base_asset_amount_long: 12295081967,
         base_asset_amount_short: -12295081967 * 2,
-        total_exchange_fee: QUOTE_PRECISION / 2,
+        fee_ledger: FeeLedger {
+            total_exchange_fee: QUOTE_PRECISION / 2,
+            ..FeeLedger::default()
+        },
         market_stats: MarketStats {
             funding_period: 3600,
             last_mark_price_twap: 50 * PRICE_PRECISION_U64,

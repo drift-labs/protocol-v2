@@ -403,7 +403,6 @@ pub fn update_funding_rate(
         funding_rate: funding_rate.cast()?,
         oracle_price_data,
         now,
-        total_fee_floor: market.amm.protocol_floor()?,
         long_spread: amm_long_spread,
         short_spread: amm_short_spread,
         k_update_eligible,

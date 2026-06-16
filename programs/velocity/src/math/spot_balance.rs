@@ -234,8 +234,13 @@ pub fn calculate_deposit_rate(
     utilization: u128,
     borrow_rate: u128,
 ) -> VelocityResult<u128> {
+    // lenders receive the deposit gain net of the IF + protocol carveouts
+    let total_carveout = spot_market
+        .insurance_fund
+        .if_fee_factor
+        .safe_add(spot_market.protocol_fee_factor)?;
     borrow_rate
-        .safe_mul(PERCENTAGE_PRECISION.safe_sub(spot_market.insurance_fund.total_factor.cast()?)?)?
+        .safe_mul(PERCENTAGE_PRECISION.safe_sub(total_carveout.cast()?)?)?
         .safe_mul(utilization)?
         .safe_div(SPOT_UTILIZATION_PRECISION)?
         .safe_div(PERCENTAGE_PRECISION)

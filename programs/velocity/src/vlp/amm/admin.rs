@@ -311,7 +311,6 @@ pub fn handle_recenter_perp_market_amm_crank(
 pub struct UpdatePerpMarketSummaryStatsParams {
     pub net_unsettled_funding_pnl: Option<i64>,
     pub update_amm_summary_stats: Option<bool>,
-    pub exclude_total_liq_fee: Option<bool>,
 }
 
 #[access_control(
@@ -358,7 +357,6 @@ pub fn handle_update_perp_market_amm_summary_stats(
                 perp_market,
                 spot_market,
                 oracle_price,
-                params.exclude_total_liq_fee.unwrap_or(false),
             )?;
 
         msg!(
@@ -704,11 +702,9 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     }
 
     if adjustment_cost > 0 {
-        let max_cost = perp_market
-            .amm
-            .total_fee_minus_distributions
-            .safe_sub(perp_market.amm.total_fee_lower_bound()?.cast()?)?
-            .safe_sub(perp_market.amm.total_fee_withdrawn.cast()?)?;
+        // tfmd contains only the AMM's own equity post-isolation: the whole
+        // surplus is spendable on a k change
+        let max_cost = perp_market.amm.total_fee_minus_distributions;
 
         validate!(
             adjustment_cost <= max_cost,
@@ -728,7 +724,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     // No floor check on admin update_k — admin authority overrides the
     // protocol fee reserve. Pass `false` for check_lower_bound.
-    perp_market.amm.apply_cost(adjustment_cost, false, 0)?;
+    perp_market.amm.apply_cost(adjustment_cost, false)?;
 
     let amm = &perp_market.amm;
 
@@ -1131,13 +1127,13 @@ pub fn handle_update_amm_spread_adjustment_native(
     data: &[u8],
 ) -> Result<()> {
     // Accounts: [0] perp_market (mut), [1] signer, [2] state.
-    // hot_amm_spread_adjust lives at bytes 424..456 of State (after disc).
+    // hot_amm_spread_adjust lives at bytes 392..424 of State (after disc).
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
     {
         let state = &accounts[2].data.borrow();
         let mut hot_amm_spread_adjust = [0u8; 32];
-        hot_amm_spread_adjust.copy_from_slice(&state[424..456]);
+        hot_amm_spread_adjust.copy_from_slice(&state[392..424]);
         let hot_key = anchor_lang::prelude::Pubkey::new_from_array(hot_amm_spread_adjust);
         assert!(
             signer_account.is_signer && *signer_account.key == hot_key,
@@ -1190,17 +1186,11 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
             direction,
         )?;
 
-        let new_tfmd = match direction {
-            TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market
-                .amm
-                .total_fee_minus_distributions
-                .safe_sub(amount.cast()?)?,
-            TransferFeeAndPnlPoolDirection::PnlToFeePool => perp_market
-                .amm
-                .total_fee_minus_distributions
-                .safe_add(amount.cast()?)?,
-        };
-        perp_market.amm.set_total_fee_minus_distributions(new_tfmd);
+        // NO tfmd adjustment for a same-market move: under the
+        // balance-sheet identity (tfmd = pools − net_user_pnl − pendings)
+        // both pools sit inside one perimeter, so the transfer is
+        // equity-neutral — adjusting the ledger would desync it from the
+        // recompute.
 
         let transfer_record = TransferFeeAndPnlPoolRecord {
             ts: now,
@@ -1232,6 +1222,10 @@ pub fn handle_transfer_fee_and_pnl_pool<'c: 'info, 'info>(
             direction,
         )?;
 
+        // cross-market: tokens genuinely leave/enter the fee-pool market's
+        // perimeter, so its AMM ledger adjusts. The pnl-pool-side market
+        // accrues implied-vs-stored drift instead (its pools changed without
+        // a ledger entry) — reconciled by the summary-stats recompute ix.
         perp_market_with_fee_pool.amm.total_fee_minus_distributions = match direction {
             TransferFeeAndPnlPoolDirection::FeeToPnlPool => perp_market_with_fee_pool
                 .amm

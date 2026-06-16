@@ -23,7 +23,7 @@ idl-build = [
 ]
 
 [dependencies]
-anchor-lang = "1.0.0"
+anchor-lang = { version = "1.0.0", features = ["init-if-needed"] }
 anchor-spl = "1.0.0"
 solana-program = "3"
 borsh = "1"

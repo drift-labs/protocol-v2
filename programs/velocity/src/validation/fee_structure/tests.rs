@@ -3,11 +3,8 @@ use crate::validation::fee_structure::validate_fee_structure;
 
 #[test]
 fn default_fee_structures() {
-    let mut default_perp_fees = FeeStructure::perps_default();
-    default_perp_fees.flat_filler_fee = 3333;
-    validate_fee_structure(&default_perp_fees).unwrap();
-
-    let mut default_spot_fees = FeeStructure::spot_default();
-    default_spot_fees.flat_filler_fee = 3333;
-    validate_fee_structure(&default_spot_fees).unwrap();
+    // the shipped defaults must round-trip through their own validation —
+    // fetch-modify-update admin flows revalidate the whole structure
+    validate_fee_structure(&FeeStructure::perps_default()).unwrap();
+    validate_fee_structure(&FeeStructure::spot_default()).unwrap();
 }

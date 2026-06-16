@@ -316,10 +316,6 @@ pub enum MarketEvent<'a> {
         funding_rate: i128,
         oracle_price_data: &'a OraclePriceData,
         now: i64,
-        /// Protocol's lower-bound on AMM `total_fee_minus_distributions`
-        /// (computed from PerpMarket-level fees). Threaded so the AMM's
-        /// k-update can gate its cost debit without reading PerpMarket.
-        total_fee_floor: i128,
         /// AMM bid/ask spread snapshot at the moment funding was computed.
         /// The k-update branch compares these against the AMM's base spread.
         long_spread: u32,

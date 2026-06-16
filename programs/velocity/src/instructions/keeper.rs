@@ -46,6 +46,7 @@ use crate::{
             QUOTE_SPOT_MARKET_INDEX,
         },
         margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement},
+        oracle::{is_oracle_valid_for_action, VelocityAction},
         orders::{
             estimate_price_from_side, filter_bids_asks_by_oracle_divergence,
             find_bids_and_asks_from_users,
@@ -92,6 +93,7 @@ use crate::{
         sig_verification::verify_and_decode_ed25519_msg,
         user::{validate_user_deletion, validate_user_is_idle},
     },
+    vlp::amm::math::amm::calculate_net_user_pnl,
     vlp::amm_cache::CacheInfo,
     OracleSource, ID,
 };
@@ -2535,6 +2537,116 @@ pub fn handle_settle_revenue_to_insurance_fund<'c: 'info, 'info>(
     Ok(())
 }
 
+/// Permissionless streaming sweep: materialize a perp market's accrued
+/// pending fee carveouts out of the pnl pool — `pending_protocol_fee` to the
+/// market's `protocol_fee_pool` (buffer-exempt, runs first), then
+/// `pending_if_fee` to the quote spot market's `revenue_pool` and
+/// `pending_amm_provision` tokenized into `amm.fee_pool` (both leave
+/// `fee_pool_buffer_target` behind). Every drain reserves
+/// `max(net_user_pnl, 0)` so user claims stay backed. The same sweep runs
+/// inline on every pnl settle (`update_pool_balances`); this instruction lets
+/// keepers run it on demand without settling anyone's pnl.
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_sweep_perp_market_fees(
+    ctx: Context<SweepPerpMarketFees>,
+    perp_market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let state = ctx.accounts.state.load()?;
+
+    // account identities (market index, quote spot market, oracle) are
+    // enforced by the SweepPerpMarketFees constraints
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
+
+    // The swept amount is derived from net_user_pnl, which is valued at the
+    // oracle price below. Mirror the oracle-validity gates that settle_pnl
+    // applies before trusting that price, so a stale/divergent oracle can't
+    // mis-size the sweep against the user PnL pool.
+    controller::orders::validate_market_within_price_band(perp_market, &state, oracle_price)?;
+
+    if perp_market.amm.is_curve_update_enabled() {
+        let healthy_oracle = perp_market.is_recent_oracle_valid(oracle_map.slot)?;
+
+        if !healthy_oracle {
+            let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
+                MarketType::Perp,
+                perp_market.market_index,
+                &perp_market.oracle_id(),
+                perp_market
+                    .market_stats
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+                perp_market.get_max_confidence_interval_multiplier()?,
+                0,
+                0,
+                None,
+            )?;
+
+            if !is_oracle_valid_for_action(oracle_validity, Some(VelocityAction::SettlePnl))?
+                || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
+            {
+                validate!(
+                    perp_market.market_stats.last_oracle_valid,
+                    oracle_validity.get_error_code(),
+                    "Oracle Price detected as invalid ({}) on last perp market update for Market = {}",
+                    oracle_validity,
+                    perp_market_index
+                )?;
+
+                validate!(
+                    perp_market.amm.is_fresh_at(oracle_map.slot),
+                    ErrorCode::AMMNotUpdatedInSameSlot,
+                    "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+                    perp_market_index,
+                    oracle_map.slot,
+                    perp_market.amm.last_update_slot(),
+                    perp_market.market_stats.last_oracle_valid
+                )?;
+            }
+        }
+    }
+
+    controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
+
+    let net_user_pnl = calculate_net_user_pnl(
+        &perp_market.amm,
+        oracle_price,
+        perp_market.quote_asset_amount,
+        perp_market.net_unsettled_funding_pnl,
+    )?;
+
+    let (if_swept, protocol_swept, amm_provision_tokenized) =
+        controller::perp_pools::sweep_market_fees(
+            perp_market,
+            spot_market,
+            net_user_pnl,
+            now,
+            false,
+        )?;
+
+    msg!(
+        "swept perp market {} fees: if={} protocol={} amm_provision_tokenized={}",
+        perp_market_index,
+        if_swept,
+        protocol_swept,
+        amm_provision_tokenized
+    );
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
     exchange_not_paused(&ctx.accounts.state)
@@ -3366,6 +3478,28 @@ pub struct SettleRevenueToInsuranceFund<'info> {
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(perp_market_index: u16,)]
+pub struct SweepPerpMarketFees<'info> {
+    pub state: AccountLoader<'info, State>,
+    #[account(
+        mut,
+        seeds = [b"perp_market", perp_market_index.to_le_bytes().as_ref()],
+        bump,
+        has_one = oracle @ ErrorCode::InvalidOracle,
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// The perp market's quote spot market (enforced by the PDA derivation)
+    #[account(
+        mut,
+        seeds = [b"spot_market", perp_market.load()?.quote_spot_market_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    /// CHECK: must be `perp_market.oracle` (enforced by `has_one` above)
+    pub oracle: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

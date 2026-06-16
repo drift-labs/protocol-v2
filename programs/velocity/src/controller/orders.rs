@@ -2256,9 +2256,11 @@ fn settle_amm_house_fill(
         filler_reward,
         referee_discount,
         referrer_reward,
-        fee_to_market_for_lp: _fee_to_market_for_lp,
         maker_rebate,
         builder_fee: builder_fee_option,
+        protocol_fee,
+        if_fee,
+        amm_fee,
     } = fees::calculate_fee_for_fulfillment_with_amm(
         taker_stats,
         taker_quote,
@@ -2294,12 +2296,24 @@ fn settle_amm_house_fill(
         &taker_pd,
     )?;
 
-    market.total_exchange_fee = market.total_exchange_fee.safe_add(user_fee.cast()?)?;
+    // the AMM books ONLY its own money: its fee provision + spread surplus
+    // (`fee_to_market = amm_fee + surplus`). Protocol / IF carveouts never
+    // touch the AMM's ledger or pools.
     <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::apply_fill_fees(
         &mut market.amm,
         fee_to_market,
         taker_surplus,
     )?;
+    // gross taker fee for analytics plus the explicit protocol / IF / AMM
+    // carveouts of the trade-fee remainder. All three accrue as pending quote
+    // counters here (the quote spot market isn't in scope at fill); their
+    // token value lands in the pnl pool as fills settle and is materialized
+    // into revenue_pool / protocol_fee_pool / amm.fee_pool by
+    // `sweep_market_fees`. The AMM provision also grows the lifetime
+    // backstop-of-last-resort clawback cap.
+    market
+        .fee_ledger
+        .accrue_fill_fees(user_fee, protocol_fee, if_fee, amm_fee)?;
 
     taker_stats.increment_total_fees(user_fee)?;
     taker_stats.increment_total_rebate(maker_rebate)?;
@@ -2575,6 +2589,9 @@ fn settle_dlob_match_fill(
         referrer_reward,
         referee_discount,
         builder_fee: builder_fee_option,
+        protocol_fee,
+        if_fee,
+        amm_fee,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
         taker_stats,
@@ -2604,7 +2621,21 @@ fn settle_dlob_match_fill(
         }
     }
 
-    market.total_exchange_fee = market.total_exchange_fee.safe_add(fee_to_market.cast()?)?;
+    // gross taker fee for the analytics counter; protocol / IF / AMM carveouts
+    // accrue to pending counters, materialized out of the pnl pool by
+    // `sweep_market_fees`. The AMM's provision (`fee_to_market == amm_fee`) is
+    // also credited to the AMM books at fill — tokens follow at the sweep's
+    // tokenization step — and grows its backstop-of-last-resort clawback cap.
+    market
+        .fee_ledger
+        .accrue_fill_fees(taker_fee, protocol_fee, if_fee, amm_fee)?;
+    if amm_fee > 0 {
+        <crate::vlp::amm::AMM as crate::vlp::amm::quoter::AmmContract>::apply_fill_fees(
+            &mut market.amm,
+            fee_to_market,
+            0,
+        )?;
+    }
 
     controller::position::update_quote_asset_and_break_even_amount(
         &mut taker.perp_positions[taker_position_index],

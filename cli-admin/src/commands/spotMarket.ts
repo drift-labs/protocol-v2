@@ -94,4 +94,43 @@ export function registerSpotMarket(parent: Command): void {
 			await client.unsubscribe();
 		}
 	});
+
+	withGlobalOptions(
+		sm
+			.command('set-fee-factors <market> <ifFeeFactor> <protocolFeeFactor>')
+			.description(
+				'Lending deposit-interest carveouts (IF_FACTOR_PRECISION = 1e6; sum <= 1e6): ifFeeFactor -> staker-owned insurance fund, protocolFeeFactor -> withdrawable protocol fees. Lenders receive the rest.'
+			)
+	).action(
+		async (
+			market: string,
+			ifFeeFactor: string,
+			protocolFeeFactor: string,
+			_flags,
+			cmd: Command
+		) => {
+			const opts = readGlobalOpts(cmd);
+			const provider = buildProvider(opts);
+			const client = await buildAdminClient(opts);
+			try {
+				const ix = await client.getUpdateSpotMarketIfFactorIx(
+					Number.parseInt(market, 10),
+					Number.parseInt(ifFeeFactor, 10),
+					Number.parseInt(protocolFeeFactor, 10)
+				);
+				const result = await sendOrPropose(
+					provider,
+					[ix],
+					opts.multisig ? new PublicKey(opts.multisig) : undefined,
+					'velocity-admin spot-market set-fee-factors'
+				);
+				reportDispatch(
+					`spot-market[${market}] if_fee_factor = ${ifFeeFactor}, protocol_fee_factor = ${protocolFeeFactor}`,
+					result
+				);
+			} finally {
+				await client.unsubscribe();
+			}
+		}
+	);
 }

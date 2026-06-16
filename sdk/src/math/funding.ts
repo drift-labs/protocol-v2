@@ -41,7 +41,6 @@ function calculateLiveMarkTwap(
 		const [bid, ask] = calculateBidAskPrice(
 			market.amm,
 			market.marketStats,
-			market.totalExchangeFee,
 			mmOraclePriceData
 		);
 		markPrice = bid.add(ask).div(new BN(2));
@@ -427,13 +426,10 @@ export function calculateLongShortFundingRateAndLiveTwaps(
  */
 export function calculateFundingPool(market: PerpMarketAccount): BN {
 	// todo
-	const totalFeeLB = market.totalExchangeFee.div(new BN(2));
+	// no protocol floor post-isolation: 1/3 of the AMM's own equity
 	const feePool = BN.max(
 		ZERO,
-		market.amm.totalFeeMinusDistributions
-			.sub(totalFeeLB)
-			.mul(new BN(1))
-			.div(new BN(3))
+		market.amm.totalFeeMinusDistributions.mul(new BN(1)).div(new BN(3))
 	);
 	return feePool;
 }

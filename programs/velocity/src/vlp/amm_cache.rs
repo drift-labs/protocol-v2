@@ -343,13 +343,14 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
         {
             cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
             cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-            cached_info.last_exchange_fees = perp_market.total_exchange_fee;
-            cached_info.last_settle_amm_ex_fees = perp_market.total_exchange_fee;
+            cached_info.last_exchange_fees = perp_market.fee_ledger.total_exchange_fee;
+            cached_info.last_settle_amm_ex_fees = perp_market.fee_ledger.total_exchange_fee;
             cached_info.last_settle_amm_pnl = net_pnl_pool_token_amount;
             return Ok(());
         }
 
         let exchange_fee_delta = perp_market
+            .fee_ledger
             .total_exchange_fee
             .saturating_sub(cached_info.last_exchange_fees);
 
@@ -370,7 +371,7 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
 
         cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
         cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-        cached_info.last_exchange_fees = perp_market.total_exchange_fee;
+        cached_info.last_exchange_fees = perp_market.fee_ledger.total_exchange_fee;
 
         Ok(())
     }
