@@ -196,8 +196,8 @@ mod tests {
             commitment: CommitmentLevel::Processed,
         };
 
-        let mut usermap = GlobalUserMap::new(commitment, mainnet_endpoint(), true);
-        usermap.subscribe().await.unwrap();
+        let usermap = GlobalUserMap::new(commitment, mainnet_endpoint(), true, None);
+        let unsub = usermap.subscribe().await.unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
@@ -206,11 +206,9 @@ mod tests {
 
         dbg!(usermap.get_latest_slot());
 
-        usermap.unsubscribe().await.unwrap();
-
+        // Stop the websocket subscription, then tear down the map (consumes self).
+        let _ = unsub.send(());
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-
-        assert_eq!(usermap.size(), 0);
-        assert_eq!(usermap.subscribed, false);
+        usermap.unsubscribe().unwrap();
     }
 }

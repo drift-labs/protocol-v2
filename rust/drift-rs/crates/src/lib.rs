@@ -4251,30 +4251,32 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "rpc_tests")]
     async fn test_marketmap_subscribe() {
+        use crate::event_subscriber::RpcClient;
         use utils::test_envs::mainnet_endpoint;
 
         let client = DriftClient::new(
             Context::MainNet,
-            RpcAccountProvider::new(&mainnet_endpoint()),
+            RpcClient::new(mainnet_endpoint()),
             Keypair::new().into(),
         )
         .await
         .unwrap();
 
-        let _ = client.subscribe().await;
+        let _ = client.subscribe_all_markets().await;
+        let _ = client.subscribe_all_oracles().await;
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
         for _ in 0..20 {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            let perp_market = client.get_perp_market_account_and_slot(0);
+            let perp_market = client.get_perp_market_account_and_slot(0).await;
             let slot = perp_market.unwrap().slot;
             dbg!(slot);
         }
 
         for _ in 0..20 {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            let spot_market = client.get_spot_market_account_and_slot(0);
+            let spot_market = client.get_spot_market_account_and_slot(0).await;
             let slot = spot_market.unwrap().slot;
             dbg!(slot);
         }

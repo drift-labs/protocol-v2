@@ -77,7 +77,7 @@ impl AuctionSubscriber {
 #[cfg(feature = "rpc_tests")]
 mod tests {
     use super::*;
-    use crate::utils::test_envs::mainnet_endpoint;
+    use crate::utils::{get_ws_url, test_envs::mainnet_endpoint};
 
     #[tokio::test]
     async fn test_auction_subscriber() {
@@ -86,22 +86,18 @@ mod tests {
         let config = AuctionSubscriberConfig {
             commitment: CommitmentConfig::confirmed(),
             resub_timeout_ms: None,
-            url: mainnet_endpoint(),
+            url: get_ws_url(&mainnet_endpoint()).unwrap(),
         };
 
-        let mut auction_subscriber = AuctionSubscriber::new(config);
+        let auction_subscriber = AuctionSubscriber::new(config);
 
-        let emitter = auction_subscriber.event_emitter.clone();
-
-        emitter.subscribe(move |event| {
+        auction_subscriber.subscribe(move |event| {
             log::info!("{:?}", event.now.elapsed());
         });
 
-        let _ = auction_subscriber.subscribe().await;
-
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
 
-        let _ = auction_subscriber.unsubscribe().await;
+        let _ = auction_subscriber.unsubscribe();
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }

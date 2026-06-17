@@ -151,27 +151,21 @@ impl SlotSubscriber {
 
 #[cfg(feature = "rpc_tests")]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
-    use crate::utils::test_envs::mainnet_endpoint;
+    use crate::utils::{get_ws_url, test_envs::mainnet_endpoint};
 
     #[tokio::test]
     async fn test_subscribe() {
-        let cluster = Cluster::from_str(&mainnet_endpoint()).unwrap();
-        let url = cluster.ws_url().to_string();
-
-        let mut slot_subscriber = SlotSubscriber::new(url);
-        let _ = slot_subscriber.subscribe().await;
-
-        slot_subscriber.event_emitter.clone().subscribe(
-            SlotSubscriber::SUBSCRIPTION_ID,
-            move |event| {
-                if let Some(event) = event.as_any().downcast_ref::<SlotUpdate>() {
-                    dbg!(event);
-                }
-            },
+        let pubsub = Arc::new(
+            PubsubClient::new(&get_ws_url(&mainnet_endpoint()).unwrap())
+                .await
+                .expect("ws connects"),
         );
+
+        let mut slot_subscriber = SlotSubscriber::new(pubsub);
+        let _ = slot_subscriber.subscribe(move |event| {
+            dbg!(event);
+        });
         dbg!("sub'd");
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
