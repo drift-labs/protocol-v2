@@ -13,11 +13,10 @@
  *   D)  SOL-PERP at index 0 (uses SOL Pyth Lazer oracle)
  *   E)  switch dUSDT spot market oracle to PythLazerStableCoin pointing at USDT lazer PDA
  *
- * Phases F–G below are OPTIONAL follow-ons. A minimal functional devnet deploy
- * is complete after Phase E. Skip individually with SKIP_PHASE_F/G=1:
+ * Phase F below is an OPTIONAL follow-on. A minimal functional devnet deploy
+ * is complete after Phase E. Skip it with SKIP_PHASE_F=1:
  *
- *   F)  ProtocolIfSharesTransferConfig                  (optional)
- *   G)  LP pool + dUSDT constituent                     (optional)
+ *   F)  LP pool + dUSDT constituent                     (optional)
  *
  * Idempotent: every phase checks whether its destination PDA already exists on
  * chain and skips if so. Safe to re-run after partial failure. Phase 0 reuses
@@ -88,7 +87,6 @@ import {
 	getVelocityStateAccountPublicKey,
 	getLpPoolPublicKey,
 	getPerpMarketPublicKey,
-	getProtocolIfSharesTransferConfigPublicKey,
 	getPythLazerOraclePublicKey,
 	getSpotMarketPublicKey,
 	loadKeypair,
@@ -114,7 +112,6 @@ type Receipt = {
 	spotMarkets: Record<number, { pubkey: string; txSig?: string }>;
 	pythLazerOracles: Record<number, { pubkey: string; txSig?: string }>;
 	perpMarkets: Record<number, { pubkey: string; txSig?: string }>;
-	protocolIfSharesTransferConfig?: { pubkey: string; txSig?: string };
 	lpPool?: {
 		id: number;
 		pubkey: string;
@@ -816,7 +813,7 @@ async function main() {
 	} else {
 		// `client` was constructed with spotMarketIndexes=[], so it doesn't carry
 		// the spot[0] account we need to read `oracleSource`/`oracle` from. Spin up
-		// a one-shot client subscribed to spot[0] (mirrors Phase G.2's pattern).
+		// a one-shot client subscribed to spot[0] (mirrors Phase F.2's pattern).
 		await client.unsubscribe();
 		const phaseEClient = new AdminClient({
 			connection,
@@ -859,50 +856,23 @@ async function main() {
 		await client.subscribe();
 	}
 
-	// Phases F–G below are optional follow-ons. A minimal devnet deploy is
-	// complete after Phase E. Set SKIP_PHASE_F / SKIP_PHASE_G=1 (individually)
-	// to bypass either of them; the receipt still gets written.
+	// Phase F below is an optional follow-on. A minimal devnet deploy is
+	// complete after Phase E. Set SKIP_PHASE_F=1 to bypass it; the receipt
+	// still gets written.
 
 	const skipPhaseF = process.env.SKIP_PHASE_F === '1';
-	await confirm('Begin Phase F — ProtocolIfSharesTransferConfig? (optional)', [
-		'Global one-time PDA that gates IF share transfers.',
-		skipPhaseF ? '*** SKIP_PHASE_F=1 set — phase will be SKIPPED ***' : '',
-	]);
-	// === Phase F: ProtocolIfSharesTransferConfig (optional) ===
-	const ifCfgPk = getProtocolIfSharesTransferConfigPublicKey(programId);
-	if (skipPhaseF) {
-		logStep(
-			'ProtocolIfSharesTransferConfig SKIPPED via SKIP_PHASE_F=1',
-			ifCfgPk.toBase58()
-		);
-	} else if (await pdaExists(connection, ifCfgPk)) {
-		logStep(
-			'ProtocolIfSharesTransferConfig already initialized',
-			ifCfgPk.toBase58()
-		);
-		receipt.protocolIfSharesTransferConfig = { pubkey: ifCfgPk.toBase58() };
-	} else {
-		logStep('initializeProtocolIfSharesTransferConfig');
-		const txSig = await client.initializeProtocolIfSharesTransferConfig();
-		receipt.protocolIfSharesTransferConfig = {
-			pubkey: ifCfgPk.toBase58(),
-			txSig,
-		};
-	}
-
-	const skipPhaseG = process.env.SKIP_PHASE_G === '1';
-	await confirm('Begin Phase G — LP pool + USDT constituent? (optional)', [
+	await confirm('Begin Phase F — LP pool + USDT constituent? (optional)', [
 		`lpPoolId = ${lpPoolId}`,
 		`maxAum = ${lpMaxAum.toString()} (raw, QUOTE_PRECISION units)`,
 		'A fresh 6-decimal LP token mint is generated; authority = LP pool PDA.',
 		'USDT (spot index 0) is added as the first constituent.',
-		skipPhaseG ? '*** SKIP_PHASE_G=1 set — phase will be SKIPPED ***' : '',
+		skipPhaseF ? '*** SKIP_PHASE_F=1 set — phase will be SKIPPED ***' : '',
 	]);
-	// === Phase G.1: LpPool (optional) ===
+	// === Phase F.1: LpPool (optional) ===
 	const lpPoolPk = getLpPoolPublicKey(programId, lpPoolId);
 	let lpMintPk: PublicKey | null = null;
-	if (skipPhaseG) {
-		logStep(`LpPool SKIPPED via SKIP_PHASE_G=1`, lpPoolPk.toBase58());
+	if (skipPhaseF) {
+		logStep(`LpPool SKIPPED via SKIP_PHASE_F=1`, lpPoolPk.toBase58());
 	} else if (await pdaExists(connection, lpPoolPk)) {
 		logStep(`LpPool ${lpPoolId} already initialized`, lpPoolPk.toBase58());
 		// recover the mint pubkey from the on-chain account so the receipt stays
@@ -940,11 +910,11 @@ async function main() {
 		};
 	}
 
-	// === Phase G.2: dUSDT constituent (spot index 0) (optional) ===
+	// === Phase F.2: dUSDT constituent (spot index 0) (optional) ===
 	const constituent0Pk = getConstituentPublicKey(programId, lpPoolPk, 0);
-	if (skipPhaseG) {
+	if (skipPhaseF) {
 		logStep(
-			`Constituent (pool=${lpPoolId}, spot=0) SKIPPED via SKIP_PHASE_G=1`,
+			`Constituent (pool=${lpPoolId}, spot=0) SKIPPED via SKIP_PHASE_F=1`,
 			constituent0Pk.toBase58()
 		);
 	} else if (await pdaExists(connection, constituent0Pk)) {

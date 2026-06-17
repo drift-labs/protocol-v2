@@ -90,7 +90,7 @@ The `mainnet-beta` branch tracks what is (or is about to be) live on mainnet; `m
    ```
    Phase 0 creates a fresh 6-decimal dUSDT SPL mint, pre-mints `USDT_INITIAL_SUPPLY` (default 10M) to the admin ATA, then initializes the `token_faucet` for that mint — transferring mint authority to the faucet PDA so anyone can call `mint_to_user` for devnet dUSDT. The mint keypair is saved to `deploy-scripts/out/usdt-mint.json` (override via `USDT_MINT_KEYPAIR`); the resolved mint pubkey is persisted to the receipt. Re-runs reuse the same mint. To skip mint creation and reuse an existing mint, set `dUSDT_MINT=<pubkey>`.
 
-   Phase C+ subscribes to Pyth Lazer over WSS and posts an initial signed price update for both feeds (SOL + USDT) — required because phase C2 (SOL spot) and phase D (SOL-PERP) call `get_oracle_price` at init, and so does phase E. Phase E runs `update_spot_market_oracle` to switch dUSDT from `QuoteAsset` (the program-mandated init source for spot[0]) to `PythLazerStableCoin` pointing at the USDT lazer PDA. **Phases F–H are optional** and can be skipped individually (`SKIP_PHASE_F/G/H=1`); a minimal functional devnet deploy is complete after Phase E.
+   Phase C+ subscribes to Pyth Lazer over WSS and posts an initial signed price update for both feeds (SOL + USDT) — required because phase C2 (SOL spot) and phase D (SOL-PERP) call `get_oracle_price` at init, and so does phase E. Phase E runs `update_spot_market_oracle` to switch dUSDT from `QuoteAsset` (the program-mandated init source for spot[0]) to `PythLazerStableCoin` pointing at the USDT lazer PDA. **Phase F is optional** and can be skipped (`SKIP_PHASE_F=1`); a minimal functional devnet deploy is complete after Phase E.
 
    Writes a receipt to `deploy-scripts/out/devnet-deployment.json` with every created PDA, the dUSDT mint, the token_faucet config PDA, and tx signatures.
 
@@ -124,7 +124,7 @@ Optional:
 - `LP_POOL_ID` (default `1`; id `0` is the "not in a pool" sentinel)
 - `LP_MAX_AUM` (default `1_000_000`, multiplied by `QUOTE_PRECISION`)
 - `RECEIPT_PATH` (default `deploy-scripts/out/devnet-deployment.json`)
-- `SKIP_PHASE_C2=1`, `SKIP_PHASE_D=1`, `SKIP_PHASE_E=1`, `SKIP_PHASE_F=1`, `SKIP_PHASE_G=1` — bypass individual phases. **Phases F/G are optional** (IF shares transfer config / LP pool) — skip freely. Phase F's program entrypoint (`initialize_protocol_if_shares_transfer_config`) is currently commented out in `programs/velocity/src/lib.rs`, so set `SKIP_PHASE_F=1` until it's re-enabled. Phase E (oracle switch) is **required** for a functional dUSDT spot[0] — only skip during partial re-runs.
+- `SKIP_PHASE_C2=1`, `SKIP_PHASE_D=1`, `SKIP_PHASE_E=1`, `SKIP_PHASE_F=1` — bypass individual phases. **Phase F is optional** (LP pool + dUSDT constituent) — skip freely. Phase E (oracle switch) is **required** for a functional dUSDT spot[0] — only skip during partial re-runs.
 - `NON_INTERACTIVE=1` (or `YES=1`) — skip every confirmation prompt; useful for CI
 
 By default the script pauses before pre-flight and before each phase (0 + A–G), printing the resolved inputs (mint, oracle, LP id, etc.) and waiting for `y` to continue. Pre-flight verifies both the velocity and token_faucet programs are deployed/executable, and that any caller-supplied `USDT_MINT` is a real token mint, before any state is touched.
@@ -144,10 +144,9 @@ Required phases (0 → E):
 - **D**  SOL-PERP at index 0 (uses SOL Pyth Lazer oracle)
 - **E**  switch dUSDT spot market oracle to `PythLazerStableCoin` pointing at the USDT lazer PDA — required because the program forces `QuoteAsset` at init for spot[0] (`admin.rs:217-228`); the only path to `PythLazerStableCoin` is the post-init `update_spot_market_oracle` ix.
 
-Optional phases (skip individually with `SKIP_PHASE_F/G=1`):
+Optional phase (skip with `SKIP_PHASE_F=1`):
 
-- **F**  `ProtocolIfSharesTransferConfig` *(currently disabled in `lib.rs`; set `SKIP_PHASE_F=1`)*
-- **G**  LP pool + dUSDT constituent
+- **F**  LP pool + dUSDT constituent
 
 Skipped by design (left for later):
 - Additional spot markets beyond dUSDT/SOL (BTC, ETH, …)

@@ -79,10 +79,6 @@ function collectReceiptTargets(
 		'protectedMakerModeConfig',
 		(receipt.protectedMakerModeConfig as any)?.pubkey
 	);
-	pushIfPresent(
-		'protocolIfSharesTransferConfig',
-		(receipt.protocolIfSharesTransferConfig as any)?.pubkey
-	);
 
 	const perp =
 		(receipt.perpMarkets as Record<string, { pubkey?: string }>) ?? {};
