@@ -2645,13 +2645,7 @@ describe('TestWithdrawFromVaults', () => {
 		};
 	}
 
-	// The withdraw/managerWithdraw raw .rpc()s settle on-chain, but
-	// calculateVaultEquity reads the vault's drift user through the polling
-	// loader and still reports the pre-withdraw equity on bankrun (the vault
-	// user account isn't tracked by the manager client's account loader). The
-	// equivalent VaultClient-method flow is covered by 'Test deposit then
-	// withdraw SOL'. Skipped.
-	it.skip('Test full withdraw of vault shares', async () => {
+	it('Test full withdraw of vault shares', async () => {
 		const managerTokenBalance0 = await getTokenBalance(
 			connection,
 			managerUsdcAccount
@@ -2791,10 +2785,15 @@ describe('TestWithdrawFromVaults', () => {
 			vdKey
 		);
 
-		// The raw withdraw .rpc()s above route through a separate provider
-		// connection; refresh the polling loader so calculateVaultEquity sees the
-		// post-withdraw drift user state.
+		// calculateVaultEquity reads the vault's drift user through the
+		// websocket-subscribed vaultUsers map, which never receives updates on
+		// bankrun. Force a one-time fetch of the known vault user so equity
+		// reflects the post-withdraw (drained) state.
 		await managerClient.driftClient.fetchAccounts();
+		const vaultDriftUser = await managerClient.getSubscribedVaultUser(
+			vaultState1.user
+		);
+		await vaultDriftUser.fetchAccounts();
 		vaultEquity = await managerClient.calculateVaultEquity({
 			address: commonVaultKey,
 		});
