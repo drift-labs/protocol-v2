@@ -35,7 +35,8 @@ import {
 	type DisplayConfig,
 } from '../src/slack';
 import { decodeOperations } from '../src/squads/cpi-decoder';
-import { extractOperations, type DetectedOperation } from '../src/squads/index';
+import { extractOperations } from '../src/squads';
+import type { DetectedOperation } from '../src/squads/types';
 import { rpcResponseToRawTransaction } from '../src/services/rpc-converter';
 
 interface Args {

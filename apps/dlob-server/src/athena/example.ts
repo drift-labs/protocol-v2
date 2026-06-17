@@ -17,7 +17,7 @@ import { Athena } from './client';
 
 require('dotenv').config();
 
-async function exampleBasicQuery() {
+async function _exampleBasicQuery() {
 	console.log('\n=== Example 1: Basic Query ===\n');
 
 	const { query } = Athena();
@@ -184,7 +184,7 @@ async function exampleFillQualityAnalytics() {
 	);
 }
 
-async function exampleBatchQuery() {
+async function _exampleBatchQuery() {
 	console.log('\n=== Example 3: Batch Query ===\n');
 
 	const { batchQuery } = Athena();

@@ -195,7 +195,7 @@ describe('RiskManager', () => {
 			],
 		])(
 			'returns %s for oldHealth=%s, newHealth=%s, oldBucket=%s, newBucket=%s',
-			(oldHealth, newHealth, oldBucket, newBucket, expected, description) => {
+			(oldHealth, newHealth, oldBucket, newBucket, expected, _description) => {
 				expect(isSignificantHealthChange(oldHealth, newHealth, oldBucket, newBucket)).toBe(
 					expected
 				);
@@ -276,7 +276,7 @@ describe('RiskManager', () => {
 		];
 
 		test('loads accounts without position manager', async () => {
-			const result = await loadAccountStates(mockusers);
+			const _result = await loadAccountStates(mockusers);
 
 			expect(mockInitializeUserPosition).toHaveBeenCalledTimes(3);
 			expect(mockInitializeUserPosition).toHaveBeenCalledWith(

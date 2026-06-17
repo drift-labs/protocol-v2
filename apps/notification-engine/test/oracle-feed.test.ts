@@ -45,7 +45,7 @@ jest.mock('@backend/common', () => ({
 jest.mock('@velocity-exchange/sdk/lib/node/oracles/oracleClientCache', () => ({
 	OracleClientCache: jest.fn().mockImplementation(() => ({
 		get: jest.fn().mockReturnValue({
-			getOraclePriceDataFromBuffer: jest.fn((buffer) => ({
+			getOraclePriceDataFromBuffer: jest.fn((_buffer) => ({
 				price: '170084',
 				confidence: '963',
 				slot: '315759744',

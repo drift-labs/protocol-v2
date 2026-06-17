@@ -3,7 +3,12 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { TestClient, QUOTE_PRECISION, BN, OracleSource } from '../packages/sdk/src';
+import {
+	TestClient,
+	QUOTE_PRECISION,
+	BN,
+	OracleSource,
+} from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,

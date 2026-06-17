@@ -34,7 +34,11 @@ import {
 	getOraclePriceData,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant, PERCENTAGE_PRECISION } from '../packages/sdk';
+import {
+	BulkAccountLoader,
+	isVariant,
+	PERCENTAGE_PRECISION,
+} from '../packages/sdk';
 import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(

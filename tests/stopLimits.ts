@@ -26,7 +26,12 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, OracleSource, ZERO, isVariant } from '../packages/sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	OracleSource,
+	ZERO,
+	isVariant,
+} from '../packages/sdk';
 import {
 	createAssociatedTokenAccountIdempotentInstruction,
 	createMintToInstruction,

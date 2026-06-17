@@ -6,7 +6,11 @@ import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { TestClient, PositionDirection, EventSubscriber } from '../packages/sdk/src';
+import {
+	TestClient,
+	PositionDirection,
+	EventSubscriber,
+} from '../packages/sdk/src';
 
 import {
 	getProtocolFeeTotal,

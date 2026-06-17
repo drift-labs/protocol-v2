@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { BN } from 'bn.js';
+import { BN } from '@velocity-exchange/sdk';
 
 // TODO add types
 export const simpleSerialize = (value: any): any => {

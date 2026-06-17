@@ -41,7 +41,11 @@ import {
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../packages/sdk';
+import {
+	ContractTier,
+	PERCENTAGE_PRECISION,
+	UserStatus,
+} from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
 import {

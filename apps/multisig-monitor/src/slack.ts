@@ -1,5 +1,5 @@
 import type { SignerEvent } from './signer/types';
-import type { DetectedOperation } from './squads/index';
+import type { DetectedOperation } from './squads/types';
 import type { InnerCpi, SquadsOperation } from './squads/types';
 import {
 	configChangeDescription,
