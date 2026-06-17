@@ -33,8 +33,7 @@ test_files=(
   sharesExamples.test.ts
   transferVaultDepositorShares.test.ts
   trustedVault.test.ts
-  # driftVaults.ts # TODO: large suite, pending helper port (doWashTrading,
-  # calculateAllTokenizedVaultPdas, getVaultDepositorValue, ...)
+  driftVaults.ts
 )
 
 for test_file in "${test_files[@]}"; do

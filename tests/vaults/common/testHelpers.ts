@@ -95,12 +95,19 @@ export async function printTxLogs(
 		maxSupportedTransactionVersion: 0,
 	});
 	const events = [];
-	for (const e of parseLogs(
-		program!,
-		tx!.meta!.logMessages!,
-		program!.programId!.toBase58()!
-	)) {
-		events.push(e);
+	// On bankrun a tx is only retrievable from the BankrunConnection it was sent
+	// through. Raw `program.methods.*().rpc()` calls route through a different
+	// provider connection than the one passed here, so the tx may be null. The
+	// callers that assert on events send through the same connection; the rest
+	// only log, so tolerate a missing tx instead of throwing.
+	if (tx?.meta?.logMessages) {
+		for (const e of parseLogs(
+			program!,
+			tx.meta.logMessages,
+			program!.programId!.toBase58()!
+		)) {
+			events.push(e);
+		}
 	}
 	if (dumpEvents) {
 		console.log(JSON.stringify(events));
