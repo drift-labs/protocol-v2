@@ -11,20 +11,53 @@ import {
 	Connection,
 	Keypair,
 	LAMPORTS_PER_SOL,
+	PublicKey,
 	TransactionSignature,
 } from '@solana/web3.js';
+import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
 import { BankrunProvider } from 'anchor-bankrun';
 import { Metaplex } from '@metaplex-foundation/js';
 import {
 	TestClient,
 	User,
+	VelocityClient as DriftClient,
 	VelocityClientConfig as DriftClientConfig,
 	UserMapConfig,
 	parseLogs,
+	OracleInfo,
+	OrderType,
+	MarketType,
+	PositionDirection,
+	OrderParamsBitFlag,
+	getOrderParams,
+	getTokenAmount,
+	getSignedTokenAmount,
+	convertToNumber,
+	isVariant,
+	getUserStatsAccountPublicKey,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	BASE_PRECISION,
+	TEN,
+	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
 } from '@velocity-exchange/sdk';
-import { VaultClient, IDL } from '@velocity-exchange/vaults-sdk';
+import {
+	VaultClient,
+	IDL,
+	Vaults as DriftVaults,
+	getVaultDepositorAddressSync,
+	getTokenizedVaultAddressSync,
+	getTokenizedVaultMintAddressSync,
+} from '@velocity-exchange/vaults-sdk';
 import { BankrunContextWrapper } from './bankrunConnection';
-import { mockUserUSDCAccount } from '../../velocity/testHelpers';
+import {
+	mockUserUSDCAccount,
+	createWSolTokenAccountForUser,
+	createUserWithUSDCAndWSOLAccount,
+} from '../../velocity/testHelpers';
+import { assert } from 'chai';
+
+export { assert };
 
 export {
 	initializeQuoteSpotMarket,
@@ -35,10 +68,16 @@ export {
 	mockUSDCMint as mockUSDCMintBankrun,
 	mockUserUSDCAccount as mockUserUSDCAccountBankrun,
 	mockOracle,
-	setFeedPrice,
+	mockOracleNoProgram,
+	// drift-vaults' tests call `setFeedPrice`; on bankrun the price feed is a
+	// PythLazer account written directly, so map it onto the no-program variant.
+	setFeedPriceNoProgram as setFeedPrice,
+	setFeedPriceNoProgram,
 	sleep,
 	createUserWithUSDCAccount,
 } from '../../velocity/testHelpers';
+
+export { createUserWithUSDCAndWSOLAccount };
 
 /**
  * Fetches a transaction's logs and returns the program's decoded Anchor events.
@@ -82,7 +121,14 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 	usdcAmount: BN;
 	programId: anchor.web3.PublicKey;
 	vaultClientCliMode?: boolean;
+	// If true, no drift user sub-account is initialized for the signer (e.g. for
+	// pure vault-depositors or delegates that never trade on their own account).
 	skipUser?: boolean;
+	// If true, the freshly minted USDC is deposited into the signer's drift user
+	// spot position (idx 0). Only meaningful when a user is initialized.
+	depositCollateral?: boolean;
+	// If provided, a WSOL token account is funded with this many lamports.
+	solAmount?: BN;
 	driftClientConfig?: Omit<DriftClientConfig, 'connection' | 'wallet'>;
 	userMapConfig?: UserMapConfig;
 	metaplex?: Metaplex;
@@ -91,6 +137,7 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 	wallet: Wallet;
 	user: User;
 	userUSDCAccount: Keypair;
+	userWSOLAccount: PublicKey | undefined;
 	driftClient: TestClient;
 	vaultClient: VaultClient;
 }> {
@@ -99,6 +146,9 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 		usdcMint,
 		usdcAmount,
 		vaultClientCliMode,
+		skipUser,
+		depositCollateral,
+		solAmount,
 		driftClientConfig,
 		bankrunContext,
 	} = params;
@@ -141,19 +191,595 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 		signer.publicKey
 	);
 
+	// Only fund a WSOL token account when the caller asks for one (solAmount).
+	// Doing it unconditionally moves lamports out of the signer's native balance
+	// and skews tests that measure SOL balances (e.g. trustedVault's borrow math).
+	let userWSOLAccount: PublicKey | undefined;
+	if (solAmount !== undefined) {
+		userWSOLAccount = await createWSolTokenAccountForUser(
+			bankrunContext,
+			signer,
+			solAmount
+		);
+	}
+
 	await driftClient.subscribe();
-	if (!driftClientConfig?.authority) {
+	if (!skipUser && !driftClientConfig?.authority) {
 		await driftClient.initializeUserAccount(
 			driftClientConfig?.activeSubAccountId ?? 0
 		);
+		if (depositCollateral) {
+			await driftClient.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
+		}
 	}
 
 	return {
 		signer,
 		wallet,
-		user: driftClient.getUser(),
+		user: skipUser ? undefined : driftClient.getUser(),
 		userUSDCAccount,
+		userWSOLAccount,
 		driftClient,
 		vaultClient,
 	};
+}
+
+/**
+ * Initializes a SOL spot-market maker on bankrun: a drift user with USDC + WSOL
+ * collateral that requotes a bid/ask around the SOL oracle. Ported from
+ * drift-vaults, adapted to the velocity bankrun harness (takes the
+ * BankrunContextWrapper + a TestBulkAccountLoader instead of an AnchorProvider).
+ */
+export async function initializeSolSpotMarketMaker(
+	bankrunContext: BankrunContextWrapper,
+	usdcMint: Keypair,
+	chProgram: Program,
+	oracleInfos: OracleInfo[] = [],
+	solAmount?: BN,
+	usdcAmount?: BN,
+	accountLoader?: any
+): Promise<{
+	driftClient: TestClient;
+	solAccount: PublicKey;
+	usdcAccount: PublicKey;
+	userKeyPair: Keypair;
+	requoteFunc: (bid?: BN, ask?: BN, print?: boolean) => Promise<void>;
+}> {
+	const solDepositAmount = solAmount ?? new BN(10_000 * LAMPORTS_PER_SOL);
+	const usdcDepositAmount = usdcAmount ?? new BN(1_000_000 * 1e6);
+
+	const [driftClient, solAccount, usdcAccount, userKeyPair] =
+		await createUserWithUSDCAndWSOLAccount(
+			bankrunContext,
+			usdcMint,
+			chProgram,
+			solDepositAmount,
+			usdcDepositAmount,
+			[],
+			[0, 1],
+			oracleInfos,
+			accountLoader
+		);
+	await driftClient.updateUserMarginTradingEnabled([
+		{
+			marginTradingEnabled: true,
+			subAccountId: 0,
+		},
+	]);
+
+	const usdcMarket = driftClient.getSpotMarketAccount(0);
+	assert(usdcMarket !== undefined, 'usdcMarket was not initialized');
+	const solMarket = driftClient.getSpotMarketAccount(1);
+	assert(solMarket !== undefined, 'solMarket was not initialized');
+
+	await driftClient.deposit(usdcDepositAmount, 0, usdcAccount);
+	await driftClient.deposit(solDepositAmount, 1, solAccount);
+
+	const requoteFunc = async (bid?: BN, ask?: BN, print?: boolean) => {
+		await driftClient.fetchAccounts();
+		const solOracle = driftClient.getOracleDataForSpotMarket(1);
+
+		const bidPrice =
+			bid ?? solOracle.price.sub(new BN(10).mul(solMarket!.orderTickSize));
+		const askPrice =
+			ask ?? solOracle.price.add(new BN(10).mul(solMarket!.orderTickSize));
+
+		const solPos = driftClient.getUser().getSpotPosition(1);
+		const solBal = getSignedTokenAmount(
+			getTokenAmount(solPos!.scaledBalance, solMarket!, solPos!.balanceType),
+			solPos!.balanceType
+		);
+
+		const solPrec = TEN.pow(new BN(solMarket!.decimals));
+
+		try {
+			const askAmount = convertToNumber(solBal, solPrec) / 10;
+			const bidAmount = askAmount;
+			if (print) {
+				console.log(
+					`mm ${driftClient.authority.toBase58()} requoting around ${convertToNumber(
+						solOracle.price
+					)}. bid: ${bidAmount}@$${convertToNumber(
+						bidPrice
+					)}, ask: ${askAmount}@$${convertToNumber(askPrice)}`
+				);
+			}
+
+			await driftClient.cancelAndPlaceOrders(
+				{
+					marketType: MarketType.SPOT,
+					marketIndex: 1,
+				},
+				[
+					getOrderParams({
+						orderType: OrderType.LIMIT,
+						marketType: MarketType.SPOT,
+						marketIndex: 1,
+						direction: PositionDirection.LONG,
+						price: bidPrice,
+						baseAssetAmount: new BN(bidAmount * solPrec.toNumber()),
+					}),
+					getOrderParams({
+						orderType: OrderType.LIMIT,
+						marketType: MarketType.SPOT,
+						marketIndex: 1,
+						direction: PositionDirection.SHORT,
+						price: askPrice,
+						baseAssetAmount: new BN(askAmount * solPrec.toNumber()),
+					}),
+				]
+			);
+		} catch (e) {
+			console.error(e);
+			throw new Error(`mm failed to requote`);
+		}
+	};
+
+	return {
+		driftClient,
+		solAccount,
+		usdcAccount,
+		userKeyPair,
+		requoteFunc,
+	};
+}
+
+/**
+ * Computes a vault depositor's value/equity, optionally including a tokenized
+ * vault depositor's token-account holdings. Ported from drift-vaults.
+ */
+export async function getVaultDepositorValue(params: {
+	vaultClient: VaultClient;
+	vault: PublicKey;
+	vaultDepositor: PublicKey;
+	tokenizedVaultDepositor?: PublicKey;
+	tokenizedVaultAta?: PublicKey;
+	print?: boolean;
+}): Promise<{
+	vaultEquity: BN;
+	vaultShares: BN;
+	vaultDepositorShares: BN;
+	vaultDepositorEquity: BN;
+	vaultDepositorShareOfVault: number;
+	tokenizedVaultDepositorEquity?: BN;
+	tokenizedVaultDepositorShareOfVault?: number;
+	ataBalance?: BN;
+	ataShareOfSupply?: number;
+	ataValue?: BN;
+}> {
+	const vaultAccount = await params.vaultClient.getVault(params.vault);
+	const vaultDepositorAccount =
+		await params.vaultClient.program.account.vaultDepositor.fetch(
+			params.vaultDepositor
+		);
+	let tokenizedVaultDepositorAccount = undefined;
+	try {
+		tokenizedVaultDepositorAccount = params.tokenizedVaultDepositor
+			? await params.vaultClient.program.account.tokenizedVaultDepositor.fetch(
+					params.tokenizedVaultDepositor
+			  )
+			: undefined;
+	} catch (e) {
+		console.log('failed to get tokenized vault depositor account', e);
+	}
+
+	const vaultEquity =
+		await params.vaultClient.calculateVaultEquityInDepositAsset({
+			address: params.vault,
+		});
+
+	assert(
+		vaultAccount.sharesBase === vaultDepositorAccount.vaultSharesBase,
+		'vaultDepositorAccount.vaultSharesBase is not equal to vaultAccount.sharesBase'
+	);
+	if (tokenizedVaultDepositorAccount) {
+		assert(
+			tokenizedVaultDepositorAccount.vaultSharesBase ===
+				vaultAccount.sharesBase,
+			'tokenizedVaultDepositorAccount.vaultSharesBase is not equal to vaultAccount.sharesBase'
+		);
+	}
+
+	let tokenizedVaultDepositorEquity: BN;
+	let tokenizedVaultDepositorShareOfVault: number;
+	let ataBalance: BN;
+	let ataValue: BN;
+	let ataShareOfSupply: number;
+	if (params.tokenizedVaultDepositor) {
+		tokenizedVaultDepositorEquity = vaultEquity
+			.mul(tokenizedVaultDepositorAccount.vaultShares)
+			.div(vaultAccount.totalShares);
+		tokenizedVaultDepositorShareOfVault =
+			tokenizedVaultDepositorAccount.vaultShares.toNumber() /
+			vaultAccount.totalShares.toNumber();
+
+		if (params.tokenizedVaultAta) {
+			try {
+				const ata =
+					await params.vaultClient.driftClient.connection.getTokenAccountBalance(
+						params.tokenizedVaultAta
+					);
+				const mint = await getMint(
+					params.vaultClient.driftClient.connection,
+					tokenizedVaultDepositorAccount.mint
+				);
+				const totalSupply = new BN(mint.supply.toString());
+
+				ataBalance = new BN(ata.value.amount);
+				if (!totalSupply.isZero()) {
+					ataShareOfSupply = ataBalance.toNumber() / totalSupply.toNumber();
+					ataValue = tokenizedVaultDepositorEquity
+						.mul(ataBalance)
+						.div(totalSupply);
+				} else {
+					ataShareOfSupply = null;
+					ataValue = null;
+				}
+			} catch (e) {
+				console.log(
+					`depositor ${params.vaultDepositor.toBase58()} has no tokenized ATA (${params.tokenizedVaultAta.toBase58()})`
+				);
+			}
+		}
+	}
+
+	const vaultDepositorEquity = vaultEquity
+		// @ts-ignore
+		.mul(vaultDepositorAccount.vaultShares)
+		.div(vaultAccount.totalShares);
+	const vaultDepositorShareOfVault =
+		vaultDepositorAccount.vaultShares.toNumber() /
+		vaultAccount.totalShares.toNumber();
+
+	if (params.print) {
+		console.log(`Vault:          ${params.vault.toBase58()}`);
+		console.log(`VaultDepositor: ${params.vaultDepositor.toBase58()}`);
+		console.log(
+			`TokenizedVaultDepositor: ${params.tokenizedVaultDepositor?.toBase58()}`
+		);
+		console.log(
+			`  vaultEquity:          ${convertToNumber(
+				vaultEquity,
+				QUOTE_PRECISION
+			).toString()}`
+		);
+		console.log(
+			`  vaultDepositorEquity: ${convertToNumber(
+				vaultDepositorEquity,
+				QUOTE_PRECISION
+			).toString()}`
+		);
+		console.log(
+			`  vaultDepositorShareOfVault: ${vaultDepositorShareOfVault * 100}%`
+		);
+		console.log(
+			`  tokenizedVaultDepositorEquity:       ${convertToNumber(
+				tokenizedVaultDepositorEquity,
+				QUOTE_PRECISION
+			).toString()}`
+		);
+		console.log(
+			`  tokenizedVaultDepositorShareOfVault: ${
+				tokenizedVaultDepositorShareOfVault * 100
+			}%`
+		);
+		console.log(`  ataBalance: ${ataBalance?.toString()}`);
+		console.log(
+			`  ataValue:   ${convertToNumber(ataValue, QUOTE_PRECISION).toString()}`
+		);
+		console.log(`  ataShareOfSupply: ${ataShareOfSupply * 100}%`);
+	}
+
+	return {
+		vaultEquity,
+		vaultShares: vaultAccount.totalShares,
+		// @ts-ignore
+		vaultDepositorShares: vaultDepositorAccount.vaultShares,
+		vaultDepositorEquity,
+		vaultDepositorShareOfVault,
+		tokenizedVaultDepositorEquity,
+		tokenizedVaultDepositorShareOfVault,
+		ataBalance,
+		ataValue,
+		ataShareOfSupply,
+	};
+}
+
+/**
+ * Derives the set of PDAs/ATAs for a tokenized vault depositor. Ported from
+ * drift-vaults.
+ */
+export function calculateAllTokenizedVaultPdas(
+	vaultProgramId: PublicKey,
+	vault: PublicKey,
+	vaultDepositorAuthority: PublicKey,
+	vaultSharesBase: number
+): {
+	vaultDepositor: PublicKey;
+	tokenizedVaultDepositor: PublicKey;
+	mintAddress: PublicKey;
+	userVaultTokenAta: PublicKey;
+	vaultTokenizedTokenAta: PublicKey;
+} {
+	const mintAddress = getTokenizedVaultMintAddressSync(
+		vaultProgramId,
+		vault,
+		vaultSharesBase
+	);
+
+	return {
+		vaultDepositor: getVaultDepositorAddressSync(
+			vaultProgramId,
+			vault,
+			vaultDepositorAuthority
+		),
+		tokenizedVaultDepositor: getTokenizedVaultAddressSync(
+			vaultProgramId,
+			vault,
+			vaultSharesBase
+		),
+		mintAddress,
+		userVaultTokenAta: getAssociatedTokenAddressSync(
+			mintAddress,
+			vaultDepositorAuthority,
+			true
+		),
+		vaultTokenizedTokenAta: getAssociatedTokenAddressSync(
+			mintAddress,
+			vault,
+			true
+		),
+	};
+}
+
+/**
+ * Validates that the total user shares (vaultDepositors + tokenizedVaultDepositors)
+ * matches the vault's userShares. Ported from drift-vaults.
+ */
+export async function validateTotalUserShares(
+	program: anchor.Program<DriftVaults>,
+	vault: PublicKey
+) {
+	const vaultAccount = await program.account.vault.fetch(vault);
+	const allVds = await program.account.vaultDepositor.all([
+		{
+			memcmp: {
+				offset: 8,
+				bytes: vault.toBase58(),
+			},
+		},
+	]);
+	const allTvds = await program.account.tokenizedVaultDepositor.all([
+		{
+			memcmp: {
+				offset: 8,
+				bytes: vault.toBase58(),
+			},
+		},
+	]);
+	const vdSharesTotal = allVds.reduce(
+		(acc, vd) => acc.add(vd.account.vaultShares),
+		new BN(0)
+	);
+	const tvdSharesTotal = allTvds.reduce(
+		(acc, vd) => acc.add(vd.account.vaultShares),
+		new BN(0)
+	);
+
+	assert(
+		tvdSharesTotal.add(vdSharesTotal).eq(vaultAccount.userShares),
+		`vdSharesTotal (${vdSharesTotal.toString()}) + tvdSharesTotal (${tvdSharesTotal.toString()}) != vault.userShares (${vaultAccount.userShares.toString()})`
+	);
+}
+
+/**
+ * Drives a trader (the vault's delegated user) to trade spot SOL against a
+ * market maker until the vault's equity moves by `stopPnlDiffPct`. Ported from
+ * drift-vaults.
+ */
+export async function doWashTrading({
+	mmDriftClient,
+	traderDriftClient,
+	vaultClient,
+	vaultAddress,
+	startVaultEquity,
+	stopPnlDiffPct,
+	maxIters,
+	traderAuthority,
+	traderSubAccount = 0,
+	mmRequoteFunc,
+	mmQuoteSpreadBps = 500,
+	mmQuoteOffsetBps = 0,
+	doSell = true,
+}: {
+	mmDriftClient: DriftClient;
+	traderDriftClient: DriftClient;
+	vaultClient: VaultClient;
+	vaultAddress: PublicKey;
+	startVaultEquity: BN;
+	stopPnlDiffPct?: number;
+	maxIters?: number;
+	traderAuthority: PublicKey;
+	traderSubAccount?: number;
+	mmRequoteFunc: (price?: BN, size?: BN) => Promise<void>;
+	mmQuoteSpreadBps?: number;
+	mmQuoteOffsetBps?: number;
+	doSell?: boolean;
+}) {
+	let diff = 1;
+	let i = 0;
+	stopPnlDiffPct = stopPnlDiffPct ?? -0.999;
+	maxIters = maxIters ?? 100;
+	console.log(
+		`Trading against MM until pnl is ${
+			stopPnlDiffPct * 100
+		}%, starting at ${convertToNumber(
+			startVaultEquity,
+			QUOTE_PRECISION
+		).toString()}, max ${maxIters} iters`
+	);
+	let vaultEquity = startVaultEquity;
+
+	const usdcSpotMarket = mmDriftClient.getSpotMarketAccount(0);
+	if (!usdcSpotMarket) {
+		throw new Error('No USDC spot market at idx 0, misconfigured?');
+	}
+
+	const marketIndex = 1;
+
+	while (diff > stopPnlDiffPct && i < maxIters) {
+		try {
+			const oracle = mmDriftClient.getOracleDataForSpotMarket(marketIndex);
+			if (!oracle) {
+				throw new Error(
+					`No oracle for spot market at idx ${marketIndex}, misconfigured?`
+				);
+			}
+			const oraclePrice = convertToNumber(oracle.price, PRICE_PRECISION);
+
+			const bid =
+				(oraclePrice + mmQuoteOffsetBps / 10_000) *
+				(1 - mmQuoteSpreadBps / 10_000);
+			const ask =
+				(oraclePrice + mmQuoteOffsetBps / 10_000) *
+				(1 + mmQuoteSpreadBps / 10_000);
+
+			await mmRequoteFunc(
+				new BN(bid * PRICE_PRECISION.toNumber()),
+				new BN(ask * PRICE_PRECISION.toNumber())
+			);
+
+			i++;
+			await traderDriftClient.fetchAccounts();
+
+			const mmUser = mmDriftClient.getUser();
+			const mmOffer = mmUser
+				.getOpenOrders()
+				.find(
+					(o) =>
+						isVariant(o.marketType, 'spot') &&
+						o.marketIndex === marketIndex &&
+						isVariant(o.direction, 'short')
+				);
+			const mmBid = mmUser
+				.getOpenOrders()
+				.find(
+					(o) =>
+						isVariant(o.marketType, 'spot') &&
+						o.marketIndex === marketIndex &&
+						isVariant(o.direction, 'long')
+				);
+			assert(mmOffer !== undefined, 'mm has no offers');
+			assert(mmBid !== undefined, 'mm has no bids');
+
+			const vaultSpotPos0 = traderDriftClient
+				.getUser(traderSubAccount, traderAuthority)
+				.getSpotPosition(0);
+			const vaultUsdcBalance = getTokenAmount(
+				vaultSpotPos0.scaledBalance,
+				usdcSpotMarket,
+				vaultSpotPos0.balanceType
+			)
+				.mul(new BN(90))
+				.div(new BN(100));
+
+			const bidAmount = vaultUsdcBalance.mul(BASE_PRECISION).div(mmOffer.price);
+
+			await traderDriftClient.placeAndTakeSpotOrder(
+				{
+					orderType: OrderType.LIMIT,
+					marketIndex,
+					baseAssetAmount: bidAmount,
+					price: mmOffer.price,
+					direction: PositionDirection.LONG,
+					auctionDuration: 0,
+					bitFlags: OrderParamsBitFlag.ImmediateOrCancel,
+				},
+				undefined,
+				{
+					maker: mmUser.getUserAccountPublicKey(),
+					makerStats: getUserStatsAccountPublicKey(
+						new PublicKey(DRIFT_PROGRAM_ID),
+						mmDriftClient.authority
+					),
+					makerUserAccount: mmUser.getUserAccount(),
+					order: mmOffer,
+				}
+			);
+
+			if (doSell) {
+				await traderDriftClient.placeAndTakeSpotOrder(
+					{
+						orderType: OrderType.LIMIT,
+						marketIndex,
+						baseAssetAmount: bidAmount,
+						price: mmBid.price,
+						direction: PositionDirection.SHORT,
+						auctionDuration: 0,
+						reduceOnly: true,
+						bitFlags: OrderParamsBitFlag.ImmediateOrCancel,
+					},
+					undefined,
+					{
+						maker: mmUser.getUserAccountPublicKey(),
+						makerStats: getUserStatsAccountPublicKey(
+							new PublicKey(DRIFT_PROGRAM_ID),
+							mmDriftClient.authority
+						),
+						makerUserAccount: mmUser.getUserAccount(),
+						order: mmBid,
+					}
+				);
+			}
+
+			vaultEquity = await vaultClient.calculateVaultEquityInDepositAsset({
+				address: vaultAddress,
+			});
+			diff = vaultEquity.toNumber() / startVaultEquity.toNumber() - 1;
+			if (i % 20 === 0) {
+				console.log(
+					`iter ${i}: Vault equity: ${convertToNumber(
+						vaultEquity,
+						QUOTE_PRECISION
+					).toString()} (${diff * 100}%)`
+				);
+			}
+		} catch (e) {
+			console.error(e);
+			if (i < 5) {
+				// something wrong if we couldnt even do 1 iter
+				assert(false, 'Failed to place and take orders');
+			}
+			console.log(
+				`Breaking early, probably a margin error, got ${i} iters, pnl diff: ${diff}`
+			);
+			break;
+		}
+	}
+	console.log(
+		`\nFinal vault equity: ${convertToNumber(
+			vaultEquity,
+			QUOTE_PRECISION
+		).toString()} (${diff * 100}% from start, ${i} iters)\n`
+	);
 }
