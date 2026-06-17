@@ -56,20 +56,23 @@ has no `test` script and is Firebase/env-dependent — can't silently slip into 
 | @backend/market-data           | jest   | 63            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/notification-engine   | jest   | 158 (88 fail) | ⚠️ failing            | Firebase/env-dependent — needs `setupFiles` + test env (partly Tier 2); no `test` script yet                                                                                                                                            |
 | @backend/multisig-monitor      | jest   | 79            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
-| @backend/realtime-archiver     | swc    | 67 (+1 suite quarantined) | ✅ wired (app preset)  | re-enable `test/services/ingestion.test.ts` (see below)                                                                                                                                               |
+| @backend/realtime-archiver     | swc    | 120           | ✅ gated (app preset)  | —                                                                                                                                                                                                     |
 
 The recurring app-suite cause was the **transformer**, not just missing setup: the
 origin repos ran `@swc/jest`, and the monorepo's only preset was ts-jest. Wiring each app
 to `jest.config.app.cjs` (swc) recovers its suites with no per-suite fixes — candles
 (61), market-data (63), multisig-monitor (79), aggregator-api (337) all run fully green,
 matching how they were tested in infrastructure-v3 (one root `jest` on `@swc/jest`).
-realtime-archiver: 8/9 suites green (67 tests), one quarantined (below).
+realtime-archiver: all suites green (120 tests).
 
-- **realtime-archiver `test/services/ingestion.test.ts`** is quarantined via
-  `testPathIgnorePatterns`. It fails on `error instanceof SolanaJSONRPCError` in
-  `src/services/ingestion.ts` — the constructor resolves to `undefined` in the test
-  realm's `@solana/web3.js` instance. Likely a dual-instance / import issue; re-enable
-  once resolved.
+- **realtime-archiver `test/services/ingestion.test.ts`** (was quarantined via
+  `testPathIgnorePatterns`) is **re-enabled**. The real failure was `value instanceof BN`
+  in `@backend/common`'s `simpleSerialize`: the test's `jest.mock('@velocity-exchange/sdk', …)`
+  factory replaced the whole module and omitted `BN`, so the constructor resolved to
+  `undefined` (`Right-hand side of 'instanceof' is not an object`). The `SolanaJSONRPCError`
+  path was a red herring — the `@solana/web3.js` mock already spreads `requireActual`, so
+  that constructor is real. Fix: add `BN: require('bn.js')` to the SDK mock factory (the
+  SDK's `BN` is bn.js's constructor, so `instanceof` semantics are preserved).
 
 ### SDK test restoration (not a quick fix)
 
