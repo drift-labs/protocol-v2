@@ -33,7 +33,7 @@ CI job `ts-tests` runs `turbo run test --filter='./packages/*' --filter='!@veloc
 | @backend/sns                   | jest   | 5             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @backend/sqs                   | jest   | 9             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @drift-labs/keeper-bots-v2     | mocha  | 2             | ✅ passes (not gated) | add `test` to the gate once confirmed in CI env                                                                                                                                                                                         |
-| @velocity-exchange/sdk         | mocha  | many          | ❌ broken             | `tests/VelocityCore/decode.test.ts` imports `bun:test` inside a mocha suite — split bun tests out or run under `bun test`; some `tests/ci/*` are Tier 2 (need `MAINNET/DEVNET_RPC_ENDPOINT`, see the disabled `verify-sdk-configs` job) |
+| @velocity-exchange/sdk         | mixed  | many          | ❌ multi-issue        | needs a real test-restoration pass — see below |
 | @velocity-exchange/dlob-server | jest   | 3             | ❌ broken             | its existing jest config loads 0 suites (compile/import error) — fix config + imports                                                                                                                                                   |
 | @backend/aggregator-api        | jest   | 20            | ⚠️ unverified         | fastify suites; build is intentionally skipped, so wire test against `src`                                                                                                                                                              |
 | @backend/candles               | jest   | 61 (28 fail)  | ⚠️ failing            | restore jest setup/env from origin repo                                                                                                                                                                                                 |
@@ -46,6 +46,28 @@ The recurring app-suite cause: the origin repos kept `setupFiles`/env/`moduleNam
 in their own jest config, which had no equivalent in the monorepo until
 `jest.config.base.cjs`. Restoring each app means re-adding its setup (env defaults,
 the drift→velocity idl mapping) per package, then deciding Tier 1 vs Tier 2.
+
+### SDK test restoration (not a quick fix)
+
+The sdk has three independent problems; greening it is its own project. The sdk
+tsconfig now allowlists `types: ["node", "mocha", "chai"]` (the earlier `types: []`
+hoist fix had stripped the mocha globals, breaking test compilation), but that only
+unblocks compilation — the suites themselves need work:
+
+1. **Runner split.** `tests/VelocityCore/*` `import 'bun:test'` and cannot run under
+   mocha — the kitchen-sink `test` script (`mocha tests/**/*.ts`) chokes on them.
+   They have a dedicated `test:velocitycore` (`bun test`) script, but it is **not
+   wired into CI and currently fails 2/16**, so they are not actually covered. To
+   split honestly: exclude `tests/VelocityCore` from the mocha `test` script AND add
+   a CI step running `bun test tests/VelocityCore` (after fixing the 2 failures).
+2. **Stale tests vs source.** `tests/amm/test.ts` references `AMM` fields removed in
+   the funding refactor (`historicalOracleData`, `orderStepSize`, `minOrderSize`) and
+   has `MMOraclePriceData`→`MarketStats` type drift. These assertions need updating to
+   the current sdk types.
+3. **Tier 2.** `tests/ci/*` need `MAINNET/DEVNET_RPC_ENDPOINT`. Their home is the
+   `verify-sdk-configs` job, which is currently `if: ${{ false }}` (disabled) — so
+   excluding them from an offline `test` does not lose coverage that exists today, but
+   re-enabling that job (with secrets) is the way to actually preserve them.
 
 ## Rust (`rust/` workspace)
 
