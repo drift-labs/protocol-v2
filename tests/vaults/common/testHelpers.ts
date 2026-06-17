@@ -7,7 +7,12 @@
 // tests/common/testHelpers and adapted to the velocity SDK + vaults SDK.
 import * as anchor from '@coral-xyz/anchor';
 import { BN, Program, Wallet } from '@coral-xyz/anchor';
-import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import {
+	Connection,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	TransactionSignature,
+} from '@solana/web3.js';
 import { BankrunProvider } from 'anchor-bankrun';
 import { Metaplex } from '@metaplex-foundation/js';
 import {
@@ -15,6 +20,7 @@ import {
 	User,
 	VelocityClientConfig as DriftClientConfig,
 	UserMapConfig,
+	parseLogs,
 } from '@velocity-exchange/sdk';
 import { VaultClient, IDL } from '@velocity-exchange/vaults-sdk';
 import { BankrunContextWrapper } from './bankrunConnection';
@@ -31,9 +37,37 @@ export {
 	mockOracle,
 	setFeedPrice,
 	sleep,
-	printTxLogs,
 	createUserWithUSDCAccount,
 } from '../../velocity/testHelpers';
+
+/**
+ * Fetches a transaction's logs and returns the program's decoded Anchor events.
+ * Ported from drift-vaults: the velocity testHelpers' printTxLogs returns raw
+ * log strings, but the vaults tests expect parsed events (e.g. `.data.action`).
+ */
+export async function printTxLogs(
+	connection: Connection,
+	txSig: TransactionSignature,
+	dumpEvents = false,
+	program?: Program
+): Promise<Array<any>> {
+	const tx = await connection.getTransaction(txSig, {
+		commitment: 'confirmed',
+		maxSupportedTransactionVersion: 0,
+	});
+	const events = [];
+	for (const e of parseLogs(
+		program!,
+		tx!.meta!.logMessages!,
+		program!.programId!.toBase58()!
+	)) {
+		events.push(e);
+	}
+	if (dumpEvents) {
+		console.log(JSON.stringify(events));
+	}
+	return events;
+}
 
 /**
  * Funds `signer`, builds a velocity TestClient + a vaults VaultClient bound to

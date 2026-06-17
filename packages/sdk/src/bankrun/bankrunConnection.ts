@@ -204,6 +204,22 @@ export class BankrunConnection {
 		return unpackAccount(publicKey, info, info.owner);
 	}
 
+	// Mirrors the drift-vaults bankrun helper: returns the decoded SPL token
+	// Account (with .amount), not web3.js's { value: { amount } } shape. The
+	// vaults tests read `.amount` off the result directly.
+	async getTokenAccountBalance(
+		publicKey: PublicKey,
+		_commitment?: Commitment
+	): Promise<Account> {
+		return this.getTokenAccount(publicKey);
+	}
+
+	// SOL lamport balance, straight off the BanksClient. Returns a bigint like
+	// the drift-vaults bankrun helper (callers wrap with Number()).
+	async getBalance(publicKey: PublicKey): Promise<bigint> {
+		return this._banksClient.getBalance(publicKey);
+	}
+
 	async getMultipleAccountsInfo(
 		publicKeys: PublicKey[],
 		_commitmentOrConfig?: Commitment

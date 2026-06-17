@@ -523,7 +523,9 @@ describe('feeUpdate', () => {
 			// @ts-ignore
 			vaultProgram
 		);
-		const feeUpdateEvent = events1.find((e) => e.name === 'FeeUpdateRecord');
+		// Anchor 1.0 (velocity) emits event names camelCased; the IDL name is
+		// PascalCase FeeUpdateRecord.
+		const feeUpdateEvent = events1.find((e) => e.name === 'feeUpdateRecord');
 		expect(feeUpdateEvent).not.to.be.null;
 		expect(getVariant(feeUpdateEvent?.data.action)).to.deep.equal('applied');
 
