@@ -27,22 +27,28 @@ import { LastPriceInfo, OracleData, OraclePriceData } from '../types';
 const driftEnv = (process.env.ENV ?? 'mainnet-beta') as VelocityEnv;
 const { SPOT_MARKETS, PERP_MARKETS } = initialize({ env: driftEnv });
 
-const ORACLE_MAP = [...SPOT_MARKETS, ...PERP_MARKETS].reduce((acc, market) => {
-	const key = `${market.symbol}_${market.oracle.toString()}`;
-	acc[key] = market;
-	return acc;
-}, {} as Record<string, PerpMarketConfig | SpotMarketConfig>);
+const ORACLE_MAP = [...SPOT_MARKETS, ...PERP_MARKETS].reduce(
+	(acc, market) => {
+		const key = `${market.symbol}_${market.oracle.toString()}`;
+		acc[key] = market;
+		return acc;
+	},
+	{} as Record<string, PerpMarketConfig | SpotMarketConfig>
+);
 
-const ORACLE_TO_COMPOSITE_KEYS = [...SPOT_MARKETS, ...PERP_MARKETS].reduce((acc, market) => {
-	const oracleKey = market.oracle.toString();
-	const compositeKey = `${market.symbol}_${oracleKey}`;
+const ORACLE_TO_COMPOSITE_KEYS = [...SPOT_MARKETS, ...PERP_MARKETS].reduce(
+	(acc, market) => {
+		const oracleKey = market.oracle.toString();
+		const compositeKey = `${market.symbol}_${oracleKey}`;
 
-	if (!acc[oracleKey]) {
-		acc[oracleKey] = [];
-	}
-	acc[oracleKey].push(compositeKey);
-	return acc;
-}, {} as Record<string, string[]>);
+		if (!acc[oracleKey]) {
+			acc[oracleKey] = [];
+		}
+		acc[oracleKey].push(compositeKey);
+		return acc;
+	},
+	{} as Record<string, string[]>
+);
 
 const connection = new Connection(process.env.ENDPOINT || DEFAULT_ENDPOINT, 'confirmed');
 const driftClient = new VelocityClient({

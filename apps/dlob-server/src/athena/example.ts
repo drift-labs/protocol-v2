@@ -72,12 +72,15 @@ async function exampleFillQualityAnalytics() {
 	console.log(`Retrieved ${results.length} data points across all markets`);
 
 	// Group by market to show summary
-	const marketGroups = results.reduce((acc, result) => {
-		const market = result.MarketIndex;
-		if (!acc[market]) acc[market] = [];
-		acc[market].push(result);
-		return acc;
-	}, {} as Record<string, typeof results>);
+	const marketGroups = results.reduce(
+		(acc, result) => {
+			const market = result.MarketIndex;
+			if (!acc[market]) acc[market] = [];
+			acc[market].push(result);
+			return acc;
+		},
+		{} as Record<string, typeof results>
+	);
 
 	console.log(`\nFound data for ${Object.keys(marketGroups).length} markets`);
 

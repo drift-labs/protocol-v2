@@ -719,7 +719,7 @@ export const padTxSigIndex = (index: number, digits = 5) => index.toString().pad
 
 export const getPaginatedRecordsWithUniqueIds = async <
 	T extends BaseDynamoRecord,
-	K extends T = T
+	K extends T = T,
 >({
 	queryFn,
 	extractUniqueId,

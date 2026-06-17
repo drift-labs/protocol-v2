@@ -8,8 +8,8 @@ const PERP_MARKETS_SYMBOLS = PERP_MARKETS.filter(
 	(market) => !market.category?.includes('Prediction')
 ).map((market) => market.symbol);
 
-const PREDICTION_MARKETS_SYMBOLS = PERP_MARKETS.filter((market) =>
-	market.category?.includes('Prediction')
+const PREDICTION_MARKETS_SYMBOLS = PERP_MARKETS.filter(
+	(market) => market.category?.includes('Prediction')
 ).map((market) => market.symbol);
 
 function isValidMarket(symbol: string, type: 'spot' | 'perp' | 'prediction' | undefined): boolean {

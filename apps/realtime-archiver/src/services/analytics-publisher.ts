@@ -23,7 +23,7 @@ const createRecords = (rows: Array<AnalyticsTradeRecord | AnalyticsDepositRecord
 			({
 				Data: Buffer.from(JSON.stringify(row)),
 				PartitionKey: `dt=${row.dt}`,
-			} satisfies PutRecordsRequestEntry)
+			}) satisfies PutRecordsRequestEntry
 	);
 
 export const publishCuratedRecords = async ({

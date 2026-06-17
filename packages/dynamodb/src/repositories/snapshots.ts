@@ -93,7 +93,7 @@ export const SnapshotRepository = () => {
 	};
 
 	const getSnapshotsForTimestamps = async <
-		T extends TradeSnapshotRecord | EarnSnapshotRecord | VaultDepositorSnapshotRecord
+		T extends TradeSnapshotRecord | EarnSnapshotRecord | VaultDepositorSnapshotRecord,
 	>({
 		entity = EntityTypes.User,
 		recordType,
@@ -129,7 +129,7 @@ export const SnapshotRepository = () => {
 			| EarnSnapshotRecord
 			| VaultDepositorSnapshotRecord
 			| PoolSnapshotRecord
-			| ReferralSnapshotRecord
+			| ReferralSnapshotRecord,
 	>({
 		entity = EntityTypes.User,
 		id,
@@ -204,7 +204,7 @@ export const SnapshotRepository = () => {
 			| TradeSnapshotRecord
 			| VaultDepositorSnapshotRecord
 			| EarnSnapshotRecord
-			| ReferralSnapshotRecord
+			| ReferralSnapshotRecord,
 	>({
 		entity = EntityTypes.User,
 		id,
@@ -236,7 +236,7 @@ export const SnapshotRepository = () => {
 			| TradeSnapshotRecord
 			| VaultDepositorSnapshotRecord
 			| EarnSnapshotRecord
-			| ReferralSnapshotRecord
+			| ReferralSnapshotRecord,
 	>({
 		entity = EntityTypes.User,
 		recordType,

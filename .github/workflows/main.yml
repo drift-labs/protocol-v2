@@ -8,9 +8,8 @@ on:
 
 permissions:
   contents: read
-  # dorny/paths-filter calls the Pull Requests API to list changed files on
-  # pull_request events (check-for-sdk-changes / check-for-cli-admin-changes /
-  # check-for-program-version-changes). Without this the token defaults to
+  # dorny/paths-filter (the `changes` job) calls the Pull Requests API to list
+  # changed files on pull_request events. Without this the token defaults to
   # contents/metadata only and the filter step fails with
   # "Resource not accessible by integration".
   pull-requests: read
@@ -37,8 +36,53 @@ env:
   VERIFIABLE_BUILD_IMAGE: solanafoundation/solana-verifiable-build:3.1.14
 
 jobs:
+  # Single change-detection pass. Heavy rust/anchor jobs gate on these outputs so
+  # a docs-only or pure-TS PR doesn't pay for a 60-min anchor run or a full rust
+  # rebuild. dorny/paths-filter diffs the PR base (or the pushed range on master).
+  changes:
+    name: Detect changed paths
+    runs-on: ubicloud
+    outputs:
+      program: ${{ steps.filter.outputs.program }}
+      program_version: ${{ steps.filter.outputs.program_version }}
+      rust_workspace: ${{ steps.filter.outputs.rust_workspace }}
+      anchor: ${{ steps.filter.outputs.anchor }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
+        id: filter
+        with:
+          filters: |
+            # velocity program source (drives fmt-clippy + unit-tests)
+            program:
+              - 'programs/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'Anchor.toml'
+              - 'rust-toolchain*'
+            # program crate version bump only (drives the verifiable build)
+            program_version:
+              - 'programs/velocity/Cargo.toml'
+            # rust/ workspace; also the program, consumed as a host path-dep
+            rust_workspace:
+              - 'rust/**'
+              - 'programs/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            # anchor integration tests need the program, the tests, and the SDK
+            anchor:
+              - 'programs/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'Anchor.toml'
+              - 'rust-toolchain*'
+              - 'tests/**'
+              - 'test-scripts/**'
+              - 'packages/sdk/**'
   fmt-clippy:
     name: fmt & clippy
+    needs: changes
+    if: ${{ needs.changes.outputs.program == 'true' }}
     runs-on: ubicloud
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -57,6 +101,8 @@ jobs:
         run: cargo clippy -p velocity
   unit-tests:
     name: Unit tests
+    needs: changes
+    if: ${{ needs.changes.outputs.program == 'true' }}
     runs-on: ubicloud
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -128,6 +174,17 @@ jobs:
     runs-on: ubicloud
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      # Restore the turbo cache across runs. CI machines start cold, so without
+      # this every run recompiles the whole graph from scratch. `github.job`
+      # scopes the key per job; the prefix restore-key falls back to the latest
+      # prior run, then turbo validates each task by input hash.
+      - name: Restore turbo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ github.job }}-
       - name: Setup node
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
@@ -147,6 +204,17 @@ jobs:
     runs-on: ubicloud
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      # Cross-run turbo cache. ts-tests runs in parallel with ts-build (no
+      # dependency), so the first cold run rebuilds its deps (incl. the SDK, which
+      # common/dynamodb/redis pull in) harmlessly alongside ts-build; subsequent
+      # runs replay from this cache instead of recompiling.
+      - name: Restore turbo cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ github.job }}-
       - name: Setup node
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
@@ -166,6 +234,8 @@ jobs:
         run: bunx turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'
   rust-workspace-check:
     name: Check rust workspace (drift-rs/keep-rs/swift)
+    needs: changes
+    if: ${{ needs.changes.outputs.rust_workspace == 'true' }}
     runs-on: ubicloud
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -181,12 +251,18 @@ jobs:
         with:
           workspaces: rust
           cache-on-failure: 'true'
+      # Restores the `cargo fmt --check` gate drift-rs ran upstream (keep-rs/swift
+      # only ran a non-blocking `cargo fmt`); covers the whole rust workspace.
+      - name: cargo fmt rust workspace
+        run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
       # The drift-rs build.rs regenerates crates/src/drift_idl.rs from res/velocity.json;
       # the velocity (`drift`) program crate is compiled as a host lib path-dep.
       - name: cargo check rust workspace
         run: cargo check --manifest-path rust/Cargo.toml --all-targets
   anchor-tests:
     name: Anchor tests
+    needs: changes
+    if: ${{ needs.changes.outputs.anchor == 'true' }}
     runs-on: ubicloud
     timeout-minutes: 60
     steps:
@@ -242,9 +318,9 @@ jobs:
           npm install ts-mocha@10.0.0 -g
           npm install --global mocha
 
-      - name: build sdk
-        run: bunx turbo run build --filter=@velocity-exchange/sdk
-
+      # No SDK build needed: the integration tests import the SDK from src/ (ts-mocha
+      # transpiles on the fly) and get the IDL from the anchor build inside
+      # run-anchor-tests.sh. Nothing here consumes packages/sdk/lib/.
       - name: run anchor tests
         env:
           RUST_LOG: solana_runtime::message_processor::stable_log=info
@@ -284,25 +360,11 @@ jobs:
           DEVNET_RPC_ENDPOINT: ${{ secrets.DEVNET_RPC_ENDPOINT }}
         run: ts-mocha ./packages/sdk/tests/ci/*
 
-  check-for-program-version-changes:
-    runs-on: ubicloud
-    # Set job outputs to values from filter step
-    outputs:
-      program: ${{ steps.filter.outputs.program }}
-    steps:
-      # For pull requests it's not necessary to checkout the code
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
-        id: filter
-        with:
-          filters: |
-            program:
-              - 'programs/velocity/Cargo.toml'
   verified-build:
     name: Build Verifiable Artifact
     runs-on: ubicloud
-    needs: [check-for-program-version-changes]
-    if: ${{ needs.check-for-program-version-changes.outputs.program == 'true' }}
+    needs: [changes]
+    if: ${{ needs.changes.outputs.program_version == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

@@ -16,8 +16,8 @@ use std::{
 use anchor_lang::AccountDeserialize;
 use drift::{
     controller::orders::place_perp_order,
-    error::{VelocityResult, ErrorCode},
-    sdk::{VelocityAccounts, OwnedAccount},
+    error::{ErrorCode, VelocityResult},
+    sdk::{OwnedAccount, VelocityAccounts},
     state::{
         oracle_map::OracleMap,
         order_params::{OrderParams, PlaceOrderOptions},

@@ -136,14 +136,17 @@ export const CandleCacheRepository = () => {
 	};
 
 	const createCandleRecords = async (candles: CandleRecord[]): Promise<void> => {
-		const groupedCandles = candles.reduce((acc, candle) => {
-			const key = `${candle.symbol}:${candle.resolution}`;
-			if (!acc[key]) {
-				acc[key] = [];
-			}
-			acc[key].push(candle);
-			return acc;
-		}, {} as Record<string, CandleRecord[]>);
+		const groupedCandles = candles.reduce(
+			(acc, candle) => {
+				const key = `${candle.symbol}:${candle.resolution}`;
+				if (!acc[key]) {
+					acc[key] = [];
+				}
+				acc[key].push(candle);
+				return acc;
+			},
+			{} as Record<string, CandleRecord[]>
+		);
 
 		await Promise.all(
 			Object.values(groupedCandles).map(async (candleGroup) => {

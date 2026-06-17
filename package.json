@@ -56,8 +56,8 @@
 	"scripts": {
 		"generate-docs": "typedoc --skipErrorChecking --logLevel Error",
 		"prepare": "husky install",
-		"prettify": "prettier --check './packages/sdk/src/**/*.ts' './tests/**.ts'",
-		"prettify:fix": "prettier --write './packages/sdk/src/**/*.ts' './tests/**.ts'",
+		"prettify": "prettier --check './packages/*/src/**/*.ts' './apps/*/src/**/*.ts' './tests/**.ts'",
+		"prettify:fix": "prettier --write './packages/*/src/**/*.ts' './apps/*/src/**/*.ts' './tests/**.ts'",
 		"lint": "eslint . --ext ts --quiet --format unix",
 		"lint:fix": "eslint . --ext ts --fix",
 		"build": "turbo run build",

@@ -711,7 +711,8 @@ async fn try_auction_fill(
                 {
                     // if user position is less than min order size, step size is the threshold
                     let amm_size_threshold = if !taker_order.is_reduce_only()
-                        && pos.base_asset_amount.unsigned_abs() > perp_market.market_stats.min_order_size
+                        && pos.base_asset_amount.unsigned_abs()
+                            > perp_market.market_stats.min_order_size
                     {
                         perp_market.market_stats.min_order_size
                     } else {
