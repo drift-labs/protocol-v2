@@ -25,7 +25,7 @@ env:
   RUST_TOOLCHAIN: 1.91.1
   SOLANA_VERSION: 2.3.11
   ANCHOR_VERSION: 1.0.0
-  NODE_VERSION: "24.x.x"
+  NODE_VERSION: '24.x.x'
   # solanafoundation/solana-verifiable-build tags lag behind agave releases;
   # check https://hub.docker.com/r/solanafoundation/solana-verifiable-build/tags
   # for the latest available tag before bumping SOLANA_VERSION above.
@@ -72,21 +72,21 @@ jobs:
         run: cargo check # run package checks
       - name: Run unit tests
         run: cargo test --lib # run unit tests
-# disable until solana-client is upgraded
-#  cargo-audit:
-#    name: Cargo audit
-#    runs-on: ubicloud
-#    steps:
-#      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-#      - name: Cache cargo-audit version
-#        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
-#      - name: Download cargo-audit
-#        uses: actions-rs/install@v0.1
-#        with:
-#          crate: cargo-audit
-#          version: latest
-#      - name: Run cargo-audit # Using args from .cargo/audit.toml
-#        run: cargo audit
+  # disable until solana-client is upgraded
+  #  cargo-audit:
+  #    name: Cargo audit
+  #    runs-on: ubicloud
+  #    steps:
+  #      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+  #      - name: Cache cargo-audit version
+  #        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
+  #      - name: Download cargo-audit
+  #        uses: actions-rs/install@v0.1
+  #        with:
+  #          crate: cargo-audit
+  #          version: latest
+  #      - name: Run cargo-audit # Using args from .cargo/audit.toml
+  #        run: cargo audit
   prettier:
     runs-on: ubicloud
     steps:
@@ -95,7 +95,7 @@ jobs:
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: ${{ env.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
+          registry-url: 'https://registry.npmjs.org'
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -114,7 +114,7 @@ jobs:
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: ${{ env.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
+          registry-url: 'https://registry.npmjs.org'
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -132,7 +132,7 @@ jobs:
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: ${{ env.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
+          registry-url: 'https://registry.npmjs.org'
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -142,6 +142,28 @@ jobs:
       # turbo builds the whole graph in topo order (sdk -> @backend/* -> apps + cli-admin)
       - name: Build all packages + apps
         run: bunx turbo run build
+  ts-tests:
+    name: TS unit tests (libs)
+    runs-on: ubicloud
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Setup node
+        uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+      - name: Setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      # Hermetic jest unit suites for the @backend/* libraries (they mock all infra).
+      # `test` dependsOn `^build`, so turbo builds each lib's deps first.
+      # sdk (mocha) and the apps/* suites are excluded until their test setup is
+      # restored — tracked in docs/monorepo-test-preservation.md.
+      - name: Run library unit tests
+        run: bunx turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'
   rust-workspace-check:
     name: Check rust workspace (drift-rs/keep-rs/swift)
     runs-on: ubicloud
@@ -158,7 +180,7 @@ jobs:
         uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
         with:
           workspaces: rust
-          cache-on-failure: "true"
+          cache-on-failure: 'true'
       # The drift-rs build.rs regenerates crates/src/drift_idl.rs from res/velocity.json;
       # the velocity (`drift`) program crate is compiled as a host lib path-dep.
       - name: cargo check rust workspace
@@ -179,7 +201,7 @@ jobs:
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
         with:
-          cache-on-failure: "true"
+          cache-on-failure: 'true'
 
       - uses: ./.github/actions/setup-solana/
 
@@ -202,7 +224,7 @@ jobs:
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: ${{ env.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -279,10 +301,7 @@ jobs:
   verified-build:
     name: Build Verifiable Artifact
     runs-on: ubicloud
-    needs:
-      [
-          check-for-program-version-changes,
-      ]
+    needs: [check-for-program-version-changes]
     if: ${{ needs.check-for-program-version-changes.outputs.program == 'true' }}
     steps:
       - name: Checkout
