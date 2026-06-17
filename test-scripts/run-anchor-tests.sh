@@ -110,5 +110,5 @@ test_files=(
 
 
 for test_file in ${test_files[@]}; do
-  ts-mocha --exit -t 300000 ./tests/${test_file} || exit 1
+  ts-mocha --exit -t 300000 ./tests/velocity/${test_file} || exit 1
 done
