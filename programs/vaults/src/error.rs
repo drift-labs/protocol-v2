@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use drift::error::ErrorCode as DriftErrorCode;
+use velocity::error::ErrorCode as DriftErrorCode;
 
 pub type VaultResult<T = ()> = std::result::Result<T, ErrorCode>;
 

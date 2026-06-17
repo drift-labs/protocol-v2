@@ -207,7 +207,7 @@ This is **Velocity Protocol v2** — a Solana perpetuals and spot trading protoc
   - `keeper.rs` — keeper/crank instructions (settle PnL, funding, liquidations)
   - `admin.rs` — admin/governance instructions
   - `lp_pool.rs`, `lp_admin.rs` — LP pool management
-- **`vaults/`** — Velocity vaults program (Anchor 1.0; program id `vAuLTsyrv…`). Depends on the `velocity` program as a host/CPI path-dep (aliased `drift`). Its TS client is `packages/vaults-sdk` (`@velocity-exchange/vaults-sdk`). The SDK's IDL (`src/idl/vaults.json`) is vendored/synced from the program — `anchor idl build -p vaults` does not yet work standalone because the velocity dep is aliased `drift` and anchor looks for a nonexistent `programs/drift`.
+- **`vaults/`** — Velocity vaults program (Anchor 1.0; program id `vAuLTsyrv…`). Depends on the `velocity` program as a host/CPI path-dep, referenced by its real crate name `velocity` (not the `drift` alias drift-rs uses — anchor's IDL build resolves dependency programs by name, so `velocity` maps to `programs/velocity`). Its TS client is `packages/vaults-sdk` (`@velocity-exchange/vaults-sdk`). Regenerate the SDK's IDL + types from the program with `bun run program:idl:vaults` (writes `packages/vaults-sdk/src/idl/vaults.json` + `src/types/vaults.ts`) — never hand-edit them.
 - **`pyth/`, `pyth-lazer/`, `switchboard/`, `switchboard-on-demand/`** — Oracle stubs/integrations (minimal, mostly `no-entrypoint` wrappers)
 - **`openbook_v2/`, `token_faucet/`** — DEX integration and test utilities
 

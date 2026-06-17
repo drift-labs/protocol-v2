@@ -9,9 +9,9 @@ use crate::{validate, AccountMapProvider};
 use crate::{TokenizedVaultDepositor, Vault, VaultDepositor, VaultProtocolProvider, WithdrawUnit};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{mint_to, Mint, MintTo, Token, TokenAccount};
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::math::safe_math::SafeMath;
-use drift::state::user::User;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::math::safe_math::SafeMath;
+use velocity::state::user::User;
 
 use super::constraints::is_vault_shares_base_for_tokenized_depositor;
 

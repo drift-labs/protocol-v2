@@ -8,11 +8,11 @@ use crate::{error::ErrorCode, validate, Vault};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use anchor_spl::token::{Token, TokenAccount};
-use drift::cpi::accounts::Deposit as DriftDeposit;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::math::safe_math::SafeMath;
-use drift::program::Velocity;
-use drift::state::user::{User, UserStats};
+use velocity::cpi::accounts::Deposit as DriftDeposit;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::math::safe_math::SafeMath;
+use velocity::program::Velocity;
+use velocity::state::user::{User, UserStats};
 
 pub fn manager_repay<'info>(
     ctx: Context<'info, ManagerRepay<'info>>,
@@ -190,7 +190,7 @@ impl<'info> ManagerRepayCPI for Context<'info, ManagerRepay<'info>> {
         };
         let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
-        drift::cpi::deposit(cpi_context, market_index, amount, false)?;
+        velocity::cpi::deposit(cpi_context, market_index, amount, false)?;
 
         Ok(())
     }

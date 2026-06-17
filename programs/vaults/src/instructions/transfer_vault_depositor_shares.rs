@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::math::safe_math::SafeMath;
-use drift::state::user::User;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::math::safe_math::SafeMath;
+use velocity::state::user::User;
 
 use crate::constraints::{
     is_authority_for_vault_depositor, is_user_for_vault, is_vault_for_vault_depositor,

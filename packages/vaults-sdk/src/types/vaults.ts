@@ -10,7 +10,7 @@ export type Vaults = {
 		name: 'vaults';
 		version: '0.11.0';
 		spec: '0.1.0';
-		description: 'Created with Anchor';
+		description: 'Velocity vaults program';
 	};
 	instructions: [
 		{
@@ -3468,15 +3468,30 @@ export type Vaults = {
 					},
 					{
 						name: 'revenueSettlePeriod';
+						docs: [
+							'How often `revenue_pool` may settle into the IF vault (seconds).',
+						];
 						type: 'i64';
 					},
 					{
-						name: 'totalFactor';
+						name: 'ifFeeFactor';
+						docs: [
+							'Fraction of spot deposit-interest gains carved out to the insurance fund',
+							'(staker-owned). precision: IF_FACTOR_PRECISION. (Was `total_factor`; the',
+							'protocol-vs-staker split was removed — the IF is now 100% staker-owned,',
+							'so this is purely the staker IF carveout.)',
+						];
 						type: 'u32';
 					},
 					{
-						name: 'userFactor';
-						type: 'u32';
+						name: 'paddingIf';
+						docs: [
+							'Was `user_factor` (the old protocol/staker split knob). The IF is now',
+							'100% staker-owned, so the split is gone; slot kept as padding.',
+						];
+						type: {
+							array: ['u8', 4];
+						};
 					},
 				];
 			};
@@ -4746,9 +4761,52 @@ export type Vaults = {
 						type: 'u8';
 					},
 					{
+						name: 'paddingAlignPfp';
+						docs: [
+							"Aligns `protocol_fee_pool`'s leading u128 to a 16-byte struct offset so",
+							'host (x86_64, align 16) and SBF (align 8) layouts agree. Do not reorder.',
+						];
+						type: {
+							array: ['u8', 8];
+						};
+					},
+					{
+						name: 'protocolFeePool';
+						docs: [
+							"Protocol fees collected in this market's token (lending protocol carveout",
+							'+ spot-liquidation protocol fee). A protocol-owned Deposit-type claim',
+							'inside the spot vault (counted in `deposit_balance`, like `revenue_pool`)',
+							'— owned by the protocol, not users, and never part of the insurance',
+							'backstop. Withdrawn directly to `State.protocol_fee_recipient_spot`; the',
+							'withdrawal decrements this claim and re-validates the vault still covers',
+							'all remaining claims, so it can never tap user deposits.',
+						];
+						type: {
+							defined: {
+								name: 'poolBalance';
+							};
+						};
+					},
+					{
+						name: 'protocolLiquidationFee';
+						docs: [
+							"Protocol's cut of a spot liquidation, taken from the liquidatee.",
+							'precision: LIQUIDATOR_FEE_PRECISION',
+						];
+						type: 'u32';
+					},
+					{
+						name: 'protocolFeeFactor';
+						docs: [
+							"Protocol's carveout of lending deposit-interest gains, routed to",
+							'`protocol_fee_pool`. precision: IF_FACTOR_PRECISION',
+						];
+						type: 'u32';
+					},
+					{
 						name: 'padding';
 						type: {
-							array: ['u8', 56];
+							array: ['u8', 8];
 						};
 					},
 				];

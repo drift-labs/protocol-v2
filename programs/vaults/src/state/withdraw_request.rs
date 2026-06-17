@@ -4,14 +4,14 @@ use crate::{validate, Vault};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
 use bytemuck::Zeroable;
-use drift::math::insurance::{
-    if_shares_to_vault_amount as depositor_shares_to_vault_amount,
-    vault_amount_to_if_shares as vault_amount_to_depositor_shares,
-};
-use drift::math::safe_math::SafeMath;
 use drift_macros::assert_no_slop;
 use solana_program::msg;
 use static_assertions::const_assert_eq;
+use velocity::math::insurance::{
+    if_shares_to_vault_amount as depositor_shares_to_vault_amount,
+    vault_amount_to_if_shares as vault_amount_to_depositor_shares,
+};
+use velocity::math::safe_math::SafeMath;
 
 #[assert_no_slop]
 #[derive(

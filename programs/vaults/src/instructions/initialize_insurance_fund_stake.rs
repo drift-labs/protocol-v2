@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use drift::cpi::accounts::InitializeInsuranceFundStake as DriftInitializeInsuranceFundStake;
-use drift::program::Velocity;
-use drift::state::spot_market::SpotMarket;
+use velocity::cpi::accounts::InitializeInsuranceFundStake as DriftInitializeInsuranceFundStake;
+use velocity::program::Velocity;
+use velocity::state::spot_market::SpotMarket;
 
 use crate::constraints::{is_manager_for_vault, is_user_stats_for_vault};
 use crate::drift_cpi::InitializeInsuranceFundStakeCPI;
@@ -89,7 +89,7 @@ impl<'info> InitializeInsuranceFundStakeCPI
         let drift_program = self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
-        drift::cpi::initialize_insurance_fund_stake(cpi_context, market_index)?;
+        velocity::cpi::initialize_insurance_fund_stake(cpi_context, market_index)?;
 
         Ok(())
     }

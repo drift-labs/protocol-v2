@@ -3,10 +3,10 @@ use crate::validate;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::msg;
 
-use drift::math::casting::Cast;
-use drift::math::safe_math::SafeMath;
+use velocity::math::casting::Cast;
+use velocity::math::safe_math::SafeMath;
 
-use drift::math::insurance::{
+use velocity::math::insurance::{
     if_shares_to_vault_amount as depositor_shares_to_vault_amount,
     vault_amount_to_if_shares as vault_amount_to_depositor_shares,
 };

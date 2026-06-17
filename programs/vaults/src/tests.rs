@@ -7,10 +7,10 @@ mod vault_fcn {
     use crate::withdraw_request::WithdrawRequest;
     use crate::{assert_eq_within, Vault, VaultDepositor, WithdrawUnit};
     use anchor_lang::prelude::{AccountLoader, Pubkey};
-    use drift::math::constants::{
+    use velocity::math::constants::{
         ONE_YEAR, QUOTE_PRECISION, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
     };
-    use drift::math::insurance::if_shares_to_vault_amount as depositor_shares_to_vault_amount;
+    use velocity::math::insurance::if_shares_to_vault_amount as depositor_shares_to_vault_amount;
 
     #[test]
     fn test_manager_withdraw() {
@@ -1065,8 +1065,8 @@ mod vault_v1_fcn {
     use std::cell::RefCell;
 
     use anchor_lang::prelude::Pubkey;
-    use drift::math::constants::{ONE_YEAR, QUOTE_PRECISION_U64};
-    use drift::math::insurance::if_shares_to_vault_amount as depositor_shares_to_vault_amount;
+    use velocity::math::constants::{ONE_YEAR, QUOTE_PRECISION_U64};
+    use velocity::math::insurance::if_shares_to_vault_amount as depositor_shares_to_vault_amount;
 
     use crate::state::{Vault, VaultDepositorBase, VaultProtocol};
     use crate::{VaultDepositor, WithdrawUnit};
@@ -2239,12 +2239,12 @@ mod request_withdraw_cancel_tests {
         state::{vault::Vault, VaultDepositor, VaultProtocol},
         WithdrawUnit,
     };
-    use drift::math::{
+    use std::cell::RefCell;
+    use velocity::math::{
         casting::Cast,
         constants::{PERCENTAGE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_U64},
         safe_math::SafeMath,
     };
-    use std::cell::RefCell;
 
     struct DepositsInWithdrawWindow {
         entity_type: EntityType,
@@ -3427,8 +3427,8 @@ mod full_vault_withdraw_tests {
         state::{vault::Vault, VaultDepositor, VaultProtocol},
         WithdrawUnit,
     };
-    use drift::math::constants::{PERCENTAGE_PRECISION_U64, QUOTE_PRECISION_U64};
     use std::cell::RefCell;
+    use velocity::math::constants::{PERCENTAGE_PRECISION_U64, QUOTE_PRECISION_U64};
 
     #[derive(Debug)]
     struct WithdrawParam {

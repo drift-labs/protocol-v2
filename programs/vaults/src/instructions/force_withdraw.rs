@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use anchor_spl::token::{Token, TokenAccount};
-use drift::cpi::accounts::Withdraw as DriftWithdraw;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::program::Velocity;
-use drift::state::user::{User, UserStats};
+use velocity::cpi::accounts::Withdraw as DriftWithdraw;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::program::Velocity;
+use velocity::state::user::{User, UserStats};
 
 use crate::constraints::*;
 use crate::drift_cpi::WithdrawCPI;
@@ -143,7 +143,7 @@ impl<'info> WithdrawCPI for Context<'info, ForceWithdraw<'info>> {
         let drift_program = self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
-        drift::cpi::withdraw(cpi_context, spot_market_index, amount, false)?;
+        velocity::cpi::withdraw(cpi_context, spot_market_index, amount, false)?;
 
         Ok(())
     }

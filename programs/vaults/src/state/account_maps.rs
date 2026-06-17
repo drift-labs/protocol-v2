@@ -1,8 +1,8 @@
 use anchor_lang::prelude::Context;
-use drift::error::VelocityResult;
-use drift::instructions::optional_accounts::{load_maps, AccountMaps};
-use drift::state::spot_market_map::get_writable_spot_market_set;
 use std::collections::BTreeSet;
+use velocity::error::VelocityResult;
+use velocity::instructions::optional_accounts::{load_maps, AccountMaps};
+use velocity::state::spot_market_map::get_writable_spot_market_set;
 
 use crate::state::FeeUpdate;
 use crate::state::VaultProtocol;

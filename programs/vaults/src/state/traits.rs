@@ -8,13 +8,13 @@ use crate::state::vault::Vault;
 use crate::{validate, FeeUpdate, VaultFee, VaultProtocol, WithdrawUnit};
 use anchor_lang::prelude::*;
 
-use drift::math::casting::Cast;
-use drift::math::constants::{PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64};
-use drift::math::insurance::{
+use velocity::math::casting::Cast;
+use velocity::math::constants::{PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64};
+use velocity::math::insurance::{
     if_shares_to_vault_amount as depositor_shares_to_vault_amount,
     vault_amount_to_if_shares as vault_amount_to_depositor_shares,
 };
-use drift::math::safe_math::SafeMath;
+use velocity::math::safe_math::SafeMath;
 
 pub trait Size {
     const SIZE: usize;

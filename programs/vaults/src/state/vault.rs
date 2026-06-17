@@ -1,21 +1,21 @@
 use std::cell::RefMut;
 
 use anchor_lang::prelude::*;
-use drift::math::casting::Cast;
-use drift::math::constants::{ONE_YEAR, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128};
-use drift::math::insurance::calculate_rebase_info;
-use drift::math::insurance::{
+use drift_macros::assert_no_slop;
+use static_assertions::const_assert_eq;
+use velocity::math::casting::Cast;
+use velocity::math::constants::{ONE_YEAR, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128};
+use velocity::math::insurance::calculate_rebase_info;
+use velocity::math::insurance::{
     if_shares_to_vault_amount as depositor_shares_to_vault_amount,
     vault_amount_to_if_shares as vault_amount_to_depositor_shares,
 };
-use drift::math::margin::calculate_user_equity;
-use drift::math::safe_math::SafeMath;
-use drift::state::oracle_map::OracleMap;
-use drift::state::perp_market_map::PerpMarketMap;
-use drift::state::spot_market_map::SpotMarketMap;
-use drift::state::user::User;
-use drift_macros::assert_no_slop;
-use static_assertions::const_assert_eq;
+use velocity::math::margin::calculate_user_equity;
+use velocity::math::safe_math::SafeMath;
+use velocity::state::oracle_map::OracleMap;
+use velocity::state::perp_market_map::PerpMarketMap;
+use velocity::state::spot_market_map::SpotMarketMap;
+use velocity::state::user::User;
 
 use crate::constants::TIME_FOR_LIQUIDATION;
 use crate::error::{ErrorCode, VaultResult};

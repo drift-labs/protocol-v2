@@ -8,13 +8,13 @@ use crate::{Size, VaultDepositorBase};
 use static_assertions::const_assert_eq;
 
 use anchor_lang::prelude::*;
-use drift::math::casting::Cast;
-use drift::math::insurance::{
+use drift_macros::assert_no_slop;
+use velocity::math::casting::Cast;
+use velocity::math::insurance::{
     if_shares_to_vault_amount as depositor_shares_to_vault_amount,
     vault_amount_to_if_shares as vault_amount_to_depositor_shares,
 };
-use drift::math::safe_math::SafeMath;
-use drift_macros::assert_no_slop;
+use velocity::math::safe_math::SafeMath;
 
 #[assert_no_slop]
 #[account(zero_copy(unsafe))]
@@ -367,8 +367,8 @@ impl TokenizedVaultDepositor {
 mod tests {
     use crate::{TokenizedVaultDepositor, Vault, VaultDepositorBase};
     use anchor_lang::prelude::Pubkey;
-    use drift::math::constants::PERCENTAGE_PRECISION;
-    use drift::math::safe_math::SafeMath;
+    use velocity::math::constants::PERCENTAGE_PRECISION;
+    use velocity::math::safe_math::SafeMath;
 
     #[test]
     fn test_tokenize_shares() {

@@ -9,11 +9,11 @@ use crate::{error::ErrorCode, validate, Vault};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use anchor_spl::token::{Token, TokenAccount};
-use drift::cpi::accounts::Withdraw as DriftWithdraw;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::math::safe_math::SafeMath;
-use drift::program::Velocity;
-use drift::state::user::{User, UserStats};
+use velocity::cpi::accounts::Withdraw as DriftWithdraw;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::math::safe_math::SafeMath;
+use velocity::program::Velocity;
+use velocity::state::user::{User, UserStats};
 
 pub fn manager_borrow<'info>(
     ctx: Context<'info, ManagerBorrow<'info>>,
@@ -196,7 +196,7 @@ impl<'info> ManagerBorrowCPI for Context<'info, ManagerBorrow<'info>> {
         let drift_program = self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
-        drift::cpi::withdraw(cpi_context, market_index, amount, false)?;
+        velocity::cpi::withdraw(cpi_context, market_index, amount, false)?;
 
         Ok(())
     }

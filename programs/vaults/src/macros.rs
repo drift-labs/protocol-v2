@@ -44,7 +44,7 @@ macro_rules! implement_update_user_delegate_cpi {
 
         let drift_program = $self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds);
-        drift::cpi::update_user_delegate(cpi_context, 0, $delegate)?;
+        velocity::cpi::update_user_delegate(cpi_context, 0, $delegate)?;
     };
 }
 
@@ -60,7 +60,7 @@ macro_rules! implement_update_user_reduce_only_cpi {
 
         let drift_program = $self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds);
-        drift::cpi::update_user_reduce_only(cpi_context, 0, $reduce_only)?;
+        velocity::cpi::update_user_reduce_only(cpi_context, 0, $reduce_only)?;
     };
 }
 
@@ -89,7 +89,7 @@ macro_rules! implement_withdraw {
         let drift_program = $self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
             .with_remaining_accounts($self.remaining_accounts.into());
-        drift::cpi::withdraw(cpi_context, spot_market_index, $amount, false)?;
+        velocity::cpi::withdraw(cpi_context, spot_market_index, $amount, false)?;
     };
 }
 
@@ -116,7 +116,7 @@ macro_rules! implement_deposit {
         };
         let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, seeds)
             .with_remaining_accounts($self.remaining_accounts.into());
-        drift::cpi::deposit(cpi_context, spot_market_index, $amount, false)?;
+        velocity::cpi::deposit(cpi_context, spot_market_index, $amount, false)?;
     };
 }
 

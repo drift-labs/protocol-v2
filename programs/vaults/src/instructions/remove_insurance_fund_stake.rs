@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
-use drift::cpi::accounts::RemoveInsuranceFundStake as DriftRemoveInsuranceFundStake;
-use drift::math::safe_math::SafeMath;
-use drift::program::Velocity;
-use drift::state::insurance_fund_stake::InsuranceFundStake;
-use drift::state::spot_market::SpotMarket;
+use velocity::cpi::accounts::RemoveInsuranceFundStake as DriftRemoveInsuranceFundStake;
+use velocity::math::safe_math::SafeMath;
+use velocity::program::Velocity;
+use velocity::state::insurance_fund_stake::InsuranceFundStake;
+use velocity::state::spot_market::SpotMarket;
 
 use crate::constraints::{is_if_stake_for_vault, is_manager_for_vault, is_user_stats_for_vault};
 use crate::drift_cpi::RemoveInsuranceFundStakeCPI;
@@ -137,7 +137,7 @@ impl<'info> RemoveInsuranceFundStakeCPI for Context<'info, RemoveInsuranceFundSt
         let drift_program = self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
-        drift::cpi::remove_insurance_fund_stake(cpi_context, market_index)?;
+        velocity::cpi::remove_insurance_fund_stake(cpi_context, market_index)?;
 
         Ok(())
     }

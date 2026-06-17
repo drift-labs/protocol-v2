@@ -4,7 +4,7 @@ use crate::state::events::{FeeUpdateAction, FeeUpdateRecord};
 use crate::state::{FeeUpdate, FeeUpdateStatus};
 use crate::{error::ErrorCode, validate, Vault};
 use anchor_lang::prelude::*;
-use drift::math::safe_math::SafeMath;
+use velocity::math::safe_math::SafeMath;
 
 pub fn manager_update_fees<'info>(
     ctx: Context<'info, ManagerUpdateFees<'info>>,

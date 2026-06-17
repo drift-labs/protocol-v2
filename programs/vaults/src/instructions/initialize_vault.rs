@@ -3,11 +3,11 @@ use crate::drift_cpi::InitializeUserCPI;
 use crate::{error::ErrorCode, validate, Size, Vault};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use drift::cpi::accounts::{InitializeUser, InitializeUserStats};
-use drift::math::casting::Cast;
-use drift::math::constants::PERCENTAGE_PRECISION_U64;
-use drift::program::Velocity;
-use drift::state::spot_market::SpotMarket;
+use velocity::cpi::accounts::{InitializeUser, InitializeUserStats};
+use velocity::math::casting::Cast;
+use velocity::math::constants::PERCENTAGE_PRECISION_U64;
+use velocity::program::Velocity;
+use velocity::state::spot_market::SpotMarket;
 
 pub fn initialize_vault<'info>(
     ctx: Context<'info, InitializeVault<'info>>,
@@ -137,7 +137,7 @@ impl<'info> InitializeUserCPI for Context<'info, InitializeVault<'info>> {
         };
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
         let sub_account_id = 0_u16;
-        drift::cpi::initialize_user(cpi_ctx, sub_account_id, name)?;
+        velocity::cpi::initialize_user(cpi_ctx, sub_account_id, name)?;
 
         Ok(())
     }
@@ -156,7 +156,7 @@ impl<'info> InitializeUserCPI for Context<'info, InitializeVault<'info>> {
             system_program: self.accounts.system_program.to_account_info().clone(),
         };
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-        drift::cpi::initialize_user_stats(cpi_ctx)?;
+        velocity::cpi::initialize_user_stats(cpi_ctx)?;
 
         Ok(())
     }

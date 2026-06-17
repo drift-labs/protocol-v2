@@ -9,9 +9,9 @@ use crate::{validate, AccountMapProvider};
 use crate::{TokenizedVaultDepositor, Vault, VaultDepositor, VaultProtocolProvider, WithdrawUnit};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{burn, transfer, Burn, Mint, Token, TokenAccount, Transfer};
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::math::safe_math::SafeMath;
-use drift::state::user::User;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::math::safe_math::SafeMath;
+use velocity::state::user::User;
 
 pub fn redeem_tokens<'info>(
     ctx: Context<'info, RedeemTokens<'info>>,

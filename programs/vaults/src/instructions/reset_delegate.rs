@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use drift::cpi::accounts::UpdateUser;
-use drift::program::Velocity;
-use drift::state::user::User;
+use velocity::cpi::accounts::UpdateUser;
+use velocity::program::Velocity;
+use velocity::state::user::User;
 
 use crate::constraints::is_user_for_vault;
 use crate::drift_cpi::{UpdateUserDelegateCPI, UpdateUserReduceOnlyCPI};

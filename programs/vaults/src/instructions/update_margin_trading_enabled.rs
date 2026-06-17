@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use drift::cpi::accounts::UpdateUser;
-use drift::program::Velocity;
-use drift::state::user::User;
+use velocity::cpi::accounts::UpdateUser;
+use velocity::program::Velocity;
+use velocity::state::user::User;
 
 use crate::constraints::{is_manager_for_vault, is_user_for_vault};
 use crate::drift_cpi::UpdateUserMarginTradingEnabledCPI;
@@ -54,7 +54,7 @@ impl<'info> UpdateUserMarginTradingEnabledCPI
         let drift_program = self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
-        drift::cpi::update_user_margin_trading_enabled(cpi_context, 0, enabled)?;
+        velocity::cpi::update_user_margin_trading_enabled(cpi_context, 0, enabled)?;
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use drift::cpi::accounts::RequestRemoveInsuranceFundStake as DriftRequestRemoveInsuranceFundStake;
+use velocity::cpi::accounts::RequestRemoveInsuranceFundStake as DriftRequestRemoveInsuranceFundStake;
 
 use crate::drift_cpi::CancelRequestRemoveInsuranceFundStakeCPI;
 use crate::instructions::RequestRemoveInsuranceFundStake;
@@ -30,7 +30,7 @@ impl<'info> CancelRequestRemoveInsuranceFundStakeCPI
         let drift_program = self.accounts.drift_program.key();
         let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
-        drift::cpi::cancel_request_remove_insurance_fund_stake(cpi_context, market_index)?;
+        velocity::cpi::cancel_request_remove_insurance_fund_stake(cpi_context, market_index)?;
 
         Ok(())
     }

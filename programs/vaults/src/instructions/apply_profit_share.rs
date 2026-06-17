@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::program::Velocity;
-use drift::state::user::{User, UserStats};
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::program::Velocity;
+use velocity::state::user::{User, UserStats};
 
 use crate::constraints::{
     is_delegate_for_vault, is_manager_for_vault, is_user_for_vault, is_user_stats_for_vault,

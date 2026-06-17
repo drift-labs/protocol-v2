@@ -4,8 +4,8 @@ use crate::state::{FeeUpdateProvider, FeeUpdateStatus, VaultProtocolProvider};
 use crate::AccountMapProvider;
 use crate::{error::ErrorCode, validate, Vault};
 use anchor_lang::prelude::*;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::state::user::{User, UserStats};
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::state::user::{User, UserStats};
 
 pub fn manager_update_borrow<'info>(
     ctx: Context<'info, ManagerUpdateBorrow<'info>>,

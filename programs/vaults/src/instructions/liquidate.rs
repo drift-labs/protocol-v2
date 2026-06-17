@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
-use drift::cpi::accounts::UpdateUser;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::program::Velocity;
-use drift::state::user::User;
+use velocity::cpi::accounts::UpdateUser;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::program::Velocity;
+use velocity::state::user::User;
 
 use crate::constants::admin;
 use crate::constraints::{

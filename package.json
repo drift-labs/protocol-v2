@@ -72,6 +72,7 @@
 		"program:build:devnet": "bash deploy-scripts/build-devnet.sh",
 		"program:build:mainnet": "anchor build --skip-lint",
 		"program:idl": "anchor idl build --skip-lint -p velocity -o target/idl/velocity.json -- --no-default-features --features no-entrypoint,anchor-test && cp target/idl/velocity.json packages/sdk/src/idl/velocity.json && anchor idl type packages/sdk/src/idl/velocity.json --out packages/sdk/src/idl/velocity.ts && bun run rust:idl-sync",
+		"program:idl:vaults": "anchor idl build --skip-lint -p vaults -o packages/vaults-sdk/src/idl/vaults.json && anchor idl type packages/vaults-sdk/src/idl/vaults.json --out packages/vaults-sdk/src/types/vaults.ts && bun run prettify:fix",
 		"rust:idl-sync": "[ -f rust/drift-rs/res/velocity.json ] && cp target/idl/velocity.json rust/drift-rs/res/velocity.json || true",
 		"rust:build": "cargo build --manifest-path rust/Cargo.toml"
 	},

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use drift::math::safe_math::SafeMath;
+use velocity::math::safe_math::SafeMath;
 
 pub fn token_a_to_token_b(
     token_a_amount: u64,

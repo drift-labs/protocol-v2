@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
-use drift::cpi::accounts::Deposit as DriftDeposit;
-use drift::instructions::optional_accounts::AccountMaps;
-use drift::program::Velocity;
-use drift::state::user::{User, UserStats};
+use velocity::cpi::accounts::Deposit as DriftDeposit;
+use velocity::instructions::optional_accounts::AccountMaps;
+use velocity::program::Velocity;
+use velocity::state::user::{User, UserStats};
 
 use crate::constraints::{
     is_authority_for_vault_depositor, is_user_for_vault, is_user_stats_for_vault,
