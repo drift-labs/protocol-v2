@@ -339,9 +339,11 @@ jobs:
           npm install ts-mocha@10.0.0 -g
           npm install --global mocha
 
-      # No SDK build needed: the integration tests import the SDK from src/ (ts-mocha
-      # transpiles on the fly) and get the IDL from the anchor build inside
-      # run-anchor-tests.sh. Nothing here consumes packages/sdk/lib/.
+      # run-anchor-tests.sh builds the SDK (after syncing the IDL from the anchor
+      # build) before running the suites: most test files import `../packages/sdk/src/...`
+      # which ts-mocha transpiles on the fly, but many import the package root
+      # `../packages/sdk`, which resolves through package.json `main` to
+      # packages/sdk/lib/node/index.js and would otherwise be MODULE_NOT_FOUND.
       - name: run anchor tests
         env:
           RUST_LOG: solana_runtime::message_processor::stable_log=info
