@@ -8,6 +8,7 @@
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"declarationMap": true,
+		"types": [],
 		"paths": {
 			"@solana/web3.js": ["./node_modules/@solana/web3.js"]
 		}

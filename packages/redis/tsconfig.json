@@ -3,6 +3,9 @@
 		"target": "es6",
 		"module": "NodeNext",
 		"lib": ["dom", "es6", "es2017", "esnext.asynciterable"],
+		// Scope ambient @types so the broken `@types/hapi__*` stubs hoisted into the
+		// shared root node_modules/@types don't get auto-included (TS2688).
+		"types": ["node"],
 		"sourceMap": true,
 		"outDir": "./dist",
 		"moduleResolution": "nodenext",
