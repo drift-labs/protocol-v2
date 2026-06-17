@@ -155,6 +155,11 @@ export function calculateAllEstimatedFundingRate(
 		now,
 		market.marketStats.fundingPeriod
 	);
+	if (!oraclePriceData) {
+		throw new Error(
+			'calculateAllEstimatedFundingRate: oraclePriceData is required for an initialized market'
+		);
+	}
 	const liveOracleTwap = calculateLiveOracleTwap(
 		market.marketStats.historicalOracleData,
 		oraclePriceData,

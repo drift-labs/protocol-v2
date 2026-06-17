@@ -119,6 +119,7 @@ Importing any of these now fails at build time:
 `math/fuel`, `serum/*`, `phoenix/*`, `openbook/*`, `oracles/pythPullClient`,
 `oracles/switchboardOnDemandClient`, `util/pythOracleUtils`, `math/userStatus`,
 `math/protectedMakerParams`, `accounts/*HighLeverageModeConfigAccountSubscriber`,
+`util/tps` (and its `estimateTps` helper),
 plus types `LPRecord`, `LPAction`, `FuelSeasonRecord`, `FuelSweepRecord`,
 `SpotFulfillmentType`, `SpotFulfillmentStatus`, `SpotFulfillmentConfigStatus`.
 
@@ -159,6 +160,32 @@ Gov-token stake fee discount removal: `VelocityClient.updateUserGovTokenInsuranc
   taker is referred (required by the program's fill-time enforcement — see §3). The
   builders validate `takerEscrow.authority` against the taker's authority. The
   settle-PnL builders keep their map-based `revenueShareEscrowMap` param.
+- **Strict null-checking surfaced on some accessors** (PR #74/#78, when the SDK turned
+  on `"strict": true`). A few public signatures were widened to expose the `undefined`
+  the runtime already returned:
+  - `DLOBNode.getPrice(...)` now returns `BN | undefined` (was `BN`). It always could
+    return `undefined` for orders without a resolvable limit price (e.g. post-auction
+    market orders); the type now admits it. A new `getPriceOrThrow(...)` is provided for
+    call sites that structurally require a defined price.
+  - `BlockhashSubscriber.getLatestBlockHeight()` now returns `number | undefined` (was
+    `number`) — `undefined` before any blockhash has been fetched, as the runtime
+    already did.
+  - `nextRevenuePoolSettleApr(spotMarket, vaultBalance, amount)`'s third positional
+    `amount: BN` is now required (was `amount?: BN`); the function always dereferenced it,
+    so omitting it already produced `NaN`/threw at runtime.
+  - `BasicUserAccountSubscriber.getUserAccountAndSlot()` and
+    `BasicUserStatsAccountSubscriber.getUserStatsAccountAndSlot()` now return
+    `DataAndSlot<T> | undefined` (was the non-optional `DataAndSlot<T>`), matching the
+    `UserAccountSubscriber` / `UserStatsAccountSubscriber` interface — they return
+    `undefined` until an account is loaded, as the runtime already did. Relatedly, the
+    `{ data, slot }` pair these and the polling subscribers store is now **atomic**: a
+    loaded account always carries a real `slot` (`number`, never `undefined`; seeded
+    accounts use `0` as an oldest-possible sentinel), so `DataAndSlot.slot` can be relied
+    on as defined. `doesAccountExist()` on these subscribers is now a type predicate.
+  - `User.getUserAccountAndSlot()` (and `VelocityClient.getUserAccountAndSlot()`) keep
+    their `DataAndSlot<UserAccount> | undefined` return — `undefined` until the account
+    loads, as the runtime already did. A new `User.getUserAccountAndSlotOrThrow()` is
+    provided for call sites that structurally require a loaded account.
 
 _Pending, `fee-arch`:_
 
@@ -241,6 +268,7 @@ withdraw / order / fill / liquidation builders) without running a full subscribe
 | #70 | Rebrand program crate drift → velocity |
 | #71 | This migration guide |
 | #77 *(open)* | Funding bias spread widening: `AMM.funding_bias_sensitivity` + `update_perp_market_funding_bias_sensitivity` admin ix; `last_funding_oracle_twap` moved `PerpMarket` → `MarketStats` (offset-preserving) |
+| #74, #78 *(open)* | Enable TypeScript `strict` mode in the SDK. No runtime behavior change; a few public accessor signatures widened to expose already-possible `undefined` (`DLOBNode.getPrice`, `BlockhashSubscriber.getLatestBlockHeight`, the basic/polling user(-stats) subscribers' `get…AndSlot()`) and `nextRevenuePoolSettleApr`'s `amount` made required. The user(-stats) subscribers' stored `{ data, slot }` pair is now atomic (`slot` always defined) (§4.4) |
 | #80 | Remove gov-token (DRIFT) stake fee discount: gov stake-sync instructions, `UserStats.if_staked_gov_token_amount` (→ padding), gov IF revenue-settle APR cap, `GOV_SPOT_MARKET_INDEX` |
 | `fee-arch` _(open)_ | Fee redesign (explicit carveouts, withdrawable protocol fees, 100% staker-owned IF) + AMM isolation |
 

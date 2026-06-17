@@ -489,7 +489,7 @@ export function calculateEstimatedPerpEntryPrice(
 
 	let limitOrder = limitOrders.next().value;
 	if (limitOrder) {
-		const limitOrderPrice = limitOrder.getPrice(mmOraclePriceData, slot);
+		const limitOrderPrice = limitOrder.getPriceOrThrow(mmOraclePriceData, slot);
 		bestPrice = takerIsLong
 			? BN.min(limitOrderPrice, bestPrice)
 			: BN.max(limitOrderPrice, bestPrice);

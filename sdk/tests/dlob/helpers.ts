@@ -372,6 +372,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		minBorrowRate: 0,
 		tokenProgramFlag: 0,
 		poolId: 0,
+		feeAdjustment: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -459,6 +460,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		minBorrowRate: 0,
 		tokenProgramFlag: 0,
 		poolId: 0,
+		feeAdjustment: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -548,6 +550,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		minBorrowRate: 0,
 		tokenProgramFlag: 0,
 		poolId: 0,
+		feeAdjustment: 0,
 	},
 ];
 

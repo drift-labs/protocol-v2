@@ -159,7 +159,9 @@ export interface InsuranceFundStakeAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	getInsuranceFundStakeAccountAndSlot(): DataAndSlot<InsuranceFundStake>;
+	getInsuranceFundStakeAccountAndSlot():
+		| DataAndSlot<InsuranceFundStake>
+		| undefined;
 }
 
 export interface InsuranceFundStakeAccountEvents {

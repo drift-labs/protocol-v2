@@ -24,8 +24,14 @@ export class TxEventCache {
 			this.detach(existingNode);
 			this.size--;
 		} else if (this.size === this.maxTx) {
-			delete this.cacheMap[this.tail.key];
-			this.detach(this.tail);
+			const tail = this.tail;
+			if (tail === undefined) {
+				throw new Error(
+					'TxEventCache.add: cache at capacity but tail is unset'
+				);
+			}
+			delete this.cacheMap[tail.key];
+			this.detach(tail);
 			this.size--;
 		}
 

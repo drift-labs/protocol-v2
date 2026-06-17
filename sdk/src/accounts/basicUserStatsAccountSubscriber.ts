@@ -22,7 +22,7 @@ export class BasicUserStatsAccountSubscriber
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	userStats: DataAndSlot<UserStatsAccount>;
+	userStats?: DataAndSlot<UserStatsAccount>;
 
 	public constructor(
 		userStatsAccountPublicKey: PublicKey,
@@ -32,7 +32,9 @@ export class BasicUserStatsAccountSubscriber
 		this.isSubscribed = true;
 		this.eventEmitter = new EventEmitter();
 		this.userStatsAccountPublicKey = userStatsAccountPublicKey;
-		this.userStats = { data, slot };
+		// `slot ?? 0` keeps {data, slot} atomic: a seeded account always carries a
+		// slot (0 = oldest-possible sentinel, overwritten by the first real fetch).
+		this.userStats = data ? { data, slot: slot ?? 0 } : undefined;
 	}
 
 	async subscribe(_userStatsAccount?: UserStatsAccount): Promise<boolean> {
@@ -43,7 +45,7 @@ export class BasicUserStatsAccountSubscriber
 
 	async fetch(): Promise<void> {}
 
-	doesAccountExist(): boolean {
+	doesAccountExist(): this is { userStats: DataAndSlot<UserStatsAccount> } {
 		return this.userStats !== undefined;
 	}
 
@@ -51,12 +53,14 @@ export class BasicUserStatsAccountSubscriber
 
 	assertIsSubscribed(): void {}
 
-	public getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount> {
+	public getUserStatsAccountAndSlot():
+		| DataAndSlot<UserStatsAccount>
+		| undefined {
 		return this.userStats;
 	}
 
 	public updateData(userStatsAccount: UserStatsAccount, slot: number): void {
-		if (!this.userStats || slot >= (this.userStats.slot ?? 0)) {
+		if (!this.userStats || slot >= this.userStats.slot) {
 			this.userStats = { data: userStatsAccount, slot };
 			this.eventEmitter.emit('userStatsAccountUpdate', userStatsAccount);
 			this.eventEmitter.emit('update');

@@ -120,8 +120,8 @@ export class FastSingleTxSender extends BaseTxSender {
 				if (this.confirmInBackground) {
 					this.confirmTransaction(txid, opts.commitment).then(
 						async (result) => {
+							this.txSigCache?.set(txid, true);
 							if (result) {
-								this.txSigCache?.set(txid, true);
 								await this.checkConfirmationResultForError(txid, result.value);
 								slot = result.context.slot;
 							}

@@ -43,7 +43,9 @@ export class PollingUserStatsAccountSubscriber
 		}
 
 		if (userStatsAccount) {
-			this.userStats = { data: userStatsAccount, slot: undefined };
+			// `slot: 0` keeps {data, slot} atomic: a seeded account always carries a
+			// slot (0 = oldest-possible sentinel, overwritten by the first real fetch).
+			this.userStats = { data: userStatsAccount, slot: 0 };
 		}
 
 		await this.addToAccountLoader();

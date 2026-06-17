@@ -45,7 +45,7 @@ export class SignedMsgUserOrdersAccountSubscriber {
 	mostRecentSlot = 0;
 
 	fetchPromise?: Promise<void>;
-	fetchPromiseResolver!: () => void; // set synchronously inside the fetchPromise executor
+	private fetchPromiseResolver: () => void = () => {};
 
 	protected _subscriber?: WebSocketProgramAccountSubscriber<SignedMsgUserOrdersAccount>;
 	protected get subscriber(): WebSocketProgramAccountSubscriber<SignedMsgUserOrdersAccount> {

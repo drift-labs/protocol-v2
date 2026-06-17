@@ -20,7 +20,7 @@ export class UserStats {
 	velocityClient: VelocityClient;
 	userStatsAccountPublicKey: PublicKey;
 	accountSubscriber: UserStatsAccountSubscriber;
-	isSubscribed: boolean;
+	isSubscribed = false;
 
 	public constructor(config: UserStatsConfig) {
 		// Type-system guarantees at least one of the two is supplied.
@@ -57,7 +57,7 @@ export class UserStats {
 			this.accountSubscriber =
 				config.accountSubscription.userStatsAccountSubscriber;
 		} else {
-			const exhaustiveCheck: never = config.accountSubscription;
+			const exhaustiveCheck: undefined = config.accountSubscription;
 
 			throw new Error(
 				`Unknown user stats account subscription type: ${exhaustiveCheck}`
@@ -89,6 +89,18 @@ export class UserStats {
 
 	public getAccount(): UserStatsAccount | undefined {
 		return this.accountSubscriber.getUserStatsAccountAndSlot()?.data;
+	}
+
+	/**
+	 * Like {@link getAccount} but throws a named error instead of returning
+	 * `undefined` when the stats account has not been loaded yet.
+	 */
+	public getAccountOrThrow(): UserStatsAccount {
+		const account = this.getAccount();
+		if (!account) {
+			throw new Error('UserStats account not loaded');
+		}
+		return account;
 	}
 
 	public getReferrerInfo(): ReferrerInfo | undefined {

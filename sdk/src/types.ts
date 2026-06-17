@@ -944,6 +944,8 @@ export type SpotMarketAccount = {
 	tokenProgramFlag: number;
 
 	poolId: number;
+
+	feeAdjustment: number;
 };
 
 export type PoolBalance = {
@@ -1225,7 +1227,7 @@ export type OptionalOrderParams = {
 
 export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
-} & { policy?: ModifyOrderPolicy };
+} & { policy?: ModifyOrderPolicy | null };
 
 export enum ModifyOrderPolicy {
 	MustModify = 1,

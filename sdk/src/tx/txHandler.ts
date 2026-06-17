@@ -67,7 +67,7 @@ export type TxBuildingProps = {
 	instructions: TransactionInstruction | TransactionInstruction[];
 	txVersion: TransactionVersion;
 	connection: Connection;
-	preFlightCommitment: Commitment;
+	preFlightCommitment?: Commitment;
 	fetchAllMarketLookupTableAccounts: () => Promise<AddressLookupTableAccount[]>;
 	lookupTables?: AddressLookupTableAccount[];
 	forceVersionedTransaction?: boolean;

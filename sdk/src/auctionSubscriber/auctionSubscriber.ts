@@ -24,7 +24,7 @@ export class AuctionSubscriber {
 	}: AuctionSubscriberConfig) {
 		// Type-system guarantees at least one of the two is supplied.
 		this.velocityClient = velocityClient!;
-		this.opts = opts || this.velocityClient.opts;
+		this.opts = opts || this.velocityClient.opts || {};
 		this.eventEmitter = new EventEmitter();
 		this.resubOpts = { resubTimeoutMs, logResubMessages };
 	}

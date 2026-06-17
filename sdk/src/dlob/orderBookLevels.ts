@@ -99,7 +99,7 @@ export function* getL2GeneratorFromDLOBNodes(
 
 		yield {
 			size,
-			price: dlobNode.getPrice(oraclePriceData, slot),
+			price: dlobNode.getPriceOrThrow(oraclePriceData, slot),
 			sources:
 				dlobNode.userAccount == INDICATIVE_QUOTES_PUBKEY
 					? { indicative: size }

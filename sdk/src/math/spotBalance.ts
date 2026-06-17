@@ -153,7 +153,7 @@ export function calculateAssetWeight(
 	balanceAmount: BN,
 	oraclePrice: BN,
 	spotMarket: SpotMarketAccount,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory | undefined
 ): BN {
 	const sizePrecision = TEN.pow(new BN(spotMarket.decimals));
 	let sizeInAmmReservePrecision;
@@ -221,7 +221,7 @@ export function calculateScaledInitialAssetWeight(
 export function calculateLiabilityWeight(
 	size: BN,
 	spotMarket: SpotMarketAccount,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory | undefined
 ): BN {
 	const sizePrecision = TEN.pow(new BN(spotMarket.decimals));
 	let sizeInAmmReservePrecision;

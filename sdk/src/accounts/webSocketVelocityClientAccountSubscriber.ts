@@ -665,9 +665,12 @@ export class WebSocketVelocityClientAccountSubscriber
 	}
 
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
-		return Array.from(this.perpMarketAccountSubscribers.values()).map(
-			(subscriber) => subscriber.dataAndSlot
-		);
+		return Array.from(this.perpMarketAccountSubscribers.values())
+			.map((subscriber) => subscriber.dataAndSlot)
+			.filter(
+				(dataAndSlot): dataAndSlot is DataAndSlot<PerpMarketAccount> =>
+					dataAndSlot !== undefined
+			);
 	}
 
 	public getSpotMarketAccountAndSlot(
@@ -678,9 +681,12 @@ export class WebSocketVelocityClientAccountSubscriber
 	}
 
 	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {
-		return Array.from(this.spotMarketAccountSubscribers.values()).map(
-			(subscriber) => subscriber.dataAndSlot
-		);
+		return Array.from(this.spotMarketAccountSubscribers.values())
+			.map((subscriber) => subscriber.dataAndSlot)
+			.filter(
+				(dataAndSlot): dataAndSlot is DataAndSlot<SpotMarketAccount> =>
+					dataAndSlot !== undefined
+			);
 	}
 
 	public getOraclePriceDataAndSlot(

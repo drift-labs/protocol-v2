@@ -229,7 +229,7 @@ export function calculateUpdatedAMMSpreadReserves(
 export function calculateBidAskPrice(
 	amm: AMM,
 	marketStats: MarketStats,
-	mmOraclePriceData: MMOraclePriceData,
+	mmOraclePriceData?: MMOraclePriceData,
 	withUpdate = true,
 	latestSlot?: BN
 ): [BN, BN] {
@@ -1017,6 +1017,12 @@ export function calculateSpread(
 ): [number, number] {
 	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
 		return [amm.baseSpread / 2, amm.baseSpread / 2];
+	}
+
+	if (!oraclePriceData) {
+		throw new Error(
+			'calculateSpread: oraclePriceData is required when baseSpread and curveUpdateIntensity are nonzero'
+		);
 	}
 
 	if (!reservePrice) {

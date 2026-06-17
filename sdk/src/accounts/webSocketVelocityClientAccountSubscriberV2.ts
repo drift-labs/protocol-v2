@@ -7,6 +7,7 @@ import {
 	NotSubscribedError,
 	ResubOpts,
 } from './types';
+import { assertDataAndSlot } from './utils';
 import {
 	isVariant,
 	PerpMarketAccount,
@@ -114,7 +115,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 	initialOraclePriceData: Map<string, OraclePriceData> = new Map();
 
 	protected isSubscribing = false;
-	protected subscriptionPromiseResolver: (val: boolean) => void = () => {};
+	private subscriptionPromiseResolver: (val: boolean) => void = () => {};
 	protected subscriptionPromise: Promise<boolean> = Promise.resolve(false);
 
 	private rpc: Rpc<any>;
@@ -707,7 +708,10 @@ export class WebSocketVelocityClientAccountSubscriberV2
 
 	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
-		return this.stateAccountSubscriber.dataAndSlot;
+		return assertDataAndSlot(
+			this.stateAccountSubscriber?.dataAndSlot,
+			'State account data not available'
+		);
 	}
 
 	public getMarketAccountAndSlot(

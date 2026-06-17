@@ -32,8 +32,7 @@ export class ReferrerMap {
 	private parallelSync: boolean;
 
 	private fetchPromise?: Promise<void>;
-	// Set synchronously inside the Promise executor in sync(); the only idiomatic bang.
-	private fetchPromiseResolver!: () => void;
+	private fetchPromiseResolver: () => void = () => {};
 
 	/**
 	 * Creates a new UserStatsMap instance.

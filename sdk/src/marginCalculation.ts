@@ -48,6 +48,7 @@ export class MarginContext {
 		this.strict = false;
 		this.ignoreInvalidDepositOracles = false;
 		this.isolatedMarginBuffers = new Map();
+		this.crossMarginBuffer = ZERO;
 	}
 
 	static standard(marginType: MarginCategory): MarginContext {

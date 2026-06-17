@@ -82,6 +82,20 @@ export async function buildPlaceAndMakePerpOrderInstruction(args: {
 	);
 }
 
+/**
+ * Build a raw `cancelOrder` instruction.
+ *
+ * Pass `orderId: null` to cancel the user's most recently placed order. The program
+ * resolves a `null` ID on-chain via `get_last_order_id`, which makes this safe to use
+ * in a multi-instruction transaction where a place instruction precedes the cancel and
+ * the program-assigned order ID is not yet known at build time — e.g.:
+ *
+ *   [placePerpOrder] → [cancelOrder(orderId: null)]
+ *
+ * The on-chain `order_id` counter is a monotonically incrementing u32 on the user
+ * account, so `get_last_order_id` reliably points to the order placed in the preceding
+ * instruction of the same transaction.
+ */
 export async function buildCancelOrderInstruction(args: {
 	program: VelocityProgram;
 	orderId: number | null;

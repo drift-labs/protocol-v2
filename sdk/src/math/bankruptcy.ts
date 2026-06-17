@@ -4,7 +4,7 @@ import { isVariant } from '../types';
 import { User } from '../user';
 
 export function isUserBankrupt(user: User): boolean {
-	const userAccount = user.getUserAccount();
+	const userAccount = user.getUserAccountOrThrow();
 	let hasLiability = false;
 	for (const position of userAccount.spotPositions) {
 		if (position.scaledBalance.gt(ZERO)) {

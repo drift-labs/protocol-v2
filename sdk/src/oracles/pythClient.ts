@@ -8,6 +8,7 @@ import {
 	QUOTE_PRECISION,
 	TEN,
 } from '../constants/numericConstants';
+import { getOracleAccountDataOrThrow } from './utils';
 
 export class PythClient implements OracleClient {
 	private connection: Connection;
@@ -27,14 +28,22 @@ export class PythClient implements OracleClient {
 	public async getOraclePriceData(
 		pricePublicKey: PublicKey
 	): Promise<OraclePriceData> {
-		const accountInfo = await this.connection.getAccountInfo(pricePublicKey);
-		return this.getOraclePriceDataFromBuffer(accountInfo.data);
+		const data = await getOracleAccountDataOrThrow(
+			this.connection,
+			pricePublicKey,
+			'Pyth oracle'
+		);
+		return this.getOraclePriceDataFromBuffer(data);
 	}
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
 		const priceData = parsePriceData(buffer);
+		// `confidence` is absent on uninitialized/invalid price accounts. Base passed it
+		// straight into convertPythPrice, where `undefined * 10**exponent` is `NaN` and
+		// `new BN(NaN)` coerces to 0 — so base already yielded a zero-confidence price.
+		// `?? 0` makes that explicit and type-checks, preserving the same result.
 		const confidence = convertPythPrice(
-			priceData.confidence,
+			priceData.confidence ?? 0,
 			priceData.exponent,
 			this.multiple
 		);

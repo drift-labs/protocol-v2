@@ -259,7 +259,7 @@ export class BigNum {
 		).split(BigNum.delim);
 
 		let formattedLeftSide = leftSide;
-		let formattedRightSide = rightSide;
+		let formattedRightSide: string | undefined = rightSide;
 
 		// Apply decimal override if specified
 		if (decimalOverride !== undefined) {
@@ -658,7 +658,7 @@ export class BigNum {
 		precision?: BN | number | string
 	): BigNum {
 		assert(
-			new BN(precision).lt(new BN(100)),
+			new BN(precision ?? 0).lt(new BN(100)),
 			'Tried to create a bignum with precision higher than 10^100'
 		);
 		return new BigNum(val, precision);
