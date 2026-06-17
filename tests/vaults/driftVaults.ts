@@ -1,4 +1,3 @@
-import * as anchor from '@coral-xyz/anchor';
 import { Program, Wallet } from '@coral-xyz/anchor';
 import {
 	AdminClient,
@@ -24,14 +23,9 @@ import {
 	InsuranceFundStake,
 	VelocityClient as DriftClient,
 	OracleInfo,
-	TEN,
 	PERCENTAGE_PRECISION,
 	TWO,
-	getTokenAmount,
-	getUserStatsAccountPublicKey,
 	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
-	OrderType,
-	isVariant,
 	WRAPPED_SOL_MINT,
 	convertToNumber,
 	OrderParamsBitFlag,
@@ -39,9 +33,7 @@ import {
 import {
 	bootstrapSignerClientAndUserBankrun,
 	calculateAllTokenizedVaultPdas,
-	createUserWithUSDCAccount,
 	doWashTrading,
-	getVaultDepositorValue,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 	initializeSolSpotMarketMaker,
@@ -1453,22 +1445,16 @@ describe('TestTokenizedDriftVaults', () => {
 	let program: Program<DriftVaults>;
 	let usdcMint: Keypair;
 	let metaplex: Metaplex;
-	let solPerpOracle: PublicKey;
 	let oracleInfos: OracleInfo[];
 
-	let managerSigner: Signer;
 	let managerClient: VaultClient;
 	let managerDriftClient: DriftClient;
 
-	let vd0Signer: Signer;
 	let vd0Client: VaultClient;
 	let vd0DriftClient: DriftClient;
-	let vd0UsdcAccount: PublicKey;
 
-	let vd1Signer: Signer;
 	let vd1Client: VaultClient;
 	let vd1DriftClient: DriftClient;
-	let vd1UsdcAccount: PublicKey;
 
 	const usdcAmount = new BN(1_000).mul(QUOTE_PRECISION);
 
@@ -1484,7 +1470,6 @@ describe('TestTokenizedDriftVaults', () => {
 		program = bootstrap.program;
 		usdcMint = bootstrap.usdcMint;
 		metaplex = bootstrap.metaplex;
-		solPerpOracle = bootstrap.solPerpOracle;
 		oracleInfos = bootstrap.oracleInfos;
 
 		commonVaultKey = getVaultAddressSync(
@@ -1514,7 +1499,6 @@ describe('TestTokenizedDriftVaults', () => {
 			metaplex,
 			driftClientConfig,
 		});
-		managerSigner = bootstrapManager.signer;
 		managerClient = bootstrapManager.vaultClient;
 		managerDriftClient = bootstrapManager.driftClient;
 
@@ -1528,10 +1512,8 @@ describe('TestTokenizedDriftVaults', () => {
 			metaplex,
 			driftClientConfig,
 		});
-		vd0Signer = vd0Bootstrap.signer;
 		vd0Client = vd0Bootstrap.vaultClient;
 		vd0DriftClient = vd0Bootstrap.driftClient;
-		vd0UsdcAccount = vd0Bootstrap.userUSDCAccount.publicKey;
 		const vd1Bootstrap = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
 			signer: Keypair.generate(),
@@ -1542,10 +1524,8 @@ describe('TestTokenizedDriftVaults', () => {
 			metaplex,
 			driftClientConfig,
 		});
-		vd1Signer = vd1Bootstrap.signer;
 		vd1Client = vd1Bootstrap.vaultClient;
 		vd1DriftClient = vd1Bootstrap.driftClient;
-		vd1UsdcAccount = vd1Bootstrap.userUSDCAccount.publicKey;
 
 		await managerClient.initializeVault(
 			{
@@ -1575,7 +1555,7 @@ describe('TestTokenizedDriftVaults', () => {
 		await vd1DriftClient.unsubscribe();
 	});
 
-	async function fetchAccountStates(
+	async function _fetchAccountStates(
 		vaultAddress?: PublicKey,
 		vaultDepositorAddress?: PublicKey,
 		tokenizedVaultDepositorAddress?: PublicKey
