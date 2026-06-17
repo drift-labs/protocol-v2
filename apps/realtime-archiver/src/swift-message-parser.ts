@@ -5,7 +5,7 @@ import { Connection, Keypair } from '@solana/web3.js';
 import { digestSignature } from '@velocity-exchange/sdk';
 import { S3Event } from 'aws-lambda';
 
-const idl = require('@velocity-exchange/sdk/src/idl/drift.json');
+const idl = require('@velocity-exchange/sdk/src/idl/velocity.json');
 
 const connection = new Connection(process.env.ENDPOINT || DEFAULT_ENDPOINT);
 const provider = new AnchorProvider(connection, new Wallet(Keypair.generate()), {
@@ -13,7 +13,7 @@ const provider = new AnchorProvider(connection, new Wallet(Keypair.generate()), 
 });
 
 export const decodeMessage = (encodedMessage: string) => {
-	const program = new Program(idl as Idl, idl.metadata.address, provider);
+	const program = new Program(idl as Idl, provider);
 	const borshBuf = Buffer.from(encodedMessage, 'base64');
 	const message = program.coder.types.decode('OrderMetadataAndMessage', borshBuf);
 	// flatten the enum
