@@ -27,7 +27,11 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { isVariant, UserStatus, PERCENTAGE_PRECISION } from '../../packages/sdk';
+import {
+	isVariant,
+	UserStatus,
+	PERCENTAGE_PRECISION,
+} from '../../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../../packages/sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../../packages/sdk/src/bankrun/bankrunConnection';

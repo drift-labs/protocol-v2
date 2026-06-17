@@ -1,6 +1,11 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, ZERO } from '../../packages/sdk';
+import {
+	BN,
+	getMarketOrderParams,
+	OracleSource,
+	ZERO,
+} from '../../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 

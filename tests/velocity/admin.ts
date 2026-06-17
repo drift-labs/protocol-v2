@@ -15,7 +15,10 @@ import {
 	Wallet,
 } from '../../packages/sdk/src';
 
-import { decodeName, DEFAULT_MARKET_NAME } from '../../packages/sdk/src/userName';
+import {
+	decodeName,
+	DEFAULT_MARKET_NAME,
+} from '../../packages/sdk/src/userName';
 
 import {
 	initializeQuoteSpotMarket,

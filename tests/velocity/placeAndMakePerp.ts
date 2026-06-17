@@ -25,7 +25,11 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { PEG_PRECISION, PerpOperation, PostOnlyParams } from '../../packages/sdk';
+import {
+	PEG_PRECISION,
+	PerpOperation,
+	PostOnlyParams,
+} from '../../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../../packages/sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../../packages/sdk/src/bankrun/bankrunConnection';

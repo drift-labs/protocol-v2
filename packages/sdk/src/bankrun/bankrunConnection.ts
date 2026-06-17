@@ -236,7 +236,17 @@ export class BankrunConnection {
 		// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 		_options?: any
 	): Promise<TransactionSignature> {
-		const tx = Transaction.from(rawTransaction);
+		// Raw bytes may encode either a legacy or a versioned (v0) transaction.
+		// sendTransaction handles both, but they must be deserialized with the
+		// matching type: legacy parses with Transaction.from, versioned needs
+		// VersionedTransaction.deserialize. Versioned-tx clients (e.g. the vaults
+		// VaultClient) always send v0, so fall back when the legacy parse throws.
+		let tx: Transaction | VersionedTransaction;
+		try {
+			tx = Transaction.from(rawTransaction);
+		} catch (e) {
+			tx = VersionedTransaction.deserialize(rawTransaction as Uint8Array);
+		}
 		const signature = await this.sendTransaction(tx);
 		return signature;
 	}
