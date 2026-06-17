@@ -237,7 +237,7 @@ describe('User margin calculations', () => {
 			const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 			const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 			const myMockUserAccount = _.cloneDeep(mockUserAccount);
-			myMockPerpMarkets[0].amm.orderStepSize = BASE_PRECISION;
+			myMockPerpMarkets[0].orderStepSize = BASE_PRECISION;
 
 			myMockUserAccount.spotPositions[0].marketIndex = 0;
 			myMockUserAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
@@ -276,7 +276,7 @@ describe('User margin calculations', () => {
 			const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 			const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 			const myMockUserAccount = _.cloneDeep(mockUserAccount);
-			myMockPerpMarkets[0].amm.orderStepSize = BASE_PRECISION;
+			myMockPerpMarkets[0].orderStepSize = BASE_PRECISION;
 
 			myMockUserAccount.perpPositions[0].marketIndex = 0;
 			myMockUserAccount.perpPositions[0].positionFlag =

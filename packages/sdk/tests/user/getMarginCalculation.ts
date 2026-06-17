@@ -261,7 +261,7 @@ describe('getMarginCalculation snapshot', () => {
 		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 		myMockSpotMarkets[0].oracle = new PublicKey(2);
 		myMockSpotMarkets[1].oracle = new PublicKey(5);
-		myMockPerpMarkets[0].amm.oracle = new PublicKey(5);
+		myMockPerpMarkets[0].oracle = new PublicKey(5);
 
 		// Configure perp market 0 ratios to match on-chain test
 		myMockPerpMarkets[0].marginRatioInitial = 1000; // 10%

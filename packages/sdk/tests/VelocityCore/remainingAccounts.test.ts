@@ -19,10 +19,9 @@ describe('VelocityCore.remainingAccounts', () => {
 		const perpMarket0 = {
 			pubkey: Keypair.generate().publicKey,
 			quoteSpotMarketIndex: 0,
-			amm: {
-				oracle: Keypair.generate().publicKey,
-				oracleSource: { prelaunch: {} },
-			},
+			oracle: Keypair.generate().publicKey,
+			oracleSource: { prelaunch: {} },
+			amm: {},
 		} as any;
 
 		const user: UserAccount = {
@@ -68,6 +67,6 @@ describe('VelocityCore.remainingAccounts', () => {
 
 		const keys = new Set(metas.map((m) => m.pubkey.toBase58()));
 		expect(keys.has(perpMarket0.pubkey.toBase58())).toBe(true);
-		expect(keys.has(perpMarket0.amm.oracle.toBase58())).toBe(true);
+		expect(keys.has(perpMarket0.oracle.toBase58())).toBe(true);
 	});
 });

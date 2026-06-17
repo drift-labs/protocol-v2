@@ -1,6 +1,5 @@
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { BN } from '../isomorphic/anchor';
-import { BigNum } from '../factory/bigNum';
 
 export const ZERO = new BN(0);
 export const ONE = new BN(1);
@@ -117,5 +116,8 @@ export const DUST_POSITION_SIZE = QUOTE_PRECISION.divn(100); // Dust position is
 export const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 
 // integer constants
-export const MAX_I64 = BigNum.fromPrint('9223372036854775807').val;
-export const MIN_I64 = BigNum.fromPrint('-9223372036854775808').val;
+// Built with `BN` directly (not `BigNum.fromPrint`) to avoid a module-load
+// circular dependency: `bigNum.ts` imports `ZERO` from this file, so importing
+// `bigNum.ts` first leaves `BigNum` undefined while this module body evaluates.
+export const MAX_I64 = new BN('9223372036854775807');
+export const MIN_I64 = new BN('-9223372036854775808');
