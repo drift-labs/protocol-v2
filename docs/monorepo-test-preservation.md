@@ -32,9 +32,10 @@ a `"test": "jest"` script. jest/ts-jest/@swc/jest/@types/jest live in root `devD
 CI job `ts-tests` runs the `@backend/*` libs plus the green app suites:
 `turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'
 --filter=@backend/candles --filter=@backend/market-data --filter=@backend/multisig-monitor
---filter=@backend/aggregator-api --filter=@backend/realtime-archiver`. Apps are enumerated
-explicitly (not `./apps/*`) so a broken/unwired app — dlob-server's 0-suite jest config,
-notification-engine's missing `test` script — can't slip into the gate.
+--filter=@backend/aggregator-api --filter=@backend/realtime-archiver
+--filter=@velocity-exchange/dlob-server --filter=@drift-labs/keeper-bots-v2`. Suites are
+enumerated explicitly (not `./apps/*`) so an unwired app — e.g. notification-engine, which
+has no `test` script and is Firebase/env-dependent — can't silently slip into the gate.
 
 | Package                        | Runner | Tests         | State                 | Action to fully preserve                                                                                                                                                                                                                |
 | ------------------------------ | ------ | ------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47,9 +48,9 @@ notification-engine's missing `test` script — can't slip into the gate.
 | @backend/s3                    | jest   | 8             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @backend/sns                   | jest   | 5             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @backend/sqs                   | jest   | 9             | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @drift-labs/keeper-bots-v2     | mocha  | 2             | ✅ passes (not gated) | add `test` to the gate once confirmed in CI env                                                                                                                                                                                         |
+| @drift-labs/keeper-bots-v2     | mocha  | 2             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @velocity-exchange/sdk         | mixed  | many          | ❌ multi-issue        | needs a real test-restoration pass — see below |
-| @velocity-exchange/dlob-server | jest   | 3             | ❌ broken             | its existing jest config loads 0 suites (compile/import error) — fix config + imports                                                                                                                                                   |
+| @velocity-exchange/dlob-server | jest   | 54            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/aggregator-api        | jest   | 337           | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/candles               | jest   | 61            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/market-data           | jest   | 63            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |

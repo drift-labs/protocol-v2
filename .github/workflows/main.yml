@@ -232,8 +232,6 @@ jobs:
       # Excluded (tracked in docs/monorepo-test-preservation.md):
       #   - @velocity-exchange/sdk (mocha, multi-issue restoration)
       #   - @backend/notification-engine (no test script yet; Firebase/env-dependent)
-      #   - @velocity-exchange/dlob-server (jest config loads 0 suites)
-      #   - @drift-labs/keeper-bots-v2 (mocha; passes, not yet wired)
       - name: Run unit tests (libs + wired app suites)
         run: >-
           bunx turbo run test
@@ -243,6 +241,8 @@ jobs:
           --filter=@backend/multisig-monitor
           --filter=@backend/aggregator-api
           --filter=@backend/realtime-archiver
+          --filter=@velocity-exchange/dlob-server
+          --filter=@drift-labs/keeper-bots-v2
   rust-workspace-check:
     name: Check rust workspace (drift-rs/keep-rs/swift)
     needs: changes
