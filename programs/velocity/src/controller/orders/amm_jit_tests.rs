@@ -2829,7 +2829,19 @@ pub mod amm_jit {
     }
 
     #[test]
-    #[ignore = "needs revalidation after re-caching spread on AMM: the zero-auction-price + long-imbalance JIT path no longer engages here (total_mm_fee==0 vs expected 2033008). The cached long/short_spread again drive the wash-trade shrink in calculate_jit_base_asset_amount, but the spread snapshot at JIT time differs from this fixture's original crank timing — revisit the expected fee."]
+    #[ignore = "needs revalidation after re-caching spread on AMM. Root cause: \
+                calculate_jit_base_asset_amount()'s wash-trade shrink now reads the \
+                *cached* amm.long_spread / amm.short_spread (jit.rs), which the fill path \
+                populates in update_amm_quote_state() from base_spread / max_spread / \
+                curve_update_intensity. This fixture leaves all three at 0 (it predates the \
+                spread cache), so the cached spreads stay 0, max_jit_amount collapses to 0, \
+                and the AMM never JITs → total_mm_fee == 0 vs the expected 2033008. \
+                Populating base_spread/max_spread/curve_update_intensity (as the passing \
+                sibling fulfill_with_amm_jit_full_long does) re-engages JIT, but the \
+                resulting fee will NOT be 2033008 — that number was computed under the old \
+                live-spread-at-fill timing. A human who owns the new spread-caching timing \
+                must recompute the expected total_mm_fee/total_fee rather than guess a \
+                magic number."]
     fn fulfill_with_amm_jit_taker_zero_price_long_imbalance() {
         let now = 0_i64;
         let slot = 10_u64;
