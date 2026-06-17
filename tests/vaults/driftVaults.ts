@@ -1924,21 +1924,23 @@ describe('TestTokenizedDriftVaults', () => {
 		await bootstrapVd.vaultClient.unsubscribe();
 	});
 
-	// The following profit-share / rebase tests drive a websocket-subscribed
-	// delegate DriftClient and an MM wash-trading loop against a live cluster.
-	// They depend on machinery that does not port cleanly to bankrun (a second
-	// websocket DriftClient assuming control of the vault user); skipped under
-	// the bankrun harness.
+	// The following profit-share / rebase tests move vault equity by having the
+	// vault trade SPOT against a market maker (placeAndTakeSpotOrder on spot
+	// market index 1). Velocity disabled spot DLOB trading entirely
+	// (validate_spot_dlob_trading_enabled_for_market_type always rejects
+	// MarketType::Spot -> SpotDlobTradingDisabled / 0x18ce), so there is no way
+	// to drive the vault into the profit/loss/rebase states these tests assert,
+	// on bankrun or any other harness. Left as skipped stubs.
 	it.skip('Redeem vault tokens with profit share, profitable', async () => {
-		// requires websocket delegate DriftClient + MM wash trading (no bankrun port)
+		// blocked: requires spot DLOB trading, which velocity removed (SpotDlobTradingDisabled)
 	});
 
 	it.skip('Redeem vault tokens with profit share, not profitable', async () => {
-		// requires websocket delegate DriftClient + MM wash trading (no bankrun port)
+		// blocked: requires spot DLOB trading, which velocity removed (SpotDlobTradingDisabled)
 	});
 
 	it.skip('Disallow tokenize after vault rebases, allow redeeming tokens', async () => {
-		// requires websocket delegate DriftClient + MM wash trading (no bankrun port)
+		// blocked: requires spot DLOB trading, which velocity removed (SpotDlobTradingDisabled)
 	});
 });
 
@@ -2820,6 +2822,12 @@ describe('TestWithdrawFromVaults', () => {
 
 	// Drives an MM wash-trading loop (place-and-take spot orders against a
 	// live maker) plus vault delegate control; does not run on bankrun.
+	// Skipped: this test moves vault equity via an MM wash-trading loop that
+	// places SPOT DLOB orders, but velocity disabled spot DLOB trading entirely
+	// (validate_spot_dlob_trading_enabled_for_market_type always rejects
+	// MarketType::Spot -> SpotDlobTradingDisabled / 0x18ce). The bankrun port is
+	// otherwise complete (vault-user PDA fetch + equity refresh); it cannot pass
+	// against the velocity program regardless of harness.
 	it.skip('Test manager cancel withdraw owning 100% of vault', async () => {
 		const { driftClient: mmDriftClient, requoteFunc } =
 			await initializeSolSpotMarketMaker(
@@ -2870,9 +2878,25 @@ describe('TestWithdrawFromVaults', () => {
 				managerSigner.publicKey,
 				{ noLut: true }
 			);
-			await managerDriftClient.addAndSubscribeToUsers(commonVaultKey);
+			// addAndSubscribeToUsers uses getProgramAccounts (unavailable on
+			// bankrun); assume control of the vault user by fetching its known
+			// PDA directly and adding it to the manager (delegate) client.
+			const vaultUserKey = await getUserAccountPublicKey(
+				managerDriftClient.program.programId,
+				commonVaultKey,
+				0
+			);
+			const vaultUserAcct =
+				(await managerDriftClient.program.account.user.fetch(
+					vaultUserKey
+				)) as unknown as UserAccount;
+			await managerDriftClient.addUser(0, commonVaultKey, vaultUserAcct);
 			await managerDriftClient.switchActiveUser(0, commonVaultKey);
 
+			const washVaultUser = await managerClient.getSubscribedVaultUser(
+				vaultState0.user
+			);
+			await washVaultUser.fetchAccounts();
 			const vaultEquity = await managerClient.calculateVaultEquity({
 				address: commonVaultKey,
 			});
@@ -2908,6 +2932,7 @@ describe('TestWithdrawFromVaults', () => {
 			);
 
 			await managerDriftClient.fetchAccounts();
+			await washVaultUser.fetchAccounts();
 
 			const vaultEquity1 = await managerClient.calculateVaultEquity({
 				address: commonVaultKey,
@@ -2936,6 +2961,10 @@ describe('TestWithdrawFromVaults', () => {
 			'total shares should be the same after canceling withdraws'
 		);
 
+		const finalVaultUser = await managerClient.getSubscribedVaultUser(
+			vaultState1.user
+		);
+		await finalVaultUser.fetchAccounts();
 		const vaultEquity2 = await managerClient.calculateVaultEquity({
 			address: commonVaultKey,
 		});
