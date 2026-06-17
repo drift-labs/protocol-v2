@@ -1,0 +1,7089 @@
+{
+  "address": "Cst3DCweLdBkpj51crsfZPzxGcTSXXwYdhJaEQw9TnEL",
+  "metadata": {
+    "name": "drift_vaults",
+    "version": "0.11.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_insurance_fund_stake",
+      "discriminator": [
+        251,
+        144,
+        115,
+        11,
+        222,
+        47,
+        62,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "drift_spot_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "manager_token_account",
+          "writable": true
+        },
+        {
+          "name": "vault_if_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_index",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "admin_delete_fee_update",
+      "discriminator": [
+        189,
+        83,
+        182,
+        110,
+        132,
+        133,
+        77,
+        36
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fee_update",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  117,
+                  112,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "admin_init_fee_update",
+      "discriminator": [
+        39,
+        31,
+        253,
+        244,
+        241,
+        5,
+        72,
+        152
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fee_update",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  117,
+                  112,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "admin_update_vault_class",
+      "discriminator": [
+        103,
+        11,
+        101,
+        120,
+        92,
+        136,
+        230,
+        215
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_vault_class",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "apply_profit_share",
+      "discriminator": [
+        112,
+        235,
+        54,
+        165,
+        178,
+        81,
+        25,
+        10
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "apply_rebase",
+      "discriminator": [
+        161,
+        115,
+        9,
+        131,
+        136,
+        29,
+        147,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "apply_rebase_tokenized_depositor",
+      "discriminator": [
+        218,
+        169,
+        190,
+        71,
+        150,
+        184,
+        77,
+        166
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "tokenized_vault_depositor",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_request_remove_insurance_fund_stake",
+      "discriminator": [
+        97,
+        235,
+        78,
+        62,
+        212,
+        42,
+        241,
+        127
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_spot_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_index",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "cancel_request_withdraw",
+      "discriminator": [
+        26,
+        109,
+        1,
+        81,
+        102,
+        15,
+        6,
+        106
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats"
+        },
+        {
+          "name": "drift_user"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "deposit",
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "force_withdraw",
+      "discriminator": [
+        106,
+        41,
+        34,
+        48,
+        17,
+        177,
+        59,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_insurance_fund_stake",
+      "discriminator": [
+        187,
+        179,
+        243,
+        70,
+        248,
+        90,
+        92,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "drift_spot_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "drift_spot_market_mint"
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "insurance_fund_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_index",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "initialize_tokenized_vault_depositor",
+      "discriminator": [
+        50,
+        183,
+        239,
+        21,
+        59,
+        150,
+        51,
+        227
+      ],
+      "accounts": [
+        {
+          "name": "vault"
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  105,
+                  122,
+                  101,
+                  100,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "metadata_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint_account"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "InitializeTokenizedVaultDepositorParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_vault",
+      "discriminator": [
+        48,
+        191,
+        163,
+        44,
+        71,
+        129,
+        63,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "params.name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state",
+          "writable": true
+        },
+        {
+          "name": "drift_spot_market"
+        },
+        {
+          "name": "drift_spot_market_mint"
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "VaultParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_vault_depositor",
+      "discriminator": [
+        112,
+        174,
+        162,
+        232,
+        89,
+        92,
+        205,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "vault"
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_vault_with_protocol",
+      "discriminator": [
+        176,
+        2,
+        248,
+        66,
+        116,
+        82,
+        52,
+        112
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "params.name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_protocol",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state",
+          "writable": true
+        },
+        {
+          "name": "drift_spot_market"
+        },
+        {
+          "name": "drift_spot_market_mint"
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "VaultWithProtocolParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "liquidate",
+      "discriminator": [
+        223,
+        179,
+        226,
+        125,
+        48,
+        46,
+        39,
+        74
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority"
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "manager_borrow",
+      "discriminator": [
+        176,
+        237,
+        83,
+        189,
+        102,
+        73,
+        14,
+        153
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "borrow_spot_market_index",
+          "type": "u16"
+        },
+        {
+          "name": "borrow_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "manager_cancel_fee_update",
+      "discriminator": [
+        176,
+        204,
+        109,
+        177,
+        90,
+        244,
+        69,
+        156
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "fee_update",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  117,
+                  112,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "manager_deposit",
+      "discriminator": [
+        73,
+        3,
+        16,
+        168,
+        143,
+        226,
+        201,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "manager_repay",
+      "discriminator": [
+        202,
+        56,
+        50,
+        3,
+        1,
+        40,
+        93,
+        128
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "repay_spot_market_index",
+          "type": "u16"
+        },
+        {
+          "name": "repay_amount",
+          "type": "u64"
+        },
+        {
+          "name": "repay_value",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "manager_request_withdraw",
+      "discriminator": [
+        10,
+        238,
+        194,
+        232,
+        76,
+        55,
+        68,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats"
+        },
+        {
+          "name": "drift_user"
+        }
+      ],
+      "args": [
+        {
+          "name": "withdraw_amount",
+          "type": "u64"
+        },
+        {
+          "name": "withdraw_unit",
+          "type": {
+            "defined": {
+              "name": "WithdrawUnit"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "manager_update_borrow",
+      "discriminator": [
+        193,
+        183,
+        210,
+        205,
+        223,
+        11,
+        240,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_borrow_value",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "manager_update_fees",
+      "discriminator": [
+        205,
+        156,
+        240,
+        90,
+        150,
+        60,
+        144,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "fee_update",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  95,
+                  117,
+                  112,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "ManagerUpdateFeesParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "manager_withdraw",
+      "discriminator": [
+        201,
+        248,
+        190,
+        143,
+        86,
+        43,
+        183,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "manger_cancel_withdraw_request",
+      "discriminator": [
+        235,
+        253,
+        32,
+        176,
+        145,
+        94,
+        162,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats"
+        },
+        {
+          "name": "drift_user"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "protocol_cancel_withdraw_request",
+      "discriminator": [
+        194,
+        217,
+        171,
+        94,
+        56,
+        253,
+        179,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_protocol",
+          "writable": true
+        },
+        {
+          "name": "protocol",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats"
+        },
+        {
+          "name": "drift_user"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "protocol_request_withdraw",
+      "discriminator": [
+        189,
+        46,
+        14,
+        31,
+        7,
+        254,
+        150,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_protocol",
+          "writable": true
+        },
+        {
+          "name": "protocol",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats"
+        },
+        {
+          "name": "drift_user"
+        }
+      ],
+      "args": [
+        {
+          "name": "withdraw_amount",
+          "type": "u64"
+        },
+        {
+          "name": "withdraw_unit",
+          "type": {
+            "defined": {
+              "name": "WithdrawUnit"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "protocol_withdraw",
+      "discriminator": [
+        166,
+        24,
+        188,
+        209,
+        21,
+        251,
+        63,
+        199
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_protocol",
+          "writable": true
+        },
+        {
+          "name": "protocol",
+          "signer": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "redeem_tokens",
+      "discriminator": [
+        246,
+        98,
+        134,
+        41,
+        152,
+        33,
+        120,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "tokenized_vault_depositor",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "tokens_to_burn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "remove_insurance_fund_stake",
+      "discriminator": [
+        128,
+        166,
+        142,
+        9,
+        254,
+        187,
+        143,
+        174
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_spot_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "manager_token_account",
+          "writable": true
+        },
+        {
+          "name": "vault_if_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_index",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "request_remove_insurance_fund_stake",
+      "discriminator": [
+        142,
+        70,
+        204,
+        92,
+        73,
+        106,
+        180,
+        52
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_spot_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  111,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_stake",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "insurance_fund_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  117,
+                  114,
+                  97,
+                  110,
+                  99,
+                  101,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "market_index"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "drift_program"
+            }
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_index",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "request_withdraw",
+      "discriminator": [
+        137,
+        95,
+        187,
+        96,
+        250,
+        138,
+        31,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "drift_user_stats"
+        },
+        {
+          "name": "drift_user"
+        }
+      ],
+      "args": [
+        {
+          "name": "withdraw_amount",
+          "type": "u64"
+        },
+        {
+          "name": "withdraw_unit",
+          "type": {
+            "defined": {
+              "name": "WithdrawUnit"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "reset_delegate",
+      "discriminator": [
+        204,
+        13,
+        61,
+        153,
+        97,
+        83,
+        146,
+        98
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "tokenize_shares",
+      "discriminator": [
+        166,
+        4,
+        14,
+        227,
+        21,
+        161,
+        121,
+        122
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "tokenized_vault_depositor",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_token_account"
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "unit",
+          "type": {
+            "defined": {
+              "name": "WithdrawUnit"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "transfer_vault_depositor_shares",
+      "discriminator": [
+        94,
+        208,
+        177,
+        250,
+        120,
+        51,
+        112,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "to_vault_depositor",
+          "writable": true
+        },
+        {
+          "name": "drift_user"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "withdraw_unit",
+          "type": {
+            "defined": {
+              "name": "WithdrawUnit"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_delegate",
+      "discriminator": [
+        190,
+        202,
+        103,
+        138,
+        167,
+        197,
+        25,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": [
+        {
+          "name": "delegate",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_margin_trading_enabled",
+      "discriminator": [
+        244,
+        34,
+        229,
+        140,
+        91,
+        65,
+        200,
+        67
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": [
+        {
+          "name": "enabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "update_user_pool_id",
+      "discriminator": [
+        219,
+        86,
+        73,
+        106,
+        56,
+        218,
+        128,
+        109
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        }
+      ],
+      "args": [
+        {
+          "name": "pool_id",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "update_vault",
+      "discriminator": [
+        67,
+        229,
+        185,
+        188,
+        226,
+        11,
+        210,
+        60
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateVaultParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_vault_manager",
+      "discriminator": [
+        246,
+        80,
+        162,
+        207,
+        228,
+        28,
+        133,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "manager",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_vault_protocol",
+      "discriminator": [
+        205,
+        248,
+        117,
+        191,
+        35,
+        252,
+        172,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "protocol",
+          "signer": true
+        },
+        {
+          "name": "vault_protocol",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateVaultProtocolParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_depositor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  100,
+                  101,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drift_user_stats",
+          "writable": true
+        },
+        {
+          "name": "drift_user",
+          "writable": true
+        },
+        {
+          "name": "drift_state"
+        },
+        {
+          "name": "drift_spot_market_vault",
+          "writable": true
+        },
+        {
+          "name": "drift_signer"
+        },
+        {
+          "name": "user_token_account",
+          "writable": true
+        },
+        {
+          "name": "drift_program",
+          "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "FeeUpdate",
+      "discriminator": [
+        118,
+        79,
+        140,
+        36,
+        102,
+        217,
+        40,
+        52
+      ]
+    },
+    {
+      "name": "TokenizedVaultDepositor",
+      "discriminator": [
+        75,
+        23,
+        253,
+        123,
+        121,
+        93,
+        29,
+        130
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    },
+    {
+      "name": "VaultDepositor",
+      "discriminator": [
+        87,
+        109,
+        182,
+        106,
+        87,
+        96,
+        63,
+        211
+      ]
+    },
+    {
+      "name": "VaultProtocol",
+      "discriminator": [
+        106,
+        130,
+        5,
+        195,
+        126,
+        82,
+        249,
+        53
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "FeeUpdateRecord",
+      "discriminator": [
+        30,
+        88,
+        241,
+        188,
+        216,
+        141,
+        47,
+        1
+      ]
+    },
+    {
+      "name": "ManagerBorrowRecord",
+      "discriminator": [
+        147,
+        180,
+        112,
+        14,
+        60,
+        116,
+        7,
+        193
+      ]
+    },
+    {
+      "name": "ManagerRepayRecord",
+      "discriminator": [
+        220,
+        139,
+        37,
+        15,
+        27,
+        74,
+        67,
+        64
+      ]
+    },
+    {
+      "name": "ManagerUpdateBorrowRecord",
+      "discriminator": [
+        203,
+        63,
+        88,
+        107,
+        38,
+        234,
+        53,
+        148
+      ]
+    },
+    {
+      "name": "ShareTransferRecord",
+      "discriminator": [
+        154,
+        130,
+        10,
+        212,
+        173,
+        104,
+        154,
+        183
+      ]
+    },
+    {
+      "name": "VaultDepositorRecord",
+      "discriminator": [
+        177,
+        172,
+        11,
+        74,
+        19,
+        216,
+        149,
+        11
+      ]
+    },
+    {
+      "name": "VaultDepositorV1Record",
+      "discriminator": [
+        36,
+        53,
+        222,
+        7,
+        105,
+        74,
+        6,
+        76
+      ]
+    },
+    {
+      "name": "VaultRecord",
+      "discriminator": [
+        38,
+        129,
+        21,
+        139,
+        164,
+        170,
+        16,
+        134
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Default",
+      "msg": "Default"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidVaultRebase",
+      "msg": "InvalidVaultRebase"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidVaultSharesDetected",
+      "msg": "InvalidVaultSharesDetected"
+    },
+    {
+      "code": 6003,
+      "name": "CannotWithdrawBeforeRedeemPeriodEnd",
+      "msg": "CannotWithdrawBeforeRedeemPeriodEnd"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidVaultWithdraw",
+      "msg": "InvalidVaultWithdraw"
+    },
+    {
+      "code": 6005,
+      "name": "InsufficientVaultShares",
+      "msg": "InsufficientVaultShares"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidVaultWithdrawSize",
+      "msg": "InvalidVaultWithdrawSize"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidVaultForNewDepositors",
+      "msg": "InvalidVaultForNewDepositors"
+    },
+    {
+      "code": 6008,
+      "name": "VaultWithdrawRequestInProgress",
+      "msg": "VaultWithdrawRequestInProgress"
+    },
+    {
+      "code": 6009,
+      "name": "VaultIsAtCapacity",
+      "msg": "VaultIsAtCapacity"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidVaultDepositorInitialization",
+      "msg": "InvalidVaultDepositorInitialization"
+    },
+    {
+      "code": 6011,
+      "name": "DelegateNotAvailableForLiquidation",
+      "msg": "DelegateNotAvailableForLiquidation"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidEquityValue",
+      "msg": "InvalidEquityValue"
+    },
+    {
+      "code": 6013,
+      "name": "VaultInLiquidation",
+      "msg": "VaultInLiquidation"
+    },
+    {
+      "code": 6014,
+      "name": "DriftError",
+      "msg": "DriftError"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidVaultInitialization",
+      "msg": "InvalidVaultInitialization"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidVaultUpdate",
+      "msg": "InvalidVaultUpdate"
+    },
+    {
+      "code": 6017,
+      "name": "PermissionedVault",
+      "msg": "PermissionedVault"
+    },
+    {
+      "code": 6018,
+      "name": "WithdrawInProgress",
+      "msg": "WithdrawInProgress"
+    },
+    {
+      "code": 6019,
+      "name": "SharesPercentTooLarge",
+      "msg": "SharesPercentTooLarge"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidVaultDeposit",
+      "msg": "InvalidVaultDeposit"
+    },
+    {
+      "code": 6021,
+      "name": "OngoingLiquidation",
+      "msg": "OngoingLiquidation"
+    },
+    {
+      "code": 6022,
+      "name": "VaultProtocolMissing",
+      "msg": "VaultProtocolMissing"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidTokenization",
+      "msg": "InvalidTokenization"
+    },
+    {
+      "code": 6024,
+      "name": "FeeUpdateMissing",
+      "msg": "FeeUpdateMissing"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidFeeUpdateStatus",
+      "msg": "InvalidFeeUpdateStatus"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidVaultClass",
+      "msg": "InvalidVaultClass"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidBorrowAmount",
+      "msg": "InvalidBorrowAmount"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidRepayAmount",
+      "msg": "InvalidRepayAmount"
+    }
+  ],
+  "types": [
+    {
+      "name": "AssetTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Collateral"
+          },
+          {
+            "name": "Protected"
+          },
+          {
+            "name": "Cross"
+          },
+          {
+            "name": "Isolated"
+          },
+          {
+            "name": "Unlisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeUpdate",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u128",
+                10
+              ]
+            }
+          },
+          {
+            "name": "incoming_update_ts",
+            "type": "i64"
+          },
+          {
+            "name": "incoming_management_fee",
+            "type": "i64"
+          },
+          {
+            "name": "incoming_profit_share",
+            "type": "u32"
+          },
+          {
+            "name": "incoming_hurdle_rate",
+            "type": "u32"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeUpdateAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Applied"
+          },
+          {
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeUpdateRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "FeeUpdateAction"
+              }
+            }
+          },
+          {
+            "name": "timelock_end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_management_fee",
+            "type": "i64"
+          },
+          {
+            "name": "old_profit_share",
+            "type": "u32"
+          },
+          {
+            "name": "old_hurdle_rate",
+            "type": "u32"
+          },
+          {
+            "name": "new_management_fee",
+            "type": "i64"
+          },
+          {
+            "name": "new_profit_share",
+            "type": "u32"
+          },
+          {
+            "name": "new_hurdle_rate",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HistoricalIndexData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "last_index_bid_price",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_index_ask_price",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_index_price_twap",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_index_price_twap_5min",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_index_price_twap_ts",
+            "docs": [
+              "unix_timestamp of last snapshot"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HistoricalOracleData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "last_oracle_price",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_oracle_conf",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_oracle_delay",
+            "docs": [
+              "number of slots since last update"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_oracle_price_twap",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_oracle_price_twap_5min",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_oracle_price_twap_ts",
+            "docs": [
+              "unix_timestamp of last snapshot"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeTokenizedVaultDepositorParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token_name",
+            "type": "string"
+          },
+          {
+            "name": "token_symbol",
+            "type": "string"
+          },
+          {
+            "name": "token_uri",
+            "type": "string"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InsuranceFund",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_shares",
+            "type": "u128"
+          },
+          {
+            "name": "user_shares",
+            "type": "u128"
+          },
+          {
+            "name": "shares_base",
+            "type": "u128"
+          },
+          {
+            "name": "unstaking_period",
+            "type": "i64"
+          },
+          {
+            "name": "last_revenue_settle_ts",
+            "type": "i64"
+          },
+          {
+            "name": "revenue_settle_period",
+            "type": "i64"
+          },
+          {
+            "name": "total_factor",
+            "type": "u32"
+          },
+          {
+            "name": "user_factor",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InsuranceFundStake",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "if_shares",
+            "type": "u128"
+          },
+          {
+            "name": "last_withdraw_request_shares",
+            "type": "u128"
+          },
+          {
+            "name": "if_base",
+            "type": "u128"
+          },
+          {
+            "name": "last_valid_ts",
+            "type": "i64"
+          },
+          {
+            "name": "last_withdraw_request_value",
+            "type": "u64"
+          },
+          {
+            "name": "last_withdraw_request_ts",
+            "type": "i64"
+          },
+          {
+            "name": "cost_basis",
+            "type": "i64"
+          },
+          {
+            "name": "market_index",
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                14
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ManagerBorrowRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "manager",
+            "type": "pubkey"
+          },
+          {
+            "name": "borrow_amount",
+            "type": "u64"
+          },
+          {
+            "name": "borrow_value",
+            "type": "u64"
+          },
+          {
+            "name": "borrow_spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "borrow_oracle_price",
+            "type": "i64"
+          },
+          {
+            "name": "deposit_spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "deposit_oracle_price",
+            "type": "i64"
+          },
+          {
+            "name": "vault_equity",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ManagerRepayRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "manager",
+            "type": "pubkey"
+          },
+          {
+            "name": "repay_amount",
+            "type": "u64"
+          },
+          {
+            "name": "repay_value",
+            "type": "u64"
+          },
+          {
+            "name": "repay_spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "repay_oracle_price",
+            "type": "i64"
+          },
+          {
+            "name": "deposit_spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "deposit_oracle_price",
+            "type": "i64"
+          },
+          {
+            "name": "vault_equity_before",
+            "type": "u64"
+          },
+          {
+            "name": "vault_equity_after",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ManagerUpdateBorrowRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "manager",
+            "type": "pubkey"
+          },
+          {
+            "name": "previous_borrow_value",
+            "type": "u64"
+          },
+          {
+            "name": "new_borrow_value",
+            "type": "u64"
+          },
+          {
+            "name": "vault_equity_before",
+            "type": "u64"
+          },
+          {
+            "name": "vault_equity_after",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ManagerUpdateFeesParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "timelock_duration",
+            "type": "i64"
+          },
+          {
+            "name": "new_management_fee",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "new_profit_share",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "new_hurdle_rate",
+            "type": {
+              "option": "u32"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "ReduceOnly"
+          },
+          {
+            "name": "Settlement"
+          },
+          {
+            "name": "Delisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Spot"
+          },
+          {
+            "name": "Perp"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pyth"
+          },
+          {
+            "name": "DeprecatedSwitchboard"
+          },
+          {
+            "name": "QuoteAsset"
+          },
+          {
+            "name": "Pyth1K"
+          },
+          {
+            "name": "Pyth1M"
+          },
+          {
+            "name": "PythStableCoin"
+          },
+          {
+            "name": "Prelaunch"
+          },
+          {
+            "name": "PythPull"
+          },
+          {
+            "name": "Pyth1KPull"
+          },
+          {
+            "name": "Pyth1MPull"
+          },
+          {
+            "name": "PythStableCoinPull"
+          },
+          {
+            "name": "DeprecatedSwitchboardOnDemand"
+          },
+          {
+            "name": "PythLazer"
+          },
+          {
+            "name": "PythLazer1K"
+          },
+          {
+            "name": "PythLazer1M"
+          },
+          {
+            "name": "PythLazerStableCoin"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Order",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "docs": [
+              "The slot the order was placed"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "docs": [
+              "The limit price for the order (can be 0 for market orders)",
+              "For orders with an auction, this price isn't used until the auction is complete",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "base_asset_amount",
+            "docs": [
+              "The size of the order",
+              "precision for perps: BASE_PRECISION",
+              "precision for spot: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "base_asset_amount_filled",
+            "docs": [
+              "The amount of the order filled",
+              "precision for perps: BASE_PRECISION",
+              "precision for spot: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "quote_asset_amount_filled",
+            "docs": [
+              "The amount of quote filled for the order",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "trigger_price",
+            "docs": [
+              "At what price the order will be triggered. Only relevant for trigger orders",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "auction_start_price",
+            "docs": [
+              "The start price for the auction. Only relevant for market/oracle orders",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "auction_end_price",
+            "docs": [
+              "The end price for the auction. Only relevant for market/oracle orders",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "max_ts",
+            "docs": [
+              "The time when the order will expire"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "oracle_price_offset",
+            "docs": [
+              "If set, the order limit price is the oracle price + this offset",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "order_id",
+            "docs": [
+              "The id for the order. Each users has their own order id space"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "market_index",
+            "docs": [
+              "The perp/spot market index"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Whether the order is open or unused"
+            ],
+            "type": {
+              "defined": {
+                "name": "OrderStatus"
+              }
+            }
+          },
+          {
+            "name": "order_type",
+            "docs": [
+              "The type of order"
+            ],
+            "type": {
+              "defined": {
+                "name": "OrderType"
+              }
+            }
+          },
+          {
+            "name": "market_type",
+            "docs": [
+              "Whether market is spot or perp"
+            ],
+            "type": {
+              "defined": {
+                "name": "MarketType"
+              }
+            }
+          },
+          {
+            "name": "user_order_id",
+            "docs": [
+              "User generated order id. Can make it easier to place/cancel orders"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "existing_position_direction",
+            "docs": [
+              "What the users position was when the order was placed"
+            ],
+            "type": {
+              "defined": {
+                "name": "PositionDirection"
+              }
+            }
+          },
+          {
+            "name": "direction",
+            "docs": [
+              "Whether the user is going long or short. LONG = bid, SHORT = ask"
+            ],
+            "type": {
+              "defined": {
+                "name": "PositionDirection"
+              }
+            }
+          },
+          {
+            "name": "reduce_only",
+            "docs": [
+              "Whether the order is allowed to only reduce position size"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "post_only",
+            "docs": [
+              "Whether the order must be a maker"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "immediate_or_cancel",
+            "docs": [
+              "Whether the order must be canceled the same slot it is placed"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "trigger_condition",
+            "docs": [
+              "Whether the order is triggered above or below the trigger price. Only relevant for trigger orders"
+            ],
+            "type": {
+              "defined": {
+                "name": "OrderTriggerCondition"
+              }
+            }
+          },
+          {
+            "name": "auction_duration",
+            "docs": [
+              "How many slots the auction lasts"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "posted_slot_tail",
+            "docs": [
+              "Last 8 bits of the slot the order was posted on-chain (not order slot for signed msg orders)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bit_flags",
+            "docs": [
+              "Bitflags for further classification",
+              "0: is_signed_message"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Filled"
+          },
+          {
+            "name": "Canceled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderTriggerCondition",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Above"
+          },
+          {
+            "name": "Below"
+          },
+          {
+            "name": "TriggeredAbove"
+          },
+          {
+            "name": "TriggeredBelow"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Market"
+          },
+          {
+            "name": "Limit"
+          },
+          {
+            "name": "TriggerMarket"
+          },
+          {
+            "name": "TriggerLimit"
+          },
+          {
+            "name": "Oracle"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpPosition",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "last_cumulative_funding_rate",
+            "docs": [
+              "The perp market's last cumulative funding rate. Used to calculate the funding payment owed to user",
+              "precision: FUNDING_RATE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "base_asset_amount",
+            "docs": [
+              "the size of the users perp position",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "quote_asset_amount",
+            "docs": [
+              "Used to calculate the users pnl. Upon entry, is equal to base_asset_amount * avg entry price - fees",
+              "Updated when the user open/closes position or settles pnl. Includes fees/funding",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "quote_break_even_amount",
+            "docs": [
+              "The amount of quote the user would need to exit their position at to break even",
+              "Updated when the user open/closes position or settles pnl. Includes fees/funding",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "quote_entry_amount",
+            "docs": [
+              "The amount quote the user entered the position with. Equal to base asset amount * avg entry price",
+              "Updated when the user open/closes position. Excludes fees/funding",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "open_bids",
+            "docs": [
+              "The amount of non reduce only trigger orders the user has open",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "open_asks",
+            "docs": [
+              "The amount of non reduce only trigger orders the user has open",
+              "precision: BASE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "settled_pnl",
+            "docs": [
+              "The amount of pnl settled in this market since opening the position",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "isolated_position_scaled_balance",
+            "docs": [
+              "The scaled balance of the isolated position",
+              "precision: SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
+            "name": "max_margin_ratio",
+            "type": "u16"
+          },
+          {
+            "name": "market_index",
+            "docs": [
+              "The market index for the perp market"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "open_orders",
+            "docs": [
+              "The number of open orders"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "position_flag",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolBalance",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "scaled_balance",
+            "docs": [
+              "To get the pool's token amount, you must multiply the scaled balance by the market's cumulative",
+              "deposit interest",
+              "precision: SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "market_index",
+            "docs": [
+              "The spot market the pool is for"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                14
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Long"
+          },
+          {
+            "name": "Short"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ShareTransferRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "from_vault_depositor",
+            "type": "pubkey"
+          },
+          {
+            "name": "to_vault_depositor",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares",
+            "type": "u128"
+          },
+          {
+            "name": "value",
+            "type": "u64"
+          },
+          {
+            "name": "from_depositor_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "from_depositor_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "to_depositor_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "to_depositor_shares_after",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotBalanceType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Borrow"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotMarket",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "docs": [
+              "The address of the spot market. It is a pda of the market index"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
+            "docs": [
+              "The oracle used to price the markets deposits/borrows"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "docs": [
+              "The token mint of the market"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "docs": [
+              "The vault used to store the market's deposits",
+              "The amount in the vault should be equal to or greater than deposits - borrows"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "docs": [
+              "The encoded display name for the market e.g. SOL"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "insurance_fund",
+            "docs": [
+              "Details on the insurance fund covering bankruptcies in this markets token",
+              "Covers bankruptcies for borrows with this markets token and perps settling in this markets token"
+            ],
+            "type": {
+              "defined": {
+                "name": "InsuranceFund"
+              }
+            }
+          },
+          {
+            "name": "total_spot_fee",
+            "docs": [
+              "The total spot fees collected for this market",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "deposit_balance",
+            "docs": [
+              "The sum of the scaled balances for deposits across users and pool balances",
+              "To convert to the deposit token amount, multiply by the cumulative deposit interest",
+              "precision: SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "borrow_balance",
+            "docs": [
+              "The sum of the scaled balances for borrows across users and pool balances",
+              "To convert to the borrow token amount, multiply by the cumulative borrow interest",
+              "precision: SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "cumulative_deposit_interest",
+            "docs": [
+              "The cumulative interest earned by depositors",
+              "Used to calculate the deposit token amount from the deposit balance",
+              "precision: SPOT_CUMULATIVE_INTEREST_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "cumulative_borrow_interest",
+            "docs": [
+              "The cumulative interest earned by borrowers",
+              "Used to calculate the borrow token amount from the borrow balance",
+              "precision: SPOT_CUMULATIVE_INTEREST_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "total_social_loss",
+            "docs": [
+              "The total socialized loss from borrows, in the mint's token",
+              "precision: token mint precision"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "total_quote_social_loss",
+            "docs": [
+              "The total socialized loss from borrows, in the quote market's token",
+              "preicision: QUOTE_PRECISION"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "revenue_pool",
+            "docs": [
+              "Revenue the protocol has collected in this markets token",
+              "e.g. for SOL-PERP, funds can be settled in usdc and will flow into the USDC revenue pool"
+            ],
+            "type": {
+              "defined": {
+                "name": "PoolBalance"
+              }
+            }
+          },
+          {
+            "name": "spot_fee_pool",
+            "docs": [
+              "The fees collected from swaps between this market and the quote market",
+              "Is settled to the quote markets revenue pool"
+            ],
+            "type": {
+              "defined": {
+                "name": "PoolBalance"
+              }
+            }
+          },
+          {
+            "name": "historical_oracle_data",
+            "type": {
+              "defined": {
+                "name": "HistoricalOracleData"
+              }
+            }
+          },
+          {
+            "name": "historical_index_data",
+            "type": {
+              "defined": {
+                "name": "HistoricalIndexData"
+              }
+            }
+          },
+          {
+            "name": "withdraw_guard_threshold",
+            "docs": [
+              "no withdraw limits/guards when deposits below this threshold",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_token_deposits",
+            "docs": [
+              "The max amount of token deposits in this market",
+              "0 if there is no limit",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deposit_token_twap",
+            "docs": [
+              "24hr average of deposit token amount",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "borrow_token_twap",
+            "docs": [
+              "24hr average of borrow token amount",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "utilization_twap",
+            "docs": [
+              "24hr average of utilization",
+              "which is borrow amount over token amount",
+              "precision: SPOT_UTILIZATION_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_interest_ts",
+            "docs": [
+              "Last time the cumulative deposit and borrow interest was updated"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_twap_ts",
+            "docs": [
+              "Last time the deposit/borrow/utilization averages were updated"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "expiry_ts",
+            "docs": [
+              "The time the market is set to expire. Only set if market is in reduce only mode"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "order_step_size",
+            "docs": [
+              "Spot orders must be a multiple of the step size",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "order_tick_size",
+            "docs": [
+              "Spot orders must be a multiple of the tick size",
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "min_order_size",
+            "docs": [
+              "The minimum order size",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_position_size",
+            "docs": [
+              "The maximum spot position size",
+              "if the limit is 0, there is no limit",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "next_fill_record_id",
+            "docs": [
+              "Every spot trade has a fill record id. This is the next id to use"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "next_deposit_record_id",
+            "docs": [
+              "Every deposit has a deposit record id. This is the next id to use"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "initial_asset_weight",
+            "docs": [
+              "The initial asset weight used to calculate a deposits contribution to a users initial total collateral",
+              "e.g. if the asset weight is .8, $100 of deposits contributes $80 to the users initial total collateral",
+              "precision: SPOT_WEIGHT_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "maintenance_asset_weight",
+            "docs": [
+              "The maintenance asset weight used to calculate a deposits contribution to a users maintenance total collateral",
+              "e.g. if the asset weight is .9, $100 of deposits contributes $90 to the users maintenance total collateral",
+              "precision: SPOT_WEIGHT_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "initial_liability_weight",
+            "docs": [
+              "The initial liability weight used to calculate a borrows contribution to a users initial margin requirement",
+              "e.g. if the liability weight is .9, $100 of borrows contributes $90 to the users initial margin requirement",
+              "precision: SPOT_WEIGHT_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "maintenance_liability_weight",
+            "docs": [
+              "The maintenance liability weight used to calculate a borrows contribution to a users maintenance margin requirement",
+              "e.g. if the liability weight is .8, $100 of borrows contributes $80 to the users maintenance margin requirement",
+              "precision: SPOT_WEIGHT_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "imf_factor",
+            "docs": [
+              "The initial margin fraction factor. Used to increase liability weight/decrease asset weight for large positions",
+              "precision: MARGIN_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "liquidator_fee",
+            "docs": [
+              "The fee the liquidator is paid for taking over borrow/deposit",
+              "precision: LIQUIDATOR_FEE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "if_liquidation_fee",
+            "docs": [
+              "The fee the insurance fund receives from liquidation",
+              "precision: LIQUIDATOR_FEE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "optimal_utilization",
+            "docs": [
+              "The optimal utilization rate for this market.",
+              "Used to determine the markets borrow rate",
+              "precision: SPOT_UTILIZATION_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "optimal_borrow_rate",
+            "docs": [
+              "The borrow rate for this market when the market has optimal utilization",
+              "precision: SPOT_RATE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "max_borrow_rate",
+            "docs": [
+              "The borrow rate for this market when the market has 1000 utilization",
+              "precision: SPOT_RATE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "decimals",
+            "docs": [
+              "The market's token mint's decimals. To from decimals to a precision, 10^decimals"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "market_index",
+            "type": "u16"
+          },
+          {
+            "name": "orders_enabled",
+            "docs": [
+              "Whether or not spot trading is enabled"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "oracle_source",
+            "type": {
+              "defined": {
+                "name": "OracleSource"
+              }
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "MarketStatus"
+              }
+            }
+          },
+          {
+            "name": "asset_tier",
+            "docs": [
+              "The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated"
+            ],
+            "type": {
+              "defined": {
+                "name": "AssetTier"
+              }
+            }
+          },
+          {
+            "name": "paused_operations",
+            "type": "u8"
+          },
+          {
+            "name": "if_paused_operations",
+            "type": "u8"
+          },
+          {
+            "name": "fee_adjustment",
+            "type": "i16"
+          },
+          {
+            "name": "max_token_borrows_fraction",
+            "docs": [
+              "What fraction of max_token_deposits",
+              "disabled when 0, 1 => 1/10000 => .01% of max_token_deposits",
+              "precision: X/10000"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "flash_loan_amount",
+            "docs": [
+              "For swaps, the amount of token loaned out in the begin_swap ix",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "flash_loan_initial_token_amount",
+            "docs": [
+              "For swaps, the amount in the users token account in the begin_swap ix",
+              "Used to calculate how much of the token left the system in end_swap ix",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_swap_fee",
+            "docs": [
+              "The total fees received from swaps",
+              "precision: token mint precision"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "scale_initial_asset_weight_start",
+            "docs": [
+              "When to begin scaling down the initial asset weight",
+              "disabled when 0",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "min_borrow_rate",
+            "docs": [
+              "The min borrow rate for this market when the market regardless of utilization",
+              "1 => 1/200 => .5%",
+              "precision: X/200"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "token_program_flag",
+            "type": "u8"
+          },
+          {
+            "name": "pool_id",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                56
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotPosition",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "scaled_balance",
+            "docs": [
+              "The scaled balance of the position. To get the token amount, multiply by the cumulative deposit/borrow",
+              "interest of corresponding market.",
+              "precision: SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "open_bids",
+            "docs": [
+              "How many spot non reduce only trigger orders the user has open",
+              "precision: token mint precision"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "open_asks",
+            "docs": [
+              "How many spot non reduce only trigger orders the user has open",
+              "precision: token mint precision"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "cumulative_deposits",
+            "docs": [
+              "The cumulative deposits/borrows a user has made into a market",
+              "precision: token mint precision"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "market_index",
+            "docs": [
+              "The market index of the corresponding spot market"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "balance_type",
+            "docs": [
+              "Whether the position is deposit or borrow"
+            ],
+            "type": {
+              "defined": {
+                "name": "SpotBalanceType"
+              }
+            }
+          },
+          {
+            "name": "open_orders",
+            "docs": [
+              "Number of open orders"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenizedVaultDepositor",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "docs": [
+              "The vault deposited into"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "pubkey",
+            "docs": [
+              "The vault depositor account's pubkey. It is a pda of vault"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "docs": [
+              "The token mint for tokenized shares owned by this VaultDepositor"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_shares",
+            "docs": [
+              "share of vault owned by this depositor. vault_shares / vault.total_shares is depositor's ownership of vault_equity"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "last_vault_shares",
+            "docs": [
+              "stores the vault_shares from the most recent liquidity event (redeem or issuance) before a spl token",
+              "CPI is done, used to track invariants"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "last_valid_ts",
+            "docs": [
+              "creation ts of vault depositor"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "net_deposits",
+            "docs": [
+              "lifetime net deposits of vault depositor for the vault"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_deposits",
+            "docs": [
+              "lifetime total deposits"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_withdraws",
+            "docs": [
+              "lifetime total withdraws"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "cumulative_profit_share_amount",
+            "docs": [
+              "the token amount of gains the vault depositor has paid performance fees on"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "profit_share_fee_paid",
+            "type": "u64"
+          },
+          {
+            "name": "vault_shares_base",
+            "docs": [
+              "The exponent for vault_shares decimal places at the time the tokenized vault depositor was initialized.",
+              "If the vault undergoes a rebase, this TokenizedVaultDepositor can no longer issue new tokens, only redeem",
+              "is possible."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "The bump for the vault pda"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u64",
+                11
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateVaultParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "redeem_period",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "max_tokens",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "management_fee",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "min_deposit_amount",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "profit_share",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "hurdle_rate",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "permissioned",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateVaultProtocolParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "protocol_fee",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "protocol_profit_share",
+            "type": {
+              "option": "u32"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "User",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "The owner/authority of the account"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "An addresses that can control the account on the authority's behalf. Has limited power, cant withdraw"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "docs": [
+              "Encoded display name e.g. \"toly\""
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "spot_positions",
+            "docs": [
+              "The user's spot positions"
+            ],
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "SpotPosition"
+                  }
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "perp_positions",
+            "docs": [
+              "The user's perp positions"
+            ],
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "PerpPosition"
+                  }
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "orders",
+            "docs": [
+              "The user's orders"
+            ],
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "Order"
+                  }
+                },
+                32
+              ]
+            }
+          },
+          {
+            "name": "total_deposits",
+            "docs": [
+              "The total values of deposits the user has made",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_withdraws",
+            "docs": [
+              "The total values of withdrawals the user has made",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_social_loss",
+            "docs": [
+              "The total socialized loss the users has incurred upon the protocol",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "settled_perp_pnl",
+            "docs": [
+              "Fees (taker fees, maker rebate, referrer reward, filler reward) and pnl for perps",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "cumulative_spot_fees",
+            "docs": [
+              "Fees (taker fees, maker rebate, filler reward) for spot",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "cumulative_perp_funding",
+            "docs": [
+              "Cumulative funding paid/received for perps",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "liquidation_margin_freed",
+            "docs": [
+              "The amount of margin freed during liquidation. Used to force the liquidation to occur over a period of time",
+              "Defaults to zero when not being liquidated",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_active_slot",
+            "docs": [
+              "The last slot a user was active. Used to determine if a user is idle"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "next_order_id",
+            "docs": [
+              "Every user order has an order id. This is the next order id to be used"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "max_margin_ratio",
+            "docs": [
+              "Custom max initial margin ratio for the user"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "next_liquidation_id",
+            "docs": [
+              "The next liquidation id to be used for user"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "sub_account_id",
+            "docs": [
+              "The sub account id for this user"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Whether the user is active, being liquidated or bankrupt"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "is_margin_trading_enabled",
+            "docs": [
+              "Whether the user has enabled margin trading"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "idle",
+            "docs": [
+              "User is idle if they haven't interacted with the protocol in 1 week and they have no orders, perp positions or borrows",
+              "Off-chain keeper bots can ignore users that are idle"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "open_orders",
+            "docs": [
+              "number of open orders"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "has_open_order",
+            "docs": [
+              "Whether or not user has open order"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "open_auctions",
+            "docs": [
+              "number of open orders with auction"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "has_open_auction",
+            "docs": [
+              "Whether or not user has open order with auction"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "pool_id",
+            "type": "u8"
+          },
+          {
+            "name": "special_user_status",
+            "docs": [
+              "Whether the user is a special user (vamm hedger, etc)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                14
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserFees",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "total_fee_paid",
+            "docs": [
+              "Total taker fee paid",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_fee_rebate",
+            "docs": [
+              "Total maker fee rebate",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_token_discount",
+            "docs": [
+              "Total discount from holding token",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_referee_discount",
+            "docs": [
+              "Total discount from being referred",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserStats",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "The authority for all of a users sub accounts"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer",
+            "docs": [
+              "The address that referred this user"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "fees",
+            "docs": [
+              "Stats on the fees paid by the user"
+            ],
+            "type": {
+              "defined": {
+                "name": "UserFees"
+              }
+            }
+          },
+          {
+            "name": "maker_volume_30d",
+            "docs": [
+              "Rolling 30day maker volume for user",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "taker_volume_30d",
+            "docs": [
+              "Rolling 30day taker volume for user",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "filler_volume_30d",
+            "docs": [
+              "Rolling 30day filler volume for user",
+              "precision: QUOTE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_maker_volume_30d_ts",
+            "docs": [
+              "last time the maker volume was updated"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_taker_volume_30d_ts",
+            "docs": [
+              "last time the taker volume was updated"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_filler_volume_30d_ts",
+            "docs": [
+              "last time the filler volume was updated"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "if_staked_quote_asset_amount",
+            "docs": [
+              "The amount of tokens staked in the quote spot markets if"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "number_of_sub_accounts",
+            "docs": [
+              "The current number of sub accounts"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "number_of_sub_accounts_created",
+            "docs": [
+              "The number of sub accounts created. Can be greater than the number of sub accounts if user",
+              "has deleted sub accounts"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "referrer_status",
+            "docs": [
+              "Flags for referrer status:",
+              "First bit (LSB): 1 if user is a referrer, 0 otherwise",
+              "Second bit: 1 if user was referred, 0 otherwise"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "disable_update_perp_bid_ask_twap",
+            "type": "u8"
+          },
+          {
+            "name": "paused_operations",
+            "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "docs": [
+              "9 bytes: 1 byte of former repr(C) alignment padding + the removed",
+              "8-byte `if_staked_gov_token_amount` field (gov-token stake fee discount)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                9
+              ]
+            }
+          },
+          {
+            "name": "delegate_permissions",
+            "docs": [
+              "Delegate permissions across all sub accounts"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                63
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "docs": [
+              "The name of the vault. Vault pubkey is derived from this name."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "pubkey",
+            "docs": [
+              "The vault's pubkey. It is a pda of name and also used as the authority for drift user"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "manager",
+            "docs": [
+              "The manager of the vault who has ability to update vault params"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "token_account",
+            "docs": [
+              "The vaults token account. Used to receive tokens between deposits and withdrawals"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "user_stats",
+            "docs": [
+              "The drift user stats account for the vault"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "docs": [
+              "The drift user account for the vault"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "The vaults designated delegate for drift user account",
+              "can differ from actual user delegate if vault is in liquidation"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "liquidation_delegate",
+            "docs": [
+              "The delegate handling liquidation for depositor"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "user_shares",
+            "docs": [
+              "The sum of all shares held by the users (vault depositors)"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "total_shares",
+            "docs": [
+              "The sum of all shares: deposits from users, manager deposits, manager profit/fee, and protocol profit/fee.",
+              "The manager deposits are total_shares - user_shares - protocol_profit_and_fee_shares."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "last_manager_withdraw_request",
+            "type": {
+              "defined": {
+                "name": "WithdrawRequest"
+              }
+            }
+          },
+          {
+            "name": "last_fee_update_ts",
+            "docs": [
+              "Last fee update unix timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "liquidation_start_ts",
+            "docs": [
+              "When the liquidation starts"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "redeem_period",
+            "docs": [
+              "The period (in seconds) that a vault depositor must wait after requesting a withdrawal to finalize withdrawal.",
+              "Currently, the maximum is 90 days."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_withdraw_requested",
+            "docs": [
+              "The sum of all outstanding withdraw requests"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_tokens",
+            "docs": [
+              "Max token capacity, once hit/passed vault will reject new deposits (updatable)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "management_fee",
+            "docs": [
+              "The annual fee charged on deposits by the manager.",
+              "Traditional funds typically charge 2% per year on assets under management."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "init_ts",
+            "docs": [
+              "Timestamp vault initialized"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "net_deposits",
+            "docs": [
+              "The net deposits for the vault"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "manager_net_deposits",
+            "docs": [
+              "The net deposits for the manager"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_deposits",
+            "docs": [
+              "Total deposits"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_withdraws",
+            "docs": [
+              "Total withdraws"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "manager_total_deposits",
+            "docs": [
+              "Total deposits for the manager"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "manager_total_withdraws",
+            "docs": [
+              "Total withdraws for the manager"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "manager_total_fee",
+            "docs": [
+              "Total management fee accrued by the manager"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "manager_total_profit_share",
+            "docs": [
+              "Total profit share accrued by the manager"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "min_deposit_amount",
+            "docs": [
+              "The minimum deposit amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "manager_borrowed_value",
+            "docs": [
+              "The total value (in deposit asset) of borrows the manager has outstanding.",
+              "Purely for informational purposes for assets that have left the vault that the manager",
+              "is expected to return."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "shares_base",
+            "docs": [
+              "The base 10 exponent of the shares (given massive share inflation can occur at near zero vault equity)"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "profit_share",
+            "docs": [
+              "Percentage the manager charges on all profits realized by depositors: PERCENTAGE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "hurdle_rate",
+            "docs": [
+              "Vault manager only collect incentive fees during periods when returns are higher than this amount: PERCENTAGE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "spot_market_index",
+            "docs": [
+              "The spot market index the vault deposits into/withdraws from"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "The bump for the vault pda"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "permissioned",
+            "docs": [
+              "Whether anybody can be a depositor"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "vault_protocol",
+            "docs": [
+              "The optional [`VaultProtocol`] account."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "fee_update_status",
+            "docs": [
+              "Whether the vault has a FeeUpdate account [`FeeUpdateStatus`]. Default is `FeeUpdateStatus::None`",
+              "After a `FeeUpdate` account is created and the manager has staged a fee update, the status is set to `PendingFeeUpdate`.",
+              "And instructsions that may finalize the fee update must include the `FeeUpdate` account with `remaining_accounts`."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "vault_class",
+            "docs": [
+              "The class of the vault [`VaultClass`]. Default is `VaultClass::Normal`"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultDepositor",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "docs": [
+              "The vault deposited into"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "pubkey",
+            "docs": [
+              "The vault depositor account's pubkey. It is a pda of vault and authority"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "The authority is the address w permission to deposit/withdraw"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_shares",
+            "docs": [
+              "share of vault owned by this depositor. vault_shares / vault.total_shares is depositor's ownership of vault_equity"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "last_withdraw_request",
+            "docs": [
+              "last withdraw request"
+            ],
+            "type": {
+              "defined": {
+                "name": "WithdrawRequest"
+              }
+            }
+          },
+          {
+            "name": "last_valid_ts",
+            "docs": [
+              "creation ts of vault depositor"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "net_deposits",
+            "docs": [
+              "lifetime net deposits of vault depositor for the vault"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_deposits",
+            "docs": [
+              "lifetime total deposits"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_withdraws",
+            "docs": [
+              "lifetime total withdraws"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "cumulative_profit_share_amount",
+            "docs": [
+              "the token amount of gains the vault depositor has paid performance fees on"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "profit_share_fee_paid",
+            "type": "u64"
+          },
+          {
+            "name": "vault_shares_base",
+            "docs": [
+              "the exponent for vault_shares decimal places"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "padding_align",
+            "type": "u32"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u64",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultDepositorAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "WithdrawRequest"
+          },
+          {
+            "name": "CancelWithdrawRequest"
+          },
+          {
+            "name": "Withdraw"
+          },
+          {
+            "name": "FeePayment"
+          },
+          {
+            "name": "TokenizeShares"
+          },
+          {
+            "name": "RedeemTokens"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultDepositorRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "depositor_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "VaultDepositorAction"
+              }
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "vault_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "vault_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "vault_equity_before",
+            "type": "u64"
+          },
+          {
+            "name": "user_vault_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "total_vault_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "user_vault_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "total_vault_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "profit_share",
+            "type": "u64"
+          },
+          {
+            "name": "management_fee",
+            "type": "i64"
+          },
+          {
+            "name": "management_fee_shares",
+            "type": "i64"
+          },
+          {
+            "name": "deposit_oracle_price",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultDepositorV1Record",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "depositor_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "VaultDepositorAction"
+              }
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "vault_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "vault_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "vault_equity_before",
+            "type": "u64"
+          },
+          {
+            "name": "user_vault_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "total_vault_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "user_vault_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "total_vault_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "protocol_shares_before",
+            "type": "u128"
+          },
+          {
+            "name": "protocol_shares_after",
+            "type": "u128"
+          },
+          {
+            "name": "protocol_profit_share",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee",
+            "type": "i64"
+          },
+          {
+            "name": "protocol_fee_shares",
+            "type": "i64"
+          },
+          {
+            "name": "manager_profit_share",
+            "type": "u64"
+          },
+          {
+            "name": "management_fee",
+            "type": "i64"
+          },
+          {
+            "name": "management_fee_shares",
+            "type": "i64"
+          },
+          {
+            "name": "deposit_oracle_price",
+            "docs": [
+              "precision: PRICE_PRECISION"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "redeem_period",
+            "type": "i64"
+          },
+          {
+            "name": "max_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "management_fee",
+            "type": "i64"
+          },
+          {
+            "name": "min_deposit_amount",
+            "type": "u64"
+          },
+          {
+            "name": "profit_share",
+            "type": "u32"
+          },
+          {
+            "name": "hurdle_rate",
+            "type": "u32"
+          },
+          {
+            "name": "spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "permissioned",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultProtocol",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "protocol",
+            "docs": [
+              "The protocol, company, or entity that services the product using this vault.",
+              "The protocol is not allowed to deposit into the vault but can profit share and collect annual fees just like the manager."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol_profit_and_fee_shares",
+            "docs": [
+              "The shares from profit share and annual fee unclaimed by the protocol."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "protocol_fee",
+            "docs": [
+              "The annual fee charged on deposits by the protocol (traditional hedge funds typically charge 2% per year on assets under management).",
+              "Unlike the management fee this can't be negative."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "protocol_total_withdraws",
+            "docs": [
+              "Total withdraws for the protocol"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "protocol_total_fee",
+            "docs": [
+              "Total fee charged by the protocol (annual management fee + profit share).",
+              "Unlike the management fee this can't be negative."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "protocol_total_profit_share",
+            "docs": [
+              "Total profit share charged by the protocol"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_protocol_withdraw_request",
+            "type": {
+              "defined": {
+                "name": "WithdrawRequest"
+              }
+            }
+          },
+          {
+            "name": "protocol_profit_share",
+            "docs": [
+              "Percentage the protocol charges on all profits realized by depositors: PERCENTAGE_PRECISION"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                10
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultProtocolParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "protocol",
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol_fee",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_profit_share",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "vault_equity_before",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultWithProtocolParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "redeem_period",
+            "type": "i64"
+          },
+          {
+            "name": "max_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "management_fee",
+            "type": "i64"
+          },
+          {
+            "name": "min_deposit_amount",
+            "type": "u64"
+          },
+          {
+            "name": "profit_share",
+            "type": "u32"
+          },
+          {
+            "name": "hurdle_rate",
+            "type": "u32"
+          },
+          {
+            "name": "spot_market_index",
+            "type": "u16"
+          },
+          {
+            "name": "permissioned",
+            "type": "bool"
+          },
+          {
+            "name": "vault_protocol",
+            "type": {
+              "defined": {
+                "name": "VaultProtocolParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawRequest",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shares",
+            "docs": [
+              "request shares of vault withdraw"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "value",
+            "docs": [
+              "requested value (in vault spot_market_index) of shares for withdraw"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "docs": [
+              "request ts of vault withdraw"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawUnit",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Shares"
+          },
+          {
+            "name": "Token"
+          },
+          {
+            "name": "SharesPercent"
+          }
+        ]
+      }
+    }
+  ]
+}
