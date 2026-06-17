@@ -11,10 +11,19 @@ const marinadeFinanceProgramId = new PublicKey(
 	'MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD'
 );
 
+// The Marinade SDK is built against anchor 0.29 (3-arg `new Program`), so the
+// provider is typed against the anchor29 shim. Callers hold an anchor 1.0
+// AnchorProvider, which is runtime-compatible but nominally distinct — accept it
+// loosely and narrow at the construction boundary rather than leaking the cast to
+// every call site.
 export function getMarinadeFinanceProgram(
-	provider: AnchorProvider
+	provider: unknown
 ): Program<MarinadeFinance> {
-	return new Program<MarinadeFinance>(IDL, marinadeFinanceProgramId, provider);
+	return new Program<MarinadeFinance>(
+		IDL,
+		marinadeFinanceProgramId,
+		provider as AnchorProvider
+	);
 }
 
 export function getMarinadeDepositIx({

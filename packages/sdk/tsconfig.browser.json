@@ -7,8 +7,9 @@
 		"outDir": "./lib/browser",
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
+		"types": [],
 		"paths": {
-			"@solana/web3.js": ["./node_modules/@solana/web3.js"]
+			"@solana/web3.js": ["../../node_modules/@solana/web3.js"]
 		}
 	},
 	"include": ["src"],
