@@ -510,7 +510,10 @@ jobs:
         run: bash test-scripts/run-vault-tests.sh
   verify-sdk-configs:
     name: Verify SDK Configs
-    if: ${{ false }}
+    # Live-RPC SDK tests (tests/ci needs MAINNET/DEVNET_RPC_ENDPOINT). Not a PR
+    # gate (not in ci-gate's needs) — runs on schedule + on demand with secrets,
+    # same pattern as rust-live-tests.
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubicloud
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
