@@ -16,7 +16,8 @@
     "build": "bun run clean && node esbuild.config.js",
     "build:lambda": "bun run clean:lambda && node esbuild.lambda.config.js && cd dist-lambda && for f in *.js; do zip -j \"${f%.js}.zip\" \"$f\" > /dev/null; openssl dgst -sha256 -binary \"${f%.js}.zip\" | openssl base64 -A > \"${f%.js}.zip.sha256\"; done",
     "clean": "rm -rf dist",
-    "clean:lambda": "rm -rf dist-lambda"
+    "clean:lambda": "rm -rf dist-lambda",
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",

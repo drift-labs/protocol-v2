@@ -15,9 +15,19 @@ gate.
 
 ## TypeScript
 
-Shared jest preset: `jest.config.base.cjs`. Each wired package has a one-line
-`jest.config.cjs` re-exporting it and a `"test": "jest"` script. jest/ts-jest/
-@types/jest live in the root `devDependencies`.
+Two shared jest presets, by suite kind:
+
+- **`jest.config.base.cjs`** (ts-jest) — the `@backend/*` **libs**. Pure unit tests
+  that type-check clean.
+- **`jest.config.app.cjs`** (@swc/jest + `jest.setup.app.ts`) — the `apps/*` suites.
+  Apps were authored against swc semantics: they need `jest.mock` factory hoisting
+  and must not type-check at run time (app sources aren't strictly type-clean vs the
+  vendored SDK types). ts-jest fails both ways — `isolatedModules: true` skips mock
+  hoisting; `isolatedModules: false` blocks on type errors — so apps use swc, as they
+  did in infrastructure-v3.
+
+Each wired package has a one-line `jest.config.cjs` re-exporting the right preset and
+a `"test": "jest"` script. jest/ts-jest/@swc/jest/@types/jest live in root `devDependencies`.
 
 CI job `ts-tests` runs `turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'`.
 
@@ -40,12 +50,18 @@ CI job `ts-tests` runs `turbo run test --filter='./packages/*' --filter='!@veloc
 | @backend/market-data           | jest   | 63 (17 fail)  | ⚠️ failing            | restore jest setup/env                                                                                                                                                                                                                  |
 | @backend/notification-engine   | jest   | 158 (88 fail) | ⚠️ failing            | Firebase/env-dependent — needs `setupFiles` + test env (partly Tier 2)                                                                                                                                                                  |
 | @backend/multisig-monitor      | jest   | 79 (1 fail)   | ⚠️ 1 failing          | fix the single failing case                                                                                                                                                                                                             |
-| @backend/realtime-archiver     | jest   | 67            | ❌ broken             | imports `@velocity-exchange/sdk/src/idl/drift.json` — renamed to `velocity.json` during consolidation                                                                                                                                   |
+| @backend/realtime-archiver     | swc    | 67 (+1 suite quarantined) | ✅ wired (app preset)  | re-enable `test/services/ingestion.test.ts` (see below)                                                                                                                                               |
 
-The recurring app-suite cause: the origin repos kept `setupFiles`/env/`moduleNameMapper`
-in their own jest config, which had no equivalent in the monorepo until
-`jest.config.base.cjs`. Restoring each app means re-adding its setup (env defaults,
-the drift→velocity idl mapping) per package, then deciding Tier 1 vs Tier 2.
+The recurring app-suite cause was the **transformer**, not just missing setup: the
+origin repos ran `@swc/jest`, and the monorepo's only preset was ts-jest. Apps wired to
+`jest.config.app.cjs` (swc) recover their suites. realtime-archiver: 8/9 suites green
+(67 tests) under the app preset.
+
+- **realtime-archiver `test/services/ingestion.test.ts`** is quarantined via
+  `testPathIgnorePatterns`. It fails on `error instanceof SolanaJSONRPCError` in
+  `src/services/ingestion.ts` — the constructor resolves to `undefined` in the test
+  realm's `@solana/web3.js` instance. Likely a dual-instance / import issue; re-enable
+  once resolved.
 
 ### SDK test restoration (not a quick fix)
 
