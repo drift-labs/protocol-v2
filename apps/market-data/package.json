@@ -4,7 +4,8 @@
   "scripts": {
     "start-tasks": "ts-node src/tasks.ts",
     "build": "bun run clean && node esbuild.config.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",

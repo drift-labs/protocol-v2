@@ -6,7 +6,8 @@
     "start-ws": "ts-node src/ws.ts",
     "start": "ts-node src/index.ts",
     "build": "bun run clean && node esbuild.config.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",

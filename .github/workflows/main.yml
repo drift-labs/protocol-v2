@@ -226,12 +226,23 @@ jobs:
           bun-version: 1.3.14
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      # Hermetic jest unit suites for the @backend/* libraries (they mock all infra).
-      # `test` dependsOn `^build`, so turbo builds each lib's deps first.
-      # sdk (mocha) and the apps/* suites are excluded until their test setup is
-      # restored — tracked in docs/monorepo-test-preservation.md.
-      - name: Run library unit tests
-        run: bunx turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'
+      # Hermetic jest unit suites: the @backend/* libraries (ts-jest preset) plus
+      # the apps/* suites that run green on the @swc/jest app preset. `test`
+      # dependsOn `^build`, so turbo builds each suite's deps first.
+      # Excluded (tracked in docs/monorepo-test-preservation.md):
+      #   - @velocity-exchange/sdk (mocha, multi-issue restoration)
+      #   - @backend/notification-engine (no test script yet; Firebase/env-dependent)
+      #   - @velocity-exchange/dlob-server (jest config loads 0 suites)
+      #   - @drift-labs/keeper-bots-v2 (mocha; passes, not yet wired)
+      - name: Run unit tests (libs + wired app suites)
+        run: >-
+          bunx turbo run test
+          --filter='./packages/*' --filter='!@velocity-exchange/sdk'
+          --filter=@backend/candles
+          --filter=@backend/market-data
+          --filter=@backend/multisig-monitor
+          --filter=@backend/aggregator-api
+          --filter=@backend/realtime-archiver
   rust-workspace-check:
     name: Check rust workspace (drift-rs/keep-rs/swift)
     needs: changes
@@ -259,6 +270,16 @@ jobs:
       # the velocity (`drift`) program crate is compiled as a host lib path-dep.
       - name: cargo check rust workspace
         run: cargo check --manifest-path rust/Cargo.toml --all-targets
+      # Execute the rust workspace tests whenever the workspace actually compiles,
+      # but do NOT gate on them. Many drift-rs/swift tests hit live RPC/Redis and
+      # none are #[ignore]-annotated, so there's no clean offline subset. The
+      # compile above (cargo check --all-targets) is the real gate; this runs the
+      # tests for visibility and continue-on-error keeps a network flake from
+      # blocking merges. timeout caps a hung live-RPC test.
+      - name: cargo test rust workspace (non-gating)
+        continue-on-error: true
+        timeout-minutes: 20
+        run: cargo test --manifest-path rust/Cargo.toml --all-targets
   anchor-tests:
     name: Anchor tests
     needs: changes

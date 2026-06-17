@@ -29,7 +29,12 @@ Two shared jest presets, by suite kind:
 Each wired package has a one-line `jest.config.cjs` re-exporting the right preset and
 a `"test": "jest"` script. jest/ts-jest/@swc/jest/@types/jest live in root `devDependencies`.
 
-CI job `ts-tests` runs `turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'`.
+CI job `ts-tests` runs the `@backend/*` libs plus the green app suites:
+`turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'
+--filter=@backend/candles --filter=@backend/market-data --filter=@backend/multisig-monitor
+--filter=@backend/aggregator-api --filter=@backend/realtime-archiver`. Apps are enumerated
+explicitly (not `./apps/*`) so a broken/unwired app — dlob-server's 0-suite jest config,
+notification-engine's missing `test` script — can't slip into the gate.
 
 | Package                        | Runner | Tests         | State                 | Action to fully preserve                                                                                                                                                                                                                |
 | ------------------------------ | ------ | ------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -45,17 +50,19 @@ CI job `ts-tests` runs `turbo run test --filter='./packages/*' --filter='!@veloc
 | @drift-labs/keeper-bots-v2     | mocha  | 2             | ✅ passes (not gated) | add `test` to the gate once confirmed in CI env                                                                                                                                                                                         |
 | @velocity-exchange/sdk         | mixed  | many          | ❌ multi-issue        | needs a real test-restoration pass — see below |
 | @velocity-exchange/dlob-server | jest   | 3             | ❌ broken             | its existing jest config loads 0 suites (compile/import error) — fix config + imports                                                                                                                                                   |
-| @backend/aggregator-api        | jest   | 20            | ⚠️ unverified         | fastify suites; build is intentionally skipped, so wire test against `src`                                                                                                                                                              |
-| @backend/candles               | jest   | 61 (28 fail)  | ⚠️ failing            | restore jest setup/env from origin repo                                                                                                                                                                                                 |
-| @backend/market-data           | jest   | 63 (17 fail)  | ⚠️ failing            | restore jest setup/env                                                                                                                                                                                                                  |
-| @backend/notification-engine   | jest   | 158 (88 fail) | ⚠️ failing            | Firebase/env-dependent — needs `setupFiles` + test env (partly Tier 2)                                                                                                                                                                  |
-| @backend/multisig-monitor      | jest   | 79 (1 fail)   | ⚠️ 1 failing          | fix the single failing case                                                                                                                                                                                                             |
+| @backend/aggregator-api        | jest   | 337           | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
+| @backend/candles               | jest   | 61            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
+| @backend/market-data           | jest   | 63            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
+| @backend/notification-engine   | jest   | 158 (88 fail) | ⚠️ failing            | Firebase/env-dependent — needs `setupFiles` + test env (partly Tier 2); no `test` script yet                                                                                                                                            |
+| @backend/multisig-monitor      | jest   | 79            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/realtime-archiver     | swc    | 67 (+1 suite quarantined) | ✅ wired (app preset)  | re-enable `test/services/ingestion.test.ts` (see below)                                                                                                                                               |
 
 The recurring app-suite cause was the **transformer**, not just missing setup: the
-origin repos ran `@swc/jest`, and the monorepo's only preset was ts-jest. Apps wired to
-`jest.config.app.cjs` (swc) recover their suites. realtime-archiver: 8/9 suites green
-(67 tests) under the app preset.
+origin repos ran `@swc/jest`, and the monorepo's only preset was ts-jest. Wiring each app
+to `jest.config.app.cjs` (swc) recovers its suites with no per-suite fixes — candles
+(61), market-data (63), multisig-monitor (79), aggregator-api (337) all run fully green,
+matching how they were tested in infrastructure-v3 (one root `jest` on `@swc/jest`).
+realtime-archiver: 8/9 suites green (67 tests), one quarantined (below).
 
 - **realtime-archiver `test/services/ingestion.test.ts`** is quarantined via
   `testPathIgnorePatterns`. It fails on `error instanceof SolanaJSONRPCError` in
@@ -87,10 +94,13 @@ unblocks compilation — the suites themselves need work:
 
 ## Rust (`rust/` workspace)
 
-`rust-workspace-check` runs `cargo check --all-targets`, which compiles all test code
-(fixed: builder-codes `OrderParams` fields + a `UiTransactionError` `.into()` drift).
-It does **not execute** the tests, and — see below — executing them is **not** the
-quick win it first looks like.
+`rust-workspace-check` runs `cargo check --all-targets` (the **gate** — compiles all test
+code; fixed: builder-codes `OrderParams` fields + a `UiTransactionError` `.into()` drift),
+then `cargo test --all-targets` as a **non-gating** step (`continue-on-error`, 20-min
+timeout). Both run only when rust paths change. The decision is deliberate: the rust
+tests **execute** whenever the workspace compiles (visible in CI logs) but never block a
+merge — because, as below, much of the suite needs live RPC/Redis and there is no clean
+offline subset to select.
 
 | Crate    | Crate type | Tests in `src` (`#[test]`)        | Integration (`tests/*.rs`)           |
 | -------- | ---------- | --------------------------------- | ------------------------------------ |
@@ -98,25 +108,19 @@ quick win it first looks like.
 | keep-rs  | **bin**    | **0**                             | —                                    |
 | swift    | **bin**    | ~40, **mixed** (9 pure + RPC/Redis) | —                                  |
 
-Why `cargo test --manifest-path rust/Cargo.toml --lib` is the **wrong** action (it
-was the original plan here — it isn't viable):
+Why gating on `cargo test` (and why an `#[ignore]` pass is **not** required):
 
 1. **`--lib` only matches lib targets.** keep-rs and swift are **binary** crates, so
-   `--lib` silently runs **none** of their tests — only drift-rs's lib tests.
+   `--lib` would run **none** of their tests. The non-gating step uses `--all-targets`
+   so bin-crate tests run too.
 2. **drift-rs's lib tests are network-intermixed.** ~8 of 23 `src` test files call
    `test_envs::{mainnet,devnet}_endpoint` (live RPC). They live as `#[tokio::test]`
-   unit tests in `src`, not under `tests/`, so `--lib` would execute them and
-   flake/fail the PR gate without secrets.
-3. **No filter exists.** Pure and live tests share modules and **none are marked
-   `#[ignore]`**, so there's no clean offline subset to select.
-4. **keep-rs has no unit tests** (the earlier "9" was wrong).
+   unit tests in `src`, not under `tests/`, with **no `#[ignore]` marker** — so there's
+   no offline subset to select. Run non-gating, their failures don't block merges.
+3. **keep-rs has no unit tests** (the earlier "9" was wrong).
 
-Verified-pure subset today: swift `types::` (8 in `types/messages.rs` + 1 in
-`types/types.rs`) — runs offline (`cargo test -p swift-server 'types::'`, exit 0), but
-pays swift's full multi-minute compile for 9 tests → low ROI as a standalone step.
-
-Action (the real work, not a one-liner): mark every RPC/Redis test `#[ignore]` (or
-put it behind a `live`/`tier2` feature) across drift-rs + swift. Then the PR gate can
-run `cargo test` (offline subset only) and a **separate secrets+Redis job** runs
-`-- --ignored`. Until that annotation pass lands, leave the rust gate at
-`cargo check --all-targets` (compile-only).
+If the rust suite is ever wanted **as a gate** (not the current decision), the work is:
+mark every RPC/Redis test `#[ignore]` (or put it behind a `live`/`tier2` feature) across
+drift-rs + swift, gate `cargo test` on the offline subset, and add a **separate
+secrets+Redis job** running `-- --ignored`. Until/unless that's wanted, the non-gating
+step above preserves execution without the annotation pass.
