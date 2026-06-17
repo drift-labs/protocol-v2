@@ -527,6 +527,7 @@ describe('TestProtocolVaults', () => {
 
 	let protocolVault: PublicKey;
 	const protocolVaultName = 'protocol vault';
+	let solPerpOracle: PublicKey;
 
 	const VAULT_PROTOCOL_DISCRIM: number[] = [106, 130, 5, 195, 126, 82, 249, 53];
 
@@ -543,6 +544,7 @@ describe('TestProtocolVaults', () => {
 		adminClient = bootstrap.adminClient;
 		program = bootstrap.program;
 		usdcMint = bootstrap.usdcMint;
+		solPerpOracle = bootstrap.solPerpOracle;
 		const oracleInfos = bootstrap.oracleInfos;
 
 		protocolVault = getVaultAddressSync(
@@ -788,17 +790,19 @@ describe('TestProtocolVaults', () => {
 	});
 
 	// vault enters long
-	// Perp delegate trading: assuming control of the vault user requires
-	// getUserAccountsForDelegate -> getProgramAccounts, which the bankrun
-	// connection does not implement. Skipped, along with the protocol-vault
-	// trading flow that depends on the position it opens.
-	it.skip('Long SOL-PERP', async () => {
-		// vault user account is delegated to "delegate"
-		const vaultUserAcct = (
-			await delegateClient.driftClient.getUserAccountsForDelegate(
-				delegate.publicKey
-			)
-		)[0];
+	it('Long SOL-PERP', async () => {
+		// vault user account is delegated to "delegate". On bankrun we cannot
+		// use getUserAccountsForDelegate (getProgramAccounts) — fetch the known
+		// vault user PDA directly instead.
+		const vaultUserKey = await getUserAccountPublicKey(
+			delegateClient.driftClient.program.programId,
+			protocolVault,
+			0
+		);
+		const vaultUserAcct =
+			(await delegateClient.driftClient.program.account.user.fetch(
+				vaultUserKey
+			)) as unknown as UserAccount;
 		assert(vaultUserAcct.authority.equals(protocolVault));
 		assert(vaultUserAcct.delegate.equals(delegate.publicKey));
 
@@ -817,11 +821,6 @@ describe('TestProtocolVaults', () => {
 		const delegateActiveUser = delegateClient.driftClient.getUser(
 			0,
 			protocolVault
-		);
-		const vaultUserKey = await getUserAccountPublicKey(
-			delegateClient.driftClient.program.programId,
-			protocolVault,
-			0
 		);
 		assert(
 			delegateActiveUser.userAccountPublicKey.equals(vaultUserKey),
@@ -931,7 +930,7 @@ describe('TestProtocolVaults', () => {
 	});
 
 	// increase price of SOL perp by 5%
-	it.skip('Increase SOL-PERP Price', async () => {
+	it('Increase SOL-PERP Price', async () => {
 		const preOD = adminClient.getOracleDataForPerpMarket(0);
 		const priceBefore = preOD.price.toNumber() / PRICE_PRECISION.toNumber();
 		console.log('price before:', priceBefore);
@@ -948,19 +947,20 @@ describe('TestProtocolVaults', () => {
 			assert(false, 'failed to move amm price');
 		}
 
-		const solPerpMarket = adminClient.getPerpMarketAccount(0);
-
 		try {
 			// increase oracle
 			await setFeedPrice(
 				bankrunContextWrapper,
 				finalSolPerpPrice,
-				solPerpMarket!.amm.oracle
+				solPerpOracle
 			);
 		} catch (e) {
 			console.error('failed to set feed price:', e);
 			assert(false, 'failed to set feed price');
 		}
+
+		// Refresh the polling oracle cache so the new price is observed.
+		await adminClient.fetchAccounts();
 
 		const postOD = adminClient.getOracleDataForPerpMarket(0);
 		const priceAfter = postOD.price.toNumber() / PRICE_PRECISION.toNumber();
@@ -969,7 +969,7 @@ describe('TestProtocolVaults', () => {
 	});
 
 	// vault exits long for a profit
-	it.skip('Short SOL-PERP', async () => {
+	it('Short SOL-PERP', async () => {
 		const marketIndex = 0;
 
 		const delegateActiveUser = delegateClient.driftClient.getUser(
@@ -1072,7 +1072,7 @@ describe('TestProtocolVaults', () => {
 		assert(vaultPosition.baseAssetAmount.eq(ZERO));
 	});
 
-	it.skip('Settle Pnl', async () => {
+	it('Settle Pnl', async () => {
 		const vaultUser = delegateClient.driftClient.getUser(0, protocolVault);
 		const uA = vaultUser.getUserAccount();
 		assert(uA.idle === false);
@@ -1091,7 +1091,7 @@ describe('TestProtocolVaults', () => {
 		);
 		assert(usdcAmount.eq(vaultUser.getFreeCollateral()));
 
-		const solPrice = vaultUser.driftClient.getOracleDataForPerpMarket(0);
+		const solPrice = delegateClient.driftClient.getOracleDataForPerpMarket(0);
 		console.log(
 			'SOL price:',
 			solPrice.price.toNumber() / PRICE_PRECISION.toNumber()
@@ -1125,17 +1125,38 @@ describe('TestProtocolVaults', () => {
 		await delegateClient.driftClient.fetchAccounts();
 
 		try {
+			// settle_pnl requires the AMM to have been updated in the same slot
+			// (AMMNotUpdatedInSameSlot guard). On bankrun every transaction
+			// advances the clock by exactly one slot, so calling updateAMMs in a
+			// separate tx would leave the AMM stale by the time settle runs.
+			// Instead prepend the AMM-update ix into the SAME transaction as each
+			// settle so both execute in one slot.
+			const dc = delegateClient.driftClient;
+			const updateAmmIx = await dc.getUpdateAMMsIx([0]);
+
 			// settle market maker who lost trade and pays taker fees
-			await delegateClient.driftClient.settlePNL(
+			const fillerSettleIx = await dc.settlePNLIx(
 				fillerUser.userAccountPublicKey,
 				fillerUser.getUserAccount(),
 				0
 			);
+			await dc.sendTransaction(
+				await dc.buildTransaction([updateAmmIx, fillerSettleIx], dc.txParams),
+				[],
+				dc.opts
+			);
+
 			// then settle vault who won trade and earns maker fees
-			await delegateClient.driftClient.settlePNL(
+			const updateAmmIx2 = await dc.getUpdateAMMsIx([0]);
+			const vaultSettleIx = await dc.settlePNLIx(
 				vaultUser.userAccountPublicKey,
 				vaultUser.getUserAccount(),
 				0
+			);
+			await dc.sendTransaction(
+				await dc.buildTransaction([updateAmmIx2, vaultSettleIx], dc.txParams),
+				[],
+				dc.opts
 			);
 		} catch (e) {
 			console.log('failed to settle pnl:', e);
