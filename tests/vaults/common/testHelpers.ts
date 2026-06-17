@@ -563,35 +563,44 @@ export function calculateAllTokenizedVaultPdas(
  * Validates that the total user shares (vaultDepositors + tokenizedVaultDepositors)
  * matches the vault's userShares. Ported from drift-vaults.
  */
+/**
+ * Validates that the sum of all (regular + tokenized) vault-depositor shares
+ * equals the vault's `userShares`.
+ *
+ * Upstream drift enumerated the depositors via `program.account.*.all()`
+ * (getProgramAccounts), which the bankrun connection does not implement. On
+ * bankrun every account address is derivable, so callers pass the explicit
+ * depositor PDA lists they created; each is fetched individually (a single
+ * getAccountInfo, which bankrun supports). PDAs that don't exist yet are
+ * skipped, so over-listing is safe.
+ */
 export async function validateTotalUserShares(
 	program: anchor.Program<DriftVaults>,
-	vault: PublicKey
+	vault: PublicKey,
+	vaultDepositors: PublicKey[] = [],
+	tokenizedVaultDepositors: PublicKey[] = []
 ) {
 	const vaultAccount = await program.account.vault.fetch(vault);
-	const allVds = await program.account.vaultDepositor.all([
-		{
-			memcmp: {
-				offset: 8,
-				bytes: vault.toBase58(),
-			},
-		},
-	]);
-	const allTvds = await program.account.tokenizedVaultDepositor.all([
-		{
-			memcmp: {
-				offset: 8,
-				bytes: vault.toBase58(),
-			},
-		},
-	]);
-	const vdSharesTotal = allVds.reduce(
-		(acc, vd) => acc.add(vd.account.vaultShares),
-		new BN(0)
-	);
-	const tvdSharesTotal = allTvds.reduce(
-		(acc, vd) => acc.add(vd.account.vaultShares),
-		new BN(0)
-	);
+
+	let vdSharesTotal = new BN(0);
+	for (const vd of vaultDepositors) {
+		try {
+			const acct = await program.account.vaultDepositor.fetch(vd);
+			vdSharesTotal = vdSharesTotal.add(acct.vaultShares);
+		} catch {
+			// depositor not created yet — skip
+		}
+	}
+
+	let tvdSharesTotal = new BN(0);
+	for (const tvd of tokenizedVaultDepositors) {
+		try {
+			const acct = await program.account.tokenizedVaultDepositor.fetch(tvd);
+			tvdSharesTotal = tvdSharesTotal.add(acct.vaultShares);
+		} catch {
+			// tokenized depositor not created yet — skip
+		}
+	}
 
 	assert(
 		tvdSharesTotal.add(vdSharesTotal).eq(vaultAccount.userShares),

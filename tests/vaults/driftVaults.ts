@@ -1670,10 +1670,7 @@ describe('TestTokenizedDriftVaults', () => {
 		);
 	});
 
-	// validateTotalUserShares() enumerates depositor accounts via
-	// program.account.*.all() -> getProgramAccounts, unimplemented on the
-	// bankrun connection. Skipped.
-	it.skip('Tokenize and redeem vault shares', async () => {
+	it('Tokenize and redeem vault shares', async () => {
 		const bootstrapVd = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
 			signer: Keypair.generate(),
@@ -1725,7 +1722,12 @@ describe('TestTokenizedDriftVaults', () => {
 			assert(false);
 		}
 
-		await validateTotalUserShares(program, commonVaultKey);
+		await validateTotalUserShares(
+			program,
+			commonVaultKey,
+			[vaultDepositor],
+			[tokenizedVaultDepositor]
+		);
 
 		const vdBefore = await program.account.vaultDepositor.fetch(vaultDepositor);
 		const vdtBefore = await program.account.tokenizedVaultDepositor.fetch(
@@ -1733,7 +1735,8 @@ describe('TestTokenizedDriftVaults', () => {
 		);
 		const vaultBefore = await program.account.vault.fetch(commonVaultKey);
 		const mintAccountBefore = await getMint(connection, mintAddress);
-		const tvdTokenBalanceBefore = await connection.getTokenAccountBalance(
+		const tvdTokenBalanceBefore = await getTokenBalance(
+			connection,
 			vaultTokenizedTokenAta
 		);
 
@@ -1779,10 +1782,14 @@ describe('TestTokenizedDriftVaults', () => {
 			commonVaultKey
 		);
 		const mintAccountAfterTokenize = await getMint(connection, mintAddress);
-		const userTokenBalanceAfterTokenize =
-			await connection.getTokenAccountBalance(userVaultTokenAta);
-		const tvdTokenBalanceAfterTokenize =
-			await connection.getTokenAccountBalance(vaultTokenizedTokenAta);
+		const userTokenBalanceAfterTokenize = await getTokenBalance(
+			connection,
+			userVaultTokenAta
+		);
+		const tvdTokenBalanceAfterTokenize = await getTokenBalance(
+			connection,
+			vaultTokenizedTokenAta
+		);
 
 		assert(
 			tvdTokenBalanceAfterTokenize.value.uiAmount === 0,
@@ -1850,10 +1857,12 @@ describe('TestTokenizedDriftVaults', () => {
 		);
 		const vaultAfterRedeem = await program.account.vault.fetch(commonVaultKey);
 		const mintAccountAfterRedeem = await getMint(connection, mintAddress);
-		const userTokenBalanceAfterRedeem = await connection.getTokenAccountBalance(
+		const userTokenBalanceAfterRedeem = await getTokenBalance(
+			connection,
 			userVaultTokenAta
 		);
-		const tvdTokenBalanceAfterRedeem = await connection.getTokenAccountBalance(
+		const tvdTokenBalanceAfterRedeem = await getTokenBalance(
+			connection,
 			vaultTokenizedTokenAta
 		);
 
@@ -1904,7 +1913,12 @@ describe('TestTokenizedDriftVaults', () => {
 
 		// teardown
 
-		await validateTotalUserShares(program, commonVaultKey);
+		await validateTotalUserShares(
+			program,
+			commonVaultKey,
+			[vaultDepositor],
+			[tokenizedVaultDepositor]
+		);
 
 		await bootstrapVd.driftClient.unsubscribe();
 		await bootstrapVd.vaultClient.unsubscribe();
