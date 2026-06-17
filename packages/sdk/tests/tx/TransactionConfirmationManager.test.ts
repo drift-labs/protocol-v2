@@ -222,6 +222,12 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 			}
 		};
 
+		// Fake timers: the poll intervals (and the Date.now used for callTimes) must
+		// be driven deterministically. The previous real `setTimeout(1250)` wait was
+		// flaky under CI load — a slow runner let an extra 400ms poll fire (4 calls
+		// instead of 3). Ticking fake time aligns the 400ms/1200ms intervals exactly
+		// at 1200ms, so the third poll batches both signatures.
+		const clock = sinon.useFakeTimers();
 		const startTime = Date.now();
 
 		// Start both confirmation processes
@@ -238,11 +244,12 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 			1200
 		);
 
-		// Wait for 1250ms to ensure we've hit the third 400ms interval and first 1200ms interval
-		await new Promise((resolve) => setTimeout(resolve, 1250));
+		// Advance fake time past the third 400ms interval / first 1200ms interval.
+		await clock.tickAsync(1250);
 
 		// Resolve both promises
 		await Promise.all([promise1, promise2]);
+		clock.restore();
 
 		// Check the call times and signatures
 		assert.strictEqual(callTimes.length, 3, 'Should have exactly 3 calls');
