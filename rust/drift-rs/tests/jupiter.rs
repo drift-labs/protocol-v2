@@ -1,3 +1,8 @@
+// Live tests: hit the Jupiter swap API + live RPC. Gated behind `rpc_tests` so
+// the offline PR gate (`cargo test --workspace`) excludes them; the live CI job
+// runs with `--features rpc_tests`.
+#![cfg(feature = "rpc_tests")]
+
 use solana_transaction::{InstructionError, TransactionError};
 
 const LAMPORTS_PER_SOL: u64 = 1_000_000_000;

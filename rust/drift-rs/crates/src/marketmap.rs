@@ -431,6 +431,7 @@ mod tests {
         MarketId,
     };
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn marketmap_subscribe() {
         let map = MarketMap::<PerpMarket>::new(
@@ -456,6 +457,7 @@ mod tests {
         assert!(!map.is_subscribed(1));
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn get_market_accounts_with_fallback_works() {
         let result: Result<(Vec<PerpMarket>, _), _> =

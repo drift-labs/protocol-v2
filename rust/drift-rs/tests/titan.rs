@@ -1,4 +1,8 @@
-#![cfg(feature = "titan")]
+// Live tests: hit the Titan swap API. Gated behind `rpc_tests` so the offline
+// PR gate excludes them; the live CI job runs with `--features "titan rpc_tests"`.
+// `titan` is unified on via keep-rs, so `rpc_tests` is what keeps these out of
+// the default run.
+#![cfg(all(feature = "titan", feature = "rpc_tests"))]
 
 use drift_rs::{
     event_subscriber::RpcClient,

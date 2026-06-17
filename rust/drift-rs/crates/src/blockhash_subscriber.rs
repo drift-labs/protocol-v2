@@ -113,6 +113,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn blockhash_subscriber_updates() {
         let _ = env_logger::try_init();

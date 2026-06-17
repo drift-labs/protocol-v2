@@ -483,6 +483,7 @@ mod tests {
         Wallet,
     };
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn test_user_subscribe() {
         let _ = env_logger::try_init();

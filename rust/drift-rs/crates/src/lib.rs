@@ -3475,20 +3475,29 @@ impl<'a> TransactionBuilder<'a> {
     /// - `referrer`: Optional referrer pubkey for the account.
     ///
     /// # Example
-    /// ```
+    /// ```no_run
+    /// use std::borrow::Cow;
     /// use drift_rs::{TransactionBuilder, Wallet};
-    /// use solana_pubkey::Pubkey;
+    /// use drift_rs::constants::ProgramData;
+    /// use drift_rs::types::accounts::User;
+    /// use solana_keypair::Keypair;
     ///
-    /// let wallet = Wallet::new_random();
-    /// let program_data = /* obtain ProgramData */;
+    /// let wallet = Wallet::new(Keypair::new());
+    /// let program_data = ProgramData::uninitialized();
+    /// let user = User { authority: wallet.authority().clone(), ..Default::default() };
     /// let sub_account_id = 0;
-    /// let mut builder = TransactionBuilder::new(&program_data, wallet.default_sub_account(), /* user data */, false);
+    /// let mut builder = TransactionBuilder::new(
+    ///     &program_data,
+    ///     wallet.default_sub_account(),
+    ///     Cow::Owned(user),
+    ///     false,
+    /// );
     ///
     /// // Initialize the user account and the swift account, then deposit 100_000 USDC (spot market 0)
     /// builder = builder
     ///     .initialize_user_account(sub_account_id, None, None)
     ///     .initialize_swift_account()
-    ///     .deposit(100_000, 0, None);
+    ///     .deposit(100_000, 0, None, None);
     /// ```
     pub fn initialize_user_account(
         mut self,

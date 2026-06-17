@@ -3,6 +3,12 @@ name = "swift-server"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Live tests that need RPC-backed external state. Off by default so the offline
+# PR gate (`cargo test --workspace`) skips them; the live CI job runs
+# `cargo test --workspace --features rpc_tests` with the required secrets.
+rpc_tests = []
+
 [dependencies]
 anyhow = "1.0.86"
 arrayvec = "0.7.6"

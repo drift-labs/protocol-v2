@@ -575,6 +575,7 @@ mod tests {
     const SOL_PERP_ORACLE: Pubkey =
         solana_pubkey::pubkey!("BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF");
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_sync() {
         let all_oracles = vec![
@@ -610,6 +611,7 @@ mod tests {
         map.sync(&markets, &rpc).await.expect("subd");
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_subscribe_mixed_spot_perp_source() {
         // bonk oracle uses a precision trick via 'oracle source'
@@ -645,6 +647,7 @@ mod tests {
         assert!(map.is_subscribed(&MarketId::perp(4)));
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_subscribes() {
         let _ = env_logger::try_init();
@@ -691,6 +694,7 @@ mod tests {
         assert!(!map.is_subscribed(&MarketId::perp(0)));
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_unsubscribe_all() {
         let all_oracles = vec![

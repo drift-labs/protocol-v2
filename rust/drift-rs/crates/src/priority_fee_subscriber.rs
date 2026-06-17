@@ -18,8 +18,8 @@ pub const DEFAULT_SLOT_WINDOW: Slot = 30;
 /// After unsubscribing (either manually or due to repeated failures), queries for the priority fee can be checked safely using `priority_fee_safe()`.
 ///
 /// # Example
-/// ```rust
-/// # use drift_rs::PriorityFeeSubscriber;
+/// ```no_run
+/// # use drift_rs::priority_fee_subscriber::PriorityFeeSubscriber;
 /// # use solana_pubkey::Pubkey;
 /// let endpoint = "https://api.mainnet-beta.solana.com".to_string();
 /// let accounts = vec![Pubkey::new_unique()];
@@ -222,6 +222,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn priority_fee_subscribe() {
         let _ = env_logger::try_init();
