@@ -7,7 +7,7 @@ import {
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { DriftVaults } from '../types/drift_vaults';
+import { Vaults } from '../types/vaults';
 import {
 	VaultsProgramAccountBaseEvents,
 	VaultsProgramAccountSubscriber,
@@ -18,7 +18,7 @@ export abstract class PollingVaultsProgramAccountSubscriber<
 	AccountEvents extends VaultsProgramAccountBaseEvents,
 > implements VaultsProgramAccountSubscriber<Account, AccountEvents>
 {
-	protected program: Program<DriftVaults>;
+	protected program: Program<Vaults>;
 	protected _isSubscribed: boolean;
 	protected pubkey: PublicKey;
 	protected account?: DataAndSlot<Account>;
@@ -29,7 +29,7 @@ export abstract class PollingVaultsProgramAccountSubscriber<
 	protected errorCallbackId: string | null = null;
 
 	constructor(
-		program: Program<DriftVaults>,
+		program: Program<Vaults>,
 		accountPubkey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {

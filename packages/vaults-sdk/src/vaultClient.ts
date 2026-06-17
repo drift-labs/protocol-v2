@@ -19,7 +19,7 @@ import {
 	QUOTE_PRECISION_EXP,
 } from '@velocity-exchange/sdk';
 import { BorshAccountsCoder, Program, ProgramAccount } from '@coral-xyz/anchor';
-import { DriftVaults } from './types/drift_vaults';
+import { Vaults } from './types/vaults';
 import {
 	getTokenizedVaultAddressSync,
 	getTokenizedVaultMintAddressSync,
@@ -88,7 +88,7 @@ export type TxParams = {
 export class VaultClient {
 	driftClient: DriftClient;
 	metaplex?: Metaplex;
-	program: Program<DriftVaults>;
+	program: Program<Vaults>;
 	cliMode: boolean;
 
 	/**
@@ -105,7 +105,7 @@ export class VaultClient {
 		userMapConfig,
 	}: {
 		driftClient: DriftClient;
-		program: Program<DriftVaults>;
+		program: Program<Vaults>;
 		metaplex?: Metaplex;
 		// @deprecated, no longer used
 		cliMode?: boolean;

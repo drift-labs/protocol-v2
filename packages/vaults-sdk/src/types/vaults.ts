@@ -2,12 +2,12 @@
  * Program IDL in camelCase format in order to be used in JS/TS.
  *
  * Note that this is only a type helper and is not the actual IDL. The original
- * IDL can be found at `target/idl/drift_vaults.json`.
+ * IDL can be found at `target/idl/vaults.json`.
  */
-export type DriftVaults = {
-	address: 'Cst3DCweLdBkpj51crsfZPzxGcTSXXwYdhJaEQw9TnEL';
+export type Vaults = {
+	address: 'vAuLTsyrvSfZRuRB3XgvkPwNGgYSs9YRYymVebLKoxR';
 	metadata: {
-		name: 'driftVaults';
+		name: 'vaults';
 		version: '0.11.0';
 		spec: '0.1.0';
 		description: 'Created with Anchor';

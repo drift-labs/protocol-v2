@@ -1,10 +1,10 @@
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { VelocityClient as DriftClient, IWallet } from '@velocity-exchange/sdk';
 import { Connection, PublicKey, TransactionInstruction } from '@solana/web3.js';
-import { DriftVaults } from './types/drift_vaults';
-import driftVaultsIDL from './idl/drift_vaults.json';
+import { Vaults } from './types/vaults';
+import vaultsIDL from './idl/vaults.json';
 
-export const IDL = driftVaultsIDL as DriftVaults;
+export const IDL = vaultsIDL as Vaults;
 import { VaultClient } from './vaultClient';
 import * as anchor from '@coral-xyz/anchor';
 import {
@@ -15,11 +15,11 @@ import {
 export const getDriftVaultProgram = (
 	connection: Connection,
 	wallet: IWallet
-): anchor.Program<DriftVaults> => {
+): anchor.Program<Vaults> => {
 	const provider = new AnchorProvider(connection, wallet as anchor.Wallet, {});
 	anchor.setProvider(provider);
-	const vaultProgram = new anchor.Program<DriftVaults>(
-		driftVaultsIDL as DriftVaults,
+	const vaultProgram = new anchor.Program<Vaults>(
+		vaultsIDL as Vaults,
 		provider
 	);
 

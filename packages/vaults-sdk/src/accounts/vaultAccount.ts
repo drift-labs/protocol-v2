@@ -8,7 +8,7 @@ import {
 	BN,
 } from '@velocity-exchange/sdk';
 import { PublicKey } from '@solana/web3.js';
-import { DriftVaults } from '../types/drift_vaults';
+import { Vaults } from '../types/vaults';
 import { Vault, VaultAccountEvents, VaultProtocol } from '../types/types';
 import { PollingVaultSubscriber } from '../accountSubscribers';
 import { VaultsProgramAccount } from './vaultsProgramAccount';
@@ -20,7 +20,7 @@ export class VaultAccount extends VaultsProgramAccount<
 	VaultAccountEvents
 > {
 	constructor(
-		program: Program<DriftVaults>,
+		program: Program<Vaults>,
 		vaultPubkey: PublicKey,
 		accountLoader: BulkAccountLoader,
 		accountSubscriptionType: 'polling' | 'websocket' = 'polling'

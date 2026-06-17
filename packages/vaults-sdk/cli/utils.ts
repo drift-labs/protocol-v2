@@ -35,7 +35,7 @@ import {
 import { AnchorProvider, Wallet as AnchorWallet } from '@coral-xyz/anchor';
 import * as anchor from '@coral-xyz/anchor';
 import { IDL } from '../src/utils';
-import { DriftVaults } from '../src/types/drift_vaults';
+import { Vaults } from '../src/types/vaults';
 import { getLedgerWallet } from './ledgerWallet';
 import fs from 'fs';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
@@ -357,7 +357,7 @@ export async function getCommandContext(
 
 	const provider = new AnchorProvider(connection, wallet as AnchorWallet, {});
 	anchor.setProvider(provider);
-	const vaultProgram = new anchor.Program<DriftVaults>(IDL, provider);
+	const vaultProgram = new anchor.Program<Vaults>(IDL, provider);
 
 	const driftVault = new VaultClient({
 		driftClient,

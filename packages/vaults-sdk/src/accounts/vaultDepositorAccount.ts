@@ -6,7 +6,7 @@ import {
 	ZERO,
 } from '@velocity-exchange/sdk';
 import { PublicKey } from '@solana/web3.js';
-import { DriftVaults } from '../types/drift_vaults';
+import { Vaults } from '../types/vaults';
 import { VaultDepositor, VaultDepositorAccountEvents } from '../types/types';
 import { PollingVaultDepositorSubscriber } from '../accountSubscribers';
 import { VaultsProgramAccount } from './vaultsProgramAccount';
@@ -17,7 +17,7 @@ export class VaultDepositorAccount extends VaultsProgramAccount<
 	VaultDepositorAccountEvents
 > {
 	constructor(
-		program: Program<DriftVaults>,
+		program: Program<Vaults>,
 		vaultDepositorPubkey: PublicKey,
 		accountLoader: BulkAccountLoader,
 		accountSubscriptionType: 'polling' | 'websocket' = 'polling'

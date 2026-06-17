@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"programs/velocity",
+	"programs/vaults",
 	"programs/pyth",
 	"programs/pyth-lazer",
 	"programs/token_faucet",
