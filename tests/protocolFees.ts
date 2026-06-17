@@ -19,9 +19,9 @@ import {
 	TestClient,
 	TransferFeeAndPnlPoolDirection,
 	ZERO,
-} from '../sdk/src';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+} from '../packages/sdk/src';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,

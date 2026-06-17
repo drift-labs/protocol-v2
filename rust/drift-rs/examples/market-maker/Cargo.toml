@@ -1,0 +1,13 @@
+[package]
+name = "market-maker-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+argh = "0.1.13"
+dotenv = "0.15.0"
+drift-rs = { path = "../../../drift-rs", features = ["unsafe_pub"] }
+futures-util = "0.3"
+solana-commitment-config = "2"
+solana-keypair= "2"
+tokio = "*"

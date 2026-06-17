@@ -1,0 +1,19 @@
+{
+	"name": "@backend/athena",
+	"version": "1.0.0",
+	"license": "MIT",
+	"main": "dist/index.js",
+	"typings": "dist/index.d.ts",
+	"source": "src/index.ts",
+	"scripts": {
+		"build": "bun run clean && tsc",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@aws-sdk/client-athena": "^3.750.0",
+		"@aws-sdk/middleware-retry": "^3.374.0",
+		"@aws-sdk/util-retry": "^3.374.0",
+		"@backend/common": "*",
+		"bottleneck": "^2.19.5"
+	}
+}

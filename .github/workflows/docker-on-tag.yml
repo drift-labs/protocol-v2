@@ -1,0 +1,107 @@
+name: docker-on-tag
+
+# Push a tag `docker-<app>-v<version>` to build + push that app's image to ECR.
+# `<app>` is a key in docker-info.json (e.g. docker-candles-v0.3.0,
+# docker-keeper-bots-v2-v1.4.2, docker-keep-rs-v2.1.0). The version is everything
+# after the LAST `-v`, so app keys may themselves contain `-v` (keeper-bots-v2).
+on:
+  push:
+    tags:
+      - 'docker-*'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.parse.outputs.app }}
+      version: ${{ steps.parse.outputs.version }}
+      lang: ${{ steps.parse.outputs.lang }}
+      path: ${{ steps.parse.outputs.path }}
+      scope: ${{ steps.parse.outputs.scope }}
+      out: ${{ steps.parse.outputs.out }}
+      start: ${{ steps.parse.outputs.start }}
+      bin: ${{ steps.parse.outputs.bin }}
+      ecr: ${{ steps.parse.outputs.ecr }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - id: parse
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          rest="${tag#docker-}"
+          app="${rest%-v*}"          # strip the trailing -v<version>
+          version="v${rest##*-v}"    # everything after the last -v
+          echo "Parsed app=$app version=$version from tag=$tag"
+          info=$(jq -e --arg a "$app" '.[$a]' docker-info.json) || { echo "::error::unknown app '$app' (no docker-info.json entry)"; exit 1; }
+          {
+            echo "app=$app"
+            echo "version=$version"
+            echo "lang=$(echo "$info" | jq -r '.lang')"
+            echo "path=$(echo "$info" | jq -r '.path')"
+            echo "scope=$(echo "$info" | jq -r '.scope // ""')"
+            echo "out=$(echo "$info" | jq -r '.out // "dist"')"
+            echo "start=$(echo "$info" | jq -r '.start // "dist/index.js"')"
+            echo "bin=$(echo "$info" | jq -r '.bin // ""')"
+            echo "ecr=$(echo "$info" | jq -r '.ecr')"
+          } >> "$GITHUB_OUTPUT"
+
+  build-ts:
+    needs: route
+    if: needs.route.outputs.lang == 'ts'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Configure AWS credentials (non-prod)
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v4
+        with:
+          role-to-assume: ${{ vars.VELOCITY_NON_PROD_ECR_PUBLISH_ROLE }}
+          role-session-name: gha-docker-${{ github.run_id }}
+          aws-region: eu-west-1
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/ts-app.Dockerfile
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ needs.route.outputs.ecr }}:${{ needs.route.outputs.version }}
+          cache-from: type=gha,scope=${{ needs.route.outputs.app }}
+          cache-to: type=gha,mode=max,scope=${{ needs.route.outputs.app }}
+          build-args: |
+            APP_PATH=${{ needs.route.outputs.path }}
+            APP_SCOPE=${{ needs.route.outputs.scope }}
+            APP_OUT=${{ needs.route.outputs.out }}
+            APP_START=${{ needs.route.outputs.start }}
+      # Prod-ECR copy (enable once the prod role exists), mirroring velocity-publish.yml:
+      # - run: docker buildx imagetools create --tag <prod-registry>/${{ needs.route.outputs.ecr }}:${{ needs.route.outputs.version }} ${{ steps.login-ecr.outputs.registry }}/${{ needs.route.outputs.ecr }}:${{ needs.route.outputs.version }}
+
+  build-rust:
+    needs: route
+    if: needs.route.outputs.lang == 'rust'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Configure AWS credentials (non-prod)
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v4
+        with:
+          role-to-assume: ${{ vars.VELOCITY_NON_PROD_ECR_PUBLISH_ROLE }}
+          role-session-name: gha-docker-${{ github.run_id }}
+          aws-region: eu-west-1
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/rust-app.Dockerfile
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ needs.route.outputs.ecr }}:${{ needs.route.outputs.version }}
+          cache-from: type=gha,scope=${{ needs.route.outputs.app }}
+          cache-to: type=gha,mode=max,scope=${{ needs.route.outputs.app }}
+          build-args: |
+            APP_BIN=${{ needs.route.outputs.bin }}

@@ -1,0 +1,45 @@
+{
+  "name": "@backend/candles",
+  "version": "1.0.0",
+  "scripts": {
+    "listen-ws": "ts-node src/ws-client.ts",
+    "start-ws": "ts-node src/ws.ts",
+    "start": "ts-node src/index.ts",
+    "build": "bun run clean && node esbuild.config.js",
+    "clean": "rm -rf dist"
+  },
+  "author": "",
+  "license": "ISC",
+  "typings": "dist/index.d.ts",
+  "dependencies": {
+    "@backend/common": "*",
+    "@backend/dynamodb": "*",
+    "@backend/kinesis": "*",
+    "@backend/redis": "*",
+    "@backend/sqs": "*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-prometheus": "^0.53.0",
+    "@opentelemetry/sdk-metrics-base": "^0.31.0",
+    "@types/express": "^4.17.21",
+    "@velocity-exchange/sdk": "workspace:*",
+    "bottleneck": "^2.19.5",
+    "decimal.js": "^10.5.0",
+    "express": "^4.21.0",
+    "rpc-websockets": "7.11.0",
+    "ws": "^8.18.0",
+    "@solana/web3.js": "1.98.0",
+    "@aws-sdk/util-dynamodb": "^3.650.0",
+    "aws-lambda": "^1.0.7",
+    "@opentelemetry/sdk-metrics": "^1.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.5",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.0",
+    "esbuild-plugin-tsc": "^0.4.0",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5"
+  },
+  "private": true
+}

@@ -12,7 +12,7 @@ import {
 	PositionDirection,
 	Wallet,
 	MarketStatus,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createFundedKeyPair,
@@ -24,8 +24,8 @@ import {
 import { assert } from 'chai';
 import { Keypair } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('user delegate', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

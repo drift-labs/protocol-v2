@@ -7,7 +7,7 @@ import {
 	PerpMarketAccount,
 	OracleSource,
 	ZERO,
-} from '../sdk';
+} from '../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -20,7 +20,7 @@ import {
 	getPerpMarketPublicKey,
 	EventSubscriber,
 	QUOTE_SPOT_MARKET_INDEX,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	getProtocolFeeTotal,
@@ -33,8 +33,8 @@ import {
 	sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('velocity client', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

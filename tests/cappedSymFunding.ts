@@ -30,14 +30,14 @@ import {
 	OracleSource,
 	isVariant,
 	ContractTier,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 async function updateFundingRateHelper(
 	velocityClient: TestClient,

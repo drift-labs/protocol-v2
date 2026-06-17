@@ -14,7 +14,7 @@ import {
 	EventSubscriber,
 	OracleSource,
 	getSignedMsgUserAccountPublicKey,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -23,10 +23,10 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { PEG_PRECISION } from '../sdk/src';
+import { PEG_PRECISION } from '../packages/sdk/src';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 dotenv.config();
 

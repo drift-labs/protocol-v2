@@ -15,11 +15,11 @@ import {
 	convertToNumber,
 	calculateBudgetedPeg,
 	QUOTE_SPOT_MARKET_INDEX,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import { liquidityBook } from './liquidityBook';
 
-import { assert } from '../sdk/src/assert/assert';
+import { assert } from '../packages/sdk/src/assert/assert';
 import {
 	mockOracleNoProgram,
 	initializeQuoteSpotMarket,
@@ -28,8 +28,8 @@ import {
 	setFeedPriceNoProgram,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('AMM Curve', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

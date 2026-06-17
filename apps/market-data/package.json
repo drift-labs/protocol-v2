@@ -1,0 +1,48 @@
+{
+  "name": "@backend/market-data",
+  "version": "1.0.0",
+  "scripts": {
+    "start-tasks": "ts-node src/tasks.ts",
+    "build": "bun run clean && node esbuild.config.js",
+    "clean": "rm -rf dist"
+  },
+  "author": "",
+  "license": "ISC",
+  "typings": "dist/index.d.ts",
+  "dependencies": {
+    "@backend/athena": "*",
+    "@backend/common": "*",
+    "@backend/dynamodb": "*",
+    "@backend/prometheus": "*",
+    "@backend/redis": "*",
+    "@coral-xyz/anchor": "npm:@anchor-lang/core@1.0.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-prometheus": "^0.53.0",
+    "@opentelemetry/sdk-metrics-base": "^0.31.0",
+    "@types/express": "^4.17.21",
+    "@velocity-exchange/common": "^0.0.1",
+    "@velocity-exchange/sdk": "workspace:*",
+    "@velocity-exchange/vaults-sdk": "0.0.2",
+    "axios": "^1.13.5",
+    "bottleneck": "^2.19.5",
+    "cron": "^4.3.0",
+    "dayjs": "^1.11.19",
+    "express": "^4.21.0",
+    "rpc-websockets": "7.11.0",
+    "ws": "^8.18.0",
+    "@solana/spl-token": "0.4.13",
+    "@solana/web3.js": "1.98.0",
+    "@backend/sqs": "workspace:*",
+    "exponential-backoff": "^3.1.1",
+    "@opentelemetry/sdk-metrics": "^1.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.5",
+    "esbuild": "^0.25.0",
+    "esbuild-plugin-tsc": "^0.4.0",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5"
+  },
+  "private": true
+}

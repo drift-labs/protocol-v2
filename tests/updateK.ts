@@ -6,7 +6,7 @@ import {
 	BN,
 	BulkAccountLoader,
 	calculateTradeSlippage,
-} from '../sdk';
+} from '../packages/sdk';
 
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
@@ -22,7 +22,7 @@ import {
 	calculateBudgetedKBN,
 	QUOTE_SPOT_MARKET_INDEX,
 	MarketStatus,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createPriceFeed,
@@ -30,7 +30,7 @@ import {
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { QUOTE_PRECISION } from '../sdk/src';
+import { QUOTE_PRECISION } from '../packages/sdk/src';
 
 const ZERO = new BN(0);
 

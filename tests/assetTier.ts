@@ -22,7 +22,7 @@ import {
 	AssetTier,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	QUOTE_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -37,9 +37,9 @@ import {
 	// sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { ContractTier } from '../sdk';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
+import { ContractTier } from '../packages/sdk';
 
 describe('asset tiers', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

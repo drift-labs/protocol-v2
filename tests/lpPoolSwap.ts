@@ -33,7 +33,7 @@ import {
 	ConstituentStatus,
 	getSignedTokenAmount,
 	getTokenAmount,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
@@ -50,8 +50,8 @@ import {
 	sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { listMarket, SERUM, makePlaceOrderTransaction } from './serumHelper';
@@ -59,7 +59,7 @@ import { NATIVE_MINT } from '@solana/spl-token';
 import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
-} from '../sdk/src/decode/customCoder';
+} from '../packages/sdk/src/decode/customCoder';
 dotenv.config();
 
 describe('LP Pool', () => {

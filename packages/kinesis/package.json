@@ -1,0 +1,19 @@
+{
+	"name": "@backend/kinesis",
+	"version": "1.0.0",
+	"license": "MIT",
+	"main": "dist/index.js",
+	"typings": "dist/index.d.ts",
+	"source": "src/index.ts",
+	"scripts": {
+		"build": "bun run clean && tsc",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@backend/common": "*",
+		"@aws-sdk/client-kinesis": "^3.650.0",
+		"@aws-sdk/middleware-retry": "^3.374.0",
+		"@aws-sdk/util-retry": "^3.374.0",
+		"bottleneck": "^2.19.5"
+	}
+}

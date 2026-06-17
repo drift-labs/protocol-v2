@@ -11,7 +11,7 @@ import {
 	BASE_PRECISION,
 	BulkAccountLoader,
 	ContractTier,
-} from '../sdk';
+} from '../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -32,7 +32,7 @@ import {
 	calculateSpread,
 	calculateInventoryScale,
 	QUOTE_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	getFeedData,
@@ -44,7 +44,7 @@ import {
 	initializeQuoteSpotMarket,
 	sleep,
 } from './testHelpers';
-import { getOraclePriceFromMMOracleData } from '../sdk/src/oracles/utils';
+import { getOraclePriceFromMMOracleData } from '../packages/sdk/src/oracles/utils';
 
 describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {

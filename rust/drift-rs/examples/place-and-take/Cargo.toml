@@ -1,0 +1,15 @@
+[package]
+name = "place-and-take"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+base64 = "0.21"
+dotenv = "0.15.0"
+drift-rs = { path = "../../../drift-rs" }
+env_logger = "0.11"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+solana-pubkey = "2"
+tokio = "*"
+anchor-lang = "0.31"

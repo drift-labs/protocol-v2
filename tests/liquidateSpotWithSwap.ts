@@ -19,7 +19,7 @@ import {
 	OracleInfo,
 	getSerumSignerPublicKey,
 	PERCENTAGE_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createUserWithUSDCAndWSOLAccount,
@@ -34,8 +34,8 @@ import {
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('spot swap', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

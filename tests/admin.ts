@@ -13,9 +13,9 @@ import {
 	SpotBalanceType,
 	TestClient,
 	Wallet,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
-import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
+import { decodeName, DEFAULT_MARKET_NAME } from '../packages/sdk/src/userName';
 
 import {
 	initializeQuoteSpotMarket,
@@ -27,8 +27,8 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	BankrunContextWrapper,
 	Connection,
-} from '../sdk/src/bankrun/bankrunConnection';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+} from '../packages/sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
 import { createTransferCheckedInstruction } from '@solana/spl-token';
 
 describe('admin', () => {

@@ -1,6 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
+import { BN, QUOTE_SPOT_MARKET_INDEX } from '../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -10,7 +10,7 @@ import {
 	PositionDirection,
 	ExchangeStatus,
 	OracleSource,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -19,8 +19,8 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('Pause exchange', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

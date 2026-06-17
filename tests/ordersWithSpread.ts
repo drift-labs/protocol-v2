@@ -17,7 +17,7 @@ import {
 	calculateQuoteAssetAmountSwapped,
 	EventSubscriber,
 	calculateBaseAssetAmountForAmmToFulfill,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	getProtocolFeeTotal,
@@ -33,10 +33,10 @@ import {
 	getSwapDirection,
 	OracleSource,
 	PEG_PRECISION,
-} from '../sdk';
+} from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('amm spread: market order', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

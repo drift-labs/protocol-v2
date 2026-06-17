@@ -13,7 +13,7 @@ import {
 	BASE_PRECISION,
 	getLimitOrderParams,
 	PostOnlyParams,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	TestClient,
@@ -30,7 +30,7 @@ import {
 	ONE,
 	SPOT_MARKET_BALANCE_PRECISION,
 	PRICE_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createUserWithUSDCAccount,
@@ -44,12 +44,12 @@ import {
 	getBalance,
 	calculateInterestAccumulated,
 	calculateUtilization,
-} from '../sdk/src/math/spotBalance';
+} from '../packages/sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { ContractTier } from '../sdk';
+import { ContractTier } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('test function when spot market at >= 100% util', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

@@ -1,0 +1,9 @@
+target
+**/*/target
+/tests/.env
+/vendor
+**/*/build
+.vscode
+.env
+.DS_Store
+.claude/scheduled_tasks.lock

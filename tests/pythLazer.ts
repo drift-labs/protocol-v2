@@ -6,7 +6,7 @@ import {
 	TestClient,
 	assert,
 	getPythLazerOraclePublicKey,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 import {
 	PublicKey,
 	Transaction,
@@ -17,7 +17,7 @@ import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 } from './testHelpersLocalValidator';
-import { Wallet, loadKeypair, EventSubscriber } from '../sdk/src';
+import { Wallet, loadKeypair, EventSubscriber } from '../packages/sdk/src';
 import {
 	PYTH_LAZER_HEX_STRING_BTC,
 	PYTH_LAZER_HEX_STRING_MULTI,

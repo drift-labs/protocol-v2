@@ -9,7 +9,7 @@ import {
 	MarketStatus,
 	TestClient,
 	PositionDirection,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -22,8 +22,8 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('round in favor', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

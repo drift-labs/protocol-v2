@@ -1,0 +1,35 @@
+{
+    "pk": {
+        "S": "INGESTOR#shard-1"
+    },
+    "sk": {
+        "S": "INGESTOR#shard-1"
+    },
+    "currentSlot": {
+        "N": "<LATEST_SLOT>"
+    },
+    "paused": {
+        "BOOL": false
+    },
+    "shards": {
+        "N": "2"
+    },
+    "shardId": {
+        "N": "0"
+    },
+    "skippedSlots": {
+        "L": []
+    },
+    "missedSlots": {
+        "L": []
+    },
+    "failedSlots": {
+        "L": []
+    },
+    "bypassSlots": {
+        "L": []
+    },
+    "ingestedSlots": {
+        "L": []
+    }
+}

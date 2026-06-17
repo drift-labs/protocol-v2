@@ -10,7 +10,7 @@ import {
 	BN,
 	EventSubscriber,
 	fetchUserAccounts,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createFundedKeyPair,
@@ -20,18 +20,18 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { decodeName } from '../sdk/src/userName';
+import { decodeName } from '../packages/sdk/src/userName';
 import { assert } from 'chai';
 import {
 	getTokenAmount,
 	LAMPORTS_PRECISION,
 	MARGIN_PRECISION,
 	SpotBalanceType,
-} from '../sdk';
+} from '../packages/sdk';
 import { PublicKey } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('subaccounts', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

@@ -1,0 +1,13 @@
+export APP_STAGE=staging
+export ENV=mainnet-beta
+export AWS_PROFILE=nonprod
+export S3_BUCKET=staging-data-ingestion-bucket
+export ATHENA_DATABASE=staging-archive
+export ATHENA_OUTPUT_BUCKET=staging-data-ingestion-bucket
+export CURATED_DEPOSIT_KINESIS_STREAM=staging-curated-depositrecords
+export CURATED_TRADE_KINESIS_STREAM=staging-curated-traderecords
+export ENDPOINT='https://drift-cranking.rpcpool.com/f1ead98714b94a67f82203cce918'
+
+yarn workspace @backend/realtime-archiver replace-curated-partition \
+  --date 2026-03-30 \
+  --record-type TradeRecord

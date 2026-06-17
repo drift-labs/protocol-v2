@@ -19,7 +19,7 @@ import {
 	QUOTE_PRECISION,
 	convertToNumber,
 	LIQUIDATION_PCT_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -32,10 +32,10 @@ import {
 	sleep,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION } from '../sdk';
+import { PERCENTAGE_PRECISION } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate spot', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

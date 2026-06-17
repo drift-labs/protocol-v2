@@ -65,7 +65,7 @@ import {
 	createAssociatedTokenAccountInstruction,
 	createMintToInstruction,
 } from '@solana/spl-token';
-import tokenFaucetIdl from '../sdk/src/idl/token_faucet.json';
+import tokenFaucetIdl from '../packages/sdk/src/idl/token_faucet.json';
 import {
 	AdminClient,
 	AMM_RESERVE_PRECISION,
@@ -92,8 +92,8 @@ import {
 	getPythLazerOraclePublicKey,
 	getSpotMarketPublicKey,
 	loadKeypair,
-} from '../sdk/src';
-import type { InitializeConstituentParams } from '../sdk/src/types';
+} from '../packages/sdk/src';
+import type { InitializeConstituentParams } from '../packages/sdk/src/types';
 
 type Receipt = {
 	cluster: string;

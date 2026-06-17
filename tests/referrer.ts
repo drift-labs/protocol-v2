@@ -19,7 +19,7 @@ import {
 	getRevenueShareAccountPublicKey,
 	isBuilderOrderReferral,
 	ZERO,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -34,11 +34,11 @@ import {
 	getLimitOrderParams,
 	PEG_PRECISION,
 	PositionDirection,
-} from '../sdk/src';
-import { decodeName } from '../sdk/src/userName';
+} from '../packages/sdk/src';
+import { decodeName } from '../packages/sdk/src/userName';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('referrer', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

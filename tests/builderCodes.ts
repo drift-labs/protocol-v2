@@ -41,7 +41,7 @@ import {
 	QUOTE_PRECISION,
 	SettlePnlMode,
 	UserStatsAccount,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createUserWithUSDCAccount,
@@ -52,8 +52,8 @@ import {
 	printTxLogs,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { PYTH_STORAGE_DATA } from './pythLazerData';
 import { nanoid } from 'nanoid';
@@ -61,7 +61,7 @@ import {
 	isBuilderOrderCompleted,
 	isBuilderOrderReferral,
 	isBuilderReferral,
-} from '../sdk/src/math/builder';
+} from '../packages/sdk/src/math/builder';
 import { createTransferInstruction } from '@solana/spl-token';
 
 dotenv.config();

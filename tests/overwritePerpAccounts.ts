@@ -9,7 +9,7 @@ import {
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	OracleSource,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
@@ -18,13 +18,13 @@ import {
 	overWritePerpMarket,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
-} from '../sdk/src/decode/customCoder';
+} from '../packages/sdk/src/decode/customCoder';
 dotenv.config();
 
 describe('Bankrun Overwrite Accounts', () => {

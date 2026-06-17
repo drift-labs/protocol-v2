@@ -1,6 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BASE_PRECISION, BN, OracleSource } from '../sdk';
+import { BASE_PRECISION, BN, OracleSource } from '../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -19,7 +19,7 @@ import {
 	getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 
-import { TestClient, PRICE_PRECISION } from '../sdk/src';
+import { TestClient, PRICE_PRECISION } from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -28,8 +28,8 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('whitelist', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

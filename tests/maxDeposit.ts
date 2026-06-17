@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { TestClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
+import { TestClient, QUOTE_PRECISION, BN, OracleSource } from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -12,8 +12,8 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('max deposit', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

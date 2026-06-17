@@ -16,7 +16,7 @@ import {
 	BASE_PRECISION,
 	getLimitOrderParams,
 	OracleSource,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -25,10 +25,10 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { PEG_PRECISION, PerpOperation, PostOnlyParams } from '../sdk';
+import { PEG_PRECISION, PerpOperation, PostOnlyParams } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('place and make perp order', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

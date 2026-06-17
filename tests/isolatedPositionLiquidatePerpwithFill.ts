@@ -13,7 +13,7 @@ import {
 	QUOTE_PRECISION,
 	TestClient,
 	Wallet,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 import { assert } from 'chai';
 
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
@@ -26,10 +26,10 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { OrderType, PERCENTAGE_PRECISION, PerpOperation } from '../sdk';
+import { OrderType, PERCENTAGE_PRECISION, PerpOperation } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate perp (no open orders)', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

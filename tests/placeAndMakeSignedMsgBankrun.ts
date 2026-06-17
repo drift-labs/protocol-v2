@@ -46,7 +46,7 @@ import {
 	convertToNumber,
 	OrderParams,
 	SignedMsgOrderParamsDelegateMessage,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -59,10 +59,10 @@ import {
 	getTriggerLimitOrderParams,
 	PEG_PRECISION,
 	PostOnlyParams,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { nanoid } from 'nanoid';
 import { createHash } from 'crypto';

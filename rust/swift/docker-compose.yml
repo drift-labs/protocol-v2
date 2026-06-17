@@ -1,0 +1,36 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  fastlane:
+    build: .
+    depends_on:
+    - redis
+    ports:
+      - "3000:3000"
+    command: ["--server", "swift"]
+    platform: "linux/amd64"
+    environment:
+      RUST_LOG: "redis=debug,ws=debug,server=info"
+      RUNNING_LOCAL: true
+      ELASTICACHE_HOST: redis
+      ELASTICACHE_PORT: 6379
+      USE_SSL: "false"
+      ENDPOINT: "https://api.devnet.solana.com"
+
+  fastlane-ws:
+    build: .
+    depends_on:
+    - redis
+    ports:
+    - "6969:6969"
+    command: ["--server", "ws"]
+    platform: "linux/amd64"
+    environment:
+      RUST_LOG: "redis=info,ws=info"
+      RUNNING_LOCAL: true
+      ELASTICACHE_HOST: redis
+      ELASTICACHE_PORT: 6379
+      USE_SSL: "false"

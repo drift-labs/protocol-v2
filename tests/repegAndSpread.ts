@@ -19,7 +19,7 @@ import {
 	BulkAccountLoader,
 	PERCENTAGE_PRECISION,
 	ContractTier,
-} from '../sdk';
+} from '../packages/sdk';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
 
@@ -39,7 +39,7 @@ import {
 	calculateInventoryScale,
 	calculateEffectiveLeverage,
 	calculateLiveOracleStd,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	getFeedData,

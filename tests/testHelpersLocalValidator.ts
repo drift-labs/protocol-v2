@@ -29,7 +29,7 @@ import {
 	OraclePriceData,
 	OracleInfo,
 	BulkAccountLoader,
-} from '../sdk';
+} from '../packages/sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -39,7 +39,7 @@ import {
 	User,
 	OracleSource,
 	getSpotMarketPublicKey,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,

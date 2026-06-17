@@ -1,0 +1,12 @@
+[package]
+name = "demonstrate-l3-methods"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dotenv = "0.15.0"
+drift-rs = { path = "../../" }
+env_logger = "*"
+solana-commitment-config = "2"
+solana-keypair = "2"
+tokio = { version = "1.42", features = ["full"] }

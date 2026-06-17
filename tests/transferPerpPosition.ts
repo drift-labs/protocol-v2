@@ -10,7 +10,7 @@ import {
 	PositionDirection,
 	getMarketOrderParams,
 	OracleGuardRails,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -19,10 +19,10 @@ import {
 	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { BASE_PRECISION, OracleSource, PERCENTAGE_PRECISION } from '../sdk';
+import { BASE_PRECISION, OracleSource, PERCENTAGE_PRECISION } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 function getOpenInterest(velocityClient: TestClient, marketIndex: number) {
 	const perpMarket = velocityClient.getPerpMarketAccount(marketIndex);

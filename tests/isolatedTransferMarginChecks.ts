@@ -8,11 +8,11 @@ import {
 	PositionDirection,
 	PEG_PRECISION,
 	SettlePnlMode,
-} from '../sdk';
+} from '../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { TestClient, EventSubscriber } from '../sdk/src';
+import { TestClient, EventSubscriber } from '../packages/sdk/src';
 
 import {
 	mockUSDCMint,
@@ -22,8 +22,8 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('isolated transfer margin checks', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

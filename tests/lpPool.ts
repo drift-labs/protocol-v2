@@ -54,7 +54,7 @@ import {
 	getTokenAmount,
 	TWO,
 	ConstituentLpOperation,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createWSolTokenAccountForUser,
@@ -70,14 +70,14 @@ import {
 	setFeedPriceNoProgram,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { PYTH_LAZER_HEX_STRING_SOL, PYTH_STORAGE_DATA } from './pythLazerData';
 import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
-} from '../sdk/src/decode/customCoder';
+} from '../packages/sdk/src/decode/customCoder';
 dotenv.config();
 
 const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {

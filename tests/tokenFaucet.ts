@@ -1,8 +1,8 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
-import { TestClient, TokenFaucet } from '../sdk/src';
-import { BN } from '../sdk';
+import { TestClient, TokenFaucet } from '../packages/sdk/src';
+import { BN } from '../packages/sdk';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 import {
@@ -12,8 +12,8 @@ import {
 	unpackMint,
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('token faucet', () => {
 	const program = anchor.workspace.TokenFaucet as Program;

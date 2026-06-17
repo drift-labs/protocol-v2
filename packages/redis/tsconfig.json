@@ -1,0 +1,29 @@
+{
+	"compilerOptions": {
+		"target": "es6",
+		"module": "NodeNext",
+		"lib": ["dom", "es6", "es2017", "esnext.asynciterable"],
+		"sourceMap": true,
+		"outDir": "./dist",
+		"moduleResolution": "nodenext",
+		// declaration emit disabled: the `Redis` factory's inferred type leaks bun's
+		// non-portable `.bun/@redis+client@.../dist/lib/commands` path (TS2742). This is a
+		// leaf infra lib consumed only via esbuild bundling, so no .d.ts is needed.
+		"declaration": false,
+		"esModuleInterop": true,
+		"removeComments": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"strictFunctionTypes": true,
+		"noImplicitThis": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"allowSyntheticDefaultImports": false,
+		"skipLibCheck": true,
+		"declarationMap": false
+	},
+	"exclude": ["node_modules"],
+	"include": ["./src/**/*.ts"]
+}

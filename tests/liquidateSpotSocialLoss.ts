@@ -15,7 +15,7 @@ import {
 	getTokenAmount,
 	SpotBalanceType,
 	LIQUIDATION_PCT_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -27,10 +27,10 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { isVariant, UserStatus, PERCENTAGE_PRECISION } from '../sdk';
+import { isVariant, UserStatus, PERCENTAGE_PRECISION } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate spot w/ social loss', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

@@ -33,7 +33,7 @@ import {
 	OraclePriceData,
 	SPOT_MARKET_BALANCE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -45,10 +45,10 @@ import {
 	initializeSolSpotMarket,
 	sleep,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION } from '../sdk';
+import { PERCENTAGE_PRECISION } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 async function depositToFeePoolFromIF(
 	amount: number,

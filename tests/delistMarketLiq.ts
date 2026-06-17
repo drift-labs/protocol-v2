@@ -23,7 +23,7 @@ import {
 	MARGIN_PRECISION,
 	SPOT_MARKET_BALANCE_PRECISION,
 	LIQUIDATION_PCT_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracle,
@@ -43,7 +43,7 @@ import {
 	calculateReservePrice,
 	ContractTier,
 	UserStatus,
-} from '../sdk';
+} from '../packages/sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,

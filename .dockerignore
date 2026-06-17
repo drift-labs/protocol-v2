@@ -1,0 +1,11 @@
+# Keep the docker build context small (root is the build context for all images).
+**/node_modules
+**/target
+**/lib
+**/dist
+**/.git
+**/test-ledger
+.devcontainer
+docs
+tests
+**/*.log

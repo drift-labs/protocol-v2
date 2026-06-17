@@ -13,7 +13,7 @@ import {
 	OracleSource,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	OracleInfo,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createUserWithUSDCAndWSOLAccount,
@@ -25,10 +25,10 @@ import {
 	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { ZERO } from '../sdk';
+import { ZERO } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

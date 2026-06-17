@@ -2,17 +2,17 @@ import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import { startAnchor } from 'solana-bankrun';
-import { BN, loadKeypair, TestClient, Wallet } from '../sdk/src';
+import { BN, loadKeypair, TestClient, Wallet } from '../packages/sdk/src';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { VelocityCore } from '../sdk/src/core/VelocityCore';
-import { findComputeUnitConsumption } from '../sdk/src/util/computeUnits';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { VelocityCore } from '../packages/sdk/src/core/VelocityCore';
+import { findComputeUnitConsumption } from '../packages/sdk/src/util/computeUnits';
 
 type ComputeUnitMeasurement = {
 	cu: number;

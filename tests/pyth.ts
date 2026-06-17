@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { BASE_PRECISION, BN } from '../sdk';
+import { BASE_PRECISION, BN } from '../packages/sdk';
 
 import {
 	mockOracleNoProgram,
@@ -27,10 +27,10 @@ import {
 	TestClient,
 	User,
 	QUOTE_SPOT_MARKET_INDEX,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 async function updateFundingRateHelper(
 	velocityClient: TestClient,

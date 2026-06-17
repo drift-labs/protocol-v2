@@ -14,7 +14,7 @@ import {
 	getLimitOrderParams,
 	OracleSource,
 	getPrelaunchOraclePublicKey,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -26,10 +26,10 @@ import {
 	BID_ASK_SPREAD_PRECISION,
 	PEG_PRECISION,
 	PostOnlyParams,
-} from '../sdk';
+} from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('prelisting', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

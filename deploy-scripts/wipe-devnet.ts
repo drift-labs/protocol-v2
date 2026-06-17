@@ -33,8 +33,8 @@ import {
 } from '@solana/web3.js';
 import { AnchorProvider, Program, Idl } from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import velocityIdl from '../sdk/src/idl/velocity.json';
-import { Wallet, loadKeypair } from '../sdk/src';
+import velocityIdl from '../packages/sdk/src/idl/velocity.json';
+import { Wallet, loadKeypair } from '../packages/sdk/src';
 
 const RPC_URL = process.env.RPC_URL ?? 'https://api.devnet.solana.com';
 const RECEIPT_PATH =

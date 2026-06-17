@@ -17,7 +17,7 @@ import {
 	getTriggerLimitOrderParams,
 	EventSubscriber,
 	MarketStatus,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -26,15 +26,15 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, OracleSource, ZERO, isVariant } from '../sdk';
+import { AMM_RESERVE_PRECISION, OracleSource, ZERO, isVariant } from '../packages/sdk';
 import {
 	createAssociatedTokenAccountIdempotentInstruction,
 	createMintToInstruction,
 	getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('stop limit', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

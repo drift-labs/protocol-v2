@@ -1,0 +1,12 @@
+{
+  "_comment": "Source of truth for the docker-on-tag workflow. A git tag `docker-<key>-v<version>` builds and pushes that app's image to ECR (repo name == `ecr`). `lang` routes to the TS (turbo/bun) or Rust (cargo) build path. `scope` is the turbo/cargo package filter; `out` + `start` describe the built artifact for TS apps; `bin` is the cargo binary for Rust apps.",
+  "dlob-server":       { "path": "apps/dlob-server",         "lang": "ts",   "scope": "@velocity-exchange/dlob-server",     "out": "lib",  "start": "lib/index.js",  "ecr": "dlob-server",       "port": 9464 },
+  "keeper-bots-v2":    { "path": "apps/keeper-bots-v2",      "lang": "ts",   "scope": "@drift-labs/keeper-bots-v2",         "out": "lib",  "start": "lib/index.js",  "ecr": "keeper-bots-v2",    "port": 9464 },
+  "candles":           { "path": "apps/candles",             "lang": "ts",   "scope": "@backend/candles",                   "out": "dist", "start": "dist/index.js", "ecr": "candles" },
+  "market-data":       { "path": "apps/market-data",         "lang": "ts",   "scope": "@backend/market-data",               "out": "dist", "start": "dist/index.js", "ecr": "market-data" },
+  "multisig-monitor":  { "path": "apps/multisig-monitor",    "lang": "ts",   "scope": "@backend/multisig-monitor",          "out": "dist", "start": "dist/index.js", "ecr": "multisig-monitor" },
+  "notifications":     { "path": "apps/notification-engine", "lang": "ts",   "scope": "@backend/notification-engine",       "out": "dist", "start": "dist/index.js", "ecr": "notifications" },
+  "realtime-archiver": { "path": "apps/realtime-archiver",   "lang": "ts",   "scope": "@backend/realtime-archiver",         "out": "dist", "start": "dist/index.js", "ecr": "realtime-archiver" },
+  "keep-rs":           { "path": "rust/keep-rs",             "lang": "rust", "bin": "keeprs",                               "ecr": "keep-rs",           "port": 9898 },
+  "swift":             { "path": "rust/swift",               "lang": "rust", "bin": "swift-server",                         "ecr": "swift" }
+}

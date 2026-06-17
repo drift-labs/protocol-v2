@@ -16,7 +16,7 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	createUserWithUSDCAccount,
@@ -32,7 +32,7 @@ import {
 	getBalance,
 	calculateInterestAccumulated,
 	getTokenAmount,
-} from '../sdk/src/math/spotBalance';
+} from '../packages/sdk/src/math/spotBalance';
 import { NATIVE_MINT, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
 	QUOTE_PRECISION,
@@ -40,10 +40,10 @@ import {
 	ONE,
 	SPOT_MARKET_BALANCE_PRECISION,
 	PRICE_PRECISION,
-} from '../sdk';
+} from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw 22', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

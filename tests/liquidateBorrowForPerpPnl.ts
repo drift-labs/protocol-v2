@@ -17,7 +17,7 @@ import {
 	OracleGuardRails,
 	MarketStatus,
 	LIQUIDATION_PCT_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockUSDCMint,
@@ -29,10 +29,10 @@ import {
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { isVariant, UserStatus } from '../sdk';
+import { isVariant, UserStatus } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate borrow for perp pnl', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

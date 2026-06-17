@@ -5,17 +5,17 @@ trap 'echo -e "\nStopped by signal $? (SIGINT)"; exit 0' INT
 
 if [ "$1" != "--skip-build" ]; then
   anchor build --ignore-keys --skip-lint -- --features anchor-test && anchor test --skip-build --skip-local-validator --skip-deploy &&
-    cp target/idl/velocity.json sdk/src/idl/ && cp target/types/velocity.ts sdk/src/idl/
+    cp target/idl/velocity.json packages/sdk/src/idl/ && cp target/types/velocity.ts packages/sdk/src/idl/
 else
   # --skip-build still needs the bundled SDK IDL to match the deployed program ID,
   # otherwise tx instructions target a program that bankrun never loaded.
   if [ -f target/idl/velocity.json ]; then
-    cp target/idl/velocity.json sdk/src/idl/
+    cp target/idl/velocity.json packages/sdk/src/idl/
   fi
   if [ -f target/types/velocity.ts ]; then
-    cp target/types/velocity.ts sdk/src/idl/
+    cp target/types/velocity.ts packages/sdk/src/idl/
   fi
-  ( cd sdk && bun run build >/dev/null )
+  ( cd packages/sdk && bun run build >/dev/null )
 fi
 
 export ANCHOR_WALLET=~/.config/solana/id.json

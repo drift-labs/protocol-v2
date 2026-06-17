@@ -1,0 +1,59 @@
+[package]
+name = "swift-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+arrayvec = "0.7.6"
+anchor-lang = "1.0.0"
+axum = { version = "^0.8.3", features = ["ws"] }
+axum-extra = { version = "0.10.1", features = ["typed-header"] }
+axum-prometheus = "0.7.0"
+base64 = "0.22.1"
+bincode = "1"
+clap = { version = "4.0", features = ["derive"] }
+dashmap = "6.1.0"
+dotenv = "0.15.0"
+drift-rs = { path = "../drift-rs" }
+drift = { package = "velocity", path = "../../programs/velocity", default-features = false, features = ["velocity-rs", "mainnet-beta", "cpi"] }
+solana-account-info = "3.1"
+solana-clock = "3"
+ed25519-dalek = "1.0.1"
+env_logger = "0.11"
+faster-hex = "0.10.0"
+futures-util = "0.3.30"
+log = "0.4.22"
+nanoid = "0.4.0"
+prometheus = "0.13"
+rand = "0.8"
+redis = { version = "0.29.1", features = ["tokio-comp", "tokio-native-tls-comp"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.127"
+solana-account-decoder-client-types = "3"
+solana-rpc-client-api = "3"
+solana-pubkey = { version = "3", features = ["std"] }
+solana-signature = { version = "3", features = ["rand"] }
+solana-keypair = "3"
+solana-signer = "3"
+solana-hash = "3"
+solana-message = "3"
+solana-transaction = { version = "3", features = ["verify"] }
+solana-native-token = "3"
+solana-system-interface = "3"
+tokio = { version = "1.0", features = ["full"] }
+# fork with Ws compression enabled
+tokio-tungstenite = { git = "https://github.com/drift-labs/tokio-tungstenite", features = ["native-tls"] }
+urlencoding = "2.1.0"
+uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
+tower-http = { version = "0.6.2", features= ["cors"] }
+strum_macros = "0.27.0"
+zstd = "0.13.3"
+
+[dev-dependencies]
+axum-macros = "0.4.2"
+
+[profile.dev.package]
+ring = { opt-level = 0 }
+zstd-sys = { opt-level = 0 }
+solana-program = { opt-level = 0 }

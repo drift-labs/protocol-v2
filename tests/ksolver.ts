@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import { Keypair } from '@solana/web3.js';
-import { BN, OracleSource } from '../sdk';
+import { BN, OracleSource } from '../packages/sdk';
 import {
 	TestClient,
 	PRICE_PRECISION,
@@ -14,7 +14,7 @@ import {
 	QUOTE_PRECISION,
 	convertToNumber,
 	User,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import { liquidityBook } from './liquidityBook';
 
@@ -24,8 +24,8 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('AMM Curve', () => {
 	// K SOLVER: find opitimal k given exchange details

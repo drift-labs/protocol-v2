@@ -27,7 +27,7 @@ import {
 	loadKeypair,
 	getMarketOrderParams,
 	MarketType,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -36,7 +36,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpersLocalValidator';
-import { PEG_PRECISION, PostOnlyParams } from '../sdk/src';
+import { PEG_PRECISION, PostOnlyParams } from '../packages/sdk/src';
 import dotenv from 'dotenv';
 import { nanoid } from 'nanoid';
 dotenv.config();

@@ -7,7 +7,7 @@ import {
 	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
@@ -18,10 +18,10 @@ import {
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { OrderType, TWO } from '../sdk';
+import { OrderType, TWO } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('modify orders', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

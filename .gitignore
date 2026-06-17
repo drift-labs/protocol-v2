@@ -6,16 +6,29 @@
 .anchor
 .idea
 yarn-lock
-sdk/src/**/*.js
-sdk/src/**/*.js.map
-cli-admin/lib
-cli-admin/package.json.bak
+packages/sdk/src/**/*.js
+packages/sdk/src/**/*.js.map
+packages/cli-admin/package.json.bak
+
+# Monorepo build artifacts (Turborepo cache + per-package tsc/esbuild output).
+# `.turbo` (no slash) matches the root cache and every packages/*/apps/* cache.
+# lib/dist patterns are scoped to one segment so they never match source dirs
+# like packages/cli-admin/src/lib.
+.turbo
+*.tsbuildinfo
+packages/*/lib
+packages/*/dist
+apps/*/lib
+apps/*/dist
 .DS_STORE
 .vscode
 .claude
 migrations
 /**/*.env
 vendor
+# keep-rs vendored crate (un-ignore from the global `vendor` rule above)
+!rust/keep-rs/vendor
+!rust/keep-rs/vendor/**
 
 # Devnet deploy artifacts — contain keypairs, never commit
 /devnet_program_admin.json

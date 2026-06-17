@@ -1,12 +1,12 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, OracleSource, ZERO } from '../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { TestClient, PositionDirection, EventSubscriber } from '../sdk/src';
+import { TestClient, PositionDirection, EventSubscriber } from '../packages/sdk/src';
 
 import {
 	getProtocolFeeTotal,
@@ -16,8 +16,8 @@ import {
 	mockOracleNoProgram,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('market orders', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

@@ -29,7 +29,7 @@ import {
 	unstakeSharesToAmount,
 	MarketStatus,
 	LIQUIDATION_PCT_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockUSDCMint,
@@ -41,13 +41,13 @@ import {
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
+import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
 import {
 	BankrunContextWrapper,
 	asBN,
-} from '../sdk/src/bankrun/bankrunConnection';
+} from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('insurance fund stake', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

@@ -17,7 +17,7 @@ import {
 	getTriggerMarketOrderParams,
 	getTriggerLimitOrderParams,
 	OracleGuardRails,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -33,10 +33,10 @@ import {
 	PERCENTAGE_PRECISION,
 	QUOTE_PRECISION,
 	ZERO,
-} from '../sdk';
+} from '../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('trigger orders', () => {
 	const chProgram = anchor.workspace.Velocity as Program;

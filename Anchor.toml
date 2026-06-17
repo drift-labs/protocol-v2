@@ -10,9 +10,9 @@ wallet = "~/.config/solana/id.json"
 test = "echo" # need to call anchor test to update metadata field in idl before running tests, so just do a noop
 lint = "bun run prettify:fix && cargo fmt"
 fulltest = 'cargo test && bash ./test-scripts/run-anchor-tests.sh'
-watch_ts = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c bash ./test-scripts/single-anchor-test.sh'
-watch_build = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c anchor build'
-watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c cargo test -- --show-output'
+watch_ts = 'find ./programs/clearing_house/src/* ./tests ./packages/sdk/src | entr -c bash ./test-scripts/single-anchor-test.sh'
+watch_build = 'find ./programs/clearing_house/src/* ./tests ./packages/sdk/src | entr -c anchor build'
+watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./packages/sdk/src | entr -c cargo test -- --show-output'
 
 [programs.devnet]
 velocity = "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"

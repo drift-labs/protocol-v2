@@ -8,6 +8,18 @@ For execution flow maps, module responsibility matrix, account type locations, a
 
 Use `bun` (not yarn/npm) for JavaScript/TypeScript dependency management: `bun install`, `bun run <script>`.
 
+This repo is a **Bun workspace + Turborepo monorepo**. The root `package.json` declares
+`workspaces: ["packages/*", "apps/*"]`, governed by a single root `bun.lock` — run `bun install`
+**once at the repo root** (do NOT install inside individual packages). `packages/*` are the
+publishable libraries (`@velocity-exchange/sdk`, `@velocity-exchange/admin-cli`, the `@backend/*`
+infra libs); `apps/*` are the deployable services (private, shipped as Docker images). TypeScript
+builds run through Turbo: `bun run build` (= `turbo run build`) builds the whole graph in dependency
+order; `bunx turbo run build --filter=<pkg>` builds one package + its deps.
+
+There is also a **second, separate Cargo workspace** at `rust/` (drift-rs, keep-rs, swift) — see the
+"Rust SDK + keeper workspace" section below. It is excluded from the program workspace
+(`exclude = ["rust"]` in the root `Cargo.toml`).
+
 ## Build
 
 **M1/Apple Silicon:** Always use an x86_64 cross-compile toolchain — never a native aarch64 toolchain. Native ARM toolchains break memory layout expectations for zero-copy accounts, which must match the on-chain (x86_64) representation.
@@ -20,7 +32,7 @@ Use `bun` (not yarn/npm) for JavaScript/TypeScript dependency management: `bun i
 **Solana programs (Rust/Anchor):** use the `program:*` scripts in the root package.json — they encode the correct feature flags so you don't have to remember them.
 
 ```bash
-bun run program:build           # program + IDL/types synced into sdk/src/idl/ (devnet/test flavor)
+bun run program:build           # program + IDL/types synced into packages/sdk/src/idl/ (devnet/test flavor)
 bun run program:idl             # IDL/types only, no SBF build — fast path for layout/name changes
 bun run program:build:devnet    # deployable devnet .so (wraps deploy-scripts/build-devnet.sh)
 bun run program:build:mainnet   # mainnet .so (default features: production gates on, devnet ixs compiled out)
@@ -31,16 +43,18 @@ bun run program:build:mainnet   # mainnet .so (default features: production gate
 **SDK:**
 
 ```bash
-cd sdk/ && bun install && bun run build
+bun install                                          # once, at the repo root (workspace)
+bunx turbo run build --filter=@velocity-exchange/sdk # build the SDK (+ its deps)
+# or `bun run build` to build the whole TS workspace
 ```
 
 **Update IDL after program changes:**
 
-NEVER hand-edit `sdk/src/idl/velocity.json` or `sdk/src/idl/velocity.ts` — they are generated artifacts. To change them, modify the Rust program and regenerate (`bun run program:build`, or `bun run program:idl` for the fast path). Manual edits will silently drift from on-chain layout and break clients. Note a full `anchor build` already emits both `target/idl/velocity.json` and `target/types/velocity.ts`; the scripts just copy them into `sdk/src/idl/` — no separate `anchor idl build`/`anchor idl type` step is needed after a full build.
+NEVER hand-edit `packages/sdk/src/idl/velocity.json` or `packages/sdk/src/idl/velocity.ts` — they are generated artifacts. To change them, modify the Rust program and regenerate (`bun run program:build`, or `bun run program:idl` for the fast path). Manual edits will silently drift from on-chain layout and break clients. Note a full `anchor build` already emits both `target/idl/velocity.json` and `target/types/velocity.ts`; the scripts just copy them into `packages/sdk/src/idl/` — no separate `anchor idl build`/`anchor idl type` step is needed after a full build.
 
 **Update the admin CLI when admin instructions change:**
 
-`cli-admin/` wraps the admin/keeper surface. Whenever admin instructions are added, removed, renamed, or change signature, update the CLI in the same change: add/remove the dedicated wrapper in `cli-admin/src/commands/` (mirroring the existing command style), update `cli-admin/README.md`'s command list, and verify with `cd cli-admin && bun install && bun run build && bun run lint` (CI builds it on every PR via the `cli-admin-build` job). The generic `call` dispatcher is an escape hatch, not a substitute for wrappers on routinely-used operations.
+`packages/cli-admin/` wraps the admin/keeper surface. Whenever admin instructions are added, removed, renamed, or change signature, update the CLI in the same change: add/remove the dedicated wrapper in `packages/cli-admin/src/commands/` (mirroring the existing command style), update `packages/cli-admin/README.md`'s command list, and verify with `bunx turbo run build --filter=@velocity-exchange/admin-cli && bunx turbo run lint --filter=@velocity-exchange/admin-cli` (CI builds the whole TS workspace on every PR via the `ts-build` job). The generic `call` dispatcher is an escape hatch, not a substitute for wrappers on routinely-used operations.
 
 ### macOS build environment
 
@@ -95,23 +109,62 @@ bash test-scripts/run-anchor-tests.sh
 bash test-scripts/run-anchor-tests.sh --skip-build
 ```
 
-The integration tests in `tests/` resolve `@coral-xyz/anchor` and friends from the **repo-root** `node_modules`, not from `sdk/`. If you only ran `bun install` inside `sdk/`, the test files will fail to load with `Cannot find module '@coral-xyz/anchor'`. Run `bun install` at the repo root first.
+The integration tests in `tests/` import the SDK by **relative path** (`../packages/sdk/src/...`) and resolve `@coral-xyz/anchor` and friends from the **repo-root** `node_modules`. The single root `bun install` (workspace) provides both — there is no separate per-package install. If deps are missing, run `bun install` at the repo root.
 
 **SDK unit tests:**
 
 ```bash
-cd sdk/ && bun run test:dlob    # DLOB tests
-cd sdk/ && bun run test:ci      # CI subset
+cd packages/sdk/ && bun run test:dlob    # DLOB tests
+cd packages/sdk/ && bun run test:ci      # CI subset
 ```
 
 **Lint/format:**
 
 ```bash
 cargo fmt                        # Rust
-cd sdk/ && bun run prettify:fix  # SDK (TypeScript)
+cd packages/sdk/ && bun run prettify:fix  # SDK (TypeScript)
 ```
 
-**Always run `cargo fmt` and `cargo clippy -p velocity` before declaring Rust work complete.** CI runs `cargo fmt -- --check` and `cargo clippy -p velocity` (see `.github/workflows/main.yml`) and will fail the PR otherwise. The equivalent SDK gate is `cd sdk/ && bun run prettify` + `bun run lint`. Do not hand off a change until those commands are clean.
+**Always run `cargo fmt` and `cargo clippy -p velocity` before declaring Rust work complete.** CI runs `cargo fmt -- --check` and `cargo clippy -p velocity` (see `.github/workflows/main.yml`) and will fail the PR otherwise. The equivalent SDK gate is `cd packages/sdk/ && bun run prettify` + `bun run lint`. Do not hand off a change until those commands are clean.
+
+## Rust SDK + keeper workspace (`rust/`)
+
+`rust/` is a **second Cargo workspace** holding the imported Rust crates: `drift-rs` (Rust SDK),
+`keep-rs` (keeper bots, binary `keeprs`), and `swift` (tx server, binary `swift-server`). It is
+deliberately separate from the program workspace (root `Cargo.toml` has `exclude = ["rust"]`) so its
+solana-sdk 3.x dependency tree never unifies with the program's SBF build. It has its own
+`rust/Cargo.lock` and builds into `rust/target/` (via `rust/.cargo/config.toml`), never clobbering
+`./target`. Build/check it with `cargo check --manifest-path rust/Cargo.toml` (or `bun run rust:build`).
+
+- These crates consume the velocity program as a **host library** path-dep: `drift = { package = "velocity", path = "../../programs/velocity", ... }`. That host build is independent of `cargo build-sbf`.
+- **IDL tie:** `drift-rs/build.rs` regenerates `drift-rs/crates/src/drift_idl.rs` from `drift-rs/res/velocity.json` on every build. `bun run program:idl` regenerates the program IDL **and** syncs it into `rust/drift-rs/res/velocity.json` (via the `rust:idl-sync` script), so the Rust types track the program. Never hand-edit `res/velocity.json` or `drift_idl.rs` — both are generated.
+- `keep-rs`'s `[patch.crates-io]` and `swift`'s `[profile.dev.package]` are **hoisted** into `rust/Cargo.toml` (Cargo only honors patches/profiles at the workspace root). `keep-rs/vendor/pyth-lazer-protocol` is un-ignored in `.gitignore`.
+- The velocity fork **removed** some upstream-drift features (IF-rebalance / `ProtocolIfSharesTransferConfig`, gov-token staking). When importing newer drift-rs/keep-rs/swift, expect to drop references to removed types (see the import commits for the pattern).
+
+## Apps and Docker images
+
+`apps/*` are deployable services (all `private`, never published to npm): `dlob-server`,
+`keeper-bots-v2`, and the infra services `candles`, `market-data`, `multisig-monitor`,
+`notification-engine`, `realtime-archiver`. `aggregator-api` is also vendored (private, **no-op
+build**) only because `notification-engine` imports its source; it still deploys from
+`infrastructure-v3`, so it has no image here.
+
+Pushing a git tag **`docker-<app>-v<version>`** triggers `.github/workflows/docker-on-tag.yml`,
+which builds and pushes that app's image to ECR (eu-west-1, via OIDC). The app→metadata map is
+**`docker-info.json`** (path, turbo scope, output dir/entrypoint or cargo bin, ECR repo). TS apps
+build via `docker/ts-app.Dockerfile` (full-context bun + turbo); Rust apps (`keep-rs`, `swift`) via
+`docker/rust-app.Dockerfile`. The version is everything after the **last** `-v`, so app keys may
+contain `-v` (e.g. `docker-keeper-bots-v2-v1.4.2`). Add a new app by adding a `docker-info.json` entry.
+
+## Publishing (changesets)
+
+Library packages under `packages/*` publish via [changesets](https://github.com/changesets/changesets),
+NOT release-please (removed). Add a changeset in your PR (`bun run changeset`); merging the
+auto-maintained "Version Packages" PR commits the version bumps; pushing a tag **`release-v<n>`** runs
+`.github/workflows/npm-publish.yml`, which publishes every non-private `packages/*` whose version
+isn't already on the registry (idempotent). It uses **`bun publish`** (not `npm`/`changeset publish`)
+because bun rewrites `workspace:*` dep ranges to concrete versions in the published manifest — which is
+why cli-admin can depend on the local SDK via `workspace:*` with no pre-publish rewrite hack.
 
 ## Devnet program upgrade
 
@@ -157,7 +210,7 @@ This is **Velocity Protocol v2** — a Solana perpetuals and spot trading protoc
 - **`pyth/`, `pyth-lazer/`, `switchboard/`, `switchboard-on-demand/`** — Oracle stubs/integrations (minimal, mostly `no-entrypoint` wrappers)
 - **`openbook_v2/`, `token_faucet/`** — DEX integration and test utilities
 
-### SDK (`sdk/`)
+### SDK (`packages/sdk/`)
 
 TypeScript library (`@velocity-exchange/sdk`). Key modules in `src/`:
 

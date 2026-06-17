@@ -5,7 +5,7 @@ import {
 	calculateReservePrice,
 	calculateTargetPriceTrade,
 	ZERO,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 /**
  * liquidityBook

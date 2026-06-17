@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drift CLOB - Order Book</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #0a0a0a;
+            color: #ffffff;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #00ff88;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #1a1a1a;
+            border-radius: 6px;
+            padding: 4px;
+            margin-bottom: 20px;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .view-toggle button {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .view-toggle button.active {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .view-toggle button:hover:not(.active) {
+            background: #2a2a2a;
+            color: #fff;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .control-group input,
+        .control-group select {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            border-left: 4px solid #00ff88;
+        }
+
+        .status.error {
+            border-left-color: #ff4444;
+        }
+
+        .orderbook-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .l2-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .l2-side {
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .l2-header {
+            background: #2a2a2a;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .l2-asks-header {
+            color: #ff4444;
+        }
+
+        .l2-bids-header {
+            color: #00ff88;
+        }
+
+        .l2-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .l2-table th {
+            background: #333;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            border-bottom: 1px solid #444;
+        }
+
+        .l2-table td {
+            padding: 8px;
+            text-align: center;
+            font-size: 13px;
+            border-bottom: 1px solid #222;
+            position: relative;
+        }
+
+        .l2-table tr:hover {
+            background: #2a2a2a;
+        }
+
+        .l2-price {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .l2-price.ask {
+            color: #ff4444;
+        }
+
+        .l2-price.bid {
+            color: #00ff88;
+        }
+
+        .l2-size {
+            color: #ccc;
+        }
+
+        .depth-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            opacity: 0.2;
+            z-index: 0;
+        }
+
+        .depth-bar.ask {
+            background: linear-gradient(to right, #ff4444, transparent);
+        }
+
+        .depth-bar.bid {
+            background: linear-gradient(to right, #00ff88, transparent);
+        }
+
+        .l2-table td {
+            position: relative;
+            z-index: 1;
+        }
+
+
+        .control-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .control-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+
+        .orderbook-side {
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .orderbook-header {
+            background: #2a2a2a;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .asks-header {
+            color: #ff4444;
+        }
+
+        .bids-header {
+            color: #00ff88;
+        }
+
+        .orderbook-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .orderbook-table th {
+            background: #333;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            border-bottom: 1px solid #444;
+        }
+
+        .orderbook-table td {
+            padding: 8px;
+            text-align: center;
+            font-size: 13px;
+            border-bottom: 1px solid #222;
+        }
+
+        .orderbook-table tr:hover {
+            background: #2a2a2a;
+        }
+
+        .orderbook-table tr.clickable {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .orderbook-table tr.clickable:hover {
+            background: #2a2a2a;
+        }
+
+        .price {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .price.ask {
+            color: #ff4444;
+        }
+
+        .price.bid {
+            color: #00ff88;
+        }
+
+        .size {
+            color: #ccc;
+        }
+
+        .order-id {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .user {
+            color: #666;
+            font-size: 11px;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kind {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .kind.Market {
+            background: #ff6b6b;
+            color: #fff;
+        }
+
+        .kind.Limit {
+            background: #4ecdc4;
+            color: #fff;
+        }
+
+        .kind.Oracle {
+            background: #45b7d1;
+            color: #fff;
+        }
+
+        .kind.FloatingLimit {
+            background: #96ceb4;
+            color: #fff;
+        }
+
+        .kind.TriggerMarket {
+            background: #feca57;
+            color: #000;
+        }
+
+        .kind.TriggerLimit {
+            background: #ff9ff3;
+            color: #000;
+        }
+
+        .trigger-order {
+            border-left: 3px solid #ff6b35;
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .trigger-order .price {
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        .trigger-order .size {
+            color: #ff6b35;
+        }
+
+        .market-order {
+            border-left: 3px solid #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .market-order .price {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .market-order .size {
+            color: #ff6b6b;
+        }
+
+        .oracle-order {
+            border-left: 3px solid #45b7d1;
+            background: rgba(69, 183, 209, 0.1);
+        }
+
+        .oracle-order .price {
+            color: #45b7d1;
+            font-weight: bold;
+        }
+
+        .oracle-order .size {
+            color: #45b7d1;
+        }
+
+        .floating-limit-order {
+            border-left: 3px solid #96ceb4;
+            background: rgba(150, 206, 180, 0.1);
+        }
+
+        .floating-limit-order .price {
+            color: #96ceb4;
+            font-weight: bold;
+        }
+
+        .floating-limit-order .size {
+            color: #96ceb4;
+        }
+
+        .reduce-only {
+            color: #ff6b6b;
+            font-size: 11px;
+        }
+
+        .spread {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .spread-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .spread-label {
+            color: #888;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .refresh-btn {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.1s ease-in-out;
+            min-width: 120px;
+            text-align: center;
+            opacity: 1;
+        }
+
+        .refresh-btn:hover {
+            background: #00cc6a;
+            transform: translateY(-1px);
+        }
+
+        .refresh-btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            opacity: 0.7;
+            transform: none;
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        .refresh-btn.loading {
+            background: #666;
+            color: #999;
+            opacity: 0.7;
+            filter: grayscale(100%);
+        }
+
+        .pause-btn {
+            background: #ff6b6b;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.1s ease-in-out;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .pause-btn:hover {
+            background: #ff4444;
+            transform: translateY(-1px);
+        }
+
+        .pause-btn.paused {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .pause-btn.paused:hover {
+            background: #00cc6a;
+        }
+
+        .pause-btn:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .orderbook-container {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Drift CLOB</h1>
+        <p>Real-time Central Limit Order Book</p>
+    </div>
+
+    <div class="view-toggle">
+        <button id="l2ViewBtn" class="active">L2 Aggregated</button>
+        <button id="l3ViewBtn">L3 Individual</button>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="marketIndex">Market Index:</label>
+            <input type="number" id="marketIndex" value="0" min="0" max="100">
+        </div>
+        <div class="control-group">
+            <label for="refreshInterval">Refresh (ms):</label>
+            <input type="number" id="refreshInterval" value="1000" min="100" max="10000">
+        </div>
+        <div class="control-group">
+            <label for="maxOrders">Max Orders:</label>
+            <input type="number" id="maxOrders" value="20" min="5" max="100">
+        </div>
+        <div class="control-group" id="priceGroupingGroup" style="display: none;">
+            <label for="priceGrouping">Price Grouping:</label>
+            <select id="priceGrouping">
+                <option value="0.01">0.01</option>
+                <option value="0.1" selected>0.1</option>
+                <option value="1">1</option>
+                <option value="10">10</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <button id="refreshBtn" class="refresh-btn">Refresh</button>
+        </div>
+        <div class="control-group">
+            <button id="pauseBtn" class="pause-btn">Pause</button>
+        </div>
+    </div>
+
+    <div id="status" class="status">
+        <div>Loading orderbook data...</div>
+    </div>
+
+    <div id="spread" class="spread" style="display: none;">
+        <div class="spread-value" id="spreadValue">-</div>
+        <div class="spread-label">Spread</div>
+    </div>
+
+    <!-- L2 Aggregated View -->
+    <div id="l2Container" class="l2-container">
+        <div class="l2-side">
+            <div class="l2-header l2-asks-header">ASKS (Sell Orders)</div>
+            <table class="l2-table">
+                <thead>
+                    <tr>
+                        <th>Price</th>
+                        <th>Size</th>
+                    </tr>
+                </thead>
+                <tbody id="l2AsksTable">
+                    <tr>
+                        <td colspan="2" class="loading">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="l2-side">
+            <div class="l2-header l2-bids-header">BIDS (Buy Orders)</div>
+            <table class="l2-table">
+                <thead>
+                    <tr>
+                        <th>Price</th>
+                        <th>Size</th>
+                    </tr>
+                </thead>
+                <tbody id="l2BidsTable">
+                    <tr>
+                        <td colspan="2" class="loading">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- L3 Individual Orders View -->
+    <div id="l3Container" class="orderbook-container" style="display: none;">
+        <div class="orderbook-side">
+            <div class="orderbook-header asks-header">ASKS (Sell Orders)</div>
+            <table class="orderbook-table">
+                <thead>
+                    <tr>
+                        <th>Price</th>
+                        <th>Size</th>
+                        <th>Order ID</th>
+                        <th>User</th>
+                        <th>Kind</th>
+                        <th>RO</th>
+                    </tr>
+                </thead>
+                <tbody id="asksTable">
+                    <tr>
+                        <td colspan="6" class="loading">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="orderbook-side">
+            <div class="orderbook-header bids-header">BIDS (Buy Orders)</div>
+            <table class="orderbook-table">
+                <thead>
+                    <tr>
+                        <th>Price</th>
+                        <th>Size</th>
+                        <th>Order ID</th>
+                        <th>User</th>
+                        <th>Kind</th>
+                        <th>RO</th>
+                    </tr>
+                </thead>
+                <tbody id="bidsTable">
+                    <tr>
+                        <td colspan="6" class="loading">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval = null;
+        let isRefreshing = false;
+        let isPaused = false;
+
+        const statusEl = document.getElementById('status');
+        const spreadEl = document.getElementById('spread');
+        const spreadValueEl = document.getElementById('spreadValue');
+        const asksTableEl = document.getElementById('asksTable');
+        const bidsTableEl = document.getElementById('bidsTable');
+        const l2AsksTableEl = document.getElementById('l2AsksTable');
+        const l2BidsTableEl = document.getElementById('l2BidsTable');
+        const l2ContainerEl = document.getElementById('l2Container');
+        const l3ContainerEl = document.getElementById('l3Container');
+        const l2ViewBtn = document.getElementById('l2ViewBtn');
+        const l3ViewBtn = document.getElementById('l3ViewBtn');
+        const marketIndexInput = document.getElementById('marketIndex');
+        const refreshIntervalInput = document.getElementById('refreshInterval');
+        const maxOrdersInput = document.getElementById('maxOrders');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+
+        let currentView = 'l2';
+
+        function updateStatus(message, isError = false) {
+            statusEl.textContent = message;
+            statusEl.className = isError ? 'status error' : 'status';
+        }
+
+        function formatPrice(price) {
+            return (price / 1e6).toFixed(2);
+        }
+
+        function formatSize(size) {
+            return (size / 1e9).toFixed(2);
+        }
+
+        function formatUser(user) {
+            return user.substring(0, 8) + '...';
+        }
+
+        function getKindClass(kind) {
+            return kind.replace(/([A-Z])/g, ' $1').trim();
+        }
+
+        function getOrderRowClass(kind) {
+            const kindToClass = {
+                'TriggerMarket': 'trigger-order',
+                'TriggerLimit': 'trigger-order',
+                'Market': 'market-order',
+                'Limit': 'limit-order',
+                'Oracle': 'oracle-order',
+                'FloatingLimit': 'floating-limit-order'
+            };
+            return kindToClass[kind] || '';
+        }
+
+        function groupOrdersByPriceLevel(orders, priceGrouping = 0.1) {
+            const grouped = new Map();
+            
+            orders.forEach(order => {
+                // Round price to nearest grouping level
+                const groupedPrice = Math.round(order.price / (priceGrouping * 1e6)) * (priceGrouping * 1e6);
+                
+                if (grouped.has(groupedPrice)) {
+                    grouped.get(groupedPrice).size += order.size;
+                } else {
+                    grouped.set(groupedPrice, {
+                        price: groupedPrice,
+                        size: order.size
+                    });
+                }
+            });
+            
+            return Array.from(grouped.values());
+        }
+
+
+        function renderL2Orderbook(data) {
+            const maxOrders = parseInt(maxOrdersInput.value);
+            const priceGrouping = parseFloat(document.getElementById('priceGrouping').value);
+
+            // Clear existing data
+            l2AsksTableEl.innerHTML = '';
+            l2BidsTableEl.innerHTML = '';
+
+            // Sort asks by price ascending (lowest first)
+            const sortedAsks = [...data.asks].sort((a, b) => a.price - b.price);
+            const sortedBids = [...data.bids].sort((a, b) => b.price - a.price);
+
+            // Group orders by price level
+            const groupedAsks = groupOrdersByPriceLevel(sortedAsks, priceGrouping);
+            const groupedBids = groupOrdersByPriceLevel(sortedBids, priceGrouping);
+
+            // Calculate max size for depth visualization
+            const allSizes = [...groupedAsks, ...groupedBids].map(level => level.size);
+            const maxSize = Math.max(...allSizes);
+
+            // Get orders to show
+            const asksToShow = groupedAsks.slice(0, maxOrders);
+            const bidsToShow = groupedBids.slice(0, maxOrders);
+
+            // Render asks
+            asksToShow.forEach(level => {
+                const row = document.createElement('tr');
+                const depthPercent = (level.size / maxSize) * 100;
+
+                row.innerHTML = `
+                    <td class="l2-price ask">${formatPrice(level.price)}</td>
+                    <td class="l2-size">${formatSize(level.size)}</td>
+                `;
+
+                // Add depth bar
+                const depthBar = document.createElement('div');
+                depthBar.className = 'depth-bar ask';
+                depthBar.style.width = `${depthPercent}%`;
+                row.querySelector('td').appendChild(depthBar);
+
+                l2AsksTableEl.appendChild(row);
+            });
+
+            // Render bids
+            bidsToShow.forEach(level => {
+                const row = document.createElement('tr');
+                const depthPercent = (level.size / maxSize) * 100;
+
+                row.innerHTML = `
+                    <td class="l2-price bid">${formatPrice(level.price)}</td>
+                    <td class="l2-size">${formatSize(level.size)}</td>
+                `;
+
+                // Add depth bar
+                const depthBar = document.createElement('div');
+                depthBar.className = 'depth-bar bid';
+                depthBar.style.width = `${depthPercent}%`;
+                row.querySelector('td').appendChild(depthBar);
+
+                l2BidsTableEl.appendChild(row);
+            });
+
+            // Calculate and display spread
+            if (groupedAsks.length > 0 && groupedBids.length > 0) {
+                const bestAsk = groupedAsks[0].price;
+                const bestBid = groupedBids[0].price;
+                const spread = bestAsk - bestBid;
+                const spreadPercent = (spread / bestBid) * 100;
+
+                spreadValueEl.textContent = `${formatPrice(spread)} (${spreadPercent.toFixed(2)}%)`;
+                spreadEl.style.display = 'block';
+            } else {
+                spreadEl.style.display = 'none';
+            }
+
+            updateStatus(`L2 Orderbook updated - Slot: ${data.slot}, Oracle: ${formatPrice(data.oracle_price)}, Market: ${data.market_index}`);
+        }
+
+        function renderL3Orderbook(data) {
+            const maxOrders = parseInt(maxOrdersInput.value);
+
+            // Clear existing data
+            asksTableEl.innerHTML = '';
+            bidsTableEl.innerHTML = '';
+
+            // Sort asks by price ascending (lowest first)
+            const sortedAsks = [...data.asks].sort((a, b) => a.price - b.price);
+            const sortedBids = [...data.bids].sort((a, b) => b.price - a.price);
+
+            // Render asks
+            const asksToShow = sortedAsks.slice(0, maxOrders);
+            asksToShow.forEach(order => {
+                const row = document.createElement('tr');
+                row.className = 'clickable';
+                
+                // Add order type specific styling
+                const orderClass = getOrderRowClass(order.kind);
+                if (orderClass) {
+                    row.classList.add(orderClass);
+                }
+                
+                row.innerHTML = `
+                    <td class="price ask">${formatPrice(order.price)}</td>
+                    <td class="size">${formatSize(order.size)}</td>
+                    <td class="order-id">${order.order_id}</td>
+                    <td class="user" title="${order.user}">${formatUser(order.user)}</td>
+                    <td><span class="kind ${getKindClass(order.kind)}">${order.kind}</span></td>
+                    <td>${order.reduce_only ? '<span class="reduce-only">RO</span>' : ''}</td>
+                `;
+
+                // Add click handler to navigate to Drift app
+                row.addEventListener('click', () => {
+                    window.open(`https://app.drift.trade?userAccount=${order.user}`, '_blank');
+                });
+
+                asksTableEl.appendChild(row);
+            });
+
+            // Render bids
+            const bidsToShow = sortedBids.slice(0, maxOrders);
+            bidsToShow.forEach(order => {
+                const row = document.createElement('tr');
+                row.className = 'clickable';
+                
+                // Add order type specific styling
+                const orderClass = getOrderRowClass(order.kind);
+                if (orderClass) {
+                    row.classList.add(orderClass);
+                }
+                
+                row.innerHTML = `
+                    <td class="price bid">${formatPrice(order.price)}</td>
+                    <td class="size">${formatSize(order.size)}</td>
+                    <td class="order-id">${order.order_id}</td>
+                    <td class="user" title="${order.user}">${formatUser(order.user)}</td>
+                    <td><span class="kind ${getKindClass(order.kind)}">${order.kind}</span></td>
+                    <td>${order.reduce_only ? '<span class="reduce-only">RO</span>' : ''}</td>
+                `;
+                
+                // Add click handler to navigate to Drift app
+                row.addEventListener('click', () => {
+                    window.open(`https://app.drift.trade?userAccount=${order.user}`, '_blank');
+                });
+                
+                bidsTableEl.appendChild(row);
+            });
+
+            // Calculate and display spread
+            if (sortedAsks.length > 0 && sortedBids.length > 0) {
+                const bestAsk = sortedAsks[0].price;
+                const bestBid = sortedBids[0].price;
+                const spread = bestAsk - bestBid;
+                const spreadPercent = (spread / bestBid) * 100;
+
+                spreadValueEl.textContent = `${formatPrice(spread)} (${spreadPercent.toFixed(2)}%)`;
+                spreadEl.style.display = 'block';
+            } else {
+                spreadEl.style.display = 'none';
+            }
+
+            updateStatus(`L3 Orderbook updated - Slot: ${data.slot}, Oracle: ${formatPrice(data.oracle_price)}`);
+        }
+
+        async function fetchOrderbook() {
+            if (isRefreshing) return;
+
+            isRefreshing = true;
+            refreshBtn.disabled = true;
+            refreshBtn.classList.add('loading');
+
+            try {
+                const marketIndex = marketIndexInput.value;
+                const endpoint = currentView === 'l2' ? '/l2' : '/l3';
+                const response = await fetch(`${endpoint}?market_index=${marketIndex}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (currentView === 'l2') {
+                    renderL2Orderbook(data);
+                } else {
+                    renderL3Orderbook(data);
+                }
+            } catch (error) {
+                console.error('Error fetching orderbook:', error);
+                updateStatus(`Error: ${error.message}`, true);
+            } finally {
+                isRefreshing = false;
+                refreshBtn.disabled = false;
+                refreshBtn.classList.remove('loading');
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+
+            if (!isPaused) {
+                const interval = parseInt(refreshIntervalInput.value);
+                refreshInterval = setInterval(fetchOrderbook, interval);
+            }
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            
+            if (isPaused) {
+                pauseBtn.textContent = 'Resume';
+                pauseBtn.classList.add('paused');
+                stopAutoRefresh();
+                updateStatus('Auto-refresh paused');
+            } else {
+                pauseBtn.textContent = 'Pause';
+                pauseBtn.classList.remove('paused');
+                startAutoRefresh();
+                updateStatus('Auto-refresh resumed');
+            }
+        }
+
+        function switchView(view) {
+            currentView = view;
+
+            if (view === 'l2') {
+                l2ViewBtn.classList.add('active');
+                l3ViewBtn.classList.remove('active');
+                l2ContainerEl.style.display = 'grid';
+                l3ContainerEl.style.display = 'none';
+                document.getElementById('priceGroupingGroup').style.display = 'flex';
+            } else {
+                l2ViewBtn.classList.remove('active');
+                l3ViewBtn.classList.add('active');
+                l2ContainerEl.style.display = 'none';
+                l3ContainerEl.style.display = 'grid';
+                document.getElementById('priceGroupingGroup').style.display = 'none';
+            }
+
+            // Refresh data for the new view
+            stopAutoRefresh();
+            fetchOrderbook();
+            startAutoRefresh();
+        }
+
+        // Event listeners
+        refreshBtn.addEventListener('click', fetchOrderbook);
+        pauseBtn.addEventListener('click', togglePause);
+
+        l2ViewBtn.addEventListener('click', () => switchView('l2'));
+        l3ViewBtn.addEventListener('click', () => switchView('l3'));
+
+
+        document.getElementById('priceGrouping').addEventListener('change', () => {
+            if (currentView === 'l2') {
+                stopAutoRefresh();
+                fetchOrderbook();
+                startAutoRefresh();
+            }
+        });
+
+        marketIndexInput.addEventListener('change', () => {
+            stopAutoRefresh();
+            fetchOrderbook();
+            startAutoRefresh();
+        });
+
+        refreshIntervalInput.addEventListener('change', () => {
+            stopAutoRefresh();
+            startAutoRefresh();
+        });
+
+        // Initial load
+        fetchOrderbook();
+        startAutoRefresh();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopAutoRefresh);
+    </script>
+</body>
+
+</html>

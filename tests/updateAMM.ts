@@ -8,7 +8,7 @@ import {
 	getMarketOrderParams,
 	OracleSource,
 	PEG_PRECISION,
-} from '../sdk';
+} from '../packages/sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -26,7 +26,7 @@ import {
 	findComputeUnitConsumption,
 	calculateBidAskPrice,
 	calculateUpdatedAMM,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	getFeedData,

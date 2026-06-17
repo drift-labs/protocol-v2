@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"types": [],
+		"module": "commonjs",
+		"target": "es2019",
+		"esModuleInterop": true,
+		"preserveConstEnums": true,
+		"sourceMap": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"moduleResolution": "node",
+		"baseUrl": ".",
+		"rootDir": "src",
+		"outDir": "./lib",
+		"paths": {
+			"@velocity-exchange/common/clients": ["./node_modules/@velocity-exchange/common/lib/clients"]
+		}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules"]
+}

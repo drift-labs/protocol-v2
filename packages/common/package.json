@@ -1,0 +1,25 @@
+{
+  "name": "@backend/common",
+  "version": "1.0.0",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "source": "src/index.ts",
+  "scripts": {
+    "build": "bun run clean && tsc",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.6",
+    "@types/node": "^20.6.5",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@aws-sdk/util-dynamodb": "^3.650.0",
+    "@velocity-exchange/sdk": "workspace:*",
+    "decimal.js": "^10.5.0",
+    "winston": "^3.14.2",
+    "@solana/web3.js": "1.98.0",
+    "bn.js": "^5.2.0"
+  }
+}

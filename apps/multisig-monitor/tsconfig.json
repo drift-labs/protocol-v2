@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "NodeNext",
+		"lib": ["dom", "es2022", "esnext.asynciterable"],
+		"sourceMap": true,
+		"outDir": "./dist",
+		"moduleResolution": "nodenext",
+		"declaration": true,
+		"esModuleInterop": true,
+		"removeComments": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"strictFunctionTypes": true,
+		"noImplicitThis": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"allowSyntheticDefaultImports": true,
+		"skipLibCheck": true,
+		"resolveJsonModule": true
+	},
+	"exclude": ["node_modules", "dist", "test"],
+	"include": ["./src/**/*.ts"]
+}

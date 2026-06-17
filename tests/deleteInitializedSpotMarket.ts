@@ -9,7 +9,7 @@ import {
 	OracleSource,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
-} from '../sdk/src';
+} from '../packages/sdk/src';
 
 import {
 	mockOracleNoProgram,
@@ -20,11 +20,11 @@ import {
 	getInsuranceFundVaultPublicKey,
 	getSpotMarketPublicKey,
 	getSpotMarketVaultPublicKey,
-} from '../sdk';
+} from '../packages/sdk';
 import { PublicKey } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { TestBulkAccountLoader } from '../packages/sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../packages/sdk/src/bankrun/bankrunConnection';
 
 describe('max deposit', () => {
 	const chProgram = anchor.workspace.Velocity as Program;
