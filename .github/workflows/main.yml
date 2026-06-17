@@ -52,6 +52,8 @@ jobs:
       program_version: ${{ steps.filter.outputs.program_version }}
       rust_workspace: ${{ steps.filter.outputs.rust_workspace }}
       anchor: ${{ steps.filter.outputs.anchor }}
+      docker_ts: ${{ steps.filter.outputs.docker_ts }}
+      docker_rust: ${{ steps.filter.outputs.docker_rust }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
@@ -85,6 +87,25 @@ jobs:
               - 'test-scripts/**'
               - 'packages/sdk/**'
               - 'packages/vaults-sdk/**'
+            # TS app docker images build from the whole bun/turbo workspace, so any
+            # app or shared-package change can affect them.
+            docker_ts:
+              - 'apps/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
+              - 'docker/ts-app.Dockerfile'
+              - 'docker-info.json'
+            # rust app docker images (keep-rs/swift) build the rust workspace, which
+            # consumes the velocity program as a host path-dep.
+            docker_rust:
+              - 'rust/**'
+              - 'programs/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'docker/rust-app.Dockerfile'
+              - 'docker-info.json'
   fmt-clippy:
     name: fmt & clippy
     needs: changes
@@ -570,6 +591,68 @@ jobs:
           name: build
           path: target/deploy/velocity.so
 
+  # Docker image build checks: build every shipped image the same way the
+  # docker-on-tag release workflow does (same Dockerfiles + build-args from
+  # docker-info.json), but with push: false — just prove they build clean.
+  # Path-gated: TS images only when TS/workspace changes, rust images only when
+  # the rust workspace / program changes. type=gha layer cache keeps reruns cheap.
+  docker-images-ts:
+    name: Docker build (ts)
+    needs: changes
+    if: ${{ needs.changes.outputs.docker_ts == 'true' }}
+    runs-on: ubicloud
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { app: dlob-server,         path: apps/dlob-server,         scope: '@velocity-exchange/dlob-server', out: lib,  start: lib/index.js }
+          - { app: keeper-bots-v2,      path: apps/keeper-bots-v2,      scope: '@drift-labs/keeper-bots-v2',     out: lib,  start: lib/index.js }
+          - { app: candles,             path: apps/candles,             scope: '@backend/candles',               out: dist, start: dist/index.js }
+          - { app: market-data,         path: apps/market-data,         scope: '@backend/market-data',           out: dist, start: dist/index.js }
+          - { app: multisig-monitor,    path: apps/multisig-monitor,    scope: '@backend/multisig-monitor',      out: dist, start: dist/index.js }
+          - { app: notification-engine, path: apps/notification-engine, scope: '@backend/notification-engine',   out: dist, start: dist/index.js }
+          - { app: realtime-archiver,   path: apps/realtime-archiver,   scope: '@backend/realtime-archiver',     out: dist, start: dist/index.js }
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build ${{ matrix.app }} image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/ts-app.Dockerfile
+          push: false
+          build-args: |
+            APP_PATH=${{ matrix.path }}
+            APP_SCOPE=${{ matrix.scope }}
+            APP_OUT=${{ matrix.out }}
+            APP_START=${{ matrix.start }}
+          cache-from: type=gha,scope=docker-ts-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=docker-ts-${{ matrix.app }}
+  docker-images-rust:
+    name: Docker build (rust)
+    needs: changes
+    if: ${{ needs.changes.outputs.docker_rust == 'true' }}
+    runs-on: ubicloud
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { app: keep-rs, bin: keeprs }
+          - { app: swift, bin: swift-server }
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build ${{ matrix.app }} image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/rust-app.Dockerfile
+          push: false
+          build-args: |
+            APP_BIN=${{ matrix.bin }}
+          cache-from: type=gha,scope=docker-rust-${{ matrix.bin }}
+          cache-to: type=gha,mode=max,scope=docker-rust-${{ matrix.bin }}
+
   # Single required status check. The heavy jobs above are path-gated, so on a
   # docs/TS-only PR they report "skipped" — and GitHub branch protection treats a
   # skipped *required* check as "not passed", which would block the merge forever.
@@ -591,6 +674,8 @@ jobs:
       - anchor-tests
       - vault-tests
       - verified-build
+      - docker-images-ts
+      - docker-images-rust
     runs-on: ubicloud
     steps:
       - name: Require upstream jobs to have succeeded or been skipped
