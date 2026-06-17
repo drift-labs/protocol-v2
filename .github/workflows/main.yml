@@ -79,6 +79,7 @@ jobs:
               - 'tests/**'
               - 'test-scripts/**'
               - 'packages/sdk/**'
+              - 'packages/vaults-sdk/**'
   fmt-clippy:
     name: fmt & clippy
     needs: changes
@@ -348,6 +349,71 @@ jobs:
         env:
           RUST_LOG: solana_runtime::message_processor::stable_log=info
         run: bash test-scripts/run-anchor-tests.sh
+  vault-tests:
+    name: Vault tests
+    needs: changes
+    if: ${{ needs.changes.outputs.anchor == 'true' }}
+    runs-on: ubicloud
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          profile: minimal
+          override: true
+      - name: Cache build artefacts
+        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
+        with:
+          cache-on-failure: 'true'
+
+      - uses: ./.github/actions/setup-solana/
+
+      - name: Cache Anchor CLI
+        id: cache-anchor
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.avm
+          key: ${{ runner.os }}-anchor-cli-${{ env.ANCHOR_VERSION }}
+
+      - name: Install Anchor CLI
+        run: |
+          sudo apt update -y && sudo apt install libudev-dev
+          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Setup node
+        uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: install typescript
+        run: npm install typescript@5.4.5 -g
+
+      - name: install mocha
+        run: |
+          npm install ts-mocha@10.0.0 -g
+          npm install --global mocha
+
+      # Separate from anchor-tests: the vaults suite needs a velocity .so built
+      # WITHOUT mainnet-beta (the external-depositor whitelist gate blocks vault
+      # CPIs otherwise). run-vault-tests.sh handles that build + the SDK builds.
+      - name: run vault tests
+        env:
+          RUST_LOG: solana_runtime::message_processor::stable_log=info
+        run: bash test-scripts/run-vault-tests.sh
   verify-sdk-configs:
     name: Verify SDK Configs
     if: ${{ false }}
@@ -425,6 +491,7 @@ jobs:
       - ts-tests
       - rust-workspace-check
       - anchor-tests
+      - vault-tests
       - verified-build
     runs-on: ubicloud
     steps:
