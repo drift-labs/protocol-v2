@@ -15,7 +15,8 @@ clap = { version = "4.5.40", "features" = ["env", "derive"] }
 crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
 dotenv = "0.15.0"
 drift-rs = { path = "../drift-rs", features = ["unsafe_pub", "titan"] }
-drift = { package = "velocity", path = "../../programs/velocity", default-features = false, features = ["velocity-rs", "mainnet-beta", "no-entrypoint"] }
+# Program internals are reached via `drift_rs::drift::…`; no direct path-dep on
+# the velocity program. drift-rs pulls it with `cpi` (⊇ `no-entrypoint`).
 env_logger = "0.11"
 # DLOB 'trace' logs are expensive so compile them out
 log = { version = "0.4", features = ["max_level_trace"] }

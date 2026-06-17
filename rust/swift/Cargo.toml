@@ -16,7 +16,8 @@ clap = { version = "4.0", features = ["derive"] }
 dashmap = "6.1.0"
 dotenv = "0.15.0"
 drift-rs = { path = "../drift-rs" }
-drift = { package = "velocity", path = "../../programs/velocity", default-features = false, features = ["velocity-rs", "mainnet-beta", "cpi"] }
+# Program internals are reached via `drift_rs::drift::…`; no direct path-dep on
+# the velocity program. drift-rs pulls it with `cpi`.
 solana-account-info = "3.1"
 solana-clock = "3"
 ed25519-dalek = "1.0.1"

@@ -45,6 +45,11 @@ use constants::{
     high_leverage_mode_account, ASSOCIATED_TOKEN_PROGRAM_ID, PROGRAM_ID, SYSTEM_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
 };
+// Re-export the on-chain program crate so downstream consumers (keep-rs, swift,
+// …) reach program internals — math, controller, state, error, sdk — through the
+// SDK as `drift_rs::drift::…` rather than taking a second direct path-dep on the
+// velocity program. drift-rs is the single point that depends on the program.
+pub use drift;
 pub use drift_pubsub_client::PubsubClient;
 use futures_util::TryFutureExt;
 use log::debug;
