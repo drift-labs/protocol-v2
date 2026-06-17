@@ -787,6 +787,8 @@ mod tests {
                     auction_duration: Some(50),
                     auction_start_price: Some(2102419643),
                     auction_end_price: Some(2081603607),
+                    builder_idx: None,
+                    builder_fee_tenth_bps: None,
                 },
                 taker_pubkey: solana_pubkey::pubkey!(
                     "4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE"

@@ -95,7 +95,7 @@ async fn titan_swap_exact_in_usdc_to_sol() {
         Some(err) => {
             assert_eq!(
                 err,
-                TransactionError::InstructionError(4, InstructionError::Custom(6157))
+                TransactionError::InstructionError(4, InstructionError::Custom(6157)).into()
             )
         }
         None => assert!(true),
@@ -169,7 +169,7 @@ async fn titan_swap_exact_in_usdc_jto() {
         Some(err) => {
             assert_eq!(
                 err,
-                TransactionError::InstructionError(4, InstructionError::Custom(6157))
+                TransactionError::InstructionError(4, InstructionError::Custom(6157)).into()
             )
         }
         None => assert!(true),
