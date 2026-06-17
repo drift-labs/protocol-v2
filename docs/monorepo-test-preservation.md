@@ -73,14 +73,34 @@ unblocks compilation — the suites themselves need work:
 
 `rust-workspace-check` runs `cargo check --all-targets`, which compiles all test code
 (fixed: builder-codes `OrderParams` fields + a `UiTransactionError` `.into()` drift).
-It does **not execute** the tests.
+It does **not execute** the tests, and — see below — executing them is **not** the
+quick win it first looks like.
 
-| Crate    | Unit tests | Integration                          | Notes                                    |
-| -------- | ---------- | ------------------------------------ | ---------------------------------------- |
-| drift-rs | 139        | tests/{integration,jupiter,titan}.rs | integration tests hit live APIs → Tier 2 |
-| keep-rs  | 9          | —                                    | likely Tier 1                            |
-| swift    | 40         | —                                    | likely Tier 1                            |
+| Crate    | Crate type | Tests in `src` (`#[test]`)        | Integration (`tests/*.rs`)           |
+| -------- | ---------- | --------------------------------- | ------------------------------------ |
+| drift-rs | **lib**    | ~123, **network-intermixed**      | tests/{integration,jupiter,titan}.rs (live APIs → Tier 2) |
+| keep-rs  | **bin**    | **0**                             | —                                    |
+| swift    | **bin**    | ~40, **mixed** (9 pure + RPC/Redis) | —                                  |
 
-Action: add `cargo test --manifest-path rust/Cargo.toml --lib` to the rust job once
-the lib unit tests are confirmed offline-safe (no RPC). Leave `tests/*.rs` integration
-suites for a Tier-2 job.
+Why `cargo test --manifest-path rust/Cargo.toml --lib` is the **wrong** action (it
+was the original plan here — it isn't viable):
+
+1. **`--lib` only matches lib targets.** keep-rs and swift are **binary** crates, so
+   `--lib` silently runs **none** of their tests — only drift-rs's lib tests.
+2. **drift-rs's lib tests are network-intermixed.** ~8 of 23 `src` test files call
+   `test_envs::{mainnet,devnet}_endpoint` (live RPC). They live as `#[tokio::test]`
+   unit tests in `src`, not under `tests/`, so `--lib` would execute them and
+   flake/fail the PR gate without secrets.
+3. **No filter exists.** Pure and live tests share modules and **none are marked
+   `#[ignore]`**, so there's no clean offline subset to select.
+4. **keep-rs has no unit tests** (the earlier "9" was wrong).
+
+Verified-pure subset today: swift `types::` (8 in `types/messages.rs` + 1 in
+`types/types.rs`) — runs offline (`cargo test -p swift-server 'types::'`, exit 0), but
+pays swift's full multi-minute compile for 9 tests → low ROI as a standalone step.
+
+Action (the real work, not a one-liner): mark every RPC/Redis test `#[ignore]` (or
+put it behind a `live`/`tier2` feature) across drift-rs + swift. Then the PR gate can
+run `cargo test` (offline subset only) and a **separate secrets+Redis job** runs
+`-- --ignored`. Until that annotation pass lands, leave the rust gate at
+`cargo check --all-targets` (compile-only).

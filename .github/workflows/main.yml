@@ -383,3 +383,36 @@ jobs:
         with:
           name: build
           path: target/deploy/velocity.so
+
+  # Single required status check. The heavy jobs above are path-gated, so on a
+  # docs/TS-only PR they report "skipped" — and GitHub branch protection treats a
+  # skipped *required* check as "not passed", which would block the merge forever.
+  # Make THIS the only required check instead: it always runs and passes as long
+  # as no upstream job actually failed or was cancelled (skipped is fine).
+  ci-gate:
+    name: CI gate
+    if: ${{ always() }}
+    needs:
+      - changes
+      - fmt-clippy
+      - unit-tests
+      - prettier
+      - lint
+      - ts-build
+      - ts-tests
+      - rust-workspace-check
+      - anchor-tests
+      - verified-build
+    runs-on: ubicloud
+    steps:
+      - name: Require upstream jobs to have succeeded or been skipped
+        run: |
+          results="${{ join(needs.*.result, ' ') }}"
+          echo "upstream results: $results"
+          for r in $results; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::A required job did not succeed (result=$r)."
+              exit 1
+            fi
+          done
+          echo "All upstream jobs succeeded or were skipped."
