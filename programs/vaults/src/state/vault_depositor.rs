@@ -1,7 +1,6 @@
 use std::cell::RefMut;
 
 use anchor_lang::prelude::*;
-use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 use velocity::controller::spot_balance::update_spot_balances;
 use velocity::error::ErrorCode as DriftErrorCode;
@@ -18,6 +17,7 @@ use velocity::state::perp_market_map::PerpMarketMap;
 use velocity::state::spot_market::SpotBalanceType;
 use velocity::state::spot_market_map::SpotMarketMap;
 use velocity::state::user::User;
+use velocity_macros::assert_no_slop;
 
 use crate::error::ErrorCode;
 use crate::events::VaultDepositorAction;

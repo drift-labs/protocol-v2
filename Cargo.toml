@@ -5,6 +5,7 @@ members = [
 	"programs/pyth",
 	"programs/pyth-lazer",
 	"programs/token_faucet",
+	"crates/velocity-macros",
 ]
 # The `rust/` directory is a SEPARATE Cargo workspace (velocity-rs/keep-rs/swift).
 # It is excluded here so its solana-sdk 3.x dependency tree never unifies with
