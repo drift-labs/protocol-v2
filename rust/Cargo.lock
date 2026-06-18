@@ -2535,7 +2535,7 @@ checksum = "57d8d8ce877200136358e0bbff3a77965875db3af755a11e1fa6b1b3e2df13ea"
 
 [[package]]
 name = "keeprs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anchor-lang",
  "axum 0.8.9",
@@ -5980,7 +5980,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "swift-server"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anchor-lang",
  "anyhow",
