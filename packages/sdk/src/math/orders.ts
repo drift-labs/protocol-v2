@@ -1,4 +1,3 @@
-import { User } from '../user';
 import {
 	isOneOfVariant,
 	isVariant,
@@ -13,7 +12,6 @@ import {
 } from '../types';
 import {
 	ZERO,
-	TWO,
 	ONE,
 	SPOT_MARKET_IMF_PRECISION,
 	MARGIN_PRECISION,
@@ -31,105 +29,6 @@ import {
 	calculateUpdatedAMM,
 } from './amm';
 import { calculateSizePremiumLiabilityWeight } from './margin';
-
-export function isOrderRiskIncreasing(user: User, order: Order): boolean {
-	if (!isVariant(order.status, 'open')) {
-		return false;
-	}
-
-	const position =
-		user.getPerpPosition(order.marketIndex) ||
-		user.getEmptyPosition(order.marketIndex);
-
-	// if no position exists, it's risk increasing
-	if (position.baseAssetAmount.eq(ZERO)) {
-		return true;
-	}
-
-	// if position is long and order is long
-	if (position.baseAssetAmount.gt(ZERO) && isVariant(order.direction, 'long')) {
-		return true;
-	}
-
-	// if position is short and order is short
-	if (
-		position.baseAssetAmount.lt(ZERO) &&
-		isVariant(order.direction, 'short')
-	) {
-		return true;
-	}
-
-	const baseAssetAmountToFill = order.baseAssetAmount.sub(
-		order.baseAssetAmountFilled
-	);
-	// if order will flip position
-	if (baseAssetAmountToFill.gt(position.baseAssetAmount.abs().mul(TWO))) {
-		return true;
-	}
-
-	return false;
-}
-
-export function isOrderRiskIncreasingInSameDirection(
-	user: User,
-	order: Order
-): boolean {
-	if (!isVariant(order.status, 'open')) {
-		return false;
-	}
-
-	const position =
-		user.getPerpPosition(order.marketIndex) ||
-		user.getEmptyPosition(order.marketIndex);
-
-	// if no position exists, it's risk increasing
-	if (position.baseAssetAmount.eq(ZERO)) {
-		return true;
-	}
-
-	// if position is long and order is long
-	if (position.baseAssetAmount.gt(ZERO) && isVariant(order.direction, 'long')) {
-		return true;
-	}
-
-	// if position is short and order is short
-	if (
-		position.baseAssetAmount.lt(ZERO) &&
-		isVariant(order.direction, 'short')
-	) {
-		return true;
-	}
-
-	return false;
-}
-
-export function isOrderReduceOnly(user: User, order: Order): boolean {
-	if (!isVariant(order.status, 'open')) {
-		return false;
-	}
-
-	const position =
-		user.getPerpPosition(order.marketIndex) ||
-		user.getEmptyPosition(order.marketIndex);
-
-	// if position is long and order is long
-	if (
-		position.baseAssetAmount.gte(ZERO) &&
-		isVariant(order.direction, 'long')
-	) {
-		return false;
-	}
-
-	// if position is short and order is short
-	if (
-		position.baseAssetAmount.lte(ZERO) &&
-		isVariant(order.direction, 'short')
-	) {
-		return false;
-	}
-
-	return true;
-}
 
 export function standardizeBaseAssetAmount(
 	baseAssetAmount: BN,
@@ -375,10 +274,6 @@ export function isRestingLimitOrder(order: Order, slot: number): boolean {
 	}
 
 	return order.postOnly || isAuctionComplete(order, slot);
-}
-
-export function isTakingOrder(order: Order, slot: number): boolean {
-	return isMarketOrder(order) || !isRestingLimitOrder(order, slot);
 }
 
 const FLAG_IS_SIGNED_MSG = 0x01;

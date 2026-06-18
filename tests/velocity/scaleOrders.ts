@@ -27,7 +27,6 @@ import {
 	mockUSDCMint,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	sleep,
 } from './testHelpers';
 import { OracleSource, ZERO } from '../../packages/sdk';
 import { startAnchor } from 'solana-bankrun';
@@ -132,7 +131,7 @@ describe('scale orders', () => {
 			if (found) {
 				oraclesLoaded = true;
 			}
-			await sleep(1000);
+			await bulkAccountLoader.load();
 		}
 
 		const periodicity = new BN(60 * 60); // 1 HOUR

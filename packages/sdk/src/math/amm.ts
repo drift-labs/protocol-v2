@@ -8,7 +8,6 @@ import {
 	ONE,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	QUOTE_PRECISION,
-	MARGIN_PRECISION,
 	PRICE_DIV_PEG,
 	PERCENTAGE_PRECISION,
 	DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
@@ -551,14 +550,6 @@ export function calculateEffectiveLeverage(
 		1 / QUOTE_PRECISION.toNumber();
 
 	return effectiveLeverage;
-}
-
-export function calculateMaxSpread(marginRatioInitial: number): number {
-	const maxTargetSpread: number = new BN(marginRatioInitial)
-		.mul(BID_ASK_SPREAD_PRECISION.div(MARGIN_PRECISION))
-		.toNumber();
-
-	return maxTargetSpread;
 }
 
 export function calculateVolSpreadBN(

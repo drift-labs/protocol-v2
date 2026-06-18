@@ -37,7 +37,6 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
-	sleep,
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
 } from './testHelpers';
@@ -304,7 +303,7 @@ describe('insurance fund stake', () => {
 			marketIndex,
 			new BN(1)
 		);
-		await sleep(1000);
+		await bulkAccountLoader.load();
 
 		const txSig = await velocityClient.removeInsuranceFundStake(
 			marketIndex,
@@ -790,7 +789,7 @@ describe('insurance fund stake', () => {
 		);
 
 		console.log('letting interest accum (2s + 200s warp)');
-		await sleep(2000);
+		await bulkAccountLoader.load();
 		// warp the chain clock so the smaller borrow (scaled down for the $10k
 		// withdraw guard cap) still accrues enough interest to rebase if shares
 		await bankrunContextWrapper.moveTimeForward(200);
@@ -909,7 +908,7 @@ describe('insurance fund stake', () => {
 			solOracle,
 			-50
 		); // down 99.99%
-		await sleep(2000);
+		await bulkAccountLoader.load();
 
 		const state = await velocityClient.getStateAccount();
 		console.log('state.liquidationDuration', state.liquidationDuration);

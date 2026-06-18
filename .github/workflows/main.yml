@@ -121,7 +121,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Cache build files
-        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: Cargo fmt
         run: cargo fmt -- --check
       - name: Cargo clippy
@@ -140,7 +140,7 @@ jobs:
           profile: minimal
           override: true
       - name: Cache build artefacts
-        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - name: Run package checks
         run: cargo check # run package checks
       - name: Run unit tests
@@ -423,9 +423,16 @@ jobs:
           profile: minimal
           override: true
       - name: Cache build artefacts
-        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
         with:
           cache-on-failure: 'true'
+          # Cache only the cargo registry/git, NOT the workspace target dir.
+          # Reusing SBF artifacts (target/sbpf-solana-solana) across runs is the
+          # documented corruption hazard in this repo — the incremental build
+          # key doesn't catch every dep-resolution change, so the resulting .so
+          # loads but reads/writes wrong offsets ("Program failed to complete"
+          # at runtime). Every anchor build below must start from a clean target.
+          cache-targets: 'false'
 
       - uses: ./.github/actions/setup-solana/
 
@@ -433,16 +440,26 @@ jobs:
         id: cache-anchor
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: ~/.avm
+          # The avm proxy + the installed version toolchains live in two places:
+          # the avm/anchor binaries in ~/.cargo/bin, the toolchains in ~/.avm.
+          # Both must persist or the gated install below has to rebuild from src.
+          path: |
+            ~/.avm
+            ~/.cargo/bin/avm
+            ~/.cargo/bin/anchor
           key: ${{ runner.os }}-anchor-cli-${{ env.ANCHOR_VERSION }}
 
+      # Building avm + anchor-cli from git source takes several minutes, so only
+      # do it on a cache miss. On a hit we just re-activate the cached version.
       - name: Install Anchor CLI
-        # if: steps.cache-anchor.outputs.cache-hit != 'true'
+        if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
           sudo apt update -y && sudo apt install libudev-dev
           cargo install --git https://github.com/coral-xyz/anchor avm --force
           avm install ${{ env.ANCHOR_VERSION }}
-          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Select Anchor version
+        run: avm use ${{ env.ANCHOR_VERSION }}
 
       - name: Setup node
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
@@ -466,15 +483,77 @@ jobs:
           npm install ts-mocha@10.0.0 -g
           npm install --global mocha
 
-      # run-anchor-tests.sh builds the SDK (after syncing the IDL from the anchor
-      # build) before running the suites: most test files import `../packages/sdk/src/...`
-      # which ts-mocha transpiles on the fly, but many import the package root
-      # `../packages/sdk`, which resolves through package.json `main` to
-      # packages/sdk/lib/node/index.js and would otherwise be MODULE_NOT_FOUND.
+      # Restore compiled programs from cache keyed on program sources. When
+      # nothing under programs/, Cargo.toml, Cargo.lock, or Anchor.toml changed,
+      # target/deploy/*.so + IDL/types are restored and the "Build program" step
+      # below is skipped — removing the ~6-min SBF compile from SDK/test-only
+      # PRs. (Run artifacts don't persist across runs, so a content-hashed cache
+      # — not a paths-filter alone — is what lets a later run reuse a prior
+      # build.)
+      #
+      # Split restore/save pattern (NOT the combined actions/cache) so the cache
+      # is only written back when the build actually succeeds. The combined
+      # action's post-job save runs even on step failure, which would persist a
+      # partial build (e.g. .so present but IDL regeneration failed) and poison
+      # subsequent runs that hit the same key.
+      #
+      # Key literal includes the build variant (-anchortest-ltothin-cu16-). If
+      # the feature flags or CARGO_PROFILE_RELEASE_* overrides below change,
+      # bump this literal so stale variant .so files aren't served from cache.
+      - name: Restore compiled program cache
+        id: cache-program
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            target/deploy
+            target/idl/velocity.json
+            target/types/velocity.ts
+          key: ${{ runner.os }}-velocity-program-anchortest-ltothin-cu16-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
+
+      # Only recompile when the program sources changed (cache miss). bankrun's
+      # startAnchor loads velocity/pyth/token_faucet from target/deploy, so the
+      # whole dir is the cached unit.
+      - name: Build program
+        if: steps.cache-program.outputs.cache-hit != 'true'
+        env:
+          # The committed release profile uses `lto = "fat"` + `codegen-units = 1`
+          # for the production .so — the slowest possible compile. The test build
+          # runs on litesvm and doesn't need it, so override the profile here only
+          # (the verified-build job is unaffected). thin LTO keeps most cross-crate
+          # optimization while cutting compile time dramatically.
+          CARGO_PROFILE_RELEASE_LTO: 'thin'
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
+        # Clean any restored SBF artifacts first — building incrementally on top
+        # of them can emit a .so with wrong offsets (see CLAUDE.md). The program
+        # cache reuses the *final* .so on a hit; on a miss we always build fresh.
+        run: |
+          rm -rf target/sbpf-solana-solana target/deploy
+          anchor build --ignore-keys --skip-lint -- --features anchor-test
+
+      # Save the compiled program cache only on a cache miss AND only when the
+      # build succeeded — prevents a partial build (e.g. IDL gen failed after
+      # .so was emitted) from poisoning subsequent runs with the same key.
+      - name: Save compiled program cache
+        if: steps.cache-program.outputs.cache-hit != 'true' && success()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            target/deploy
+            target/idl/velocity.json
+            target/types/velocity.ts
+          key: ${{ runner.os }}-velocity-program-anchortest-ltothin-cu16-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
+
+      # run-anchor-tests.sh --skip-build syncs the freshly built/restored IDL
+      # into packages/sdk/src/idl and builds the SDK before running the suites:
+      # most test files import `../packages/sdk/src/...` (transpiled on the fly by
+      # ts-mocha), but many import the package root `../packages/sdk`, which
+      # resolves through package.json `main` to packages/sdk/lib/node/index.js and
+      # would otherwise be MODULE_NOT_FOUND. The root `bun install` above already
+      # installed the workspace, so no separate SDK install is needed here.
       - name: run anchor tests
         env:
           RUST_LOG: solana_runtime::message_processor::stable_log=info
-        run: bash test-scripts/run-anchor-tests.sh
+        run: bash test-scripts/run-anchor-tests.sh --skip-build
   vault-tests:
     name: Vault tests
     needs: changes
@@ -616,8 +695,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { app: dlob-server,         path: apps/dlob-server,         scope: '@velocity-exchange/dlob-server', out: lib,  start: lib/index.js }
-          - { app: keeper-bots-v2,      path: apps/keeper-bots-v2,      scope: '@drift-labs/keeper-bots-v2',     out: lib,  start: lib/index.js }
+          - {
+              app: dlob-server,
+              path: apps/dlob-server,
+              scope: '@velocity-exchange/dlob-server',
+              out: lib,
+              start: lib/index.js,
+            }
+          - {
+              app: keeper-bots-v2,
+              path: apps/keeper-bots-v2,
+              scope: '@drift-labs/keeper-bots-v2',
+              out: lib,
+              start: lib/index.js,
+            }
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3

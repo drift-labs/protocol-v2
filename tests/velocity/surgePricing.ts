@@ -21,7 +21,6 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	sleep,
 	getMaxWithdrawGuardThreshold,
 } from './testHelpers';
 import { getUserAccountPublicKey } from '../../packages/sdk/src';
@@ -189,7 +188,7 @@ describe('surge pricing', () => {
 			}
 			console.log('account info', accountInfo.lamports);
 			assert(accountInfo.lamports === baseLamports + expectedFee.toNumber());
-			await sleep(1000);
+			await bulkAccountLoader.load();
 
 			if (i === 4) {
 				await admin.updateStateMaxNumberOfSubAccounts(0);

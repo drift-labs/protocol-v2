@@ -232,16 +232,6 @@ export function calculateUnsettledFundingPnl(
 	return perPositionFundingRate;
 }
 
-/**
- * @deprecated use calculateUnsettledFundingPnl or calculateFeesAndFundingPnl instead
- */
-export function calculatePositionFundingPNL(
-	market: PerpMarketAccount,
-	perpPosition: PerpPosition
-): BN {
-	return calculateUnsettledFundingPnl(market, perpPosition);
-}
-
 export function positionIsAvailable(position: PerpPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&

@@ -30,7 +30,6 @@ import {
 	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
 	mintUSDCToUser,
-	sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../../packages/sdk/src/accounts/testBulkAccountLoader';
@@ -632,7 +631,7 @@ describe('velocity client', () => {
 			bankrunContextWrapper
 		);
 
-		await sleep(2000);
+		await bulkAccountLoader.load();
 
 		await velocityClient.deposit(
 			usdcAmount,

@@ -14,7 +14,7 @@ import {
 	TestClient,
 	OracleSource,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-	PTYH_LAZER_PROGRAM_ID,
+	PYTH_LAZER_PROGRAM_ID,
 	assert,
 	getRevenueShareAccountPublicKey,
 	getRevenueShareEscrowAccountPublicKey,
@@ -69,7 +69,7 @@ dotenv.config();
 const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 	executable: false,
 	lamports: LAMPORTS_PER_SOL,
-	owner: new PublicKey(PTYH_LAZER_PROGRAM_ID),
+	owner: new PublicKey(PYTH_LAZER_PROGRAM_ID),
 	rentEpoch: 0,
 	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
 };
