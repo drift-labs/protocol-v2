@@ -1,5 +1,6 @@
 {
 	"compilerOptions": {
+		"strict": true,
 		"module": "commonjs",
 		"target": "ES2019",
 		"esModuleInterop": true,
@@ -21,5 +22,15 @@
 		}
 	},
 	"include": ["src"],
-	"exclude": ["node_modules", "tests"]
+	"exclude": ["node_modules", "tests"],
+	// `strict` (added with the SDK strict-mode pass) applies to the shipped `src`
+	// build + the sdk-typecheck gate (both `exclude` tests). The mocha suites run
+	// through ts-node, which would otherwise compile the test files under strict
+	// too — and the tests aren't strict-clean (implicit-any deps, uninitialized
+	// fixture fields). Scope strict to the build, not the test run.
+	"ts-node": {
+		"compilerOptions": {
+			"strict": false
+		}
+	}
 }
