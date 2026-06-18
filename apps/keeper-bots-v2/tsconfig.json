@@ -20,7 +20,10 @@
 		"outDir": "./lib",
 		"strict": true,
 		"paths": {
-			"@drift-labs/common/clients": ["./node_modules/@drift-labs/common/lib/clients"]
+			"@drift-labs/common/clients": [
+				"./node_modules/@drift-labs/common/lib/clients",
+				"../../node_modules/@drift-labs/common/lib/clients"
+			]
 		}
 	},
 	"include": [
