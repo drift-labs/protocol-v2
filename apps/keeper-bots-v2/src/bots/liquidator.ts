@@ -2,7 +2,7 @@
 import {
 	BN,
 	convertToNumber,
-	DriftClient,
+	VelocityClient,
 	User,
 	isVariant,
 	BASE_PRECISION,
@@ -24,7 +24,7 @@ import {
 	calculateClaimablePnl,
 	isOperationPaused,
 	PerpOperation,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import {
@@ -45,7 +45,10 @@ import { Bot } from '../types';
 import { RuntimeSpec, metricAttrFromUserAccount } from '../metrics';
 import { webhookMessage } from '../webhook';
 import { LiquidatorConfig } from '../config';
-import { getPerpMarketTierNumber, perpTierIsAsSafeAs } from '@drift-labs/sdk';
+import {
+	getPerpMarketTierNumber,
+	perpTierIsAsSafeAs,
+} from '@velocity-exchange/sdk';
 import {
 	ComputeBudgetProgram,
 	PublicKey,
@@ -68,13 +71,13 @@ const errorCodesToSuppress = [
 const LIQUIDATE_THROTTLE_BACKOFF = 5000; // the time to wait before trying to liquidate a throttled user again
 
 function calculateSpotTokenAmountToLiquidate(
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	liquidatorUser: User,
 	liquidateePosition: SpotPosition,
 	maxPositionTakeoverPctOfCollateralNum: BN,
 	maxPositionTakeoverPctOfCollateralDenom: BN
 ): BN {
-	const spotMarket = driftClient.getSpotMarketAccount(
+	const spotMarket = velocityClient.getSpotMarketAccount(
 		liquidateePosition.marketIndex
 	);
 	if (!spotMarket) {
@@ -84,7 +87,7 @@ function calculateSpotTokenAmountToLiquidate(
 
 	const tokenPrecision = new BN(10 ** spotMarket.decimals);
 
-	const oraclePrice = driftClient.getOracleDataForSpotMarket(
+	const oraclePrice = velocityClient.getOracleDataForSpotMarket(
 		liquidateePosition.marketIndex
 	).price;
 	const collateralToSpend = liquidatorUser
@@ -169,7 +172,7 @@ export class LiquidatorBot implements Bot {
 	private sdkCallDurationHistogram?: Histogram;
 	private userMapUserAccountKeysGauge?: ObservableGauge;
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private serumLookupTableAddress?: PublicKey;
 	private driftLookupTables?: AddressLookupTableAccount[];
 	private driftSpotLookupTables?: AddressLookupTableAccount;
@@ -201,7 +204,7 @@ export class LiquidatorBot implements Bot {
 	private watchdogTimerLastPatTime = Date.now();
 
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		userMap: UserMap,
 		runtimeSpec: RuntimeSpec,
 		config: LiquidatorConfig,
@@ -232,7 +235,7 @@ export class LiquidatorBot implements Bot {
 
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.runtimeSpecs = runtimeSpec;
 		this.userMap = userMap;
 
@@ -273,7 +276,7 @@ export class LiquidatorBot implements Bot {
 				config.perpSubAccountConfig
 			).flat();
 		} else {
-			// this will be done in `init` since driftClient needs to be subcribed to first
+			// this will be done in `init` since velocityClient needs to be subcribed to first
 			logger.info(
 				`No perpSubAccountConfig provided, will watch all perp markets on subaccount ${this.defaultSubaccountId}`
 			);
@@ -296,7 +299,7 @@ export class LiquidatorBot implements Bot {
 				config.spotSubAccountConfig
 			).flat();
 		} else {
-			// this will be done in `init` since driftClient needs to be subcribed to first
+			// this will be done in `init` since velocityClient needs to be subcribed to first
 			logger.info(
 				`No spotSubAccountConfig provided, will watch all spot markets on subaccount ${this.defaultSubaccountId}`
 			);
@@ -309,12 +312,12 @@ export class LiquidatorBot implements Bot {
 		this.excludedAccounts = new Set<string>(config.excludedAccounts);
 		logger.info(`Liquidator disregarding accounts: ${config.excludedAccounts}`);
 
-		// ensure driftClient has all subaccounts tracked and subscribed
+		// ensure velocityClient has all subaccounts tracked and subscribed
 		for (const subaccount of this.allSubaccounts) {
-			if (!this.driftClient.hasUser(subaccount)) {
-				this.driftClient.addUser(subaccount).then((subscribed) => {
+			if (!this.velocityClient.hasUser(subaccount)) {
+				this.velocityClient.addUser(subaccount).then((subscribed) => {
 					logger.info(
-						`Added subaccount ${subaccount} to driftClient since it was missing (subscribed: ${subscribed}))`
+						`Added subaccount ${subaccount} to velocityClient since it was missing (subscribed: ${subscribed}))`
 					);
 				});
 			}
@@ -327,7 +330,7 @@ export class LiquidatorBot implements Bot {
 
 		// initialize derisk helper after lookup tables, and optional jupiter are ready
 		this.deriskHelper = new LiquidatorDerisk({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			userMap: this.userMap,
 			config: this.liquidatorConfig,
 			name: this.name,
@@ -404,7 +407,7 @@ export class LiquidatorBot implements Bot {
 		if (subAccountId === undefined) {
 			return undefined;
 		}
-		return this.driftClient.getUser(subAccountId);
+		return this.velocityClient.getUser(subAccountId);
 	}
 
 	private getLiquidatorUserForPerpMarket(
@@ -414,7 +417,7 @@ export class LiquidatorBot implements Bot {
 		if (subAccountId === undefined) {
 			return undefined;
 		}
-		return this.driftClient.getUser(subAccountId);
+		return this.velocityClient.getUser(subAccountId);
 	}
 
 	private async buildVersionedTransactionWithSimulatedCus(
@@ -439,11 +442,11 @@ export class LiquidatorBot implements Bot {
 		let resp: SimulateAndGetTxWithCUsResponse;
 		try {
 			const recentBlockhash =
-				await this.driftClient.connection.getLatestBlockhash('confirmed');
+				await this.velocityClient.connection.getLatestBlockhash('confirmed');
 			resp = await simulateAndGetTxWithCUs({
 				ixs: fullIxs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts: luts,
 				cuLimitMultiplier: 1.2,
 				doSimulation: true,
@@ -471,12 +474,12 @@ export class LiquidatorBot implements Bot {
 		logger.info(`${this.name} initing`);
 
 		this.driftLookupTables =
-			await this.driftClient.fetchAllLookupTableAccounts();
+			await this.velocityClient.fetchAllLookupTableAccounts();
 
 		let serumLut: AddressLookupTableAccount | null = null;
 		if (this.serumLookupTableAddress !== undefined) {
 			serumLut = (
-				await this.driftClient.connection.getAddressLookupTable(
+				await this.velocityClient.connection.getAddressLookupTable(
 					this.serumLookupTableAddress
 				)
 			).value;
@@ -491,7 +494,7 @@ export class LiquidatorBot implements Bot {
 
 		// If no perp subaccount config was provided, map all perp markets to the default subaccount
 		if (this.perpMarketIndicies.length === 0) {
-			this.perpMarketIndicies = this.driftClient
+			this.perpMarketIndicies = this.velocityClient
 				.getPerpMarketAccounts()
 				.map((m) => {
 					return m.marketIndex;
@@ -504,7 +507,7 @@ export class LiquidatorBot implements Bot {
 
 		// If no spot subaccount config was provided, map all spot markets to the default subaccount
 		if (this.spotMarketIndicies.length === 0) {
-			this.spotMarketIndicies = this.driftClient
+			this.spotMarketIndicies = this.velocityClient
 				.getSpotMarketAccounts()
 				.map((m) => {
 					return m.marketIndex;
@@ -559,11 +562,11 @@ export class LiquidatorBot implements Bot {
 		logger.info(`${this.name} Bot started!`);
 
 		for (const subAccount of this.allSubaccounts) {
-			const freeCollateral = this.driftClient
+			const freeCollateral = this.velocityClient
 				.getUser(subAccount)
 				.getFreeCollateral();
 			const accountValue = calculateAccountValueUsd(
-				this.driftClient.getUser(subAccount)
+				this.velocityClient.getUser(subAccount)
 			);
 			logger.info(
 				`[${
@@ -654,7 +657,7 @@ export class LiquidatorBot implements Bot {
 			return ZERO;
 		}
 
-		const oraclePrice = this.driftClient.getOracleDataForPerpMarket(
+		const oraclePrice = this.velocityClient.getOracleDataForPerpMarket(
 			liquidateePosition.marketIndex
 		).price;
 		const collateralToSpend = liquidatorUser
@@ -686,7 +689,7 @@ export class LiquidatorBot implements Bot {
 	private findPerpBankruptingMarkets(chUserToCheck: User): Array<number> {
 		const bankruptMarketIndices: Array<number> = [];
 
-		for (const market of this.driftClient.getPerpMarketAccounts()) {
+		for (const market of this.velocityClient.getPerpMarketAccounts()) {
 			const position = chUserToCheck.getPerpPosition(market.marketIndex);
 			if (!position || position.quoteAssetAmount.gte(ZERO)) {
 				// invalid position to liquidate
@@ -707,7 +710,7 @@ export class LiquidatorBot implements Bot {
 	private findSpotBankruptingMarkets(chUserToCheck: User): Array<number> {
 		const bankruptMarketIndices: Array<number> = [];
 
-		for (const market of this.driftClient.getSpotMarketAccounts()) {
+		for (const market of this.velocityClient.getSpotMarketAccounts()) {
 			const position = chUserToCheck.getSpotPosition(market.marketIndex);
 			if (!position) {
 				continue;
@@ -727,7 +730,7 @@ export class LiquidatorBot implements Bot {
 	}
 
 	private async tryResolveBankruptUser(user: User) {
-		const userAcc = user.getUserAccount();
+		const userAcc = user.getUserAccountOrThrow();
 		const userKey = user.getUserAccountPublicKey();
 
 		// find out whether the user is perp-bankrupt or spot-bankrupt
@@ -750,7 +753,7 @@ export class LiquidatorBot implements Bot {
 					}]: Resolving perp market for userAcc: ${userKey.toBase58()}, marketIndex: ${perpIdx} `
 				);
 			}
-			const ix = await this.driftClient.getResolvePerpBankruptcyIx(
+			const ix = await this.velocityClient.getResolvePerpBankruptcyIx(
 				userKey,
 				userAcc,
 				perpIdx
@@ -782,11 +785,12 @@ export class LiquidatorBot implements Bot {
 					webhookMessage(msg);
 				}
 			} else {
-				const resp = await this.driftClient.txSender.sendVersionedTransaction(
-					simResult.tx,
-					undefined,
-					this.driftClient.opts
-				);
+				const resp =
+					await this.velocityClient.txSender.sendVersionedTransaction(
+						simResult.tx,
+						undefined,
+						this.velocityClient.opts
+					);
 				logger.info(
 					`Sent resolveBankruptcy tx for ${userKey.toBase58()} in perp market ${perpIdx} tx: ${
 						resp.txSig
@@ -807,7 +811,7 @@ export class LiquidatorBot implements Bot {
 				);
 			}
 
-			const ix = await this.driftClient.getResolveSpotBankruptcyIx(
+			const ix = await this.velocityClient.getResolveSpotBankruptcyIx(
 				userKey,
 				userAcc,
 				spotIdx
@@ -839,11 +843,12 @@ export class LiquidatorBot implements Bot {
 					webhookMessage(msg);
 				}
 			} else {
-				const resp = await this.driftClient.txSender.sendVersionedTransaction(
-					simResult.tx,
-					undefined,
-					this.driftClient.opts
-				);
+				const resp =
+					await this.velocityClient.txSender.sendVersionedTransaction(
+						simResult.tx,
+						undefined,
+						this.velocityClient.opts
+					);
 				logger.info(
 					`Sent resolveBankruptcy tx for ${userKey.toBase58()} in spot market ${spotIdx} tx: ${
 						resp.txSig
@@ -854,7 +859,7 @@ export class LiquidatorBot implements Bot {
 	}
 
 	private hasCollateralToLiquidate(subAccountId: number): boolean {
-		const currUser = this.driftClient.getUser(subAccountId);
+		const currUser = this.velocityClient.getUser(subAccountId);
 		const freeCollateral = currUser.getFreeCollateral('Initial');
 		const subAccountValue = new BN(
 			calculateAccountValueUsd(currUser) * QUOTE_PRECISION.toNumber()
@@ -886,7 +891,7 @@ export class LiquidatorBot implements Bot {
 		let indexWithOpenOrders = -1;
 
 		for (const position of spotPositions) {
-			const market = this.driftClient.getSpotMarketAccount(
+			const market = this.velocityClient.getSpotMarketAccount(
 				position.marketIndex
 			);
 			if (!market) {
@@ -921,7 +926,7 @@ export class LiquidatorBot implements Bot {
 				continue;
 			}
 
-			const spotMarket = this.driftClient.getSpotMarketAccount(
+			const spotMarket = this.velocityClient.getSpotMarketAccount(
 				position.marketIndex
 			);
 			if (!spotMarket) {
@@ -937,7 +942,7 @@ export class LiquidatorBot implements Bot {
 			}
 
 			const tokenAmount = calculateSpotTokenAmountToLiquidate(
-				this.driftClient,
+				this.velocityClient,
 				liquidatorUser,
 				position,
 				positionTakerOverPctNumerator,
@@ -977,9 +982,9 @@ export class LiquidatorBot implements Bot {
 		amountToLiqBN: BN
 	): Promise<boolean> {
 		let sentTx = false;
-		const ix = await this.driftClient.getLiquidateSpotIx(
+		const ix = await this.velocityClient.getLiquidateSpotIx(
 			user.userAccountPublicKey,
-			user.getUserAccount(),
+			user.getUserAccountOrThrow(),
 			depositMarketIndexToLiq,
 			borrowMarketIndexToLiq,
 			amountToLiqBN,
@@ -1013,10 +1018,10 @@ export class LiquidatorBot implements Bot {
 				webhookMessage(msg);
 			}
 		} else {
-			const resp = await this.driftClient.txSender.sendVersionedTransaction(
+			const resp = await this.velocityClient.txSender.sendVersionedTransaction(
 				simResult.tx,
 				undefined,
-				this.driftClient.opts
+				this.velocityClient.opts
 			);
 			sentTx = true;
 			logger.info(
@@ -1045,7 +1050,7 @@ export class LiquidatorBot implements Bot {
 		borrowAmountToLiq: BN,
 		user: User
 	): Promise<boolean> {
-		const borrowMarket = this.driftClient.getSpotMarketAccount(
+		const borrowMarket = this.velocityClient.getSpotMarketAccount(
 			borrowMarketIndexToLiq
 		)!;
 		const spotPrecision = TEN.pow(new BN(borrowMarket.decimals));
@@ -1063,8 +1068,8 @@ export class LiquidatorBot implements Bot {
 			return false;
 		}
 
-		const currUser = this.driftClient.getUser(subAccountToLiqSpot);
-		const oracle = this.driftClient.getOracleDataForSpotMarket(
+		const currUser = this.velocityClient.getUser(subAccountToLiqSpot);
+		const oracle = this.velocityClient.getOracleDataForSpotMarket(
 			borrowMarketIndexToLiq
 		);
 		const borrowValue = getTokenValue(
@@ -1120,17 +1125,17 @@ export class LiquidatorBot implements Bot {
 				perpMarketAccount,
 				usdcAccount,
 				liquidateePosition,
-				this.driftClient.getOracleDataForPerpMarket(
+				this.velocityClient.getOracleDataForPerpMarket(
 					liquidateePosition.marketIndex
 				)
 			);
 
 			if (claimablePnl.gt(ZERO) && borrowMarketIndextoLiq === -1) {
-				const ix = await this.driftClient.getSettlePNLsIxs(
+				const ix = await this.velocityClient.getSettlePNLsIxs(
 					[
 						{
 							settleeUserAccountPublicKey: user.userAccountPublicKey,
-							settleeUserAccount: user.getUserAccount(),
+							settleeUserAccount: user.getUserAccountOrThrow(),
 						},
 					],
 					[liquidateePosition.marketIndex]
@@ -1162,11 +1167,12 @@ export class LiquidatorBot implements Bot {
 						webhookMessage(msg);
 					}
 				} else {
-					const resp = await this.driftClient.txSender.sendVersionedTransaction(
-						simResult.tx,
-						undefined,
-						this.driftClient.opts
-					);
+					const resp =
+						await this.velocityClient.txSender.sendVersionedTransaction(
+							simResult.tx,
+							undefined,
+							this.velocityClient.opts
+						);
 					logger.info(
 						`Sent settlePnl tx for ${user.userAccountPublicKey.toBase58()} in perp market ${
 							liquidateePosition.marketIndex
@@ -1193,9 +1199,9 @@ export class LiquidatorBot implements Bot {
 					return sentTx;
 				}
 
-				const ix = await this.driftClient.getLiquidateBorrowForPerpPnlIx(
+				const ix = await this.velocityClient.getLiquidateBorrowForPerpPnlIx(
 					user.userAccountPublicKey,
-					user.getUserAccount(),
+					user.getUserAccountOrThrow(),
 					liquidateePosition.marketIndex,
 					borrowMarketIndextoLiq,
 					borrowAmountToLiq.div(frac),
@@ -1229,11 +1235,12 @@ export class LiquidatorBot implements Bot {
 						webhookMessage(msg);
 					}
 				} else {
-					const resp = await this.driftClient.txSender.sendVersionedTransaction(
-						simResult.tx,
-						undefined,
-						this.driftClient.opts
-					);
+					const resp =
+						await this.velocityClient.txSender.sendVersionedTransaction(
+							simResult.tx,
+							undefined,
+							this.velocityClient.opts
+						);
 					logger.info(
 						`Sent liquidateBorrowForPerpPnl tx for ${user.userAccountPublicKey.toBase58()} in spot market ${borrowMarketIndextoLiq} tx: ${
 							resp.txSig
@@ -1280,13 +1287,13 @@ export class LiquidatorBot implements Bot {
 				return sentTx;
 			}
 
-			const pnlToLiq = this.driftClient
+			const pnlToLiq = this.velocityClient
 				.getUser(subAccountToTakeOverPerpPnl)
 				.getFreeCollateral('Initial');
 			try {
-				const ix = await this.driftClient.getLiquidatePerpPnlForDepositIx(
+				const ix = await this.velocityClient.getLiquidatePerpPnlForDepositIx(
 					user.userAccountPublicKey,
-					user.getUserAccount(),
+					user.getUserAccountOrThrow(),
 					liquidateePosition.marketIndex,
 					depositMarketIndextoLiq,
 					pnlToLiq,
@@ -1325,11 +1332,12 @@ export class LiquidatorBot implements Bot {
 						);
 					}
 				} else {
-					const resp = await this.driftClient.txSender.sendVersionedTransaction(
-						simResult.tx,
-						undefined,
-						this.driftClient.opts
-					);
+					const resp =
+						await this.velocityClient.txSender.sendVersionedTransaction(
+							simResult.tx,
+							undefined,
+							this.velocityClient.opts
+						);
 					sentTx = true;
 					logger.info(
 						`Sent liquidatePerpPnlForDeposit tx for ${user.userAccountPublicKey.toBase58()} on market ${
@@ -1373,9 +1381,9 @@ export class LiquidatorBot implements Bot {
 		}
 
 		let txSent = false;
-		const ix = await this.driftClient.getLiquidatePerpIx(
+		const ix = await this.velocityClient.getLiquidatePerpIx(
 			user.userAccountPublicKey,
-			user.getUserAccount(),
+			user.getUserAccountOrThrow(),
 			perpMarketIndex,
 			baseAmountToLiquidate,
 			undefined,
@@ -1412,10 +1420,10 @@ export class LiquidatorBot implements Bot {
 				);
 			}
 		} else {
-			const resp = await this.driftClient.txSender.sendVersionedTransaction(
+			const resp = await this.velocityClient.txSender.sendVersionedTransaction(
 				simResult.tx,
 				undefined,
-				this.driftClient.opts
+				this.velocityClient.opts
 			);
 			txSent = true;
 			logger.info(
@@ -1522,7 +1530,7 @@ export class LiquidatorBot implements Bot {
 			marginRequirement: _marginRequirement,
 			canBeLiquidated,
 		} of usersCanBeLiquidated) {
-			const userAcc = user.getUserAccount();
+			const userAcc = user.getUserAccountOrThrow();
 			const auth = userAcc.authority.toBase58();
 
 			if (isUserBankrupt(user) || user.isBankrupt()) {
@@ -1544,7 +1552,7 @@ export class LiquidatorBot implements Bot {
 					}
 				}
 
-				const liquidateeUserAccount = user.getUserAccount();
+				const liquidateeUserAccount = user.getUserAccountOrThrow();
 
 				// most attractive spot market liq
 				const {
@@ -1585,19 +1593,18 @@ export class LiquidatorBot implements Bot {
 					}
 				}
 
-				const usdcMarket = this.driftClient.getSpotMarketAccount(
+				const usdcMarket = this.velocityClient.getSpotMarketAccount(
 					QUOTE_SPOT_MARKET_INDEX
 				);
 				if (!usdcMarket) {
 					throw new Error(
-						`USDC spot market not loaded, misconfigured DriftClient`
+						`USDC spot market not loaded, misconfigured VelocityClient`
 					);
 				}
 
 				// less attractive, perp / perp pnl liquidations
 				let liquidateeHasPerpPos = false;
 				let liquidateeHasUnsettledPerpPnl = false;
-				let liquidateeHasLpPos = false;
 				let liquidateePerpIndexWithOpenOrders = -1;
 
 				// shuffle user perp positions to get good position coverage in case some
@@ -1610,12 +1617,12 @@ export class LiquidatorBot implements Bot {
 						liquidateePerpIndexWithOpenOrders = liquidateePosition.marketIndex;
 					}
 
-					const perpMarket = this.driftClient.getPerpMarketAccount(
+					const perpMarket = this.velocityClient.getPerpMarketAccount(
 						liquidateePosition.marketIndex
 					);
 					if (!perpMarket) {
 						throw new Error(
-							`perpMarket not loaded for marketIndex ${liquidateePosition.marketIndex}, misconfigured DriftClient`
+							`perpMarket not loaded for marketIndex ${liquidateePosition.marketIndex}, misconfigured VelocityClient`
 						);
 					}
 
@@ -1635,7 +1642,6 @@ export class LiquidatorBot implements Bot {
 					liquidateeHasPerpPos =
 						!liquidateePosition.baseAssetAmount.isZero() ||
 						!liquidateePosition.quoteAssetAmount.isZero();
-					liquidateeHasLpPos = !liquidateePosition.lpShares.isZero();
 
 					const tryLiqPerp =
 						liquidateeHasUnsettledPerpPnl &&
@@ -1682,21 +1688,6 @@ export class LiquidatorBot implements Bot {
 							liquidateePosition.marketIndex,
 							subAccountToLiqPerp,
 							baseAmountToLiquidate
-						);
-						if (sent) {
-							liquidatePerpSent++;
-						}
-					} else if (liquidateeHasLpPos) {
-						logger.info(
-							`liquidatePerp ${auth}-${user.userAccountPublicKey.toBase58()} on market ${
-								liquidateePosition.marketIndex
-							} has lp shares but no perp pos, trying to clear it:`
-						);
-						const sent = await this.liqPerp(
-							user,
-							liquidateePosition.marketIndex,
-							subAccountToLiqPerp,
-							ZERO
 						);
 						if (sent) {
 							liquidatePerpSent++;
@@ -2006,11 +1997,11 @@ export class LiquidatorBot implements Bot {
 			async (batchObservableResult: BatchObservableResult) => {
 				// each subaccount is responsible for a market
 				// record account specific metrics
-				for (const [idx, user] of this.driftClient.getUsers().entries()) {
+				for (const [idx, user] of this.velocityClient.getUsers().entries()) {
 					const accMarketIdx = idx;
-					const userAccount = user.getUserAccount();
+					const userAccount = user.getUserAccountOrThrow();
 					const oracle =
-						this.driftClient.getOracleDataForPerpMarket(accMarketIdx);
+						this.velocityClient.getOracleDataForPerpMarket(accMarketIdx);
 
 					batchObservableResult.observe(
 						this.totalLeverage!,

@@ -229,7 +229,7 @@ export const rawPriceToNumber = (
 	oraclePrice: number
 ): number => {
 	const raw = Number(rawPrice);
-	return raw / PRICE_PRECISION + oraclePrice;
+	return raw / PRICE_PRECISION.toNumber() + oraclePrice;
 };
 
 /**

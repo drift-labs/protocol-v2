@@ -7,7 +7,7 @@ import {
 	WrappedIpcMessage,
 	deserializedIx,
 } from './types';
-import { BlockhashSubscriber, SlotSubscriber } from '@drift-labs/sdk';
+import { BlockhashSubscriber, SlotSubscriber } from '@velocity-exchange/sdk';
 import { Connection } from '@solana/web3.js';
 import dotenv from 'dotenv';
 import parseArgs from 'minimist';

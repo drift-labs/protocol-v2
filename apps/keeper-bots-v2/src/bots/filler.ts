@@ -1,6 +1,6 @@
 import {
 	ReferrerInfo,
-	DriftClient,
+	VelocityClient,
 	PerpMarketAccount,
 	calculateAskPrice,
 	calculateBidPrice,
@@ -35,7 +35,7 @@ import {
 	PositionDirection,
 	PerpMarkets,
 	MMOraclePriceData,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 
 import {
@@ -100,7 +100,7 @@ import { LRUCache } from 'lru-cache';
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 import { TxThreaded } from './common/txThreaded';
 import { NodeToTriggerWithMakers } from '../experimental-bots/filler-common/types';
-import { PythLazerSubscriber } from '@drift-labs/sdk';
+import { PythLazerSubscriber } from '@velocity-exchange/sdk';
 
 const TX_COUNT_COOLDOWN_ON_BURST = 10; // send this many tx before resetting burst mode
 const FILL_ORDER_THROTTLE_BACKOFF = 1000; // the time to wait before trying to fill a throttled (error filling) node again
@@ -170,7 +170,7 @@ export class FillerBot extends TxThreaded implements Bot {
 	protected clockSubscriber: ClockSubscriber;
 	protected bulkAccountLoader?: BulkAccountLoader;
 	protected userStatsMapSubscriptionConfig: UserSubscriptionConfig;
-	protected driftClient: DriftClient;
+	protected velocityClient: VelocityClient;
 	/// Connection to use specifically for confirming transactions
 	protected txConfirmationConnection: Connection;
 	protected pollingIntervalMs: number;
@@ -246,7 +246,7 @@ export class FillerBot extends TxThreaded implements Bot {
 	constructor(
 		slotSubscriber: SlotSubscriber,
 		bulkAccountLoader: BulkAccountLoader | undefined,
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		userMap: UserMap | undefined,
 		runtimeSpec: RuntimeSpec,
 		globalConfig: GlobalConfig,
@@ -262,14 +262,14 @@ export class FillerBot extends TxThreaded implements Bot {
 		this.name = this.fillerConfig.botId;
 		this.dryRun = this.fillerConfig.dryRun;
 		this.slotSubscriber = slotSubscriber;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 
 		if (globalConfig.txConfirmationEndpoint) {
 			this.txConfirmationConnection = new Connection(
 				globalConfig.txConfirmationEndpoint
 			);
 		} else {
-			this.txConfirmationConnection = this.driftClient.connection;
+			this.txConfirmationConnection = this.velocityClient.connection;
 		}
 		this.bulkAccountLoader = bulkAccountLoader;
 		if (this.bulkAccountLoader) {
@@ -283,7 +283,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			};
 		} else {
 			this.userStatsMapSubscriptionConfig =
-				this.driftClient.userAccountSubscriptionConfig;
+				this.velocityClient.userAccountSubscriptionConfig;
 		}
 		this.runtimeSpec = runtimeSpec;
 		this.pollingIntervalMs =
@@ -313,7 +313,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			this.runtimeSpec.driftEnv === 'mainnet-beta'
 		) {
 			this.jupiterClient = new JupiterClient({
-				connection: this.driftClient.connection,
+				connection: this.velocityClient.connection,
 			});
 		}
 
@@ -357,12 +357,12 @@ export class FillerBot extends TxThreaded implements Bot {
 			ttl: TX_TIMEOUT_THRESHOLD_MS,
 			ttlResolution: 1000,
 		});
-		this.clockSubscriber = new ClockSubscriber(driftClient.connection, {
+		this.clockSubscriber = new ClockSubscriber(velocityClient.connection, {
 			commitment: 'finalized',
 			resubTimeoutMs: 5_000,
 		});
 
-		this.signerPubkey = this.driftClient.wallet.publicKey.toBase58();
+		this.signerPubkey = this.velocityClient.wallet.publicKey.toBase58();
 
 		// Pyth lazer: remember to remove devnet guard
 		if (this.globalConfig.driftEnv == 'devnet') {
@@ -514,8 +514,8 @@ export class FillerBot extends TxThreaded implements Bot {
 	}
 
 	protected async baseInit() {
-		const fillerSolBalance = await this.driftClient.connection.getBalance(
-			this.driftClient.authority
+		const fillerSolBalance = await this.velocityClient.connection.getBalance(
+			this.velocityClient.authority
 		);
 		this.hasEnoughSolToFill = fillerSolBalance >= this.minGasBalanceToFill;
 		logger.info(
@@ -527,11 +527,11 @@ export class FillerBot extends TxThreaded implements Bot {
 
 		// sync userstats once
 		const userStatsLoader = new BulkAccountLoader(
-			new Connection(this.driftClient.connection.rpcEndpoint),
+			new Connection(this.velocityClient.connection.rpcEndpoint),
 			'confirmed',
 			0
 		);
-		this.userStatsMap = new UserStatsMap(this.driftClient, userStatsLoader);
+		this.userStatsMap = new UserStatsMap(this.velocityClient, userStatsLoader);
 
 		logger.info(
 			`Initialized userStatsMap: ${this.userStatsMap.size()}, took: ${
@@ -543,7 +543,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		await this.pythLazerSubscriber?.subscribe();
 
 		this.lutAccounts.push(
-			...(await this.driftClient.fetchAllLookupTableAccounts())
+			...(await this.velocityClient.fetchAllLookupTableAccounts())
 		);
 
 		// initialize tx thread
@@ -567,7 +567,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			dlobSource: this.userMap!,
 			slotSource: this.slotSubscriber,
 			updateFrequency: this.pollingIntervalMs - 500,
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 		});
 		await this.dlobSubscriber.subscribe();
 	}
@@ -606,13 +606,13 @@ export class FillerBot extends TxThreaded implements Bot {
 	}
 
 	protected recordJitoBundleStats() {
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		const bundleStats = this.bundleSender?.getBundleStats();
 		if (bundleStats) {
 			this.jitoBundlesAcceptedGauge?.setLatestValue(bundleStats.accepted, {
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			});
 			this.jitoBundlesSimulationFailureGauge?.setLatestValue(
@@ -620,7 +620,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				{
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -628,7 +628,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				type: 'pruned',
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			});
 			this.jitoDroppedBundleGauge?.setLatestValue(
@@ -637,7 +637,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					type: 'blockhash_expired',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -647,7 +647,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					type: 'blockhash_not_found',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -661,7 +661,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					percentile: 'p25',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -671,7 +671,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					percentile: 'p50',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -681,7 +681,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					percentile: 'p75',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -691,7 +691,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					percentile: 'p95',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -701,7 +701,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					percentile: 'p99',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -711,7 +711,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					percentile: 'ema_p50',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -751,10 +751,10 @@ export class FillerBot extends TxThreaded implements Bot {
 	): Promise<DataAndSlot<UserAccount>> {
 		const user = await this.userMap!.mustGetWithSlot(
 			key,
-			this.driftClient.userAccountSubscriptionConfig
+			this.velocityClient.userAccountSubscriptionConfig
 		);
 		return {
-			data: user.data.getUserAccount(),
+			data: user.data.getUserAccountOrThrow(),
 			slot: user.slot,
 		};
 	}
@@ -783,7 +783,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		const marketIndex = market.marketIndex;
 
 		const mmOraclePriceData =
-			this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
+			this.velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 
 		const slot = new BN(this.slotSubscriber.getSlot());
 		const vAsk = calculateAskPrice(
@@ -804,7 +804,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			fillSlot,
 			mmOraclePriceData as MMOraclePriceData,
 			MarketType.PERP,
-			this.driftClient.getStateAccount()
+			this.velocityClient.getStateAccount()
 		);
 
 		return {
@@ -813,11 +813,12 @@ export class FillerBot extends TxThreaded implements Bot {
 				vBid,
 				vAsk,
 				fillSlot,
-				this.clockSubscriber.getUnixTs() - EXPIRE_ORDER_BUFFER_SEC,
+				(this.clockSubscriber.getUnixTs() ?? Date.now() / 1000) -
+					EXPIRE_ORDER_BUFFER_SEC,
 				MarketType.PERP,
 				mmOraclePriceData as MMOraclePriceData,
-				this.driftClient.getStateAccount(),
-				this.driftClient.getPerpMarketAccount(marketIndex)!
+				this.velocityClient.getStateAccount(),
+				this.velocityClient.getPerpMarketAccount(marketIndex)!
 			),
 			nodesToTrigger,
 		};
@@ -933,7 +934,7 @@ export class FillerBot extends TxThreaded implements Bot {
 
 		const marketIndex = nodeToFill.node.order.marketIndex;
 		const mmOraclePriceData =
-			this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
+			this.velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 
 		if (isOrderExpired(nodeToFill.node.order, Date.now() / 1000, true)) {
 			if (isOneOfVariant(nodeToFill.node.order.orderType, ['limit'])) {
@@ -946,11 +947,13 @@ export class FillerBot extends TxThreaded implements Bot {
 
 		const isVammFillable = isFillableByVAMMDetails(
 			nodeToFill.node.order,
-			this.driftClient.getPerpMarketAccount(nodeToFill.node.order.marketIndex)!,
+			this.velocityClient.getPerpMarketAccount(
+				nodeToFill.node.order.marketIndex
+			)!,
 			mmOraclePriceData as MMOraclePriceData,
 			this.getMaxSlot(),
 			Date.now() / 1000,
-			this.driftClient.getStateAccount()
+			this.velocityClient.getStateAccount()
 		);
 
 		if (
@@ -971,7 +974,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			logger.warn(
 				` .     calculateBaseAssetAmountForAmmToFulfill: ${calculateBaseAssetAmountForAmmToFulfill(
 					nodeToFill.node.order,
-					this.driftClient.getPerpMarketAccount(
+					this.velocityClient.getPerpMarketAccount(
 						nodeToFill.node.order.marketIndex
 					)!,
 					mmOraclePriceData as MMOraclePriceData,
@@ -1114,7 +1117,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				continue;
 			}
 
-			if (isEndIxLog(this.driftClient.program.programId.toBase58(), log)) {
+			if (isEndIxLog(this.velocityClient.program.programId.toBase58(), log)) {
 				if (inFillIx && !errorThisFillIx) {
 					successCount++;
 				}
@@ -1173,7 +1176,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					`Throttling maker breached maintenance margin: ${makerBreachedMaintenanceMargin}`
 				);
 				this.setThrottledNode(makerBreachedMaintenanceMargin);
-				this.driftClient
+				this.velocityClient
 					.forceCancelOrders(
 						new PublicKey(makerBreachedMaintenanceMargin),
 						(
@@ -1201,12 +1204,12 @@ export class FillerBot extends TxThreaded implements Bot {
 							!(e as Error).message.includes('Transaction was not confirmed')
 						) {
 							if (errorCode) {
-								const user = this.driftClient.getUser();
+								const user = this.velocityClient.getUser();
 								this.txSimErrorCounter?.add(1, {
 									errorCode: errorCode.toString(),
 									...metricAttrFromUserAccount(
 										user.userAccountPublicKey,
-										user.getUserAccount()
+										user.getUserAccountOrThrow()
 									),
 								});
 							}
@@ -1237,7 +1240,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				this.setThrottledNode(takerNodeSignature);
 				errorThisFillIx = true;
 
-				this.driftClient
+				this.velocityClient
 					.forceCancelOrders(
 						new PublicKey(filledNode.node.userAccount!),
 						(
@@ -1267,12 +1270,12 @@ export class FillerBot extends TxThreaded implements Bot {
 							!(e as Error).message.includes('Transaction was not confirmed')
 						) {
 							if (errorCode) {
-								const user = this.driftClient.getUser();
+								const user = this.velocityClient.getUser();
 								this.txSimErrorCounter?.add(1, {
 									errorCode: errorCode.toString(),
 									...metricAttrFromUserAccount(
 										user.userAccountPublicKey,
-										user.getUserAccount()
+										user.getUserAccountOrThrow()
 									),
 								});
 							}
@@ -1379,7 +1382,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		if (buildForBundle) {
 			tx.sign([
 				// @ts-ignore;
-				this.driftClient.wallet.payer,
+				this.velocityClient.wallet.payer,
 			]);
 			const txSig = bs58.encode(tx.signatures[0]);
 			this.sendTxThroughJito(tx, fillTxId, txSig);
@@ -1403,7 +1406,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		}
 
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash({
+			await this.velocityClient.connection.getLatestBlockhash({
 				commitment: 'confirmed',
 			});
 
@@ -1420,11 +1423,11 @@ export class FillerBot extends TxThreaded implements Bot {
 		}
 		if (
 			isVariant(
-				this.driftClient.getPerpMarketAccount(marketIndex)?.amm.oracleSource,
+				this.velocityClient.getPerpMarketAccount(marketIndex)?.oracleSource,
 				'prelaunch'
 			)
 		) {
-			// crankMarketIndex = getStaleOracleMarketIndexes(this.driftClient,
+			// crankMarketIndex = getStaleOracleMarketIndexes(this.velocityClient,
 			// 	this.pullOraclePerpMarketWhitelist,
 			// 	MarketType.PERP,
 			// 	1
@@ -1434,7 +1437,7 @@ export class FillerBot extends TxThreaded implements Bot {
 
 		const pythIxs = await getAllPythOracleUpdateIxs(
 			marketIndex,
-			this.driftClient,
+			this.velocityClient,
 			this.pythLazerSubscriber,
 			precedingIxs
 		);
@@ -1478,7 +1481,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				throw new Error('expected perp market type');
 			}
 
-			const user = this.driftClient.getUser();
+			const user = this.velocityClient.getUser();
 			let makerInfosToUse = makerInfos;
 			const buildTxWithMakerInfos = async (
 				makers: DataAndSlot<MakerInfo>[]
@@ -1498,34 +1501,36 @@ export class FillerBot extends TxThreaded implements Bot {
 						ComputeBudgetProgram.setComputeUnitPrice({
 							microLamports: Math.floor(
 								this.priorityFeeSubscriber.getCustomStrategyResult() *
-									this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+									this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier()
 							),
 						})
 					);
 				}
 				ixs.push(
-					await this.driftClient.getFillPerpOrderIx(
+					await this.velocityClient.getFillPerpOrderIx(
 						await getUserAccountPublicKey(
-							this.driftClient.program.programId,
+							this.velocityClient.program.programId,
 							takerUser.authority,
 							takerUser.subAccountId
 						),
 						takerUser,
 						nodeToFill.node.order!,
 						makers.map((m) => m.data),
-						referrerInfo
+						// referrer concept removed in velocity SDK; 5th arg is now
+						// fillerSubAccountId (number) — leave default.
+						undefined
 					)
 				);
 
 				this.fillingNodes.set(getNodeToFillSignature(nodeToFill), Date.now());
 
 				if (this.revertOnFailure) {
-					ixs.push(await this.driftClient.getRevertFillIx());
+					ixs.push(await this.velocityClient.getRevertFillIx());
 				}
 				const simResult = await simulateAndGetTxWithCUs({
 					ixs,
-					connection: this.driftClient.connection,
-					payerPublicKey: this.driftClient.wallet.publicKey,
+					connection: this.velocityClient.connection,
+					payerPublicKey: this.velocityClient.wallet.publicKey,
 					lookupTableAccounts: this.lutAccounts,
 					cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 					doSimulation: this.simulateTxForCUEstimate,
@@ -1538,7 +1543,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					simError: simResult.simError !== null,
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				});
 				this.estTxCuHistogram?.record(simResult.cuEstimate, {
@@ -1546,7 +1551,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					simError: simResult.simError !== null,
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				});
 
@@ -1685,7 +1690,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					ComputeBudgetProgram.setComputeUnitPrice({
 						microLamports: Math.floor(
 							this.priorityFeeSubscriber.getCustomStrategyResult() *
-								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+								this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier()
 						),
 					})
 				);
@@ -1735,16 +1740,18 @@ export class FillerBot extends TxThreaded implements Bot {
 				removeLastIxPostSim = false;
 			}
 
-			const ix = await this.driftClient.getFillPerpOrderIx(
+			const ix = await this.velocityClient.getFillPerpOrderIx(
 				await getUserAccountPublicKey(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					takerUser.authority,
 					takerUser.subAccountId
 				),
 				takerUser,
 				nodeToFill.node.order!,
 				makerInfos.map((m) => m.data),
-				referrerInfo
+				// referrer concept removed in velocity SDK; 5th arg is now
+				// fillerSubAccountId (number) — leave default.
+				undefined
 			);
 
 			if (!ix) {
@@ -1758,7 +1765,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			logger.info(
 				`including taker ${(
 					await getUserAccountPublicKey(
-						this.driftClient.program.programId,
+						this.velocityClient.program.programId,
 						takerUser.authority,
 						takerUser.subAccountId
 					)
@@ -1769,7 +1776,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			ixs.push(ix);
 
 			if (this.revertOnFailure) {
-				ixs.push(await this.driftClient.getRevertFillIx());
+				ixs.push(await this.velocityClient.getRevertFillIx());
 			}
 
 			const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts).bytes;
@@ -1800,12 +1807,12 @@ export class FillerBot extends TxThreaded implements Bot {
 			}
 
 			let simResult;
-			const user = this.driftClient.getUser();
+			const user = this.velocityClient.getUser();
 			try {
 				simResult = await simulateAndGetTxWithCUs({
 					ixs,
-					connection: this.driftClient.connection,
-					payerPublicKey: this.driftClient.wallet.publicKey,
+					connection: this.velocityClient.connection,
+					payerPublicKey: this.velocityClient.wallet.publicKey,
 					lookupTableAccounts: this.lutAccounts,
 					cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 					doSimulation: this.simulateTxForCUEstimate,
@@ -1825,7 +1832,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			});
 			this.estTxCuHistogram?.record(simResult.cuEstimate, {
@@ -1833,7 +1840,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			});
 
@@ -1951,7 +1958,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					ComputeBudgetProgram.setComputeUnitPrice({
 						microLamports: Math.floor(
 							this.priorityFeeSubscriber.getCustomStrategyResult() *
-								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier() *
+								this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier() *
 								(this.fillerConfig.triggerPriorityFeeMultiplier ?? 1.0)
 						),
 					})
@@ -1966,7 +1973,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			}
 
 			ixs.push(
-				await this.driftClient.getTriggerOrderIx(
+				await this.velocityClient.getTriggerOrderIx(
 					new PublicKey(nodeToTrigger.node.userAccount),
 					user.data,
 					nodeToTrigger.node.order
@@ -1984,7 +1991,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					const makerUserAccount = data;
 					const makerAuthority = makerUserAccount.authority;
 					const makerStats = getUserStatsAccountPublicKey(
-						this.driftClient.program.programId,
+						this.velocityClient.program.programId,
 						makerAuthority
 					);
 					return {
@@ -2014,20 +2021,22 @@ export class FillerBot extends TxThreaded implements Bot {
 				referrerInfo = undefined;
 			}
 
-			const driftUser = this.driftClient.getUser();
+			const driftUser = this.velocityClient.getUser();
 
 			const getSimResult = async (makerInfos: MakerInfo[]) => {
-				const fillIx = await this.driftClient.getFillPerpOrderIx(
+				const fillIx = await this.velocityClient.getFillPerpOrderIx(
 					new PublicKey(nodeToTrigger.node.userAccount),
 					user.data,
 					nodeToTrigger.node.order,
 					makerInfos,
-					referrerInfo
+					// referrer concept removed in velocity SDK; 5th arg is now
+					// fillerSubAccountId (number) — leave default.
+					undefined
 				);
 				ixs.push(fillIx);
 
 				if (this.revertOnFailure) {
-					ixs.push(await this.driftClient.getRevertFillIx());
+					ixs.push(await this.velocityClient.getRevertFillIx());
 				}
 
 				const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts).bytes;
@@ -2041,8 +2050,8 @@ export class FillerBot extends TxThreaded implements Bot {
 				}
 				const simResult = await simulateAndGetTxWithCUs({
 					ixs,
-					connection: this.driftClient.connection,
-					payerPublicKey: this.driftClient.wallet.publicKey,
+					connection: this.velocityClient.connection,
+					payerPublicKey: this.velocityClient.wallet.publicKey,
 					lookupTableAccounts: this.lutAccounts,
 					cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 					doSimulation: this.simulateTxForCUEstimate,
@@ -2079,7 +2088,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
 					driftUser.userAccountPublicKey,
-					driftUser.getUserAccount()
+					driftUser.getUserAccountOrThrow()
 				),
 			});
 			this.estTxCuHistogram?.record(simResult.cuEstimate, {
@@ -2087,7 +2096,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
 					driftUser.userAccountPublicKey,
-					driftUser.getUserAccount()
+					driftUser.getUserAccountOrThrow()
 				),
 			});
 
@@ -2108,7 +2117,7 @@ export class FillerBot extends TxThreaded implements Bot {
 						if (buildForBundle) {
 							simResult.tx.sign([
 								// @ts-ignore;
-								this.driftClient.wallet.payer,
+								this.velocityClient.wallet.payer,
 							]);
 							const txSig = bs58.encode(simResult.tx.signatures[0]);
 							this.sendTxThroughJito(simResult.tx, 'triggerOrder', txSig);
@@ -2131,24 +2140,24 @@ export class FillerBot extends TxThreaded implements Bot {
 			}
 		}
 
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		this.attemptedTriggersCounter?.add(
 			triggerableNodes.length,
 			metricAttrFromUserAccount(
 				user.userAccountPublicKey,
-				user.getUserAccount()
+				user.getUserAccountOrThrow()
 			)
 		);
 	}
 
 	protected async settlePnls() {
 		// Check if we have enough SOL to fill
-		const fillerSolBalance = await this.driftClient.connection.getBalance(
-			this.driftClient.authority
+		const fillerSolBalance = await this.velocityClient.connection.getBalance(
+			this.velocityClient.authority
 		);
 		this.hasEnoughSolToFill = fillerSolBalance >= this.minGasBalanceToFill;
 
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		const activePerpPositions = user.getActivePerpPositions().sort((a, b) => {
 			return b.quoteAssetAmount.sub(a.quoteAssetAmount).toNumber();
 		});
@@ -2201,17 +2210,18 @@ export class FillerBot extends TxThreaded implements Bot {
 								ComputeBudgetProgram.setComputeUnitPrice({
 									microLamports: Math.floor(
 										this.priorityFeeSubscriber.getCustomStrategyResult() *
-											this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+											this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier()
 									),
 								})
 							);
 						}
 						ixs.push(
-							...(await this.driftClient.getSettlePNLsIxs(
+							...(await this.velocityClient.getSettlePNLsIxs(
 								[
 									{
 										settleeUserAccountPublicKey: user.getUserAccountPublicKey(),
-										settleeUserAccount: this.driftClient.getUserAccount()!,
+										settleeUserAccount:
+											this.velocityClient.getUserAccountOrThrow()!,
 									},
 								],
 								marketIdChunks
@@ -2220,8 +2230,8 @@ export class FillerBot extends TxThreaded implements Bot {
 
 						const simResult = await simulateAndGetTxWithCUs({
 							ixs,
-							connection: this.driftClient.connection,
-							payerPublicKey: this.driftClient.wallet.publicKey,
+							connection: this.velocityClient.connection,
+							payerPublicKey: this.velocityClient.wallet.publicKey,
 							lookupTableAccounts: this.lutAccounts,
 							cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 							doSimulation: this.simulateTxForCUEstimate,
@@ -2233,7 +2243,7 @@ export class FillerBot extends TxThreaded implements Bot {
 							simError: simResult.simError !== null,
 							...metricAttrFromUserAccount(
 								user.userAccountPublicKey,
-								user.getUserAccount()
+								user.getUserAccountOrThrow()
 							),
 						});
 						this.estTxCuHistogram?.record(simResult.cuEstimate, {
@@ -2241,7 +2251,7 @@ export class FillerBot extends TxThreaded implements Bot {
 							simError: simResult.simError !== null,
 							...metricAttrFromUserAccount(
 								user.userAccountPublicKey,
-								user.getUserAccount()
+								user.getUserAccountOrThrow()
 							),
 						});
 
@@ -2263,7 +2273,7 @@ export class FillerBot extends TxThreaded implements Bot {
 								if (buildForBundle) {
 									simResult.tx.sign([
 										// @ts-ignore;
-										this.driftClient.wallet.payer,
+										this.velocityClient.wallet.payer,
 									]);
 									const txSig = bs58.encode(simResult.tx.signatures[0]);
 									this.sendTxThroughJito(simResult.tx, 'settlePnl', txSig);
@@ -2300,8 +2310,9 @@ export class FillerBot extends TxThreaded implements Bot {
 		// If we are rebalancing, check if we have enough settled pnl in usdc account to rebalance,
 		// or if we have to go below threshold since we don't have enough sol
 		if (this.rebalanceFiller) {
-			const fillerDriftAccountUsdcBalance = this.driftClient.getTokenAmount(0);
-			const usdcSpotMarket = this.driftClient.getSpotMarketAccount(0);
+			const fillerDriftAccountUsdcBalance =
+				this.velocityClient.getTokenAmount(0);
+			const usdcSpotMarket = this.velocityClient.getSpotMarketAccount(0);
 			const normalizedFillerDriftAccountUsdcBalance =
 				fillerDriftAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
 
@@ -2325,13 +2336,13 @@ export class FillerBot extends TxThreaded implements Bot {
 			logger.info(`Swapping USDC for SOL to rebalance filler`);
 			swapFillerHardEarnedUSDCForSOL(
 				this.priorityFeeSubscriber,
-				this.driftClient,
+				this.velocityClient,
 				this.jupiterClient,
 				await this.getBlockhashForTx()
 			).then(async () => {
 				const fillerSolBalanceAfterSwap =
-					await this.driftClient.connection.getBalance(
-						this.driftClient.authority,
+					await this.velocityClient.connection.getBalance(
+						this.velocityClient.authority,
 						'processed'
 					);
 				this.hasEnoughSolToFill =
@@ -2438,12 +2449,12 @@ export class FillerBot extends TxThreaded implements Bot {
 			}
 
 			await tryAcquire(this.periodicTaskMutex).runExclusive(async () => {
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.lastTryFillTimeGauge?.setLatestValue(
 					Date.now(),
 					metricAttrFromUserAccount(
 						user.getUserAccountPublicKey(),
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					)
 				);
 
@@ -2453,7 +2464,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				// 1) get all fillable nodes
 				let fillableNodes: Array<NodeToFill> = [];
 				let triggerableNodes: Array<NodeToTriggerWithMakers> = [];
-				for (const market of this.driftClient.getPerpMarketAccounts()) {
+				for (const market of this.velocityClient.getPerpMarketAccounts()) {
 					try {
 						const { nodesToFill, nodesToTrigger } = this.getPerpNodesForMarket(
 							market,
@@ -2500,12 +2511,12 @@ export class FillerBot extends TxThreaded implements Bot {
 			});
 		} catch (e) {
 			if (e === E_ALREADY_LOCKED) {
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.mutexBusyCounter!.add(
 					1,
 					metricAttrFromUserAccount(
 						user.getUserAccountPublicKey(),
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					)
 				);
 			} else {
@@ -2520,19 +2531,19 @@ export class FillerBot extends TxThreaded implements Bot {
 			}
 		} finally {
 			this.clockSubscriberTs?.setLatestValue(
-				this.clockSubscriber.getUnixTs(),
+				this.clockSubscriber.getUnixTs() ?? Date.now() / 1000,
 				{}
 			);
 			this.wallClockTs?.setLatestValue(Date.now() / 1000, {});
 
 			if (ran) {
 				const duration = Date.now() - startTime;
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.tryFillDurationHistogram?.record(
 					duration,
 					metricAttrFromUserAccount(
 						user.getUserAccountPublicKey(),
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					)
 				);
 				logger.debug(`tryFill done, took ${duration}ms`);

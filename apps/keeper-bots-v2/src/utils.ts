@@ -7,10 +7,10 @@ import {
 	DLOB,
 	DLOBNode,
 	DataAndSlot,
-	DriftClient,
+	VelocityClient,
 	HeliusPriorityLevel,
 	JupiterClient,
-	DriftEnv,
+	VelocityEnv,
 	MakerInfo,
 	MarketType,
 	NodeToFill,
@@ -30,16 +30,12 @@ import {
 	WhileValidTxSender,
 	PriorityFeeSubscriberMap,
 	isOneOfVariant,
-	PhoenixV1FulfillmentConfigAccount,
-	PhoenixSubscriber,
 	BulkAccountLoader,
-	PollingDriftClientAccountSubscriber,
+	PollingVelocityClientAccountSubscriber,
 	isVariant,
 	SpotMarketConfig,
 	PerpMarketConfig,
-	DRIFT_ORACLE_RECEIVER_ID,
-	OpenbookV2FulfillmentConfigAccount,
-	OpenbookV2Subscriber,
+	VELOCITY_ORACLE_RECEIVER_ID,
 	OracleInfo,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	Order,
@@ -49,7 +45,7 @@ import {
 	MMOraclePriceData,
 	StateAccount,
 	PythLazerSubscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import {
 	NATIVE_MINT,
 	createAssociatedTokenAccountInstruction,
@@ -243,7 +239,7 @@ export async function waitForAllSubscribesToFinish(
 		(_, index) => !results[index]
 	);
 	if (falsePromises.length > 0) {
-		logger.info('waiting to subscribe to DriftClient and User');
+		logger.info('waiting to subscribe to VelocityClient and User');
 		await sleepMs(1000);
 		return waitForAllSubscribesToFinish(falsePromises);
 	} else {
@@ -343,7 +339,7 @@ export function calculateBaseAmountToMarketMakePerp(
 	targetLeverage = 1
 ) {
 	const basePriceNormed = convertToNumber(
-		perpMarketAccount.amm.historicalOracleData.lastOraclePriceTwap
+		perpMarketAccount.marketStats.historicalOracleData.lastOraclePriceTwap
 	);
 
 	const accountValueUsd = calculateAccountValueUsd(user);
@@ -389,8 +385,9 @@ export function isMarketVolatile(
 	volatileThreshold = 0.005 // 50 bps
 ) {
 	const twapPrice =
-		perpMarketAccount.amm.historicalOracleData.lastOraclePriceTwap5Min;
-	const lastPrice = perpMarketAccount.amm.historicalOracleData.lastOraclePrice;
+		perpMarketAccount.marketStats.historicalOracleData.lastOraclePriceTwap5Min;
+	const lastPrice =
+		perpMarketAccount.marketStats.historicalOracleData.lastOraclePrice;
 	const currentPrice = oraclePriceData.price;
 	const minDenom = BN.min(BN.min(currentPrice, lastPrice), twapPrice);
 	const cVsL =
@@ -403,7 +400,7 @@ export function isMarketVolatile(
 		) / PERCENTAGE_PRECISION.toNumber();
 
 	const recentStd =
-		perpMarketAccount.amm.oracleStd
+		perpMarketAccount.marketStats.oracleStd
 			.mul(PRICE_PRECISION)
 			.div(minDenom)
 			.toNumber() / PERCENTAGE_PRECISION.toNumber();
@@ -762,7 +759,7 @@ export function logMessageForNodeToFill(
 				takerPrice: convertToNumber(takerOrder.price, PRICE_PRECISION),
 				takerOrderPrice: getVariant(takerOrder.orderType),
 				takerOrderPriceOffset:
-					takerOrder.oraclePriceOffset / PRICE_PRECISION.toNumber(),
+					takerOrder.oraclePriceOffset.toNumber() / PRICE_PRECISION.toNumber(),
 				makers: makerInfos.length,
 				fillType,
 				fillId,
@@ -800,7 +797,8 @@ export function logMessageForNodeToFill(
 						),
 						makerOrderPrice: convertToNumber(makerOrder.price, PRICE_PRECISION),
 						makerOrderPriceOffset:
-							makerOrder.oraclePriceOffset / PRICE_PRECISION.toNumber(),
+							makerOrder.oraclePriceOffset.toNumber() /
+							PRICE_PRECISION.toNumber(),
 						fillType,
 						fillId,
 						revertOnFailure,
@@ -850,24 +848,24 @@ export function getTransactionAccountMetas(
 
 export async function swapFillerHardEarnedUSDCForSOL(
 	priorityFeeSubscriber: PriorityFeeSubscriber | PriorityFeeSubscriberMap,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	jupiterClient: JupiterClient,
 	blockhash: string,
 	subaccount?: number
 ) {
 	try {
-		const usdc = driftClient.getUser(subaccount).getTokenAmount(0);
-		const sol = driftClient.getUser(subaccount).getTokenAmount(1);
+		const usdc = velocityClient.getUser(subaccount).getTokenAmount(0);
+		const sol = velocityClient.getUser(subaccount).getTokenAmount(1);
 
 		console.log(
-			`${driftClient.authority.toBase58()} has ${convertToNumber(
+			`${velocityClient.authority.toBase58()} has ${convertToNumber(
 				usdc,
 				QUOTE_PRECISION
 			)} usdc, ${convertToNumber(sol, BASE_PRECISION)} sol`
 		);
 
-		const usdcMarket = driftClient.getSpotMarketAccount(0);
-		const solMarket = driftClient.getSpotMarketAccount(1);
+		const usdcMarket = velocityClient.getSpotMarketAccount(0);
+		const solMarket = velocityClient.getSpotMarketAccount(1);
 
 		if (!usdcMarket || !solMarket) {
 			console.log('Market not found, skipping...');
@@ -879,7 +877,7 @@ export async function swapFillerHardEarnedUSDCForSOL(
 
 		if (usdc.lt(new BN(1).mul(QUOTE_PRECISION))) {
 			console.log(
-				`${driftClient.authority.toBase58()} not enough USDC to swap (${convertToNumber(
+				`${velocityClient.authority.toBase58()} not enough USDC to swap (${convertToNumber(
 					usdc,
 					QUOTE_PRECISION
 				)}), skipping...`
@@ -900,7 +898,7 @@ export async function swapFillerHardEarnedUSDCForSOL(
 		const quoteInNum = convertToNumber(new BN(quote.inAmount), inPrecision);
 		const quoteOutNum = convertToNumber(new BN(quote.outAmount), outPrecision);
 		const swapPrice = quoteInNum / quoteOutNum;
-		const oracleData = driftClient.getOracleDataForSpotMarket(1);
+		const oracleData = velocityClient.getOracleDataForSpotMarket(1);
 		if (!oracleData) {
 			console.log('Oracle data not found, skipping...');
 			return;
@@ -916,11 +914,11 @@ export async function swapFillerHardEarnedUSDCForSOL(
 			`Quoted ${quoteInNum} USDC for ${quoteOutNum} SOL, swapPrice: ${swapPrice}, oraclePrice: ${oraclePrice}`
 		);
 
-		const driftLuts = await driftClient.fetchAllLookupTableAccounts();
+		const driftLuts = await velocityClient.fetchAllLookupTableAccounts();
 
 		const transaction = await jupiterClient.getSwap({
 			quote,
-			userPublicKey: driftClient.provider.wallet.publicKey,
+			userPublicKey: velocityClient.provider.wallet.publicKey,
 			slippageBps: JUPITER_SLIPPAGE_BPS,
 		});
 
@@ -939,42 +937,42 @@ export async function swapFillerHardEarnedUSDCForSOL(
 
 		const withdrawerWrappedSolAta = getAssociatedTokenAddressSync(
 			NATIVE_MINT,
-			driftClient.authority
+			velocityClient.authority
 		);
 
-		const solAccountInfo = await driftClient.connection.getAccountInfo(
+		const solAccountInfo = await velocityClient.connection.getAccountInfo(
 			withdrawerWrappedSolAta
 		);
 
 		if (!solAccountInfo) {
 			preInstructions.push(
-				driftClient.createAssociatedTokenAccountIdempotentInstruction(
+				velocityClient.createAssociatedTokenAccountIdempotentInstruction(
 					withdrawerWrappedSolAta,
-					driftClient.provider.wallet.publicKey,
-					driftClient.provider.wallet.publicKey,
+					velocityClient.provider.wallet.publicKey,
+					velocityClient.provider.wallet.publicKey,
 					solMarket.mint
 				)
 			);
 		}
 
-		const withdrawerUsdcAta = await driftClient.getAssociatedTokenAccount(0);
+		const withdrawerUsdcAta = await velocityClient.getAssociatedTokenAccount(0);
 
-		const usdcAccountInfo = await driftClient.connection.getAccountInfo(
+		const usdcAccountInfo = await velocityClient.connection.getAccountInfo(
 			withdrawerUsdcAta
 		);
 
 		if (!usdcAccountInfo) {
 			preInstructions.push(
-				driftClient.createAssociatedTokenAccountIdempotentInstruction(
+				velocityClient.createAssociatedTokenAccountIdempotentInstruction(
 					withdrawerUsdcAta,
-					driftClient.provider.wallet.publicKey,
-					driftClient.provider.wallet.publicKey,
+					velocityClient.provider.wallet.publicKey,
+					velocityClient.provider.wallet.publicKey,
 					usdcMarket.mint
 				)
 			);
 		}
 
-		const withdrawIx = await driftClient.getWithdrawIx(
+		const withdrawIx = await velocityClient.getWithdrawIx(
 			usdc.muln(10), // gross overestimate just to get everything out of the account
 			0,
 			withdrawerUsdcAta,
@@ -984,8 +982,8 @@ export async function swapFillerHardEarnedUSDCForSOL(
 
 		const closeAccountInstruction = createCloseAccountInstruction(
 			withdrawerWrappedSolAta,
-			driftClient.authority,
-			driftClient.authority
+			velocityClient.authority,
+			velocityClient.authority
 		);
 
 		const ixs = [
@@ -997,7 +995,7 @@ export async function swapFillerHardEarnedUSDCForSOL(
 
 		const buildTx = (cu: number): VersionedTransaction => {
 			return getVersionedTransaction(
-				driftClient.txSender.wallet.publicKey,
+				velocityClient.txSender.wallet.publicKey,
 				[
 					ComputeBudgetProgram.setComputeUnitLimit({
 						units: cu,
@@ -1021,7 +1019,7 @@ export async function swapFillerHardEarnedUSDCForSOL(
 			);
 		};
 
-		const simTxResult = await driftClient.connection.simulateTransaction(
+		const simTxResult = await velocityClient.connection.simulateTransaction(
 			buildTx(1_400_000),
 			{
 				replaceRecentBlockhash: true,
@@ -1039,14 +1037,14 @@ export async function swapFillerHardEarnedUSDCForSOL(
 		}
 
 		console.log(
-			`${driftClient.authority.toBase58()} sending swap tx... ${
+			`${velocityClient.authority.toBase58()} sending swap tx... ${
 				performance.now() - start
 			}`
 		);
 
 		const txSender = new WhileValidTxSender({
-			connection: driftClient.connection,
-			wallet: driftClient.wallet,
+			connection: velocityClient.connection,
+			wallet: velocityClient.wallet,
 			retrySleep: 1000,
 		});
 
@@ -1054,14 +1052,14 @@ export async function swapFillerHardEarnedUSDCForSOL(
 			// @ts-ignore
 			buildTx(Math.floor(simTxResult.value.unitsConsumed * 1.2)),
 			[],
-			driftClient.opts
+			velocityClient.opts
 		);
 		console.log(`Swap tx: https://solana.fm/tx/${txSigAndSlot.txSig}`);
 	} catch (e) {
 		console.error(e);
 	}
 }
-export function getDriftPriorityFeeEndpoint(driftEnv: DriftEnv): string {
+export function getDriftPriorityFeeEndpoint(driftEnv: VelocityEnv): string {
 	switch (driftEnv) {
 		case 'devnet':
 		case 'mainnet-beta':
@@ -1086,7 +1084,7 @@ export function validRebalanceSettledPnlThreshold(
 }
 
 export const getStaleOracleMarketIndexes = (
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	markets: (PerpMarketConfig | SpotMarketConfig)[],
 	marketType: MarketType,
 	numFeeds = 2
@@ -1095,7 +1093,7 @@ export const getStaleOracleMarketIndexes = (
 		markets
 			.map((market) => {
 				if (isVariant(marketType, 'perp')) {
-					const oracleInfo = driftClient.getOracleDataForPerpMarket(
+					const oracleInfo = velocityClient.getOracleDataForPerpMarket(
 						market.marketIndex
 					);
 					if (!oracleInfo) return null;
@@ -1104,7 +1102,7 @@ export const getStaleOracleMarketIndexes = (
 						marketIndex: market.marketIndex,
 					};
 				} else {
-					const oracleInfo = driftClient.getOracleDataForSpotMarket(
+					const oracleInfo = velocityClient.getOracleDataForSpotMarket(
 						market.marketIndex
 					);
 					if (!oracleInfo) return null;
@@ -1128,7 +1126,7 @@ export const getStaleOracleMarketIndexes = (
 
 export const getAllPythOracleUpdateIxs = async (
 	marketIndex: number,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	pythLazerSubscriber?: PythLazerSubscriber | PythLazerSubscriberDeprecated,
 	precedingIxs: TransactionInstruction[] = []
 ): Promise<TransactionInstruction[]> => {
@@ -1143,7 +1141,7 @@ export const getAllPythOracleUpdateIxs = async (
 		);
 		return [];
 	}
-	return await driftClient.getPostPythLazerOracleUpdateIxs(
+	return await velocityClient.getPostPythLazerOracleUpdateIxs(
 		feedIds,
 		updateMessage,
 		precedingIxs
@@ -1162,173 +1160,6 @@ export function canFillSpotMarket(spotMarket: SpotMarketAccount): boolean {
 		return false;
 	}
 	return true;
-}
-
-export async function initializeSpotFulfillmentAccounts(
-	driftClient: DriftClient,
-	includeSubscribers = true,
-	marketsOfInterest?: number[]
-): Promise<{
-	phoenixFulfillmentConfigs: Map<number, PhoenixV1FulfillmentConfigAccount>;
-	openbookFulfillmentConfigs: Map<number, OpenbookV2FulfillmentConfigAccount>;
-	phoenixSubscribers?: Map<number, PhoenixSubscriber>;
-	openbookSubscribers?: Map<number, OpenbookV2Subscriber>;
-}> {
-	const phoenixFulfillmentConfigs = new Map<
-		number,
-		PhoenixV1FulfillmentConfigAccount
-	>();
-	const openbookFulfillmentConfigs = new Map<
-		number,
-		OpenbookV2FulfillmentConfigAccount
-	>();
-	const phoenixSubscribers = includeSubscribers
-		? new Map<number, PhoenixSubscriber>()
-		: undefined;
-	const openbookSubscribers = includeSubscribers
-		? new Map<number, OpenbookV2Subscriber>()
-		: undefined;
-
-	let accountSubscription:
-		| {
-				type: 'polling';
-				accountLoader: BulkAccountLoader;
-		  }
-		| {
-				type: 'websocket';
-		  };
-	if (
-		(driftClient.accountSubscriber as PollingDriftClientAccountSubscriber)
-			.accountLoader
-	) {
-		accountSubscription = {
-			type: 'polling',
-			accountLoader: (
-				driftClient.accountSubscriber as PollingDriftClientAccountSubscriber
-			).accountLoader,
-		};
-	} else {
-		accountSubscription = {
-			type: 'websocket',
-		};
-	}
-	const marketSetupPromises: Promise<void>[] = [];
-	const subscribePromises: Promise<void>[] = [];
-
-	marketSetupPromises.push(
-		new Promise((resolve) => {
-			(async () => {
-				const phoenixMarketConfigs =
-					await driftClient.getPhoenixV1FulfillmentConfigs();
-				for (const config of phoenixMarketConfigs) {
-					if (
-						marketsOfInterest &&
-						!marketsOfInterest.includes(config.marketIndex)
-					) {
-						continue;
-					}
-					const spotMarket = driftClient.getSpotMarketAccount(
-						config.marketIndex
-					);
-					if (!spotMarket) {
-						logger.warn(
-							`SpotMarket not found for PhoenixV1FulfillmentConfig for marketIndex: ${config.marketIndex}`
-						);
-						continue;
-					}
-					const symbol = decodeName(spotMarket.name);
-
-					phoenixFulfillmentConfigs.set(config.marketIndex, config);
-
-					if (includeSubscribers && isVariant(config.status, 'enabled')) {
-						// set up phoenix price subscriber
-						const phoenixSubscriber = new PhoenixSubscriber({
-							connection: driftClient.connection,
-							programId: config.phoenixProgramId,
-							marketAddress: config.phoenixMarket,
-							accountSubscription,
-						});
-						logger.info(`Initializing PhoenixSubscriber for ${symbol}...`);
-						subscribePromises.push(
-							phoenixSubscriber.subscribe().then(() => {
-								phoenixSubscribers!.set(config.marketIndex, phoenixSubscriber);
-							})
-						);
-					}
-				}
-				resolve();
-			})();
-		})
-	);
-
-	marketSetupPromises.push(
-		new Promise((resolve) => {
-			(async () => {
-				const openbookMarketConfigs =
-					await driftClient.getOpenbookV2FulfillmentConfigs();
-				for (const config of openbookMarketConfigs) {
-					if (
-						marketsOfInterest &&
-						!marketsOfInterest.includes(config.marketIndex)
-					) {
-						continue;
-					}
-
-					const spotMarket = driftClient.getSpotMarketAccount(
-						config.marketIndex
-					);
-
-					if (!spotMarket) {
-						logger.warn(
-							`SpotMarket not found for OpenbookV2FulfillmentConfig for marketIndex: ${config.marketIndex}`
-						);
-						continue;
-					}
-
-					const symbol = decodeName(spotMarket.name);
-
-					openbookFulfillmentConfigs.set(config.marketIndex, config);
-
-					if (includeSubscribers && isVariant(config.status, 'enabled')) {
-						// set up openbook subscriber
-						const openbookSubscriber = new OpenbookV2Subscriber({
-							connection: driftClient.connection,
-							programId: config.openbookV2ProgramId,
-							marketAddress: config.openbookV2Market,
-							accountSubscription,
-						});
-						logger.info(`Initializing OpenbookSubscriber for ${symbol}...`);
-						subscribePromises.push(
-							openbookSubscriber.subscribe().then(() => {
-								openbookSubscribers!.set(
-									config.marketIndex,
-									openbookSubscriber
-								);
-							})
-						);
-					}
-				}
-				resolve();
-			})();
-		})
-	);
-
-	const marketSetupStart = Date.now();
-	logger.info(`Waiting for spot market startup...`);
-	await Promise.all(marketSetupPromises);
-	logger.info(`Market setup finished in ${Date.now() - marketSetupStart}ms`);
-
-	const subscribeStart = Date.now();
-	logger.info(`Waiting for spot markets to subscribe...`);
-	await Promise.all(subscribePromises);
-	logger.info(`Subscribed to spot markets in ${Date.now() - subscribeStart}ms`);
-
-	return {
-		phoenixFulfillmentConfigs,
-		openbookFulfillmentConfigs,
-		phoenixSubscribers,
-		openbookSubscribers,
-	};
 }
 
 export const chunks = <T>(array: readonly T[], size: number): T[][] => {
@@ -1356,7 +1187,7 @@ export const shuffle = <T>(array: T[]): T[] => {
 
 export function removePythIxs(
 	ixs: TransactionInstruction[],
-	receiverPublicKeyStr: string = DRIFT_ORACLE_RECEIVER_ID
+	receiverPublicKeyStr: string = VELOCITY_ORACLE_RECEIVER_ID
 ): TransactionInstruction[] {
 	return ixs.filter(
 		(ix) =>
@@ -1576,7 +1407,7 @@ export function isFillableByVAMMDetails(
 			mmOraclePriceData,
 			slot
 		);
-	const minOrderSize = market.amm.minOrderSize;
+	const minOrderSize = market.marketStats.minOrderSize;
 	const orderExpired = isOrderExpired(order, ts);
 	return {
 		fillable:

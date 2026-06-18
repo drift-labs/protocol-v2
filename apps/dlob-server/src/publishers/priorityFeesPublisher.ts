@@ -194,9 +194,11 @@ const main = async () => {
 	});
 	await velocityClient.subscribe();
 
-	const perpMarketPubkeys = velocityClient.getPerpMarketAccounts().map((acct) => {
-		return { marketIndex: acct.marketIndex, pubkey: acct.pubkey.toString() };
-	});
+	const perpMarketPubkeys = velocityClient
+		.getPerpMarketAccounts()
+		.map((acct) => {
+			return { marketIndex: acct.marketIndex, pubkey: acct.pubkey.toString() };
+		});
 
 	const usdcMarket = velocityClient.getSpotMarketAccount(0).pubkey.toString();
 	const spotMarketPubkeys: { marketIndex: number; pubkeys: string[] }[] = [];
@@ -244,4 +246,11 @@ async function recursiveTryCatch(f: () => void) {
 
 recursiveTryCatch(() => main());
 
-export { sdkConfig, endpoint, wsEndpoint, driftEnv, commitHash, velocityClient };
+export {
+	sdkConfig,
+	endpoint,
+	wsEndpoint,
+	driftEnv,
+	commitHash,
+	velocityClient,
+};

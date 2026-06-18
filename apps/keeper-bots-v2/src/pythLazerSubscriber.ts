@@ -1,5 +1,5 @@
 import { Channel, PythLazerClient } from '@pythnetwork/pyth-lazer-sdk';
-import { DriftEnv, PerpMarkets } from '@drift-labs/sdk';
+import { VelocityEnv, PerpMarkets } from '@velocity-exchange/sdk';
 import { RedisClient } from '@drift-labs/common/clients';
 import * as axios from 'axios';
 
@@ -31,7 +31,7 @@ export class PythLazerSubscriber {
 		private endpoints: string[],
 		private token: string,
 		private priceFeedArrays: PythLazerPriceFeedArray[],
-		env: DriftEnv = 'devnet',
+		env: VelocityEnv = 'devnet',
 		private redisClient?: RedisClient,
 		private httpEndpoints: string[] = [],
 		private resubTimeoutMs: number = 2000

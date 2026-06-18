@@ -294,7 +294,9 @@ const getMarketsAndOraclesToLoad = (
 	};
 };
 
-const initializeAllMarketSubscribers = async (velocityClient: VelocityClient) => {
+const initializeAllMarketSubscribers = async (
+	velocityClient: VelocityClient
+) => {
 	const markets: SubscriberLookup = {};
 
 	for (const market of velocityClient.getSpotMarketAccounts()) {
@@ -1039,4 +1041,11 @@ async function recursiveTryCatch(f: () => void) {
 
 recursiveTryCatch(() => main());
 
-export { sdkConfig, endpoint, wsEndpoint, driftEnv, commitHash, velocityClient };
+export {
+	sdkConfig,
+	endpoint,
+	wsEndpoint,
+	driftEnv,
+	commitHash,
+	velocityClient,
+};

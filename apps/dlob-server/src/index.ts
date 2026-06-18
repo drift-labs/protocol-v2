@@ -1138,4 +1138,11 @@ async function recursiveTryCatch(f: () => Promise<void>) {
 
 recursiveTryCatch(() => main());
 
-export { commitHash, velocityClient, driftEnv, endpoint, sdkConfig, wsEndpoint };
+export {
+	commitHash,
+	velocityClient,
+	driftEnv,
+	endpoint,
+	sdkConfig,
+	wsEndpoint,
+};

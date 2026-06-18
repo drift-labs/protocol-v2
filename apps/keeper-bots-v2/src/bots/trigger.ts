@@ -1,5 +1,5 @@
 import {
-	DriftClient,
+	VelocityClient,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	SlotSubscriber,
@@ -25,7 +25,7 @@ import {
 	getTriggerPrice,
 	useMedianTriggerPrice,
 	isOneOfVariant,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 
 import { logger } from '../logger';
@@ -83,7 +83,8 @@ function getPythLazerFeedIdChunks(
 		if (
 			!getVariant(market.oracleSource).toLowerCase().includes('lazer') ||
 			market.pythLazerId == undefined ||
-			(market.marketStatus &&
+			('marketStatus' in market &&
+				market.marketStatus &&
 				isOneOfVariant(market.marketStatus, ['delisted', 'settlement']))
 		) {
 			continue;
@@ -105,7 +106,7 @@ export class TriggerBot implements Bot {
 	public readonly dryRun: boolean;
 	public readonly defaultIntervalMs: number = 1000;
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private slotSubscriber: SlotSubscriber;
 	private globalConfig: GlobalConfig;
 	private triggerConfig: TriggerConfig;
@@ -143,7 +144,7 @@ export class TriggerBot implements Bot {
 	private marketIdToMultiplier: Map<string, number> = new Map();
 
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		slotSubscriber: SlotSubscriber,
 		blockhashSubscriber: BlockhashSubscriber,
 		userMap: UserMap,
@@ -156,7 +157,7 @@ export class TriggerBot implements Bot {
 		this.dryRun = config.dryRun;
 		this.triggerConfig = config;
 		this.globalConfig = globalConfig;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.userMap = userMap;
 		this.runtimeSpec = runtimeSpec;
 		this.slotSubscriber = slotSubscriber;
@@ -293,12 +294,12 @@ export class TriggerBot implements Bot {
 			dlobSource: this.userMap,
 			slotSource: this.slotSubscriber,
 			updateFrequency: this.defaultIntervalMs - 500,
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 		});
 		await this.dlobSubscriber.subscribe();
 
 		this.lookupTableAccounts =
-			await this.driftClient.fetchAllLookupTableAccounts();
+			await this.velocityClient.fetchAllLookupTableAccounts();
 
 		if (this.updateOracleWithTrigger && this.pythLazerClient) {
 			await this.pythLazerClient.subscribe();
@@ -340,7 +341,7 @@ export class TriggerBot implements Bot {
 		}
 
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash({
+			await this.velocityClient.connection.getLatestBlockhash({
 				commitment: 'confirmed',
 			});
 
@@ -398,7 +399,7 @@ export class TriggerBot implements Bot {
 			return [];
 		}
 		ixs.push(
-			...(await this.driftClient.getPostPythLazerOracleUpdateIxs(
+			...(await this.velocityClient.getPostPythLazerOracleUpdateIxs(
 				feedIds,
 				msg,
 				ixs
@@ -417,8 +418,8 @@ export class TriggerBot implements Bot {
 
 		try {
 			const oraclePriceData = isVariant(marketType, 'perp')
-				? this.driftClient.getOracleDataForPerpMarket(marketIndex)
-				: this.driftClient.getOracleDataForSpotMarket(marketIndex);
+				? this.velocityClient.getOracleDataForPerpMarket(marketIndex)
+				: this.velocityClient.getOracleDataForSpotMarket(marketIndex);
 
 			const offChainPrice = this.getOffChainOraclePrice(
 				marketType,
@@ -435,7 +436,7 @@ export class TriggerBot implements Bot {
 					market as PerpMarketAccount,
 					freshestOraclePrice,
 					new BN(Date.now() / 1000),
-					useMedianTriggerPrice(this.driftClient.getStateAccount())
+					useMedianTriggerPrice(this.velocityClient.getStateAccount())
 				);
 			}
 
@@ -445,7 +446,7 @@ export class TriggerBot implements Bot {
 				this.slotSubscriber.getSlot(),
 				triggerPrice,
 				marketType,
-				this.driftClient.getStateAccount()
+				this.velocityClient.getStateAccount()
 			);
 
 			for (const nodeToTrigger of nodesToTrigger) {
@@ -491,7 +492,7 @@ export class TriggerBot implements Bot {
 				const activePositions =
 					user.getActivePerpPositions().length +
 					user.getActiveSpotPositions().length;
-				const openOrders = user.getUserAccount().openOrders;
+				const openOrders = user.getUserAccountOrThrow().openOrders;
 				cuUnits += activePositions * 15_000;
 				cuUnits += openOrders * 5_000;
 
@@ -502,7 +503,7 @@ export class TriggerBot implements Bot {
 					ComputeBudgetProgram.setComputeUnitPrice({
 						microLamports: Math.floor(
 							this.priorityFeeSubscriber.getCustomStrategyResult() *
-								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier() *
+								this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier() *
 								(this.triggerConfig.triggerPriorityFeeMultiplier ?? 1.0)
 						),
 					}),
@@ -511,17 +512,17 @@ export class TriggerBot implements Bot {
 					ixs = await this.getOracleUpdateIxs(marketType, marketIndex, ixs);
 				}
 				ixs.push(
-					await this.driftClient.getTriggerOrderIx(
+					await this.velocityClient.getTriggerOrderIx(
 						new PublicKey(nodeToTrigger.node.userAccount),
-						user.getUserAccount(),
+						user.getUserAccountOrThrow(),
 						nodeToTrigger.node.order
 					)
 				);
 
-				ixs.push(await this.driftClient.getRevertFillIx());
+				ixs.push(await this.velocityClient.getRevertFillIx());
 
 				// const tx = getVersionedTransaction(
-				// 	this.driftClient.wallet.publicKey,
+				// 	this.velocityClient.wallet.publicKey,
 				// 	ixs,
 				// 	this.lookupTableAccounts!,
 				// 	await this.getBlockhashForTx()
@@ -529,8 +530,8 @@ export class TriggerBot implements Bot {
 
 				const resp = await simulateAndGetTxWithCUs({
 					ixs,
-					connection: this.driftClient.connection,
-					payerPublicKey: this.driftClient.wallet.publicKey,
+					connection: this.velocityClient.connection,
+					payerPublicKey: this.velocityClient.wallet.publicKey,
 					lookupTableAccounts: this.lookupTableAccounts!,
 					cuLimitMultiplier: 1.2,
 					doSimulation: true,
@@ -553,12 +554,12 @@ export class TriggerBot implements Bot {
 							`[DRY RUN] Would trigger ${marketTypeStr} order for user ${nodeToTrigger.node.userAccount.toString()}-${nodeToTrigger.node.order.orderId.toString()}`
 						);
 					} else {
-						this.driftClient
+						this.velocityClient
 							.sendTransaction(resp.tx)
 							.then((txSig) => {
 								this.triggerCounter!.add(1, {
 									marketType: marketTypeStr,
-									auth: this.driftClient.wallet.publicKey.toString(),
+									auth: this.velocityClient.wallet.publicKey.toString(),
 								});
 								logger.info(
 									`Triggered ${marketTypeStr}. user: ${nodeToTrigger.node.userAccount.toString()}-${nodeToTrigger.node.order.orderId.toString()}: ${
@@ -628,10 +629,10 @@ export class TriggerBot implements Bot {
 		try {
 			await tryAcquire(this.periodicTaskMutex).runExclusive(async () => {
 				await Promise.all([
-					this.driftClient.getPerpMarketAccounts().map((marketAccount) => {
+					this.velocityClient.getPerpMarketAccounts().map((marketAccount) => {
 						this.tryTriggerForMarket(marketAccount, MarketType.PERP);
 					}),
-					this.driftClient.getSpotMarketAccounts().map((marketAccount) => {
+					this.velocityClient.getSpotMarketAccounts().map((marketAccount) => {
 						this.tryTriggerForMarket(marketAccount, MarketType.SPOT);
 					}),
 				]);
@@ -639,12 +640,12 @@ export class TriggerBot implements Bot {
 			});
 		} catch (e) {
 			if (e === E_ALREADY_LOCKED) {
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.mutexBusyCounter!.add(
 					1,
 					metricAttrFromUserAccount(
 						user.getUserAccountPublicKey(),
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					)
 				);
 			} else {
@@ -659,7 +660,7 @@ export class TriggerBot implements Bot {
 			}
 		} finally {
 			if (ran) {
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 
 				const duration = Date.now() - start;
 				if (this.tryTriggerDurationHistogram) {
@@ -667,7 +668,7 @@ export class TriggerBot implements Bot {
 						duration,
 						metricAttrFromUserAccount(
 							user.getUserAccountPublicKey(),
-							user.getUserAccount()
+							user.getUserAccountOrThrow()
 						)
 					);
 				}

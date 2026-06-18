@@ -9,8 +9,8 @@ import {
 import { getWallet, sleepMs } from '../utils';
 import {
 	ConfirmationStrategy,
-	DriftClient,
-	DriftClientSubscriptionConfig,
+	VelocityClient,
+	VelocityClientSubscriptionConfig,
 	FastSingleTxSender,
 	getMarketsAndOraclesForSubscription,
 	loadKeypair,
@@ -20,9 +20,9 @@ import {
 	initialize,
 	WhileValidTxSender,
 	UserMap,
-	DriftClientConfig,
+	VelocityClientConfig,
 	configs,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import {
 	Commitment,
 	ConfirmOptions,
@@ -33,7 +33,7 @@ import {
 import { BundleSender } from '../bundleSender';
 import { FillerMultithreaded } from './filler/fillerMultithreaded';
 import http from 'http';
-import { promiseTimeout } from '@drift-labs/sdk';
+import { promiseTimeout } from '@velocity-exchange/sdk';
 import { SpotFillerMultithreaded } from './spotFiller/spotFillerMultithreaded';
 import { setGlobalDispatcher, Agent } from 'undici';
 import { SwiftMaker } from './swift/makerExample';
@@ -129,7 +129,7 @@ const heliusEndpoint = config.global.heliusEndpoint;
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
 logger.info(`Helius endpoint:  ${heliusEndpoint}`);
-logger.info(`DriftEnv:     ${config.global.driftEnv}`);
+logger.info(`VelocityEnv:     ${config.global.driftEnv}`);
 if (!endpoint) {
 	throw new Error('Must set environment variable ENDPOINT');
 }
@@ -214,7 +214,7 @@ const runBot = async () => {
 		});
 	}
 
-	const accountSubscription: DriftClientSubscriptionConfig = {
+	const accountSubscription: VelocityClientSubscriptionConfig = {
 		type: 'websocket',
 		resubTimeoutMs: config.global.resubTimeoutMs,
 	};
@@ -226,7 +226,7 @@ const runBot = async () => {
 	const marketLookupTables = configs[
 		config.global.driftEnv || 'mainnet-beta'
 	].MARKET_LOOKUP_TABLES.map((lut) => new PublicKey(lut));
-	const driftClientConfig: DriftClientConfig = {
+	const driftClientConfig: VelocityClientConfig = {
 		connection,
 		wallet,
 		programID: driftPublicKey,
@@ -241,9 +241,9 @@ const runBot = async () => {
 		marketLookupTables,
 		activeSubAccountId: config.global.subaccounts?.[0] || 0,
 	};
-	const driftClient = new DriftClient(driftClientConfig);
-	await driftClient.subscribe();
-	await driftClient.fetchAllLookupTableAccounts();
+	const velocityClient = new VelocityClient(driftClientConfig);
+	await velocityClient.subscribe();
+	await velocityClient.fetchAllLookupTableAccounts();
 
 	const slotSubscriber = new SlotSubscriber(connection, {
 		resubTimeoutMs: 10_000,
@@ -252,7 +252,7 @@ const runBot = async () => {
 
 	const lamportsBalance = await connection.getBalance(wallet.publicKey);
 	logger.info(
-		`DriftClient ProgramId: ${driftClient.program.programId.toBase58()}`
+		`VelocityClient ProgramId: ${velocityClient.program.programId.toBase58()}`
 	);
 	logger.info(`Wallet pubkey: ${wallet.publicKey.toBase58()}`);
 	logger.info(` . SOL balance: ${lamportsBalance / 10 ** 9}`);
@@ -310,7 +310,7 @@ const runBot = async () => {
 		const fillerMultithreaded = new FillerMultithreaded(
 			config.global,
 			config.botConfigs?.fillerMultithreaded,
-			driftClient,
+			velocityClient,
 			slotSubscriber,
 			{
 				rpcEndpoint: endpoint,
@@ -345,7 +345,7 @@ const runBot = async () => {
 		}
 
 		const spotFillerMultithreaded = new SpotFillerMultithreaded(
-			driftClient,
+			velocityClient,
 			slotSubscriber,
 			{
 				rpcEndpoint: endpoint,
@@ -365,7 +365,7 @@ const runBot = async () => {
 	if (configHasBot(config, 'swiftMaker')) {
 		const userMap = new UserMap({
 			connection,
-			driftClient,
+			velocityClient,
 			subscriptionConfig: {
 				type: 'polling',
 				frequency: 5000,
@@ -375,7 +375,7 @@ const runBot = async () => {
 		await userMap.subscribe();
 
 		const signedMsgMaker = new SwiftMaker(
-			driftClient,
+			velocityClient,
 			userMap,
 			{
 				rpcEndpoint: endpoint,
@@ -392,7 +392,7 @@ const runBot = async () => {
 	if (configHasBot(config, 'swiftPlacer')) {
 		const userMap = new UserMap({
 			connection,
-			driftClient,
+			velocityClient,
 			subscriptionConfig: {
 				type: 'websocket',
 				resubTimeoutMs: 30_000,
@@ -402,7 +402,7 @@ const runBot = async () => {
 		await userMap.subscribe();
 
 		const signedMsgMaker = new SwiftPlacer(
-			driftClient,
+			velocityClient,
 			slotSubscriber,
 			userMap,
 			{
@@ -418,7 +418,7 @@ const runBot = async () => {
 
 	if (configHasBot(config, 'swiftTaker')) {
 		const signedMsgMaker = new SwiftTaker(
-			driftClient,
+			velocityClient,
 			{
 				rpcEndpoint: endpoint,
 				commit: '',
@@ -433,7 +433,7 @@ const runBot = async () => {
 
 	if (configHasBot(config, 'lpTargetBaseCranker')) {
 		const lpTargetBaseCranker = new LpPoolTargetBaseCranker(
-			driftClient,
+			velocityClient,
 			config.botConfigs?.lpTargetBaseCranker?.intervalMs || 300_000,
 			config.botConfigs!.lpTargetBaseCranker!.lpPoolId
 		);
@@ -450,7 +450,7 @@ const runBot = async () => {
 	const createServerCallback = async (req: any, res: any) => {
 		if (req.url === '/health') {
 			/* @ts-ignore */
-			if (!driftClient.connection._rpcWebSocketConnected) {
+			if (!velocityClient.connection._rpcWebSocketConnected) {
 				logger.error(`Connection rpc websocket disconnected`);
 				res.writeHead(500);
 				res.end(`Connection rpc websocket disconnected`);

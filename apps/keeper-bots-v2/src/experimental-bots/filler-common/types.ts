@@ -9,7 +9,7 @@ import {
 	DLOBNode,
 	NodeToTrigger,
 	PublicKey,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 
 export type SerializedUserAccount = {
 	authority: string;
@@ -23,7 +23,6 @@ export type SerializedUserAccount = {
 	nextLiquidationId: number;
 	nextOrderId: number;
 	maxMarginRatio: number;
-	lastAddPerpLpSharesTs: string;
 	settledPerpPnl: string;
 	totalDeposits: string;
 	totalWithdraws: string;
@@ -50,7 +49,6 @@ export type SerializedOrder = {
 	marketIndex: number;
 	price: string;
 	baseAssetAmount: string;
-	quoteAssetAmount: string;
 	baseAssetAmountFilled: string;
 	quoteAssetAmountFilled: string;
 	direction: PositionDirection;
@@ -60,7 +58,7 @@ export type SerializedOrder = {
 	existingPositionDirection: PositionDirection;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
-	oraclePriceOffset: number;
+	oraclePriceOffset: string;
 	auctionDuration: number;
 	auctionStartPrice: string;
 	auctionEndPrice: string;
@@ -90,10 +88,7 @@ export type SerializedPerpPosition = {
 	openBids: string;
 	openAsks: string;
 	settledPnl: string;
-	lpShares: string;
 	remainderBaseAssetAmount: number;
-	lastQuoteAssetAmountPerLp: string;
-	perLpBase: number;
 	isolatedPositionScaledBalance: string;
 	positionFlag: number;
 };

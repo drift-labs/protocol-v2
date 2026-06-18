@@ -217,7 +217,7 @@ const main = async () => {
 		indicativeQuoteMaxAgeMs,
 		indicativeQuotesCacheTtlMs,
 		spotMarketPrecisionResolver: (marketIndex) =>
-			sdkConfig.SPOT_MARKETS[marketIndex]?.precision,
+			sdkConfig.SPOT_MARKETS[marketIndex]?.precision?.toNumber(),
 		publisherRedisClient: redisClient,
 		indicativeQuotesRedisClient,
 		metrics: {
@@ -379,4 +379,11 @@ async function recursiveTryCatch(f: () => void) {
 
 recursiveTryCatch(() => main());
 
-export { sdkConfig, endpoint, wsEndpoint, driftEnv, commitHash, velocityClient };
+export {
+	sdkConfig,
+	endpoint,
+	wsEndpoint,
+	driftEnv,
+	commitHash,
+	velocityClient,
+};

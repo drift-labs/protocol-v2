@@ -1,9 +1,9 @@
 import {
 	DevnetPerpMarkets,
-	DriftEnv,
+	VelocityEnv,
 	loadKeypair,
 	MainnetPerpMarkets,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Keypair } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 import parseArgs from 'minimist';
 
 export type SwiftOrderSubscriberConfig = {
-	driftEnv: DriftEnv;
+	driftEnv: VelocityEnv;
 	endpoint: string;
 	marketIndexes: number[];
 	keypair: Keypair;

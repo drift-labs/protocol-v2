@@ -1,5 +1,5 @@
 import {
-	DriftClient,
+	VelocityClient,
 	ZERO,
 	PerpMarketAccount,
 	isOneOfVariant,
@@ -9,9 +9,9 @@ import {
 	decodeName,
 	PublicKey,
 	PriorityFeeSubscriberMap,
-	DriftMarketInfo,
+	VelocityMarketInfo,
 	isVariant,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 
 import { getErrorCode, getErrorCodeFromSimError } from '../error';
@@ -81,7 +81,7 @@ export class FundingRateUpdaterBot implements Bot {
 	public readonly runOnce: boolean;
 	public readonly defaultIntervalMs: number = 120000; // run every 2 min
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private intervalIds: Array<NodeJS.Timer> = [];
 	private priorityFeeSubscriberMap?: PriorityFeeSubscriberMap;
 	private lookupTableAccounts?: AddressLookupTableAccount[];
@@ -90,30 +90,30 @@ export class FundingRateUpdaterBot implements Bot {
 	private watchdogTimerLastPatTime = Date.now();
 	private inProgress: boolean = false;
 
-	constructor(driftClient: DriftClient, config: BaseBotConfig) {
+	constructor(velocityClient: VelocityClient, config: BaseBotConfig) {
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.runOnce = config.runOnce ?? false;
 	}
 
 	public async init() {
-		const driftMarkets: DriftMarketInfo[] = [];
-		for (const perpMarket of this.driftClient.getPerpMarketAccounts()) {
-			driftMarkets.push({
+		const velocityMarkets: VelocityMarketInfo[] = [];
+		for (const perpMarket of this.velocityClient.getPerpMarketAccounts()) {
+			velocityMarkets.push({
 				marketType: 'perp',
 				marketIndex: perpMarket.marketIndex,
 			});
 		}
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
-			driftPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
-			driftMarkets,
+			velocityPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
+			velocityMarkets,
 			frequencyMs: 10_000,
 		});
 		await this.priorityFeeSubscriberMap!.subscribe();
 
 		this.lookupTableAccounts =
-			await this.driftClient.fetchAllLookupTableAccounts();
+			await this.velocityClient.fetchAllLookupTableAccounts();
 		logger.info(`[${this.name}] inited`);
 	}
 
@@ -166,7 +166,7 @@ export class FundingRateUpdaterBot implements Bot {
 				};
 			} = {};
 
-			for (const marketAccount of this.driftClient.getPerpMarketAccounts()) {
+			for (const marketAccount of this.velocityClient.getPerpMarketAccounts()) {
 				perpMarketAndOracleData[marketAccount.marketIndex] = {
 					marketAccount,
 				};
@@ -174,7 +174,7 @@ export class FundingRateUpdaterBot implements Bot {
 
 			for (
 				let i = 0;
-				i < this.driftClient.getPerpMarketAccounts().length;
+				i < this.velocityClient.getPerpMarketAccounts().length;
 				i++
 			) {
 				const perpMarket = perpMarketAndOracleData[i].marketAccount;
@@ -200,15 +200,15 @@ export class FundingRateUpdaterBot implements Bot {
 					continue;
 				}
 
-				if (perpMarket.amm.fundingPeriod.eq(ZERO)) {
+				if (perpMarket.marketStats.fundingPeriod.eq(ZERO)) {
 					continue;
 				}
 				const currentTs = Date.now() / 1000;
 
 				const timeRemainingTilUpdate = onTheHourUpdate(
 					currentTs,
-					perpMarket.amm.lastFundingRateTs.toNumber(),
-					perpMarket.amm.fundingPeriod.toNumber()
+					perpMarket.lastFundingRateTs.toNumber(),
+					perpMarket.marketStats.fundingPeriod.toNumber()
 				);
 				logger.info(
 					`[${this.name}] Perp market ${perpMarket.marketIndex} timeRemainingTilUpdate=${timeRemainingTilUpdate}`
@@ -217,11 +217,11 @@ export class FundingRateUpdaterBot implements Bot {
 					logger.info(
 						`[${this.name}] Perp market ${
 							perpMarket.marketIndex
-						} lastFundingRateTs: ${perpMarket.amm.lastFundingRateTs.toString()}, fundingPeriod: ${perpMarket.amm.fundingPeriod.toString()}, lastFunding+Period: ${perpMarket.amm.lastFundingRateTs
-							.add(perpMarket.amm.fundingPeriod)
+						} lastFundingRateTs: ${perpMarket.lastFundingRateTs.toString()}, fundingPeriod: ${perpMarket.marketStats.fundingPeriod.toString()}, lastFunding+Period: ${perpMarket.lastFundingRateTs
+							.add(perpMarket.marketStats.fundingPeriod)
 							.toString()} vs. currTs: ${currentTs.toString()}`
 					);
-					this.sendTxWithRetry(perpMarket.marketIndex, perpMarket.amm.oracle);
+					this.sendTxWithRetry(perpMarket.marketIndex, perpMarket.oracle);
 				}
 			}
 		} catch (e) {
@@ -259,26 +259,16 @@ export class FundingRateUpdaterBot implements Bot {
 				microLamports,
 			}),
 		];
-		const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
-		if (isVariant(perpMarket?.amm.oracleSource, 'switchboardOnDemand')) {
-			const crankIx =
-				await this.driftClient.getPostSwitchboardOnDemandUpdateAtomicIx(
-					perpMarket!.amm.oracle
-				);
-			if (crankIx) {
-				ixs.push(crankIx);
-			}
-		}
 		ixs.push(
-			await this.driftClient.getUpdateFundingRateIx(marketIndex, oracle)
+			await this.velocityClient.getUpdateFundingRateIx(marketIndex, oracle)
 		);
 
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash('confirmed');
+			await this.velocityClient.connection.getLatestBlockhash('confirmed');
 		const simResult = await simulateAndGetTxWithCUs({
 			ixs,
-			connection: this.driftClient.connection,
-			payerPublicKey: this.driftClient.wallet.publicKey,
+			connection: this.velocityClient.connection,
+			payerPublicKey: this.velocityClient.wallet.publicKey,
 			lookupTableAccounts: this.lookupTableAccounts!,
 			cuLimitMultiplier: CU_EST_MULTIPLIER,
 			doSimulation: true,
@@ -316,10 +306,10 @@ export class FundingRateUpdaterBot implements Bot {
 		}
 
 		const sendTxStart = Date.now();
-		const txSig = await this.driftClient.txSender.sendVersionedTransaction(
+		const txSig = await this.velocityClient.txSender.sendVersionedTransaction(
 			simResult.tx,
 			[],
-			this.driftClient.opts
+			this.velocityClient.opts
 		);
 		logger.info(
 			`[${

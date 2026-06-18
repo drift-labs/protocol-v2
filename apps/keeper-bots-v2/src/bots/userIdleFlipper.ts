@@ -1,12 +1,12 @@
 import {
 	BN,
-	DriftClient,
+	VelocityClient,
 	UserAccount,
 	PublicKey,
 	UserMap,
 	TxSigAndSlot,
 	BlockhashSubscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 
 import { logger } from '../logger';
@@ -28,7 +28,7 @@ export class UserIdleFlipperBot implements Bot {
 	public readonly runOnce: boolean;
 	public readonly defaultIntervalMs: number = 600000;
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private lookupTableAccounts?: AddressLookupTableAccount[];
 	private intervalIds: Array<NodeJS.Timer> = [];
 	private userMap: UserMap;
@@ -38,20 +38,20 @@ export class UserIdleFlipperBot implements Bot {
 	private watchdogTimerLastPatTime = Date.now();
 
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		config: BaseBotConfig,
 		blockhashSubscriber: BlockhashSubscriber
 	) {
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
 		this.runOnce = config.runOnce || false;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.userMap = new UserMap({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			subscriptionConfig: {
 				type: 'polling',
 				frequency: 60_000,
-				commitment: this.driftClient.opts?.commitment,
+				commitment: this.velocityClient.opts?.commitment,
 			},
 			skipInitialLoad: false,
 			includeIdle: false,
@@ -62,15 +62,15 @@ export class UserIdleFlipperBot implements Bot {
 	public async init() {
 		logger.info(`${this.name} initing`);
 
-		await this.driftClient.subscribe();
-		if (!(await this.driftClient.getUser().exists())) {
+		await this.velocityClient.subscribe();
+		if (!(await this.velocityClient.getUser().exists())) {
 			throw new Error(
-				`User for ${this.driftClient.wallet.publicKey.toString()} does not exist`
+				`User for ${this.velocityClient.wallet.publicKey.toString()} does not exist`
 			);
 		}
 		await this.userMap.subscribe();
 		this.lookupTableAccounts =
-			await this.driftClient.fetchAllLookupTableAccounts();
+			await this.velocityClient.fetchAllLookupTableAccounts();
 	}
 
 	public async reset() {
@@ -104,21 +104,21 @@ export class UserIdleFlipperBot implements Bot {
 	private async tryIdleUsers() {
 		try {
 			console.log('tryIdleUsers');
-			const currentSlot = await this.driftClient.connection.getSlot();
+			const currentSlot = await this.velocityClient.connection.getSlot();
 			const usersToIdle: Array<[PublicKey, UserAccount]> = [];
 			for (const user of this.userMap.values()) {
 				// dont mark isolated pool users idle
-				if (user.getUserAccount().poolId !== 0) {
+				if (user.getUserAccountOrThrow().poolId !== 0) {
 					continue;
 				}
 
 				if (user.canMakeIdle(new BN(currentSlot))) {
 					usersToIdle.push([
 						user.getUserAccountPublicKey(),
-						user.getUserAccount(),
+						user.getUserAccountOrThrow(),
 					]);
 					logger.info(
-						`Can idle user ${user.getUserAccount().authority.toBase58()}`
+						`Can idle user ${user.getUserAccountOrThrow().authority.toBase58()}`
 					);
 				}
 			}
@@ -167,7 +167,7 @@ export class UserIdleFlipperBot implements Bot {
 		}
 
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash({
+			await this.velocityClient.connection.getLatestBlockhash({
 				commitment: 'finalized',
 			});
 		if (!recentBlockhash) {
@@ -196,7 +196,7 @@ export class UserIdleFlipperBot implements Bot {
 			];
 			for (const [userAccountPublicKey, userAccount] of usersChunk) {
 				ixs.push(
-					await this.driftClient.getUpdateUserIdleIx(
+					await this.velocityClient.getUpdateUserIdleIx(
 						userAccountPublicKey,
 						userAccount
 					)
@@ -211,8 +211,8 @@ export class UserIdleFlipperBot implements Bot {
 			const recentBlockhash = await this.getBlockhashForTx();
 			const simResult = await simulateAndGetTxWithCUs({
 				ixs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts: this.lookupTableAccounts!,
 				cuLimitMultiplier: 1.1,
 				doSimulation: true,
@@ -231,10 +231,10 @@ export class UserIdleFlipperBot implements Bot {
 				success = false;
 			} else {
 				const txSigAndSlot =
-					await this.driftClient.txSender.sendVersionedTransaction(
+					await this.velocityClient.txSender.sendVersionedTransaction(
 						simResult.tx,
 						[],
-						this.driftClient.opts
+						this.velocityClient.opts
 					);
 				this.logTxAndSlotForUsers(txSigAndSlot, usersChunk);
 				success = true;

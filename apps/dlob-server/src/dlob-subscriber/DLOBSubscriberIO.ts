@@ -178,8 +178,12 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 					let bestBid = bestDlobBid;
 					let bestAsk = bestDlobAsk;
 					if (marketType === 'perp') {
+						const perpMarketAccount = this.velocityClient.getPerpMarketAccount(
+							marketArgs.marketIndex
+						);
 						const [bestVammBid, bestVammAsk] = calculateBidAskPrice(
-							this.velocityClient.getPerpMarketAccount(marketArgs.marketIndex).amm,
+							perpMarketAccount.amm,
+							perpMarketAccount.marketStats,
 							this.velocityClient.getMMOracleDataForPerpMarket(
 								marketArgs.marketIndex
 							),
@@ -220,7 +224,7 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 										baseAssetAmount: ZERO,
 										immediateOrCancel: false,
 										direction: PositionDirection.LONG,
-										oraclePriceOffset: 0,
+										oraclePriceOffset: ZERO,
 										maxTs: new BN(quote['ts'] + 1000),
 										reduceOnly: false,
 										triggerCondition: OrderTriggerCondition.ABOVE,
@@ -235,7 +239,6 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 										triggerPrice: ZERO,
 										baseAssetAmountFilled: ZERO,
 										quoteAssetAmountFilled: ZERO,
-										quoteAssetAmount: ZERO,
 										bitFlags: 0,
 										postedSlotTail: 0,
 									};
@@ -249,8 +252,8 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 												orderId: indicativeOrderId,
 												baseAssetAmount: new BN(quote['bid_size']),
 												oraclePriceOffset: quote['is_oracle_offset']
-													? quote['bid_price']
-													: 0,
+													? new BN(quote['bid_price'])
+													: ZERO,
 												price: quote['is_oracle_offset']
 													? ZERO
 													: new BN(quote['bid_price']),
@@ -264,14 +267,13 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 										if (bestBid && limitPrice.gt(bestBid)) {
 											indicativeBid = Object.assign({}, indicativeBid, {
 												price: bestBid,
-												oraclePriceOffset: 0,
+												oraclePriceOffset: ZERO,
 											});
 										}
 										this.dlob.insertOrder(
 											indicativeBid,
 											INDICATIVE_QUOTES_PUBKEY,
 											this.slotSource.getSlot(),
-											false,
 											indicativeBid.baseAssetAmount
 										);
 										indicativeOrderId += 1;
@@ -283,8 +285,8 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 											{
 												orderId: indicativeOrderId,
 												oraclePriceOffset: quote['is_oracle_offset']
-													? quote['ask_price']
-													: 0,
+													? new BN(quote['ask_price'])
+													: ZERO,
 												price: quote['is_oracle_offset']
 													? ZERO
 													: new BN(quote['ask_price']),
@@ -300,14 +302,13 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 										if (bestAsk && limitPrice.lt(bestAsk)) {
 											indicativeAsk = Object.assign({}, indicativeAsk, {
 												price: bestAsk,
-												oraclePriceOffset: 0,
+												oraclePriceOffset: ZERO,
 											});
 										}
 										this.dlob.insertOrder(
 											indicativeAsk,
 											INDICATIVE_QUOTES_PUBKEY,
 											this.slotSource.getSlot(),
-											false,
 											indicativeAsk.baseAssetAmount
 										);
 										indicativeOrderId += 1;
@@ -339,13 +340,17 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 		const dlobSlot = this.slotSource.getSlot();
 		const oracleData =
 			marketType === 'perp'
-				? this.velocityClient.getMMOracleDataForPerpMarket(marketArgs.marketIndex)
-				: this.velocityClient.getOracleDataForSpotMarket(marketArgs.marketIndex);
+				? this.velocityClient.getMMOracleDataForPerpMarket(
+						marketArgs.marketIndex
+				  )
+				: this.velocityClient.getOracleDataForSpotMarket(
+						marketArgs.marketIndex
+				  );
 		const oracleSlot = oracleData.slot;
 		const isPerpMarketAndPrelaunchMarket =
 			marketType === 'perp' &&
 			isVariant(
-				this.velocityClient.getPerpMarketAccount(marketArgs.marketIndex).amm
+				this.velocityClient.getPerpMarketAccount(marketArgs.marketIndex)
 					.oracleSource,
 				'prelaunch'
 			);

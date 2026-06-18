@@ -1,6 +1,7 @@
 import { Athena } from '../client';
 
 export interface TakerFillVsOracleBpsResult {
+	Time?: string;
 	MarketIndex: string;
 	TakerBuyBpsFromOracle_ALL: string | null;
 	TakerSellBpsFromOracle_ALL: string | null;

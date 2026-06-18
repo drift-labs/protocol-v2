@@ -97,10 +97,14 @@ export const getOracleForMarket = (
 	useMMOracleData = false
 ): number => {
 	if (isVariant(marketType, 'spot')) {
-		return velocityClient.getOracleDataForSpotMarket(marketIndex).price.toNumber();
+		return velocityClient
+			.getOracleDataForSpotMarket(marketIndex)
+			.price.toNumber();
 	} else if (isVariant(marketType, 'perp')) {
 		return useMMOracleData
-			? velocityClient.getMMOracleDataForPerpMarket(marketIndex).price.toNumber()
+			? velocityClient
+					.getMMOracleDataForPerpMarket(marketIndex)
+					.price.toNumber()
 			: velocityClient.getOracleDataForPerpMarket(marketIndex).price.toNumber();
 	}
 };
@@ -199,7 +203,9 @@ export const addMarketSlotToResponse = (
 	let marketSlot: number;
 	if (isVariant(marketType, 'perp')) {
 		marketSlot =
-			velocityClient.accountSubscriber.getMarketAccountAndSlot(marketIndex).slot;
+			velocityClient.accountSubscriber.getMarketAccountAndSlot(
+				marketIndex
+			).slot;
 	} else {
 		marketSlot =
 			velocityClient.accountSubscriber.getSpotMarketAccountAndSlot(

@@ -1,4 +1,10 @@
-import { BN, convertToNumber, divCeil, DLOBNode, ZERO } from '@drift-labs/sdk';
+import {
+	BN,
+	convertToNumber,
+	divCeil,
+	DLOBNode,
+	ZERO,
+} from '@velocity-exchange/sdk';
 import { MakerNodeMap, MAX_MAKERS_PER_FILL } from './bots/filler';
 
 const PROBABILITY_PRECISION = new BN(1000);

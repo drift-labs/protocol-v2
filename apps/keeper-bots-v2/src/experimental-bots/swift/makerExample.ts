@@ -1,5 +1,5 @@
 import {
-	DriftClient,
+	VelocityClient,
 	getLimitOrderParams,
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
@@ -14,7 +14,7 @@ import {
 	SignedMsgOrderParamsMessage,
 	UserMap,
 	ZERO,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { RuntimeSpec } from 'src/metrics';
 import WebSocket from 'ws';
 import nacl from 'tweetnacl';
@@ -38,7 +38,7 @@ export class SwiftMaker {
 	private isMainnet: boolean;
 	private pctIntoAuction: number;
 	constructor(
-		private driftClient: DriftClient,
+		private velocityClient: VelocityClient,
 		private userMap: UserMap,
 		runtimeSpec: RuntimeSpec,
 		private dryRun?: boolean
@@ -58,8 +58,8 @@ export class SwiftMaker {
 		});
 
 		this.priorityFeeSubscriber = new PriorityFeeSubscriberMap({
-			driftMarkets: perpMarketsToWatchForFees,
-			driftPriorityFeeEndpoint: 'https://dlob.drift.trade',
+			velocityMarkets: perpMarketsToWatchForFees,
+			velocityPriorityFeeEndpoint: 'https://dlob.drift.trade',
 		});
 	}
 
@@ -72,7 +72,7 @@ export class SwiftMaker {
 		/**
 			Make sure that WS_DELEGATE_KEY referrs to a keypair for an empty wallet, and that it has been added to 
 			ws_delegates for an authority. see here:
-			https://github.com/drift-labs/protocol-v2/blob/master/sdk/src/driftClient.ts#L1160-L1194
+			https://github.com/drift-labs/protocol-v2/blob/master/sdk/src/velocityClient.ts#L1160-L1194
 		*/
 		const keypair = process.env.WS_DELEGATE_KEY
 			? getWallet(process.env.WS_DELEGATE_KEY)[0]
@@ -157,7 +157,7 @@ export class SwiftMaker {
 					);
 				}
 
-				if (message['order'] && this.driftClient.isSubscribed) {
+				if (message['order'] && this.velocityClient.isSubscribed) {
 					const order = message['order'];
 					console.info(`uuid: ${order['uuid']} at ${Date.now()}`);
 
@@ -182,7 +182,7 @@ export class SwiftMaker {
 					const signedMessage:
 						| SignedMsgOrderParamsMessage
 						| SignedMsgOrderParamsDelegateMessage =
-						this.driftClient.decodeSignedMsgOrderParamsMessage(
+						this.velocityClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
 							isDelegateSigner
 						);
@@ -194,13 +194,13 @@ export class SwiftMaker {
 					const takerUserPubkey = isDelegateSigner
 						? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
 						: await getUserAccountPublicKey(
-								this.driftClient.program.programId,
+								this.velocityClient.program.programId,
 								takerAuthority,
 								(signedMessage as SignedMsgOrderParamsMessage).subAccountId
 						  );
 					const takerUserAccount = (
 						await this.userMap.mustGet(takerUserPubkey.toString())
-					).getUserAccount();
+					).getUserAccountOrThrow();
 
 					const isOrderLong = isVariant(signedMsgOrderParams.direction, 'long');
 					if (!signedMsgOrderParams.price) {
@@ -234,7 +234,7 @@ export class SwiftMaker {
 							const isOracleOffset =
 								signedMsgOrderParams.oraclePriceOffset !== null ||
 								!signedMsgOrderParams.price.eq(ZERO);
-							let price = this.driftClient.getOracleDataForPerpMarket(
+							let price = this.velocityClient.getOracleDataForPerpMarket(
 								signedMsgOrderParams.marketIndex
 							).price;
 							if (signedMsgOrderParams.auctionDuration !== null) {
@@ -245,7 +245,7 @@ export class SwiftMaker {
 								price = signedMsgOrderParams.auctionStartPrice!.add(offset);
 							}
 							const ixs =
-								await this.driftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+								await this.velocityClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 									{
 										orderParams: signedMsgOrderParamsBufHex,
 										signature: Buffer.from(order['order_signature'], 'base64'),
@@ -255,7 +255,7 @@ export class SwiftMaker {
 										taker: takerUserPubkey,
 										takerUserAccount,
 										takerStats: getUserStatsAccountPublicKey(
-											this.driftClient.program.programId,
+											this.velocityClient.program.programId,
 											takerUserAccount.authority
 										),
 										signingAuthority,
@@ -268,12 +268,11 @@ export class SwiftMaker {
 											: PositionDirection.LONG,
 										baseAssetAmount:
 											signedMsgOrderParams.baseAssetAmount.divn(2),
-										oraclePriceOffset: isOracleOffset ? price.toNumber() : null,
+										oraclePriceOffset: isOracleOffset ? price : null,
 										price: isOracleOffset ? ZERO : price,
 										postOnly: PostOnlyParams.MUST_POST_ONLY,
 										bitFlags: OrderParamsBitFlag.ImmediateOrCancel,
 									}),
-									undefined,
 									undefined,
 									computeBudgetIxs
 								);
@@ -284,12 +283,12 @@ export class SwiftMaker {
 							}
 
 							const resp = await simulateAndGetTxWithCUs({
-								connection: this.driftClient.connection,
-								payerPublicKey: this.driftClient.wallet.payer!.publicKey,
+								connection: this.velocityClient.connection,
+								payerPublicKey: this.velocityClient.wallet.payer!.publicKey,
 								ixs: [...computeBudgetIxs, ...ixs],
 								cuLimitMultiplier: 1.5,
 								lookupTableAccounts:
-									await this.driftClient.fetchAllLookupTableAccounts(),
+									await this.velocityClient.fetchAllLookupTableAccounts(),
 								doSimulation: true,
 							});
 							if (resp.simError) {
@@ -297,7 +296,7 @@ export class SwiftMaker {
 								return;
 							}
 
-							this.driftClient.txSender
+							this.velocityClient.txSender
 								.sendVersionedTransaction(resp.tx)
 								.then((response) => {
 									console.log(

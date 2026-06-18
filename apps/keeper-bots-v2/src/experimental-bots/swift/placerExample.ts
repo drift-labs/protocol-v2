@@ -3,8 +3,8 @@ import {
 	BlockhashSubscriber,
 	BN,
 	convertToNumber,
-	DriftClient,
-	DriftEnv,
+	VelocityClient,
+	VelocityEnv,
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
 	getVariant,
@@ -27,7 +27,7 @@ import {
 	SlotSubscriber,
 	UserMap,
 	ZERO,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { RuntimeSpec } from 'src/metrics';
 import WebSocket from 'ws';
 import nacl from 'tweetnacl';
@@ -65,7 +65,7 @@ export class SwiftPlacer {
 	private blockhashSubscriber: BlockhashSubscriber;
 	private readonly heartbeatIntervalMs = 80_000;
 	constructor(
-		private driftClient: DriftClient,
+		private velocityClient: VelocityClient,
 		private slotSubscriber: SlotSubscriber,
 		private userMap: UserMap,
 		private runtimeSpec: RuntimeSpec
@@ -85,14 +85,14 @@ export class SwiftPlacer {
 		});
 
 		this.priorityFeeSubscriber = new PriorityFeeSubscriberMap({
-			driftMarkets: perpMarketsToWatchForFees,
-			driftPriorityFeeEndpoint: this.baseDlobUrl,
+			velocityMarkets: perpMarketsToWatchForFees,
+			velocityPriorityFeeEndpoint: this.baseDlobUrl,
 		});
 
-		this.referrerMap = new ReferrerMap(driftClient, true);
+		this.referrerMap = new ReferrerMap(velocityClient, true);
 
 		this.blockhashSubscriber = new BlockhashSubscriber({
-			connection: driftClient.connection,
+			connection: velocityClient.connection,
 			updateIntervalMs: 2000,
 		});
 	}
@@ -109,7 +109,7 @@ export class SwiftPlacer {
 		/**
 		Make sure that WS_DELEGATE_KEY referrs to a keypair for an empty wallet, and that it has been added to
 		ws_delegates for an authority. see here:
-		https://github.com/drift-labs/protocol-v2/blob/master/sdk/src/driftClient.ts#L1160-L1194
+		https://github.com/drift-labs/protocol-v2/blob/master/sdk/src/velocityClient.ts#L1160-L1194
 	*/
 		const keypair = process.env.WS_DELEGATE_KEY
 			? getWallet(process.env.WS_DELEGATE_KEY)[0]
@@ -150,7 +150,7 @@ export class SwiftPlacer {
 					message['message'] === 'Authenticated'
 				) {
 					for (const perpMarket of PerpMarkets[
-						this.runtimeSpec.driftEnv as DriftEnv
+						this.runtimeSpec.driftEnv as VelocityEnv
 					]) {
 						console.log(
 							`Subscribing to perp market: ${perpMarket.marketIndex}`
@@ -166,7 +166,7 @@ export class SwiftPlacer {
 					}
 				}
 
-				if (message['order'] && this.driftClient.isSubscribed) {
+				if (message['order'] && this.velocityClient.isSubscribed) {
 					const order = message['order'];
 					const preDepositTx: string = message['deposit'] || '';
 					const signedMsgOrderParamsBufHex = Buffer.from(
@@ -188,7 +188,7 @@ export class SwiftPlacer {
 					const signedMessage:
 						| SignedMsgOrderParamsMessage
 						| SignedMsgOrderParamsDelegateMessage =
-						this.driftClient.decodeSignedMsgOrderParamsMessage(
+						this.velocityClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
 							isDelegateSigner
 						);
@@ -200,7 +200,7 @@ export class SwiftPlacer {
 					const takerUserPubkey = isDelegateSigner
 						? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
 						: await getUserAccountPublicKey(
-								this.driftClient.program.programId,
+								this.velocityClient.program.programId,
 								takerAuthority,
 								(signedMessage as SignedMsgOrderParamsMessage).subAccountId
 						  );
@@ -216,7 +216,7 @@ export class SwiftPlacer {
 					const takerUser = await this.userMap.mustGet(
 						takerUserPubkey.toString()
 					);
-					const takerUserAccount = takerUser.getUserAccount();
+					const takerUserAccount = takerUser.getUserAccountOrThrow();
 
 					if (!signedMsgOrderParams.price) {
 						console.error(
@@ -238,23 +238,24 @@ export class SwiftPlacer {
 						)
 					);
 
-					const ixs = await this.driftClient.getPlaceSignedMsgTakerPerpOrderIxs(
-						{
-							orderParams: signedMsgOrderParamsBufHex,
-							signature: Buffer.from(order['order_signature'], 'base64'),
-						},
-						signedMsgOrderParams.marketIndex,
-						{
-							taker: takerUserPubkey,
-							takerUserAccount,
-							takerStats: getUserStatsAccountPublicKey(
-								this.driftClient.program.programId,
-								takerUserAccount.authority
-							),
-							signingAuthority,
-						},
-						computeBudgetIxs
-					);
+					const ixs =
+						await this.velocityClient.getPlaceSignedMsgTakerPerpOrderIxs(
+							{
+								orderParams: signedMsgOrderParamsBufHex,
+								signature: Buffer.from(order['order_signature'], 'base64'),
+							},
+							signedMsgOrderParams.marketIndex,
+							{
+								taker: takerUserPubkey,
+								takerUserAccount,
+								takerStats: getUserStatsAccountPublicKey(
+									this.velocityClient.program.programId,
+									takerUserAccount.authority
+								),
+								signingAuthority,
+							},
+							computeBudgetIxs
+						);
 
 					const isOrderLong = isVariant(signedMsgOrderParams.direction, 'long');
 					let topMakers: string[] = [];
@@ -298,7 +299,7 @@ export class SwiftPlacer {
 						immediateOrCancel: false,
 						direction: signedMsgOrderParams.direction,
 						postOnly: false,
-						oraclePriceOffset: signedMsgOrderParams.oraclePriceOffset ?? 0,
+						oraclePriceOffset: signedMsgOrderParams.oraclePriceOffset ?? ZERO,
 						maxTs: signedMsgOrderParams.maxTs ?? ZERO,
 						reduceOnly: signedMsgOrderParams.reduceOnly ?? false,
 						triggerCondition:
@@ -311,7 +312,6 @@ export class SwiftPlacer {
 						triggerPrice: ZERO,
 						baseAssetAmountFilled: ZERO,
 						quoteAssetAmountFilled: ZERO,
-						quoteAssetAmount: ZERO,
 						bitFlags: signedMsgOrderParams.bitFlags,
 						postedSlotTail: 0,
 					};
@@ -322,10 +322,10 @@ export class SwiftPlacer {
 						makerInfos.push({
 							maker: new PublicKey(makerKey),
 							makerStats: getUserStatsAccountPublicKey(
-								this.driftClient.program.programId,
-								makerUser.getUserAccount().authority
+								this.velocityClient.program.programId,
+								makerUser.getUserAccountOrThrow().authority
 							),
-							makerUserAccount: makerUser.getUserAccount(),
+							makerUserAccount: makerUser.getUserAccountOrThrow(),
 						});
 					}
 
@@ -338,18 +338,18 @@ export class SwiftPlacer {
 						logger.warn(`getNodeFillInfo: Failed to get referrer info: ${e}`);
 					}
 
-					let fillIx = await this.driftClient.getFillPerpOrderIx(
+					let fillIx = await this.velocityClient.getFillPerpOrderIx(
 						takerUserPubkey,
 						takerUserAccount,
 						signedMsgOrder,
 						makerInfos,
-						referrerInfo,
+						// referrer param removed; 5th arg is fillerSubAccountId, 6th is isSignedMsg.
 						undefined,
 						true
 					);
 
 					const lookupTableAccounts =
-						await this.driftClient.fetchAllLookupTableAccounts();
+						await this.velocityClient.fetchAllLookupTableAccounts();
 
 					let txSize = getSizeOfTransaction(
 						[...computeBudgetIxs, ...ixs, fillIx],
@@ -365,12 +365,12 @@ export class SwiftPlacer {
 							break;
 						}
 						makerInfos.pop();
-						fillIx = await this.driftClient.getFillPerpOrderIx(
+						fillIx = await this.velocityClient.getFillPerpOrderIx(
 							takerUserPubkey,
 							takerUserAccount,
 							signedMsgOrder,
 							makerInfos,
-							referrerInfo,
+							// referrer param removed; 5th arg is fillerSubAccountId, 6th is isSignedMsg.
 							undefined,
 							true
 						);
@@ -412,7 +412,7 @@ export class SwiftPlacer {
 					if (hasPreDeposit) {
 						logger.info(`${logPrefix}: order with deposit: ${preDepositTx}`);
 						const preDepositTxRaw = Buffer.from(preDepositTx, 'base64');
-						this.driftClient.txSender
+						this.velocityClient.txSender
 							.sendRawTransaction(preDepositTxRaw, {
 								skipPreflight: true,
 								maxRetries: 0,
@@ -439,8 +439,8 @@ export class SwiftPlacer {
 
 					try {
 						resp = await simulateAndGetTxWithCUs({
-							connection: this.driftClient.connection,
-							payerPublicKey: this.driftClient.wallet.payer!.publicKey,
+							connection: this.velocityClient.connection,
+							payerPublicKey: this.velocityClient.wallet.payer!.publicKey,
 							ixs: simIxs,
 							cuLimitMultiplier: 2,
 							lookupTableAccounts,
@@ -456,8 +456,8 @@ export class SwiftPlacer {
 							);
 							try {
 								resp = await simulateAndGetTxWithCUs({
-									connection: this.driftClient.connection,
-									payerPublicKey: this.driftClient.wallet.payer!.publicKey,
+									connection: this.velocityClient.connection,
+									payerPublicKey: this.velocityClient.wallet.payer!.publicKey,
 									ixs: [...computeBudgetIxs, ...ixs],
 									cuLimitMultiplier: 2,
 									lookupTableAccounts,
@@ -485,8 +485,8 @@ export class SwiftPlacer {
 						);
 						try {
 							resp = await simulateAndGetTxWithCUs({
-								connection: this.driftClient.connection,
-								payerPublicKey: this.driftClient.wallet.payer!.publicKey,
+								connection: this.velocityClient.connection,
+								payerPublicKey: this.velocityClient.wallet.payer!.publicKey,
 								ixs: [...computeBudgetIxs, ...ixs],
 								cuLimitMultiplier: 2,
 								lookupTableAccounts,
@@ -515,7 +515,7 @@ export class SwiftPlacer {
 					);
 					logger.info(`${logPrefix}: placing order: ${orderStr}`);
 
-					this.driftClient.txSender
+					this.velocityClient.txSender
 						.sendVersionedTransaction(resp.tx)
 						.then((r) => {
 							logger.info(`${logPrefix}: placed order: ${r.txSig}`);

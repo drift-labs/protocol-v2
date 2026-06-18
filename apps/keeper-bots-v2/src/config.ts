@@ -8,10 +8,10 @@ import {
 import {
 	BN,
 	ConfirmationStrategy,
-	DriftEnv,
+	VelocityEnv,
 	MarketType,
 	PerpMarkets,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { JitMakerConfig } from './bots/jitMaker';
 import { PriceFeedProperty } from '@pythnetwork/pyth-lazer-sdk';
 
@@ -118,17 +118,6 @@ export type PythLazerCrankerBotConfig = BaseBotConfig & {
 	feedProperties?: PriceFeedProperty[];
 };
 
-export type SwitchboardCrankerBotConfig = BaseBotConfig & {
-	intervalMs: number;
-	queuePubkey: string;
-	pullFeedConfigs: {
-		[key: string]: {
-			pubkey: string;
-		};
-	};
-	writableAccounts?: string[];
-};
-
 export type LpPoolTargetBaseCrankerConfig = BaseBotConfig & {
 	intervalMs: number;
 	lpPoolId: number;
@@ -149,7 +138,6 @@ export type BotConfigMap = {
 	userIdleFlipper?: BaseBotConfig;
 	markTwapCrank?: MakerBidAskTwapCrankConfig;
 	pythLazerCranker?: PythLazerCrankerBotConfig;
-	switchboardCranker?: SwitchboardCrankerBotConfig;
 	swiftTaker?: BaseBotConfig;
 	swiftMaker?: BaseBotConfig;
 	swiftPlacer?: BaseBotConfig;
@@ -158,7 +146,7 @@ export type BotConfigMap = {
 };
 
 export interface GlobalConfig {
-	driftEnv: DriftEnv;
+	driftEnv: VelocityEnv;
 	/// rpc endpoint to use
 	endpoint: string;
 	/// ws endpoint to use (inferred from endpoint using web3.js rules, only provide if you want to use a different one)
@@ -233,7 +221,7 @@ export interface Config {
 
 const defaultConfig: Partial<Config> = {
 	global: {
-		driftEnv: (process.env.ENV ?? 'devnet') as DriftEnv,
+		driftEnv: (process.env.ENV ?? 'devnet') as VelocityEnv,
 		initUser: false,
 		testLiveness: false,
 		cancelOpenOrders: false,
@@ -344,7 +332,7 @@ export function loadConfigFromFile(path: string): Config {
 export function loadConfigFromOpts(opts: any): Config {
 	const config: Config = {
 		global: {
-			driftEnv: (process.env.ENV ?? 'devnet') as DriftEnv,
+			driftEnv: (process.env.ENV ?? 'devnet') as VelocityEnv,
 			endpoint: opts.endpoint ?? process.env.ENDPOINT,
 			wsEndpoint: opts.wsEndpoint ?? process.env.WS_ENDPOINT,
 			hermesEndpoint: opts.hermesEndpoint ?? process.env.HERMES_ENDPOINT,

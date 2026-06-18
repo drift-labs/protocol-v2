@@ -1,11 +1,11 @@
 import {
 	decodeName,
-	DriftClient,
+	VelocityClient,
 	getVariant,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	StateAccount,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 
 export type StateChecks = {
 	/// set true to check for new perp markets
@@ -22,7 +22,7 @@ export type StateChecks = {
 
 export type DriftStateWatcherConfig = {
 	/// access drift program
-	driftClient: DriftClient;
+	velocityClient: VelocityClient;
 	/// interval to check for updates
 	intervalMs: number;
 	/// state checks to perform
@@ -30,7 +30,7 @@ export type DriftStateWatcherConfig = {
 };
 
 /**
- * Watches for updates on the DriftClient
+ * Watches for updates on the VelocityClient
  */
 export class DriftStateWatcher {
 	private lastStateAccount?: StateAccount;
@@ -60,18 +60,18 @@ export class DriftStateWatcher {
 	}
 
 	public subscribe() {
-		if (!this.config.driftClient.isSubscribed) {
+		if (!this.config.velocityClient.isSubscribed) {
 			throw new Error(
-				'DriftClient must be subscribed before calling DriftStateWatcher.subscribe()'
+				'VelocityClient must be subscribed before calling DriftStateWatcher.subscribe()'
 			);
 		}
-		this.lastStateAccount = this.config.driftClient.getStateAccount();
+		this.lastStateAccount = this.config.velocityClient.getStateAccount();
 
-		for (const perpMarket of this.config.driftClient.getPerpMarketAccounts()) {
+		for (const perpMarket of this.config.velocityClient.getPerpMarketAccounts()) {
 			this.lastPerpMarketAccounts.set(perpMarket.marketIndex, perpMarket);
 		}
 
-		for (const spotMarket of this.config.driftClient.getSpotMarketAccounts()) {
+		for (const spotMarket of this.config.velocityClient.getSpotMarketAccounts()) {
 			this.lastSpotMarketAccounts.set(spotMarket.marketIndex, spotMarket);
 		}
 
@@ -95,7 +95,7 @@ export class DriftStateWatcher {
 		let spotMarketStatus = false;
 		let message = '';
 
-		const newStateAccount = this.config.driftClient.getStateAccount();
+		const newStateAccount = this.config.velocityClient.getStateAccount();
 		if (this.config.stateChecks.newPerpMarkets) {
 			if (
 				newStateAccount.numberOfMarkets !==
@@ -108,7 +108,7 @@ export class DriftStateWatcher {
 			}
 
 			if (this.config.stateChecks.perpMarketStatus) {
-				const perpMarkets = this.config.driftClient.getPerpMarketAccounts();
+				const perpMarkets = this.config.velocityClient.getPerpMarketAccounts();
 				for (const perpMarket of perpMarkets) {
 					const symbol = decodeName(perpMarket.name);
 					const lastPerpMarket = this.lastPerpMarketAccounts.get(
@@ -136,8 +136,8 @@ export class DriftStateWatcher {
 						break;
 					}
 
-					const newPerpOracle = perpMarket.amm.oracle;
-					const lastPerpOracle = lastPerpMarket.amm.oracle;
+					const newPerpOracle = perpMarket.oracle;
+					const lastPerpOracle = lastPerpMarket.oracle;
 					if (!newPerpOracle.equals(lastPerpOracle)) {
 						perpMarketStatus = true;
 						message += `Perp oracle changed: (marketIndex: ${
@@ -161,7 +161,7 @@ export class DriftStateWatcher {
 			}
 
 			if (this.config.stateChecks.spotMarketStatus) {
-				const spotMarkets = this.config.driftClient.getSpotMarketAccounts();
+				const spotMarkets = this.config.velocityClient.getSpotMarketAccounts();
 				for (const spotMarket of spotMarkets) {
 					const symbol = decodeName(spotMarket.name);
 					const lastSpotMarket = this.lastSpotMarketAccounts.get(

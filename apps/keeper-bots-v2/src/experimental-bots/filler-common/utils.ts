@@ -9,7 +9,7 @@ import {
 	RestingLimitOrderNode,
 	FloatingLimitOrderNode,
 	MarketOrderNode,
-	DriftClient,
+	VelocityClient,
 	initialize,
 	OracleInfo,
 	PerpMarketConfig,
@@ -22,9 +22,9 @@ import {
 	UserStatsAccount,
 	isVariant,
 	StateAccount,
-	DriftEnv,
+	VelocityEnv,
 	SignedMsgOrderNode,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { ComputeBudgetProgram, Connection, PublicKey } from '@solana/web3.js';
 import {
 	SerializedUserAccount,
@@ -49,7 +49,6 @@ export const serializeUserAccount = (
 		orders: userAccount.orders.map(serializeOrder),
 		spotPositions: userAccount.spotPositions.map(serializeSpotPosition),
 		perpPositions: userAccount.perpPositions.map(serializePerpPosition),
-		lastAddPerpLpSharesTs: userAccount.lastAddPerpLpSharesTs?.toString('hex'),
 		settledPerpPnl: userAccount.settledPerpPnl?.toString('hex'),
 		totalDeposits: userAccount.totalDeposits?.toString('hex'),
 		totalWithdraws: userAccount.totalWithdraws?.toString('hex'),
@@ -67,13 +66,13 @@ const serializeOrder = (order: Order): SerializedOrder => {
 		slot: order.slot?.toString('hex'),
 		price: order.price?.toString('hex'),
 		baseAssetAmount: order.baseAssetAmount?.toString('hex'),
-		quoteAssetAmount: order.quoteAssetAmount?.toString('hex'),
 		baseAssetAmountFilled: order.baseAssetAmountFilled?.toString('hex'),
 		quoteAssetAmountFilled: order.quoteAssetAmountFilled?.toString('hex'),
 		triggerPrice: order.triggerPrice?.toString('hex'),
 		auctionStartPrice: order.auctionStartPrice?.toString('hex'),
 		auctionEndPrice: order.auctionEndPrice?.toString('hex'),
 		maxTs: order.maxTs?.toString('hex'),
+		oraclePriceOffset: order.oraclePriceOffset?.toString('hex'),
 	};
 };
 
@@ -103,9 +102,6 @@ const serializePerpPosition = (
 		openBids: position.openBids?.toString('hex'),
 		openAsks: position.openAsks?.toString('hex'),
 		settledPnl: position.settledPnl?.toString('hex'),
-		lpShares: position.lpShares?.toString('hex'),
-		lastQuoteAssetAmountPerLp:
-			position.lastQuoteAssetAmountPerLp?.toString('hex'),
 		isolatedPositionScaledBalance:
 			position.isolatedPositionScaledBalance?.toString('hex'),
 		positionFlag: position.positionFlag,
@@ -125,10 +121,6 @@ export const deserializeUserAccount = (
 		),
 		perpPositions: serializedUserAccount.perpPositions.map(
 			deserializePerpPosition
-		),
-		lastAddPerpLpSharesTs: new BN(
-			serializedUserAccount.lastAddPerpLpSharesTs,
-			'hex'
 		),
 		settledPerpPnl: new BN(serializedUserAccount.settledPerpPnl, 'hex'),
 		totalDeposits: new BN(serializedUserAccount.totalDeposits, 'hex'),
@@ -153,7 +145,6 @@ export const deserializeOrder = (serializedOrder: SerializedOrder) => {
 		slot: new BN(serializedOrder.slot, 'hex'),
 		price: new BN(serializedOrder.price, 'hex'),
 		baseAssetAmount: new BN(serializedOrder.baseAssetAmount, 'hex'),
-		quoteAssetAmount: new BN(serializedOrder.quoteAssetAmount, 'hex'),
 		baseAssetAmountFilled: new BN(serializedOrder.baseAssetAmountFilled, 'hex'),
 		quoteAssetAmountFilled: new BN(
 			serializedOrder.quoteAssetAmountFilled,
@@ -163,6 +154,7 @@ export const deserializeOrder = (serializedOrder: SerializedOrder) => {
 		auctionStartPrice: new BN(serializedOrder.auctionStartPrice, 'hex'),
 		auctionEndPrice: new BN(serializedOrder.auctionEndPrice, 'hex'),
 		maxTs: new BN(serializedOrder.maxTs, 'hex'),
+		oraclePriceOffset: new BN(serializedOrder.oraclePriceOffset, 'hex'),
 	};
 };
 
@@ -197,11 +189,6 @@ const deserializePerpPosition = (
 		openBids: new BN(serializedPosition.openBids, 'hex'),
 		openAsks: new BN(serializedPosition.openAsks, 'hex'),
 		settledPnl: new BN(serializedPosition.settledPnl, 'hex'),
-		lpShares: new BN(serializedPosition.lpShares, 'hex'),
-		lastQuoteAssetAmountPerLp: new BN(
-			serializedPosition.lastQuoteAssetAmountPerLp,
-			'hex'
-		),
 		isolatedPositionScaledBalance: new BN(
 			serializedPosition.isolatedPositionScaledBalance,
 			'hex'
@@ -301,29 +288,13 @@ export const deserializeDLOBNode = (node: SerializedDLOBNode): DLOBNode => {
 	const order = deserializeOrder(node.order);
 	switch (node.type) {
 		case 'TakingLimitOrderNode':
-			return new TakingLimitOrderNode(
-				order,
-				node.userAccount,
-				node.isUserProtectedMaker
-			);
+			return new TakingLimitOrderNode(order, node.userAccount);
 		case 'RestingLimitOrderNode':
-			return new RestingLimitOrderNode(
-				order,
-				node.userAccount,
-				node.isUserProtectedMaker
-			);
+			return new RestingLimitOrderNode(order, node.userAccount);
 		case 'FloatingLimitOrderNode':
-			return new FloatingLimitOrderNode(
-				order,
-				node.userAccount,
-				node.isUserProtectedMaker
-			);
+			return new FloatingLimitOrderNode(order, node.userAccount);
 		case 'MarketOrderNode':
-			return new MarketOrderNode(
-				order,
-				node.userAccount,
-				node.isUserProtectedMaker
-			);
+			return new MarketOrderNode(order, node.userAccount);
 		case 'SignedMsgOrderNode':
 			return new SignedMsgOrderNode(order, node.userAccount);
 		default:
@@ -366,7 +337,7 @@ export const getDriftClientFromArgs = ({
 	wallet: Wallet;
 	marketIndexes: number[];
 	marketTypeStr: 'spot' | 'perp';
-	env: DriftEnv;
+	env: VelocityEnv;
 }) => {
 	let perpMarketIndexes: number[] = [];
 	const spotMarketIndexes: number[] = [0];
@@ -387,7 +358,7 @@ export const getDriftClientFromArgs = ({
 		);
 		oracleInfos.push(oracleInfo);
 	}
-	const driftClient = new DriftClient({
+	const velocityClient = new VelocityClient({
 		connection,
 		wallet: wallet,
 		marketLookupTable: new PublicKey(sdkConfig.MARKET_LOOKUP_TABLE),
@@ -396,7 +367,7 @@ export const getDriftClientFromArgs = ({
 		oracleInfos,
 		env,
 	});
-	return driftClient;
+	return velocityClient;
 };
 
 export const getUserFeeTier = (
