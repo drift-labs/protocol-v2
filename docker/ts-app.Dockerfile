@@ -16,12 +16,15 @@ ARG APP_SCOPE
 ARG APP_OUT=dist
 ARG APP_START=dist/index.js
 
-FROM oven/bun:1 AS builder
+FROM oven/bun:1.3.13 AS builder
 WORKDIR /app
-COPY package.json bun.lock turbo.json ./
+# bunfig.toml carries the supply-chain install policy (exact pins,
+# minimumReleaseAge) — copy it so the image build is governed by it too.
+COPY package.json bun.lock bunfig.toml turbo.json ./
 COPY packages/ ./packages/
 COPY apps/ ./apps/
-RUN bun install --no-frozen-lockfile
+# Frozen: install exactly what the committed lockfile pins, never re-resolve.
+RUN bun install --frozen-lockfile
 ARG APP_SCOPE
 RUN bunx turbo run build --filter="${APP_SCOPE}"
 
@@ -33,8 +36,8 @@ ARG APP_START
 WORKDIR /app
 # Native deps esbuild leaves external (union across apps; harmless extras).
 RUN apk add --no-cache --virtual .build python3 make g++ \
- && npm install --no-save \
-      bigint-buffer \
+ && npm install --no-save --no-audit --no-fund \
+      bigint-buffer@1.1.5 \
       @triton-one/yellowstone-grpc@5.0.5 \
       helius-laserstream@0.1.8 \
       rpc-websockets@7.5.1 \

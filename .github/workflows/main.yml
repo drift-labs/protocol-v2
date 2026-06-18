@@ -333,12 +333,12 @@ jobs:
       # The velocity-rs build.rs regenerates crates/src/drift_idl.rs from res/velocity.json;
       # the velocity (`drift`) program crate is compiled as a host lib path-dep.
       - name: cargo check rust workspace
-        run: cargo check --manifest-path rust/Cargo.toml --all-targets
+        run: cargo check --manifest-path rust/Cargo.toml --locked --all-targets
       # Gating: offline-deterministic tests only (rpc_tests feature OFF, so all
       # live tests are compiled out). Redis is provided by the service above.
       - name: cargo test rust workspace (offline, gating)
         timeout-minutes: 20
-        run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets
+        run: cargo test --manifest-path rust/Cargo.toml --locked --workspace --all-targets
   # Live integration tests: live mainnet/devnet RPC, funded keypairs, gRPC.
   # NOT a PR gate (not in ci-gate's `needs`) — they can't be deterministic and
   # several submit real transactions. Runs on a schedule and on demand with the
@@ -389,7 +389,7 @@ jobs:
           TEST_PRIVATE_KEY: ${{ secrets.TEST_PRIVATE_KEY }}
           TEST_MAINNET_PRIVATE_KEY: ${{ secrets.TEST_MAINNET_PRIVATE_KEY }}
           TEST_GRPC_X_TOKEN: ${{ secrets.TEST_GRPC_X_TOKEN }}
-        run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets --features "rpc_tests"
+        run: cargo test --manifest-path rust/Cargo.toml --locked --workspace --all-targets --features "rpc_tests"
   sdk-typecheck:
     name: SDK TypeScript strict check
     runs-on: ubicloud
@@ -455,7 +455,7 @@ jobs:
         if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
           sudo apt update -y && sudo apt install libudev-dev
-          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} avm --locked --force
           avm install ${{ env.ANCHOR_VERSION }}
 
       - name: Select Anchor version
@@ -481,7 +481,7 @@ jobs:
       - name: install mocha
         run: |
           npm install ts-mocha@10.0.0 -g
-          npm install --global mocha
+          npm install --global mocha@11.7.5
 
       # Restore compiled programs from cache keyed on program sources. When
       # nothing under programs/, Cargo.toml, Cargo.lock, or Anchor.toml changed,
@@ -586,7 +586,7 @@ jobs:
       - name: Install Anchor CLI
         run: |
           sudo apt update -y && sudo apt install libudev-dev
-          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} avm --locked --force
           avm install ${{ env.ANCHOR_VERSION }}
           avm use ${{ env.ANCHOR_VERSION }}
 
@@ -610,7 +610,7 @@ jobs:
       - name: install mocha
         run: |
           npm install ts-mocha@10.0.0 -g
-          npm install --global mocha
+          npm install --global mocha@11.7.5
 
       # Separate from anchor-tests: the vaults suite needs a velocity .so built
       # WITHOUT mainnet-beta (the external-depositor whitelist gate blocks vault
@@ -648,7 +648,7 @@ jobs:
 
       - name: Install ts-mocha and typescript
         run: |
-          npm install -g ts-mocha
+          npm install -g ts-mocha@10.0.0
           npm install -g typescript@5.4.5
 
       - name: Run tests
@@ -669,7 +669,7 @@ jobs:
       - name: Install Solana Verify CLI
         run: |
           sudo apt update -y && sudo apt install libudev-dev
-          cargo install solana-verify --version 0.4.11
+          cargo install solana-verify --version 0.4.11 --locked
 
       - name: Verifiable Build
         run: |
