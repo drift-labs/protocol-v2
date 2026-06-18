@@ -1,6 +1,5 @@
-// Global test helpers for the apps/* suites, ported from infrastructure-v3's
-// jest.setup.ts. Some suites (e.g. notification-engine) call `genMockKey()` to
-// fabricate base58 pubkeys without importing a helper.
+// Global test helpers for the apps/* suites on the @swc/jest preset. Some suites
+// call `genMockKey()` to fabricate base58 pubkeys without importing a helper.
 import bs58 from 'bs58';
 import { randomBytes } from 'crypto';
 

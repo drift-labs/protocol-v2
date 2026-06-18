@@ -2,7 +2,7 @@
 
 This monorepo uses [changesets](https://github.com/changesets/changesets) for versioning and
 publishing the library packages under `packages/*` (`@velocity-exchange/sdk`,
-`@velocity-exchange/admin-cli`, and the `@backend/*` infra libs). Apps under `apps/*` are
+`@velocity-exchange/admin-cli`, `@velocity-exchange/vaults-sdk`). Apps under `apps/*` are
 `private` and ship as Docker images (see `docker-info.json` / `docker-on-tag.yml`), not npm.
 
 Workflow:

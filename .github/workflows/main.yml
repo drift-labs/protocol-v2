@@ -223,7 +223,7 @@ jobs:
           bun-version: 1.3.14
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      # turbo builds the whole graph in topo order (sdk -> @backend/* -> apps + cli-admin)
+      # turbo builds the whole graph in topo order (sdk -> apps + cli-admin)
       - name: Build all packages + apps
         run: bunx turbo run build
   ts-tests:
@@ -232,9 +232,9 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       # Cross-run turbo cache. ts-tests runs in parallel with ts-build (no
-      # dependency), so the first cold run rebuilds its deps (incl. the SDK, which
-      # common/dynamodb/redis pull in) harmlessly alongside ts-build; subsequent
-      # runs replay from this cache instead of recompiling.
+      # dependency), so the first cold run rebuilds its deps (incl. the SDK the
+      # app suites pull in) harmlessly alongside ts-build; subsequent runs replay
+      # from this cache instead of recompiling.
       - name: Restore turbo cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -253,21 +253,15 @@ jobs:
           bun-version: 1.3.14
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      # Hermetic jest unit suites: the @backend/* libraries (ts-jest preset) plus
-      # the apps/* suites that run green on the @swc/jest app preset. `test`
-      # dependsOn `^build`, so turbo builds each suite's deps first.
-      # @velocity-exchange/sdk runs in its own `sdk-tests` job below (mocha + bun
-      # test, not the jest preset this turbo filter targets).
+      # Hermetic jest unit suites: the workspace packages plus the apps/* suites
+      # that run green on the @swc/jest app preset. `test` dependsOn `^build`, so
+      # turbo builds each suite's deps first. @velocity-exchange/sdk runs in its
+      # own `sdk-tests` job below (mocha + bun test, not the jest preset this
+      # turbo filter targets).
       - name: Run unit tests (libs + wired app suites)
         run: >-
           bunx turbo run test
           --filter='./packages/*' --filter='!@velocity-exchange/sdk'
-          --filter=@backend/candles
-          --filter=@backend/market-data
-          --filter=@backend/multisig-monitor
-          --filter=@backend/aggregator-api
-          --filter=@backend/realtime-archiver
-          --filter=@backend/notification-engine
           --filter=@velocity-exchange/dlob-server
           --filter=@drift-labs/keeper-bots-v2
   sdk-tests:
@@ -624,11 +618,6 @@ jobs:
         include:
           - { app: dlob-server,         path: apps/dlob-server,         scope: '@velocity-exchange/dlob-server', out: lib,  start: lib/index.js }
           - { app: keeper-bots-v2,      path: apps/keeper-bots-v2,      scope: '@drift-labs/keeper-bots-v2',     out: lib,  start: lib/index.js }
-          - { app: candles,             path: apps/candles,             scope: '@backend/candles',               out: dist, start: dist/index.js }
-          - { app: market-data,         path: apps/market-data,         scope: '@backend/market-data',           out: dist, start: dist/index.js }
-          - { app: multisig-monitor,    path: apps/multisig-monitor,    scope: '@backend/multisig-monitor',      out: dist, start: dist/index.js }
-          - { app: notification-engine, path: apps/notification-engine, scope: '@backend/notification-engine',   out: dist, start: dist/index.js }
-          - { app: realtime-archiver,   path: apps/realtime-archiver,   scope: '@backend/realtime-archiver',     out: dist, start: dist/index.js }
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3

@@ -11,8 +11,9 @@ Use `bun` (not yarn/npm) for JavaScript/TypeScript dependency management: `bun i
 This repo is a **Bun workspace + Turborepo monorepo**. The root `package.json` declares
 `workspaces: ["packages/*", "apps/*"]`, governed by a single root `bun.lock` — run `bun install`
 **once at the repo root** (do NOT install inside individual packages). `packages/*` are the
-publishable libraries (`@velocity-exchange/sdk`, `@velocity-exchange/admin-cli`, the `@backend/*`
-infra libs); `apps/*` are the deployable services (private, shipped as Docker images). TypeScript
+publishable libraries (`@velocity-exchange/sdk`, `@velocity-exchange/admin-cli`,
+`@velocity-exchange/vaults-sdk`); `apps/*` are the deployable services (private, shipped as Docker
+images). TypeScript
 builds run through Turbo: `bun run build` (= `turbo run build`) builds the whole graph in dependency
 order; `bunx turbo run build --filter=<pkg>` builds one package + its deps.
 
@@ -143,11 +144,10 @@ solana-sdk 3.x dependency tree never unifies with the program's SBF build. It ha
 
 ## Apps and Docker images
 
-`apps/*` are deployable services (all `private`, never published to npm): `dlob-server`,
-`keeper-bots-v2`, and the infra services `candles`, `market-data`, `multisig-monitor`,
-`notification-engine`, `realtime-archiver`. `aggregator-api` is also vendored (private, **no-op
-build**) only because `notification-engine` imports its source; it still deploys from
-`infrastructure-v3`, so it has no image here.
+`apps/*` are the deployable services (all `private`, never published to npm): `dlob-server` and
+`keeper-bots-v2`. The infrastructure-v3 services (`candles`, `market-data`, `multisig-monitor`,
+`notification-engine`, `realtime-archiver`, `aggregator-api`) and their `@backend/*` support libs
+are **not** part of this monorepo — they deploy from `infrastructure-v3`.
 
 Pushing a git tag **`docker-<app>-v<version>`** triggers `.github/workflows/docker-on-tag.yml`,
 which builds and pushes that app's image to ECR (eu-west-1, via OIDC). The app→metadata map is

@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # Shared multi-stage build for any TypeScript app in the monorepo.
 # Build context MUST be the repo root. Driven by build args from docker-info.json:
-#   APP_PATH  e.g. apps/candles            (location of the app)
-#   APP_SCOPE e.g. @backend/candles        (turbo --filter target)
-#   APP_OUT   e.g. dist | lib              (the app's build output dir)
-#   APP_START e.g. dist/index.js           (entrypoint inside APP_OUT's parent)
+#   APP_PATH  e.g. apps/dlob-server                  (location of the app)
+#   APP_SCOPE e.g. @velocity-exchange/dlob-server    (turbo --filter target)
+#   APP_OUT   e.g. dist | lib                         (the app's build output dir)
+#   APP_START e.g. lib/index.js                       (entrypoint inside APP_OUT's parent)
 #
 # Full-context build (the de-risked path vs `turbo prune` + bun lockfile, which has
 # known correctness bugs). `bun install` resolves the whole workspace once; turbo

@@ -1,7 +1,7 @@
 name: docker-on-tag
 
 # Push a tag `docker-<app>-v<version>` to build + push that app's image to ECR.
-# `<app>` is a key in docker-info.json (e.g. docker-candles-v0.3.0,
+# `<app>` is a key in docker-info.json (e.g. docker-dlob-server-v0.3.0,
 # docker-keeper-bots-v2-v1.4.2, docker-keep-rs-v2.1.0). The version is everything
 # after the LAST `-v`, so app keys may themselves contain `-v` (keeper-bots-v2).
 on:

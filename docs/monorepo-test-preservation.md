@@ -15,10 +15,8 @@ gate.
 
 ## TypeScript
 
-Two shared jest presets, by suite kind:
+The `apps/*` suites use one shared jest preset:
 
-- **`jest.config.base.cjs`** (ts-jest) — the `@backend/*` **libs**. Pure unit tests
-  that type-check clean.
 - **`jest.config.app.cjs`** (@swc/jest + `jest.setup.app.ts`) — the `apps/*` suites.
   Apps were authored against swc semantics: they need `jest.mock` factory hoisting
   and must not type-check at run time (app sources aren't strictly type-clean vs the
@@ -26,53 +24,25 @@ Two shared jest presets, by suite kind:
   hoisting; `isolatedModules: false` blocks on type errors — so apps use swc, as they
   did in infrastructure-v3.
 
-Each wired package has a one-line `jest.config.cjs` re-exporting the right preset and
-a `"test": "jest"` script. jest/ts-jest/@swc/jest/@types/jest live in root `devDependencies`.
+Each wired package has a one-line `jest.config.cjs` re-exporting the preset and
+a `"test": "jest"` script. jest/@swc/jest/@types/jest live in root `devDependencies`.
 
-CI job `ts-tests` runs the `@backend/*` libs plus the green app suites:
+CI job `ts-tests` runs the workspace packages plus the green app suites:
 `turbo run test --filter='./packages/*' --filter='!@velocity-exchange/sdk'
---filter=@backend/candles --filter=@backend/market-data --filter=@backend/multisig-monitor
---filter=@backend/aggregator-api --filter=@backend/realtime-archiver
---filter=@velocity-exchange/dlob-server --filter=@drift-labs/keeper-bots-v2`. Suites are
-enumerated explicitly (not `./apps/*`) so an unwired app — e.g. notification-engine, which
-has no `test` script and is Firebase/env-dependent — can't silently slip into the gate.
+--filter=@velocity-exchange/dlob-server --filter=@drift-labs/keeper-bots-v2`. App suites
+are enumerated explicitly (not `./apps/*`) so an unwired app can't silently slip into the
+gate.
 
 | Package                        | Runner | Tests         | State                 | Action to fully preserve                                                                                                                                                                                                                |
 | ------------------------------ | ------ | ------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| @backend/athena                | jest   | 26            | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/common                | jest   | 42            | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/dynamodb              | jest   | 378           | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/kinesis               | jest   | 11            | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/prometheus            | jest   | 7             | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/redis                 | jest   | 145           | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/s3                    | jest   | 8             | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/sns                   | jest   | 5             | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @backend/sqs                   | jest   | 9             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @drift-labs/keeper-bots-v2     | mocha  | 2             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @velocity-exchange/sdk         | mixed  | 185+          | ✅ gated (own `sdk-tests` job) | restored — see below. Offline: test 102 / dlob 52(+1 pending) / bignum 12 / events 3 / velocitycore 16. `tests/ci` is live-RPC (verify-sdk-configs). |
 | @velocity-exchange/dlob-server | jest   | 54            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
-| @backend/aggregator-api        | jest   | 337           | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
-| @backend/candles               | jest   | 61            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
-| @backend/market-data           | jest   | 63            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
-| @backend/notification-engine   | jest   | 158           | ✅ gated (app preset) | — (Firebase fully mocked; the only failures were a stale User-buffer fixture, now `Buffer.alloc(4496)`)                                                                                                                                  |
-| @backend/multisig-monitor      | jest   | 79            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
-| @backend/realtime-archiver     | swc    | 120           | ✅ gated (app preset)  | —                                                                                                                                                                                                     |
 
-The recurring app-suite cause was the **transformer**, not just missing setup: the
-origin repos ran `@swc/jest`, and the monorepo's only preset was ts-jest. Wiring each app
-to `jest.config.app.cjs` (swc) recovers its suites with no per-suite fixes — candles
-(61), market-data (63), multisig-monitor (79), aggregator-api (337) all run fully green,
-matching how they were tested in infrastructure-v3 (one root `jest` on `@swc/jest`).
-realtime-archiver: all suites green (120 tests).
-
-- **realtime-archiver `test/services/ingestion.test.ts`** (was quarantined via
-  `testPathIgnorePatterns`) is **re-enabled**. The real failure was `value instanceof BN`
-  in `@backend/common`'s `simpleSerialize`: the test's `jest.mock('@velocity-exchange/sdk', …)`
-  factory replaced the whole module and omitted `BN`, so the constructor resolved to
-  `undefined` (`Right-hand side of 'instanceof' is not an object`). The `SolanaJSONRPCError`
-  path was a red herring — the `@solana/web3.js` mock already spreads `requireActual`, so
-  that constructor is real. Fix: add `BN: require('bn.js')` to the SDK mock factory (the
-  SDK's `BN` is bn.js's constructor, so `instanceof` semantics are preserved).
+> The infrastructure-v3 services (candles, market-data, multisig-monitor, aggregator-api,
+> notification-engine, realtime-archiver) and their `@backend/*` support libs were removed
+> from this monorepo — they deploy from `infrastructure-v3`. Their test suites are no longer
+> wired here.
 
 ### SDK test restoration — DONE (gated via `sdk-tests`)
 

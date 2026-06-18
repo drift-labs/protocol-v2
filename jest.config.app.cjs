@@ -1,6 +1,6 @@
 // Shared jest preset for the `apps/*` suites.
 //
-// Apps use @swc/jest (not the ts-jest base preset the @backend/* libs use). The
+// Apps use @swc/jest rather than ts-jest. The
 // app suites were authored against swc's transform semantics: they rely on
 // `jest.mock` factory hoisting and must NOT type-check at run time (the app
 // sources are not strictly type-clean against the vendored SDK types). ts-jest

@@ -10,7 +10,7 @@ Companion detail: [monorepo-test-preservation.md](./monorepo-test-preservation.m
 Everything that can gate deterministically now gates and is green locally. The remaining
 items are (a) one GitHub-settings change only you can make, (b) live-RPC suites that can't run
 until velocity is on devnet, (c) a handful of documented program `#[ignore]`s that need a
-protocol owner's call, and (d) two dead tests to delete. None are silent coverage loss.
+protocol owner's call, and (d) one dead test to delete. None are silent coverage loss.
 
 **Do not merge until PR #85's re-run is green** — the last push fixed `sdk-tests` + `vault-tests`
 and added the Docker build jobs; their first CI run is the thing to watch (esp. the rust image
@@ -21,10 +21,8 @@ builds, ~15–20 min).
 - **Build / format / lint** at-or-above standalone parity (prettier scope + 100/4 overrides;
   rust fmt + clippy gate on the program; `cargo fmt --check` on the `rust/` workspace).
 - **`ci-gate`** aggregator is the intended single required check.
-- **TS lib + app suites gated & green** — all `@backend/*` libs (ts-jest preset) + apps
-  candles / market-data / multisig-monitor / aggregator-api / realtime-archiver / dlob-server /
-  notification-engine (swc app preset) + keeper-bots-v2 (mocha). See preservation doc for the
-  per-suite counts and the swc-preset rationale.
+- **TS app suites gated & green** — dlob-server (swc app preset) + keeper-bots-v2 (mocha).
+  See preservation doc for the per-suite counts and the swc-preset rationale.
 - **SDK suite restored & gated** (new `sdk-tests` job — mocha + `bun test`, separate from the
   jest `ts-tests` filter). Green offline: `test` 102, `test:dlob` 52 (+1 intentional pending),
   `test:bignum` 12, `test:events` 3, `test:velocitycore` 16. Restoration also fixed a **real
@@ -41,8 +39,8 @@ builds, ~15–20 min).
   (41 tests across managerUpdate / depositMax / feeUpdate / sharesExamples /
   transferVaultDepositorShares / trustedVault / driftVaults) after fixing `run-vault-tests.sh`
   (see below).
-- **Docker image build checks** — `docker-images-ts` (7 apps) + `docker-images-rust`
-  (keep-rs/swift) build every shipped image (same Dockerfiles + `docker-info.json` args as
+- **Docker image build checks** — `docker-images-ts` (dlob-server, keeper-bots-v2) +
+  `docker-images-rust` (keep-rs/swift) build every shipped image (same Dockerfiles + `docker-info.json` args as
   `docker-on-tag`, `push: false`). Path-gated via new `docker_ts`/`docker_rust` change filters;
   `type=gha` layer cache. In `ci-gate`'s required set.
 - **Vendoring coverage audit** — diffed every vendored suite against its upstream drift-labs
@@ -58,10 +56,6 @@ builds, ~15–20 min).
   (`45HdJoU4…`, `constants.rs`) the fee-update tests sign with (else `is_admin` → `0x7d3`).
   Fix: build velocity alone with the no-default flags; vaults with `--features anchor-test`;
   fixtures with defaults.
-- **notification-engine** `risk-manager.test.ts` decoded a stale base64 User fixture sized to
-  the old 4372-byte layout (`User::SIZE` is now 4496) → replaced with `Buffer.alloc(4496)`.
-- **realtime-archiver** `ingestion.test.ts` re-enabled — the `instanceof BN` failure was a
-  dropped `BN` in the SDK mock factory, not `SolanaJSONRPCError`.
 - **Rust live-test split** uses `rpc_tests` (no `#[ignore]` hiding). Watch the **workspace
   feature-unification trap**: `cargo test --workspace --features X` turns X on for every member,
   so the offline gate stays clean only because no member enables `rpc_tests`.
@@ -106,11 +100,7 @@ mechanical fixture fix (the legacy-snapshot layout migration is done — see
   predates the spread-cache refactor; needs a domain owner to recompute (didn't guess a number).
 - (`test_utils/legacy_snapshot.rs::print_regenerated` stays ignored — it's a regeneration tool.)
 
-### 5. Two dead tests to delete (removed features) — cheap cleanup
-- realtime-archiver `swift-message-parser.test.ts` — 2 `describe.skip` blocks decode a **removed**
-  wire format (`OrderMetadataAndMessage` is `order_message_str: String` now, not a borsh enum)
-  through an Anchor-0.29 IDL path that crashes under Anchor 1.0. (These were skipped *upstream*,
-  not by us.) Either rewrite `swift-message-parser.ts` to the current format or delete the tests.
+### 5. Dead test to delete (removed feature) — cheap cleanup
 - drift-rs `dlob::tests::dlob_l2_snapshot_max_leverage_filtering` — tests a max-leverage L2
   filtering feature that **doesn't exist in this fork**; delete or implement.
 
@@ -120,9 +110,10 @@ mechanical fixture fix (the legacy-snapshot layout migration is done — see
 likely unintended; normalizing `Some(0)`→`None` is a one-liner left for you to decide.
 
 ### 7. Confirmations / follow-ups
-- **`apps/snapshots` not vendored** — an upstream infrastructure-v3 app (9 test files,
-  vault/earn/referral snapshotting). Looks intentional (deploys from infrastructure-v3, no image
-  here) — confirm it was meant to be left out.
+- **infrastructure-v3 services removed** — candles, market-data, multisig-monitor,
+  aggregator-api, notification-engine, realtime-archiver and their `@backend/*` support libs
+  were pulled back out of this monorepo; they deploy from `infrastructure-v3`. (Likewise
+  `apps/snapshots`, which was never vendored.)
 - **`MAX_USER_ACCOUNT_SIZE_BYTES = 4376`** in `packages/sdk/src/userMap/userMap.ts` looks stale
   vs `User::SIZE = 4496` — worth a check.
 - **drift-rs `event_subscriber` 4 base64-log `#[ignore]`s** (`parses_*` are fixed/un-ignored;
@@ -131,8 +122,8 @@ likely unintended; normalizing `Some(0)`→`None` is a one-liner left for you to
 
 ## Quick reference
 
-- App jest preset: `jest.config.app.cjs` (swc + `jest.setup.app.ts` `genMockKey`). Lib preset:
-  `jest.config.base.cjs` (ts-jest). Each wired pkg has a one-line `jest.config.cjs` + `"test": "jest"`.
+- App jest preset: `jest.config.app.cjs` (swc + `jest.setup.app.ts` `genMockKey`). Each wired
+  app has a one-line `jest.config.cjs` re-exporting it + `"test": "jest"`.
 - SDK suite runs in its own `sdk-tests` job (mocha/bun, not jest). Add SDK offline scripts there.
 - `ts-tests` filter list is enumerated on purpose (never `./apps/*`) — append `--filter=<pkg>`.
 - Rust offline gate: `rust-workspace-check` (Redis service). Live: `rust-live-tests` (`rpc_tests`).
