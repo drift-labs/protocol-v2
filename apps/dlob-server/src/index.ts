@@ -9,8 +9,8 @@ import { Commitment, Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	DLOBNode,
 	DLOBSubscriber,
-	DriftClient,
-	DriftEnv,
+	VelocityClient,
+	VelocityEnv,
 	SlotSubscriber,
 	Wallet,
 	getVariant,
@@ -77,7 +77,7 @@ const REDIS_CLIENTS = envClients.length
 	: [RedisClientPrefix.DLOB, RedisClientPrefix.DLOB_HELIUS];
 console.log('Redis Clients:', REDIS_CLIENTS);
 
-const driftEnv = (process.env.ENV || 'devnet') as DriftEnv;
+const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 //@ts-ignore
 const sdkConfig = initialize({ env: process.env.ENV });
@@ -126,7 +126,7 @@ const incomingRequestsCounter = metricsV2.addCounter(
 );
 metricsV2.finalizeObservables();
 
-let driftClient: DriftClient;
+let velocityClient: VelocityClient;
 
 const app = express();
 app.use(cors({ origin: '*' }));
@@ -164,7 +164,7 @@ const wsEndpoint = process.env.WS_ENDPOINT;
 logger.info(`RPC endpoint:       ${endpoint}`);
 logger.info(`WS endpoint:        ${wsEndpoint}`);
 logger.info(`useWebsocket:       ${useWebsocket}`);
-logger.info(`DriftEnv:           ${driftEnv}`);
+logger.info(`VelocityEnv:           ${driftEnv}`);
 logger.info(`Commit:             ${commitHash}`);
 
 const main = async (): Promise<void> => {
@@ -181,7 +181,7 @@ const main = async (): Promise<void> => {
 	});
 	await slotSubscriber.subscribe();
 
-	driftClient = new DriftClient({
+	velocityClient = new VelocityClient({
 		connection,
 		wallet,
 		programID: clearingHousePublicKey,
@@ -195,7 +195,7 @@ const main = async (): Promise<void> => {
 	});
 
 	const orderSubscriber = new OrderSubscriber({
-		driftClient,
+		velocityClient,
 		subscriptionConfig: {
 			type: 'websocket',
 			commitment: stateCommitment,
@@ -213,8 +213,8 @@ const main = async (): Promise<void> => {
 
 	const dlobProvider = getDLOBProviderFromOrderSubscriber(orderSubscriber);
 
-	await driftClient.subscribe();
-	driftClient.eventEmitter.on('error', (e) => {
+	await velocityClient.subscribe();
+	velocityClient.eventEmitter.on('error', (e) => {
 		logger.info('clearing house error');
 		logger.error(e);
 	});
@@ -234,7 +234,7 @@ const main = async (): Promise<void> => {
 	logger.info(`Initializing DLOBSubscriber...`);
 	const initDlobSubscriberStart = Date.now();
 	const dlobSubscriber = new DLOBSubscriber({
-		driftClient,
+		velocityClient,
 		dlobSource: dlobProvider,
 		slotSource: dlobProvider,
 		updateFrequency: ORDERBOOK_UPDATE_INTERVAL,
@@ -268,7 +268,7 @@ const main = async (): Promise<void> => {
 	});
 
 	const handleStartup = async (_req, res, _next) => {
-		if (driftClient.isSubscribed && dlobProvider.size() > 0) {
+		if (velocityClient.isSubscribed && dlobProvider.size() > 0) {
 			res.writeHead(200);
 			res.end('OK');
 		} else {
@@ -373,7 +373,7 @@ const main = async (): Promise<void> => {
 			} = req.query;
 
 			const { normedMarketType, normedMarketIndex, error } = validateDlobQuery(
-				driftClient,
+				velocityClient,
 				driftEnv,
 				marketType as string,
 				marketIndex as string,
@@ -390,7 +390,7 @@ const main = async (): Promise<void> => {
 			}
 			const normedSide = (side as string).toLowerCase();
 			const oracle =
-				driftClient.getMMOracleDataForPerpMarket(normedMarketIndex);
+				velocityClient.getMMOracleDataForPerpMarket(normedMarketIndex);
 
 			let normedLimit = undefined;
 			if (limit) {
@@ -437,7 +437,7 @@ const main = async (): Promise<void> => {
 					const topAccounts = await getRawAccountFromId(
 						userMapClient,
 						topMakers,
-						driftClient.connection
+						velocityClient.connection
 					);
 					res.end(JSON.stringify(topAccounts));
 					return;
@@ -555,7 +555,7 @@ const main = async (): Promise<void> => {
 				req.query;
 
 			const { normedMarketType, normedMarketIndex, error } = validateDlobQuery(
-				driftClient,
+				velocityClient,
 				driftEnv,
 				marketType as string,
 				marketIndex as string,
@@ -593,8 +593,8 @@ const main = async (): Promise<void> => {
 					)} market ${normedMarketIndex}`
 				);
 				const oracleData = isSpot
-					? driftClient.getOracleDataForSpotMarket(normedMarketIndex)
-					: driftClient.getOracleDataForPerpMarket(normedMarketIndex);
+					? velocityClient.getOracleDataForSpotMarket(normedMarketIndex)
+					: velocityClient.getOracleDataForPerpMarket(normedMarketIndex);
 
 				l2Formatted = {
 					bids: [],
@@ -669,7 +669,7 @@ const main = async (): Promise<void> => {
 				normedParams.map(async (normedParam) => {
 					const { normedMarketType, normedMarketIndex, error } =
 						validateDlobQuery(
-							driftClient,
+							velocityClient,
 							driftEnv,
 							normedParam['marketType'] as string,
 							normedParam['marketIndex'] as string,
@@ -708,8 +708,8 @@ const main = async (): Promise<void> => {
 							)} market ${normedMarketIndex}`
 						);
 						const oracleData = isSpot
-							? driftClient.getOracleDataForSpotMarket(normedMarketIndex)
-							: driftClient.getOracleDataForPerpMarket(normedMarketIndex);
+							? velocityClient.getOracleDataForSpotMarket(normedMarketIndex)
+							: velocityClient.getOracleDataForPerpMarket(normedMarketIndex);
 						l2Formatted = {
 							bids: [],
 							asks: [],
@@ -765,7 +765,7 @@ const main = async (): Promise<void> => {
 				req.query;
 
 			const { normedMarketType, normedMarketIndex, error } = validateDlobQuery(
-				driftClient,
+				velocityClient,
 				driftEnv,
 				marketType as string,
 				marketIndex as string,
@@ -1061,7 +1061,7 @@ const main = async (): Promise<void> => {
 
 			const result = await mapToMarketOrderParams(
 				inputParams,
-				driftClient,
+				velocityClient,
 				fetchFromRedis,
 				selectMostRecentBySlot,
 				redisFillQualityInfo,
@@ -1138,4 +1138,4 @@ async function recursiveTryCatch(f: () => Promise<void>) {
 
 recursiveTryCatch(() => main());
 
-export { commitHash, driftClient, driftEnv, endpoint, sdkConfig, wsEndpoint };
+export { commitHash, velocityClient, driftEnv, endpoint, sdkConfig, wsEndpoint };

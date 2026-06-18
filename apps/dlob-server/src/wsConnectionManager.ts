@@ -4,7 +4,7 @@ import * as http from 'http';
 import compression from 'compression';
 import { WebSocket, WebSocketServer } from 'ws';
 import { sleep, selectMostRecentBySlot, GROUPING_OPTIONS } from './utils/utils';
-import { DriftEnv, PerpMarkets, SpotMarkets } from '@velocity-exchange/sdk';
+import { VelocityEnv, PerpMarkets, SpotMarkets } from '@velocity-exchange/sdk';
 import {
 	RedisClient,
 	RedisClientPrefix,
@@ -167,7 +167,7 @@ class StreamSelector {
 
 // Set up env constants
 require('dotenv').config();
-const driftEnv = (process.env.ENV || 'devnet') as DriftEnv;
+const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const metricsPort = process.env.METRICS_PORT
 	? parseInt(process.env.METRICS_PORT)
 	: 9464;

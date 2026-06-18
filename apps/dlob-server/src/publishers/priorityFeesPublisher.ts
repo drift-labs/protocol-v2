@@ -3,9 +3,9 @@ import { program } from 'commander';
 import { Connection, Commitment, Keypair } from '@solana/web3.js';
 
 import {
-	DriftClient,
+	VelocityClient,
 	initialize,
-	DriftEnv,
+	VelocityEnv,
 	Wallet,
 	BulkAccountLoader,
 	getMarketsAndOraclesForSubscription,
@@ -28,7 +28,7 @@ setGlobalDispatcher(
 
 require('dotenv').config();
 const stateCommitment: Commitment = 'confirmed';
-const driftEnv = (process.env.ENV || 'devnet') as DriftEnv;
+const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const redisClientPrefix = RedisClientPrefix.DLOB_HELIUS;
 // Set up express for health checks
@@ -36,7 +36,7 @@ const app = express();
 
 //@ts-ignore
 const sdkConfig = initialize({ env: process.env.ENV });
-let driftClient: DriftClient;
+let velocityClient: VelocityClient;
 
 const opts = program.opts();
 setLogLevel(opts.debug ? 'debug' : 'info');
@@ -55,7 +55,7 @@ if (!endpoint.includes('helius')) {
 
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
-logger.info(`DriftEnv:     ${driftEnv}`);
+logger.info(`VelocityEnv:     ${driftEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 
 class PriorityFeeSubscriber {
@@ -181,7 +181,7 @@ const main = async () => {
 	const { perpMarketIndexes, spotMarketIndexes, oracleInfos } =
 		getMarketsAndOraclesForSubscription(sdkConfig.ENV);
 
-	const driftClient = new DriftClient({
+	const velocityClient = new VelocityClient({
 		connection,
 		wallet: new Wallet(new Keypair()),
 		perpMarketIndexes,
@@ -192,18 +192,18 @@ const main = async () => {
 			accountLoader: new BulkAccountLoader(connection, stateCommitment, 0),
 		},
 	});
-	await driftClient.subscribe();
+	await velocityClient.subscribe();
 
-	const perpMarketPubkeys = driftClient.getPerpMarketAccounts().map((acct) => {
+	const perpMarketPubkeys = velocityClient.getPerpMarketAccounts().map((acct) => {
 		return { marketIndex: acct.marketIndex, pubkey: acct.pubkey.toString() };
 	});
 
-	const usdcMarket = driftClient.getSpotMarketAccount(0).pubkey.toString();
+	const usdcMarket = velocityClient.getSpotMarketAccount(0).pubkey.toString();
 	const spotMarketPubkeys: { marketIndex: number; pubkeys: string[] }[] = [];
 	for (const market of sdkConfig.SPOT_MARKETS) {
 		const pubkeysForMarket = [usdcMarket];
 
-		const driftMarket = driftClient.getSpotMarketAccount(market.marketIndex);
+		const driftMarket = velocityClient.getSpotMarketAccount(market.marketIndex);
 		pubkeysForMarket.push(driftMarket.pubkey.toString());
 
 		spotMarketPubkeys.push({
@@ -244,4 +244,4 @@ async function recursiveTryCatch(f: () => void) {
 
 recursiveTryCatch(() => main());
 
-export { sdkConfig, endpoint, wsEndpoint, driftEnv, commitHash, driftClient };
+export { sdkConfig, endpoint, wsEndpoint, driftEnv, commitHash, velocityClient };

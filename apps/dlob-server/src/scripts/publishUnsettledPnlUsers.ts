@@ -5,7 +5,7 @@ import {
 import { sleep } from '@velocity-exchange/common';
 import {
 	BigNum,
-	DriftClient,
+	VelocityClient,
 	OneShotUserAccountSubscriber,
 	PerpMarkets,
 	PublicKey,
@@ -52,7 +52,7 @@ const connection = new Connection(endpoint, {
 	wsEndpoint: wsEndpoint,
 });
 
-const driftClient = new DriftClient({
+const velocityClient = new VelocityClient({
 	connection,
 	wallet: new Wallet(new Keypair()),
 });
@@ -69,7 +69,7 @@ const dlobRedisClient = new RedisClient({
 
 const main = async () => {
 	// get the users from usermap redis client
-	await driftClient.subscribe();
+	await velocityClient.subscribe();
 
 	const limiter = new Bottleneck({
 		maxConcurrent: 10,
@@ -193,17 +193,17 @@ const buildUserMarketLists = (
 ): AllPnlUsers => {
 	const newPnlUsers = allPnlUsers;
 
-	const usdcSpotMarket = driftClient.getSpotMarketAccount(
+	const usdcSpotMarket = velocityClient.getSpotMarketAccount(
 		QUOTE_SPOT_MARKET_INDEX
 	);
 
 	for (const perpMarket of PerpMarkets[driftEnv]) {
 		try {
-			const perpMarketAccount = driftClient.getPerpMarketAccount(
+			const perpMarketAccount = velocityClient.getPerpMarketAccount(
 				perpMarket.marketIndex
 			);
 
-			const oraclePriceData = driftClient.getOracleDataForPerpMarket(
+			const oraclePriceData = velocityClient.getOracleDataForPerpMarket(
 				perpMarket.marketIndex
 			);
 
@@ -264,7 +264,7 @@ const getUserFromRedis = async (userAccountStr: string) => {
 	try {
 		const bufferString = data.split('::')[1];
 		const user = await createUserAccountFromBuffer(
-			driftClient,
+			velocityClient,
 			userAccountStr,
 			bufferString
 		);
@@ -278,7 +278,7 @@ const getUserFromRedis = async (userAccountStr: string) => {
 };
 
 const createUserAccountFromBuffer = async (
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	userAccountKey: string,
 	bufferString: string
 ): Promise<User> => {
@@ -286,12 +286,12 @@ const createUserAccountFromBuffer = async (
 	const buffer = Buffer.from(bufferString, 'base64');
 	const userAccount = decodeUser(buffer);
 	const user = new User({
-		driftClient: driftClient,
+		velocityClient: velocityClient,
 		userAccountPublicKey: publicKey,
 		accountSubscription: {
 			type: 'custom',
 			userAccountSubscriber: new OneShotUserAccountSubscriber(
-				driftClient.program,
+				velocityClient.program,
 				publicKey,
 				userAccount
 			),

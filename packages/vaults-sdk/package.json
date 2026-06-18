@@ -25,7 +25,8 @@
 		"build": "bun run clean && tsc",
 		"lint": "eslint './src/**/*.ts' --quiet --format unix",
 		"prettify": "prettier --check './src/**/*.ts'",
-		"prettify:fix": "prettier --write './src/**/*.ts'"
+		"prettify:fix": "prettier --write './src/**/*.ts'",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@metaplex-foundation/js": "0.20.1",

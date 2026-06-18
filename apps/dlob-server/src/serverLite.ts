@@ -7,7 +7,7 @@ import morgan from 'morgan';
 import { Commitment, Connection } from '@solana/web3.js';
 
 import {
-	DriftEnv,
+	VelocityEnv,
 	SlotSubscriber,
 	initialize,
 	MarketType,
@@ -47,7 +47,7 @@ const REDIS_CLIENTS = envClients.length
 	: [RedisClientPrefix.DLOB, RedisClientPrefix.DLOB_HELIUS];
 console.log('Redis Clients:', REDIS_CLIENTS);
 
-const driftEnv = (process.env.ENV || 'devnet') as DriftEnv;
+const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const endpoint = process.env.ENDPOINT;
 const wsEndpoint = process.env.WS_ENDPOINT;
@@ -119,7 +119,7 @@ setLogLevel(opts.debug ? 'debug' : 'info');
 
 logger.info(`RPC endpoint:       ${endpoint}`);
 logger.info(`WS endpoint:        ${wsEndpoint}`);
-logger.info(`DriftEnv:           ${driftEnv}`);
+logger.info(`VelocityEnv:           ${driftEnv}`);
 logger.info(`Commit:             ${commitHash}`);
 
 const main = async (): Promise<void> => {

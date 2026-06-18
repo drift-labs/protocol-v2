@@ -2,7 +2,7 @@ import {
 	BN,
 	DLOBSubscriber,
 	DLOBSubscriptionConfig,
-	DriftEnv,
+	VelocityEnv,
 	L2OrderBookGenerator,
 	MarketType,
 	ONE,
@@ -76,7 +76,7 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 
 	constructor(
 		config: DLOBSubscriptionConfig & {
-			env: DriftEnv;
+			env: VelocityEnv;
 			redisClient: RedisClient;
 			indicativeQuotesRedisClient?: RedisClient;
 			enableOffloadQueue?: boolean;
@@ -105,7 +105,7 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 		this.lastSeenL2Formatted.set(MarketType.PERP, new Map());
 
 		for (const market of config.perpMarketInfos) {
-			const perpMarket = this.driftClient.getPerpMarketAccount(
+			const perpMarket = this.velocityClient.getPerpMarketAccount(
 				market.marketIndex
 			);
 			const includeVamm = !isOperationPaused(
@@ -122,7 +122,7 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 				includeVamm,
 				updateOnChange: false,
 				fallbackL2Generators: [],
-				tickSize: perpMarket?.amm?.orderTickSize ?? ONE,
+				tickSize: perpMarket?.orderTickSize ?? ONE,
 			});
 		}
 		for (const market of config.spotMarketInfos) {
@@ -148,10 +148,10 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 			try {
 				if (this.indicativeQuotesRedisClient) {
 					const oraclePriceData = isVariant(marketArgs.marketType, 'perp')
-						? this.driftClient.getMMOracleDataForPerpMarket(
+						? this.velocityClient.getMMOracleDataForPerpMarket(
 								marketArgs.marketIndex
 						  )
-						: this.driftClient.getOracleDataForSpotMarket(
+						: this.velocityClient.getOracleDataForSpotMarket(
 								marketArgs.marketIndex
 						  );
 					const bestDlobBid = dlob.getBestBid(
@@ -179,8 +179,8 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 					let bestAsk = bestDlobAsk;
 					if (marketType === 'perp') {
 						const [bestVammBid, bestVammAsk] = calculateBidAskPrice(
-							this.driftClient.getPerpMarketAccount(marketArgs.marketIndex).amm,
-							this.driftClient.getMMOracleDataForPerpMarket(
+							this.velocityClient.getPerpMarketAccount(marketArgs.marketIndex).amm,
+							this.velocityClient.getMMOracleDataForPerpMarket(
 								marketArgs.marketIndex
 							),
 							true,
@@ -339,13 +339,13 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 		const dlobSlot = this.slotSource.getSlot();
 		const oracleData =
 			marketType === 'perp'
-				? this.driftClient.getMMOracleDataForPerpMarket(marketArgs.marketIndex)
-				: this.driftClient.getOracleDataForSpotMarket(marketArgs.marketIndex);
+				? this.velocityClient.getMMOracleDataForPerpMarket(marketArgs.marketIndex)
+				: this.velocityClient.getOracleDataForSpotMarket(marketArgs.marketIndex);
 		const oracleSlot = oracleData.slot;
 		const isPerpMarketAndPrelaunchMarket =
 			marketType === 'perp' &&
 			isVariant(
-				this.driftClient.getPerpMarketAccount(marketArgs.marketIndex).amm
+				this.velocityClient.getPerpMarketAccount(marketArgs.marketIndex).amm
 					.oracleSource,
 				'prelaunch'
 			);
@@ -400,13 +400,13 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 
 		addOracletoResponse(
 			l2Formatted,
-			this.driftClient,
+			this.velocityClient,
 			marketArgs.marketType,
 			marketArgs.marketIndex
 		);
 		addMarketSlotToResponse(
 			l2Formatted,
-			this.driftClient,
+			this.velocityClient,
 			marketArgs.marketType,
 			marketArgs.marketIndex
 		);
@@ -537,13 +537,13 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 		l3['slot'] = slot;
 		addOracletoResponse(
 			l3,
-			this.driftClient,
+			this.velocityClient,
 			marketArgs.marketType,
 			marketArgs.marketIndex
 		);
 		addMarketSlotToResponse(
 			l3,
-			this.driftClient,
+			this.velocityClient,
 			marketArgs.marketType,
 			marketArgs.marketIndex
 		);
