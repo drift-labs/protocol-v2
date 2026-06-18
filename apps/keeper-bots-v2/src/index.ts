@@ -262,7 +262,7 @@ const runBot = async () => {
 		);
 	}
 	const [keypair, wallet] = getWallet(privateKeyOrFilepath);
-	const driftPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
+	const driftPublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
 
 	const connection = new Connection(endpoint, {
 		wsEndpoint: wsEndpoint,
@@ -788,8 +788,8 @@ const runBot = async () => {
 				config.botConfigs!.liquidator!,
 				config.global.subaccounts![0],
 				priorityFeeSubscriber,
-				sdkConfig.SERUM_LOOKUP_TABLE
-					? new PublicKey(sdkConfig.SERUM_LOOKUP_TABLE as string)
+				sdkConfig.MARKET_LOOKUP_TABLE
+					? new PublicKey(sdkConfig.MARKET_LOOKUP_TABLE as string)
 					: undefined
 			)
 		);

@@ -144,7 +144,7 @@ const runBot = async () => {
 		);
 	}
 	const [keypair, wallet] = getWallet(privateKeyOrFilepath);
-	const driftPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
+	const driftPublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
 	const connection = new Connection(endpoint, {
 		wsEndpoint: wsEndpoint,
 		commitment: stateCommitment,

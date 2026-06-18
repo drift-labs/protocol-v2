@@ -308,7 +308,7 @@ const initializeAllMarketSubscribers = async (driftClient: DriftClient) => {
 
 const main = async () => {
 	const wallet = new Wallet(new Keypair());
-	const clearingHousePublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
+	const clearingHousePublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
 
 	const redisClient = new RedisClient({
 		prefix: RedisClientPrefix[REDIS_CLIENT],
