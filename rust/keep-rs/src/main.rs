@@ -19,8 +19,8 @@ use crate::{
 };
 use clap::Parser;
 
-use drift_rs::{types::MarketId, DriftClient, RpcClient, Wallet};
 use mimalloc::MiMalloc;
+use velocity_rs::{types::MarketId, RpcClient, VelocityClient, Wallet};
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -72,7 +72,7 @@ pub struct Config {
     #[clap(long, env = "RELAYER_MIN_INTERVAL_MS", default_value = "1000")]
     pub relayer_min_interval_ms: u64,
     /// Comma-separated extra Pyth Lazer feed IDs to subscribe to and relay,
-    /// for clusters whose spot/perp layout doesn't match drift-rs mainnet
+    /// for clusters whose spot/perp layout doesn't match velocity-rs mainnet
     /// constants (e.g. quote oracle = USDT/USD on a fork).
     #[clap(long, env = "RELAYER_EXTRA_FEEDS", default_value = "")]
     pub relayer_extra_feeds: String,
@@ -172,7 +172,7 @@ async fn main() {
         .unwrap();
     });
 
-    let wallet: Wallet = drift_rs::utils::load_keypair_multi_format(
+    let wallet: Wallet = velocity_rs::utils::load_keypair_multi_format(
         &std::env::var("BOT_PRIVATE_KEY").expect("base58 BOT_PRIVATE_KEY set"),
     )
     .expect("loaded BOT_PRIVATE_KEY")
@@ -182,39 +182,39 @@ async fn main() {
     log::info!("mainnet={}, markets={}", config.mainnet, config.all_markets);
 
     let context = if config.mainnet {
-        drift_rs::types::Context::MainNet
+        velocity_rs::types::Context::MainNet
     } else {
-        drift_rs::types::Context::DevNet
+        velocity_rs::types::Context::DevNet
     };
     let rpc_url =
         std::env::var("RPC_URL").unwrap_or_else(|_| "https://api.devnet.solana.com".to_string());
-    let drift = DriftClient::new(context, RpcClient::new(rpc_url), wallet)
+    let velocity = VelocityClient::new(context, RpcClient::new(rpc_url), wallet)
         .await
         .expect("initialized client");
 
     tokio::spawn({
-        let drift = drift.clone();
+        let velocity = velocity.clone();
         async move {
             let _ = tokio::signal::ctrl_c().await;
             log::warn!("ctrl+c received, bot shutting down...");
-            drift.grpc_unsubscribe();
+            velocity.grpc_unsubscribe();
             std::process::exit(0);
         }
     });
 
     if config.init_user {
-        relayer::init_user(config, drift).await;
+        relayer::init_user(config, velocity).await;
         return;
     } else if config.relayer {
-        relayer::run(config, drift).await;
+        relayer::run(config, velocity).await;
     } else if config.liquidator {
-        let bot = LiquidatorBot::new(config, drift, metrics, dashboard_state).await;
+        let bot = LiquidatorBot::new(config, velocity, metrics, dashboard_state).await;
         bot.run().await;
     } else if config.quoter {
-        let bot = QuoterBot::new(config, drift).await;
+        let bot = QuoterBot::new(config, velocity).await;
         bot.run().await;
     } else if config.filler {
-        let bot = FillerBot::new(config, drift, metrics).await;
+        let bot = FillerBot::new(config, velocity, metrics).await;
         bot.run().await;
     } else {
         log::warn!("provide --filler, --liquidator, --quoter, or --relayer mode");

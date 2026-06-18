@@ -8,7 +8,7 @@ Copy `.env.example` to `.env` and substitute valid RPC credentials:
 Required environment variables:
 - `BOT_PRIVATE_KEY` - Base58 encoded private key
 - `RPC_URL` - Solana RPC endpoint
-- `GRPC_ENDPOINT` - Drift gRPC endpoint
+- `GRPC_ENDPOINT` - Velocity gRPC endpoint
 - `GRPC_X_TOKEN` - Authentication token for gRPC
 ~- `PYTH_LAZER_TOKEN` - Pyth price feed access token~
 

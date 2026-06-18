@@ -1,11 +1,11 @@
-//! Off-chain SDK API for drift-rs.
+//! Off-chain SDK API for velocity-rs.
 //!
 //! The velocity program's core math (margin calculation, oracle pricing) is
 //! written against on-chain `AccountInfo` buffers and the map wrappers
-//! `PerpMarketMap` / `SpotMarketMap` / `OracleMap`. The drift-rs SDK runs
+//! `PerpMarketMap` / `SpotMarketMap` / `OracleMap`. The velocity-rs SDK runs
 //! off-chain and holds *owned* account data.
 //!
-//! This module provides a small, isolated surface so drift-rs callers can
+//! This module provides a small, isolated surface so velocity-rs callers can
 //! invoke that same code path without building `AccountInfo`s manually.
 //! It is gated behind `feature = "velocity-rs"` and compiled out for BPF
 //! builds.

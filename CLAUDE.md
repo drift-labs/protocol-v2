@@ -17,7 +17,7 @@ images). TypeScript
 builds run through Turbo: `bun run build` (= `turbo run build`) builds the whole graph in dependency
 order; `bunx turbo run build --filter=<pkg>` builds one package + its deps.
 
-There is also a **second, separate Cargo workspace** at `rust/` (drift-rs, keep-rs, swift) — see the
+There is also a **second, separate Cargo workspace** at `rust/` (velocity-rs, keep-rs, swift) — see the
 "Rust SDK + keeper workspace" section below. It is excluded from the program workspace
 (`exclude = ["rust"]` in the root `Cargo.toml`).
 
@@ -130,7 +130,7 @@ cd packages/sdk/ && bun run prettify:fix  # SDK (TypeScript)
 
 ## Rust SDK + keeper workspace (`rust/`)
 
-`rust/` is a **second Cargo workspace** holding the imported Rust crates: `drift-rs` (Rust SDK),
+`rust/` is a **second Cargo workspace** holding the imported Rust crates: `velocity-rs` (Rust SDK),
 `keep-rs` (keeper bots, binary `keeprs`), and `swift` (tx server, binary `swift-server`). It is
 deliberately separate from the program workspace (root `Cargo.toml` has `exclude = ["rust"]`) so its
 solana-sdk 3.x dependency tree never unifies with the program's SBF build. It has its own
@@ -138,9 +138,9 @@ solana-sdk 3.x dependency tree never unifies with the program's SBF build. It ha
 `./target`. Build/check it with `cargo check --manifest-path rust/Cargo.toml` (or `bun run rust:build`).
 
 - These crates consume the velocity program as a **host library** path-dep: `drift = { package = "velocity", path = "../../programs/velocity", ... }`. That host build is independent of `cargo build-sbf`.
-- **IDL tie:** `drift-rs/build.rs` regenerates `drift-rs/crates/src/drift_idl.rs` from `drift-rs/res/velocity.json` on every build. `bun run program:idl` regenerates the program IDL **and** syncs it into `rust/drift-rs/res/velocity.json` (via the `rust:idl-sync` script), so the Rust types track the program. Never hand-edit `res/velocity.json` or `drift_idl.rs` — both are generated.
+- **IDL tie:** `velocity-rs/build.rs` regenerates `velocity-rs/crates/src/velocity_idl.rs` from `velocity-rs/res/velocity.json` on every build. `bun run program:idl` regenerates the program IDL **and** syncs it into `rust/velocity-rs/res/velocity.json` (via the `rust:idl-sync` script), so the Rust types track the program. Never hand-edit `res/velocity.json` or `velocity_idl.rs` — both are generated.
 - `keep-rs`'s `[patch.crates-io]` and `swift`'s `[profile.dev.package]` are **hoisted** into `rust/Cargo.toml` (Cargo only honors patches/profiles at the workspace root). `keep-rs/vendor/pyth-lazer-protocol` is un-ignored in `.gitignore`.
-- The velocity fork **removed** some upstream-drift features (IF-rebalance / `ProtocolIfSharesTransferConfig`, gov-token staking). When importing newer drift-rs/keep-rs/swift, expect to drop references to removed types (see the import commits for the pattern).
+- The velocity fork **removed** some upstream-drift features (IF-rebalance / `ProtocolIfSharesTransferConfig`, gov-token staking). When importing newer velocity-rs/keep-rs/swift, expect to drop references to removed types (see the import commits for the pattern).
 
 ## Apps and Docker images
 
@@ -207,7 +207,7 @@ This is **Velocity Protocol v2** — a Solana perpetuals and spot trading protoc
   - `keeper.rs` — keeper/crank instructions (settle PnL, funding, liquidations)
   - `admin.rs` — admin/governance instructions
   - `lp_pool.rs`, `lp_admin.rs` — LP pool management
-- **`vaults/`** — Velocity vaults program (Anchor 1.0; program id `vAuLTsyrv…`). Depends on the `velocity` program as a host/CPI path-dep, referenced by its real crate name `velocity` (not the `drift` alias drift-rs uses — anchor's IDL build resolves dependency programs by name, so `velocity` maps to `programs/velocity`). Its TS client is `packages/vaults-sdk` (`@velocity-exchange/vaults-sdk`). Regenerate the SDK's IDL + types from the program with `bun run program:idl:vaults` (writes `packages/vaults-sdk/src/idl/vaults.json` + `src/types/vaults.ts`) — never hand-edit them.
+- **`vaults/`** — Velocity vaults program (Anchor 1.0; program id `vAuLTsyrv…`). Depends on the `velocity` program as a host/CPI path-dep, referenced by its real crate name `velocity` (not the `program` alias velocity-rs uses — anchor's IDL build resolves dependency programs by name, so `velocity` maps to `programs/velocity`). Its TS client is `packages/vaults-sdk` (`@velocity-exchange/vaults-sdk`). Regenerate the SDK's IDL + types from the program with `bun run program:idl:vaults` (writes `packages/vaults-sdk/src/idl/vaults.json` + `src/types/vaults.ts`) — never hand-edit them.
 - **`pyth/`, `pyth-lazer/`, `switchboard/`, `switchboard-on-demand/`** — Oracle stubs/integrations (minimal, mostly `no-entrypoint` wrappers)
 - **`openbook_v2/`, `token_faucet/`** — DEX integration and test utilities
 

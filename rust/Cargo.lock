@@ -1415,99 +1415,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
-name = "drift-idl-gen"
-version = "0.2.0"
-dependencies = [
- "anchor-lang-idl",
- "proc-macro2",
- "quote",
- "serde_json",
- "sha2 0.10.9",
- "syn 2.0.118",
-]
-
-[[package]]
 name = "drift-macros"
 version = "0.1.0"
 source = "git+https://github.com/drift-labs/drift-macros.git?rev=c57d87#c57d87e073d13d43f4d1fb09fe6822915a4ccc11"
 dependencies = [
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "drift-pubsub-client"
-version = "0.1.1"
-dependencies = [
- "futures-util",
- "gjson",
- "log",
- "serde",
- "serde_json",
- "solana-account-decoder-client-types",
- "solana-clock",
- "solana-pubkey 3.0.0",
- "solana-rpc-client-api",
- "solana-signature",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite 0.28.0",
- "url",
-]
-
-[[package]]
-name = "drift-rs"
-version = "1.0.0"
-dependencies = [
- "ahash 0.8.12",
- "anchor-lang",
- "arc-swap",
- "arrayvec",
- "base64 0.22.1",
- "bs58",
- "bytemuck",
- "bytes",
- "crossbeam",
- "dashmap",
- "drift-idl-gen",
- "drift-pubsub-client",
- "env_logger",
- "futures-util",
- "fxhash",
- "hex",
- "hex-literal",
- "jupiter-swap-api-client",
- "log",
- "regex",
- "serde",
- "serde_json",
- "solana-account",
- "solana-account-decoder",
- "solana-account-decoder-client-types",
- "solana-commitment-config",
- "solana-compute-budget-interface",
- "solana-ed25519-program",
- "solana-instruction",
- "solana-keypair",
- "solana-message",
- "solana-pubkey 3.0.0",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-signature",
- "solana-signer",
- "solana-transaction",
- "solana-transaction-status",
- "spl-associated-token-account",
- "thiserror 1.0.69",
- "titan-swap-api-client",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite 0.28.0",
- "toml",
- "velocity",
- "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
 ]
 
 [[package]]
@@ -2630,7 +2543,6 @@ dependencies = [
  "crossbeam",
  "dashmap",
  "dotenv",
- "drift-rs",
  "env_logger",
  "futures-util",
  "log",
@@ -2649,6 +2561,7 @@ dependencies = [
  "solana-transaction-status",
  "solana-transaction-status-client-types",
  "tokio",
+ "velocity-rs",
 ]
 
 [[package]]
@@ -6081,7 +5994,6 @@ dependencies = [
  "clap",
  "dashmap",
  "dotenv",
- "drift-rs",
  "ed25519-dalek 1.0.1",
  "env_logger",
  "faster-hex",
@@ -6112,6 +6024,7 @@ dependencies = [
  "tower-http 0.6.11",
  "urlencoding",
  "uuid",
+ "velocity-rs",
  "zstd",
 ]
 
@@ -6922,6 +6835,93 @@ dependencies = [
  "solana-security-txt",
  "static_assertions",
  "uint",
+]
+
+[[package]]
+name = "velocity-idl-gen"
+version = "0.2.0"
+dependencies = [
+ "anchor-lang-idl",
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "sha2 0.10.9",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "velocity-pubsub-client"
+version = "0.1.1"
+dependencies = [
+ "futures-util",
+ "gjson",
+ "log",
+ "serde",
+ "serde_json",
+ "solana-account-decoder-client-types",
+ "solana-clock",
+ "solana-pubkey 3.0.0",
+ "solana-rpc-client-api",
+ "solana-signature",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite 0.28.0",
+ "url",
+]
+
+[[package]]
+name = "velocity-rs"
+version = "1.0.0"
+dependencies = [
+ "ahash 0.8.12",
+ "anchor-lang",
+ "arc-swap",
+ "arrayvec",
+ "base64 0.22.1",
+ "bs58",
+ "bytemuck",
+ "bytes",
+ "crossbeam",
+ "dashmap",
+ "env_logger",
+ "futures-util",
+ "fxhash",
+ "hex",
+ "hex-literal",
+ "jupiter-swap-api-client",
+ "log",
+ "regex",
+ "serde",
+ "serde_json",
+ "solana-account",
+ "solana-account-decoder",
+ "solana-account-decoder-client-types",
+ "solana-commitment-config",
+ "solana-compute-budget-interface",
+ "solana-ed25519-program",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-message",
+ "solana-pubkey 3.0.0",
+ "solana-rpc-client",
+ "solana-rpc-client-api",
+ "solana-signature",
+ "solana-signer",
+ "solana-transaction",
+ "solana-transaction-status",
+ "spl-associated-token-account",
+ "thiserror 1.0.69",
+ "titan-swap-api-client",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite 0.28.0",
+ "toml",
+ "velocity",
+ "velocity-idl-gen",
+ "velocity-pubsub-client",
+ "yellowstone-grpc-client",
+ "yellowstone-grpc-proto",
 ]
 
 [[package]]

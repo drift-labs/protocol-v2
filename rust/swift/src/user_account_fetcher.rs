@@ -2,16 +2,16 @@ use std::collections::HashMap;
 
 use anchor_lang::AccountDeserialize;
 use base64::Engine;
-use drift_rs::{types::accounts::User, DriftClient};
 use redis::{aio::MultiplexedConnection, AsyncCommands};
 use solana_clock::Slot;
 use solana_pubkey::Pubkey;
+use velocity_rs::{types::accounts::User, VelocityClient};
 
 /// Fallback lookup strategy
 #[derive(Clone)]
 enum Fallback {
     /// Lookup from RPC
-    Rpc(DriftClient),
+    Rpc(VelocityClient),
     /// Lookup from some mocked hashmap
     Mock(HashMap<Pubkey, User>),
 }
@@ -32,7 +32,7 @@ impl UserAccountFetcher {
         }
     }
     /// Create a new `UserAccountFetcher` from env vars
-    pub async fn from_env(drift: DriftClient) -> Self {
+    pub async fn from_env(velocity: VelocityClient) -> Self {
         let redis = {
             let elasticache_host = std::env::var("USERMAP_ELASTICACHE_HOST")
                 .unwrap_or_else(|_| "localhost".to_string());
@@ -63,7 +63,7 @@ impl UserAccountFetcher {
 
         Self {
             redis,
-            fallback: Fallback::Rpc(drift),
+            fallback: Fallback::Rpc(velocity),
         }
     }
 
@@ -80,12 +80,14 @@ impl UserAccountFetcher {
         false
     }
 
-    // Fetch a drift `User` from usermap, falling back to RPC
+    // Fetch a velocity `User` from usermap, falling back to RPC
     pub async fn get_user(&self, account: &Pubkey, slot: Slot) -> Result<User, ()> {
         match self.usermap_lookup(account, slot).await {
             Ok(res) => Ok(res),
             Err(_) => match &self.fallback {
-                Fallback::Rpc(drift) => drift.get_account_value(account).await.map_err(|_| ()),
+                Fallback::Rpc(velocity) => {
+                    velocity.get_account_value(account).await.map_err(|_| ())
+                }
                 Fallback::Mock(mocks) => mocks.get(account).copied().ok_or(()),
             },
         }
@@ -140,8 +142,8 @@ impl UserAccountFetcher {
 
 #[cfg(test)]
 mod tests {
-    use drift_rs::{Context, RpcClient};
     use solana_keypair::Keypair;
+    use velocity_rs::{Context, RpcClient};
 
     use super::*;
 
@@ -150,14 +152,14 @@ mod tests {
     #[tokio::test]
     async fn usermap_lookups() {
         let _ = env_logger::try_init();
-        let drift = DriftClient::new(
+        let velocity = VelocityClient::new(
             Context::DevNet,
             RpcClient::new("https://api.devnet.solana.com".into()),
             Keypair::new().into(),
         )
         .await
         .unwrap();
-        let u = UserAccountFetcher::from_env(drift.clone()).await;
+        let u = UserAccountFetcher::from_env(velocity.clone()).await;
         let keys = [
             solana_pubkey::pubkey!("9wcC14v9n3YvGenSnAnsA8yTwnCyUg3ayTBGaJUNEnn6"),
             solana_pubkey::pubkey!("6nBSTpFpAqw32CKdauAL1FnSLvrtUpBgeXXjPEL2ooB7"),
@@ -169,7 +171,7 @@ mod tests {
             solana_pubkey::pubkey!("9TDcwUU43bbhGM8JDMY7FT8797foKA32ekSH9eieT3jX"),
         ];
 
-        let slot = drift.rpc().get_slot().await.unwrap();
+        let slot = velocity.rpc().get_slot().await.unwrap();
 
         for p in keys {
             let t0 = std::time::Instant::now();

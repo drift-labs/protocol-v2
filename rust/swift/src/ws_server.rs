@@ -16,15 +16,6 @@ use anyhow::{Context, Result};
 use axum::{routing::get, Router};
 use dashmap::DashMap;
 use dotenv::dotenv;
-use drift_rs::{
-    constants::MarketExt,
-    swift_order_subscriber::SignedMessageInfo,
-    types::{
-        accounts::{PerpMarket, SignedMsgWsDelegates, UserStats},
-        MarketType, MarketTypeExt,
-    },
-    Pubkey, RpcClient, Wallet,
-};
 use ed25519_dalek::{PublicKey, Signature, Verifier};
 use futures_util::{
     stream::{self, FuturesUnordered},
@@ -44,6 +35,15 @@ use tokio::{
 };
 use tokio_tungstenite::tungstenite::{
     self, extensions::DeflateConfig, protocol::WebSocketConfig, Message,
+};
+use velocity_rs::{
+    constants::MarketExt,
+    swift_order_subscriber::SignedMessageInfo,
+    types::{
+        accounts::{PerpMarket, SignedMsgWsDelegates, UserStats},
+        MarketType, MarketTypeExt,
+    },
+    Pubkey, RpcClient, Wallet,
 };
 
 use crate::{
@@ -151,7 +151,7 @@ fn find_market_index_from_symbol(
 pub fn derive_ws_auth_delegates_pubkey(authority: &Pubkey) -> Pubkey {
     let (account_drift_pda, _seed) = Pubkey::find_program_address(
         &[&b"SIGNED_MSG_WS"[..], authority.as_ref()],
-        &drift_rs::constants::PROGRAM_ID,
+        &velocity_rs::constants::PROGRAM_ID,
     );
     account_drift_pda
 }
@@ -762,7 +762,7 @@ pub async fn start_server() {
 
     let client = RpcClient::new(ENDPOINT.to_string());
     let (perp_market_accounts, _) =
-        drift_rs::marketmap::get_market_accounts_with_fallback::<PerpMarket>(&client)
+        velocity_rs::marketmap::get_market_accounts_with_fallback::<PerpMarket>(&client)
             .await
             .unwrap();
 

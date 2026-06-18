@@ -6,7 +6,7 @@ members = [
 	"programs/pyth-lazer",
 	"programs/token_faucet",
 ]
-# The `rust/` directory is a SEPARATE Cargo workspace (drift-rs/keep-rs/swift).
+# The `rust/` directory is a SEPARATE Cargo workspace (velocity-rs/keep-rs/swift).
 # It is excluded here so its solana-sdk 3.x dependency tree never unifies with
 # the program (SBF) build, and so the two workspaces don't collide as nested
 # workspace roots. See rust/Cargo.toml.

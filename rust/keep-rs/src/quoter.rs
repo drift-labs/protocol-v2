@@ -14,13 +14,13 @@
 
 use std::time::Duration;
 
-use drift_rs::{
+use velocity_rs::{
     math::constants::{BASE_PRECISION_U64, PRICE_PRECISION_U64, QUOTE_PRECISION},
     types::{
         accounts::User, MarketId, MarketType, OrderParams, OrderType, PerpPosition,
         PositionDirection, PostOnlyParam, SpotBalanceType,
     },
-    DriftClient, Pubkey, TransactionBuilder,
+    Pubkey, TransactionBuilder, VelocityClient,
 };
 
 use crate::{Config, UseMarkets};
@@ -30,7 +30,7 @@ const USER_ORDER_ID_BID: u8 = 201;
 const USER_ORDER_ID_ASK: u8 = 202;
 
 pub struct QuoterBot {
-    drift: DriftClient,
+    velocity: VelocityClient,
     config: Config,
     subaccount: Pubkey,
     markets: Vec<u16>,
@@ -46,9 +46,9 @@ struct MarketSnapshot {
 }
 
 impl QuoterBot {
-    pub async fn new(config: Config, drift: DriftClient) -> Self {
+    pub async fn new(config: Config, velocity: VelocityClient) -> Self {
         let requested: Vec<u16> = match config.use_markets() {
-            UseMarkets::All => drift
+            UseMarkets::All => velocity
                 .get_all_perp_market_ids()
                 .into_iter()
                 .map(|m| m.index())
@@ -63,7 +63,7 @@ impl QuoterBot {
         // program data. Without this, every tick would log a confusing
         // `InvalidOracle` — the oracle path returns that when the perp market
         // config is missing, not when the oracle account itself is bad.
-        let program_data = drift.program_data();
+        let program_data = velocity.program_data();
         let (markets, missing): (Vec<u16>, Vec<u16>) = requested
             .into_iter()
             .partition(|idx| program_data.perp_market_config_by_index(*idx).is_some());
@@ -86,7 +86,7 @@ impl QuoterBot {
                 pm.oracle,
             );
         }
-        let subaccount = drift.wallet.sub_account(config.sub_account_id);
+        let subaccount = velocity.wallet.sub_account(config.sub_account_id);
         log::info!(
             target: TARGET,
             "quoter starting: subaccount={subaccount}, markets={markets:?}, \
@@ -99,7 +99,7 @@ impl QuoterBot {
             config.quote_max_gross_notional,
         );
         QuoterBot {
-            drift,
+            velocity,
             config,
             subaccount,
             markets,
@@ -127,7 +127,7 @@ impl QuoterBot {
         const LOW_DEPOSIT_USD: u128 = 10 * QUOTE_PRECISION as u128;
 
         let user = self
-            .drift
+            .velocity
             .get_user_account(&self.subaccount)
             .await
             .map_err(|e| format!("user: {e:?}"))?;
@@ -137,14 +137,14 @@ impl QuoterBot {
         for pos in user.spot_positions.iter().filter(|p| !p.is_available()) {
             any_position = true;
             let spot_market = self
-                .drift
+                .velocity
                 .try_get_spot_market_account(pos.market_index)
                 .map_err(|e| format!("spot market {}: {e:?}", pos.market_index))?;
             let token_amount = pos
                 .get_signed_token_amount(&spot_market)
                 .map_err(|e| format!("token amount {}: {e:?}", pos.market_index))?;
             let oracle = self
-                .drift
+                .velocity
                 .oracle_price(MarketId::spot(pos.market_index))
                 .await
                 .map_err(|e| format!("spot oracle {}: {e:?}", pos.market_index))?
@@ -169,7 +169,7 @@ impl QuoterBot {
             log::warn!(
                 target: TARGET,
                 "subaccount {} has NO deposits — quoter cannot post orders. \
-                 Deposit collateral on drift devnet before running.",
+                 Deposit collateral on velocity devnet before running.",
                 self.subaccount,
             );
         } else if total_deposit_usd < LOW_DEPOSIT_USD {
@@ -194,7 +194,7 @@ impl QuoterBot {
 
     async fn tick(&self) -> Result<(), String> {
         let user = self
-            .drift
+            .velocity
             .get_user_account(&self.subaccount)
             .await
             .map_err(|e| format!("user: {e:?}"))?;
@@ -239,7 +239,7 @@ impl QuoterBot {
         user: &User,
     ) -> Result<MarketSnapshot, String> {
         let oracle = self
-            .drift
+            .velocity
             .oracle_price(MarketId::perp(market_index))
             .await
             .map_err(|e| format!("oracle: {e:?}"))?;
@@ -248,7 +248,7 @@ impl QuoterBot {
         }
         let oracle_price = oracle as u64;
         let perp_market = self
-            .drift
+            .velocity
             .get_perp_market_account(market_index)
             .await
             .map_err(|e| format!("perp market: {e:?}"))?;
@@ -320,14 +320,14 @@ impl QuoterBot {
         }
 
         let mut tx = TransactionBuilder::new(
-            self.drift.program_data(),
+            self.velocity.program_data(),
             self.subaccount,
             std::borrow::Cow::Owned(user.clone()),
             false,
         )
         .with_priority_fee(self.config.priority_fee, Some(self.config.fill_cu_limit));
 
-        // drift-rs's `cancel_orders_by_user_id` does not inject the target
+        // velocity-rs's `cancel_orders_by_user_id` does not inject the target
         // perp market into remaining_accounts (and `build_accounts` only
         // scans user positions, not user.orders), so a cancel on a market
         // where we hold no position fails on-chain with PerpMarketNotFound.
@@ -413,7 +413,7 @@ impl QuoterBot {
             );
             return Ok(());
         }
-        match self.drift.sign_and_send(msg).await {
+        match self.velocity.sign_and_send(msg).await {
             Ok(sig) => {
                 log::info!(
                     target: TARGET,

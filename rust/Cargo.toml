@@ -1,16 +1,16 @@
 [workspace]
 resolver = "2"
 members = [
-	"drift-rs",
-	"drift-rs/crates/drift-idl-gen",
-	"drift-rs/crates/pubsub-client",
+	"velocity-rs",
+	"velocity-rs/crates/velocity-idl-gen",
+	"velocity-rs/crates/pubsub-client",
 	"keep-rs",
 	"swift",
 ]
 
 # This is a SEPARATE workspace from the program workspace at the repo root
 # (which is `exclude = ["rust"]`). Keeping it separate isolates the heavy
-# solana-sdk 3.x dependency tree used by drift-rs/keep-rs/swift from the
+# solana-sdk 3.x dependency tree used by velocity-rs/keep-rs/swift from the
 # program's SBF build, and gives this side its own Cargo.lock and target dir
 # (see .cargo/config.toml). The `drift` (velocity) program crate is consumed
 # as a HOST library path-dep (../../programs/velocity) — independent of the

@@ -7,14 +7,23 @@ use std::{
 
 use anchor_lang::Discriminator;
 use dashmap::DashMap;
-use drift_rs::drift::math::auction::calculate_auction_price;
-use drift_rs::{
+use futures_util::StreamExt;
+use solana_account_decoder_client_types::UiAccountEncoding;
+use solana_compute_budget_interface::ComputeBudgetInstruction;
+use solana_rpc_client_api::config::{
+    RpcAccountInfoConfig, RpcProgramAccountsConfig, RpcTransactionConfig,
+};
+use solana_sdk::{signature::Signature, transaction::TransactionError};
+use solana_transaction_status_client_types::UiTransactionEncoding;
+use tokio::{runtime::Handle, sync::RwLock};
+use velocity_rs::program::math::auction::calculate_auction_price;
+use velocity_rs::{
     constants::PROGRAM_ID,
     dlob::{
         CrossesAndTopMakers, CrossingRegion, DLOBNotifier, MakerCrosses, OrderKind, TakerOrder,
         DLOB,
     },
-    event_subscriber::DriftEvent,
+    event_subscriber::VelocityEvent,
     grpc::{
         grpc_subscriber::{AccountFilter, GrpcConnectionOpts},
         AccountUpdate, TransactionUpdate,
@@ -27,17 +36,8 @@ use drift_rs::{
         OrderParamsExt, OrderTriggerCondition, OrderType, PositionDirection, PostOnlyParam,
         RpcSendTransactionConfig, StateExt, VersionedMessage, VersionedTransaction, AMM,
     },
-    DriftClient, GrpcSubscribeOpts, Pubkey, TransactionBuilder, Wallet,
+    GrpcSubscribeOpts, Pubkey, TransactionBuilder, VelocityClient, Wallet,
 };
-use futures_util::StreamExt;
-use solana_account_decoder_client_types::UiAccountEncoding;
-use solana_compute_budget_interface::ComputeBudgetInstruction;
-use solana_rpc_client_api::config::{
-    RpcAccountInfoConfig, RpcProgramAccountsConfig, RpcTransactionConfig,
-};
-use solana_sdk::{signature::Signature, transaction::TransactionError};
-use solana_transaction_status_client_types::UiTransactionEncoding;
-use tokio::{runtime::Handle, sync::RwLock};
 
 use crate::{
     http::Metrics,
@@ -48,7 +48,7 @@ use crate::{
 const TARGET: &str = "filler";
 
 pub struct FillerBot {
-    drift: DriftClient,
+    velocity: VelocityClient,
     dlob: &'static DLOB,
     filler_subaccount: Pubkey,
     slot_rx: tokio::sync::mpsc::Receiver<u64>,
@@ -62,19 +62,19 @@ pub struct FillerBot {
 }
 
 impl FillerBot {
-    pub async fn new(config: Config, drift: DriftClient, metrics: Arc<Metrics>) -> Self {
+    pub async fn new(config: Config, velocity: VelocityClient, metrics: Arc<Metrics>) -> Self {
         let dlob: &'static DLOB = Box::leak(Box::new(DLOB::default()));
-        let tx_worker = TxWorker::new(drift.clone(), metrics, config.dry, None, None, None);
+        let tx_worker = TxWorker::new(velocity.clone(), metrics, config.dry, None, None, None);
         let rt = tokio::runtime::Handle::current();
         let tx_worker_ref = tx_worker.run(rt);
 
         let mut market_ids = match config.use_markets() {
-            UseMarkets::All => drift.get_all_perp_market_ids(),
+            UseMarkets::All => velocity.get_all_perp_market_ids(),
             UseMarkets::Subset(m) => m,
         };
         // remove bet perp markets
         market_ids.retain(|x| {
-            let market = drift
+            let market = velocity
                 .program_data()
                 .perp_market_config_by_index(x.index())
                 .unwrap();
@@ -88,7 +88,7 @@ impl FillerBot {
         let market_pubkeys: Vec<Pubkey> = market_ids
             .iter()
             .map(|x| {
-                drift
+                velocity
                     .program_data()
                     .perp_market_config_by_index(x.index())
                     .unwrap()
@@ -97,21 +97,21 @@ impl FillerBot {
             .collect();
 
         let priority_fee_subscriber =
-            PriorityFeeSubscriber::new(drift.rpc().url(), &market_pubkeys);
+            PriorityFeeSubscriber::new(velocity.rpc().url(), &market_pubkeys);
         let priority_fee_subscriber = priority_fee_subscriber.subscribe();
 
-        let filler_subaccount = drift.wallet.sub_account(config.sub_account_id);
+        let filler_subaccount = velocity.wallet.sub_account(config.sub_account_id);
 
         log::info!(target: TARGET, "subscribing swift orders");
-        let swift_order_stream = drift
+        let swift_order_stream = velocity
             .subscribe_swift_orders(&market_ids, Some(true), None, None)
             .await
             .expect("subscribed swift orders");
         log::info!(target: TARGET, "subscribed swift orders");
 
-        drift.subscribe_blockhashes().await.expect("subscribed");
+        velocity.subscribe_blockhashes().await.expect("subscribed");
         let slot_rx = setup_grpc(
-            drift.clone(),
+            velocity.clone(),
             dlob,
             tx_worker_ref.clone(),
             market_ids.clone(),
@@ -135,7 +135,7 @@ impl FillerBot {
         };
 
         FillerBot {
-            drift,
+            velocity,
             dlob,
             filler_subaccount,
             slot_rx,
@@ -153,7 +153,7 @@ impl FillerBot {
         let mut swift_order_stream = self.swift_order_stream;
         let mut slot_rx = self.slot_rx;
         let mut limiter = self.limiter;
-        let drift: &'static DriftClient = Box::leak(Box::new(self.drift));
+        let velocity: &'static VelocityClient = Box::leak(Box::new(self.velocity));
         let dlob = self.dlob;
         let market_ids = self.market_ids;
         let filler_subaccount = self.filler_subaccount;
@@ -161,11 +161,11 @@ impl FillerBot {
         let tx_worker_ref = self.tx_worker_ref.clone();
         let priority_fee_subscriber = Arc::clone(&self.priority_fee_subscriber);
         let mut slot = 0;
-        let mut use_median_trigger_price = drift
+        let mut use_median_trigger_price = velocity
             .state_account()
             .map(|s| s.has_median_trigger_price_feature())
             .unwrap_or(false);
-        let mut slots_before_stale_for_amm = drift
+        let mut slots_before_stale_for_amm = velocity
             .state_account()
             .map(|s| s.oracle_guard_rails.validity.slots_before_stale_for_amm)
             .unwrap_or(10);
@@ -191,8 +191,8 @@ impl FillerBot {
                             let mut order_params = signed_order.order_params();
                             log::info!(target: TARGET, "new swift order. uuid={}, market={}", signed_order.order_uuid_str(), order_params.market_index);
                             log::debug!(target: TARGET, "details: {signed_order:?}");
-                            let perp_market = drift.try_get_perp_market_account(order_params.market_index).unwrap();
-                            let oracle_price_data = drift.try_get_mmoracle_for_perp_market(order_params.market_index, slot).expect("got oracle price");
+                            let perp_market = velocity.try_get_perp_market_account(order_params.market_index).unwrap();
+                            let oracle_price_data = velocity.try_get_mmoracle_for_perp_market(order_params.market_index, slot).expect("got oracle price");
                             let oracle_price = oracle_price_data.price;
                             log::trace!(target: TARGET, "oracle price: slot:{:?},market:{:?},price:{:?}", slot, order_params.market_index, oracle_price);
                             order_params.update_perp_auction_params(
@@ -286,7 +286,7 @@ impl FillerBot {
                                 log::info!(target: TARGET, "found resting cross. crosses={crosses:?}");
                                 let pf = priority_fee_subscriber.priority_fee_nth(0.6);
                                 try_swift_fill(
-                                    drift,
+                                    velocity,
                                     pf,
                                     config.swift_cu_limit,
                                     filler_subaccount,
@@ -303,7 +303,7 @@ impl FillerBot {
                                     log::warn!(target: "swift", "feed disconnected, retry {retries}/{MAX_SWIFT_RECONNECT_RETRIES} in {backoff}s");
                                     tokio::time::sleep(Duration::from_secs(backoff)).await;
 
-                                    match drift
+                                    match velocity
                                         .subscribe_swift_orders(&market_ids, Some(true), None, None)
                                         .await
                                     {
@@ -336,8 +336,8 @@ impl FillerBot {
                     for market in &market_ids {
                         let market_index = market.index();
 
-                        let perp_market = drift.try_get_perp_market_account(market_index).expect("got perp market");
-                        let chain_oracle_data = drift.try_get_mmoracle_for_perp_market(market_index, slot).expect("got oracle price");
+                        let perp_market = velocity.try_get_perp_market_account(market_index).expect("got perp market");
+                        let chain_oracle_data = velocity.try_get_mmoracle_for_perp_market(market_index, slot).expect("got oracle price");
                         log::debug!(target: "oracle", "oracle price: delay:{:?},market:{:?},oracle:{:?},amm:{:?}", chain_oracle_data.delay, market, chain_oracle_data.price, perp_market.market_stats.mm_oracle_price);
                         let oracle_stale_for_amm = chain_oracle_data.delay > slots_before_stale_for_amm;
                         log::debug!(target: TARGET, "oracle_stale_for_amm={} (delay={}, market={})", oracle_stale_for_amm, chain_oracle_data.delay, market_index);
@@ -357,7 +357,7 @@ impl FillerBot {
                         if !crosses_and_top_makers.crosses.is_empty() {
                             log::info!(target: TARGET, "found auction crosses. market: {},{crosses_and_top_makers:?}", market.index());
                             try_auction_fill(
-                                drift,
+                                velocity,
                                 priority_fee,
                                 config.fill_cu_limit,
                                 market_index,
@@ -378,17 +378,17 @@ impl FillerBot {
                         if slot % 2 == 0 {
                             if let Some(crosses) = dlob.find_crossing_region(oracle_price, market_index, MarketType::Perp, Some(&perp_market)) {
                                 log::info!(target: TARGET, "found limit crosses (market: {market_index}), top bid: {:?}, top ask: {:?}", crosses.crossing_bids.first(), crosses.crossing_asks.first());
-                                try_uncross(drift, slot + 1, priority_fee, config.fill_cu_limit, market_index, filler_subaccount, crosses, &tx_worker_ref).await;
+                                try_uncross(velocity, slot + 1, priority_fee, config.fill_cu_limit, market_index, filler_subaccount, crosses, &tx_worker_ref).await;
                             }
                         }
 
                         // check state config ~every minute
                         if slot % 300 == 0 {
-                            use_median_trigger_price = drift
+                            use_median_trigger_price = velocity
                                 .state_account()
                                 .map(|s| s.has_median_trigger_price_feature())
                                 .unwrap_or(false);
-                            slots_before_stale_for_amm = drift
+                            slots_before_stale_for_amm = velocity
                                 .state_account()
                                 .map(|s| s.oracle_guard_rails.validity.slots_before_stale_for_amm)
                                 .unwrap_or(10);
@@ -410,7 +410,7 @@ impl FillerBot {
                 }
             }
         }
-        drift.grpc_unsubscribe();
+        velocity.grpc_unsubscribe();
         log::info!(target: TARGET, "filler shutting down...");
     }
 }
@@ -428,14 +428,14 @@ fn on_transaction_update_fn(
 }
 
 fn on_slot_update_fn(
-    drift: DriftClient,
+    velocity: VelocityClient,
     market_ids: Vec<MarketId>,
     dlob_notifier: DLOBNotifier,
     slot_tx: tokio::sync::mpsc::Sender<u64>,
 ) -> impl Fn(u64) + Send + Sync + 'static {
     move |new_slot| {
         for market in market_ids.iter() {
-            let oracle_price_data = drift
+            let oracle_price_data = velocity
                 .try_get_mmoracle_for_perp_market(market.index(), new_slot)
                 .unwrap();
             dlob_notifier.slot_and_oracle_update(*market, new_slot, oracle_price_data.price as u64);
@@ -448,11 +448,11 @@ fn on_slot_update_fn(
 
 fn on_account_update_fn(
     dlob_notifier: DLOBNotifier,
-    drift: DriftClient,
+    velocity: VelocityClient,
 ) -> impl Fn(&AccountUpdate) + Send + Sync + 'static {
     move |update| {
-        let new_user = drift_rs::utils::deser_zero_copy::<User>(update.data);
-        if let Some(ref existing) = drift
+        let new_user = velocity_rs::utils::deser_zero_copy::<User>(update.data);
+        if let Some(ref existing) = velocity
             .backend()
             .account_map()
             .account_data_and_slot::<User>(&update.pubkey)
@@ -479,7 +479,7 @@ fn on_account_update_fn(
 
 /// Try to fill a swift order
 async fn try_swift_fill(
-    drift: &'static DriftClient,
+    velocity: &'static VelocityClient,
     priority_fee: u64,
     cu_limit: u32,
     filler_subaccount: Pubkey,
@@ -492,17 +492,17 @@ async fn try_swift_fill(
     let taker_subaccount = swift_order.taker_subaccount();
     let taker_authority = swift_order.taker_authority;
 
-    let filler_account_data = drift
+    let filler_account_data = velocity
         .try_get_account::<User>(&filler_subaccount)
         .expect("filler account");
     let taker_stats = Wallet::derive_stats_account(&taker_authority);
     let (taker_account_data, taker_stats) = tokio::try_join!(
-        drift.get_account_value::<User>(&taker_subaccount),
-        drift.get_account_value::<UserStats>(&taker_stats)
+        velocity.get_account_value::<User>(&taker_subaccount),
+        velocity.get_account_value::<UserStats>(&taker_stats)
     )
     .unwrap();
     let tx_builder = TransactionBuilder::new(
-        drift.program_data(),
+        velocity.program_data(),
         filler_subaccount,
         std::borrow::Cow::Borrowed(&filler_account_data),
         false,
@@ -513,7 +513,7 @@ async fn try_swift_fill(
         .iter()
         .filter(|m| m.0.user != taker_subaccount) // can't fill itself
         .map(|(m, _fill_size)| {
-            drift
+            velocity
                 .try_get_account::<User>(&m.user)
                 .expect("maker account syncd")
         })
@@ -564,7 +564,7 @@ async fn try_swift_fill(
 ///
 /// - `auction_crosses` list of one or more crosses to fill
 async fn try_auction_fill(
-    drift: &'static DriftClient,
+    velocity: &'static VelocityClient,
     priority_fee: u64,
     cu_limit: u32,
     market_index: u16,
@@ -577,7 +577,7 @@ async fn try_auction_fill(
     perp_market: PerpMarket,
     oracle_stale_for_amm: bool,
 ) {
-    let filler_account_data = drift
+    let filler_account_data = velocity
         .try_get_account::<User>(&filler_subaccount)
         .expect("filler account");
 
@@ -585,7 +585,7 @@ async fn try_auction_fill(
         .top_maker_asks
         .iter()
         .map(|m| {
-            drift
+            velocity
                 .try_get_account::<User>(m)
                 .expect("maker account syncd")
         })
@@ -595,7 +595,7 @@ async fn try_auction_fill(
         .top_maker_bids
         .iter()
         .map(|m| {
-            drift
+            velocity
                 .try_get_account::<User>(m)
                 .expect("maker account syncd")
         })
@@ -605,11 +605,11 @@ async fn try_auction_fill(
         log::info!(target: TARGET, "try fill auction order: {taker_order:?}");
         let taker_subaccount = taker_order.user;
 
-        let taker_account_data = drift
+        let taker_account_data = velocity
             .try_get_account::<User>(&taker_subaccount)
             .expect("taker account");
 
-        let taker_stats = drift.try_get_account::<UserStats>(&Wallet::derive_stats_account(
+        let taker_stats = velocity.try_get_account::<UserStats>(&Wallet::derive_stats_account(
             &taker_account_data.authority,
         ));
 
@@ -619,7 +619,7 @@ async fn try_auction_fill(
         }
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             filler_subaccount,
             std::borrow::Cow::Borrowed(&filler_account_data),
             false,
@@ -681,7 +681,7 @@ async fn try_auction_fill(
             .iter()
             .filter(|m| m.0.user != taker_subaccount) // can't fill itself
             .map(|(m, _fill_size)| {
-                drift
+                velocity
                     .try_get_account::<User>(&m.user)
                     .expect("maker account syncd")
             })
@@ -696,7 +696,7 @@ async fn try_auction_fill(
 
             if let Ok(pos) = taker_account_data.get_perp_position(market_index) {
                 if let Ok((base_asset_amount, _limit_price)) =
-                    drift_rs::drift::math::orders::calculate_base_asset_amount_for_amm_to_fulfill(
+                    velocity_rs::program::math::orders::calculate_base_asset_amount_for_amm_to_fulfill(
                         taker_account_data
                             .orders
                             .iter()
@@ -782,7 +782,7 @@ async fn try_auction_fill(
 ///
 /// - `crosses` list of one or more crosses to fill
 async fn try_uncross(
-    drift: &DriftClient,
+    velocity: &VelocityClient,
     slot: u64,
     priority_fee: u64,
     cu_limit: u32,
@@ -791,7 +791,7 @@ async fn try_uncross(
     crosses: CrossingRegion,
     tx_worker_ref: &TxSender,
 ) {
-    let filler_account_data = drift
+    let filler_account_data = velocity
         .try_get_account::<User>(&filler_subaccount)
         .expect("filler account");
 
@@ -812,7 +812,7 @@ async fn try_uncross(
         .filter_map(|x| {
             let maker = x.user;
             if maker != best_bid.user {
-                drift.try_get_account::<User>(&maker).ok()
+                velocity.try_get_account::<User>(&maker).ok()
             } else {
                 None
             }
@@ -826,7 +826,7 @@ async fn try_uncross(
         .filter_map(|x| {
             let maker = x.user;
             if maker != best_ask.user {
-                drift.try_get_account::<User>(&maker).ok()
+                velocity.try_get_account::<User>(&maker).ok()
             } else {
                 None
             }
@@ -854,11 +854,11 @@ async fn try_uncross(
 
         let taker_order_id = taker_order.order_id;
         let taker_subaccount = taker_order.user;
-        let taker_account_data = drift
+        let taker_account_data = velocity
             .try_get_account::<User>(&taker_subaccount)
             .expect("taker account");
 
-        let taker_stats = drift.try_get_account::<UserStats>(&Wallet::derive_stats_account(
+        let taker_stats = velocity.try_get_account::<UserStats>(&Wallet::derive_stats_account(
             &taker_account_data.authority,
         ));
         if taker_stats.is_err() {
@@ -867,7 +867,7 @@ async fn try_uncross(
         }
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             filler_subaccount,
             std::borrow::Cow::Borrowed(&filler_account_data),
             false,
@@ -926,7 +926,7 @@ fn amm_wants_to_jit_make(
 ///
 /// Syncs User orders and UserStat accounts
 pub async fn setup_grpc(
-    drift: DriftClient,
+    velocity: VelocityClient,
     dlob: &'static DLOB,
     tx_worker_ref: TxSender,
     market_ids: Vec<MarketId>,
@@ -934,26 +934,26 @@ pub async fn setup_grpc(
     let dlob_notifier = dlob.spawn_notifier();
 
     let _ = tokio::try_join!(
-        sync_stats_accounts(&drift),
-        sync_user_accounts(&drift, &dlob_notifier),
+        sync_stats_accounts(&velocity),
+        sync_user_accounts(&velocity, &dlob_notifier),
     );
 
     let (slot_tx, slot_rx) = tokio::sync::mpsc::channel(64);
 
-    subscribe_grpc(drift, dlob_notifier, slot_tx, tx_worker_ref, market_ids).await;
+    subscribe_grpc(velocity, dlob_notifier, slot_tx, tx_worker_ref, market_ids).await;
 
     slot_rx
 }
 
 pub async fn sync_stats_accounts(
-    drift: &DriftClient,
+    velocity: &VelocityClient,
 ) -> Result<(), solana_rpc_client_api::client_error::Error> {
-    let stats_sync_result = drift
+    let stats_sync_result = velocity
         .rpc()
         .get_program_accounts_with_config(
             &PROGRAM_ID,
             RpcProgramAccountsConfig {
-                filters: Some(vec![drift_rs::memcmp::get_user_stats_filter()]),
+                filters: Some(vec![velocity_rs::memcmp::get_user_stats_filter()]),
                 account_config: RpcAccountInfoConfig {
                     encoding: Some(UiAccountEncoding::Base64Zstd),
                     ..Default::default()
@@ -966,7 +966,7 @@ pub async fn sync_stats_accounts(
     match stats_sync_result {
         Ok(accounts) => {
             for (pubkey, account) in accounts {
-                drift.backend().account_map().on_account_fn()(&AccountUpdate {
+                velocity.backend().account_map().on_account_fn()(&AccountUpdate {
                     pubkey,
                     data: &account.data,
                     lamports: account.lamports,
@@ -988,17 +988,17 @@ pub async fn sync_stats_accounts(
 }
 
 pub async fn sync_user_accounts(
-    drift: &DriftClient,
+    velocity: &VelocityClient,
     dlob_notifier: &DLOBNotifier,
 ) -> Result<(), solana_rpc_client_api::client_error::Error> {
-    let sync_result = drift
+    let sync_result = velocity
         .rpc()
         .get_program_accounts_with_config(
             &PROGRAM_ID,
             RpcProgramAccountsConfig {
                 filters: Some(vec![
-                    drift_rs::memcmp::get_non_idle_user_filter(),
-                    drift_rs::memcmp::get_user_filter(),
+                    velocity_rs::memcmp::get_non_idle_user_filter(),
+                    velocity_rs::memcmp::get_user_filter(),
                 ]),
                 account_config: RpcAccountInfoConfig {
                     encoding: Some(UiAccountEncoding::Base64Zstd),
@@ -1012,9 +1012,9 @@ pub async fn sync_user_accounts(
     match sync_result {
         Ok(accounts) => {
             for (pubkey, account) in accounts {
-                let user = drift_rs::utils::deser_zero_copy::<User>(&account.data);
+                let user = velocity_rs::utils::deser_zero_copy::<User>(&account.data);
                 dlob_notifier.user_update(pubkey, None, &user, 0);
-                drift.backend().account_map().on_account_fn()(&AccountUpdate {
+                velocity.backend().account_map().on_account_fn()(&AccountUpdate {
                     pubkey,
                     data: &account.data,
                     lamports: account.lamports,
@@ -1036,13 +1036,13 @@ pub async fn sync_user_accounts(
 }
 
 async fn subscribe_grpc(
-    drift: DriftClient,
+    velocity: VelocityClient,
     dlob_notifier: DLOBNotifier,
     slot_tx: tokio::sync::mpsc::Sender<u64>,
     transaction_tx: TxSender,
     market_ids: Vec<MarketId>,
 ) {
-    let _res = drift
+    let _res = velocity
         .grpc_subscribe(
             std::env::var("GRPC_ENDPOINT")
                 .unwrap_or_else(|_| "https://api.rpcpool.com".to_string())
@@ -1053,17 +1053,17 @@ async fn subscribe_grpc(
                 .connection_opts(GrpcConnectionOpts::default().enable_compression())
                 .usermap_on()
                 .statsmap_on()
-                .transaction_include_accounts(vec![drift.wallet().default_sub_account()])
+                .transaction_include_accounts(vec![velocity.wallet().default_sub_account()])
                 .on_transaction(on_transaction_update_fn(transaction_tx.clone()))
                 .on_slot(on_slot_update_fn(
-                    drift.clone(),
+                    velocity.clone(),
                     market_ids,
                     dlob_notifier.clone(),
                     slot_tx.clone(),
                 ))
                 .on_account(
                     AccountFilter::partial().with_discriminator(User::DISCRIMINATOR),
-                    on_account_update_fn(dlob_notifier.clone(), drift.clone()),
+                    on_account_update_fn(dlob_notifier.clone(), velocity.clone()),
                 ),
             true,
         )
@@ -1084,7 +1084,7 @@ pub enum TxWork {
 }
 
 pub struct TxWorker {
-    drift: &'static DriftClient,
+    velocity: &'static VelocityClient,
     pending_txs: Arc<RwLock<PendingTxs<1024>>>,
     metrics: Arc<Metrics>,
     dry_run: bool,
@@ -1095,7 +1095,7 @@ pub struct TxWorker {
 
 impl TxWorker {
     pub fn new(
-        drift: DriftClient,
+        velocity: VelocityClient,
         metrics: Arc<Metrics>,
         dry_run: bool,
         txs_in_flight: Option<Arc<DashMap<Pubkey, HashSet<Signature>>>>,
@@ -1103,7 +1103,7 @@ impl TxWorker {
         free_collateral_per_subaccount: Option<Arc<DashMap<Pubkey, u128>>>,
     ) -> Self {
         Self {
-            drift: Box::leak(Box::new(drift)),
+            velocity: Box::leak(Box::new(velocity)),
             pending_txs: Arc::new(RwLock::new(PendingTxs::new())),
             metrics,
             dry_run,
@@ -1115,7 +1115,7 @@ impl TxWorker {
 
     pub fn run(self, rt: tokio::runtime::Handle) -> TxSender {
         let (tx, rx) = crossbeam::channel::bounded(1024);
-        let drift = self.drift;
+        let velocity = self.velocity;
         std::thread::spawn(move || {
             let _ = env_logger::try_init();
             while let Ok(work) = rx.recv() {
@@ -1138,7 +1138,7 @@ impl TxWorker {
                 }
             }
         });
-        TxSender { tx, drift }
+        TxSender { tx, velocity }
     }
 
     fn send_tx(
@@ -1149,7 +1149,7 @@ impl TxWorker {
         cu_limit: u64,
     ) {
         log::debug!(target: TARGET, "txworker send tx: {intent:?}");
-        let drift = self.drift;
+        let velocity = self.velocity;
         let pending_txs = Arc::clone(&self.pending_txs);
         let metrics = self.metrics.clone();
         let intent_label = intent.label();
@@ -1165,7 +1165,7 @@ impl TxWorker {
 
         rt.spawn(async move {
             // simulate first
-            match drift.simulate_tx(signed_tx.message.clone()).await {
+            match velocity.simulate_tx(signed_tx.message.clone()).await {
                 Ok(sim_result) => {
                     if let Some(err) = sim_result.err {
                         log::warn!(
@@ -1211,7 +1211,7 @@ impl TxWorker {
                 ..Default::default()
             };
 
-            match drift
+            match velocity
                 .rpc()
                 .send_transaction_with_config(&signed_tx, config)
                 .await
@@ -1241,7 +1241,7 @@ impl TxWorker {
     fn confirm_tx(&self, rt: &Handle, tx: Signature) {
         // TODO: if CU limit is too low send it again with higher amount
         log::debug!(target: TARGET, "txworker confirm tx: {tx:?}");
-        let drift = self.drift;
+        let velocity = self.velocity;
         let pending_txs = Arc::clone(&self.pending_txs);
         let metrics = self.metrics.clone();
 
@@ -1267,7 +1267,7 @@ impl TxWorker {
             let intent_label = intent.label();
             let expected_fill_count = intent.expected_fill_count();
             let _ = tokio::time::sleep(Duration::from_secs(1)).await;
-            match drift
+            match velocity
                 .rpc()
                 .get_transaction_with_config(
                     &tx,
@@ -1290,15 +1290,15 @@ impl TxWorker {
                                 let (_, sent_slot) = intent.crosses_and_slot();
                                 let mut actual_fills = 0;
                                 for (tx_idx, log) in logs.iter().enumerate() {
-                                    if let Some(event) = drift_rs::event_subscriber::try_parse_log(
+                                    if let Some(event) = velocity_rs::event_subscriber::try_parse_log(
                                         log.as_str(),
                                         &sig,
                                         tx_idx,
                                     ) {
-                                        if let DriftEvent::OrderFill { ..} = event
+                                        if let VelocityEvent::OrderFill { ..} = event
                                         {
                                             actual_fills += 1;
-                                        } else if let DriftEvent::OrderTrigger { .. } = event {
+                                        } else if let VelocityEvent::OrderTrigger { .. } = event {
                                             metrics.trigger_actual.inc();
                                         } else if log.as_str().contains("exceeded CUs meter") {
                                             metrics
@@ -1442,7 +1442,7 @@ impl TxWorker {
 #[derive(Clone)]
 pub struct TxSender {
     tx: crossbeam::channel::Sender<TxWork>,
-    drift: &'static DriftClient,
+    velocity: &'static VelocityClient,
 }
 
 impl TxSender {
@@ -1464,8 +1464,8 @@ impl TxSender {
         intent: TxIntent,
         cu_limit: u64,
     ) -> Option<Signature> {
-        let blockhash = self.drift.get_latest_blockhash().await.unwrap();
-        let signed_tx = self.drift.wallet().sign_tx(tx, blockhash).ok()?;
+        let blockhash = self.velocity.get_latest_blockhash().await.unwrap();
+        let signed_tx = self.velocity.wallet().sign_tx(tx, blockhash).ok()?;
         let sig = signed_tx.signatures[0];
 
         self.tx

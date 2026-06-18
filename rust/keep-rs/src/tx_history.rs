@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use clap::Parser;
-use drift_rs::event_subscriber::DriftEvent;
 use futures_util::stream::FuturesUnordered;
 use futures_util::StreamExt;
 use solana_commitment_config::CommitmentConfig;
@@ -9,6 +8,7 @@ use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_rpc_client_api::config::RpcTransactionConfig;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signature;
+use velocity_rs::event_subscriber::VelocityEvent;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -104,12 +104,12 @@ async fn main() {
                             had_order_dne = true;
                         }
                         if let Some(event) =
-                            drift_rs::event_subscriber::try_parse_log(log.as_str(), &sig, tx_idx)
+                            velocity_rs::event_subscriber::try_parse_log(log.as_str(), &sig, tx_idx)
                         {
-                            if let DriftEvent::OrderFill { .. } = event {
+                            if let VelocityEvent::OrderFill { .. } = event {
                                 had_fill = true;
                             }
-                            if let DriftEvent::OrderTrigger { .. } = event {
+                            if let VelocityEvent::OrderTrigger { .. } = event {
                                 had_trigger = true;
                             }
                         }

@@ -37,19 +37,6 @@ use axum::{
 };
 use base64::Engine;
 use dotenv::dotenv;
-use drift_rs::{
-    constants::state_account,
-    drift_idl,
-    event_subscriber::PubsubClient,
-    math::account_list_builder::AccountsListBuilder,
-    swift_order_subscriber::{SignedMessageInfo, SignedOrderType},
-    types::{
-        accounts::User, errors::ErrorCode, CommitmentConfig, MarketId, MarketStatus, MarketType,
-        MarketTypeExt, OrderParams, OrderParamsExt, OrderType, PositionDirection, ProgramError,
-        SdkError, SdkResult, SignedMsgTriggerOrderParams, VersionedMessage, VersionedTransaction,
-    },
-    Context, DriftClient, RpcClient, TransactionBuilder, Wallet,
-};
 use log::warn;
 use prometheus::Registry;
 use redis::{aio::MultiplexedConnection, AsyncCommands};
@@ -68,6 +55,18 @@ use solana_signature::Signature;
 use solana_signer::Signer;
 use solana_system_interface::instruction as system_instruction;
 use tower_http::cors::{Any, CorsLayer};
+use velocity_rs::{
+    constants::state_account,
+    event_subscriber::PubsubClient,
+    math::account_list_builder::AccountsListBuilder,
+    swift_order_subscriber::{SignedMessageInfo, SignedOrderType},
+    types::{
+        accounts::User, errors::ErrorCode, CommitmentConfig, MarketId, MarketStatus, MarketType,
+        MarketTypeExt, OrderParams, OrderParamsExt, OrderType, PositionDirection, ProgramError,
+        SdkError, SdkResult, SignedMsgTriggerOrderParams, VersionedMessage, VersionedTransaction,
+    },
+    velocity_idl, Context, RpcClient, TransactionBuilder, VelocityClient, Wallet,
+};
 
 /// Accept orders under-collaterized upto this ratio.
 const COLLATERAL_BUFFER: f64 = 1.01;
@@ -92,7 +91,7 @@ impl Config {
 
 #[derive(Clone)]
 pub struct ServerParams {
-    drift: drift_rs::DriftClient,
+    velocity: velocity_rs::VelocityClient,
     slot_subscriber: Arc<SuperSlotSubscriber>,
     metrics: SwiftServerMetrics,
     redis_pool: MultiplexedConnection,
@@ -264,7 +263,7 @@ pub async fn process_order(
 
     // check the order is valid for execution by program
     let market = server_params
-        .drift
+        .velocity
         .try_get_perp_market_account(order_params.market_index);
 
     if market
@@ -487,7 +486,7 @@ pub async fn deposit_trade(
     let mut has_place_ix = false;
     for ix in req.deposit_tx.message.instructions() {
         if ix.data.len() > 8
-            && &ix.data[..8] == drift_idl::instructions::PlaceSignedMsgTakerOrder::DISCRIMINATOR
+            && &ix.data[..8] == velocity_idl::instructions::PlaceSignedMsgTakerOrder::DISCRIMINATOR
         {
             has_place_ix = true;
         }
@@ -507,7 +506,7 @@ pub async fn deposit_trade(
     // ensure deposit tx is valid
     let mut user_after_deposit = None;
     match simulate_tx(
-        &server_params.drift,
+        &server_params.velocity,
         req.deposit_tx.message.clone(),
         &[req.swift_order.taker_pubkey],
     )
@@ -605,7 +604,7 @@ pub async fn deposit_trade(
 pub async fn health_check(
     State(server_params): State<&'static ServerParams>,
 ) -> impl axum::response::IntoResponse {
-    let ws_healthy = server_params.drift.ws().is_running();
+    let ws_healthy = server_params.velocity.ws().is_running();
     let slot_sub_healthy = !server_params.slot_subscriber.is_stale();
 
     // Check if optional accounts are healthy
@@ -625,23 +624,23 @@ pub async fn health_check(
     };
 
     // Check if server has metadata available for all spot and perp markets
-    let market_subs_healthy = server_params.drift.state_account().is_ok_and(|s| {
+    let market_subs_healthy = server_params.velocity.state_account().is_ok_and(|s| {
         s.number_of_spot_markets
             == server_params
-                .drift
+                .velocity
                 .program_data()
                 .spot_market_configs()
                 .len() as u16
             && s.number_of_markets
                 == server_params
-                    .drift
+                    .velocity
                     .program_data()
                     .perp_market_configs()
                     .len() as u16
     });
 
     // Check if rpc is healthy
-    let rpc_healthy = server_params.drift.rpc().get_health().await.is_ok();
+    let rpc_healthy = server_params.velocity.rpc().get_health().await.is_ok();
 
     if ws_healthy
         && slot_sub_healthy
@@ -666,9 +665,9 @@ pub async fn start_server() {
     // Start server
     dotenv().ok();
 
-    let drift_env = env::var("ENV").unwrap_or("devnet".to_string());
+    let velocity_env = env::var("ENV").unwrap_or("devnet".to_string());
 
-    log::info!(target: "server", "ENV: {drift_env}");
+    log::info!(target: "server", "ENV: {velocity_env}");
 
     let redis_pool = {
         let elasticache_host =
@@ -692,7 +691,7 @@ pub async fn start_server() {
     };
 
     let rpc_endpoint =
-        drift_rs::utils::get_http_url(&env::var("ENDPOINT").expect("valid rpc endpoint"))
+        velocity_rs::utils::get_http_url(&env::var("ENDPOINT").expect("valid rpc endpoint"))
             .expect("valid RPC endpoint");
 
     // Registry for metrics
@@ -700,13 +699,13 @@ pub async fn start_server() {
     let metrics = SwiftServerMetrics::new();
     metrics.register(&registry);
 
-    let context = match drift_env.as_str() {
+    let context = match velocity_env.as_str() {
         "devnet" => Context::DevNet,
         "mainnet-beta" => Context::MainNet,
-        _ => panic!("Invalid drift environment: {drift_env}"),
+        _ => panic!("Invalid velocity environment: {velocity_env}"),
     };
     let wallet = Wallet::new(Keypair::new());
-    let client = DriftClient::new(context, RpcClient::new(rpc_endpoint), wallet)
+    let client = VelocityClient::new(context, RpcClient::new(rpc_endpoint), wallet)
         .await
         .expect("initialized client");
 
@@ -738,7 +737,7 @@ pub async fn start_server() {
         });
 
     let state: &'static ServerParams = Box::leak(Box::new(ServerParams {
-        drift: client,
+        velocity: client,
         slot_subscriber: Arc::new(slot_subscriber),
         metrics,
         redis_pool,
@@ -749,32 +748,32 @@ pub async fn start_server() {
 
     // start oracle/market subscriptions (async)
     tokio::spawn(async move {
-        let mut all_markets = state.drift.get_all_market_ids();
+        let mut all_markets = state.velocity.get_all_market_ids();
 
         // keep markets in settlement mode for tx simulation
-        for market in state.drift.program_data().perp_market_configs() {
+        for market in state.velocity.program_data().perp_market_configs() {
             if market.status == MarketStatus::Settlement {
                 all_markets.push(MarketId::perp(market.market_index));
             }
         }
 
-        for market in state.drift.program_data().spot_market_configs() {
+        for market in state.velocity.program_data().spot_market_configs() {
             if market.status == MarketStatus::Settlement {
                 all_markets.push(MarketId::spot(market.market_index));
             }
         }
 
         log::info!("subscribing markets: {:?}", &all_markets);
-        if let Err(err) = state.drift.subscribe_markets(&all_markets).await {
+        if let Err(err) = state.velocity.subscribe_markets(&all_markets).await {
             log::error!("couldn't subscribe markets: {err:?}, RPC sim disabled!");
             state.disable_rpc_sim();
         }
-        if let Err(err) = state.drift.subscribe_oracles(&all_markets).await {
+        if let Err(err) = state.velocity.subscribe_oracles(&all_markets).await {
             log::error!("couldn't subscribe oracles: {err:?}, RPC sim disabled!");
             state.disable_rpc_sim();
         }
 
-        if let Err(err) = state.drift.subscribe_blockhashes().await {
+        if let Err(err) = state.velocity.subscribe_blockhashes().await {
             log::error!("couldn't subscribe to blockhashes: {err:?}, RPC sim disabled!");
             state.disable_rpc_sim();
         }
@@ -839,7 +838,7 @@ pub async fn start_server() {
             .unwrap();
             let versioned_message = VersionedMessage::V0(message);
             let _ = state
-                .drift
+                .velocity
                 .rpc()
                 .simulate_transaction_with_config(
                     &VersionedTransaction {
@@ -969,11 +968,11 @@ impl ServerParams {
     fn simulate_taker_order_local(
         &self,
         order_params: &OrderParams,
-        user: &drift_rs::types::accounts::User,
+        user: &velocity_rs::types::accounts::User,
         max_margin_ratio: Option<u16>,
         context: &RequestContext,
     ) -> bool {
-        let state_bytes = match self.drift.account_raw(state_account()) {
+        let state_bytes = match self.velocity.account_raw(state_account()) {
             Ok(b) => b,
             Err(err) => {
                 log::warn!(
@@ -987,7 +986,7 @@ impl ServerParams {
 
         let mut accounts_builder = AccountsListBuilder::default();
         let accounts = match accounts_builder.try_build(
-            &self.drift,
+            &self.velocity,
             user,
             &[MarketId::new(
                 order_params.market_index,
@@ -1116,7 +1115,7 @@ impl ServerParams {
 
         // fallback to network sim
         let mut tx = TransactionBuilder::new(
-            self.drift.program_data(),
+            self.velocity.program_data(),
             *taker_subaccount_pubkey,
             std::borrow::Cow::Owned(user),
             false,
@@ -1146,7 +1145,7 @@ impl ServerParams {
 
         let simulate_result_with_timeout = tokio::time::timeout(
             self.config.simulation_timeout,
-            self.drift.rpc().simulate_transaction_with_config(
+            self.velocity.rpc().simulate_transaction_with_config(
                 &VersionedTransaction {
                     message,
                     // must provide placerholder signature(s) for the RPC call to work
@@ -1182,7 +1181,7 @@ impl ServerParams {
                         Some(code) => {
                             // insufficient collateral is prone to precision errors, allow the order through with some leniency
                             // EXCEPT for isolated deposits, where we want to return the error to the client
-                            if code == ProgramError::Drift(ErrorCode::InsufficientCollateral)
+                            if code == ProgramError::Velocity(ErrorCode::InsufficientCollateral)
                                 && isolated_deposit.is_none()
                             {
                                 if let Some(ref logs) = res.value.logs {
@@ -1205,7 +1204,7 @@ impl ServerParams {
                                 }
                                 if log::log_enabled!(target: "accountState", log::Level::Debug) {
                                     dump_account_state(
-                                        &self.drift,
+                                        &self.velocity,
                                         taker_subaccount_pubkey,
                                         user,
                                         taker_order_params,
@@ -1260,7 +1259,7 @@ impl ServerParams {
         context: &RequestContext,
     ) -> bool {
         let perp_market = match self
-            .drift
+            .velocity
             .try_get_perp_market_account(order_params.market_index)
         {
             Ok(m) => m,
@@ -1275,7 +1274,7 @@ impl ServerParams {
         };
 
         let market_id = MarketId::new(order_params.market_index, order_params.market_type);
-        let oracle_data = match self.drift.try_get_oracle_price_data_and_slot(market_id) {
+        let oracle_data = match self.velocity.try_get_oracle_price_data_and_slot(market_id) {
             Some(p) => p,
             None => {
                 log::debug!(
@@ -1498,7 +1497,7 @@ fn extract_signed_message_info(
 }
 
 fn dump_account_state(
-    drift: &DriftClient,
+    velocity: &VelocityClient,
     taker_subaccount_pubkey: &Pubkey,
     user: User,
     taker_order_params: &OrderParams,
@@ -1515,20 +1514,22 @@ fn dump_account_state(
     );
     let mut debug_log = String::with_capacity(8192 * 2);
     debug_log.push_str("user:");
-    base64::engine::general_purpose::STANDARD
-        .encode_string(drift_rs::utils::zero_account_to_bytes(user), &mut debug_log);
+    base64::engine::general_purpose::STANDARD.encode_string(
+        velocity_rs::utils::zero_account_to_bytes(user),
+        &mut debug_log,
+    );
     debug_log.push('|');
     for p in user.spot_positions.iter().filter(|p| !p.is_available()) {
-        if let Ok(market) = drift.try_get_spot_market_account(p.market_index) {
+        if let Ok(market) = velocity.try_get_spot_market_account(p.market_index) {
             debug_log.push_str(&format!("spotMarket-{}:", p.market_index,));
             base64::engine::general_purpose::STANDARD.encode_string(
-                drift_rs::utils::zero_account_to_bytes(market),
+                velocity_rs::utils::zero_account_to_bytes(market),
                 &mut debug_log,
             );
             debug_log.push('|');
         }
         if let Some(oracle) =
-            drift.try_get_oracle_price_data_and_slot(MarketId::spot(p.market_index))
+            velocity.try_get_oracle_price_data_and_slot(MarketId::spot(p.market_index))
         {
             debug_log.push_str(&format!("oracle-{:?}-{}:", oracle.source, oracle.pubkey));
             base64::engine::general_purpose::STANDARD.encode_string(oracle.raw, &mut debug_log);
@@ -1536,16 +1537,16 @@ fn dump_account_state(
         }
     }
     for p in user.perp_positions.iter().filter(|p| p.is_open_position()) {
-        if let Ok(market) = drift.try_get_perp_market_account(p.market_index) {
+        if let Ok(market) = velocity.try_get_perp_market_account(p.market_index) {
             debug_log.push_str(&format!("perpMarket-{}:", p.market_index,));
             base64::engine::general_purpose::STANDARD.encode_string(
-                drift_rs::utils::zero_account_to_bytes(market),
+                velocity_rs::utils::zero_account_to_bytes(market),
                 &mut debug_log,
             );
             debug_log.push('|');
         }
         if let Some(oracle) =
-            drift.try_get_oracle_price_data_and_slot(MarketId::perp(p.market_index))
+            velocity.try_get_oracle_price_data_and_slot(MarketId::perp(p.market_index))
         {
             debug_log.push_str(&format!("oracle-{:?}-{}:", oracle.source, oracle.pubkey));
             base64::engine::general_purpose::STANDARD.encode_string(oracle.raw, &mut debug_log);
@@ -1553,17 +1554,17 @@ fn dump_account_state(
         }
     }
 
-    if let Ok(market) = drift.try_get_perp_market_account(taker_order_params.market_index) {
+    if let Ok(market) = velocity.try_get_perp_market_account(taker_order_params.market_index) {
         debug_log.push_str(&format!("perpMarket-{}:", taker_order_params.market_index,));
         base64::engine::general_purpose::STANDARD.encode_string(
-            drift_rs::utils::zero_account_to_bytes(market),
+            velocity_rs::utils::zero_account_to_bytes(market),
             &mut debug_log,
         );
         debug_log.push('|');
     }
 
     if let Some(oracle) =
-        drift.try_get_oracle_price_data_and_slot(MarketId::perp(taker_order_params.market_index))
+        velocity.try_get_oracle_price_data_and_slot(MarketId::perp(taker_order_params.market_index))
     {
         debug_log.push_str(&format!("oracle-{:?}-{}:", oracle.source, oracle.pubkey,));
         base64::engine::general_purpose::STANDARD.encode_string(oracle.raw, &mut debug_log);
@@ -1576,11 +1577,11 @@ fn dump_account_state(
 
 /// Simulate the tx on remote RPC node
 pub async fn simulate_tx(
-    drift: &DriftClient,
+    velocity: &VelocityClient,
     tx: VersionedMessage,
     accounts: &[Pubkey],
 ) -> SdkResult<RpcSimulateTransactionResult> {
-    let response = drift
+    let response = velocity
         .rpc()
         .simulate_transaction_with_config(
             &VersionedTransaction {
@@ -1607,12 +1608,12 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use drift_rs::types::{
+    use ed25519_dalek::Signature as Ed25519Signature;
+    use solana_native_token::LAMPORTS_PER_SOL;
+    use velocity_rs::types::{
         accounts::User, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
         SignedMsgTriggerOrderParams,
     };
-    use ed25519_dalek::Signature as Ed25519Signature;
-    use solana_native_token::LAMPORTS_PER_SOL;
 
     fn is_isolated_deposit(signed_msg: &SignedOrderType) -> bool {
         match signed_msg {
@@ -2175,8 +2176,8 @@ mod tests {
     async fn test_simulate_taker_order_rpc() {
         let _ = env_logger::try_init();
         // Create mock server params
-        let drift = DriftClient::new(
-            drift_rs::Context::DevNet,
+        let velocity = VelocityClient::new(
+            velocity_rs::Context::DevNet,
             RpcClient::new("https://api.devnet.solana.com".to_string()),
             Keypair::new().into(),
         )
@@ -2215,11 +2216,11 @@ mod tests {
             .await
             .expect("redis connected");
         let server_params = ServerParams {
-            slot_subscriber: Arc::new(SuperSlotSubscriber::new(vec![], drift.rpc())),
+            slot_subscriber: Arc::new(SuperSlotSubscriber::new(vec![], velocity.rpc())),
             metrics: SwiftServerMetrics::new(),
             user_account_fetcher: UserAccountFetcher::mock(users),
             config: Arc::new(crate::swift_server::Config::from_env()),
-            drift,
+            velocity,
             farmer_pubkeys: Default::default(),
             redis_pool,
         };
@@ -2282,7 +2283,7 @@ mod tests {
                 &context_secondary,
             )
             .await;
-        // it fails later at remote sim since the account is not a real drift account
+        // it fails later at remote sim since the account is not a real velocity account
         assert!(result.is_err_and(|(status, msg, _)| {
             dbg!(&msg);
             status == axum::http::StatusCode::BAD_REQUEST
