@@ -61,11 +61,16 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Build package (+ deps)
         run: bunx turbo run build --filter="${{ steps.parse.outputs.name }}"
-      - name: Ensure npm supports trusted publishing
+      - name: Install npm with trusted-publishing support
         run: |
           set -euo pipefail
-          sudo npm install -g npm@latest # global prefix is root-owned on hosted runners
-          npm --version # must be >= 11.5.1 for OIDC trusted publishing
+          # npm OIDC trusted publishing needs npm >= 11.5.1. The runner's
+          # preinstalled npm is older and its global prefix is root-owned, so
+          # install a pinned npm into a user-writable prefix (no sudo) and put
+          # its bin ahead of the system one for the steps that follow.
+          npm install --no-save --prefix "$RUNNER_TEMP/npm-cli" npm@11.17.0
+          echo "$RUNNER_TEMP/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/npm-cli/node_modules/.bin/npm" --version
       - name: Publish
         run: |
           set -euo pipefail
