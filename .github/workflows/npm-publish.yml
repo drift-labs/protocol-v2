@@ -26,6 +26,13 @@ permissions:
   contents: read
   id-token: write # mint the OIDC token npm trusted publishing exchanges for a credential
 
+env:
+  # Disable Turborepo anonymous telemetry — this job runs `turbo run build` and
+  # mints an OIDC publish credential. DO_NOT_TRACK is the cross-tool standard;
+  # TURBO_TELEMETRY_DISABLED is turbo's own switch.
+  TURBO_TELEMETRY_DISABLED: 1
+  DO_NOT_TRACK: 1
+
 jobs:
   publish:
     runs-on: ubuntu-latest
