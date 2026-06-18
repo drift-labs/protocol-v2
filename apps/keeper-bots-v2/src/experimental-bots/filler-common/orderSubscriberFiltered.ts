@@ -10,7 +10,7 @@ import {
 	getUserWithOrderFilter,
 	Wallet,
 	BN,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Connection, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import dotenv from 'dotenv';
 import { logger } from '../../logger';
@@ -106,12 +106,13 @@ class OrderSubscriberFiltered extends OrderSubscriber {
 		}
 
 		this.fetchPromise = new Promise((resolver) => {
-			this.fetchPromiseResolver = resolver;
+			// fetchPromiseResolver is private in the SDK base class; access via cast.
+			(this as any).fetchPromiseResolver = resolver;
 		});
 
 		try {
 			const rpcRequestArgs = [
-				this.driftClient.program.programId.toBase58(),
+				this.velocityClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
 					filters: [getUserFilter(), getUserWithOrderFilter()],
@@ -122,7 +123,7 @@ class OrderSubscriberFiltered extends OrderSubscriber {
 
 			const rpcJSONResponse: any =
 				// @ts-ignore
-				await this.driftClient.connection._rpcRequest(
+				await this.velocityClient.connection._rpcRequest(
 					'getProgramAccounts',
 					rpcRequestArgs
 				);
@@ -171,7 +172,7 @@ class OrderSubscriberFiltered extends OrderSubscriber {
 		} catch (e) {
 			console.error(e);
 		} finally {
-			this.fetchPromiseResolver();
+			(this as any).fetchPromiseResolver();
 			this.fetchPromise = undefined;
 		}
 	}
@@ -271,17 +272,17 @@ const main = async () => {
 	const wallet = new Wallet(loadKeypair(privateKey));
 	const connection = new Connection(endpoint, 'processed');
 
-	const driftClient = getDriftClientFromArgs({
+	const velocityClient = getDriftClientFromArgs({
 		connection,
 		wallet,
 		marketIndexes,
 		marketTypeStr,
 		env: driftEnv,
 	});
-	await driftClient.subscribe();
+	await velocityClient.subscribe();
 
 	const orderSubscriberConfig: OrderSubscriberConfig = {
-		driftClient: driftClient,
+		velocityClient: velocityClient,
 		subscriptionConfig: {
 			type: 'websocket',
 			skipInitialLoad: false,

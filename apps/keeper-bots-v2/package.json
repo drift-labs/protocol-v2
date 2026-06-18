@@ -1,13 +1,12 @@
 {
 	"name": "@drift-labs/keeper-bots-v2",
-	"version": "0.1.1",
+	"version": "0.1.4",
 	"author": "crispheaney",
 	"main": "lib/index.js",
 	"license": "Apache-2.0",
 	"dependencies": {
 		"@drift-labs/common": "1.0.20",
 		"@drift-labs/jit-proxy": "0.21.171",
-		"@drift-labs/sdk": "2.163.0-beta.13",
 		"@opentelemetry/api": "1.7.0",
 		"@opentelemetry/auto-instrumentations-node": "^0.62.1",
 		"@opentelemetry/exporter-prometheus": "0.31.0",
@@ -43,7 +42,8 @@
 		"@opentelemetry/api-metrics": "0.29.2",
 		"@opentelemetry/instrumentation": "^0.46.0",
 		"@coral-xyz/anchor": "^0.29.0",
-		"@noble/hashes": "1.7.1"
+		"@noble/hashes": "1.7.1",
+		"@velocity-exchange/sdk": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/chai": "4.3.11",
@@ -60,7 +60,8 @@
 		"mocha": "10.2.0",
 		"prettier": "3.0.1",
 		"tiny-glob": "0.2.9",
-		"ts-node": "10.9.2"
+		"ts-node": "10.9.2",
+		"@types/ws": "^8.5.10"
 	},
 	"scripts": {
 		"build": "bun run clean && node esbuild.config.js",

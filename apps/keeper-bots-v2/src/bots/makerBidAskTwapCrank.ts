@@ -1,6 +1,6 @@
 import {
 	DLOB,
-	DriftClient,
+	VelocityClient,
 	UserMap,
 	SlotSubscriber,
 	MarketType,
@@ -9,12 +9,12 @@ import {
 	promiseTimeout,
 	isVariant,
 	PriorityFeeSubscriberMap,
-	DriftMarketInfo,
+	VelocityMarketInfo,
 	isOneOfVariant,
 	getVariant,
 	PerpMarkets,
 	BlockhashSubscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 
 import { logger } from '../logger';
@@ -90,24 +90,29 @@ function isCriticalError(e: Error): boolean {
 }
 
 export async function sendVersionedTransaction(
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	tx: VersionedTransaction,
 	additionalSigners?: Array<Signer>,
 	opts?: ConfirmOptions,
 	timeoutMs = 5000
 ): Promise<TransactionSignature | null> {
-	// @ts-ignore
-	tx.sign((additionalSigners ?? []).concat(driftClient.provider.wallet.payer));
+	tx.sign(
+		// @ts-ignore provider.wallet.payer is a Keypair at runtime
+		(additionalSigners ?? []).concat(velocityClient.provider.wallet.payer)
+	);
 
 	if (opts === undefined) {
-		opts = driftClient.provider.opts;
+		opts = velocityClient.provider.opts;
 	}
 
 	const rawTransaction = tx.serialize();
 	let txid: TransactionSignature | null;
 	try {
 		txid = await promiseTimeout(
-			driftClient.provider.connection.sendRawTransaction(rawTransaction, opts),
+			velocityClient.provider.connection.sendRawTransaction(
+				rawTransaction,
+				opts
+			),
 			timeoutMs
 		);
 		if (txid === null) {
@@ -125,18 +130,18 @@ export async function sendVersionedTransaction(
 
 /**
  * Builds a mapping from crank interval (ms) to perp market indexes
- * @param driftClient
+ * @param velocityClient
  * @returns
  */
 function buildCrankIntervalToMarketIds(
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	crankIntervalToMarketIndicies?: { [key: number]: number[] }
 ): {
 	crankIntervals: { [key: number]: number[] };
-	driftMarkets: DriftMarketInfo[];
+	velocityMarkets: VelocityMarketInfo[];
 } {
 	const crankIntervals: { [key: number]: number[] } = {};
-	const driftMarkets: DriftMarketInfo[] = [];
+	const velocityMarkets: VelocityMarketInfo[] = [];
 
 	const overrideMarketIndexToCrankingInterval: { [key: number]: number } = {};
 	if (crankIntervalToMarketIndicies) {
@@ -152,7 +157,7 @@ function buildCrankIntervalToMarketIds(
 		}
 	}
 
-	for (const perpMarket of driftClient.getPerpMarketAccounts()) {
+	for (const perpMarket of velocityClient.getPerpMarketAccounts()) {
 		if (isOneOfVariant(perpMarket.status, ['settlement', 'delisted'])) {
 			logger.info(
 				`markTwapCrank skipping market ${
@@ -162,7 +167,7 @@ function buildCrankIntervalToMarketIds(
 			continue;
 		}
 
-		driftMarkets.push({
+		velocityMarkets.push({
 			marketType: 'perp',
 			marketIndex: perpMarket.marketIndex,
 		});
@@ -174,7 +179,7 @@ function buildCrankIntervalToMarketIds(
 		} else {
 			if (isOneOfVariant(perpMarket.contractTier, ['a', 'b'])) {
 				crankPeriodMs = 10_000;
-			} else if (isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
+			} else if (isVariant(perpMarket.oracleSource, 'prelaunch')) {
 				crankPeriodMs = 30_000;
 			}
 		}
@@ -182,7 +187,7 @@ function buildCrankIntervalToMarketIds(
 			`Perp market ${perpMarket.marketIndex} contractTier: ${getVariant(
 				perpMarket.contractTier
 			)} isPrelaunch: ${isVariant(
-				perpMarket.amm.oracleSource,
+				perpMarket.oracleSource,
 				'prelaunch'
 			)}, crankPeriodMs: ${crankPeriodMs}`
 		);
@@ -195,7 +200,7 @@ function buildCrankIntervalToMarketIds(
 
 	return {
 		crankIntervals,
-		driftMarkets,
+		velocityMarkets,
 	};
 }
 
@@ -214,7 +219,7 @@ export class MakerBidAskTwapCrank implements Bot {
 	private maxIntervalGroup?: number; // tracks the max interval group for health checking
 
 	private slotSubscriber: SlotSubscriber;
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private intervalIds: Array<NodeJS.Timer> = [];
 	private userMap?: UserMap;
 
@@ -235,7 +240,7 @@ export class MakerBidAskTwapCrank implements Bot {
 	private crankIntervalToMarketIndicies?: { [key: number]: number[] };
 
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		slotSubscriber: SlotSubscriber,
 		userMap: UserMap,
 		config: MakerBidAskTwapCrankConfig,
@@ -250,7 +255,7 @@ export class MakerBidAskTwapCrank implements Bot {
 		this.dryRun = config.dryRun;
 		this.runOnce = runOnce;
 		this.globalConfig = globalConfig;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.userMap = userMap;
 		this.lookupTableAccounts = lookupTableAccounts;
 		this.bundleSender = bundleSender;
@@ -288,14 +293,14 @@ export class MakerBidAskTwapCrank implements Bot {
 
 		logger.info(`[${this.name}] initing, runOnce: ${this.runOnce}`);
 		this.lookupTableAccounts.push(
-			...(await this.driftClient.fetchAllLookupTableAccounts())
+			...(await this.velocityClient.fetchAllLookupTableAccounts())
 		);
 
-		let driftMarkets: DriftMarketInfo[] = [];
+		let velocityMarkets: VelocityMarketInfo[] = [];
 		console.log('1.crank ints');
-		({ crankIntervals: this.crankIntervalToMarketIds, driftMarkets } =
+		({ crankIntervals: this.crankIntervalToMarketIds, velocityMarkets } =
 			buildCrankIntervalToMarketIds(
-				this.driftClient,
+				this.velocityClient,
 				this.crankIntervalToMarketIndicies
 			));
 		logger.info(
@@ -325,8 +330,8 @@ export class MakerBidAskTwapCrank implements Bot {
 		}
 
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
-			driftPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
-			driftMarkets,
+			velocityPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
+			velocityMarkets,
 			frequencyMs: 10_000,
 		});
 		await this.priorityFeeSubscriberMap.subscribe();
@@ -399,7 +404,7 @@ export class MakerBidAskTwapCrank implements Bot {
 			const uA = this.userMap!.getUserAuthority(maker.toString());
 			if (uA !== undefined) {
 				const uStats = getUserStatsAccountPublicKey(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					uA
 				);
 
@@ -424,8 +429,8 @@ export class MakerBidAskTwapCrank implements Bot {
 		try {
 			const sendTxStart = Date.now();
 			const txSig = await promiseTimeout(
-				this.driftClient.txSender.sendVersionedTransaction(tx, [], {
-					...this.driftClient.opts,
+				this.velocityClient.txSender.sendVersionedTransaction(tx, [], {
+					...this.velocityClient.opts,
 				}),
 				TX_SEND_TIMEOUT_MS
 			);
@@ -493,8 +498,8 @@ export class MakerBidAskTwapCrank implements Bot {
 			simResult = await promiseTimeout(
 				simulateAndGetTxWithCUs({
 					ixs,
-					connection: this.driftClient.connection,
-					payerPublicKey: this.driftClient.wallet.publicKey,
+					connection: this.velocityClient.connection,
+					payerPublicKey: this.velocityClient.wallet.publicKey,
 					lookupTableAccounts: this.lookupTableAccounts,
 					cuLimitMultiplier: CU_EST_MULTIPLIER,
 					minCuLimit: TWAP_CRANK_MIN_CU,
@@ -546,7 +551,7 @@ export class MakerBidAskTwapCrank implements Bot {
 
 		console.log('getting recent blockhash from rpc...');
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash({
+			await this.velocityClient.connection.getLatestBlockhash({
 				commitment: 'confirmed',
 			});
 		return recentBlockhash.blockhash;
@@ -561,7 +566,7 @@ export class MakerBidAskTwapCrank implements Bot {
 		}
 		const pythIxs = await getAllPythOracleUpdateIxs(
 			crankMarketIndex,
-			this.driftClient,
+			this.velocityClient,
 			this.pythLazerSubscriber,
 			precedingIxs
 		);
@@ -590,7 +595,7 @@ export class MakerBidAskTwapCrank implements Bot {
 	}
 
 	private async tryTwapCrank(intervalGroup: number | null) {
-		const state = this.driftClient.getStateAccount();
+		const state = this.velocityClient.getStateAccount();
 		let crankMarkets: number[] = [];
 		if (intervalGroup === null) {
 			crankMarkets = Array.from(
@@ -642,7 +647,7 @@ export class MakerBidAskTwapCrank implements Bot {
 				addTipIx: boolean
 			): Promise<{ jitoTx?: VersionedTransaction; restartSignal: boolean }> => {
 				const mmOraclePriceData =
-					this.driftClient.getMMOracleDataForPerpMarket(mi);
+					this.velocityClient.getMMOracleDataForPerpMarket(mi);
 
 				const bidMakers = this.dlob!.getBestMakers({
 					marketIndex: mi,
@@ -665,38 +670,12 @@ export class MakerBidAskTwapCrank implements Bot {
 					`[${this.name}] loaded makers for market ${mi}: ${bidMakers.length} bids, ${askMakers.length} asks`
 				);
 
-				const usingSwitchboardOnDemand = isVariant(
-					this.driftClient.getPerpMarketAccount(mi)!.amm.oracleSource,
-					'switchboardOnDemand'
-				);
-
 				const ixs = [];
-				if (usingSwitchboardOnDemand) {
-					const switchboardIx =
-						await this.driftClient.getPostManySwitchboardOnDemandUpdatesAtomicIxs(
-							[this.driftClient.getPerpMarketAccount(mi)!.amm.oracle],
-							undefined,
-							askMakers.length + bidMakers.length > 3 ? 2 : 3
-						);
-					if (switchboardIx) {
-						ixs.push(...switchboardIx);
-						ixs.push(
-							ComputeBudgetProgram.setComputeUnitLimit({
-								units: 120_000, // switchboard simulation is unreliable, use hardcoded CU limit
-							})
-						);
-					} else {
-						logger.error(
-							`[${this.name}] failed to get switchboardIx for market: ${mi}`
-						);
-					}
-				} else {
-					ixs.push(
-						ComputeBudgetProgram.setComputeUnitLimit({
-							units: 1_400_000, // will be overwritten by simulateAndGetTxWithCUs
-						})
-					);
-				}
+				ixs.push(
+					ComputeBudgetProgram.setComputeUnitLimit({
+						units: 1_400_000, // will be overwritten by simulateAndGetTxWithCUs
+					})
+				);
 
 				// add priority fees if not using jito
 				if (!forceUseJito) {
@@ -708,7 +687,7 @@ export class MakerBidAskTwapCrank implements Bot {
 					if (pfs) {
 						microLamports = Math.floor(
 							pfs.low *
-								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+								this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier()
 						);
 					}
 					const clampedMicroLamports = Math.min(
@@ -728,7 +707,7 @@ export class MakerBidAskTwapCrank implements Bot {
 				if (
 					this.pythLazerSubscriber &&
 					isOneOfVariant(
-						this.driftClient.getPerpMarketAccount(mi)!.amm.oracleSource,
+						this.velocityClient.getPerpMarketAccount(mi)!.oracleSource,
 						['pythLazer', 'pythLazer1K', 'pythLazer1M', 'pythLazerStableCoin']
 					)
 				) {
@@ -742,7 +721,7 @@ export class MakerBidAskTwapCrank implements Bot {
 				];
 
 				ixs.push(
-					await this.driftClient.getUpdatePerpBidAskTwapIx(
+					await this.velocityClient.getUpdatePerpBidAskTwapIx(
 						mi,
 						concatenatedList as [PublicKey, PublicKey][]
 					)
@@ -750,26 +729,22 @@ export class MakerBidAskTwapCrank implements Bot {
 
 				if (
 					isVariant(
-						this.driftClient.getPerpMarketAccount(mi)!.amm.oracleSource,
+						this.velocityClient.getPerpMarketAccount(mi)!.oracleSource,
 						'prelaunch'
 					)
 				) {
 					const updatePrelaunchOracleIx =
-						await this.driftClient.getUpdatePrelaunchOracleIx(mi);
+						await this.velocityClient.getUpdatePrelaunchOracleIx(mi);
 					ixs.push(updatePrelaunchOracleIx);
 				}
 
 				if (forceUseJito) {
 					// first tx in bundle pays the tip
-					const jitoSigners = [this.driftClient.wallet.payer];
+					const jitoSigners = [this.velocityClient.wallet.payer];
 					if (addTipIx) {
 						ixs.push(this.bundleSender!.getTipIx());
 					}
-					const txToSend = await this.buildTransaction(
-						mi,
-						ixs,
-						!usingSwitchboardOnDemand
-					);
+					const txToSend = await this.buildTransaction(mi, ixs, true);
 					if (txToSend) {
 						// @ts-ignore;
 						txToSend.sign(jitoSigners);
@@ -779,11 +754,7 @@ export class MakerBidAskTwapCrank implements Bot {
 						return { restartSignal: false };
 					}
 				} else {
-					const txToSend = await this.buildTransaction(
-						mi,
-						ixs,
-						!usingSwitchboardOnDemand
-					);
+					const txToSend = await this.buildTransaction(mi, ixs, true);
 					if (txToSend) {
 						await this.sendSingleTx(mi, txToSend);
 					} else {
@@ -893,17 +864,17 @@ export class MakerBidAskTwapCrank implements Bot {
 			});
 			if (
 				numFeedsSignalingRestart > 2 &&
-				this.driftClient.txSender.getTxLandRate() > TX_LAND_RATE_THRESHOLD
+				this.velocityClient.txSender.getTxLandRate() > TX_LAND_RATE_THRESHOLD
 			) {
 				logger.info(
 					`[${
 						this.name
-					}] ${numFeedsSignalingRestart} feeds signaling restart, tx land rate: ${this.driftClient.txSender.getTxLandRate()}`
+					}] ${numFeedsSignalingRestart} feeds signaling restart, tx land rate: ${this.velocityClient.txSender.getTxLandRate()}`
 				);
 				await webhookMessage(
 					`[${
 						this.name
-					}] ${numFeedsSignalingRestart} feeds signaling restart, tx land rate: ${this.driftClient.txSender.getTxLandRate()}`
+					}] ${numFeedsSignalingRestart} feeds signaling restart, tx land rate: ${this.velocityClient.txSender.getTxLandRate()}`
 				);
 				this.pythHealthy = false;
 			}

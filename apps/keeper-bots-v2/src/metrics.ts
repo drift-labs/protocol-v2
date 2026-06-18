@@ -7,7 +7,7 @@ import {
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { logger } from './logger';
 import { PublicKey } from '@solana/web3.js';
-import { UserAccount } from '@drift-labs/sdk';
+import { UserAccount } from '@velocity-exchange/sdk';
 import {
 	BatchObservableResult,
 	Attributes,

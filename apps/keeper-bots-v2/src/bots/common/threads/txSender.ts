@@ -16,7 +16,7 @@ import {
 	BlockhashSubscriber,
 	loadKeypair,
 	SlotSubscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import {
 	Connection,
 	BlockhashWithExpiryBlockHeight,
@@ -413,7 +413,10 @@ export class TxSender {
 		let txExpired = false;
 		if (work.blockhashExpiryHeight) {
 			const blockHeight = this.blockhashSubscriber.getLatestBlockHeight();
-			if (blockHeight > work.blockhashExpiryHeight) {
+			if (
+				blockHeight !== undefined &&
+				blockHeight > work.blockhashExpiryHeight
+			) {
 				logger.info(
 					`${LOG_PREFIX} Blockhash expired for tx: ${work.lastSentTxSig}, retrying: ${work.instruction.retryUntilConfirmed}`
 				);

@@ -3,7 +3,7 @@ import {
 	DLOB,
 	SlotSubscriber,
 	MarketType,
-	DriftClient,
+	VelocityClient,
 	loadKeypair,
 	calculateBidPrice,
 	calculateAskPrice,
@@ -11,10 +11,8 @@ import {
 	isVariant,
 	decodeUser,
 	Wallet,
-	PhoenixSubscriber,
 	BN,
 	ClockSubscriber,
-	OpenbookV2Subscriber,
 	SignedMsgOrderParamsMessage,
 	getUserAccountPublicKey,
 	SignedMsgOrderNode,
@@ -22,8 +20,6 @@ import {
 	ZERO,
 	OrderTriggerCondition,
 	PositionDirection,
-	UserStatus,
-	isUserProtectedMaker,
 	OraclePriceData,
 	OrderStatus,
 	getVariant,
@@ -34,7 +30,7 @@ import {
 	OrderParamsBitFlag,
 	PerpMarketAccount,
 	SpotMarketAccount,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Connection, PublicKey } from '@solana/web3.js';
 import dotenv from 'dotenv';
 import parseArgs from 'minimist';
@@ -45,7 +41,7 @@ import {
 	NodeToFillWithContext,
 } from './types';
 import { getDriftClientFromArgs, serializeNodeToFill } from './utils';
-import { initializeSpotFulfillmentAccounts, sleepMs } from '../../utils';
+import { sleepMs } from '../../utils';
 import { LRUCache } from 'lru-cache';
 import { sha256 } from '@noble/hashes/sha256';
 
@@ -60,12 +56,9 @@ class DLOBBuilder {
 	public readonly marketTypeString: string;
 	public readonly marketType: MarketType;
 	public readonly marketIndexes: number[];
-	public driftClient: DriftClient;
+	public velocityClient: VelocityClient;
 	public initialized: boolean = false;
 
-	// only used for spot filler
-	private phoenixSubscribers?: Map<number, PhoenixSubscriber>;
-	private openbookSubscribers?: Map<number, OpenbookV2Subscriber>;
 	private clockSubscriber: ClockSubscriber;
 
 	private signedMsgUserAuthorities = new Map<string, string>();
@@ -88,24 +81,19 @@ class DLOBBuilder {
 	});
 
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		marketType: MarketType,
 		marketTypeString: string,
 		marketIndexes: number[]
 	) {
 		this.dlob = new DLOB();
-		this.slotSubscriber = new SlotSubscriber(driftClient.connection);
+		this.slotSubscriber = new SlotSubscriber(velocityClient.connection);
 		this.marketType = marketType;
 		this.marketTypeString = marketTypeString;
 		this.marketIndexes = marketIndexes;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 
-		if (marketTypeString.toLowerCase() === 'spot') {
-			this.phoenixSubscribers = new Map<number, PhoenixSubscriber>();
-			this.openbookSubscribers = new Map<number, OpenbookV2Subscriber>();
-		}
-
-		this.clockSubscriber = new ClockSubscriber(driftClient.connection, {
+		this.clockSubscriber = new ClockSubscriber(velocityClient.connection, {
 			commitment: 'confirmed',
 			resubTimeoutMs: 5_000,
 		});
@@ -114,24 +102,6 @@ class DLOBBuilder {
 	public async subscribe() {
 		await this.slotSubscriber.subscribe();
 		await this.clockSubscriber.subscribe();
-
-		if (this.marketTypeString.toLowerCase() === 'spot') {
-			await this.initializeSpotMarkets();
-		}
-	}
-
-	private async initializeSpotMarkets() {
-		({
-			phoenixSubscribers: this.phoenixSubscribers,
-			openbookSubscribers: this.openbookSubscribers,
-		} = await initializeSpotFulfillmentAccounts(
-			this.driftClient,
-			true,
-			this.marketIndexes
-		));
-		if (!this.phoenixSubscribers) {
-			throw new Error('phoenixSubscribers not initialized');
-		}
 	}
 
 	public getUserBuffer(pubkey: string) {
@@ -172,18 +142,13 @@ class DLOBBuilder {
 					order,
 					pubkey,
 					this.slotSubscriber.getSlot(),
-					isUserProtectedMaker(userAccount),
 					order.baseAssetAmount
 				);
 				counter++;
 			});
 		});
 		for (const signedMsgNode of this.signedMsgOrders.values()) {
-			dlob.insertSignedMsgOrder(
-				signedMsgNode.order,
-				signedMsgNode.userAccount,
-				false
-			);
+			dlob.insertSignedMsgOrder(signedMsgNode.order, signedMsgNode.userAccount);
 			counter++;
 		}
 		logger.debug(`${logPrefix} Built DLOB with ${counter} orders`);
@@ -209,7 +174,7 @@ class DLOBBuilder {
 		const signedMessage:
 			| SignedMsgOrderParamsMessage
 			| SignedMsgOrderParamsDelegateMessage =
-			this.driftClient.decodeSignedMsgOrderParamsMessage(
+			this.velocityClient.decodeSignedMsgOrderParamsMessage(
 				signedMsgOrderParamsBuf,
 				isDelegateSigner
 			);
@@ -232,7 +197,7 @@ class DLOBBuilder {
 		const takerUserPubkey = isDelegateSigner
 			? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
 			: await getUserAccountPublicKey(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					takerAuthority,
 					(signedMessage as SignedMsgOrderParamsMessage).subAccountId
 			  );
@@ -292,7 +257,7 @@ class DLOBBuilder {
 				0,
 			direction: signedMsgOrderParams.direction,
 			postOnly: false,
-			oraclePriceOffset: signedMsgOrderParams.oraclePriceOffset ?? 0,
+			oraclePriceOffset: signedMsgOrderParams.oraclePriceOffset ?? ZERO,
 			maxTs: signedMsgOrderParams.maxTs ?? ZERO,
 			reduceOnly: signedMsgOrderParams.reduceOnly ?? false,
 			triggerCondition:
@@ -304,7 +269,6 @@ class DLOBBuilder {
 			triggerPrice: ZERO,
 			baseAssetAmountFilled: ZERO,
 			quoteAssetAmountFilled: ZERO,
-			quoteAssetAmount: ZERO,
 			bitFlags: 0,
 			postedSlotTail: 0,
 		};
@@ -328,17 +292,17 @@ class DLOBBuilder {
 			let oraclePriceData: OraclePriceData;
 			let fallbackAsk: BN | undefined = undefined;
 			let fallbackBid: BN | undefined = undefined;
-			let fallbackAskSource: FallbackLiquiditySource | undefined = undefined;
-			let fallbackBidSource: FallbackLiquiditySource | undefined = undefined;
+			const fallbackAskSource: FallbackLiquiditySource | undefined = undefined;
+			const fallbackBidSource: FallbackLiquiditySource | undefined = undefined;
 			if (this.marketTypeString.toLowerCase() === 'perp') {
-				market = this.driftClient.getPerpMarketAccount(marketIndex);
+				market = this.velocityClient.getPerpMarketAccount(marketIndex);
 				if (!market) {
 					throw new Error('PerpMarket not found');
 				}
 				const mmOraclePriceData =
-					this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
+					this.velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 				oraclePriceData =
-					this.driftClient.getOracleDataForPerpMarket(marketIndex);
+					this.velocityClient.getOracleDataForPerpMarket(marketIndex);
 				fallbackBid = calculateBidPrice(
 					market,
 					mmOraclePriceData,
@@ -350,65 +314,29 @@ class DLOBBuilder {
 					new BN(this.slotSubscriber.getSlot())
 				);
 			} else {
-				market = this.driftClient.getSpotMarketAccount(marketIndex);
+				market = this.velocityClient.getSpotMarketAccount(marketIndex);
 				if (!market) {
 					throw new Error('SpotMarket not found');
 				}
 				oraclePriceData =
-					this.driftClient.getOracleDataForSpotMarket(marketIndex);
-
-				const openbookSubscriber = this.openbookSubscribers!.get(marketIndex);
-				const openbookBid = openbookSubscriber?.getBestBid();
-				const openbookAsk = openbookSubscriber?.getBestAsk();
-
-				const phoenixSubscriber = this.phoenixSubscribers!.get(marketIndex);
-				const phoenixBid = phoenixSubscriber?.getBestBid();
-				const phoenixAsk = phoenixSubscriber?.getBestAsk();
-
-				if (openbookBid && phoenixBid) {
-					if (openbookBid!.gte(phoenixBid!)) {
-						fallbackBid = openbookBid;
-						fallbackBidSource = 'openbook';
-					} else {
-						fallbackBid = phoenixBid;
-						fallbackBidSource = 'phoenix';
-					}
-				} else if (openbookBid) {
-					fallbackBid = openbookBid;
-					fallbackBidSource = 'openbook';
-				} else if (phoenixBid) {
-					fallbackBid = phoenixBid;
-					fallbackBidSource = 'phoenix';
-				}
-
-				if (openbookAsk && phoenixAsk) {
-					if (openbookAsk!.lte(phoenixAsk!)) {
-						fallbackAsk = openbookAsk;
-						fallbackAskSource = 'openbook';
-					} else {
-						fallbackAsk = phoenixAsk;
-						fallbackAskSource = 'phoenix';
-					}
-				} else if (openbookAsk) {
-					fallbackAsk = openbookAsk;
-					fallbackAskSource = 'openbook';
-				} else if (phoenixAsk) {
-					fallbackAsk = phoenixAsk;
-					fallbackAskSource = 'phoenix';
-				}
+					this.velocityClient.getOracleDataForSpotMarket(marketIndex);
 			}
 
-			const stateAccount = this.driftClient.getStateAccount();
+			const stateAccount = this.velocityClient.getStateAccount();
+			if (!stateAccount) {
+				throw new Error('State account not found');
+			}
 			const slot = this.slotSubscriber.getSlot();
+			const unixTs = this.clockSubscriber.getUnixTs() ?? Date.now() / 1000;
 			const nodesToFillForMarket = isVariant(this.marketType, 'perp')
 				? dlob.findNodesToFill(
 						marketIndex,
 						fallbackBid,
 						fallbackAsk,
 						slot,
-						this.clockSubscriber.getUnixTs() - EXPIRE_ORDER_BUFFER_SEC,
+						unixTs - EXPIRE_ORDER_BUFFER_SEC,
 						MarketType.PERP,
-						this.driftClient.getMMOracleDataForPerpMarket(marketIndex),
+						this.velocityClient.getMMOracleDataForPerpMarket(marketIndex),
 						stateAccount,
 						market as PerpMarketAccount
 				  )
@@ -417,7 +345,7 @@ class DLOBBuilder {
 						fallbackBid,
 						fallbackAsk,
 						slot,
-						this.clockSubscriber.getUnixTs() - EXPIRE_ORDER_BUFFER_SEC,
+						unixTs - EXPIRE_ORDER_BUFFER_SEC,
 						MarketType.SPOT,
 						oraclePriceData,
 						stateAccount,
@@ -456,8 +384,8 @@ class DLOBBuilder {
 				return serializeNodeToFill(
 					node,
 					makerBuffers,
-					this.userAccountData.get(node.node.userAccount!)?.status ===
-						UserStatus.PROTECTED_MAKER,
+					// Protected-maker status removed from the SDK; always false.
+					false,
 					buffer,
 					this.signedMsgUserAuthorities.get(node.node.userAccount!)
 				);
@@ -543,17 +471,17 @@ const main = async () => {
 		commitment: 'processed',
 	});
 
-	const driftClient = getDriftClientFromArgs({
+	const velocityClient = getDriftClientFromArgs({
 		connection,
 		wallet,
 		marketIndexes,
 		marketTypeStr,
 		env: driftEnv,
 	});
-	await driftClient.subscribe();
+	await velocityClient.subscribe();
 
 	const dlobBuilder = new DLOBBuilder(
-		driftClient,
+		velocityClient,
 		marketType,
 		marketTypeStr,
 		marketIndexes

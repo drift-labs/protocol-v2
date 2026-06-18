@@ -3,9 +3,9 @@ import { program } from 'commander';
 import { Connection, Commitment, PublicKey, Keypair } from '@solana/web3.js';
 
 import {
-	DriftClient,
+	VelocityClient,
 	initialize,
-	DriftEnv,
+	VelocityEnv,
 	SlotSubscriber,
 	Wallet,
 	EventSubscriber,
@@ -43,7 +43,7 @@ setGlobalDispatcher(
 );
 
 require('dotenv').config();
-const driftEnv = (process.env.ENV || 'devnet') as DriftEnv;
+const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const REDIS_CLIENT = process.env.REDIS_CLIENT || 'DLOB';
 const metricsPort = process.env.METRICS_PORT
@@ -58,7 +58,7 @@ const redisClientPrefix = RedisClientPrefix[REDIS_CLIENT];
 const sdkConfig = initialize({ env: process.env.ENV });
 
 const stateCommitment: Commitment = 'confirmed';
-let driftClient: DriftClient;
+let velocityClient: VelocityClient;
 
 const metricsV2 = new Metrics('trades-publisher', undefined, metricsPort);
 const marketFillCount = metricsV2.addCounter(
@@ -123,7 +123,7 @@ const mockFillPort = process.env.MOCK_FILL_PORT
 	: 9470;
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
-logger.info(`DriftEnv:     ${driftEnv}`);
+logger.info(`VelocityEnv:     ${driftEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 
 const startMockFillEndpoint = (
@@ -163,7 +163,7 @@ const preloadMakerAccountCache = async () => {
 	)) {
 		try {
 			const userAccounts =
-				await driftClient.getUserAccountsAndAddressesForAuthority(
+				await velocityClient.getUserAccountsAndAddressesForAuthority(
 					new PublicKey(authority)
 				);
 			for (const userAccount of userAccounts) {
@@ -193,7 +193,7 @@ const main = async () => {
 		commitment: stateCommitment,
 	});
 
-	driftClient = new DriftClient({
+	velocityClient = new VelocityClient({
 		connection,
 		wallet,
 		programID: clearingHousePublicKey,
@@ -209,7 +209,7 @@ const main = async () => {
 	await redisClient.connect();
 	const indicativeQuotesRedisClient = new RedisClient({});
 	await indicativeQuotesRedisClient.connect();
-	await driftClient.subscribe();
+	await velocityClient.subscribe();
 	await preloadMakerAccountCache();
 
 	const { processFillEvent } = createTradeMetricsProcessor({
@@ -217,7 +217,7 @@ const main = async () => {
 		indicativeQuoteMaxAgeMs,
 		indicativeQuotesCacheTtlMs,
 		spotMarketPrecisionResolver: (marketIndex) =>
-			sdkConfig.SPOT_MARKETS[marketIndex]?.precision,
+			sdkConfig.SPOT_MARKETS[marketIndex]?.precision?.toNumber(),
 		publisherRedisClient: redisClient,
 		indicativeQuotesRedisClient,
 		metrics: {
@@ -248,11 +248,11 @@ const main = async () => {
 
 	const lamportsBalance = await connection.getBalance(wallet.publicKey);
 	logger.info(
-		`DriftClient ProgramId: ${driftClient.program.programId.toBase58()}`
+		`VelocityClient ProgramId: ${velocityClient.program.programId.toBase58()}`
 	);
 	logger.info(`Wallet pubkey: ${wallet.publicKey.toBase58()}`);
 	logger.info(` . SOL balance: ${lamportsBalance / 10 ** 9}`);
-	driftClient.eventEmitter.on('error', (e) => {
+	velocityClient.eventEmitter.on('error', (e) => {
 		logger.error(e);
 	});
 
@@ -260,7 +260,7 @@ const main = async () => {
 
 	const eventSubscriber = new EventSubscriber(
 		connection,
-		driftClient.program as any,
+		velocityClient.program as any,
 		{
 			maxTx: 8192,
 			maxEventsPerType: 4096,
@@ -379,4 +379,11 @@ async function recursiveTryCatch(f: () => void) {
 
 recursiveTryCatch(() => main());
 
-export { sdkConfig, endpoint, wsEndpoint, driftEnv, commitHash, driftClient };
+export {
+	sdkConfig,
+	endpoint,
+	wsEndpoint,
+	driftEnv,
+	commitHash,
+	velocityClient,
+};

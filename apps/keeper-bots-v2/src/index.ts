@@ -14,7 +14,7 @@ import {
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import {
 	BulkAccountLoader,
-	DriftClient,
+	VelocityClient,
 	initialize,
 	EventSubscriber,
 	SlotSubscriber,
@@ -22,7 +22,7 @@ import {
 	SpotMarkets,
 	BN,
 	TokenFaucet,
-	DriftClientSubscriptionConfig,
+	VelocityClientSubscriptionConfig,
 	LogProviderConfig,
 	FastSingleTxSender,
 	UserMap,
@@ -38,8 +38,8 @@ import {
 	configs,
 	AuctionSubscriber,
 	SwiftOrderSubscriber,
-} from '@drift-labs/sdk';
-import { promiseTimeout } from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
+import { promiseTimeout } from '@velocity-exchange/sdk';
 
 import { logger, setLogLevel } from './logger';
 import { constants } from './types';
@@ -72,7 +72,6 @@ import { MakerBidAskTwapCrank } from './bots/makerBidAskTwapCrank';
 import { BundleSender } from './bundleSender';
 import { DriftStateWatcher, StateChecks } from './driftStateWatcher';
 import { webhookMessage } from './webhook';
-import { SwitchboardCrankerBot } from './bots/switchboardCranker';
 import { PythLazerCrankerBot } from './bots/pythLazerCranker';
 import { JitMaker } from './bots/jitMaker';
 import { JitProxyClient, JitterSniper } from '@drift-labs/jit-proxy/lib';
@@ -91,7 +90,7 @@ program
 	.option('-d, --dry-run', 'Dry run, do not send transactions on chain')
 	.option(
 		'--init-user',
-		'calls driftClient.initializeUserAccount if no user account exists'
+		'calls velocityClient.initializeUserAccount if no user account exists'
 	)
 	.option('--filler', 'Enable filler bot')
 	.option('--filler-lite', 'Enable filler lite bot')
@@ -249,7 +248,7 @@ const jetTxEndpoints = config.global.jetTxEndpoints;
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
 logger.info(`Helius endpoint:  ${heliusEndpoint}`);
-logger.info(`DriftEnv:     ${config.global.driftEnv}`);
+logger.info(`VelocityEnv:     ${config.global.driftEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 
 const bots: Bot[] = [];
@@ -271,7 +270,7 @@ const runBot = async () => {
 
 	let bulkAccountLoader: BulkAccountLoader | undefined;
 	let lastBulkAccountLoaderSlot: number | undefined;
-	let accountSubscription: DriftClientSubscriptionConfig = {
+	let accountSubscription: VelocityClientSubscriptionConfig = {
 		type: 'websocket',
 		resubTimeoutMs: config.global.resubTimeoutMs,
 	};
@@ -413,7 +412,7 @@ const runBot = async () => {
 	 * Creating and subscribing to the drift client
 	 */
 
-	// keeping these arrays undefined will prompt DriftClient to call `findAllMarketAndOracles`
+	// keeping these arrays undefined will prompt VelocityClient to call `findAllMarketAndOracles`
 	// and load all markets and oracle accounts from on-chain
 	const marketLookupTables = configs[
 		config.global.driftEnv!
@@ -441,22 +440,28 @@ const runBot = async () => {
 		txSender,
 		marketLookupTables,
 	};
-	const driftClient = new DriftClient(driftClientConfig);
-	driftClient.eventEmitter.on('error', (e) => {
+	const velocityClient = new VelocityClient(driftClientConfig);
+	velocityClient.eventEmitter.on('error', (e) => {
 		logger.info('clearing house error');
 		logger.error(e);
 	});
 
 	let eventSubscriber: EventSubscriber | undefined = undefined;
 	if (config.global.eventSubscriber) {
-		eventSubscriber = new EventSubscriber(connection, driftClient.program, {
-			maxTx: 4096,
-			maxEventsPerType: 4096,
-			orderBy: 'blockchain', // Possible options are 'blockchain' or 'client'
-			orderDir: 'desc',
-			commitment: stateCommitment,
-			logProviderConfig,
-		});
+		// velocityClient.program uses @anchor-lang/core's Program; EventSubscriber
+		// expects the same. Cast through any to bridge the anchor type identity.
+		eventSubscriber = new EventSubscriber(
+			connection,
+			velocityClient.program as any,
+			{
+				maxTx: 4096,
+				maxEventsPerType: 4096,
+				orderBy: 'blockchain', // Possible options are 'blockchain' or 'client'
+				orderDir: 'desc',
+				commitment: stateCommitment,
+				logProviderConfig,
+			}
+		);
 	}
 
 	const slotSubscriber = new SlotSubscriber(connection, {});
@@ -465,7 +470,7 @@ const runBot = async () => {
 	const startupTime = Date.now();
 	const lamportsBalance = await connection.getBalance(wallet.publicKey);
 	logger.info(
-		`DriftClient ProgramId: ${driftClient.program.programId.toBase58()}`
+		`VelocityClient ProgramId: ${velocityClient.program.programId.toBase58()}`
 	);
 	logger.info(`Wallet pubkey: ${wallet.publicKey.toBase58()}`);
 	logger.info(` . SOL balance: ${lamportsBalance / 10 ** 9}`);
@@ -527,7 +532,7 @@ const runBot = async () => {
 	let needUserMapSubscribe = false;
 	const userMapConnection = new Connection(endpoint);
 	const userMap = new UserMap({
-		driftClient,
+		velocityClient,
 		connection: userMapConnection,
 		subscriptionConfig: userMapSubscriptionConfig,
 		skipInitialLoad: false,
@@ -539,7 +544,7 @@ const runBot = async () => {
 		(config.global.priorityFeeMethod as PriorityFeeMethod) ??
 		PriorityFeeMethod.SOLANA;
 	const priorityFeeSubscriber = new PriorityFeeSubscriber({
-		connection: driftClient.connection,
+		connection: velocityClient.connection,
 		frequencyMs: 5000,
 		customStrategy:
 			priorityFeeMethod === PriorityFeeMethod.HELIUS
@@ -565,7 +570,7 @@ const runBot = async () => {
 
 	let needBlockhashSubscriber = false;
 	const blockhashSubscriber = new BlockhashSubscriber({
-		connection: driftClient.connection,
+		connection: velocityClient.connection,
 		updateIntervalMs: 2000,
 	});
 
@@ -580,35 +585,19 @@ const runBot = async () => {
 			new PythLazerCrankerBot(
 				config.global,
 				config.botConfigs!.pythLazerCranker!,
-				driftClient,
+				velocityClient,
 				priorityFeeSubscriber,
 				[]
 			)
 		);
 	}
-	if (configHasBot(config, 'switchboardCranker')) {
-		needPriorityFeeSubscriber = true;
-		needDriftStateWatcher = true;
-
-		bots.push(
-			new SwitchboardCrankerBot(
-				config.global,
-				config.botConfigs!.switchboardCranker!,
-				driftClient,
-				priorityFeeSubscriber,
-				bundleSender,
-				[]
-			)
-		);
-	}
-
 	if (configHasBot(config, 'jitMaker')) {
 		needPriorityFeeSubscriber = true;
 		needDriftStateWatcher = true;
 		needUserMapSubscribe = true;
 
 		const auctionSubscriber = new AuctionSubscriber({
-			driftClient,
+			velocityClient,
 			resubTimeoutMs: 30_000,
 		});
 		let swiftOrderSubscriber: SwiftOrderSubscriber | undefined = undefined;
@@ -617,24 +606,24 @@ const runBot = async () => {
 				throw new Error('Market indexes must be specified for JIT Maker bot');
 			}
 			swiftOrderSubscriber = new SwiftOrderSubscriber({
-				driftEnv: 'devnet',
+				velocityEnv: 'devnet',
 				marketIndexes: config.botConfigs?.jitMaker?.marketIndexes,
 				keypair: new Keypair(),
-				driftClient,
+				velocityClient,
 				userAccountGetter: userMap,
 			});
 		}
 
 		const jitProxyClient = new JitProxyClient({
 			// @ts-ignore
-			driftClient,
+			driftClient: velocityClient,
 			programId: new PublicKey(sdkConfig.JIT_PROXY_PROGRAM_ID!),
 		});
 
 		// Cast to any to work around SDK version mismatch between jit-proxy and main SDK
 		const jitter = new JitterSniper({
 			auctionSubscriber: auctionSubscriber as any,
-			driftClient: driftClient as any,
+			driftClient: velocityClient as any,
 			jitProxyClient,
 			swiftOrderSubscriber: swiftOrderSubscriber as any,
 			slotSubscriber: slotSubscriber as any,
@@ -644,7 +633,7 @@ const runBot = async () => {
 
 		bots.push(
 			new JitMaker(
-				driftClient,
+				velocityClient,
 				jitter,
 				config.botConfigs!.jitMaker!,
 				config.global.driftEnv,
@@ -665,7 +654,7 @@ const runBot = async () => {
 			new FillerBot(
 				slotSubscriber,
 				bulkAccountLoader,
-				driftClient,
+				velocityClient,
 				userMap,
 				{
 					rpcEndpoint: endpoint,
@@ -695,7 +684,7 @@ const runBot = async () => {
 		bots.push(
 			new FillerLiteBot(
 				slotSubscriber,
-				driftClient,
+				velocityClient,
 				{
 					rpcEndpoint: endpoint,
 					commit: commitHash,
@@ -723,7 +712,7 @@ const runBot = async () => {
 
 		bots.push(
 			new SpotFillerBot(
-				driftClient,
+				velocityClient,
 				userMap,
 				{
 					rpcEndpoint: endpoint,
@@ -749,7 +738,7 @@ const runBot = async () => {
 
 		bots.push(
 			new TriggerBot(
-				driftClient,
+				velocityClient,
 				slotSubscriber,
 				blockhashSubscriber,
 				userMap,
@@ -776,7 +765,7 @@ const runBot = async () => {
 
 		bots.push(
 			new LiquidatorBot(
-				driftClient,
+				velocityClient,
 				userMap,
 				{
 					rpcEndpoint: endpoint,
@@ -799,7 +788,7 @@ const runBot = async () => {
 		needCheckDriftUser = true;
 		bots.push(
 			new FloatingPerpMakerBot(
-				driftClient,
+				velocityClient,
 				slotSubscriber,
 				{
 					rpcEndpoint: endpoint,
@@ -818,7 +807,7 @@ const runBot = async () => {
 		needPriorityFeeSubscriber = true;
 		bots.push(
 			new UserPnlSettlerBot(
-				driftClient,
+				velocityClient,
 				priorityFeeSubscriber,
 				config.botConfigs!.userPnlSettler!,
 				config.global
@@ -833,7 +822,7 @@ const runBot = async () => {
 
 		bots.push(
 			new UserIdleFlipperBot(
-				driftClient,
+				velocityClient,
 				config.botConfigs!.userIdleFlipper!,
 				blockhashSubscriber
 			)
@@ -844,7 +833,10 @@ const runBot = async () => {
 		needDriftStateWatcher = true;
 
 		bots.push(
-			new IFRevenueSettlerBot(driftClient, config.botConfigs!.ifRevenueSettler!)
+			new IFRevenueSettlerBot(
+				velocityClient,
+				config.botConfigs!.ifRevenueSettler!
+			)
 		);
 	}
 
@@ -854,7 +846,7 @@ const runBot = async () => {
 
 		bots.push(
 			new FundingRateUpdaterBot(
-				driftClient,
+				velocityClient,
 				config.botConfigs!.fundingRateUpdater!
 			)
 		);
@@ -869,7 +861,7 @@ const runBot = async () => {
 
 		bots.push(
 			new MakerBidAskTwapCrank(
-				driftClient,
+				velocityClient,
 				slotSubscriber,
 				userMap,
 				config.botConfigs!.markTwapCrank!,
@@ -893,20 +885,22 @@ const runBot = async () => {
 		needDriftStateWatcher
 	) {
 		const hrStart = process.hrtime();
-		while (!(await driftClient.subscribe())) {
-			logger.info('retrying driftClient.subscribe in 1s...');
+		while (!(await velocityClient.subscribe())) {
+			logger.info('retrying velocityClient.subscribe in 1s...');
 			await sleepMs(1000);
 		}
 		const hrEnd = process.hrtime(hrStart);
-		logger.info(`driftClient.subscribe took: ${hrEnd[0]}s ${hrEnd[1] / 1e6}ms`);
+		logger.info(
+			`velocityClient.subscribe took: ${hrEnd[0]}s ${hrEnd[1] / 1e6}ms`
+		);
 	}
 
 	logger.info(`Checking user exists: ${needCheckDriftUser}`);
-	if (needCheckDriftUser) await checkUserExists(config, driftClient, wallet);
+	if (needCheckDriftUser) await checkUserExists(config, velocityClient, wallet);
 
 	logger.info(`Checking if bot needs collateral: ${needForceCollateral}`);
 	if (needForceCollateral)
-		await checkAndForceCollateral(config, driftClient, wallet);
+		await checkAndForceCollateral(config, velocityClient, wallet);
 
 	logger.info(
 		`Checking if need eventSubscriber: ${eventSubscriber !== undefined}`
@@ -941,7 +935,7 @@ const runBot = async () => {
 	let driftStateWatcher: DriftStateWatcher | undefined;
 	if (needDriftStateWatcher) {
 		driftStateWatcher = new DriftStateWatcher({
-			driftClient,
+			velocityClient,
 			intervalMs: 10_000,
 			stateChecks: {
 				perpMarketStatus: true,
@@ -993,7 +987,7 @@ const runBot = async () => {
 
 				if (config.global.websocket) {
 					/* @ts-ignore */
-					if (!driftClient.connection._rpcWebSocketConnected) {
+					if (!velocityClient.connection._rpcWebSocketConnected) {
 						logger.error(`Connection rpc websocket disconnected`);
 						res.writeHead(500);
 						res.end(`Connection rpc websocket disconnected`);
@@ -1078,16 +1072,16 @@ async function recursiveTryCatch(f: () => void) {
 
 async function checkUserExists(
 	config: Config,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	wallet: Wallet
 ) {
-	if (!(await driftClient.getUser().exists())) {
+	if (!(await velocityClient.getUser().exists())) {
 		logger.error(
-			`User for ${wallet.publicKey} does not exist (subAccountId: ${driftClient.activeSubAccountId})`
+			`User for ${wallet.publicKey} does not exist (subAccountId: ${velocityClient.activeSubAccountId})`
 		);
 		if (config.global.initUser) {
 			logger.info(`Creating User for ${wallet.publicKey}`);
-			const [txSig] = await driftClient.initializeUserAccount();
+			const [txSig] = await velocityClient.initializeUserAccount();
 			logger.info(`Initialized user account in transaction: ${txSig}`);
 		} else {
 			throw new Error("Run with '--init-user' flag to initialize a User");
@@ -1098,7 +1092,7 @@ async function checkUserExists(
 
 async function checkAndForceCollateral(
 	config: Config,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	wallet: Wallet
 ) {
 	// Force depost collateral if requested
@@ -1120,7 +1114,7 @@ async function checkAndForceCollateral(
 
 		if (config.global.driftEnv === 'devnet') {
 			const tokenFaucet = new TokenFaucet(
-				driftClient.connection,
+				velocityClient.connection,
 				wallet,
 				TOKEN_FAUCET_PROGRAM_ID,
 				mint,
@@ -1128,7 +1122,7 @@ async function checkAndForceCollateral(
 			);
 			await tokenFaucet.mintToUser(ata, amount);
 		}
-		const tx = await driftClient.deposit(
+		const tx = await velocityClient.deposit(
 			amount,
 			0, // USDC bank
 			ata

@@ -5,7 +5,7 @@ import {
 	BlockhashSubscriber,
 	DevnetPerpMarkets,
 	DevnetSpotMarkets,
-	DriftClient,
+	VelocityClient,
 	getVariant,
 	MainnetPerpMarkets,
 	MainnetSpotMarkets,
@@ -14,7 +14,7 @@ import {
 	PythLazerSubscriber,
 	PythLazerPriceFeedArray,
 	PriceUpdateAccount,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import {
 	AddressLookupTableAccount,
 	ComputeBudgetProgram,
@@ -54,7 +54,7 @@ export class PythLazerCrankerBot implements Bot {
 	constructor(
 		private globalConfig: GlobalConfig,
 		private crankConfigs: PythLazerCrankerBotConfig,
-		private driftClient: DriftClient,
+		private velocityClient: VelocityClient,
 		private priorityFeeSubscriber?: PriorityFeeSubscriber,
 		private lookupTableAccounts: AddressLookupTableAccount[] = []
 	) {
@@ -71,12 +71,12 @@ export class PythLazerCrankerBot implements Bot {
 		}
 
 		this.decodeFunc =
-			this.driftClient.program.account.pythLazerOracle.coder.accounts.decodeUnchecked.bind(
-				this.driftClient.program.account.pythLazerOracle.coder.accounts
+			this.velocityClient.program.account.pythLazerOracle.coder.accounts.decodeUnchecked.bind(
+				this.velocityClient.program.account.pythLazerOracle.coder.accounts
 			);
 
 		this.blockhashSubscriber = new BlockhashSubscriber({
-			connection: driftClient.connection,
+			connection: velocityClient.connection,
 		});
 
 		this.txRecorder = new TxRecorder(
@@ -117,12 +117,12 @@ export class PythLazerCrankerBot implements Bot {
 					continue;
 				}
 
-				// Check on-chain market status using driftClient
+				// Check on-chain market status using velocityClient
 				let marketStatus: string | undefined;
 				try {
 					if ('baseAssetSymbol' in market) {
 						// It's a perp market
-						const perpMarketAccount = this.driftClient.getPerpMarketAccount(
+						const perpMarketAccount = this.velocityClient.getPerpMarketAccount(
 							market.marketIndex
 						);
 						if (perpMarketAccount) {
@@ -137,7 +137,7 @@ export class PythLazerCrankerBot implements Bot {
 						}
 					} else {
 						// It's a spot market
-						const spotMarketAccount = this.driftClient.getSpotMarketAccount(
+						const spotMarketAccount = this.velocityClient.getSpotMarketAccount(
 							market.marketIndex
 						);
 						if (spotMarketAccount) {
@@ -206,10 +206,10 @@ export class PythLazerCrankerBot implements Bot {
 		logger.info(`Initializing ${this.name} bot`);
 		await this.blockhashSubscriber.subscribe();
 		this.lookupTableAccounts.push(
-			...(await this.driftClient.fetchAllLookupTableAccounts())
+			...(await this.velocityClient.fetchAllLookupTableAccounts())
 		);
 
-		// Build feed ID chunks after driftClient is subscribed so we can check market statuses
+		// Build feed ID chunks after velocityClient is subscribed so we can check market statuses
 		const feedIdChunks = this.buildFeedIdChunks();
 
 		if (feedIdChunks.length === 0) {
@@ -242,7 +242,7 @@ export class PythLazerCrankerBot implements Bot {
 	async reset(): Promise<void> {
 		logger.info(`Resetting ${this.name} bot`);
 		this.blockhashSubscriber.unsubscribe();
-		await this.driftClient.unsubscribe();
+		await this.velocityClient.unsubscribe();
 		this.pythLazerClient?.unsubscribe();
 	}
 
@@ -263,7 +263,7 @@ export class PythLazerCrankerBot implements Bot {
 		}
 
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash({
+			await this.velocityClient.connection.getLatestBlockhash({
 				commitment: 'confirmed',
 			});
 
@@ -289,10 +289,10 @@ export class PythLazerCrankerBot implements Bot {
 			];
 			const priorityFees = Math.floor(
 				(this.priorityFeeSubscriber?.getCustomStrategyResult() || 0) *
-					this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+					this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier()
 			);
 			logger.info(
-				`Priority fees to use: ${priorityFees} with multiplier: ${this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()}`
+				`Priority fees to use: ${priorityFees} with multiplier: ${this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier()}`
 			);
 			ixs.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
@@ -300,7 +300,7 @@ export class PythLazerCrankerBot implements Bot {
 				})
 			);
 			const pythLazerIxs =
-				await this.driftClient.getPostPythLazerOracleUpdateIxs(
+				await this.velocityClient.getPostPythLazerOracleUpdateIxs(
 					feedIds,
 					priceMessage,
 					ixs
@@ -313,8 +313,8 @@ export class PythLazerCrankerBot implements Bot {
 				});
 				const simResult = await simulateAndGetTxWithCUs({
 					ixs,
-					connection: this.driftClient.connection,
-					payerPublicKey: this.driftClient.wallet.publicKey,
+					connection: this.velocityClient.connection,
+					payerPublicKey: this.velocityClient.wallet.publicKey,
 					lookupTableAccounts: this.lookupTableAccounts,
 					cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 					doSimulation: true,
@@ -327,7 +327,7 @@ export class PythLazerCrankerBot implements Bot {
 					continue;
 				}
 				const startTime = Date.now();
-				this.driftClient
+				this.velocityClient
 					.sendTransaction(simResult.tx)
 					.then((txSigAndSlot: TxSigAndSlot) => {
 						const duration = Date.now() - startTime;
@@ -342,12 +342,12 @@ export class PythLazerCrankerBot implements Bot {
 			} else {
 				const startTime = Date.now();
 				const tx = getVersionedTransaction(
-					this.driftClient.wallet.publicKey,
+					this.velocityClient.wallet.publicKey,
 					ixs,
 					this.lookupTableAccounts,
 					await this.getBlockhashForTx()
 				);
-				this.driftClient
+				this.velocityClient
 					.sendTransaction(tx)
 					.then((txSigAndSlot: TxSigAndSlot) => {
 						const duration = Date.now() - startTime;

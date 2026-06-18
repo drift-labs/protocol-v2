@@ -11,7 +11,6 @@ pub mod insurance;
 pub mod isolated_position;
 pub mod liquidation;
 pub mod market_stats;
-#[path = "match.rs"]
 pub mod matching;
 pub mod orders;
 pub mod pda;

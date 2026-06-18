@@ -1,5 +1,5 @@
 import {
-	DriftClient,
+	VelocityClient,
 	SpotMarketAccount,
 	MakerInfo,
 	isVariant,
@@ -10,9 +10,7 @@ import {
 	MarketType,
 	DLOBNode,
 	DLOBSubscriber,
-	PhoenixSubscriber,
 	BN,
-	PhoenixV1FulfillmentConfigAccount,
 	TEN,
 	NodeToTrigger,
 	OrderSubscriber,
@@ -22,9 +20,7 @@ import {
 	BlockhashSubscriber,
 	JupiterClient,
 	ClockSubscriber,
-	OpenbookV2FulfillmentConfigAccount,
-	OpenbookV2Subscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 
 import {
@@ -73,7 +69,6 @@ import {
 	getNodeToTriggerSignature,
 	getTransactionAccountMetas,
 	handleSimResultError,
-	initializeSpotFulfillmentAccounts,
 	logMessageForNodeToFill,
 	simulateAndGetTxWithCUs,
 	SimulateAndGetTxWithCUsResponse,
@@ -223,7 +218,7 @@ export class SpotFillerBot implements Bot {
 	public readonly dryRun: boolean;
 	public readonly defaultIntervalMs: number = 2000;
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private clockSubscriber: ClockSubscriber;
 	/// Connection to use specifically for confirming transactions
 	private txConfirmationConnection: Connection;
@@ -238,18 +233,6 @@ export class SpotFillerBot implements Bot {
 	private userMap: UserMap;
 	private orderSubscriber: OrderSubscriber;
 	private userStatsMap?: UserStatsMap;
-
-	private phoenixFulfillmentConfigMap: Map<
-		number,
-		PhoenixV1FulfillmentConfigAccount
-	>;
-	private phoenixSubscribers?: Map<number, PhoenixSubscriber>;
-
-	private openbookFulfillmentConfigMap: Map<
-		number,
-		OpenbookV2FulfillmentConfigAccount
-	>;
-	private openbookSubscribers?: Map<number, OpenbookV2Subscriber>;
 
 	private periodicTaskMutex = new Mutex();
 
@@ -320,7 +303,7 @@ export class SpotFillerBot implements Bot {
 	protected lookupTableAccounts: AddressLookupTableAccount[];
 
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		userMap: UserMap,
 		runtimeSpec: RuntimeSpec,
 		globalConfig: GlobalConfig,
@@ -334,31 +317,17 @@ export class SpotFillerBot implements Bot {
 		this.fillerConfig = config;
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		if (globalConfig.txConfirmationEndpoint) {
 			this.txConfirmationConnection = new Connection(
 				globalConfig.txConfirmationEndpoint
 			);
 		} else {
-			this.txConfirmationConnection = this.driftClient.connection;
+			this.txConfirmationConnection = this.velocityClient.connection;
 		}
 		this.runtimeSpec = runtimeSpec;
 		this.pollingIntervalMs =
 			config.fillerPollingInterval ?? this.defaultIntervalMs;
-
-		this.phoenixFulfillmentConfigMap = new Map<
-			number,
-			PhoenixV1FulfillmentConfigAccount
-		>();
-
-		this.phoenixSubscribers = new Map<number, PhoenixSubscriber>();
-
-		this.openbookFulfillmentConfigMap = new Map<
-			number,
-			OpenbookV2FulfillmentConfigAccount
-		>();
-
-		this.openbookSubscribers = new Map<number, OpenbookV2Subscriber>();
 
 		this.initializeMetrics(config.metricsPort ?? this.globalConfig.metricsPort);
 
@@ -378,7 +347,7 @@ export class SpotFillerBot implements Bot {
 
 		if (this.rebalanceFiller && this.runtimeSpec.driftEnv === 'mainnet-beta') {
 			this.jupiterClient = new JupiterClient({
-				connection: this.driftClient.connection,
+				connection: this.velocityClient.connection,
 			});
 		}
 
@@ -414,19 +383,21 @@ export class SpotFillerBot implements Bot {
 			`${this.name}: minimumAmountToSettle: ${this.rebalanceSettledPnlThreshold}`
 		);
 
-		if (this.driftClient.userAccountSubscriptionConfig.type === 'websocket') {
+		if (
+			this.velocityClient.userAccountSubscriptionConfig.type === 'websocket'
+		) {
 			this.orderSubscriber = new OrderSubscriber({
-				driftClient: this.driftClient,
+				velocityClient: this.velocityClient,
 				subscriptionConfig: {
 					type: 'websocket',
 					skipInitialLoad: false,
-					commitment: this.driftClient.opts?.commitment,
+					commitment: this.velocityClient.opts?.commitment,
 					resyncIntervalMs: 10_000,
 				},
 			});
 		} else {
 			this.orderSubscriber = new OrderSubscriber({
-				driftClient: this.driftClient,
+				velocityClient: this.velocityClient,
 				subscriptionConfig: {
 					type: 'polling',
 
@@ -434,7 +405,7 @@ export class SpotFillerBot implements Bot {
 					// as frequently as main filler interval
 					frequency: this.pollingIntervalMs / 2,
 
-					commitment: this.driftClient.opts?.commitment,
+					commitment: this.velocityClient.opts?.commitment,
 				},
 			});
 		}
@@ -462,7 +433,7 @@ export class SpotFillerBot implements Bot {
 			ttl: TX_TIMEOUT_THRESHOLD_MS,
 			ttlResolution: 1000,
 		});
-		this.clockSubscriber = new ClockSubscriber(driftClient.connection, {
+		this.clockSubscriber = new ClockSubscriber(velocityClient.connection, {
 			commitment: 'finalized',
 			resubTimeoutMs: 5_000,
 		});
@@ -622,11 +593,11 @@ export class SpotFillerBot implements Bot {
 			logger.info(
 				`${this.name}: Evicted tx sig ${txSig} from this.txSigsToConfirm`
 			);
-			const user = this.driftClient.getUser();
+			const user = this.velocityClient.getUser();
 			this.evictedPendingTxSigsToConfirmCounter?.add(1, {
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			});
 		}
@@ -637,8 +608,8 @@ export class SpotFillerBot implements Bot {
 			`${this.name} initing (filler cu boost: ${this.fillerConfig.triggerPriorityFeeMultiplier})`
 		);
 
-		const fillerSolBalance = await this.driftClient.connection.getBalance(
-			this.driftClient.authority
+		const fillerSolBalance = await this.velocityClient.connection.getBalance(
+			this.velocityClient.authority
 		);
 		this.hasEnoughSolToFill = fillerSolBalance >= this.minGasBalanceToFill;
 		logger.info(
@@ -660,7 +631,7 @@ export class SpotFillerBot implements Bot {
 
 		const userStatsMapStart = Date.now();
 		logger.info(`Initializing UserStatsMap...`);
-		this.userStatsMap = new UserStatsMap(this.driftClient);
+		this.userStatsMap = new UserStatsMap(this.velocityClient);
 
 		logger.info(
 			`Initialized UserStatsMap in ${Date.now() - userStatsMapStart}ms`
@@ -672,29 +643,15 @@ export class SpotFillerBot implements Bot {
 			dlobSource: dlobProvider,
 			slotSource: this.orderSubscriber,
 			updateFrequency: this.pollingIntervalMs - 500,
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 		});
 		await this.dlobSubscriber.subscribe();
 		logger.info(
 			`Initialized DLOBSubscriber in ${Date.now() - dlobSubscriberStart}`
 		);
 
-		({
-			phoenixFulfillmentConfigs: this.phoenixFulfillmentConfigMap,
-			openbookFulfillmentConfigs: this.openbookFulfillmentConfigMap,
-			phoenixSubscribers: this.phoenixSubscribers,
-			openbookSubscribers: this.openbookSubscribers,
-		} = await initializeSpotFulfillmentAccounts(this.driftClient, true));
-
-		if (!this.phoenixSubscribers) {
-			throw new Error('phoenixSubscribers not initialized');
-		}
-		if (!this.openbookSubscribers) {
-			throw new Error('openbookSubscribers not initialized');
-		}
-
 		this.lookupTableAccounts.push(
-			...(await this.driftClient.fetchAllLookupTableAccounts())
+			...(await this.velocityClient.fetchAllLookupTableAccounts())
 		);
 
 		await this.clockSubscriber.subscribe();
@@ -709,14 +666,6 @@ export class SpotFillerBot implements Bot {
 		await this.dlobSubscriber!.unsubscribe();
 		await this.userStatsMap!.unsubscribe();
 		await this.orderSubscriber.unsubscribe();
-
-		for (const phoenixSubscriber of this.phoenixSubscribers!.values()) {
-			await phoenixSubscriber.unsubscribe();
-		}
-
-		for (const openbookSubscriber of this.openbookSubscribers!.values()) {
-			await openbookSubscriber.unsubscribe();
-		}
 	}
 
 	public async startIntervalLoop(_intervalMs?: number) {
@@ -742,13 +691,13 @@ export class SpotFillerBot implements Bot {
 	}
 
 	protected recordJitoBundleStats() {
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		const bundleStats = this.bundleSender?.getBundleStats();
 		if (bundleStats) {
 			this.jitoBundlesAcceptedGauge?.setLatestValue(bundleStats.accepted, {
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			});
 			this.jitoBundlesSimulationFailureGauge?.setLatestValue(
@@ -756,7 +705,7 @@ export class SpotFillerBot implements Bot {
 				{
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -764,7 +713,7 @@ export class SpotFillerBot implements Bot {
 				type: 'pruned',
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			});
 			this.jitoDroppedBundleGauge?.setLatestValue(
@@ -773,7 +722,7 @@ export class SpotFillerBot implements Bot {
 					type: 'blockhash_expired',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -783,7 +732,7 @@ export class SpotFillerBot implements Bot {
 					type: 'blockhash_not_found',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -797,7 +746,7 @@ export class SpotFillerBot implements Bot {
 					percentile: 'p25',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -807,7 +756,7 @@ export class SpotFillerBot implements Bot {
 					percentile: 'p50',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -817,7 +766,7 @@ export class SpotFillerBot implements Bot {
 					percentile: 'p75',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -827,7 +776,7 @@ export class SpotFillerBot implements Bot {
 					percentile: 'p95',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -837,7 +786,7 @@ export class SpotFillerBot implements Bot {
 					percentile: 'p99',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -847,7 +796,7 @@ export class SpotFillerBot implements Bot {
 					percentile: 'ema_p50',
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				}
 			);
@@ -868,20 +817,20 @@ export class SpotFillerBot implements Bot {
 	}
 
 	protected async confirmPendingTxSigs() {
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		this.pendingTxSigsToConfirmGauge?.setLatestValue(
 			this.pendingTxSigsToconfirm.size,
 			{
 				...metricAttrFromUserAccount(
 					user.userAccountPublicKey,
-					user.getUserAccount()
+					user.getUserAccountOrThrow()
 				),
 			}
 		);
 		this.expiredNodesSetSize?.setLatestValue(this.expiredNodesSet.size, {
 			...metricAttrFromUserAccount(
 				user.userAccountPublicKey,
-				user.getUserAccount()
+				user.getUserAccountOrThrow()
 			),
 		});
 		const nextTimeCanRun =
@@ -946,7 +895,7 @@ export class SpotFillerBot implements Bot {
 										type: txType,
 										...metricAttrFromUserAccount(
 											user.userAccountPublicKey,
-											user.getUserAccount()
+											user.getUserAccountOrThrow()
 										),
 									});
 								}
@@ -956,7 +905,7 @@ export class SpotFillerBot implements Bot {
 								type: txType,
 								...metricAttrFromUserAccount(
 									user.userAccountPublicKey,
-									user.getUserAccount()
+									user.getUserAccountOrThrow()
 								),
 							});
 						}
@@ -973,7 +922,7 @@ export class SpotFillerBot implements Bot {
 				this.pendingTxSigsLoopRateLimitedCounter?.add(1, {
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				});
 			} else {
@@ -1011,10 +960,10 @@ export class SpotFillerBot implements Bot {
 	): Promise<DataAndSlot<UserAccount>> {
 		const user = await this.userMap!.mustGetWithSlot(
 			key,
-			this.driftClient.userAccountSubscriptionConfig
+			this.velocityClient.userAccountSubscriptionConfig
 		);
 		return {
-			data: user.data.getUserAccount(),
+			data: user.data.getUserAccountOrThrow(),
 			slot: user.slot,
 		};
 	}
@@ -1026,31 +975,14 @@ export class SpotFillerBot implements Bot {
 		nodesToFill: NodesToFillWithContext;
 		nodesToTrigger: Array<NodeToTrigger>;
 	} {
-		const oraclePriceData = this.driftClient.getOracleDataForSpotMarket(
+		const oraclePriceData = this.velocityClient.getOracleDataForSpotMarket(
 			market.marketIndex
 		);
 
-		const phoenixSubscriber = this.phoenixSubscribers!.get(market.marketIndex);
-		const phoenixBestBid = phoenixSubscriber?.getBestBid();
-		const phoenixBestAsk = phoenixSubscriber?.getBestAsk();
-
-		const openbookSubscriber = this.openbookSubscribers!.get(
-			market.marketIndex
-		);
-		const openbookBestBid = openbookSubscriber?.getBestBid();
-		const openbookBestAsk = openbookSubscriber?.getBestAsk();
-
-		const [fallbackBidPrice, fallbackBidSource] = this.pickFallbackPrice(
-			openbookBestBid,
-			phoenixBestBid,
-			'bid'
-		);
-
-		const [fallbackAskPrice, fallbackAskSource] = this.pickFallbackPrice(
-			openbookBestAsk,
-			phoenixBestAsk,
-			'ask'
-		);
+		const fallbackBidPrice: BN | undefined = undefined;
+		const fallbackBidSource: FallbackLiquiditySource | undefined = undefined;
+		const fallbackAskPrice: BN | undefined = undefined;
+		const fallbackAskSource: FallbackLiquiditySource | undefined = undefined;
 
 		const fillSlot = this.orderSubscriber.getSlot();
 
@@ -1059,11 +991,12 @@ export class SpotFillerBot implements Bot {
 			fallbackBidPrice,
 			fallbackAskPrice,
 			fillSlot,
-			this.clockSubscriber.getUnixTs() - EXPIRE_ORDER_BUFFER_SEC,
+			(this.clockSubscriber.getUnixTs() ?? Date.now() / 1000) -
+				EXPIRE_ORDER_BUFFER_SEC,
 			MarketType.SPOT,
 			oraclePriceData,
-			this.driftClient.getStateAccount(),
-			this.driftClient.getSpotMarketAccount(market.marketIndex)!
+			this.velocityClient.getStateAccount(),
+			this.velocityClient.getSpotMarketAccount(market.marketIndex)!
 		);
 
 		const nodesToTrigger = dlob.findNodesToTrigger(
@@ -1071,41 +1004,13 @@ export class SpotFillerBot implements Bot {
 			fillSlot,
 			oraclePriceData.price,
 			MarketType.SPOT,
-			this.driftClient.getStateAccount()
+			this.velocityClient.getStateAccount()
 		);
 
 		return {
 			nodesToFill: { nodesToFill, fallbackAskSource, fallbackBidSource },
 			nodesToTrigger,
 		};
-	}
-
-	private pickFallbackPrice(
-		openbookPrice: BN | undefined,
-		phoenixPrice: BN | undefined,
-		side: 'bid' | 'ask'
-	): [BN | undefined, FallbackLiquiditySource | undefined] {
-		if (openbookPrice && phoenixPrice) {
-			if (side === 'bid') {
-				return openbookPrice.gt(phoenixPrice)
-					? [openbookPrice, 'openbook']
-					: [phoenixPrice, 'phoenix'];
-			} else {
-				return openbookPrice.lt(phoenixPrice)
-					? [openbookPrice, 'openbook']
-					: [phoenixPrice, 'phoenix'];
-			}
-		}
-
-		if (openbookPrice) {
-			return [openbookPrice, 'openbook'];
-		}
-
-		if (phoenixPrice) {
-			return [phoenixPrice, 'phoenix'];
-		}
-
-		return [undefined, undefined];
 	}
 
 	private async getNodeFillInfo(nodeToFill: NodeToFill): Promise<{
@@ -1168,12 +1073,12 @@ export class SpotFillerBot implements Bot {
 
 		const user = await this.userMap!.mustGetWithSlot(
 			node.userAccount!.toString(),
-			this.driftClient.userAccountSubscriptionConfig
+			this.velocityClient.userAccountSubscriptionConfig
 		);
 
 		return Promise.resolve({
 			makerInfos,
-			takerUser: user.data.getUserAccount(),
+			takerUser: user.data.getUserAccountOrThrow(),
 			takerUserSlot: user.slot,
 			takerUserPubKey: node.userAccount!.toString(),
 			marketType: order.marketType,
@@ -1256,7 +1161,7 @@ export class SpotFillerBot implements Bot {
 	 * Iterates through a tx's logs and handles it appropriately e.g. throttling users, updating metrics, etc.)
 	 *
 	 * @param nodesFilled nodes that we sent a transaction to fill
-	 * @param logs logs from tx.meta.logMessages or this.driftClient.program._events._eventParser.parseLogs
+	 * @param logs logs from tx.meta.logMessages or this.velocityClient.program._events._eventParser.parseLogs
 	 *
 	 * @returns number of nodes successfully filled, and whether the tx exceeded CUs
 	 */
@@ -1283,7 +1188,7 @@ export class SpotFillerBot implements Bot {
 			const node = nodeFilled.node;
 			const order = node.order!;
 
-			if (isEndIxLog(this.driftClient.program.programId.toBase58(), log)) {
+			if (isEndIxLog(this.velocityClient.program.programId.toBase58(), log)) {
 				if (!errorThisFillIx) {
 					successCount++;
 				}
@@ -1348,15 +1253,15 @@ export class SpotFillerBot implements Bot {
 				this.throttledNodes.set(makerNodeSignature, Date.now());
 				errorThisFillIx = true;
 
-				this.driftClient
+				this.velocityClient
 					.forceCancelOrders(
 						new PublicKey(makerNode.userAccount!),
 						(
 							await this.userMap!.mustGet(
 								makerNode.userAccount!.toString(),
-								this.driftClient.userAccountSubscriptionConfig
+								this.velocityClient.userAccountSubscriptionConfig
 							)
-						).getUserAccount()
+						).getUserAccountOrThrow()
 					)
 					.then((txSig) => {
 						logger.info(
@@ -1395,15 +1300,15 @@ export class SpotFillerBot implements Bot {
 				this.throttledNodes.set(takerNodeSignature, Date.now());
 				errorThisFillIx = true;
 
-				this.driftClient
+				this.velocityClient
 					.forceCancelOrders(
 						new PublicKey(node.userAccount!),
 						(
 							await this.userMap!.mustGet(
 								node.userAccount!.toString(),
-								this.driftClient.userAccountSubscriptionConfig
+								this.velocityClient.userAccountSubscriptionConfig
 							)
-						).getUserAccount()
+						).getUserAccountOrThrow()
 					)
 					.then((txSig) => {
 						logger.info(
@@ -1455,17 +1360,17 @@ export class SpotFillerBot implements Bot {
 			logger.info(
 				`(fillTxId: ${fillTxId}) waiting for https://solscan.io/tx/${txSig} to be confirmed`
 			);
-			txResp = await this.driftClient.connection.getTransaction(txSig, {
+			txResp = await this.velocityClient.connection.getTransaction(txSig, {
 				commitment: 'confirmed',
 				maxSupportedTransactionVersion: 0,
 			});
 
 			if (txResp === null) {
 				if (tx !== undefined) {
-					await this.driftClient.txSender.sendVersionedTransaction(
+					await this.velocityClient.txSender.sendVersionedTransaction(
 						tx,
 						[],
-						this.driftClient.opts
+						this.velocityClient.opts
 					);
 				}
 				attempts++;
@@ -1502,12 +1407,12 @@ export class SpotFillerBot implements Bot {
 			fillTxId,
 			txType,
 		});
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		this.sentTxsCounter?.add(1, {
 			txType,
 			...metricAttrFromUserAccount(
 				user.userAccountPublicKey,
-				user.getUserAccount()
+				user.getUserAccountOrThrow()
 			),
 		});
 	}
@@ -1582,7 +1487,7 @@ export class SpotFillerBot implements Bot {
 		}
 
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash({
+			await this.velocityClient.connection.getLatestBlockhash({
 				commitment: 'confirmed',
 			});
 
@@ -1596,7 +1501,7 @@ export class SpotFillerBot implements Bot {
 		buildForBundle: boolean,
 		lutAccounts: Array<AddressLookupTableAccount>
 	) {
-		const txSigners = [this.driftClient.wallet.payer];
+		const txSigners = [this.velocityClient.wallet.payer];
 		// @ts-ignore
 		tx.sign(txSigners);
 		const txSig = bs58.encode(tx.signatures[0]);
@@ -1608,8 +1513,8 @@ export class SpotFillerBot implements Bot {
 			const { estTxSize, accountMetas, writeAccs, txAccounts } =
 				getTransactionAccountMetas(tx, lutAccounts);
 
-			this.driftClient.txSender
-				.sendVersionedTransaction(tx, [], this.driftClient.opts, true)
+			this.velocityClient.txSender
+				.sendVersionedTransaction(tx, [], this.velocityClient.opts, true)
 				.then(async (txSig) => {
 					logger.info(
 						`Filled spot order (fillTxId: ${fillTxId}): https://solscan.io/tx/${txSig.txSig}`
@@ -1674,12 +1579,12 @@ export class SpotFillerBot implements Bot {
 							!errorCodesToSuppress.includes(errorCode) &&
 							!(e as Error).message.includes('Transaction was not confirmed')
 						) {
-							const user = this.driftClient.getUser();
+							const user = this.velocityClient.getUser();
 							this.txSimErrorCounter?.add(1, {
 								errorCode: errorCode.toString(),
 								...metricAttrFromUserAccount(
 									user.userAccountPublicKey,
-									user.getUserAccount()
+									user.getUserAccountOrThrow()
 								),
 							});
 
@@ -1765,7 +1670,7 @@ export class SpotFillerBot implements Bot {
 				}
 
 				ixs.push(
-					await this.driftClient.getFillSpotOrderIx(
+					await this.velocityClient.getFillSpotOrderIx(
 						new PublicKey(takerUserPubKey),
 						takerUser,
 						nodeToFill.node.order!,
@@ -1775,25 +1680,25 @@ export class SpotFillerBot implements Bot {
 				);
 
 				if (this.revertOnFailure) {
-					ixs.push(await this.driftClient.getRevertFillIx());
+					ixs.push(await this.velocityClient.getRevertFillIx());
 				}
 				const simResult = await simulateAndGetTxWithCUs({
 					ixs,
-					connection: this.driftClient.connection,
-					payerPublicKey: this.driftClient.wallet.publicKey,
+					connection: this.velocityClient.connection,
+					payerPublicKey: this.velocityClient.wallet.publicKey,
 					lookupTableAccounts: this.lookupTableAccounts,
 					cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 					doSimulation: this.simulateTxForCUEstimate,
 					recentBlockhash: await this.getBlockhashForTx(),
 					dumpTx: DUMP_TXS_IN_SIM,
 				});
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.simulateTxHistogram?.record(simResult.simTxDuration, {
 					type: 'multiMakerFill',
 					simError: simResult.simError !== null,
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				});
 				this.estTxCuHistogram?.record(simResult.cuEstimate, {
@@ -1801,7 +1706,7 @@ export class SpotFillerBot implements Bot {
 					simError: simResult.simError !== null,
 					...metricAttrFromUserAccount(
 						user.userAccountPublicKey,
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					),
 				});
 
@@ -1936,7 +1841,7 @@ export class SpotFillerBot implements Bot {
 	) {
 		const node = nodeToFill.node!;
 		const order = node.order!;
-		const spotMarket = this.driftClient.getSpotMarketAccount(
+		const spotMarket = this.velocityClient.getSpotMarketAccount(
 			order.marketIndex
 		)!;
 		const spotMarketPrecision = TEN.pow(new BN(spotMarket.decimals));
@@ -1962,25 +1867,7 @@ export class SpotFillerBot implements Bot {
 			throw new Error('expected spot market type');
 		}
 
-		let fulfillmentConfig:
-			| PhoenixV1FulfillmentConfigAccount
-			| OpenbookV2FulfillmentConfigAccount
-			| undefined = undefined;
-		if (fallbackSource === 'phoenix') {
-			const cfg = this.phoenixFulfillmentConfigMap.get(
-				nodeToFill.node.order!.marketIndex
-			);
-			if (cfg && isVariant(cfg.status, 'enabled')) {
-				fulfillmentConfig = cfg;
-			}
-		} else if (fallbackSource === 'openbook') {
-			const cfg = this.openbookFulfillmentConfigMap.get(
-				nodeToFill.node.order!.marketIndex
-			);
-			if (cfg && isVariant(cfg.status, 'enabled')) {
-				fulfillmentConfig = cfg;
-			}
-		}
+		const fulfillmentConfig = undefined;
 
 		logMessageForNodeToFill(
 			nodeToFill,
@@ -2016,7 +1903,7 @@ export class SpotFillerBot implements Bot {
 		}
 
 		ixs.push(
-			await this.driftClient.getFillSpotOrderIx(
+			await this.velocityClient.getFillSpotOrderIx(
 				new PublicKey(takerUserPubKey),
 				takerUser,
 				nodeToFill.node.order,
@@ -2025,26 +1912,26 @@ export class SpotFillerBot implements Bot {
 		);
 
 		if (this.revertOnFailure) {
-			ixs.push(await this.driftClient.getRevertFillIx());
+			ixs.push(await this.velocityClient.getRevertFillIx());
 		}
 
 		const simResult = await simulateAndGetTxWithCUs({
 			ixs,
-			connection: this.driftClient.connection,
-			payerPublicKey: this.driftClient.wallet.publicKey,
+			connection: this.velocityClient.connection,
+			payerPublicKey: this.velocityClient.wallet.publicKey,
 			lookupTableAccounts: this.lookupTableAccounts,
 			cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 			doSimulation: this.simulateTxForCUEstimate,
 			recentBlockhash: await this.getBlockhashForTx(),
 			dumpTx: DUMP_TXS_IN_SIM,
 		});
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		this.simulateTxHistogram?.record(simResult.simTxDuration, {
 			type: 'spotFill',
 			simError: simResult.simError !== null,
 			...metricAttrFromUserAccount(
 				user.userAccountPublicKey,
-				user.getUserAccount()
+				user.getUserAccountOrThrow()
 			),
 		});
 		this.estTxCuHistogram?.record(simResult.cuEstimate, {
@@ -2052,7 +1939,7 @@ export class SpotFillerBot implements Bot {
 			simError: simResult.simError !== null,
 			...metricAttrFromUserAccount(
 				user.userAccountPublicKey,
-				user.getUserAccount()
+				user.getUserAccountOrThrow()
 			),
 		});
 
@@ -2138,9 +2025,9 @@ export class SpotFillerBot implements Bot {
 
 			const user = await this.userMap!.mustGetWithSlot(
 				nodeToTrigger.node.userAccount.toString(),
-				this.driftClient.userAccountSubscriptionConfig
+				this.velocityClient.userAccountSubscriptionConfig
 			);
-			const userAccount = user.data.getUserAccount();
+			const userAccount = user.data.getUserAccountOrThrow();
 
 			const ixs = [
 				ComputeBudgetProgram.setComputeUnitLimit({
@@ -2155,7 +2042,7 @@ export class SpotFillerBot implements Bot {
 					ComputeBudgetProgram.setComputeUnitPrice({
 						microLamports: Math.floor(
 							this.priorityFeeSubscriber.getCustomStrategyResult() *
-								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier() *
+								this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier() *
 								(this.fillerConfig.triggerPriorityFeeMultiplier ?? 1.0)
 						),
 					})
@@ -2163,7 +2050,7 @@ export class SpotFillerBot implements Bot {
 			}
 
 			ixs.push(
-				await this.driftClient.getTriggerOrderIx(
+				await this.velocityClient.getTriggerOrderIx(
 					new PublicKey(nodeToTrigger.node.userAccount),
 					userAccount,
 					nodeToTrigger.node.order
@@ -2171,26 +2058,26 @@ export class SpotFillerBot implements Bot {
 			);
 
 			if (this.revertOnFailure) {
-				ixs.push(await this.driftClient.getRevertFillIx());
+				ixs.push(await this.velocityClient.getRevertFillIx());
 			}
 
 			const simResult = await simulateAndGetTxWithCUs({
 				ixs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts: this.lookupTableAccounts,
 				cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 				doSimulation: this.simulateTxForCUEstimate,
 				recentBlockhash: await this.getBlockhashForTx(),
 				dumpTx: DUMP_TXS_IN_SIM,
 			});
-			const driftUser = this.driftClient.getUser();
+			const driftUser = this.velocityClient.getUser();
 			this.simulateTxHistogram?.record(simResult.simTxDuration, {
 				type: 'trigger',
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
 					driftUser.userAccountPublicKey,
-					driftUser.getUserAccount()
+					driftUser.getUserAccountOrThrow()
 				),
 			});
 			this.estTxCuHistogram?.record(simResult.cuEstimate, {
@@ -2198,7 +2085,7 @@ export class SpotFillerBot implements Bot {
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
 					driftUser.userAccountPublicKey,
-					driftUser.getUserAccount()
+					driftUser.getUserAccountOrThrow()
 				),
 			});
 
@@ -2216,7 +2103,7 @@ export class SpotFillerBot implements Bot {
 			} else {
 				if (!this.dryRun) {
 					if (this.hasEnoughSolToFill) {
-						const txSigners = [this.driftClient.wallet.payer];
+						const txSigners = [this.velocityClient.wallet.payer];
 
 						// @ts-ignore;
 						simResult.tx.sign(txSigners);
@@ -2232,7 +2119,7 @@ export class SpotFillerBot implements Bot {
 							await this.sendTxThroughJito(simResult.tx, 'triggerOrder', txSig);
 							this.removeTriggeringNodes(nodeToTrigger);
 						} else if (this.canSendOutsideJito()) {
-							this.driftClient
+							this.velocityClient
 								.sendTransaction(simResult.tx)
 								.then((txSig) => {
 									logger.info(
@@ -2253,12 +2140,12 @@ export class SpotFillerBot implements Bot {
 											'Transaction was not confirmed'
 										)
 									) {
-										const user = this.driftClient.getUser();
+										const user = this.velocityClient.getUser();
 										this.txSimErrorCounter?.add(1, {
 											errorCode: errorCode.toString(),
 											...metricAttrFromUserAccount(
 												user.userAccountPublicKey,
-												user.getUserAccount()
+												user.getUserAccountOrThrow()
 											),
 										});
 										logger.error(
@@ -2287,12 +2174,12 @@ export class SpotFillerBot implements Bot {
 			}
 		}
 
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		this.attemptedTriggersCounter?.add(
 			triggerableNodes.length,
 			metricAttrFromUserAccount(
 				user.userAccountPublicKey,
-				user.getUserAccount()
+				user.getUserAccountOrThrow()
 			)
 		);
 	}
@@ -2312,12 +2199,12 @@ export class SpotFillerBot implements Bot {
 			}
 
 			await tryAcquire(this.periodicTaskMutex).runExclusive(async () => {
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.lastTryFillTimeGauge?.setLatestValue(
 					Date.now(),
 					metricAttrFromUserAccount(
 						user.getUserAccountPublicKey(),
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					)
 				);
 				const dlob = this.dlobSubscriber!.getDLOB();
@@ -2327,7 +2214,7 @@ export class SpotFillerBot implements Bot {
 				// 1) get all fillable nodes
 				const fillableNodes: Array<NodesToFillWithContext> = [];
 				let triggerableNodes: Array<NodeToTrigger> = [];
-				for (const market of this.driftClient.getSpotMarketAccounts()) {
+				for (const market of this.velocityClient.getSpotMarketAccounts()) {
 					if (market.marketIndex === 0) {
 						continue;
 					}
@@ -2363,12 +2250,12 @@ export class SpotFillerBot implements Bot {
 			});
 		} catch (e) {
 			if (e === E_ALREADY_LOCKED) {
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.mutexBusyCounter!.add(
 					1,
 					metricAttrFromUserAccount(
 						user.getUserAccountPublicKey(),
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					)
 				);
 			} else {
@@ -2384,20 +2271,20 @@ export class SpotFillerBot implements Bot {
 			}
 		} finally {
 			this.clockSubscriberTs?.setLatestValue(
-				this.clockSubscriber.getUnixTs(),
+				this.clockSubscriber.getUnixTs() ?? Date.now() / 1000,
 				{}
 			);
 			this.wallClockTs?.setLatestValue(Date.now() / 1000, {});
 
 			if (ran) {
 				const duration = Date.now() - startTime;
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				if (this.tryFillDurationHistogram) {
 					this.tryFillDurationHistogram!.record(
 						duration,
 						metricAttrFromUserAccount(
 							user.getUserAccountPublicKey(),
-							user.getUserAccount()
+							user.getUserAccountOrThrow()
 						)
 					);
 				}
@@ -2411,13 +2298,13 @@ export class SpotFillerBot implements Bot {
 
 	protected async rebalanceSpotFiller() {
 		logger.info(`Rebalancing filler`);
-		const fillerSolBalance = await this.driftClient.connection.getBalance(
-			this.driftClient.authority
+		const fillerSolBalance = await this.velocityClient.connection.getBalance(
+			this.velocityClient.authority
 		);
 		this.hasEnoughSolToFill = fillerSolBalance >= this.minGasBalanceToFill;
 
-		const fillerDriftAccountUsdcBalance = this.driftClient.getTokenAmount(0);
-		const usdcSpotMarket = this.driftClient.getSpotMarketAccount(0);
+		const fillerDriftAccountUsdcBalance = this.velocityClient.getTokenAmount(0);
+		const usdcSpotMarket = this.velocityClient.getSpotMarketAccount(0);
 		const normalizedFillerDriftAccountUsdcBalance =
 			fillerDriftAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
 		const isUsdcAmountRebalanceable =
@@ -2434,13 +2321,13 @@ export class SpotFillerBot implements Bot {
 				logger.info(`Swapping USDC for SOL to rebalance filler`);
 				swapFillerHardEarnedUSDCForSOL(
 					this.priorityFeeSubscriber,
-					this.driftClient,
+					this.velocityClient,
 					this.jupiterClient,
 					await this.getBlockhashForTx()
 				).then(async () => {
 					const fillerSolBalanceAfterSwap =
-						await this.driftClient.connection.getBalance(
-							this.driftClient.authority,
+						await this.velocityClient.connection.getBalance(
+							this.velocityClient.authority,
 							'processed'
 						);
 					this.hasEnoughSolToFill =

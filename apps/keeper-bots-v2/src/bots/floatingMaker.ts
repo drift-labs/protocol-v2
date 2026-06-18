@@ -3,7 +3,7 @@ import {
 	calculateBidPrice,
 	BN,
 	isVariant,
-	DriftClient,
+	VelocityClient,
 	PerpMarketAccount,
 	SlotSubscriber,
 	PositionDirection,
@@ -11,7 +11,7 @@ import {
 	BASE_PRECISION,
 	Order,
 	PerpPosition,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 
 import { logger } from '../logger';
@@ -54,7 +54,7 @@ export class FloatingPerpMakerBot implements Bot {
 	public readonly dryRun: boolean;
 	public readonly defaultIntervalMs: number = 5000;
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private slotSubscriber: SlotSubscriber;
 	private periodicTaskMutex = new Mutex();
 	private lastSlotMarketUpdated: Map<number, number> = new Map();
@@ -94,14 +94,14 @@ export class FloatingPerpMakerBot implements Bot {
 	private watchdogTimerLastPatTime = Date.now();
 
 	constructor(
-		clearingHouse: DriftClient,
+		clearingHouse: VelocityClient,
 		slotSubscriber: SlotSubscriber,
 		runtimeSpec: RuntimeSpec,
 		config: BaseBotConfig
 	) {
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
-		this.driftClient = clearingHouse;
+		this.velocityClient = clearingHouse;
 		this.slotSubscriber = slotSubscriber;
 
 		this.metricsPort = config.metricsPort;
@@ -219,7 +219,7 @@ export class FloatingPerpMakerBot implements Bot {
 	 * @returns {Promise<void>}
 	 */
 	private updateAgentState(): void {
-		this.driftClient.getUserAccount()!.perpPositions.map((p) => {
+		this.velocityClient.getUserAccountOrThrow()!.perpPositions.map((p) => {
 			if (p.baseAssetAmount.isZero()) {
 				return;
 			}
@@ -227,11 +227,11 @@ export class FloatingPerpMakerBot implements Bot {
 		});
 
 		// zero out the open orders
-		for (const market of this.driftClient.getPerpMarketAccounts()) {
+		for (const market of this.velocityClient.getPerpMarketAccounts()) {
 			this.agentState!.openOrders.set(market.marketIndex, []);
 		}
 
-		this.driftClient.getUserAccount()!.orders.map((o) => {
+		this.velocityClient.getUserAccountOrThrow()!.orders.map((o) => {
 			if (isVariant(o.status, 'init')) {
 				return;
 			}
@@ -255,7 +255,8 @@ export class FloatingPerpMakerBot implements Bot {
 		}
 
 		const openOrders = this.agentState!.openOrders.get(marketIndex) || [];
-		const oracle = this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
+		const oracle =
+			this.velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 		const vAsk = calculateAskPrice(marketAccount, oracle);
 		const vBid = calculateBidPrice(marketAccount, oracle);
 
@@ -268,10 +269,10 @@ export class FloatingPerpMakerBot implements Bot {
 		) {
 			// cancel orders
 			for (const o of openOrders) {
-				const tx = await this.driftClient.cancelOrder(o.orderId);
+				const tx = await this.velocityClient.cancelOrder(o.orderId);
 				console.log(
-					`${this.name} cancelling order ${this.driftClient
-						.getUserAccount()!
+					`${this.name} cancelling order ${this.velocityClient
+						.getUserAccountOrThrow()!
 						.authority.toBase58()}-${o.orderId}: ${tx}`
 				);
 			}
@@ -283,29 +284,22 @@ export class FloatingPerpMakerBot implements Bot {
 			const biasDenom = new BN(100);
 
 			const oracleBidSpread = oracle.price.sub(vBid);
-			const tx0 = await this.driftClient.placePerpOrder({
+			const tx0 = await this.velocityClient.placePerpOrder({
 				marketIndex: marketIndex,
 				orderType: OrderType.LIMIT,
 				direction: PositionDirection.LONG,
 				baseAssetAmount: BASE_PRECISION.mul(new BN(1)),
-				oraclePriceOffset: oracleBidSpread
-					.mul(biasNum)
-					.div(biasDenom)
-					.neg()
-					.toNumber(), // limit bid below oracle
+				oraclePriceOffset: oracleBidSpread.mul(biasNum).div(biasDenom).neg(), // limit bid below oracle
 			});
 			console.log(`${this.name} placing long: ${tx0}`);
 
 			const oracleAskSpread = vAsk.sub(oracle.price);
-			const tx1 = await this.driftClient.placePerpOrder({
+			const tx1 = await this.velocityClient.placePerpOrder({
 				marketIndex: marketIndex,
 				orderType: OrderType.LIMIT,
 				direction: PositionDirection.SHORT,
 				baseAssetAmount: BASE_PRECISION.mul(new BN(1)),
-				oraclePriceOffset: oracleAskSpread
-					.mul(biasNum)
-					.div(biasDenom)
-					.toNumber(), // limit ask above oracle
+				oraclePriceOffset: oracleAskSpread.mul(biasNum).div(biasDenom), // limit ask above oracle
 			});
 			console.log(`${this.name} placing short: ${tx1}`);
 		}
@@ -321,7 +315,7 @@ export class FloatingPerpMakerBot implements Bot {
 			await tryAcquire(this.periodicTaskMutex).runExclusive(async () => {
 				this.updateAgentState();
 				await Promise.all(
-					this.driftClient.getPerpMarketAccounts().map((marketAccount) => {
+					this.velocityClient.getPerpMarketAccounts().map((marketAccount) => {
 						console.log(
 							`${this.name} updating open orders for market ${marketAccount.marketIndex}`
 						);
@@ -333,12 +327,12 @@ export class FloatingPerpMakerBot implements Bot {
 			});
 		} catch (e) {
 			if (e === E_ALREADY_LOCKED) {
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				this.mutexBusyCounter!.add(
 					1,
 					metricAttrFromUserAccount(
 						user.getUserAccountPublicKey(),
-						user.getUserAccount()
+						user.getUserAccountOrThrow()
 					)
 				);
 			} else {
@@ -347,13 +341,13 @@ export class FloatingPerpMakerBot implements Bot {
 		} finally {
 			if (ran) {
 				const duration = Date.now() - start;
-				const user = this.driftClient.getUser();
+				const user = this.velocityClient.getUser();
 				if (this.tryMakeDurationHistogram) {
 					this.tryMakeDurationHistogram!.record(
 						duration,
 						metricAttrFromUserAccount(
 							user.getUserAccountPublicKey(),
-							user.getUserAccount()
+							user.getUserAccountOrThrow()
 						)
 					);
 				}

@@ -1,5 +1,5 @@
 import {
-	DriftClient,
+	VelocityClient,
 	BulkAccountLoader,
 	SlotSubscriber,
 	OrderSubscriber,
@@ -8,7 +8,7 @@ import {
 	PriorityFeeSubscriber,
 	DataAndSlot,
 	BlockhashSubscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 
 import { AddressLookupTableAccount, PublicKey } from '@solana/web3.js';
 
@@ -26,7 +26,7 @@ export class FillerLiteBot extends FillerBot {
 
 	constructor(
 		slotSubscriber: SlotSubscriber,
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		runtimeSpec: RuntimeSpec,
 		globalConfig: GlobalConfig,
 		config: FillerConfig,
@@ -38,7 +38,7 @@ export class FillerLiteBot extends FillerBot {
 		super(
 			slotSubscriber,
 			undefined,
-			driftClient,
+			velocityClient,
 			undefined,
 			runtimeSpec,
 			globalConfig,
@@ -52,14 +52,14 @@ export class FillerLiteBot extends FillerBot {
 		this.userStatsMapSubscriptionConfig = {
 			type: 'polling',
 			accountLoader: new BulkAccountLoader(
-				this.driftClient.connection,
+				this.velocityClient.connection,
 				'processed', // No polling so value is irrelevant
 				0 // no polling, just for using mustGet
 			),
 		};
 
 		this.orderSubscriber = new OrderSubscriber({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			subscriptionConfig: {
 				type: 'websocket',
 				skipInitialLoad: false,
@@ -96,12 +96,12 @@ export class FillerLiteBot extends FillerBot {
 	): Promise<DataAndSlot<UserAccount>> {
 		if (!this.orderSubscriber.usersAccounts.has(key)) {
 			const user = new User({
-				driftClient: this.driftClient,
+				velocityClient: this.velocityClient,
 				userAccountPublicKey: new PublicKey(key),
 				accountSubscription: {
 					type: 'polling',
 					accountLoader: new BulkAccountLoader(
-						this.driftClient.connection,
+						this.velocityClient.connection,
 						'processed',
 						0
 					),

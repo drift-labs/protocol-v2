@@ -1,6 +1,6 @@
 import {
 	BN,
-	DriftClient,
+	VelocityClient,
 	UserAccount,
 	PublicKey,
 	PerpMarketAccount,
@@ -17,7 +17,7 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	isOperationPaused,
 	PerpOperation,
-	DriftMarketInfo,
+	VelocityMarketInfo,
 	User,
 	PerpPosition,
 	MarketStatus,
@@ -30,7 +30,7 @@ import {
 	isBuilderOrderCompleted,
 	getUserAccountPublicKeySync,
 	SettlePnlMode,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 
 import { getErrorCode } from '../error';
@@ -107,7 +107,7 @@ export class UserPnlSettlerBot implements Bot {
 	// DEPENDENCIES
 	// =============================================================================
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private blockhashSubscriber: BlockhashSubscriber;
 	private globalConfig: GlobalConfig;
 	private lookupTableAccounts?: AddressLookupTableAccount[];
@@ -137,7 +137,7 @@ export class UserPnlSettlerBot implements Bot {
 	// =============================================================================
 
 	constructor(
-		driftClient: DriftClient,
+		velocityClient: VelocityClient,
 		priorityFeeSubscriber: PriorityFeeSubscriber,
 		config: UserPnlSettlerConfig,
 		globalConfig: GlobalConfig
@@ -152,23 +152,23 @@ export class UserPnlSettlerBot implements Bot {
 		this.maxUsersToConsider = Number(config.maxUsersToConsider) ?? 50;
 		this.globalConfig = globalConfig;
 
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.priorityFeeSubscriber = priorityFeeSubscriber;
 		this.blockhashSubscriber = new BlockhashSubscriber({
-			connection: driftClient.connection,
+			connection: velocityClient.connection,
 		});
 		this.userMap = new UserMap({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			subscriptionConfig: {
 				type: 'polling',
 				frequency: 60_000,
-				commitment: this.driftClient.opts?.commitment,
+				commitment: this.velocityClient.opts?.commitment,
 			},
 			skipInitialLoad: false,
 			includeIdle: false,
 		});
 		this.revenueShareEscrowMap = new RevenueShareEscrowMap(
-			this.driftClient,
+			this.velocityClient,
 			true
 		);
 	}
@@ -176,16 +176,16 @@ export class UserPnlSettlerBot implements Bot {
 	public async init() {
 		logger.info(`${this.name} initing`);
 
-		const driftMarkets: DriftMarketInfo[] = [];
-		for (const perpMarket of this.driftClient.getPerpMarketAccounts()) {
-			driftMarkets.push({
+		const velocityMarkets: VelocityMarketInfo[] = [];
+		for (const perpMarket of this.velocityClient.getPerpMarketAccounts()) {
+			velocityMarkets.push({
 				marketType: 'perp',
 				marketIndex: perpMarket.marketIndex,
 			});
 		}
 
 		await this.priorityFeeSubscriber!.subscribe();
-		await this.driftClient.subscribe();
+		await this.velocityClient.subscribe();
 		await this.blockhashSubscriber.subscribe();
 
 		const start0 = Date.now();
@@ -198,7 +198,7 @@ export class UserPnlSettlerBot implements Bot {
 		);
 
 		this.lookupTableAccounts =
-			await this.driftClient.fetchAllLookupTableAccounts();
+			await this.velocityClient.fetchAllLookupTableAccounts();
 
 		logger.info(`${this.name} init'd!`);
 	}
@@ -436,7 +436,7 @@ export class UserPnlSettlerBot implements Bot {
 				// sweeping builder feees doesn't require a user account, but we need one that exists, so just use the last one
 				// set in the RevenueShareOrder.
 				const user = getUserAccountPublicKeySync(
-					this.driftClient.program.programId,
+					this.velocityClient.program.programId,
 					escrow.authority,
 					order.subAccountId
 				);
@@ -444,7 +444,8 @@ export class UserPnlSettlerBot implements Bot {
 				if (!usersByAuthority.has(userKey)) {
 					usersByAuthority.set(userKey, {
 						settleeUserAccountPublicKey: user,
-						settleeUserAccount: this.userMap!.get(userKey)!.getUserAccount(),
+						settleeUserAccount:
+							this.userMap!.get(userKey)!.getUserAccountOrThrow(),
 						marketIndexes: new Set<number>(),
 					});
 				}
@@ -565,7 +566,7 @@ export class UserPnlSettlerBot implements Bot {
 			const ixs: TransactionInstruction[] = [
 				ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }),
 				ComputeBudgetProgram.setComputeUnitPrice({ microLamports }),
-				await this.driftClient.settleMultiplePNLsIx(
+				await this.velocityClient.settleMultiplePNLsIx(
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketChunk,
@@ -587,8 +588,8 @@ export class UserPnlSettlerBot implements Bot {
 
 			const simResult = await simulateAndGetTxWithCUs({
 				ixs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts: this.lookupTableAccounts!,
 				cuLimitMultiplier: CU_EST_MULTIPLIER,
 				doSimulation: true,
@@ -619,10 +620,10 @@ export class UserPnlSettlerBot implements Bot {
 				} else {
 					const sendTxStart = Date.now();
 					const txSig =
-						await this.driftClient.txSender.sendVersionedTransaction(
+						await this.velocityClient.txSender.sendVersionedTransaction(
 							simResult.tx,
 							[],
-							this.driftClient.opts
+							this.velocityClient.opts
 						);
 					logger.info(
 						`${logPrefix} (builderSettle) TRY_SETTLE for user ${userKey} markets [${marketChunk.join(
@@ -658,13 +659,13 @@ export class UserPnlSettlerBot implements Bot {
 				};
 			} = {};
 
-			for (const marketAccount of this.driftClient.getPerpMarketAccounts()) {
+			for (const marketAccount of this.velocityClient.getPerpMarketAccounts()) {
 				perpMarketAndOracleData[marketAccount.marketIndex] = {
 					marketAccount,
 				};
 			}
 
-			for (const marketAccount of this.driftClient.getPerpMarketAccounts()) {
+			for (const marketAccount of this.velocityClient.getPerpMarketAccounts()) {
 				const perpMarket =
 					perpMarketAndOracleData[marketAccount.marketIndex].marketAccount;
 				if (isOneOfVariant(perpMarket.status, ['initialized'])) {
@@ -688,15 +689,15 @@ export class UserPnlSettlerBot implements Bot {
 					continue;
 				}
 
-				if (perpMarket.amm.fundingPeriod.eq(ZERO)) {
+				if (perpMarket.marketStats.fundingPeriod.eq(ZERO)) {
 					continue;
 				}
 				const currentTs = Date.now() / 1000;
 
 				const timeRemainingTilUpdate = this.getTimeUntilNextFundingUpdate(
 					currentTs,
-					perpMarket.amm.lastFundingRateTs.toNumber(),
-					perpMarket.amm.fundingPeriod.toNumber()
+					perpMarket.lastFundingRateTs.toNumber(),
+					perpMarket.marketStats.fundingPeriod.toNumber()
 				);
 				logger.info(
 					`${logPrefix} Perp market ${perpMarket.marketIndex} timeRemainingTilUpdate=${timeRemainingTilUpdate}`
@@ -705,8 +706,8 @@ export class UserPnlSettlerBot implements Bot {
 					logger.info(
 						`${logPrefix} Perp market ${
 							perpMarket.marketIndex
-						} lastFundingRateTs: ${perpMarket.amm.lastFundingRateTs.toString()}, fundingPeriod: ${perpMarket.amm.fundingPeriod.toString()}, lastFunding+Period: ${perpMarket.amm.lastFundingRateTs
-							.add(perpMarket.amm.fundingPeriod)
+						} lastFundingRateTs: ${perpMarket.lastFundingRateTs.toString()}, fundingPeriod: ${perpMarket.marketStats.fundingPeriod.toString()}, lastFunding+Period: ${perpMarket.lastFundingRateTs
+							.add(perpMarket.marketStats.fundingPeriod)
 							.toString()} vs. currTs: ${currentTs.toString()}`
 					);
 					try {
@@ -725,24 +726,10 @@ export class UserPnlSettlerBot implements Bot {
 							}),
 						];
 
-						if (
-							isOneOfVariant(perpMarket.amm.oracleSource, [
-								'switchboardOnDemand',
-							])
-						) {
-							const crankIx =
-								await this.driftClient.getPostSwitchboardOnDemandUpdateAtomicIx(
-									perpMarket.amm.oracle
-								);
-							if (crankIx) {
-								ixs.push(crankIx);
-							}
-						}
-
 						ixs.push(
-							await this.driftClient.getUpdateFundingRateIx(
+							await this.velocityClient.getUpdateFundingRateIx(
 								perpMarket.marketIndex,
-								perpMarket.amm.oracle
+								perpMarket.oracle
 							)
 						);
 
@@ -756,8 +743,8 @@ export class UserPnlSettlerBot implements Bot {
 						}
 						const simResult = await simulateAndGetTxWithCUs({
 							ixs,
-							connection: this.driftClient.connection,
-							payerPublicKey: this.driftClient.wallet.publicKey,
+							connection: this.velocityClient.connection,
+							payerPublicKey: this.velocityClient.wallet.publicKey,
 							lookupTableAccounts: this.lookupTableAccounts!,
 							cuLimitMultiplier: CU_EST_MULTIPLIER,
 							doSimulation: true,
@@ -790,10 +777,10 @@ export class UserPnlSettlerBot implements Bot {
 						} else {
 							const sendTxStart = Date.now();
 							const txSig =
-								await this.driftClient.txSender.sendVersionedTransaction(
+								await this.velocityClient.txSender.sendVersionedTransaction(
 									simResult.tx,
 									[],
-									this.driftClient.opts
+									this.velocityClient.opts
 								);
 							logger.info(
 								`${logPrefix} UpdateFundingRate for market: ${
@@ -857,7 +844,7 @@ export class UserPnlSettlerBot implements Bot {
 		const nowTs = Date.now() / 1000;
 
 		for (const user of this.userMap!.values()) {
-			const userAccount = user.getUserAccount();
+			const userAccount = user.getUserAccountOrThrow();
 			if (userAccount.poolId !== 0) {
 				continue;
 			}
@@ -922,7 +909,7 @@ export class UserPnlSettlerBot implements Bot {
 		);
 
 		for (const user of this.userMap!.values()) {
-			const userAccount = user.getUserAccount();
+			const userAccount = user.getUserAccountOrThrow();
 			if (userAccount.poolId !== 0) {
 				continue;
 			}
@@ -933,9 +920,10 @@ export class UserPnlSettlerBot implements Bot {
 				// Early PnL check to avoid processing positive PnL users
 				const perpMarketIdx = settleePosition.marketIndex;
 				const perpMarket =
-					this.driftClient.getPerpMarketAccount(perpMarketIdx)!;
+					this.velocityClient.getPerpMarketAccount(perpMarketIdx)!;
 				const spotMarketIdx = QUOTE_SPOT_MARKET_INDEX;
-				const spotMarket = this.driftClient.getSpotMarketAccount(spotMarketIdx);
+				const spotMarket =
+					this.velocityClient.getSpotMarketAccount(spotMarketIdx);
 				if (!spotMarket) {
 					logger.warn(
 						`Spot market ${spotMarketIdx} not found, skipping user ${user
@@ -945,7 +933,7 @@ export class UserPnlSettlerBot implements Bot {
 					continue;
 				}
 				const oraclePriceData =
-					this.driftClient.getOracleDataForPerpMarket(perpMarketIdx);
+					this.velocityClient.getOracleDataForPerpMarket(perpMarketIdx);
 
 				const userUnsettledPnl = calculateClaimablePnl(
 					perpMarket,
@@ -1030,14 +1018,13 @@ export class UserPnlSettlerBot implements Bot {
 		// Check if position has activity
 		if (
 			settleePosition.quoteAssetAmount.gte(ZERO) &&
-			settleePosition.baseAssetAmount.eq(ZERO) &&
-			settleePosition.lpShares.eq(ZERO)
+			settleePosition.baseAssetAmount.eq(ZERO)
 		) {
 			return { shouldSettle: false };
 		}
 
 		const perpMarketIdx = settleePosition.marketIndex;
-		const perpMarket = this.driftClient.getPerpMarketAccount(perpMarketIdx)!;
+		const perpMarket = this.velocityClient.getPerpMarketAccount(perpMarketIdx)!;
 		const spotMarketIdx = QUOTE_SPOT_MARKET_INDEX;
 
 		// Check if settlement is paused
@@ -1054,7 +1041,7 @@ export class UserPnlSettlerBot implements Bot {
 		}
 
 		// Get fresh market and oracle data
-		const spotMarket = this.driftClient.getSpotMarketAccount(spotMarketIdx);
+		const spotMarket = this.velocityClient.getSpotMarketAccount(spotMarketIdx);
 		if (!spotMarket) {
 			logger.warn(
 				`Spot market ${spotMarketIdx} not found, cannot settle user ${userAccKeyStr}`
@@ -1062,7 +1049,7 @@ export class UserPnlSettlerBot implements Bot {
 			return { shouldSettle: false };
 		}
 		const oraclePriceData =
-			this.driftClient.getOracleDataForPerpMarket(perpMarketIdx);
+			this.velocityClient.getOracleDataForPerpMarket(perpMarketIdx);
 
 		const userUnsettledPnl = calculateClaimablePnl(
 			perpMarket,
@@ -1116,12 +1103,12 @@ export class UserPnlSettlerBot implements Bot {
 		perpMarketIdx: number,
 		spotMarketIdx: number
 	): Promise<boolean> {
-		const perpMarket = this.driftClient.getPerpMarketAccount(perpMarketIdx)!;
+		const perpMarket = this.velocityClient.getPerpMarketAccount(perpMarketIdx)!;
 		const oraclePriceData =
-			this.driftClient.getOracleDataForPerpMarket(perpMarketIdx);
+			this.velocityClient.getOracleDataForPerpMarket(perpMarketIdx);
 
 		const pnlPool = perpMarket.pnlPool;
-		const pnlPoolSpotMarket = this.driftClient.getSpotMarketAccount(
+		const pnlPoolSpotMarket = this.velocityClient.getSpotMarketAccount(
 			pnlPool.marketIndex
 		);
 		if (!pnlPoolSpotMarket) {
@@ -1161,7 +1148,7 @@ export class UserPnlSettlerBot implements Bot {
 			return false;
 		}
 
-		const spotMarket = this.driftClient.getSpotMarketAccount(spotMarketIdx);
+		const spotMarket = this.velocityClient.getSpotMarketAccount(spotMarketIdx);
 		if (!spotMarket) {
 			logger.warn(
 				`Spot market ${spotMarketIdx} not found for positive PnL settlement check`
@@ -1205,7 +1192,7 @@ export class UserPnlSettlerBot implements Bot {
 		const usersToSettleMap: Map<number, UserToSettle[]> = new Map();
 
 		for (const user of this.userMap!.values()) {
-			if (user.getUserAccount().poolId !== 0) {
+			if (user.getUserAccountOrThrow().poolId !== 0) {
 				continue;
 			}
 
@@ -1216,7 +1203,7 @@ export class UserPnlSettlerBot implements Bot {
 					continue;
 				}
 
-				const perpMarket = this.driftClient.getPerpMarketAccount(
+				const perpMarket = this.velocityClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				)!;
 				const settlePnlPaused = isOperationPaused(
@@ -1245,7 +1232,7 @@ export class UserPnlSettlerBot implements Bot {
 
 					const userData: UserToSettle = {
 						settleeUserAccountPublicKey: user.getUserAccountPublicKey(),
-						settleeUserAccount: user.getUserAccount(),
+						settleeUserAccount: user.getUserAccountOrThrow(),
 						pnl,
 					};
 
@@ -1270,13 +1257,13 @@ export class UserPnlSettlerBot implements Bot {
 			const perpPositions = user.getActivePerpPositions();
 			for (const perpPosition of perpPositions) {
 				const unsettledFunding = calculateUnsettledFundingPnl(
-					this.driftClient.getPerpMarketAccount(perpPosition.marketIndex)!,
+					this.velocityClient.getPerpMarketAccount(perpPosition.marketIndex)!,
 					perpPosition
 				);
 				if (!unsettledFunding.eq(ZERO)) {
 					usersToSettle.push({
 						settleeUserAccountPublicKey: user.getUserAccountPublicKey(),
-						settleeUserAccount: user.getUserAccount(),
+						settleeUserAccount: user.getUserAccountOrThrow(),
 						pnl: 0,
 					});
 					break;
@@ -1292,7 +1279,7 @@ export class UserPnlSettlerBot implements Bot {
 		logPrefix = ''
 	) {
 		for (const [marketIndex, params] of usersToSettleMap) {
-			const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex)!;
+			const perpMarket = this.velocityClient.getPerpMarketAccount(marketIndex)!;
 			const marketStr = decodeName(perpMarket.name);
 
 			if (
@@ -1361,7 +1348,7 @@ export class UserPnlSettlerBot implements Bot {
 			const ixs: TransactionInstruction[] = [];
 			for (const u of users) {
 				ixs.push(
-					await this.driftClient.getSettleFundingPaymentIx(
+					await this.velocityClient.getSettleFundingPaymentIx(
 						u.settleeUserAccountPublicKey
 					)
 				);
@@ -1400,7 +1387,7 @@ export class UserPnlSettlerBot implements Bot {
 	) {
 		const allTxPromises = [];
 		const pnlIxsBuilder: IxsBuilder = async (usersArg, marketIdx) =>
-			this.driftClient.getSettlePNLsIxs(
+			this.velocityClient.getSettlePNLsIxs(
 				usersArg,
 				[marketIdx],
 				this.revenueShareEscrowMap
@@ -1500,7 +1487,7 @@ export class UserPnlSettlerBot implements Bot {
 			try {
 				const extraIxs = buildIxs
 					? await buildIxs(users, marketIndex)
-					: await this.driftClient.getSettlePNLsIxs(
+					: await this.velocityClient.getSettlePNLsIxs(
 							users,
 							[marketIndex],
 							this.revenueShareEscrowMap
@@ -1530,8 +1517,8 @@ export class UserPnlSettlerBot implements Bot {
 			}
 			const simResult = await simulateAndGetTxWithCUs({
 				ixs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts: this.lookupTableAccounts!,
 				cuLimitMultiplier: CU_EST_MULTIPLIER,
 				doSimulation: true,
@@ -1563,10 +1550,10 @@ export class UserPnlSettlerBot implements Bot {
 				} else {
 					const sendTxStart = Date.now();
 					const txSig =
-						await this.driftClient.txSender.sendVersionedTransaction(
+						await this.velocityClient.txSender.sendVersionedTransaction(
 							simResult.tx,
 							[],
-							this.driftClient.opts
+							this.velocityClient.opts
 						);
 					const sendTxDuration = Date.now() - sendTxStart;
 					success = true;

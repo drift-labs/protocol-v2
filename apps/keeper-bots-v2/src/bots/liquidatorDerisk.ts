@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
 	BN,
-	DriftClient,
+	VelocityClient,
 	isVariant,
 	PRICE_PRECISION,
 	PerpPosition,
@@ -32,7 +32,7 @@ import {
 	findDirectionToClose,
 	calculateMarketAvailablePNL,
 	RECOMMENDED_JUPITER_API,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import {
 	ComputeBudgetProgram,
 	AddressLookupTableAccount,
@@ -45,7 +45,7 @@ import {
 } from '@solana/spl-token';
 import { logger } from '../logger';
 import { LiquidatorConfig } from '../config';
-import { PriorityFeeSubscriber } from '@drift-labs/sdk';
+import { PriorityFeeSubscriber } from '@velocity-exchange/sdk';
 import {
 	checkIfAccountExists,
 	simulateAndGetTxWithCUs,
@@ -59,7 +59,7 @@ export type SpotDeriskMethod = 'jupiter' | 'drift';
 export type PerpDeriskMethod = 'swift' | 'on-chain';
 
 export class LiquidatorDerisk {
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private userMap: any; // UserMap (typed in parent repo)
 	private config: LiquidatorConfig;
 	private name: string;
@@ -71,7 +71,7 @@ export class LiquidatorDerisk {
 	private perpDeriskMethod?: PerpDeriskMethod;
 
 	constructor(opts: {
-		driftClient: DriftClient;
+		velocityClient: VelocityClient;
 		userMap: any;
 		config: LiquidatorConfig;
 		name: string;
@@ -81,7 +81,7 @@ export class LiquidatorDerisk {
 		spotDeriskMethod?: SpotDeriskMethod;
 		perpDeriskMethod?: PerpDeriskMethod;
 	}) {
-		this.driftClient = opts.driftClient;
+		this.velocityClient = opts.velocityClient;
 		this.userMap = opts.userMap;
 		this.config = opts.config;
 		this.name = opts.name;
@@ -93,7 +93,7 @@ export class LiquidatorDerisk {
 
 		if (this.spotDeriskMethod === 'jupiter') {
 			this.jupiterClient = new JupiterClient({
-				connection: this.driftClient.connection,
+				connection: this.velocityClient.connection,
 				url: RECOMMENDED_JUPITER_API,
 			});
 		}
@@ -161,11 +161,11 @@ export class LiquidatorDerisk {
 		let resp: SimulateAndGetTxWithCUsResponse;
 		try {
 			const recentBlockhash =
-				await this.driftClient.connection.getLatestBlockhash('confirmed');
+				await this.velocityClient.connection.getLatestBlockhash('confirmed');
 			resp = await simulateAndGetTxWithCUs({
 				ixs: fullIxs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts: luts,
 				cuLimitMultiplier: 1.2,
 				doSimulation: true,
@@ -196,7 +196,7 @@ export class LiquidatorDerisk {
 		limitPrice: BN,
 		subAccountId: number
 	): Promise<boolean> {
-		const position = this.driftClient.getSpotPosition(marketIndex);
+		const position = this.velocityClient.getSpotPosition(marketIndex);
 		if (!position) {
 			return false;
 		}
@@ -204,7 +204,7 @@ export class LiquidatorDerisk {
 			? tokenAmount.add(position.openAsks)
 			: tokenAmount.add(position.openBids);
 
-		const spotMarket = this.driftClient.getSpotMarketAccount(marketIndex)!;
+		const spotMarket = this.velocityClient.getSpotMarketAccount(marketIndex)!;
 		const standardizedTokenAmount = standardizeBaseAssetAmount(
 			positionNetOpenOrders,
 			spotMarket.orderStepSize
@@ -217,19 +217,19 @@ export class LiquidatorDerisk {
 			return false;
 		}
 
-		const oracle = this.driftClient.getOracleDataForSpotMarket(marketIndex);
+		const oracle = this.velocityClient.getOracleDataForSpotMarket(marketIndex);
 		const auctionStartPrice = this.calculateDeriskAuctionStartPrice(
 			oracle,
 			orderDirection
 		);
 
-		const cancelOrdersIx = await this.driftClient.getCancelOrdersIx(
+		const cancelOrdersIx = await this.velocityClient.getCancelOrdersIx(
 			MarketType.SPOT,
 			marketIndex,
 			orderDirection,
 			subAccountId
 		);
-		const placeOrderIx = await this.driftClient.getPlaceSpotOrderIx(
+		const placeOrderIx = await this.velocityClient.getPlaceSpotOrderIx(
 			getLimitOrderParams({
 				marketIndex: marketIndex,
 				direction: orderDirection,
@@ -255,10 +255,10 @@ export class LiquidatorDerisk {
 				)}`
 			);
 		} else {
-			const resp = await this.driftClient.txSender.sendVersionedTransaction(
+			const resp = await this.velocityClient.txSender.sendVersionedTransaction(
 				simResult.tx,
 				undefined,
-				this.driftClient.opts
+				this.velocityClient.opts
 			);
 			logger.info(
 				`Sent derisk placeSpotOrder tx for market ${marketIndex} tx: ${resp.txSig} `
@@ -272,7 +272,7 @@ export class LiquidatorDerisk {
 		marketIndex: number,
 		subAccountId: number
 	): Promise<boolean> {
-		const cancelOrdersIx = await this.driftClient.getCancelOrdersIx(
+		const cancelOrdersIx = await this.velocityClient.getCancelOrdersIx(
 			MarketType.SPOT,
 			marketIndex,
 			null,
@@ -290,10 +290,10 @@ export class LiquidatorDerisk {
 				)}`
 			);
 		} else {
-			const resp = await this.driftClient.txSender.sendVersionedTransaction(
+			const resp = await this.velocityClient.txSender.sendVersionedTransaction(
 				simResult.tx,
 				undefined,
-				this.driftClient.opts
+				this.velocityClient.opts
 			);
 			logger.info(
 				`Sent cancel orders tx for market ${marketIndex} tx: ${resp.txSig} `
@@ -312,14 +312,14 @@ export class LiquidatorDerisk {
 		subAccountId: number
 	): Promise<boolean> {
 		if (!this.jupiterClient) return false;
-		const swapIx = await this.driftClient.getJupiterSwapIxV6({
+		const swapIx = await this.velocityClient.getJupiterSwapIxV6({
 			jupiterClient: this.jupiterClient!,
 			outMarketIndex,
 			inMarketIndex,
 			amount: new BN(quote.inAmount),
 			quote,
 			slippageBps,
-			userAccountPublicKey: await this.driftClient.getUserAccountPublicKey(
+			userAccountPublicKey: await this.velocityClient.getUserAccountPublicKey(
 				subAccountId
 			),
 		});
@@ -342,10 +342,10 @@ export class LiquidatorDerisk {
 				)}`
 			);
 		} else {
-			const resp = await this.driftClient.txSender.sendVersionedTransaction(
+			const resp = await this.velocityClient.txSender.sendVersionedTransaction(
 				simResult.tx,
 				undefined,
-				this.driftClient.opts
+				this.velocityClient.opts
 			);
 			logger.info(
 				`Closed spot position inMarketIndex ${inMarketIndex}, outMarketIndex ${outMarketIndex} on subaccount ${subAccountId}: ${resp.txSig} `
@@ -373,7 +373,7 @@ export class LiquidatorDerisk {
 			return undefined;
 		}
 		const oraclePriceData =
-			this.driftClient.getOracleDataForSpotMarket(spotMarketIndex);
+			this.velocityClient.getOracleDataForSpotMarket(spotMarketIndex);
 		const dlob = await this.userMap!.getDLOB(oraclePriceData.slot.toNumber());
 		if (!dlob) {
 			logger.error('failed to load DLOB');
@@ -397,11 +397,11 @@ export class LiquidatorDerisk {
 		const spotMarketIsSolLst = isSolLstToken(spotMarketIndex);
 		if (isVariant(orderDirection, 'long')) {
 			if (spotMarketIsSolLst) {
-				inMarket = this.driftClient.getSpotMarketAccount(1);
-				outMarket = this.driftClient.getSpotMarketAccount(spotMarketIndex);
+				inMarket = this.velocityClient.getSpotMarketAccount(1);
+				outMarket = this.velocityClient.getSpotMarketAccount(spotMarketIndex);
 			} else {
-				inMarket = this.driftClient.getSpotMarketAccount(0);
-				outMarket = this.driftClient.getSpotMarketAccount(spotMarketIndex);
+				inMarket = this.velocityClient.getSpotMarketAccount(0);
+				outMarket = this.velocityClient.getSpotMarketAccount(spotMarketIndex);
 			}
 			if (!inMarket || !outMarket) {
 				logger.error('failed to get spot markets');
@@ -415,11 +415,11 @@ export class LiquidatorDerisk {
 				.div(PRICE_PRECISION.mul(outPrecision));
 		} else {
 			if (spotMarketIsSolLst) {
-				inMarket = this.driftClient.getSpotMarketAccount(spotMarketIndex);
-				outMarket = this.driftClient.getSpotMarketAccount(1);
+				inMarket = this.velocityClient.getSpotMarketAccount(spotMarketIndex);
+				outMarket = this.velocityClient.getSpotMarketAccount(1);
 			} else {
-				inMarket = this.driftClient.getSpotMarketAccount(spotMarketIndex);
-				outMarket = this.driftClient.getSpotMarketAccount(0);
+				inMarket = this.velocityClient.getSpotMarketAccount(spotMarketIndex);
+				outMarket = this.velocityClient.getSpotMarketAccount(0);
 			}
 			amountIn = baseAmountIn;
 		}
@@ -566,7 +566,7 @@ export class LiquidatorDerisk {
 
 		baseAssetAmount = standardizeBaseAssetAmount(
 			baseAssetAmount,
-			this.driftClient.getPerpMarketAccount(position.marketIndex)!.amm
+			this.velocityClient.getPerpMarketAccount(position.marketIndex)!
 				.orderStepSize
 		);
 
@@ -574,7 +574,7 @@ export class LiquidatorDerisk {
 			return undefined;
 		}
 
-		const oracle = this.driftClient.getMMOracleDataForPerpMarket(
+		const oracle = this.velocityClient.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 		const direction = findDirectionToClose(position);
@@ -585,7 +585,7 @@ export class LiquidatorDerisk {
 				'base',
 				baseAssetAmount.abs(),
 				direction,
-				this.driftClient.getPerpMarketAccount(position.marketIndex)!,
+				this.velocityClient.getPerpMarketAccount(position.marketIndex)!,
 				oracle,
 				dlob,
 				this.userMap.getSlot()
@@ -630,11 +630,13 @@ export class LiquidatorDerisk {
 	): Promise<boolean> {
 		let didWork = false;
 		for (const position of userAccount.perpPositions) {
-			const perpMarket = this.driftClient.getPerpMarketAccount(
+			const perpMarket = this.velocityClient.getPerpMarketAccount(
 				position.marketIndex
 			)!;
 			if (!position.baseAssetAmount.isZero()) {
-				if (position.baseAssetAmount.abs().lt(perpMarket.amm.minOrderSize)) {
+				if (
+					position.baseAssetAmount.abs().lt(perpMarket.marketStats.minOrderSize)
+				) {
 					continue;
 				}
 
@@ -646,13 +648,13 @@ export class LiquidatorDerisk {
 				if (orderParams === undefined) {
 					continue;
 				}
-				const cancelOrdersIx = await this.driftClient.getCancelOrdersIx(
+				const cancelOrdersIx = await this.velocityClient.getCancelOrdersIx(
 					MarketType.PERP,
 					position.marketIndex,
 					orderParams.direction,
 					userAccount.subAccountId
 				);
-				const placeOrderIx = await this.driftClient.getPlacePerpOrderIx(
+				const placeOrderIx = await this.velocityClient.getPlacePerpOrderIx(
 					orderParams,
 					userAccount.subAccountId
 				);
@@ -670,11 +672,12 @@ export class LiquidatorDerisk {
 						}, simError: ${JSON.stringify(simResult.simError)}`
 					);
 				} else {
-					const resp = await this.driftClient.txSender.sendVersionedTransaction(
-						simResult.tx,
-						undefined,
-						this.driftClient.opts
-					);
+					const resp =
+						await this.velocityClient.txSender.sendVersionedTransaction(
+							simResult.tx,
+							undefined,
+							this.velocityClient.opts
+						);
 					logger.info(
 						`Sent deriskPerpPosition tx on market ${position.marketIndex}: ${resp.txSig} `
 					);
@@ -682,7 +685,7 @@ export class LiquidatorDerisk {
 				}
 			} else if (position.quoteAssetAmount.lt(ZERO)) {
 				const userAccountPubkey =
-					await this.driftClient.getUserAccountPublicKey(
+					await this.velocityClient.getUserAccountPublicKey(
 						userAccount.subAccountId
 					);
 				logger.info(
@@ -690,7 +693,7 @@ export class LiquidatorDerisk {
 						position.marketIndex
 					}`
 				);
-				const ix = await this.driftClient.getSettlePNLsIxs(
+				const ix = await this.velocityClient.getSettlePNLsIxs(
 					[
 						{
 							settleeUserAccountPublicKey: userAccountPubkey,
@@ -712,11 +715,12 @@ export class LiquidatorDerisk {
 						}, simError: ${JSON.stringify(simResult.simError)}`
 					);
 				} else {
-					const resp = await this.driftClient.txSender.sendVersionedTransaction(
-						simResult.tx,
-						undefined,
-						this.driftClient.opts
-					);
+					const resp =
+						await this.velocityClient.txSender.sendVersionedTransaction(
+							simResult.tx,
+							undefined,
+							this.velocityClient.opts
+						);
 					logger.info(
 						`Sent settlePnl (negative pnl) tx for ${userAccountPubkey.toBase58()} on market ${
 							position.marketIndex
@@ -726,12 +730,12 @@ export class LiquidatorDerisk {
 				}
 			} else if (position.quoteAssetAmount.gt(ZERO)) {
 				const availablePnl = calculateMarketAvailablePNL(
-					this.driftClient.getPerpMarketAccount(position.marketIndex)!,
-					this.driftClient.getQuoteSpotMarketAccount()
+					this.velocityClient.getPerpMarketAccount(position.marketIndex)!,
+					this.velocityClient.getQuoteSpotMarketAccount()
 				);
 				if (availablePnl.gt(ZERO)) {
 					const userAccountPubkey =
-						await this.driftClient.getUserAccountPublicKey(
+						await this.velocityClient.getUserAccountPublicKey(
 							userAccount.subAccountId
 						);
 					logger.info(
@@ -739,7 +743,7 @@ export class LiquidatorDerisk {
 							position.marketIndex
 						}`
 					);
-					const ix = await this.driftClient.getSettlePNLsIxs(
+					const ix = await this.velocityClient.getSettlePNLsIxs(
 						[
 							{
 								settleeUserAccountPublicKey: userAccountPubkey,
@@ -762,10 +766,10 @@ export class LiquidatorDerisk {
 						);
 					} else {
 						const resp =
-							await this.driftClient.txSender.sendVersionedTransaction(
+							await this.velocityClient.txSender.sendVersionedTransaction(
 								simResult.tx,
 								undefined,
-								this.driftClient.opts
+								this.velocityClient.opts
 							);
 						logger.info(
 							`Sent settlePnl (positive pnl) tx for ${userAccountPubkey.toBase58()} on market ${
@@ -797,7 +801,7 @@ export class LiquidatorDerisk {
 		if (isVariant(position.balanceType, 'borrow')) {
 			return false;
 		}
-		const spotMarket = this.driftClient.getSpotMarketAccount(
+		const spotMarket = this.velocityClient.getSpotMarketAccount(
 			position.marketIndex
 		);
 		if (!spotMarket) {
@@ -805,7 +809,7 @@ export class LiquidatorDerisk {
 				`failed to get spot market account for market ${position.marketIndex}`
 			);
 		}
-		const oracle = this.driftClient.getOracleDataForSpotMarket(
+		const oracle = this.velocityClient.getOracleDataForSpotMarket(
 			position.marketIndex
 		);
 		const tokenAmount = getTokenAmount(
@@ -827,7 +831,7 @@ export class LiquidatorDerisk {
 			const isSolWithdraw = spotMarket.mint.equals(WRAPPED_SOL_MINT);
 			if (isSolWithdraw) {
 				const { ixs: startIxs, pubkey } =
-					await this.driftClient.getWrappedSolAccountCreationIxs(
+					await this.velocityClient.getWrappedSolAccountCreationIxs(
 						tokenAmount,
 						true
 					);
@@ -835,25 +839,25 @@ export class LiquidatorDerisk {
 				userTokenAccount = pubkey;
 			} else {
 				const accountExists = await checkIfAccountExists(
-					this.driftClient.connection,
+					this.velocityClient.connection,
 					userTokenAccount
 				);
 
 				if (!accountExists) {
 					ixs.push(
 						createAssociatedTokenAccountInstruction(
-							this.driftClient.wallet.publicKey,
+							this.velocityClient.wallet.publicKey,
 							userTokenAccount,
-							this.driftClient.wallet.publicKey,
+							this.velocityClient.wallet.publicKey,
 							spotMarket.mint,
-							this.driftClient.getTokenProgramForSpotMarket(spotMarket)
+							this.velocityClient.getTokenProgramForSpotMarket(spotMarket)
 						)
 					);
 				}
 			}
 
 			ixs.push(
-				await this.driftClient.getWithdrawIx(
+				await this.velocityClient.getWithdrawIx(
 					tokenAmount,
 					position.marketIndex,
 					userTokenAccount,
@@ -887,11 +891,12 @@ export class LiquidatorDerisk {
 				);
 				return false;
 			} else {
-				const resp = await this.driftClient.txSender.sendVersionedTransaction(
-					simResult.tx,
-					undefined,
-					this.driftClient.opts
-				);
+				const resp =
+					await this.velocityClient.txSender.sendVersionedTransaction(
+						simResult.tx,
+						undefined,
+						this.velocityClient.opts
+					);
 				logger.info(
 					`Sent withdraw dust on market ${position.marketIndex} tx: ${resp.txSig} `
 				);
@@ -908,7 +913,7 @@ export class LiquidatorDerisk {
 	):
 		| { tokenAmount: BN; limitPrice: BN; direction: PositionDirection }
 		| undefined {
-		const spotMarket = this.driftClient.getSpotMarketAccount(
+		const spotMarket = this.velocityClient.getSpotMarketAccount(
 			position.marketIndex
 		);
 		if (!spotMarket) {
@@ -932,7 +937,7 @@ export class LiquidatorDerisk {
 			direction = PositionDirection.SHORT;
 		}
 
-		const oracle = this.driftClient.getOracleDataForSpotMarket(
+		const oracle = this.velocityClient.getOracleDataForSpotMarket(
 			position.marketIndex
 		);
 		const limitPrice = this.calculateOrderLimitPrice(oracle.price, direction);
@@ -1009,8 +1014,11 @@ export class LiquidatorDerisk {
 		subaccountId: number,
 		dlob: DLOB
 	): Promise<boolean> {
-		this.driftClient.switchActiveUser(subaccountId, this.driftClient.authority);
-		const userAccount = this.driftClient.getUserAccount(subaccountId);
+		this.velocityClient.switchActiveUser(
+			subaccountId,
+			this.velocityClient.authority
+		);
+		const userAccount = this.velocityClient.getUserAccount(subaccountId);
 		if (!userAccount) {
 			logger.error('failed to get user account');
 			return false;

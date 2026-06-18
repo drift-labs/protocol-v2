@@ -1,4 +1,4 @@
-import { SlotSubscriber } from '@drift-labs/sdk';
+import { SlotSubscriber } from '@velocity-exchange/sdk';
 import {
 	Connection,
 	Keypair,

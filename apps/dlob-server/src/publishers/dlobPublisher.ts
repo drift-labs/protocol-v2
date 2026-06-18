@@ -1,14 +1,14 @@
 import { Connection, Commitment, PublicKey, Keypair } from '@solana/web3.js';
 
 import {
-	DriftClient,
+	VelocityClient,
 	initialize,
-	DriftEnv,
+	VelocityEnv,
 	UserMap,
 	Wallet,
 	BulkAccountLoader,
 	SlotSource,
-	DriftClientSubscriptionConfig,
+	VelocityClientSubscriptionConfig,
 	SlotSubscriber,
 	OracleInfo,
 	PerpMarketConfig,
@@ -54,7 +54,7 @@ setGlobalDispatcher(
 
 require('dotenv').config();
 const stateCommitment: Commitment = 'confirmed';
-const driftEnv = (process.env.ENV || 'devnet') as DriftEnv;
+const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const metricsPort = process.env.METRICS_PORT
 	? parseInt(process.env.METRICS_PORT)
@@ -103,7 +103,7 @@ metricsV2.finalizeObservables();
 
 //@ts-ignore
 const sdkConfig = initialize({ env: process.env.ENV });
-let driftClient: DriftClient;
+let velocityClient: VelocityClient;
 
 setLogLevel('debug');
 
@@ -174,7 +174,7 @@ logger.info(`GRPC Token:    ${token}`);
 logger.info(
 	`useOrderSubscriber: ${useOrderSubscriber}, useWebsocket: ${useWebsocket}, useGrpc: ${useGrpc}`
 );
-logger.info(`DriftEnv:     ${driftEnv}`);
+logger.info(`VelocityEnv:     ${driftEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 logger.info(
 	`TOB Monitoring: ${ENABLE_TOB_MONITORING ? 'enabled' : 'disabled'}`
@@ -294,10 +294,12 @@ const getMarketsAndOraclesToLoad = (
 	};
 };
 
-const initializeAllMarketSubscribers = async (driftClient: DriftClient) => {
+const initializeAllMarketSubscribers = async (
+	velocityClient: VelocityClient
+) => {
 	const markets: SubscriberLookup = {};
 
-	for (const market of driftClient.getSpotMarketAccounts()) {
+	for (const market of velocityClient.getSpotMarketAccounts()) {
 		markets[market.marketIndex] = {
 			tickSize: market?.orderTickSize ?? ONE,
 		};
@@ -329,10 +331,10 @@ const main = async () => {
 	// only set when using websockets
 	let slotSubscriber: SlotSubscriber | undefined;
 
-	let accountSubscription: DriftClientSubscriptionConfig;
+	let accountSubscription: VelocityClientSubscriptionConfig;
 	let slotSource: SlotSource;
 
-	// NOTE: disable GRPC for general driftClient subscriptions until we can reliably subscribe
+	// NOTE: disable GRPC for general velocityClient subscriptions until we can reliably subscribe
 	// to multiple streams. Currently this causes the nodes to start killing connections.
 	//
 	// USE_GRPC=true will override websocket
@@ -394,7 +396,7 @@ const main = async () => {
 	const { perpMarketInfos, spotMarketInfos, oracleInfos } =
 		getMarketsAndOraclesToLoad(sdkConfig);
 
-	driftClient = new DriftClient({
+	velocityClient = new VelocityClient({
 		connection,
 		wallet,
 		programID: clearingHousePublicKey,
@@ -407,20 +409,20 @@ const main = async () => {
 
 	const lamportsBalance = await connection.getBalance(wallet.publicKey);
 	logger.info(
-		`DriftClient ProgramId: ${driftClient.program.programId.toBase58()}`
+		`VelocityClient ProgramId: ${velocityClient.program.programId.toBase58()}`
 	);
 	logger.info(`Wallet pubkey: ${wallet.publicKey.toBase58()}`);
 	logger.info(` . SOL balance: ${lamportsBalance / 10 ** 9}`);
 
-	await driftClient.subscribe();
-	driftClient.eventEmitter.on('error', (e) => {
+	await velocityClient.subscribe();
+	velocityClient.eventEmitter.on('error', (e) => {
 		logger.info('clearing house error');
 		logger.error(e);
 	});
 
 	logger.info(`Initializing all market subscribers...`);
 	const initAllMarketSubscribersStart = Date.now();
-	MARKET_SUBSCRIBERS = await initializeAllMarketSubscribers(driftClient);
+	MARKET_SUBSCRIBERS = await initializeAllMarketSubscribers(velocityClient);
 	logger.info(
 		`All market subscribers initialized in ${
 			Date.now() - initAllMarketSubscribersStart
@@ -474,7 +476,7 @@ const main = async () => {
 		}
 
 		orderSubscriber = new OrderSubscriberFiltered({
-			driftClient,
+			velocityClient,
 			subscriptionConfig,
 			ignoreList,
 		});
@@ -486,7 +488,7 @@ const main = async () => {
 		};
 	} else {
 		const userMap = new UserMap({
-			driftClient,
+			velocityClient,
 			subscriptionConfig: {
 				type: 'websocket',
 				resubTimeoutMs: 30_000,
@@ -502,7 +504,7 @@ const main = async () => {
 	await dlobProvider.subscribe();
 
 	const dlobSubscriber = new DLOBSubscriberIO({
-		driftClient,
+		velocityClient,
 		env: driftEnv,
 		dlobSource: dlobProvider,
 		slotSource,
@@ -516,7 +518,7 @@ const main = async () => {
 	await dlobSubscriber.subscribe();
 
 	const dlobSubscriberIndicative = new DLOBSubscriberIO({
-		driftClient,
+		velocityClient,
 		env: driftEnv,
 		dlobSource: dlobProvider,
 		slotSource,
@@ -553,11 +555,11 @@ const main = async () => {
 	setInterval(() => {
 		const slot = slotSource.getSlot();
 		perpMarketInfos.forEach((market) => {
-			const oracleDataAndSlot = driftClient.getOracleDataForPerpMarket(
+			const oracleDataAndSlot = velocityClient.getOracleDataForPerpMarket(
 				market.marketIndex
 			);
 			const marketAccount =
-				driftClient.accountSubscriber.getMarketAccountAndSlot(
+				velocityClient.accountSubscriber.getMarketAccountAndSlot(
 					market.marketIndex
 				);
 			dlobSlotGauge.setLatestValue(slot, {
@@ -583,11 +585,11 @@ const main = async () => {
 			});
 		});
 		spotMarketInfos.forEach((market) => {
-			const oracleDataAndSlot = driftClient.getOracleDataForSpotMarket(
+			const oracleDataAndSlot = velocityClient.getOracleDataForSpotMarket(
 				market.marketIndex
 			);
 			const marketAccount =
-				driftClient.accountSubscriber.getSpotMarketAccountAndSlot(
+				velocityClient.accountSubscriber.getSpotMarketAccountAndSlot(
 					market.marketIndex
 				);
 			dlobSlotGauge.setLatestValue(slot, {
@@ -669,7 +671,7 @@ const main = async () => {
 
 				// Get oracle data for the market
 				const oracleData =
-					driftClient.getMMOracleDataForPerpMarket(marketIndex);
+					velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 
 				// Get L3 orderbook to check TOB
 				const l3OrderBook = dlob.getL3({
@@ -968,7 +970,7 @@ const main = async () => {
 	}
 
 	const handleStartup = async (_req, res, _next) => {
-		if (driftClient.isSubscribed && dlobProvider.size() > 0) {
+		if (velocityClient.isSubscribed && dlobProvider.size() > 0) {
 			res.writeHead(200);
 			res.end('OK');
 		} else {
@@ -980,8 +982,8 @@ const main = async () => {
 	const handleDebug = async (req: Request, res: Response) => {
 		const slot = slotSource.getSlot();
 		const slotInfos = [];
-		for (const market of driftClient.getPerpMarketAccounts()) {
-			const oracleDataAndSlot = driftClient.getOracleDataForPerpMarket(
+		for (const market of velocityClient.getPerpMarketAccounts()) {
+			const oracleDataAndSlot = velocityClient.getOracleDataForPerpMarket(
 				market.marketIndex
 			);
 			const marketSlot = market.amm.lastUpdateSlot.toNumber();
@@ -996,8 +998,8 @@ const main = async () => {
 			});
 		}
 
-		for (const market of driftClient.getSpotMarketAccounts()) {
-			const oracleDataAndSlot = driftClient.getOracleDataForSpotMarket(
+		for (const market of velocityClient.getSpotMarketAccounts()) {
+			const oracleDataAndSlot = velocityClient.getOracleDataForSpotMarket(
 				market.marketIndex
 			);
 			const oracleSlot = oracleDataAndSlot.slot.toNumber();
@@ -1039,4 +1041,11 @@ async function recursiveTryCatch(f: () => void) {
 
 recursiveTryCatch(() => main());
 
-export { sdkConfig, endpoint, wsEndpoint, driftEnv, commitHash, driftClient };
+export {
+	sdkConfig,
+	endpoint,
+	wsEndpoint,
+	driftEnv,
+	commitHash,
+	velocityClient,
+};

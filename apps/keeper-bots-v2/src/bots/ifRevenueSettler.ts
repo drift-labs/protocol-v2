@@ -1,11 +1,11 @@
 import {
-	DriftClient,
+	VelocityClient,
 	SpotMarketAccount,
 	OraclePriceData,
 	ZERO,
 	PriorityFeeSubscriberMap,
-	DriftMarketInfo,
-} from '@drift-labs/sdk';
+	VelocityMarketInfo,
+} from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 
 import { getErrorCode } from '../error';
@@ -37,53 +37,53 @@ export class IFRevenueSettlerBot implements Bot {
 	public readonly defaultIntervalMs: number = 600000;
 	private priorityFeeSubscriberMap?: PriorityFeeSubscriberMap;
 
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private intervalIds: Array<NodeJS.Timer> = [];
 
 	private watchdogTimerMutex = new Mutex();
 	private watchdogTimerLastPatTime = Date.now();
 	private lookupTableAccounts?: AddressLookupTableAccount[];
 
-	constructor(driftClient: DriftClient, config: BaseBotConfig) {
+	constructor(velocityClient: VelocityClient, config: BaseBotConfig) {
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
 		this.runOnce = config.runOnce || false;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 	}
 
 	public async init() {
 		logger.info(`${this.name} initing`);
 
-		await this.driftClient.subscribe();
+		await this.velocityClient.subscribe();
 
-		const driftMarkets: DriftMarketInfo[] = [];
-		for (const spotMarket of this.driftClient.getSpotMarketAccounts()) {
-			driftMarkets.push({
+		const velocityMarkets: VelocityMarketInfo[] = [];
+		for (const spotMarket of this.velocityClient.getSpotMarketAccounts()) {
+			velocityMarkets.push({
 				marketType: 'spot',
 				marketIndex: spotMarket.marketIndex,
 			});
 		}
 
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
-			driftPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
-			driftMarkets,
+			velocityPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
+			velocityMarkets,
 			frequencyMs: 10_000,
 		});
 		await this.priorityFeeSubscriberMap!.subscribe();
 
-		if (!(await this.driftClient.getUser().exists())) {
+		if (!(await this.velocityClient.getUser().exists())) {
 			throw new Error(
-				`User for ${this.driftClient.wallet.publicKey.toString()} does not exist`
+				`User for ${this.velocityClient.wallet.publicKey.toString()} does not exist`
 			);
 		}
 
 		this.lookupTableAccounts =
-			await this.driftClient.fetchAllLookupTableAccounts();
+			await this.velocityClient.fetchAllLookupTableAccounts();
 	}
 
 	public async reset() {
 		await this.priorityFeeSubscriberMap!.unsubscribe();
-		await this.driftClient.unsubscribe();
+		await this.velocityClient.unsubscribe();
 		for (const intervalId of this.intervalIds) {
 			clearInterval(intervalId as NodeJS.Timeout);
 		}
@@ -131,17 +131,17 @@ export class IFRevenueSettlerBot implements Bot {
 				}),
 			];
 			ixs.push(
-				await this.driftClient.getSettleRevenueToInsuranceFundIx(
+				await this.velocityClient.getSettleRevenueToInsuranceFundIx(
 					spotMarketIndex
 				)
 			);
 
 			const recentBlockhash =
-				await this.driftClient.connection.getLatestBlockhash('confirmed');
+				await this.velocityClient.connection.getLatestBlockhash('confirmed');
 			const simResult = await simulateAndGetTxWithCUs({
 				ixs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts: this.lookupTableAccounts!,
 				cuLimitMultiplier: 1.1,
 				doSimulation: true,
@@ -158,11 +158,12 @@ export class IFRevenueSettlerBot implements Bot {
 				);
 			} else {
 				const sendTxStart = Date.now();
-				const txSig = await this.driftClient.txSender.sendVersionedTransaction(
-					simResult.tx,
-					[],
-					this.driftClient.opts
-				);
+				const txSig =
+					await this.velocityClient.txSender.sendVersionedTransaction(
+						simResult.tx,
+						[],
+						this.velocityClient.opts
+					);
 				logger.info(
 					`Settle IF Revenue for spot market ${spotMarketIndex} tx sent in ${
 						Date.now() - sendTxStart
@@ -198,10 +199,10 @@ export class IFRevenueSettlerBot implements Bot {
 				};
 			} = {};
 
-			for (const marketAccount of this.driftClient.getSpotMarketAccounts()) {
+			for (const marketAccount of this.velocityClient.getSpotMarketAccounts()) {
 				spotMarketAndOracleData[marketAccount.marketIndex] = {
 					marketAccount,
-					oraclePriceData: this.driftClient.getOracleDataForSpotMarket(
+					oraclePriceData: this.velocityClient.getOracleDataForSpotMarket(
 						marketAccount.marketIndex
 					),
 				};
@@ -210,7 +211,7 @@ export class IFRevenueSettlerBot implements Bot {
 			const ifSettlePromises = [];
 			for (
 				let i = 0;
-				i < this.driftClient.getSpotMarketAccounts().length;
+				i < this.velocityClient.getSpotMarketAccounts().length;
 				i++
 			) {
 				const spotMarketAccount = spotMarketAndOracleData[i].marketAccount;

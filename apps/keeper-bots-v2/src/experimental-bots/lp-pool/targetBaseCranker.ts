@@ -1,13 +1,13 @@
 import {
 	BlockhashSubscriber,
 	ConstituentMap,
-	DriftClient,
+	VelocityClient,
 	getConstituentTargetBasePublicKey,
 	getLpPoolPublicKey,
 	LPPoolAccount,
 	PriorityFeeMethod,
 	PriorityFeeSubscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { ComputeBudgetProgram } from '@solana/web3.js';
 import { simulateAndGetTxWithCUs } from '../../utils';
 
@@ -20,12 +20,12 @@ export class LpPoolTargetBaseCranker {
 	blockhashSubscriber: BlockhashSubscriber;
 
 	public constructor(
-		private driftClient: DriftClient,
+		private velocityClient: VelocityClient,
 		private intervalMs: number,
 		private lpPoolId: number
 	) {
 		this.constituentMap = new ConstituentMap({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			subscriptionConfig: {
 				type: 'websocket',
 				resubTimeoutMs: 30_000,
@@ -33,12 +33,15 @@ export class LpPoolTargetBaseCranker {
 			lpPoolId: lpPoolId,
 		});
 		this.priorityFeeSubscriber = new PriorityFeeSubscriber({
-			connection: this.driftClient.connection,
+			connection: this.velocityClient.connection,
 			frequencyMs: 30_000,
 			addresses: [
 				getConstituentTargetBasePublicKey(
-					this.driftClient.program.programId,
-					getLpPoolPublicKey(this.driftClient.program.programId, this.lpPoolId)
+					this.velocityClient.program.programId,
+					getLpPoolPublicKey(
+						this.velocityClient.program.programId,
+						this.lpPoolId
+					)
 				),
 			],
 			priorityFeeMethod: PriorityFeeMethod.SOLANA,
@@ -46,14 +49,16 @@ export class LpPoolTargetBaseCranker {
 		});
 
 		this.blockhashSubscriber = new BlockhashSubscriber({
-			connection: this.driftClient.connection,
+			connection: this.velocityClient.connection,
 		});
 	}
 
 	async init() {
 		await this.constituentMap.sync();
 		await this.constituentMap.subscribe();
-		this.lpPoolAccount = await this.driftClient.getLpPoolAccount(this.lpPoolId);
+		this.lpPoolAccount = await this.velocityClient.getLpPoolAccount(
+			this.lpPoolId
+		);
 		await this.blockhashSubscriber.subscribe();
 		await this.priorityFeeSubscriber.subscribe();
 		await this.startInterval();
@@ -70,7 +75,7 @@ export class LpPoolTargetBaseCranker {
 		}
 
 		const recentBlockhash =
-			await this.driftClient.connection.getLatestBlockhash({
+			await this.velocityClient.connection.getLatestBlockhash({
 				commitment: 'confirmed',
 			});
 
@@ -79,15 +84,15 @@ export class LpPoolTargetBaseCranker {
 
 	async startInterval() {
 		setInterval(async () => {
-			this.lpPoolAccount = await this.driftClient.getLpPoolAccount(
+			this.lpPoolAccount = await this.velocityClient.getLpPoolAccount(
 				this.lpPoolId
 			);
 		}, 10_000);
 
 		this.interval = setInterval(async () => {
-			const perpMarkets = this.driftClient.getPerpMarketAccounts();
+			const perpMarkets = this.velocityClient.getPerpMarketAccounts();
 			const marketIndexes = perpMarkets
-				.filter((market) => market.lpStatus == 1)
+				.filter((market) => market.status == 1)
 				.map((market) => market.marketIndex);
 			if (marketIndexes.length === 0) {
 				console.warn(
@@ -96,7 +101,7 @@ export class LpPoolTargetBaseCranker {
 				return;
 			}
 			if (!this.lpPoolAccount) {
-				this.lpPoolAccount = await this.driftClient.getLpPoolAccount(
+				this.lpPoolAccount = await this.velocityClient.getLpPoolAccount(
 					this.lpPoolId
 				);
 			}
@@ -109,12 +114,12 @@ export class LpPoolTargetBaseCranker {
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: Math.floor(
 						this.priorityFeeSubscriber.getCustomStrategyResult() *
-							this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+							this.velocityClient.txSender.getSuggestedPriorityFeeMultiplier()
 					),
 				})
 			);
 			const updateIxs =
-				await this.driftClient.getAllUpdateConstituentTargetBaseIxs(
+				await this.velocityClient.getAllUpdateConstituentTargetBaseIxs(
 					marketIndexes,
 					this.lpPoolAccount,
 					this.constituentMap,
@@ -123,10 +128,10 @@ export class LpPoolTargetBaseCranker {
 			ixs.push(...updateIxs);
 			const simResult = await simulateAndGetTxWithCUs({
 				ixs,
-				connection: this.driftClient.connection,
-				payerPublicKey: this.driftClient.wallet.publicKey,
+				connection: this.velocityClient.connection,
+				payerPublicKey: this.velocityClient.wallet.publicKey,
 				lookupTableAccounts:
-					await this.driftClient.fetchAllLookupTableAccounts(),
+					await this.velocityClient.fetchAllLookupTableAccounts(),
 				cuLimitMultiplier: 1.5,
 				doSimulation: true,
 				recentBlockhash: await this.getBlockhashForTx(),
@@ -137,7 +142,7 @@ export class LpPoolTargetBaseCranker {
 				return;
 			}
 
-			this.driftClient.txSender
+			this.velocityClient.txSender
 				.sendVersionedTransaction(simResult.tx)
 				.then((response) => {
 					console.log(response);

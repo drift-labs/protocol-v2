@@ -1,6 +1,6 @@
 import { ConfirmOptions, Connection } from '@solana/web3.js';
 import { logger } from '../../logger';
-import { WhileValidTxSender } from '@drift-labs/sdk';
+import { WhileValidTxSender } from '@velocity-exchange/sdk';
 
 export class JetProxyTxSender extends WhileValidTxSender {
 	private submitConnections: Connection[];
@@ -90,12 +90,14 @@ export class JetProxyTxSender extends WhileValidTxSender {
 			}
 		})();
 
-		let slot: number;
+		let slot: number | undefined;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 
 			this.txSigCache?.set(txid, true);
-			await this.checkConfirmationResultForError(txid, result?.value);
+			if (result?.value) {
+				await this.checkConfirmationResultForError(txid, result.value);
+			}
 
 			if (result?.value?.err && this.throwOnTransactionError) {
 				throw new Error(`Transaction Failed: ${txid}`);

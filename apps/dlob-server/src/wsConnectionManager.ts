@@ -3,8 +3,9 @@ import express from 'express';
 import * as http from 'http';
 import compression from 'compression';
 import { WebSocket, WebSocketServer } from 'ws';
+import Redis from 'ioredis';
 import { sleep, selectMostRecentBySlot, GROUPING_OPTIONS } from './utils/utils';
-import { DriftEnv, PerpMarkets, SpotMarkets } from '@velocity-exchange/sdk';
+import { VelocityEnv, PerpMarkets, SpotMarkets } from '@velocity-exchange/sdk';
 import {
 	RedisClient,
 	RedisClientPrefix,
@@ -167,7 +168,7 @@ class StreamSelector {
 
 // Set up env constants
 require('dotenv').config();
-const driftEnv = (process.env.ENV || 'devnet') as DriftEnv;
+const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const metricsPort = process.env.METRICS_PORT
 	? parseInt(process.env.METRICS_PORT)
 	: 9464;
@@ -327,7 +328,7 @@ async function main() {
 		lastMessageClients.push(lastMessageClient);
 		redisClients.push(redisClient);
 
-		redisClient.forceGetClient().on('connect', () => {
+		(redisClient.forceGetClient() as unknown as Redis).on('connect', () => {
 			subscribedChannels.forEach(async (channel) => {
 				try {
 					await redisClient.subscribe(channel);
@@ -337,58 +338,61 @@ async function main() {
 			});
 		});
 
-		redisClient.forceGetClient().on('message', (subscribedChannel, message) => {
-			const sanitizedChannel = sanitiseChannelForClient(subscribedChannel);
-			const channelPrefix = getChannelPrefix(sanitizedChannel);
-			const subscribers = channelSubscribers.get(sanitizedChannel);
-			if (subscribers) {
-				if (sanitizedChannel.includes('orderbook')) {
-					const messageSlot = JSON.parse(message)['slot'];
-					wsOrderbookSourceLastSlotGauge.setLatestValue(messageSlot, {
-						source: channelPrefix,
-					});
-
-					if (streamSelector) {
-						const shouldForward = streamSelector.recordMessage(
-							channelPrefix,
-							messageSlot
-						);
-						if (!shouldForward) {
-							return;
-						}
-					} else {
-						const lastMessageSlot =
-							subscribedChannelToSlot.get(sanitizedChannel);
-						if (!lastMessageSlot || lastMessageSlot <= messageSlot) {
-							subscribedChannelToSlot.set(sanitizedChannel, messageSlot);
-						} else if (lastMessageSlot > messageSlot) {
-							return;
-						}
-					}
-
-					// Update slot tracking for the forwarded message
-					subscribedChannelToSlot.set(sanitizedChannel, messageSlot);
-				}
-				subscribers.forEach((ws) => {
-					if (
-						ws.readyState === WebSocket.OPEN &&
-						ws.bufferedAmount < MAX_BUFFERED_AMOUNT
-					) {
-						wsOrderbookSourceCounter.add(1, {
+		(redisClient.forceGetClient() as unknown as Redis).on(
+			'message',
+			(subscribedChannel, message) => {
+				const sanitizedChannel = sanitiseChannelForClient(subscribedChannel);
+				const channelPrefix = getChannelPrefix(sanitizedChannel);
+				const subscribers = channelSubscribers.get(sanitizedChannel);
+				if (subscribers) {
+					if (sanitizedChannel.includes('orderbook')) {
+						const messageSlot = JSON.parse(message)['slot'];
+						wsOrderbookSourceLastSlotGauge.setLatestValue(messageSlot, {
 							source: channelPrefix,
 						});
-						ws.send(
-							JSON.stringify({
-								channel: sanitizedChannel,
-								data: message,
-							})
-						);
-					}
-				});
-			}
-		});
 
-		redisClient.forceGetClient().on('error', (error) => {
+						if (streamSelector) {
+							const shouldForward = streamSelector.recordMessage(
+								channelPrefix,
+								messageSlot
+							);
+							if (!shouldForward) {
+								return;
+							}
+						} else {
+							const lastMessageSlot =
+								subscribedChannelToSlot.get(sanitizedChannel);
+							if (!lastMessageSlot || lastMessageSlot <= messageSlot) {
+								subscribedChannelToSlot.set(sanitizedChannel, messageSlot);
+							} else if (lastMessageSlot > messageSlot) {
+								return;
+							}
+						}
+
+						// Update slot tracking for the forwarded message
+						subscribedChannelToSlot.set(sanitizedChannel, messageSlot);
+					}
+					subscribers.forEach((ws) => {
+						if (
+							ws.readyState === WebSocket.OPEN &&
+							ws.bufferedAmount < MAX_BUFFERED_AMOUNT
+						) {
+							wsOrderbookSourceCounter.add(1, {
+								source: channelPrefix,
+							});
+							ws.send(
+								JSON.stringify({
+									channel: sanitizedChannel,
+									data: message,
+								})
+							);
+						}
+					});
+				}
+			}
+		);
+
+		(redisClient.forceGetClient() as unknown as Redis).on('error', (error) => {
 			console.error('Redis client error:', error);
 		});
 	}

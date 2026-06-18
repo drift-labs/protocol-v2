@@ -44,7 +44,11 @@ export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';
 export * from './assert/assert';
-export { PythLazerSubscriber, type PythLazerPriceFeedArray } from './pyth';
+export {
+	PythLazerSubscriber,
+	type PythLazerPriceFeedArray,
+	type PriceUpdateAccount,
+} from './pyth';
 export * from './testClient';
 export * from './user';
 export * from './userConfig';

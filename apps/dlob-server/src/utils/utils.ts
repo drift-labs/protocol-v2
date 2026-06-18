@@ -1,8 +1,8 @@
 import {
 	BN,
 	BigNum,
-	DriftClient,
-	DriftEnv,
+	VelocityClient,
+	VelocityEnv,
 	L2OrderBook,
 	L3OrderBook,
 	MarketType,
@@ -91,17 +91,21 @@ export function parsePositiveIntArray(
 }
 
 export const getOracleForMarket = (
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	marketType: MarketType,
 	marketIndex: number,
 	useMMOracleData = false
 ): number => {
 	if (isVariant(marketType, 'spot')) {
-		return driftClient.getOracleDataForSpotMarket(marketIndex).price.toNumber();
+		return velocityClient
+			.getOracleDataForSpotMarket(marketIndex)
+			.price.toNumber();
 	} else if (isVariant(marketType, 'perp')) {
 		return useMMOracleData
-			? driftClient.getMMOracleDataForPerpMarket(marketIndex).price.toNumber()
-			: driftClient.getOracleDataForPerpMarket(marketIndex).price.toNumber();
+			? velocityClient
+					.getMMOracleDataForPerpMarket(marketIndex)
+					.price.toNumber()
+			: velocityClient.getOracleDataForPerpMarket(marketIndex).price.toNumber();
 	}
 };
 
@@ -131,33 +135,33 @@ const getSerializableOraclePriceData = (
 };
 
 export const getOracleDataForMarket = (
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	marketType: MarketType,
 	marketIndex: number,
 	useMMOracleData = false
 ): SerializableOraclePriceData => {
 	if (isVariant(marketType, 'spot')) {
 		return getSerializableOraclePriceData(
-			driftClient.getOracleDataForSpotMarket(marketIndex)
+			velocityClient.getOracleDataForSpotMarket(marketIndex)
 		);
 	} else if (isVariant(marketType, 'perp')) {
 		return getSerializableOraclePriceData(
 			useMMOracleData
-				? driftClient.getMMOracleDataForPerpMarket(marketIndex)
-				: driftClient.getOracleDataForPerpMarket(marketIndex)
+				? velocityClient.getMMOracleDataForPerpMarket(marketIndex)
+				: velocityClient.getOracleDataForPerpMarket(marketIndex)
 		);
 	}
 };
 
 export const addOracletoResponse = (
 	response: L2OrderBook | L3OrderBook,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	marketType: MarketType,
 	marketIndex: number
 ): void => {
 	if (FEATURE_FLAGS.OLD_ORACLE_PRICE_IN_L2) {
 		response['oracle'] = getOracleForMarket(
-			driftClient,
+			velocityClient,
 			marketType,
 			marketIndex
 		);
@@ -167,7 +171,7 @@ export const addOracletoResponse = (
 	}
 	if (FEATURE_FLAGS.NEW_ORACLE_DATA_IN_L2) {
 		response['oracleData'] = getOracleDataForMarket(
-			driftClient,
+			velocityClient,
 			marketType,
 			marketIndex
 		);
@@ -177,7 +181,7 @@ export const addOracletoResponse = (
 			);
 		}
 		response['mmOracleData'] = getOracleDataForMarket(
-			driftClient,
+			velocityClient,
 			marketType,
 			marketIndex,
 			true
@@ -192,17 +196,19 @@ export const addOracletoResponse = (
 
 export const addMarketSlotToResponse = (
 	response: L2OrderBook | L3OrderBook,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	marketType: MarketType,
 	marketIndex: number
 ): void => {
 	let marketSlot: number;
 	if (isVariant(marketType, 'perp')) {
 		marketSlot =
-			driftClient.accountSubscriber.getMarketAccountAndSlot(marketIndex).slot;
+			velocityClient.accountSubscriber.getMarketAccountAndSlot(
+				marketIndex
+			).slot;
 	} else {
 		marketSlot =
-			driftClient.accountSubscriber.getSpotMarketAccountAndSlot(
+			velocityClient.accountSubscriber.getSpotMarketAccountAndSlot(
 				marketIndex
 			).slot;
 	}
@@ -462,8 +468,8 @@ export const validateWsSubscribeMsg = (
 };
 
 export const validateDlobQuery = (
-	driftClient: DriftClient,
-	driftEnv: DriftEnv,
+	velocityClient: VelocityClient,
+	driftEnv: VelocityEnv,
 	marketType?: string,
 	marketIndex?: string,
 	marketName?: string
@@ -488,7 +494,7 @@ export const validateDlobQuery = (
 			case 'spot': {
 				normedMarketType = MarketType.SPOT;
 				normedMarketIndex = parseInt(marketIndex as string);
-				const spotMarketIndicies = driftClient
+				const spotMarketIndicies = velocityClient
 					.getSpotMarketAccounts()
 					.map((mkt) => mkt.marketIndex);
 				if (!spotMarketIndicies.includes(normedMarketIndex)) {
@@ -501,7 +507,7 @@ export const validateDlobQuery = (
 			case 'perp': {
 				normedMarketType = MarketType.PERP;
 				normedMarketIndex = parseInt(marketIndex as string);
-				const perpMarketIndicies = driftClient
+				const perpMarketIndicies = velocityClient
 					.getPerpMarketAccounts()
 					.map((mkt) => mkt.marketIndex);
 				if (!perpMarketIndicies.includes(normedMarketIndex)) {
@@ -520,7 +526,7 @@ export const validateDlobQuery = (
 		// validate marketName
 		normedMarketName = (marketName as string).toUpperCase();
 		const derivedMarketInfo =
-			driftClient.getMarketIndexAndType(normedMarketName);
+			velocityClient.getMarketIndexAndType(normedMarketName);
 		if (!derivedMarketInfo) {
 			return {
 				error: 'Bad Request: unrecognized marketName',
@@ -773,7 +779,7 @@ export const mapTradeOffsetPriceToProperty = (
 
 /**
  * Get L2 orderbook data and calculate estimated prices
- * @param driftClient - DriftClient instance
+ * @param velocityClient - VelocityClient instance
  * @param marketType - MarketType enum
  * @param marketIndex - Market index number
  * @param direction - Position direction
@@ -784,7 +790,7 @@ export const mapTradeOffsetPriceToProperty = (
  * @returns Price data object with oracle, best, entry, worst, and mark prices
  */
 export const getEstimatedPrices = async (
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	marketType: MarketType,
 	marketIndex: number,
 	direction: PositionDirection,
@@ -824,8 +830,8 @@ export const getEstimatedPrices = async (
 	}
 
 	const oracleData = isSpot
-		? driftClient.getOracleDataForSpotMarket(marketIndex)
-		: driftClient.getMMOracleDataForPerpMarket(marketIndex);
+		? velocityClient.getOracleDataForSpotMarket(marketIndex)
+		: velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 
 	// Get oracle price
 	const oraclePrice = new BN(oracleData?.price || 0).mul(PRICE_PRECISION);
@@ -882,7 +888,7 @@ export const getEstimatedPrices = async (
 /**
  * Maps AuctionParamArgs to the format expected by deriveMarketOrderParams
  * @param params - AuctionParamArgs from the API request
- * @param driftClient - DriftClient instance (optional, for price calculation)
+ * @param velocityClient - VelocityClient instance (optional, for price calculation)
  * @param fetchFromRedis - Redis fetch function (optional, for price calculation)
  * @param selectMostRecentBySlot - Slot selection function (optional, for price calculation)
  * @param fillQualityInfo - Fill quality analytics data (version 2 only)
@@ -891,7 +897,7 @@ export const getEstimatedPrices = async (
  */
 export const mapToMarketOrderParams = async (
 	params: AuctionParamArgs,
-	driftClient?: DriftClient,
+	velocityClient?: VelocityClient,
 	fetchFromRedis?: (
 		key: string,
 		selectionCriteria: (responses: any) => any
@@ -956,7 +962,7 @@ export const mapToMarketOrderParams = async (
 
 	let conditionalParams = {};
 
-	if (driftClient && fetchFromRedis && selectMostRecentBySlot) {
+	if (velocityClient && fetchFromRedis && selectMostRecentBySlot) {
 		// Get L2 orderbook data using the utility function
 		const redisL2 = await fetchL2FromRedis(
 			fetchFromRedis,
@@ -967,7 +973,7 @@ export const mapToMarketOrderParams = async (
 
 		// Calculate estimated prices using the fetched L2 data
 		estimatedPrices = await getEstimatedPricesWithL2(
-			driftClient,
+			velocityClient,
 			marketType,
 			params.marketIndex,
 			direction,
@@ -987,8 +993,8 @@ export const mapToMarketOrderParams = async (
 
 				const isSpot = isVariant(marketType, 'spot');
 				const oracleData = isSpot
-					? driftClient.getOracleDataForSpotMarket(params.marketIndex)
-					: driftClient.getMMOracleDataForPerpMarket(params.marketIndex);
+					? velocityClient.getOracleDataForSpotMarket(params.marketIndex)
+					: velocityClient.getMMOracleDataForPerpMarket(params.marketIndex);
 				const oraclePrice = oracleData.price ?? ZERO;
 
 				// Detect if orderbook is crossed
@@ -1145,7 +1151,7 @@ export const mapToMarketOrderParams = async (
 			processedSlippageTolerance = calculateDynamicSlippage(
 				params.marketIndex,
 				params.marketType,
-				driftClient,
+				velocityClient,
 				l2Formatted,
 				startPrice,
 				estimatedPrices.worstPrice,
@@ -1345,14 +1351,14 @@ export const fetchL2FromRedis = async (
  * @param direction - Position direction ('long' or 'short')
  * @param marketIndex - Market index number
  * @param marketType - Market type ('spot' or 'perp')
- * @param driftClient - DriftClient instance for oracle data
+ * @param velocityClient - VelocityClient instance for oracle data
  * @param l2Formatted - Already formatted L2OrderBook data
  * @returns Dynamic slippage tolerance as a number
  */
 export const calculateDynamicSlippage = (
 	marketIndex: number,
 	marketType: string,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	l2Formatted: L2OrderBook,
 	startPrice: BN,
 	worstPrice: BN,
@@ -1374,8 +1380,8 @@ export const calculateDynamicSlippage = (
 	try {
 		// Get oracle data
 		const oracleData = isPerp
-			? driftClient.getMMOracleDataForPerpMarket(marketIndex)
-			: driftClient.getOracleDataForSpotMarket(marketIndex);
+			? velocityClient.getMMOracleDataForPerpMarket(marketIndex)
+			: velocityClient.getOracleDataForSpotMarket(marketIndex);
 
 		// Get oracle price
 		const oraclePrice = new BN(oracleData?.price || 0).mul(PRICE_PRECISION);
@@ -1453,7 +1459,7 @@ export const calculateDynamicSlippage = (
 
 /**
  * Get L2 orderbook data and calculate estimated prices using pre-fetched L2 data
- * @param driftClient - DriftClient instance
+ * @param velocityClient - VelocityClient instance
  * @param marketType - MarketType enum
  * @param marketIndex - Market index number
  * @param direction - Position direction
@@ -1463,7 +1469,7 @@ export const calculateDynamicSlippage = (
  * @returns Price data object with oracle, best, entry, worst, and mark prices
  */
 export const getEstimatedPricesWithL2 = async (
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	marketType: MarketType,
 	marketIndex: number,
 	direction: PositionDirection,
@@ -1491,8 +1497,8 @@ export const getEstimatedPricesWithL2 = async (
 	}
 
 	const oracleData = isSpot
-		? driftClient.getOracleDataForSpotMarket(marketIndex)
-		: driftClient.getMMOracleDataForPerpMarket(marketIndex);
+		? velocityClient.getOracleDataForSpotMarket(marketIndex)
+		: velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 
 	// Get oracle price
 	const oraclePrice = oracleData.price ?? ZERO;

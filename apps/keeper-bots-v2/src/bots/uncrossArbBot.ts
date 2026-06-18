@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {
-	DriftEnv,
-	DriftClient,
+	VelocityEnv,
+	VelocityClient,
 	convertToNumber,
 	MarketType,
 	PRICE_PRECISION,
@@ -11,11 +11,11 @@ import {
 	MakerInfo,
 	getUserStatsAccountPublicKey,
 	OrderSubscriber,
-	PollingDriftClientAccountSubscriber,
+	PollingVelocityClientAccountSubscriber,
 	TxSigAndSlot,
 	ZERO,
 	PriorityFeeSubscriber,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 import { logger } from '../logger';
 import { Bot } from '../types';
@@ -66,11 +66,11 @@ export class UncrossArbBot implements Bot {
 	public readonly dryRun: boolean;
 	public readonly defaultIntervalMs: number = 1000;
 
-	private driftEnv: DriftEnv;
+	private driftEnv: VelocityEnv;
 	private periodicTaskMutex = new Mutex();
 
 	private jitProxyClient: JitProxyClient;
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private lookupTableAccounts?: AddressLookupTableAccount[];
 	private intervalIds: Array<NodeJS.Timer> = [];
 
@@ -87,15 +87,15 @@ export class UncrossArbBot implements Bot {
 	private noArbErrors: Map<number, Map<string, number>> = new Map();
 
 	constructor(
-		driftClient: DriftClient, // driftClient needs to have correct number of subaccounts listed
+		velocityClient: VelocityClient, // velocityClient needs to have correct number of subaccounts listed
 		jitProxyClient: JitProxyClient,
 		slotSubscriber: SlotSubscriber,
 		config: BaseBotConfig,
-		driftEnv: DriftEnv,
+		driftEnv: VelocityEnv,
 		priorityFeeSubscriber: PriorityFeeSubscriber
 	) {
 		this.jitProxyClient = jitProxyClient;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
 		this.driftEnv = driftEnv;
@@ -115,8 +115,8 @@ export class UncrossArbBot implements Bot {
 			  };
 		if (
 			(
-				this.driftClient
-					.accountSubscriber as PollingDriftClientAccountSubscriber
+				this.velocityClient
+					.accountSubscriber as PollingVelocityClientAccountSubscriber
 			).accountLoader
 		) {
 			accountSubscription = {
@@ -134,7 +134,7 @@ export class UncrossArbBot implements Bot {
 		}
 
 		this.orderSubscriber = new OrderSubscriber({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			subscriptionConfig: accountSubscription,
 		});
 
@@ -142,7 +142,7 @@ export class UncrossArbBot implements Bot {
 			dlobSource: this.orderSubscriber,
 			slotSource: this.orderSubscriber,
 			updateFrequency: 500,
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 		});
 
 		this.priorityFeeSubscriber = priorityFeeSubscriber;
@@ -160,9 +160,9 @@ export class UncrossArbBot implements Bot {
 		await this.orderSubscriber.subscribe();
 		await this.dlobSubscriber.subscribe();
 		this.lookupTableAccounts =
-			await this.driftClient.fetchAllLookupTableAccounts();
+			await this.velocityClient.fetchAllLookupTableAccounts();
 
-		for (const marketIndex of this.driftClient
+		for (const marketIndex of this.velocityClient
 			.getPerpMarketAccounts()
 			.map((m) => m.marketIndex)) {
 			this.throttledNodes.set(marketIndex, new Map());
@@ -249,7 +249,7 @@ export class UncrossArbBot implements Bot {
 				continue;
 			}
 
-			if (isEndIxLog(this.driftClient.program.programId.toBase58(), log)) {
+			if (isEndIxLog(this.velocityClient.program.programId.toBase58(), log)) {
 				continue;
 			}
 
@@ -264,7 +264,7 @@ export class UncrossArbBot implements Bot {
 					this.throttledNodes
 						.get(marketIndex)!
 						.set(makerBreachedMaintenanceMargin, Date.now());
-					this.driftClient
+					this.velocityClient
 						.forceCancelOrders(
 							new PublicKey(makerBreachedMaintenanceMargin),
 							makerBreachedMaintenanceMargin === bidMakerInfo.maker.toBase58()
@@ -383,15 +383,17 @@ export class UncrossArbBot implements Bot {
 				logger.debug(
 					`[${new Date().toISOString()}] Running uncross periodic tasks...`
 				);
-				const perpMarkets = this.driftClient.getPerpMarketAccounts();
+				const perpMarkets = this.velocityClient.getPerpMarketAccounts();
 				for (let i = 0; i < perpMarkets.length; i++) {
 					const perpIdx = perpMarkets[i].marketIndex;
-					const driftUser = this.driftClient.getUser();
+					const driftUser = this.velocityClient.getUser();
 
 					const perpMarketAccount =
-						this.driftClient.getPerpMarketAccount(perpIdx)!;
+						this.velocityClient.getPerpMarketAccount(perpIdx)!;
 					const oraclePriceData =
-						this.driftClient.getOracleDataForPerpMarket(perpIdx);
+						this.velocityClient.getOracleDataForPerpMarket(perpIdx);
+					const mmOraclePriceData =
+						this.velocityClient.getMMOracleDataForPerpMarket(perpIdx);
 
 					// Go through throttled nodes so we can exlcude them
 					const excludedPubKeysOrderIdPairs: [string, number][] = [];
@@ -420,7 +422,7 @@ export class UncrossArbBot implements Bot {
 						perpMarketAccount.marketIndex,
 						MarketType.PERP,
 						oraclePriceData.slot.toNumber(),
-						oraclePriceData,
+						mmOraclePriceData,
 						driftUser.getUserAccountPublicKey().toBase58(),
 						excludedPubKeysOrderIdPairs
 					);
@@ -430,7 +432,7 @@ export class UncrossArbBot implements Bot {
 						perpMarketAccount.marketIndex,
 						MarketType.PERP,
 						oraclePriceData.slot.toNumber(),
-						oraclePriceData,
+						mmOraclePriceData,
 						driftUser.getUserAccountPublicKey().toBase58(),
 						excludedPubKeysOrderIdPairs
 					);
@@ -440,12 +442,23 @@ export class UncrossArbBot implements Bot {
 					}
 
 					const currentSlot = this.slotSubscriber.getSlot();
+					const bestDriftBidPrice = bestDriftBid.getPrice(
+						oraclePriceData,
+						currentSlot
+					);
+					const bestDriftAskPrice = bestDriftAsk.getPrice(
+						oraclePriceData,
+						currentSlot
+					);
+					if (!bestDriftBidPrice || !bestDriftAskPrice) {
+						continue;
+					}
 					const bestBidPrice = convertToNumber(
-						bestDriftBid.getPrice(oraclePriceData, currentSlot),
+						bestDriftBidPrice,
 						PRICE_PRECISION
 					);
 					const bestAskPrice = convertToNumber(
-						bestDriftAsk.getPrice(oraclePriceData, currentSlot),
+						bestDriftAskPrice,
 						PRICE_PRECISION
 					);
 
@@ -453,7 +466,7 @@ export class UncrossArbBot implements Bot {
 					if (
 						(bestBidPrice - bestAskPrice) / midPrice >
 						2 *
-							this.driftClient.getMarketFees(
+							this.velocityClient.getMarketFees(
 								MarketType.PERP,
 								perpIdx,
 								driftUser
@@ -469,7 +482,7 @@ export class UncrossArbBot implements Bot {
 								order: bestDriftBid.order,
 								maker: new PublicKey(bestDriftBid.userAccount!),
 								makerStats: getUserStatsAccountPublicKey(
-									this.driftClient.program.programId,
+									this.velocityClient.program.programId,
 									this.orderSubscriber.usersAccounts.get(
 										bestDriftBid.userAccount!
 									)!.userAccount.authority
@@ -483,7 +496,7 @@ export class UncrossArbBot implements Bot {
 								order: bestDriftAsk.order,
 								maker: new PublicKey(bestDriftAsk.userAccount!),
 								makerStats: getUserStatsAccountPublicKey(
-									this.driftClient.program.programId,
+									this.velocityClient.program.programId,
 									this.orderSubscriber.usersAccounts.get(
 										bestDriftAsk.userAccount!
 									)!.userAccount.authority
@@ -504,8 +517,8 @@ export class UncrossArbBot implements Bot {
 								this.priorityFeeSubscriber.getCustomStrategyResult() * 1.1 || 1
 							);
 							const txResult =
-								await this.driftClient.txSender.sendVersionedTransaction(
-									await this.driftClient.txSender.getVersionedTransaction(
+								await this.velocityClient.txSender.sendVersionedTransaction(
+									await this.velocityClient.txSender.getVersionedTransaction(
 										[
 											ComputeBudgetProgram.setComputeUnitLimit({
 												units: 1_400_000,
@@ -515,18 +528,20 @@ export class UncrossArbBot implements Bot {
 											}),
 											await this.jitProxyClient.getArbPerpIx({
 												marketIndex: perpIdx,
-												makerInfos: [bidMakerInfo, askMakerInfo],
-												referrerInfo: this.driftClient
-													.getUserStats()
+												// jit-proxy is the external @drift-labs SDK; its MakerInfo type
+												// differs from the velocity SDK's. Cast to bridge.
+												makerInfos: [bidMakerInfo, askMakerInfo] as any,
+												referrerInfo: this.velocityClient
+													.getUserStats()!
 													.getReferrerInfo(),
 											}),
 										],
 										this.lookupTableAccounts!,
 										[],
-										this.driftClient.opts
+										this.velocityClient.opts
 									),
 									[],
-									this.driftClient.opts
+									this.velocityClient.opts
 								);
 							logger.info(
 								`Potential arb with sig: ${txResult.txSig}. Check the blockchain for confirmation.`
@@ -606,7 +621,7 @@ export class UncrossArbBot implements Bot {
 	}
 
 	private async settlePnls() {
-		const user = this.driftClient.getUser();
+		const user = this.velocityClient.getUser();
 		const marketIds = user
 			.getActivePerpPositions()
 			.filter((pos) => !pos.quoteAssetAmount.eq(ZERO))
@@ -629,26 +644,27 @@ export class UncrossArbBot implements Bot {
 						}),
 					];
 					ixs.push(
-						...(await this.driftClient.getSettlePNLsIxs(
+						...(await this.velocityClient.getSettlePNLsIxs(
 							[
 								{
 									settleeUserAccountPublicKey: user.getUserAccountPublicKey(),
-									settleeUserAccount: this.driftClient.getUserAccount()!,
+									settleeUserAccount:
+										this.velocityClient.getUserAccountOrThrow()!,
 								},
 							],
 							marketIdChunks
 						))
 					);
 					settlePnlPromises.push(
-						this.driftClient.txSender.sendVersionedTransaction(
-							await this.driftClient.txSender.getVersionedTransaction(
+						this.velocityClient.txSender.sendVersionedTransaction(
+							await this.velocityClient.txSender.getVersionedTransaction(
 								ixs,
 								this.lookupTableAccounts!,
 								[],
-								this.driftClient.opts
+								this.velocityClient.opts
 							),
 							[],
-							this.driftClient.opts
+							this.velocityClient.opts
 						)
 					);
 				} catch (err) {

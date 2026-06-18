@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {
-	DriftEnv,
+	VelocityEnv,
 	BASE_PRECISION,
 	BN,
-	DriftClient,
+	VelocityClient,
 	MarketType,
 	DLOBSubscriber,
 	SlotSubscriber,
@@ -12,7 +12,7 @@ import {
 	calculateBidAskPrice,
 	getVariant,
 	isVariant,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 import { logger } from '../logger';
 import { Bot } from '../types';
@@ -56,11 +56,11 @@ export class JitMaker implements Bot {
 	public readonly dryRun: boolean;
 	public readonly defaultIntervalMs: number = 30000;
 
-	private driftEnv: DriftEnv;
+	private driftEnv: VelocityEnv;
 	private periodicTaskMutex = new Mutex();
 
 	private jitter: JitterSniper | JitterShotgun;
-	private driftClient: DriftClient;
+	private velocityClient: VelocityClient;
 	private config: JitMakerConfig;
 	private targetLeverage: number;
 
@@ -81,10 +81,10 @@ export class JitMaker implements Bot {
 	private jitCULimit: number;
 
 	constructor(
-		driftClient: DriftClient, // driftClient needs to have correct number of subaccounts listed
+		velocityClient: VelocityClient, // velocityClient needs to have correct number of subaccounts listed
 		jitter: JitterSniper | JitterShotgun,
 		config: JitMakerConfig,
-		driftEnv: DriftEnv,
+		driftEnv: VelocityEnv,
 		priorityFeeSubscriber: PriorityFeeSubscriber
 	) {
 		this.config = config;
@@ -111,15 +111,15 @@ export class JitMaker implements Bot {
 		}
 
 		this.jitter = jitter;
-		this.driftClient = driftClient;
+		this.velocityClient = velocityClient;
 		this.name = this.config.botId;
 		this.dryRun = this.config.dryRun;
 		this.driftEnv = driftEnv;
 
-		this.slotSubscriber = new SlotSubscriber(this.driftClient.connection);
+		this.slotSubscriber = new SlotSubscriber(this.velocityClient.connection);
 
 		this.orderSubscriber = new OrderSubscriber({
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 			subscriptionConfig: {
 				commitment: 'processed',
 				type: 'websocket',
@@ -132,7 +132,7 @@ export class JitMaker implements Bot {
 			dlobSource: this.orderSubscriber,
 			slotSource: this.orderSubscriber,
 			updateFrequency: 1000,
-			driftClient: this.driftClient,
+			velocityClient: this.velocityClient,
 		});
 
 		this.priorityFeeSubscriber = priorityFeeSubscriber;
@@ -154,12 +154,12 @@ export class JitMaker implements Bot {
 	 */
 	public async init(): Promise<void> {
 		logger.info(`${this.name} initing`);
-		await this.driftClient.fetchAllLookupTableAccounts();
+		await this.velocityClient.fetchAllLookupTableAccounts();
 
 		for (const subAccountId of this.subAccountIds) {
-			if (!this.driftClient.hasUser(subAccountId)) {
-				logger.info(`Adding subaccountId ${subAccountId} to driftClient`);
-				await this.driftClient.addUser(subAccountId);
+			if (!this.velocityClient.hasUser(subAccountId)) {
+				logger.info(`Adding subaccountId ${subAccountId} to velocityClient`);
+				await this.velocityClient.addUser(subAccountId);
 			}
 		}
 
@@ -248,12 +248,13 @@ export class JitMaker implements Bot {
 	private async jitPerp(index: number) {
 		const perpIdx = this.marketIndexes[index];
 		const subId = this.subAccountIds[index];
-		await this.driftClient.switchActiveUser(subId);
+		await this.velocityClient.switchActiveUser(subId);
 
-		const driftUser = this.driftClient.getUser(subId);
-		const perpMarketAccount = this.driftClient.getPerpMarketAccount(perpIdx)!;
+		const driftUser = this.velocityClient.getUser(subId);
+		const perpMarketAccount =
+			this.velocityClient.getPerpMarketAccount(perpIdx)!;
 		const mmOraclePriceData =
-			this.driftClient.getMMOracleDataForPerpMarket(perpIdx);
+			this.velocityClient.getMMOracleDataForPerpMarket(perpIdx);
 
 		const numMarketsForSubaccount = this.subAccountIds.filter(
 			(num) => num === subId
@@ -322,7 +323,8 @@ export class JitMaker implements Bot {
 
 		const [ammBid, ammAsk] = calculateBidAskPrice(
 			perpMarketAccount.amm,
-			this.driftClient.getMMOracleDataForPerpMarket(perpIdx),
+			perpMarketAccount.marketStats,
+			this.velocityClient.getMMOracleDataForPerpMarket(perpIdx),
 			true
 		);
 
@@ -376,12 +378,13 @@ export class JitMaker implements Bot {
 	private async jitSpot(index: number) {
 		const spotIdx = this.marketIndexes[index];
 		const subId = this.subAccountIds[index];
-		await this.driftClient.switchActiveUser(subId);
+		await this.velocityClient.switchActiveUser(subId);
 
-		const driftUser = this.driftClient.getUser(subId);
-		const spotMarketAccount = this.driftClient.getSpotMarketAccount(spotIdx)!;
+		const driftUser = this.velocityClient.getUser(subId);
+		const spotMarketAccount =
+			this.velocityClient.getSpotMarketAccount(spotIdx)!;
 		const oraclePriceData =
-			this.driftClient.getOracleDataForSpotMarket(spotIdx);
+			this.velocityClient.getOracleDataForSpotMarket(spotIdx);
 
 		const numMarketsForSubaccount = this.subAccountIds.filter(
 			(num) => num === subId
@@ -465,6 +468,11 @@ export class JitMaker implements Bot {
 			oraclePriceData,
 			this.dlobSubscriber.slotSource.getSlot()
 		);
+
+		if (!bestBidPrice || !bestAskPrice) {
+			logger.warn('skipping, no best bid/ask price');
+			return;
+		}
 
 		const bidOffset = bestBidPrice.sub(oraclePriceData.price);
 

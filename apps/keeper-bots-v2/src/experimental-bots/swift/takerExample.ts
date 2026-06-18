@@ -1,5 +1,5 @@
 import {
-	DriftClient,
+	VelocityClient,
 	getMarketOrderParams,
 	isVariant,
 	MarketType,
@@ -11,7 +11,7 @@ import {
 	QUOTE_PRECISION,
 	BASE_PRECISION,
 	PRICE_PRECISION,
-} from '@drift-labs/sdk';
+} from '@velocity-exchange/sdk';
 import { RuntimeSpec } from 'src/metrics';
 import * as axios from 'axios';
 import { sleepMs } from '../../utils';
@@ -23,7 +23,7 @@ export class SwiftTaker {
 	swiftUrl: string;
 
 	constructor(
-		private driftClient: DriftClient,
+		private velocityClient: VelocityClient,
 		runtimeSpec: RuntimeSpec,
 		private intervalMs: number
 	) {
@@ -45,7 +45,7 @@ export class SwiftTaker {
 		const marketIndexes = [0, 1, 2];
 		this.interval = setInterval(async () => {
 			await sleepMs(Math.random() * 5000); // Randomize for different grafana metrics
-			const slot = await this.driftClient.connection.getSlot();
+			const slot = await this.velocityClient.connection.getSlot();
 			const direction =
 				Math.random() > 0.5 ? PositionDirection.LONG : PositionDirection.SHORT;
 
@@ -53,7 +53,7 @@ export class SwiftTaker {
 				marketIndexes[Math.floor(Math.random() * marketIndexes.length)];
 
 			const oracleInfo =
-				this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
+				this.velocityClient.getMMOracleDataForPerpMarket(marketIndex);
 			const EPS_BPS = 10; // 0.1%
 			const plusBps = (p: BN, bps: number) => p.muln(10_000 + bps).divn(10_000);
 			const minusBps = (p: BN, bps: number) =>
@@ -70,7 +70,7 @@ export class SwiftTaker {
 				.div(oracleInfo.price);
 
 			const perpMarketAccount =
-				this.driftClient.getPerpMarketAccount(marketIndex);
+				this.velocityClient.getPerpMarketAccount(marketIndex);
 			if (!perpMarketAccount) {
 				console.error(`Perp market ${marketIndex} not found`);
 				return;
@@ -82,7 +82,7 @@ export class SwiftTaker {
 				direction,
 				baseAssetAmount: floorBNToNearest(
 					tradeSize,
-					perpMarketAccount.amm.orderStepSize
+					perpMarketAccount.orderStepSize
 				),
 				auctionStartPrice: isVariant(direction, 'long') ? lowPrice : highPrice,
 				auctionEndPrice: isVariant(direction, 'long') ? highPrice : lowPrice,
@@ -91,14 +91,14 @@ export class SwiftTaker {
 
 			const orderMessage = {
 				signedMsgOrderParams: marketOrderParams as OrderParams,
-				subAccountId: this.driftClient.activeSubAccountId,
+				subAccountId: this.velocityClient.activeSubAccountId ?? 0,
 				slot: new BN(slot),
 				uuid: generateSignedMsgUuid(),
 				stopLossOrderParams: null,
 				takeProfitOrderParams: null,
 			};
 			const { orderParams: message, signature } =
-				this.driftClient.signSignedMsgOrderParamsMessage(orderMessage);
+				this.velocityClient.signSignedMsgOrderParamsMessage(orderMessage);
 
 			const hash = digestSignature(Uint8Array.from(signature));
 			console.log(
@@ -113,7 +113,7 @@ export class SwiftTaker {
 						market_type: 'perp',
 						message: message.toString(),
 						signature: signature.toString('base64'),
-						taker_pubkey: this.driftClient.wallet.publicKey.toBase58(),
+						taker_pubkey: this.velocityClient.wallet.publicKey.toBase58(),
 					},
 					{
 						headers: {
