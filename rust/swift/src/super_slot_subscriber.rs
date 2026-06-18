@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use drift_rs::{event_subscriber::PubsubClient, slot_subscriber::SlotSubscriber, RpcClient};
+use velocity_rs::{event_subscriber::PubsubClient, slot_subscriber::SlotSubscriber, RpcClient};
 use solana_clock::Slot;
 
 /// Combines multiple slot subscribers for redundancy

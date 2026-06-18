@@ -292,13 +292,13 @@ jobs:
           bun run test:events
           bun run test:velocitycore
   rust-workspace-check:
-    name: Check rust workspace (drift-rs/keep-rs/swift)
+    name: Check rust workspace (velocity-rs/keep-rs/swift)
     needs: changes
     if: ${{ needs.changes.outputs.rust_workspace == 'true' }}
     runs-on: ubicloud
     # The offline-deterministic subset gates. Live tests (live RPC, funded
     # keypairs, gRPC, Jupiter/Titan) are compiled out by default: they live
-    # behind the `rpc_tests` cargo feature (drift-rs + swift) and run only in
+    # behind the `rpc_tests` cargo feature (velocity-rs + swift) and run only in
     # the separate, non-blocking `rust-live-tests` job. Redis-backed tests run
     # here against the service container below — Redis is cheap and hermetic, so
     # those stay in the gate rather than the live job.
@@ -326,11 +326,11 @@ jobs:
         with:
           workspaces: rust
           cache-on-failure: 'true'
-      # Restores the `cargo fmt --check` gate drift-rs ran upstream (keep-rs/swift
+      # Restores the `cargo fmt --check` gate velocity-rs ran upstream (keep-rs/swift
       # only ran a non-blocking `cargo fmt`); covers the whole rust workspace.
       - name: cargo fmt rust workspace
         run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
-      # The drift-rs build.rs regenerates crates/src/drift_idl.rs from res/velocity.json;
+      # The velocity-rs build.rs regenerates crates/src/drift_idl.rs from res/velocity.json;
       # the velocity (`drift`) program crate is compiled as a host lib path-dep.
       - name: cargo check rust workspace
         run: cargo check --manifest-path rust/Cargo.toml --all-targets

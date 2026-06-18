@@ -67,14 +67,14 @@ All three original problems are resolved; the SDK now runs in a dedicated `sdk-t
 ## Rust (`rust/` workspace) — offline subset gates; live split out
 
 `rust-workspace-check` runs `cargo test --workspace --all-targets` (rpc_tests OFF) with a
-**Redis service container**, **gating** (no `continue-on-error`). Green: drift-rs lib 90,
+**Redis service container**, **gating** (no `continue-on-error`). Green: velocity-rs lib 90,
 swift 38, doctests 7. Live tests (RPC / funded keys / gRPC / Jupiter/Titan) are compiled out
 via the project's `rpc_tests` cargo feature and run in a separate **non-blocking**
 `rust-live-tests` job (`--features rpc_tests`, secrets, schedule/dispatch) — see handover #2.
 
 | Crate    | Crate type | Offline (`src` + doctests)        | Live (`rpc_tests`-gated / `tests/*.rs`) |
 | -------- | ---------- | --------------------------------- | --------------------------------------- |
-| drift-rs | **lib**    | 90 pass + 7 doctests              | per-test `#[cfg(feature="rpc_tests")]` + tests/{integration,jupiter,titan}.rs (file-gated) |
+| velocity-rs | **lib**    | 90 pass + 7 doctests              | per-test `#[cfg(feature="rpc_tests")]` + tests/{integration,jupiter,titan}.rs (file-gated) |
 | keep-rs  | **bin**    | 0 tests                           | —                                       |
 | swift    | **bin**    | 38 pass                           | `swift_server::test_simulate_taker_order_rpc`, `user_account_fetcher::usermap_lookups` |
 

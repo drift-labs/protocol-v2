@@ -7,14 +7,14 @@ use std::{
 
 use anchor_lang::Discriminator;
 use dashmap::DashMap;
-use drift_rs::drift::math::auction::calculate_auction_price;
-use drift_rs::{
+use velocity_rs::program::math::auction::calculate_auction_price;
+use velocity_rs::{
     constants::PROGRAM_ID,
     dlob::{
         CrossesAndTopMakers, CrossingRegion, DLOBNotifier, MakerCrosses, OrderKind, TakerOrder,
         DLOB,
     },
-    event_subscriber::DriftEvent,
+    event_subscriber::VelocityEvent,
     grpc::{
         grpc_subscriber::{AccountFilter, GrpcConnectionOpts},
         AccountUpdate, TransactionUpdate,
@@ -27,7 +27,7 @@ use drift_rs::{
         OrderParamsExt, OrderTriggerCondition, OrderType, PositionDirection, PostOnlyParam,
         RpcSendTransactionConfig, StateExt, VersionedMessage, VersionedTransaction, AMM,
     },
-    DriftClient, GrpcSubscribeOpts, Pubkey, TransactionBuilder, Wallet,
+    VelocityClient, GrpcSubscribeOpts, Pubkey, TransactionBuilder, Wallet,
 };
 use futures_util::StreamExt;
 use solana_account_decoder_client_types::UiAccountEncoding;
@@ -48,7 +48,7 @@ use crate::{
 const TARGET: &str = "filler";
 
 pub struct FillerBot {
-    drift: DriftClient,
+    drift: VelocityClient,
     dlob: &'static DLOB,
     filler_subaccount: Pubkey,
     slot_rx: tokio::sync::mpsc::Receiver<u64>,
@@ -62,7 +62,7 @@ pub struct FillerBot {
 }
 
 impl FillerBot {
-    pub async fn new(config: Config, drift: DriftClient, metrics: Arc<Metrics>) -> Self {
+    pub async fn new(config: Config, drift: VelocityClient, metrics: Arc<Metrics>) -> Self {
         let dlob: &'static DLOB = Box::leak(Box::new(DLOB::default()));
         let tx_worker = TxWorker::new(drift.clone(), metrics, config.dry, None, None, None);
         let rt = tokio::runtime::Handle::current();
@@ -153,7 +153,7 @@ impl FillerBot {
         let mut swift_order_stream = self.swift_order_stream;
         let mut slot_rx = self.slot_rx;
         let mut limiter = self.limiter;
-        let drift: &'static DriftClient = Box::leak(Box::new(self.drift));
+        let drift: &'static VelocityClient = Box::leak(Box::new(self.drift));
         let dlob = self.dlob;
         let market_ids = self.market_ids;
         let filler_subaccount = self.filler_subaccount;
@@ -428,7 +428,7 @@ fn on_transaction_update_fn(
 }
 
 fn on_slot_update_fn(
-    drift: DriftClient,
+    drift: VelocityClient,
     market_ids: Vec<MarketId>,
     dlob_notifier: DLOBNotifier,
     slot_tx: tokio::sync::mpsc::Sender<u64>,
@@ -448,10 +448,10 @@ fn on_slot_update_fn(
 
 fn on_account_update_fn(
     dlob_notifier: DLOBNotifier,
-    drift: DriftClient,
+    drift: VelocityClient,
 ) -> impl Fn(&AccountUpdate) + Send + Sync + 'static {
     move |update| {
-        let new_user = drift_rs::utils::deser_zero_copy::<User>(update.data);
+        let new_user = velocity_rs::utils::deser_zero_copy::<User>(update.data);
         if let Some(ref existing) = drift
             .backend()
             .account_map()
@@ -479,7 +479,7 @@ fn on_account_update_fn(
 
 /// Try to fill a swift order
 async fn try_swift_fill(
-    drift: &'static DriftClient,
+    drift: &'static VelocityClient,
     priority_fee: u64,
     cu_limit: u32,
     filler_subaccount: Pubkey,
@@ -564,7 +564,7 @@ async fn try_swift_fill(
 ///
 /// - `auction_crosses` list of one or more crosses to fill
 async fn try_auction_fill(
-    drift: &'static DriftClient,
+    drift: &'static VelocityClient,
     priority_fee: u64,
     cu_limit: u32,
     market_index: u16,
@@ -696,7 +696,7 @@ async fn try_auction_fill(
 
             if let Ok(pos) = taker_account_data.get_perp_position(market_index) {
                 if let Ok((base_asset_amount, _limit_price)) =
-                    drift_rs::drift::math::orders::calculate_base_asset_amount_for_amm_to_fulfill(
+                    velocity_rs::program::math::orders::calculate_base_asset_amount_for_amm_to_fulfill(
                         taker_account_data
                             .orders
                             .iter()
@@ -782,7 +782,7 @@ async fn try_auction_fill(
 ///
 /// - `crosses` list of one or more crosses to fill
 async fn try_uncross(
-    drift: &DriftClient,
+    drift: &VelocityClient,
     slot: u64,
     priority_fee: u64,
     cu_limit: u32,
@@ -926,7 +926,7 @@ fn amm_wants_to_jit_make(
 ///
 /// Syncs User orders and UserStat accounts
 pub async fn setup_grpc(
-    drift: DriftClient,
+    drift: VelocityClient,
     dlob: &'static DLOB,
     tx_worker_ref: TxSender,
     market_ids: Vec<MarketId>,
@@ -946,14 +946,14 @@ pub async fn setup_grpc(
 }
 
 pub async fn sync_stats_accounts(
-    drift: &DriftClient,
+    drift: &VelocityClient,
 ) -> Result<(), solana_rpc_client_api::client_error::Error> {
     let stats_sync_result = drift
         .rpc()
         .get_program_accounts_with_config(
             &PROGRAM_ID,
             RpcProgramAccountsConfig {
-                filters: Some(vec![drift_rs::memcmp::get_user_stats_filter()]),
+                filters: Some(vec![velocity_rs::memcmp::get_user_stats_filter()]),
                 account_config: RpcAccountInfoConfig {
                     encoding: Some(UiAccountEncoding::Base64Zstd),
                     ..Default::default()
@@ -988,7 +988,7 @@ pub async fn sync_stats_accounts(
 }
 
 pub async fn sync_user_accounts(
-    drift: &DriftClient,
+    drift: &VelocityClient,
     dlob_notifier: &DLOBNotifier,
 ) -> Result<(), solana_rpc_client_api::client_error::Error> {
     let sync_result = drift
@@ -997,8 +997,8 @@ pub async fn sync_user_accounts(
             &PROGRAM_ID,
             RpcProgramAccountsConfig {
                 filters: Some(vec![
-                    drift_rs::memcmp::get_non_idle_user_filter(),
-                    drift_rs::memcmp::get_user_filter(),
+                    velocity_rs::memcmp::get_non_idle_user_filter(),
+                    velocity_rs::memcmp::get_user_filter(),
                 ]),
                 account_config: RpcAccountInfoConfig {
                     encoding: Some(UiAccountEncoding::Base64Zstd),
@@ -1012,7 +1012,7 @@ pub async fn sync_user_accounts(
     match sync_result {
         Ok(accounts) => {
             for (pubkey, account) in accounts {
-                let user = drift_rs::utils::deser_zero_copy::<User>(&account.data);
+                let user = velocity_rs::utils::deser_zero_copy::<User>(&account.data);
                 dlob_notifier.user_update(pubkey, None, &user, 0);
                 drift.backend().account_map().on_account_fn()(&AccountUpdate {
                     pubkey,
@@ -1036,7 +1036,7 @@ pub async fn sync_user_accounts(
 }
 
 async fn subscribe_grpc(
-    drift: DriftClient,
+    drift: VelocityClient,
     dlob_notifier: DLOBNotifier,
     slot_tx: tokio::sync::mpsc::Sender<u64>,
     transaction_tx: TxSender,
@@ -1084,7 +1084,7 @@ pub enum TxWork {
 }
 
 pub struct TxWorker {
-    drift: &'static DriftClient,
+    drift: &'static VelocityClient,
     pending_txs: Arc<RwLock<PendingTxs<1024>>>,
     metrics: Arc<Metrics>,
     dry_run: bool,
@@ -1095,7 +1095,7 @@ pub struct TxWorker {
 
 impl TxWorker {
     pub fn new(
-        drift: DriftClient,
+        drift: VelocityClient,
         metrics: Arc<Metrics>,
         dry_run: bool,
         txs_in_flight: Option<Arc<DashMap<Pubkey, HashSet<Signature>>>>,
@@ -1290,15 +1290,15 @@ impl TxWorker {
                                 let (_, sent_slot) = intent.crosses_and_slot();
                                 let mut actual_fills = 0;
                                 for (tx_idx, log) in logs.iter().enumerate() {
-                                    if let Some(event) = drift_rs::event_subscriber::try_parse_log(
+                                    if let Some(event) = velocity_rs::event_subscriber::try_parse_log(
                                         log.as_str(),
                                         &sig,
                                         tx_idx,
                                     ) {
-                                        if let DriftEvent::OrderFill { ..} = event
+                                        if let VelocityEvent::OrderFill { ..} = event
                                         {
                                             actual_fills += 1;
-                                        } else if let DriftEvent::OrderTrigger { .. } = event {
+                                        } else if let VelocityEvent::OrderTrigger { .. } = event {
                                             metrics.trigger_actual.inc();
                                         } else if log.as_str().contains("exceeded CUs meter") {
                                             metrics
@@ -1442,7 +1442,7 @@ impl TxWorker {
 #[derive(Clone)]
 pub struct TxSender {
     tx: crossbeam::channel::Sender<TxWork>,
-    drift: &'static DriftClient,
+    drift: &'static VelocityClient,
 }
 
 impl TxSender {

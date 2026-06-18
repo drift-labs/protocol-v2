@@ -19,7 +19,7 @@ use crate::{
 };
 use clap::Parser;
 
-use drift_rs::{types::MarketId, DriftClient, RpcClient, Wallet};
+use velocity_rs::{types::MarketId, VelocityClient, RpcClient, Wallet};
 use mimalloc::MiMalloc;
 
 #[global_allocator]
@@ -72,7 +72,7 @@ pub struct Config {
     #[clap(long, env = "RELAYER_MIN_INTERVAL_MS", default_value = "1000")]
     pub relayer_min_interval_ms: u64,
     /// Comma-separated extra Pyth Lazer feed IDs to subscribe to and relay,
-    /// for clusters whose spot/perp layout doesn't match drift-rs mainnet
+    /// for clusters whose spot/perp layout doesn't match velocity-rs mainnet
     /// constants (e.g. quote oracle = USDT/USD on a fork).
     #[clap(long, env = "RELAYER_EXTRA_FEEDS", default_value = "")]
     pub relayer_extra_feeds: String,
@@ -172,7 +172,7 @@ async fn main() {
         .unwrap();
     });
 
-    let wallet: Wallet = drift_rs::utils::load_keypair_multi_format(
+    let wallet: Wallet = velocity_rs::utils::load_keypair_multi_format(
         &std::env::var("BOT_PRIVATE_KEY").expect("base58 BOT_PRIVATE_KEY set"),
     )
     .expect("loaded BOT_PRIVATE_KEY")
@@ -182,13 +182,13 @@ async fn main() {
     log::info!("mainnet={}, markets={}", config.mainnet, config.all_markets);
 
     let context = if config.mainnet {
-        drift_rs::types::Context::MainNet
+        velocity_rs::types::Context::MainNet
     } else {
-        drift_rs::types::Context::DevNet
+        velocity_rs::types::Context::DevNet
     };
     let rpc_url =
         std::env::var("RPC_URL").unwrap_or_else(|_| "https://api.devnet.solana.com".to_string());
-    let drift = DriftClient::new(context, RpcClient::new(rpc_url), wallet)
+    let drift = VelocityClient::new(context, RpcClient::new(rpc_url), wallet)
         .await
         .expect("initialized client");
 

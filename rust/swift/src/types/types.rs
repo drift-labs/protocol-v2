@@ -1,6 +1,6 @@
 use std::time::UNIX_EPOCH;
 
-use drift_rs::types::MarketType;
+use velocity_rs::types::MarketType;
 use solana_pubkey::Pubkey;
 
 use crate::types::messages::IncomingSignedMessage;
@@ -94,7 +94,7 @@ impl RequestContext {
 
 #[cfg(test)]
 mod tests {
-    use drift_rs::{
+    use velocity_rs::{
         swift_order_subscriber::SignedOrderType,
         types::{
             OrderParams, OrderTriggerCondition, OrderType, PositionDirection, PostOnlyParam,

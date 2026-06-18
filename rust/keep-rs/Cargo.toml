@@ -2,10 +2,10 @@
 name = "keeprs"
 version = "0.1.0"
 edition = "2021"
-description = "Rust keeper bots for Drift protocol"
+description = "Rust keeper bots for Velocity protocol"
 license = "MIT"
-repository = "https://github.com/drift-labs/keep-rs"
-keywords = ["drift", "defi", "solana", "trading-bot", "liquidity"]
+repository = "https://github.com/drift-labs/protocol-v2-shadow"
+keywords = ["velocity", "defi", "solana", "trading-bot", "liquidity"]
 categories = ["financial", "network-programming"]
 
 [dependencies]
@@ -14,9 +14,9 @@ axum = "0.8"
 clap = { version = "4.5.40", "features" = ["env", "derive"] }
 crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
 dotenv = "0.15.0"
-drift-rs = { path = "../drift-rs", features = ["unsafe_pub", "titan"] }
-# Program internals are reached via `drift_rs::drift::…`; no direct path-dep on
-# the velocity program. drift-rs pulls it with `cpi` (⊇ `no-entrypoint`).
+velocity-rs = { path = "../velocity-rs", features = ["unsafe_pub", "titan"] }
+# Program internals are reached via `velocity_rs::program::…`; no direct path-dep on
+# the velocity program. velocity-rs pulls it with `cpi` (⊇ `no-entrypoint`).
 env_logger = "0.11"
 # DLOB 'trace' logs are expensive so compile them out
 log = { version = "0.4", features = ["max_level_trace"] }

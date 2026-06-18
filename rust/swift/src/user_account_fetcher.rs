@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::AccountDeserialize;
 use base64::Engine;
-use drift_rs::{types::accounts::User, DriftClient};
+use velocity_rs::{types::accounts::User, VelocityClient};
 use redis::{aio::MultiplexedConnection, AsyncCommands};
 use solana_clock::Slot;
 use solana_pubkey::Pubkey;
@@ -11,7 +11,7 @@ use solana_pubkey::Pubkey;
 #[derive(Clone)]
 enum Fallback {
     /// Lookup from RPC
-    Rpc(DriftClient),
+    Rpc(VelocityClient),
     /// Lookup from some mocked hashmap
     Mock(HashMap<Pubkey, User>),
 }
@@ -32,7 +32,7 @@ impl UserAccountFetcher {
         }
     }
     /// Create a new `UserAccountFetcher` from env vars
-    pub async fn from_env(drift: DriftClient) -> Self {
+    pub async fn from_env(drift: VelocityClient) -> Self {
         let redis = {
             let elasticache_host = std::env::var("USERMAP_ELASTICACHE_HOST")
                 .unwrap_or_else(|_| "localhost".to_string());
@@ -80,7 +80,7 @@ impl UserAccountFetcher {
         false
     }
 
-    // Fetch a drift `User` from usermap, falling back to RPC
+    // Fetch a velocity `User` from usermap, falling back to RPC
     pub async fn get_user(&self, account: &Pubkey, slot: Slot) -> Result<User, ()> {
         match self.usermap_lookup(account, slot).await {
             Ok(res) => Ok(res),
@@ -140,7 +140,7 @@ impl UserAccountFetcher {
 
 #[cfg(test)]
 mod tests {
-    use drift_rs::{Context, RpcClient};
+    use velocity_rs::{Context, RpcClient};
     use solana_keypair::Keypair;
 
     use super::*;
@@ -150,7 +150,7 @@ mod tests {
     #[tokio::test]
     async fn usermap_lookups() {
         let _ = env_logger::try_init();
-        let drift = DriftClient::new(
+        let drift = VelocityClient::new(
             Context::DevNet,
             RpcClient::new("https://api.devnet.solana.com".into()),
             Keypair::new().into(),

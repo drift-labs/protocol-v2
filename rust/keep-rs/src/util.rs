@@ -3,7 +3,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use drift_rs::{
+use velocity_rs::{
     constants::{
         perp_market_index_to_pyth_lazer_feed_id, pyth_lazer_feed_id_to_perp_market_index,
         pyth_lazer_feed_id_to_spot_market_index, spot_market_index_to_pyth_lazer_feed_id,
@@ -363,7 +363,7 @@ fn fixed_rate(feed_id: u32) -> FixedRate {
     }
 }
 
-// scale pyth lazer price into drift price precision
+// scale pyth lazer price into velocity price precision
 #[inline(always)]
 fn to_price_precision(price: u64, feed_id: u32, market_type: MarketType) -> u64 {
     match feed_id {
@@ -445,7 +445,7 @@ pub fn subscribe_price_feeds(
                     subscription_id: SubscriptionId(sub_id),
                     params: SubscriptionParams::new(SubscriptionParamsRepr {
                         price_feed_ids: vec![*feed_id],
-                        // drift program requires exponent + feed_update_timestamp to apply the update
+                        // velocity program requires exponent + feed_update_timestamp to apply the update
                         properties: vec![
                             PriceFeedProperty::Price,
                             PriceFeedProperty::Exponent,
@@ -533,7 +533,7 @@ pub fn subscribe_price_feeds(
                                                 }
 
                                                 // Extra feeds (cluster-specific): emit a synthetic
-                                                // update so the relayer ships them. drift-rs
+                                                // update so the relayer ships them. velocity-rs
                                                 // derives the oracle PDA from feed_id alone, so
                                                 // market_id is informational only.
                                                 if extra_feeds.contains(&feed_id)

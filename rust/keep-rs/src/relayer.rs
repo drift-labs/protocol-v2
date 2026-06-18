@@ -1,7 +1,7 @@
 //! Pyth Lazer oracle relayer
 //!
 //! Subscribes to Lazer price feeds for the configured perp (and optionally
-//! spot) markets, and posts each price update on-chain via Drift's
+//! spot) markets, and posts each price update on-chain via Velocity's
 //! `post_pyth_lazer_oracle_update` instruction.
 use std::{
     borrow::Cow,
@@ -13,9 +13,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use drift_rs::{
+use velocity_rs::{
     types::{accounts::User, MarketId, RpcSendTransactionConfig},
-    DriftClient, TransactionBuilder,
+    VelocityClient, TransactionBuilder,
 };
 
 use crate::{Config, UseMarkets};
@@ -31,7 +31,7 @@ struct Stats {
     skipped_throttle: AtomicU64,
 }
 
-pub async fn run(config: Config, drift: DriftClient) {
+pub async fn run(config: Config, drift: VelocityClient) {
     let perp_market_ids = match config.use_markets() {
         UseMarkets::All => drift.get_all_perp_market_ids(),
         UseMarkets::Subset(m) => m,
@@ -87,7 +87,7 @@ pub async fn run(config: Config, drift: DriftClient) {
         .await
         .expect("bot subaccount exists (run --init-user first)");
 
-    let drift: &'static DriftClient = Box::leak(Box::new(drift));
+    let drift: &'static VelocityClient = Box::leak(Box::new(drift));
     let user: &'static User = Box::leak(Box::new(user));
     let stats = Arc::new(Stats::default());
 
@@ -195,8 +195,8 @@ pub async fn run(config: Config, drift: DriftClient) {
     log::warn!(target: TARGET, "pyth feed channel closed; exiting relayer");
 }
 
-/// One-shot: initialize the bot's drift sub-account, then exit.
-pub async fn init_user(config: Config, drift: DriftClient) {
+/// One-shot: initialize the bot's velocity sub-account, then exit.
+pub async fn init_user(config: Config, drift: VelocityClient) {
     let subaccount = drift.wallet.sub_account(config.sub_account_id);
     if drift.get_user_account(&subaccount).await.is_ok() {
         log::info!(target: TARGET, "subaccount {subaccount} already exists; nothing to do");

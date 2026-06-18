@@ -31,7 +31,7 @@ builds, ~15–20 min).
   removed). `tests/ci/*` stay out (live RPC — see Outstanding #3).
 - **Rust offline workspace gates** — `rust-workspace-check` runs `cargo test --workspace
   --all-targets` (rpc_tests OFF) with a **Redis service container**, no `continue-on-error`.
-  Green: drift-rs lib 90, swift 38, doctests 7. Live tests are compiled out via the project's
+  Green: velocity-rs lib 90, swift 38, doctests 7. Live tests are compiled out via the project's
   `rpc_tests` cargo feature and run in a separate non-blocking `rust-live-tests` job.
 - **velocity program unit tests gate** — `cargo test -p velocity --lib`: 841 pass, fmt + clippy
   clean. 6 remaining `#[ignore]`s now carry precise reasons (Outstanding #4).
@@ -101,7 +101,7 @@ mechanical fixture fix (the legacy-snapshot layout migration is done — see
 - (`test_utils/legacy_snapshot.rs::print_regenerated` stays ignored — it's a regeneration tool.)
 
 ### 5. Dead test to delete (removed feature) — cheap cleanup
-- drift-rs `dlob::tests::dlob_l2_snapshot_max_leverage_filtering` — tests a max-leverage L2
+- velocity-rs `dlob::tests::dlob_l2_snapshot_max_leverage_filtering` — tests a max-leverage L2
   filtering feature that **doesn't exist in this fork**; delete or implement.
 
 ### 6. `Some(0)` isolated-deposit quirk — product decision (1-line lib change)
@@ -116,7 +116,7 @@ likely unintended; normalizing `Some(0)`→`None` is a one-liner left for you to
   `apps/snapshots`, which was never vendored.)
 - **`MAX_USER_ACCOUNT_SIZE_BYTES = 4376`** in `packages/sdk/src/userMap/userMap.ts` looks stale
   vs `User::SIZE = 4496` — worth a check.
-- **drift-rs `event_subscriber` 4 base64-log `#[ignore]`s** (`parses_*` are fixed/un-ignored;
+- **velocity-rs `event_subscriber` 4 base64-log `#[ignore]`s** (`parses_*` are fixed/un-ignored;
   these 4 are `rpc_tests`-gated and need *real captured mainnet tx logs* that can't be
   synthesized) — revisit when live infra exists.
 

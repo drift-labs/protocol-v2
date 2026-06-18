@@ -14,13 +14,13 @@
 
 use std::time::Duration;
 
-use drift_rs::{
+use velocity_rs::{
     math::constants::{BASE_PRECISION_U64, PRICE_PRECISION_U64, QUOTE_PRECISION},
     types::{
         accounts::User, MarketId, MarketType, OrderParams, OrderType, PerpPosition,
         PositionDirection, PostOnlyParam, SpotBalanceType,
     },
-    DriftClient, Pubkey, TransactionBuilder,
+    VelocityClient, Pubkey, TransactionBuilder,
 };
 
 use crate::{Config, UseMarkets};
@@ -30,7 +30,7 @@ const USER_ORDER_ID_BID: u8 = 201;
 const USER_ORDER_ID_ASK: u8 = 202;
 
 pub struct QuoterBot {
-    drift: DriftClient,
+    drift: VelocityClient,
     config: Config,
     subaccount: Pubkey,
     markets: Vec<u16>,
@@ -46,7 +46,7 @@ struct MarketSnapshot {
 }
 
 impl QuoterBot {
-    pub async fn new(config: Config, drift: DriftClient) -> Self {
+    pub async fn new(config: Config, drift: VelocityClient) -> Self {
         let requested: Vec<u16> = match config.use_markets() {
             UseMarkets::All => drift
                 .get_all_perp_market_ids()
@@ -327,7 +327,7 @@ impl QuoterBot {
         )
         .with_priority_fee(self.config.priority_fee, Some(self.config.fill_cu_limit));
 
-        // drift-rs's `cancel_orders_by_user_id` does not inject the target
+        // velocity-rs's `cancel_orders_by_user_id` does not inject the target
         // perp market into remaining_accounts (and `build_accounts` only
         // scans user positions, not user.orders), so a cancel on a market
         // where we hold no position fails on-chain with PerpMarketNotFound.

@@ -37,9 +37,9 @@ use axum::{
 };
 use base64::Engine;
 use dotenv::dotenv;
-use drift_rs::{
+use velocity_rs::{
     constants::state_account,
-    drift_idl,
+    velocity_idl,
     event_subscriber::PubsubClient,
     math::account_list_builder::AccountsListBuilder,
     swift_order_subscriber::{SignedMessageInfo, SignedOrderType},
@@ -48,7 +48,7 @@ use drift_rs::{
         MarketTypeExt, OrderParams, OrderParamsExt, OrderType, PositionDirection, ProgramError,
         SdkError, SdkResult, SignedMsgTriggerOrderParams, VersionedMessage, VersionedTransaction,
     },
-    Context, DriftClient, RpcClient, TransactionBuilder, Wallet,
+    Context, VelocityClient, RpcClient, TransactionBuilder, Wallet,
 };
 use log::warn;
 use prometheus::Registry;
@@ -92,7 +92,7 @@ impl Config {
 
 #[derive(Clone)]
 pub struct ServerParams {
-    drift: drift_rs::DriftClient,
+    drift: velocity_rs::VelocityClient,
     slot_subscriber: Arc<SuperSlotSubscriber>,
     metrics: SwiftServerMetrics,
     redis_pool: MultiplexedConnection,
@@ -487,7 +487,7 @@ pub async fn deposit_trade(
     let mut has_place_ix = false;
     for ix in req.deposit_tx.message.instructions() {
         if ix.data.len() > 8
-            && &ix.data[..8] == drift_idl::instructions::PlaceSignedMsgTakerOrder::DISCRIMINATOR
+            && &ix.data[..8] == velocity_idl::instructions::PlaceSignedMsgTakerOrder::DISCRIMINATOR
         {
             has_place_ix = true;
         }
@@ -692,7 +692,7 @@ pub async fn start_server() {
     };
 
     let rpc_endpoint =
-        drift_rs::utils::get_http_url(&env::var("ENDPOINT").expect("valid rpc endpoint"))
+        velocity_rs::utils::get_http_url(&env::var("ENDPOINT").expect("valid rpc endpoint"))
             .expect("valid RPC endpoint");
 
     // Registry for metrics
@@ -703,10 +703,10 @@ pub async fn start_server() {
     let context = match drift_env.as_str() {
         "devnet" => Context::DevNet,
         "mainnet-beta" => Context::MainNet,
-        _ => panic!("Invalid drift environment: {drift_env}"),
+        _ => panic!("Invalid velocity environment: {drift_env}"),
     };
     let wallet = Wallet::new(Keypair::new());
-    let client = DriftClient::new(context, RpcClient::new(rpc_endpoint), wallet)
+    let client = VelocityClient::new(context, RpcClient::new(rpc_endpoint), wallet)
         .await
         .expect("initialized client");
 
@@ -969,7 +969,7 @@ impl ServerParams {
     fn simulate_taker_order_local(
         &self,
         order_params: &OrderParams,
-        user: &drift_rs::types::accounts::User,
+        user: &velocity_rs::types::accounts::User,
         max_margin_ratio: Option<u16>,
         context: &RequestContext,
     ) -> bool {
@@ -1182,7 +1182,7 @@ impl ServerParams {
                         Some(code) => {
                             // insufficient collateral is prone to precision errors, allow the order through with some leniency
                             // EXCEPT for isolated deposits, where we want to return the error to the client
-                            if code == ProgramError::Drift(ErrorCode::InsufficientCollateral)
+                            if code == ProgramError::Velocity(ErrorCode::InsufficientCollateral)
                                 && isolated_deposit.is_none()
                             {
                                 if let Some(ref logs) = res.value.logs {
@@ -1498,7 +1498,7 @@ fn extract_signed_message_info(
 }
 
 fn dump_account_state(
-    drift: &DriftClient,
+    drift: &VelocityClient,
     taker_subaccount_pubkey: &Pubkey,
     user: User,
     taker_order_params: &OrderParams,
@@ -1516,13 +1516,13 @@ fn dump_account_state(
     let mut debug_log = String::with_capacity(8192 * 2);
     debug_log.push_str("user:");
     base64::engine::general_purpose::STANDARD
-        .encode_string(drift_rs::utils::zero_account_to_bytes(user), &mut debug_log);
+        .encode_string(velocity_rs::utils::zero_account_to_bytes(user), &mut debug_log);
     debug_log.push('|');
     for p in user.spot_positions.iter().filter(|p| !p.is_available()) {
         if let Ok(market) = drift.try_get_spot_market_account(p.market_index) {
             debug_log.push_str(&format!("spotMarket-{}:", p.market_index,));
             base64::engine::general_purpose::STANDARD.encode_string(
-                drift_rs::utils::zero_account_to_bytes(market),
+                velocity_rs::utils::zero_account_to_bytes(market),
                 &mut debug_log,
             );
             debug_log.push('|');
@@ -1539,7 +1539,7 @@ fn dump_account_state(
         if let Ok(market) = drift.try_get_perp_market_account(p.market_index) {
             debug_log.push_str(&format!("perpMarket-{}:", p.market_index,));
             base64::engine::general_purpose::STANDARD.encode_string(
-                drift_rs::utils::zero_account_to_bytes(market),
+                velocity_rs::utils::zero_account_to_bytes(market),
                 &mut debug_log,
             );
             debug_log.push('|');
@@ -1556,7 +1556,7 @@ fn dump_account_state(
     if let Ok(market) = drift.try_get_perp_market_account(taker_order_params.market_index) {
         debug_log.push_str(&format!("perpMarket-{}:", taker_order_params.market_index,));
         base64::engine::general_purpose::STANDARD.encode_string(
-            drift_rs::utils::zero_account_to_bytes(market),
+            velocity_rs::utils::zero_account_to_bytes(market),
             &mut debug_log,
         );
         debug_log.push('|');
@@ -1576,7 +1576,7 @@ fn dump_account_state(
 
 /// Simulate the tx on remote RPC node
 pub async fn simulate_tx(
-    drift: &DriftClient,
+    drift: &VelocityClient,
     tx: VersionedMessage,
     accounts: &[Pubkey],
 ) -> SdkResult<RpcSimulateTransactionResult> {
@@ -1607,7 +1607,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use drift_rs::types::{
+    use velocity_rs::types::{
         accounts::User, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
         SignedMsgTriggerOrderParams,
     };
@@ -2175,8 +2175,8 @@ mod tests {
     async fn test_simulate_taker_order_rpc() {
         let _ = env_logger::try_init();
         // Create mock server params
-        let drift = DriftClient::new(
-            drift_rs::Context::DevNet,
+        let drift = VelocityClient::new(
+            velocity_rs::Context::DevNet,
             RpcClient::new("https://api.devnet.solana.com".to_string()),
             Keypair::new().into(),
         )
@@ -2282,7 +2282,7 @@ mod tests {
                 &context_secondary,
             )
             .await;
-        // it fails later at remote sim since the account is not a real drift account
+        // it fails later at remote sim since the account is not a real velocity account
         assert!(result.is_err_and(|(status, msg, _)| {
             dbg!(&msg);
             status == axum::http::StatusCode::BAD_REQUEST

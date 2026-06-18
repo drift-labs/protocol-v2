@@ -1,11 +1,11 @@
-//! Off-chain replay of `drift_rs::drift::controller::orders::place_perp_order`.
+//! Off-chain replay of `velocity_rs::program::controller::orders::place_perp_order`.
 //!
 //! Mirrors the simulation that the on-chain `place_signed_msg_taker_order`
 //! ix runs for its main perp leg. The signature verification, slot freshness
 //! check, signed-msg dedup, and SL/TP/isolated-deposit side-effects are
 //! handled by the swift caller before we get here.
 //!
-//! Replaces the deleted `drift_rs::ffi::simulate_place_perp_order`.
+//! Replaces the deleted `velocity_rs::ffi::simulate_place_perp_order`.
 
 use std::{
     cell::RefCell,
@@ -14,7 +14,7 @@ use std::{
 };
 
 use anchor_lang::AccountDeserialize;
-use drift_rs::drift::{
+use velocity_rs::program::{
     controller::orders::place_perp_order,
     error::{ErrorCode, VelocityResult},
     sdk::{OwnedAccount, VelocityAccounts},
@@ -54,7 +54,7 @@ fn build_infos<'a>(entries: &'a mut [(Pubkey, OwnedAccount)]) -> Vec<AccountInfo
 ///
 /// `user` is cloned before the call so the caller's value is not mutated,
 /// matching the pre-FFI-removal behavior. `state_bytes` is the raw cached
-/// state-account bytes (including 8-byte discriminator) — drift's native
+/// state-account bytes (including 8-byte discriminator) — velocity's native
 /// `State` is Borsh-only and not safely castable from the Pod IDL mirror.
 pub fn simulate_place_perp_order(
     user: &User,
