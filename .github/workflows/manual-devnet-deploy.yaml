@@ -70,7 +70,7 @@ jobs:
           buffer-authority: ${{ secrets.DEVNET_MULTISIG_VAULT }}
 
       - name: Propose Squads upgrade
-        uses: helium/squads-program-upgrade@v4.0.0
+        uses: helium/squads-program-upgrade@672746dbc16204035cbb8a5187dad3e974e9152d # v4.0.0
         with:
           network-url: ${{ secrets.DEVNET_RPC_ENDPOINT }}
           program-multisig: ${{ secrets.DEVNET_MULTISIG }}

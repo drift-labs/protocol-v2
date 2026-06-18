@@ -47,7 +47,7 @@ runs:
 
     - name: Upload program buffer
       id: program-buffer
-      uses: nick-invision/retry@v2
+      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
       with:
         timeout_minutes: 30
         max_attempts: 5
@@ -66,7 +66,7 @@ runs:
 
     - name: Create IDL buffer (program-metadata)
       id: idl-buffer
-      uses: nick-invision/retry@v2
+      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
       with:
         timeout_minutes: 15
         max_attempts: 5
@@ -99,7 +99,7 @@ runs:
         echo "idl-buffer=$IDL_BUFFER" >> "$GITHUB_OUTPUT"
 
     - name: Transfer program buffer authority to vault
-      uses: nick-invision/retry@v2
+      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
       with:
         timeout_minutes: 10
         max_attempts: 5
@@ -111,7 +111,7 @@ runs:
             -u "${{ inputs.rpc-url }}"
 
     - name: Transfer IDL buffer authority to vault
-      uses: nick-invision/retry@v2
+      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
       with:
         timeout_minutes: 10
         max_attempts: 5

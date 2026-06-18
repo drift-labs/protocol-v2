@@ -49,7 +49,7 @@ jobs:
           devnet: "false"
 
       - name: Attach IDL to GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           files: target/idl/velocity.json
         env:
@@ -65,7 +65,7 @@ jobs:
           buffer-authority: ${{ secrets.MAINNET_MULTISIG_VAULT }}
 
       - name: Propose Squads upgrade
-        uses: helium/squads-program-upgrade@v4.0.0
+        uses: helium/squads-program-upgrade@672746dbc16204035cbb8a5187dad3e974e9152d # v4.0.0
         with:
           network-url: ${{ secrets.MAINNET_RPC_ENDPOINT }}
           program-multisig: ${{ secrets.MAINNET_MULTISIG }}
