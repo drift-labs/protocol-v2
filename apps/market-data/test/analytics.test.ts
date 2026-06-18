@@ -47,7 +47,7 @@ jest.mock('../src/services/scheduler', () => ({
 }));
 
 // Get references to the mocked functions after mocks are set up
-const { getPerpMarketSymbol, getSpotMarketSymbol, logger, roundToDay } =
+const { getPerpMarketSymbol, getSpotMarketSymbol, logger: _logger, roundToDay } =
 	jest.requireMock('@backend/common');
 
 // Mock VelocityClient

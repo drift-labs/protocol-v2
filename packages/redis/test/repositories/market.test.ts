@@ -193,7 +193,7 @@ describe('MarketCacheRepository', () => {
 				.mockResolvedValueOnce([{ quote: 100, base: 10 }]) // BTC
 				.mockResolvedValueOnce([{ quote: 50, base: 5 }]); // SOL
 
-			const result = await repository.calculateRollingVolumes();
+			const _result = await repository.calculateRollingVolumes();
 
 			expect(mockSet).toHaveBeenCalledWith(
 				expect.stringMatching(/total:24h$/),
@@ -398,7 +398,7 @@ describe('MarketCacheRepository', () => {
 			mockHGetAll.mockResolvedValue(stored);
 			mockGet.mockResolvedValue('1000.000000');
 
-			const result = await repository.getMarketsVolume({
+			const _result = await repository.getMarketsVolume({
 				interval: VolumeInterval.TWENTY_FOUR_HOUR,
 			});
 

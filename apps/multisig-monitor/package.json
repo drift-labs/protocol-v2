@@ -5,7 +5,8 @@
     "start": "node esbuild.config.js && node dist/index.js",
     "replay": "ts-node scripts/replay.ts",
     "build": "bun run clean && node esbuild.config.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -21,7 +22,7 @@
     "@triton-one/yellowstone-fumarole": "^0.2.3",
     "@types/express": "^4.17.21",
     "@velocity-exchange/sdk": "workspace:*",
-    "@velocity-exchange/vaults-sdk": "0.0.2",
+    "@velocity-exchange/vaults-sdk": "workspace:*",
     "bs58": "^6.0.0",
     "express": "^4.21.0",
     "rxjs": "^7.8.2",

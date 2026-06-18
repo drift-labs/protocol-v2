@@ -1,5 +1,5 @@
 import { buildPayload, buildBatchPayload, type DisplayConfig } from '../src/slack';
-import type { DetectedOperation } from '../src/squads/index';
+import type { DetectedOperation } from '../src/squads/types';
 import type { SquadsOperation } from '../src/squads/types';
 
 const defaultDisplay: DisplayConfig = {

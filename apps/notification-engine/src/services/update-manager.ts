@@ -49,10 +49,13 @@ export const UpdateManager = ({ isRunning } = { isRunning: true }) => {
 
 	const userUpdateQueue: UserUpdateRecord[] = [];
 
-	const serializers = Object.entries(schemaMap).reduce((acc, [key, schema]) => {
-		acc[key as RecordTypes] = fastJson(schema as any);
-		return acc;
-	}, {} as Record<RecordTypes, (data: any) => string>);
+	const serializers = Object.entries(schemaMap).reduce(
+		(acc, [key, schema]) => {
+			acc[key as RecordTypes] = fastJson(schema as any);
+			return acc;
+		},
+		{} as Record<RecordTypes, (data: any) => string>
+	);
 
 	const getRecordTypeFromSk = (sk: string): RecordTypes | null => {
 		if (sk.startsWith(`${ORDER_ACTION_RECORD_ID}#`)) return RecordTypes.OrderActionRecord;
@@ -92,11 +95,14 @@ export const UpdateManager = ({ isRunning } = { isRunning: true }) => {
 		);
 
 		try {
-			const updatesByUser = toPublish.reduce((acc, update) => {
-				const userId = (update as any).user as string | undefined;
-				if (userId) (acc[userId] ||= []).push(update);
-				return acc;
-			}, {} as Record<string, typeof toPublish>);
+			const updatesByUser = toPublish.reduce(
+				(acc, update) => {
+					const userId = (update as any).user as string | undefined;
+					if (userId) (acc[userId] ||= []).push(update);
+					return acc;
+				},
+				{} as Record<string, typeof toPublish>
+			);
 
 			if (Object.keys(updatesByUser).length) {
 				await executeInPipeline((pipeline) => {

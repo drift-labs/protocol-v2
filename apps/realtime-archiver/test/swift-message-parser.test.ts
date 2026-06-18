@@ -184,7 +184,7 @@ describe.skip('Swift Transformer', () => {
 		};
 		mockGet.mockResolvedValue(encodedContent);
 		mockPut.mockResolvedValue(undefined);
-		const result = await handler(event);
+		const _result = await handler(event);
 		expect(mockGet).toHaveBeenCalledTimes(2);
 		expect(mockPut).toHaveBeenCalledTimes(2);
 	});

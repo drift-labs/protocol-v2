@@ -1,3 +1,9 @@
+// Live integration tests: live mainnet/devnet RPC, funded keypairs, gRPC, and
+// transaction submission. Gated behind `rpc_tests` so the offline PR gate
+// (`cargo test --workspace`) excludes the whole file; the live CI job runs with
+// `--features rpc_tests` and the required secrets.
+#![cfg(feature = "rpc_tests")]
+
 use std::{str::FromStr, time::Duration};
 
 use anchor_lang::Discriminator;

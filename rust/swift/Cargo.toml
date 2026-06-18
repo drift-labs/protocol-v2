@@ -3,6 +3,12 @@ name = "swift-server"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Live tests that need RPC-backed external state. Off by default so the offline
+# PR gate (`cargo test --workspace`) skips them; the live CI job runs
+# `cargo test --workspace --features rpc_tests` with the required secrets.
+rpc_tests = []
+
 [dependencies]
 anyhow = "1.0.86"
 arrayvec = "0.7.6"
@@ -16,7 +22,8 @@ clap = { version = "4.0", features = ["derive"] }
 dashmap = "6.1.0"
 dotenv = "0.15.0"
 drift-rs = { path = "../drift-rs" }
-drift = { package = "velocity", path = "../../programs/velocity", default-features = false, features = ["velocity-rs", "mainnet-beta", "cpi"] }
+# Program internals are reached via `drift_rs::drift::…`; no direct path-dep on
+# the velocity program. drift-rs pulls it with `cpi`.
 solana-account-info = "3.1"
 solana-clock = "3"
 ed25519-dalek = "1.0.1"

@@ -126,7 +126,7 @@ async function main(): Promise<void> {
 		`Polling ${TARGET_URL} every ${POLL_INTERVAL_MS}ms; writing to ${csvPath}`
 	);
 
-	while (true) {
+	for (;;) {
 		try {
 			const start = Date.now();
 			const resp = await fetchAuctionParams();

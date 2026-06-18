@@ -204,6 +204,22 @@ export class BankrunConnection {
 		return unpackAccount(publicKey, info, info.owner);
 	}
 
+	// Mirrors the drift-vaults bankrun helper: returns the decoded SPL token
+	// Account (with .amount), not web3.js's { value: { amount } } shape. The
+	// vaults tests read `.amount` off the result directly.
+	async getTokenAccountBalance(
+		publicKey: PublicKey,
+		_commitment?: Commitment
+	): Promise<Account> {
+		return this.getTokenAccount(publicKey);
+	}
+
+	// SOL lamport balance, straight off the BanksClient. Returns a bigint like
+	// the drift-vaults bankrun helper (callers wrap with Number()).
+	async getBalance(publicKey: PublicKey): Promise<bigint> {
+		return this._banksClient.getBalance(publicKey);
+	}
+
 	async getMultipleAccountsInfo(
 		publicKeys: PublicKey[],
 		_commitmentOrConfig?: Commitment
@@ -236,7 +252,17 @@ export class BankrunConnection {
 		// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 		_options?: any
 	): Promise<TransactionSignature> {
-		const tx = Transaction.from(rawTransaction);
+		// Raw bytes may encode either a legacy or a versioned (v0) transaction.
+		// sendTransaction handles both, but they must be deserialized with the
+		// matching type: legacy parses with Transaction.from, versioned needs
+		// VersionedTransaction.deserialize. Versioned-tx clients (e.g. the vaults
+		// VaultClient) always send v0, so fall back when the legacy parse throws.
+		let tx: Transaction | VersionedTransaction;
+		try {
+			tx = Transaction.from(rawTransaction);
+		} catch (e) {
+			tx = VersionedTransaction.deserialize(rawTransaction as Uint8Array);
+		}
 		const signature = await this.sendTransaction(tx);
 		return signature;
 	}

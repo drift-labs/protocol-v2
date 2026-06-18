@@ -24,7 +24,7 @@ describe('StatsCacheRepository', () => {
 		{ pubkey: 'vault2', userShares: 150000000, totalShares: 300000000 },
 	];
 
-	const mockLpArps = [
+	const _mockLpArps = [
 		{
 			symbol: 'SOL-PERP',
 			marketIndex: 0,

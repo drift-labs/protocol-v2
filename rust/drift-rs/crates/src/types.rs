@@ -37,9 +37,6 @@ pub mod accounts {
     // module / `IfRebalanceConfig`) and `ProtocolIfSharesTransferConfig` that
     // upstream drift exposes, so those re-exports are dropped here.
     pub use drift::state::insurance_fund_stake::InsuranceFundStake;
-    pub use drift::vlp::hedge::state::{
-        AmmConstituentMapping, Constituent, ConstituentCorrelations, ConstituentTargetBase, LPPool,
-    };
     pub use drift::state::oracle::PrelaunchOracle;
     pub use drift::state::perp_market::PerpMarket;
     pub use drift::state::pyth_lazer_oracle::PythLazerOracle;
@@ -47,6 +44,9 @@ pub mod accounts {
     pub use drift::state::signed_msg_user::{SignedMsgUserOrders, SignedMsgWsDelegates};
     pub use drift::state::spot_market::SpotMarket;
     pub use drift::state::user::{ReferrerName, User, UserStats};
+    pub use drift::vlp::hedge::state::{
+        AmmConstituentMapping, Constituent, ConstituentCorrelations, ConstituentTargetBase, LPPool,
+    };
 }
 pub mod events {
     // Keep IDL events in public API: drift's `#[event]` types lack serde.

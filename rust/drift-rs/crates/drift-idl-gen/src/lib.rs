@@ -7,8 +7,8 @@ use std::{
 };
 
 use anchor_lang_idl::types::{
-    Idl, IdlArrayLen, IdlDefinedFields, IdlField, IdlInstructionAccount,
-    IdlInstructionAccountItem, IdlType, IdlTypeDef, IdlTypeDefTy,
+    Idl, IdlArrayLen, IdlDefinedFields, IdlField, IdlInstructionAccount, IdlInstructionAccountItem,
+    IdlType, IdlTypeDef, IdlTypeDefTy,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -97,7 +97,9 @@ fn compute_dyn_sized_types(types: &[IdlTypeDef]) -> HashSet<String> {
 
     let direct_for = |td: &IdlTypeDefTy| -> bool {
         match td {
-            IdlTypeDefTy::Struct { fields: Some(f) } => defined_fields_iter(f).any(idl_type_directly_dyn),
+            IdlTypeDefTy::Struct { fields: Some(f) } => {
+                defined_fields_iter(f).any(idl_type_directly_dyn)
+            }
             IdlTypeDefTy::Enum { variants } => variants.iter().any(|v| {
                 v.fields
                     .as_ref()
@@ -209,8 +211,7 @@ fn generate_idl_types(idl: &Idl) -> String {
                 let has_complex_first = matches!(variants.first(), Some(v) if v.fields.is_some());
 
                 let variant_tokens = variants.iter().enumerate().map(|(i, variant)| {
-                    let variant_name =
-                        Ident::new(&variant.name, proc_macro2::Span::call_site());
+                    let variant_name = Ident::new(&variant.name, proc_macro2::Span::call_site());
                     match &variant.fields {
                         None => {
                             if i == 0 {

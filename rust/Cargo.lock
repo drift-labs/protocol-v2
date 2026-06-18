@@ -2649,7 +2649,6 @@ dependencies = [
  "solana-transaction-status",
  "solana-transaction-status-client-types",
  "tokio",
- "velocity",
 ]
 
 [[package]]
@@ -6113,7 +6112,6 @@ dependencies = [
  "tower-http 0.6.11",
  "urlencoding",
  "uuid",
- "velocity",
  "zstd",
 ]
 

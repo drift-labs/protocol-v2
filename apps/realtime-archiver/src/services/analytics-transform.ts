@@ -85,7 +85,7 @@ const parseBnField = (value: string | number | undefined, precision: number) =>
 type SerializedRecord<
 	TRecord,
 	TOverrides extends Record<string, unknown>,
-	TEventType extends RecordTypes
+	TEventType extends RecordTypes,
 > = Omit<TRecord, keyof TOverrides> &
 	TOverrides & {
 		eventType: TEventType;

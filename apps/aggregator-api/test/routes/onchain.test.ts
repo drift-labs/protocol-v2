@@ -96,12 +96,12 @@ describe('Onchain Routes', () => {
 			getActivePerpPositions: jest.fn(() => perpPositions),
 			getActiveSpotPositions: jest.fn(() => spotPositions),
 			getOpenOrders: jest.fn(() => openOrders),
-			liquidationPrice: jest.fn((marketIndex: number) => new BN(100).mul(QUOTE_PRECISION)),
+			liquidationPrice: jest.fn((_marketIndex: number) => new BN(100).mul(QUOTE_PRECISION)),
 			isPerpPositionIsolated: jest.fn(
 				(position: { positionFlag?: number }) =>
 					((position.positionFlag ?? 0) & PositionFlag.IsolatedPosition) !== 0
 			),
-			spotLiquidationPrice: jest.fn((marketIndex: number) => new BN(50).mul(QUOTE_PRECISION)),
+			spotLiquidationPrice: jest.fn((_marketIndex: number) => new BN(50).mul(QUOTE_PRECISION)),
 		};
 	};
 

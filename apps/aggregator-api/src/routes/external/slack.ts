@@ -20,7 +20,10 @@ class VercelClient {
 	private envVars = new Map<string, string | undefined>();
 	private members: Map<string, string> | undefined;
 
-	constructor(private readonly token: string, private readonly teamId: string) {}
+	constructor(
+		private readonly token: string,
+		private readonly teamId: string
+	) {}
 
 	private async fetchJson(path: string): Promise<Json | undefined> {
 		const sep = path.includes('?') ? '&' : '?';

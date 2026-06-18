@@ -54,8 +54,14 @@ export class WinstonSlackLogger {
 		const currentCount = this.messageQueue.get(message) || 0;
 		this.messageQueue.set(message, currentCount + 1);
 
-		if (!this.batchTimer) {
+		// Skip the deferred Slack flush under jest: the timer would fire ~5s later,
+		// after the test that logged has torn down, which trips jest's "Cannot log
+		// after tests are done" and fails an otherwise-green run with exit 1. There's
+		// no SLACK_WEBHOOK_URL in tests anyway, so the flush would be a no-op.
+		if (!this.batchTimer && !process.env.JEST_WORKER_ID) {
 			this.batchTimer = setTimeout(() => this.flushMessages(), 5000);
+			// A fire-and-forget Slack batch flush must never keep the process alive.
+			this.batchTimer.unref?.();
 		}
 
 		if (this.messageQueue.size >= 10) {

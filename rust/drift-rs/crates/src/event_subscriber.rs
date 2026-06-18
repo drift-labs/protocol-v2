@@ -881,11 +881,14 @@ mod test {
     #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn event_streaming_logs() {
-        use crate::async_utils::retry_policy;
+        let ws = Arc::new(
+            PubsubClient::new("wss://api.devnet.solana.com")
+                .await
+                .expect("ws connects"),
+        );
         let mut event_stream = EventSubscriber::subscribe(
-            "wss://api.devnet.solana.com",
+            ws,
             Pubkey::from_str("9JtczxrJjPM4J1xooxr2rFXmRivarb4BwjNiBgXDwe2p").unwrap(),
-            retry_policy::never(),
         )
         .await
         .unwrap()
@@ -897,6 +900,7 @@ mod test {
     }
 
     #[ignore = "base64 encoded logs need updating"]
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn log_stream_handles_jit_proxy_events() {
         let cache = TxSignatureCache::new(16);
@@ -1003,44 +1007,153 @@ mod test {
         assert!(event_rx.try_recv().is_err()); // no more events
     }
 
-    #[ignore = "base64 encoded logs need updating"]
     #[test]
     fn parses_order_trigger() {
+        // Build a current-layout `OrderActionRecord` with `OrderAction::Trigger`
+        // and serialize it the same way the program emits events
+        // (`[8-byte discriminator][borsh body]`, base64). This keeps the fixture
+        // in sync with the on-chain event layout instead of relying on a
+        // captured base64 blob that drifts whenever the struct changes.
+        let user = Pubkey::new_unique();
+        let taker_order = Order {
+            order_id: 7,
+            base_asset_amount: 1_000_000,
+            market_type: MarketType::Perp,
+            ..Default::default()
+        };
+        let oar = get_order_action_record(
+            1_700_000_000,
+            OrderAction::Trigger,
+            OrderActionExplanation::None,
+            0,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(user),
+            Some(taker_order),
+            None,
+            None,
+            123_456,
+            0,
+        );
+
         let logs = &[
-        "Program log: Instruction: TriggerOrder",
-        "Program log: new auction duration 20 start price -78510 end price -240874",
-        "Program data: 4DRDR8LtbQG05GRoAAAAAAMAAAABAWV38QbUIIRAZCdpZP/Qu59+ZUJQ7xCnqbsMijUn8LhNAbgLAAAAAAAAAAAAAbgLAAAAAAAAAAAAAAFyjMdMRfzcEXahOyKad9N6FfOMHN8CvExn1JYdEjXysQEXAQAAAQEBAGXNHQAAAAABAAAAAAAAAAABAAAAAAAAAAAAAAAAAADvauMIAAAAAAAAAAAA",
-        "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH consumed 20239 of 319700 compute units",
-        "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH success",
-        "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH invoke [1]",
-        "Program log: Instruction: FillPerpOrder",
-        "Program log: market 0 amm skipping auction duration",
-        "Program log: 4DRDR8LtbQG05GRoAAAAAAIGAAABAWV38QbUIIRAZCdpZP/Qu59+ZUJQ7xCnqbsMijUn8LhNAUcHAAAAAAAAASRutQAAAAAAAQBlzR0AAAAAAayTcQQAAAAAAc9IAAAAAAAAAAABySEAAAAAAAAAAXKMx0xF/NwRdqE7Ipp303oV84wc3wK8TGfUlh0SNfKxARcBAAABAQEAZc0dAAAAAAEAZc0dAAAAAAGsk3EEAAAAAAAAAAAAAO9q4wgAAAAAAAEG408EAAAAAAAAAA==",
+            "Program log: Instruction: TriggerOrder".to_string(),
+            format!("{PROGRAM_DATA}{}", serialize_event(oar)),
+            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH success".to_string(),
         ];
-        let mut found_trigger = false;
+
+        let mut trigger = None;
         for log in logs {
-            if let Some(DriftEvent::OrderTrigger { .. }) = try_parse_log(log, "sig", 0) {
-                found_trigger = true;
+            if let Some(event @ DriftEvent::OrderTrigger { .. }) = try_parse_log(log, "sig", 0) {
+                trigger = Some(event);
             }
         }
-        assert!(found_trigger);
+        assert_eq!(
+            trigger,
+            Some(DriftEvent::OrderTrigger {
+                user,
+                order_id: 7,
+                oracle_price: 123_456,
+                amount: 1_000_000,
+            })
+        );
     }
 
-    #[ignore = "base64 encoded logs need updating"]
     #[test]
     fn parses_jit_proxy_logs() {
+        let _ = env_logger::try_init();
+
+        // The jit-proxy program CPIs into the velocity program; the velocity
+        // events (OrderRecord place + OrderActionRecord fill) are emitted as
+        // `Program log:`/`Program data:` lines nested under the jit-proxy
+        // program invocation. Synthesize those events from the current types
+        // and confirm they parse out of the interleaved jit-proxy logs.
+        let taker = Pubkey::new_unique();
+        let maker = Pubkey::new_unique();
+
+        let taker_order = Order {
+            order_id: 11,
+            base_asset_amount: 1_000_000,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Long,
+            ..Default::default()
+        };
+        let maker_order = Order {
+            order_id: 22,
+            base_asset_amount: 1_000_000,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Short,
+            ..Default::default()
+        };
+
+        let order_record = OrderRecord {
+            ts: 1_700_000_000,
+            user: taker,
+            order: taker_order,
+        };
+        let fill = get_order_action_record(
+            1_700_000_000,
+            OrderAction::Fill,
+            OrderActionExplanation::None,
+            0,
+            None,
+            Some(1),
+            None,
+            Some(1_000_000),
+            Some(2_000_000),
+            Some(500),
+            None,
+            None,
+            None,
+            None,
+            Some(taker),
+            Some(taker_order),
+            Some(maker),
+            Some(maker_order),
+            123_456,
+            0,
+        );
+
         let cpi_logs = &[
-            "Program log: 4DRDR8LtbQFSX2toAAAAAAAAAQABAAAAAAAAAAAAAAAAAAAAAAHxh4ku0wIrxX3I+lRI8EbIXIFfEdQlHjfBI9cFoChKLwH02xUAAQABQHcbAAAAAAABAAAAAAAAAAABAAAAAAAAAACtuRtoGQAAAAAAAAAA",
-            "Program log: aBNAOFkVAlpSX2toAAAAAPGHiS7TAivFfcj6VEjwRshcgV8R1CUeN8Ej1wWgKEovU9/1FAAAAACghJZnGQAAAEB3GwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPTbFQABAAEBAQAAAAABAQAAUwAA",
-            "Program log: 4DRDR8LtbQFSX2toAAAAAAIHAQABAfGHiS7TAivFfcj6VEjwRshcgV8R1CUeN8Ej1wWgKEovAQAAAAAAAAAAAcvxUgAAAAAAAaC7DQAAAAAAATpt2gUAAAAAAQAAAAAAAAAAAAABDh0AAAAAAAAAAVIi3orGnkfo2nFxt1E65uhfuUq1+ZNdDVJYImWVm0dJATViBAABAQFAdxsAAAAAAAGguw0AAAAAAAE6bdoFAAAAAAAAAAAAAK25G2gZAAAAAAAAAAA=",
-            "Program log: 4DRDR8LtbQFSX2toAAAAAAIJAQABAfGHiS7TAivFfcj6VEjwRshcgV8R1CUeN8Ej1wWgKEovAQAAAAAAAAAAAczxUgAAAAAAAaC7DQAAAAAAATpt2gUAAAAAAQAAAAAAAAAAAQAAAAAAAAAAAAAAAVIi3orGnkfo2nFxt1E65uhfuUq1+ZNdDVJYImWVm0dJATViBAABAQFAdxsAAAAAAAFAdxsAAAAAAAF02rQLAAAAAAHxh4ku0wIrxX3I+lRI8EbIXIFfEdQlHjfBI9cFoChKLwH02xUAAQABQHcbAAAAAAABoLsNAAAAAAABOm3aBQAAAACtuRtoGQAAAAAAAAAA",
-            "Program log: 4DRDR8LtbQFSX2toAAAAAAEAAQABAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfGHiS7TAivFfcj6VEjwRshcgV8R1CUeN8Ej1wWgKEovAfTbFQABAAFAdxsAAAAAAAGguw0AAAAAAAE6bdoFAAAAAK25G2gZAAAAAAAAAAA=",
+            "Program J1TnP8zvVxbtF5KFp5xRmWuvG9McnhzmBd9XGfCyuxFP invoke [1]".to_string(),
+            "Program log: Instruction: ArbPerp".to_string(),
+            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH invoke [2]".to_string(),
+            format!("{PROGRAM_DATA}{}", serialize_event(order_record)),
+            format!("{PROGRAM_DATA}{}", serialize_event(fill)),
+            "Program J1TnP8zvVxbtF5KFp5xRmWuvG9McnhzmBd9XGfCyuxFP success".to_string(),
         ];
 
-        for log in cpi_logs {
-            let result = try_parse_log(log, "sig", 0);
-            dbg!(log, result);
-        }
+        let events: Vec<DriftEvent> = cpi_logs
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, log)| try_parse_log(log, "sig", idx))
+            .collect();
+
+        assert!(
+            events.iter().any(
+                |e| matches!(e, DriftEvent::OrderCreate { order, .. } if order.order_id == 11)
+            ),
+            "expected an OrderCreate event from the nested OrderRecord, got: {events:?}"
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                DriftEvent::OrderFill {
+                    taker_order_id: 11,
+                    maker_order_id: 22,
+                    ..
+                }
+            )),
+            "expected an OrderFill event from the nested OrderActionRecord, got: {events:?}"
+        );
     }
 
     #[tokio::test]
@@ -1214,72 +1327,54 @@ mod test {
         assert!(event_rx.try_recv().is_err());
     }
 
-    #[ignore = "base64 encoded logs need updating"]
     #[test]
     fn parses_swap_logs() {
         let _ = env_logger::try_init();
+
+        // Build a current-layout `SwapRecord` and serialize it the way the
+        // program emits events, rather than relying on a captured base64 blob
+        // that goes stale whenever the event layout changes.
+        let user = solana_pubkey::pubkey!("7q6FkeUEvTDS6DaM2WTHw6s1gTzbBasGTPATLzMZW41S");
+        let swap = SwapRecord {
+            ts: 1746413978,
+            user,
+            amount_out: 13814365,
+            amount_in: 2000000,
+            out_market_index: 1,
+            in_market_index: 0,
+            out_oracle_price: 0,
+            in_oracle_price: 0,
+            fee: 0,
+        };
+
         let logs = [
-            "Program ComputeBudget111111111111111111111111111111 invoke [1]",
-            "Program ComputeBudget111111111111111111111111111111 success",
-            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH invoke [1]",
-            "Program log: Instruction: BeginSwap",
-            "Program data: t7rLuuG7X4KaKRhoAAAAAAEA+cUBBi3pAAAAAAAAAAAAAChj7nUCAAAAAAAAAAAAAABkycImhIMAAAAAAAAAAAAASvkgrAIAAAAAAAAAAAAAAAA1DADgIgIAgE8SAA==",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
-            "Program log: Instruction: Transfer",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4645 of 549891 compute units",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
-            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH consumed 68535 of 602850 compute units",
-            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH success",
-            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 invoke [1]",
-            "Program log: Instruction: Route",
-            "Program obriQD1zbpyLz95G5n7nJe6a4DPjpFwa5XYPoNm113y invoke [2]",
-            "Program log: Instruction: Swap",
-            "Program log: price_x: 1447685",
-            "Program log: price_y: 10000",
-            "Program log: reld 4",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
-            "Program log: Instruction: Transfer",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4645 of 480841 compute units",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
-            "Program log: Instruction: Transfer",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4736 of 473320 compute units",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
-            "Program log: YX15 199179269003,100319696971,2000000,13814365",
-            "Program obriQD1zbpyLz95G5n7nJe6a4DPjpFwa5XYPoNm113y consumed 67898 of 529822 compute units",
-            "Program obriQD1zbpyLz95G5n7nJe6a4DPjpFwa5XYPoNm113y success",
-            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 invoke [2]",
-            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 consumed 184 of 460188 compute units",
-            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 success",
-            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 consumed 75895 of 534315 compute units",
-            "Program return: JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 XcrSAAAAAAA=",
-            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 success",
-            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH invoke [1]",
-            "Program log: Instruction: EndSwap",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
-            "Program log: Instruction: Transfer",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4736 of 408324 compute units",
-            "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
-            "Program log: Invalid Spot 0 Oracle: Stale (oracle_delay=38)",
-            "Program log: Invalid Spot 9 Oracle: Stale (oracle_delay=38)",
-            "Program log: Invalid Spot 5 Oracle: Stale (oracle_delay=38)",
-            "Program data: ort7woo4+vGaKRhoAAAAAGV38QbUIIRAZCdpZP/Qu59+ZUJQ7xCnqbsMijUn8LhNXcrSAAAAAACAhB4AAAAAAAEAAADA3KAIAAAAAEBCDwAAAAAAAAAAAAAAAAA=",
-            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH consumed 152124 of 458420 compute units",
-            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH success",
+            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH invoke [1]".to_string(),
+            "Program log: Instruction: BeginSwap".to_string(),
+            "Program log: Instruction: EndSwap".to_string(),
+            format!("{PROGRAM_DATA}{}", serialize_event(swap)),
+            "Program dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH success".to_string(),
         ];
 
-        let res: Vec<DriftEvent> = logs.iter().enumerate().filter_map(|(idx, log)| try_parse_log(log, "2M1e4UJ1x6rwvjFR6kh5CDCWZg8NcGeqzT2GbDRGaC2TmZDgNTNbKSn4Y4pu11apErVycpk5p3Hq6Tg2nrFdGimm", idx)).collect();
-        assert_eq!(res[0], DriftEvent::Swap {
-            user: solana_pubkey::pubkey!("7q6FkeUEvTDS6DaM2WTHw6s1gTzbBasGTPATLzMZW41S"),
-            amount_in: 2000000,
-            amount_out: 13814365,
-            market_in: 0,
-            market_out: 1,
-            fee: 0,
-            ts: 1746413978,
-            signature: "2M1e4UJ1x6rwvjFR6kh5CDCWZg8NcGeqzT2GbDRGaC2TmZDgNTNbKSn4Y4pu11apErVycpk5p3Hq6Tg2nrFdGimm".try_into().unwrap(),
-            tx_idx: 44,
-        });
+        let sig = "2M1e4UJ1x6rwvjFR6kh5CDCWZg8NcGeqzT2GbDRGaC2TmZDgNTNbKSn4Y4pu11apErVycpk5p3Hq6Tg2nrFdGimm";
+        let res: Vec<DriftEvent> = logs
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, log)| try_parse_log(log, sig, idx))
+            .collect();
+        assert_eq!(
+            res[0],
+            DriftEvent::Swap {
+                user,
+                amount_in: 2000000,
+                amount_out: 13814365,
+                market_in: 0,
+                market_out: 1,
+                fee: 0,
+                ts: 1746413978,
+                signature: sig.try_into().unwrap(),
+                tx_idx: 3,
+            }
+        );
     }
 
     /// Make transaction with dummy instruction for drift program

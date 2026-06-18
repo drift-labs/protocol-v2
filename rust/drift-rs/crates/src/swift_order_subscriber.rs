@@ -633,9 +633,54 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{
-        MarketType, OrderTriggerCondition, OrderType, PositionDirection, PostOnlyParam,
+    use crate::{
+        solana_sdk::signer::Signer,
+        types::{MarketType, OrderTriggerCondition, OrderType, PositionDirection, PostOnlyParam},
     };
+    use solana_keypair::Keypair;
+
+    /// Build a representative authority order params message for fixtures
+    fn sample_order_params() -> OrderParams {
+        OrderParams {
+            order_type: OrderType::Market,
+            market_type: MarketType::Perp,
+            direction: PositionDirection::Short,
+            user_order_id: 0,
+            base_asset_amount: 2_000_000,
+            price: 0,
+            market_index: 1,
+            reduce_only: false,
+            post_only: PostOnlyParam::None,
+            bit_flags: 0,
+            max_ts: None,
+            trigger_price: None,
+            trigger_condition: OrderTriggerCondition::Above,
+            oracle_price_offset: None,
+            auction_duration: Some(50),
+            auction_start_price: Some(2_102_419_643),
+            auction_end_price: Some(2_081_603_607),
+            builder_idx: None,
+            builder_fee_tenth_bps: None,
+        }
+    }
+
+    /// Build a current-format authority `SignedOrder` with the given uuid (8 bytes)
+    fn sample_authority_order(uuid: [u8; 8], market_index: u16) -> SignedOrder {
+        let mut params = sample_order_params();
+        params.market_index = market_index;
+        SignedOrder {
+            signed_msg_order_params: params,
+            sub_account_id: 0,
+            slot: 369_631_527,
+            uuid,
+            take_profit_order_params: None,
+            stop_loss_order_params: None,
+            max_margin_ratio: None,
+            builder_idx: None,
+            builder_fee_tenth_bps: None,
+            isolated_position_deposit: None,
+        }
+    }
 
     #[test]
     fn test_swift_order_deser_bad_message() {
@@ -674,19 +719,29 @@ mod tests {
 
     #[test]
     fn test_swift_order_deser() {
-        let msg = r#"{
+        // Regenerate the wire fixture from the *current* struct layout (the velocity fork
+        // added fields to OrderParams/SignedMsgOrderParamsMessage, so pre-fork byte literals
+        // no longer round-trip). Construct -> borsh -> hex -> JSON, then deserialize and assert.
+        let uuid = *b"ru9YBLRt";
+        let signed_order = sample_authority_order(uuid, 1);
+        let order_message =
+            hex::encode(SignedOrderType::authority(signed_order.clone()).to_borsh());
+
+        let msg = format!(
+            r#"{{
             "channel":"signed_orders_perp_1",
-            "order":{
+            "order":{{
                 "market_index":1,
                 "market_type":"perp",
-                "order_message":"b9c165ffdf70594d0001010080841e00000000000000000000000000010000000000000000013201a4e99abc16000000011ab2f982160000000300900f84150000000072753959424c52740000",
+                "order_message":"{order_message}",
                 "order_signature":"FIgxWlW+C0abvtE8esSko7At1YGM8h66T0u5lJpwXirW63CuvEllVWZ68NNVFsaqcj4jqgQInXUnLPjIf/PQDA==",
                 "signing_authority":"4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE",
                 "taker_authority":"DxoRJ4f5XRMvXU9SGuM4ZziBFUxbhB3ubur5sVZEvue2",
                 "ts":1739518796400,
                 "uuid":"ru9YBLRt"
-            }
-        }"#;
+            }}
+        }}"#
+        );
         let order_notification: OrderNotification = serde_json::from_str(&msg).unwrap();
         let signed_message = order_notification.order;
         assert_eq!(
@@ -703,8 +758,14 @@ mod tests {
         );
         assert_eq!(signed_message.ts, 1739518796400);
         assert_eq!(signed_message.uuid, "ru9YBLRt");
+        assert_eq!(signed_message.order_uuid(), uuid);
         assert_eq!(signed_message.order_params().market_index, 1);
         assert_eq!(signed_message.order_params().market_type, MarketType::Perp);
+        assert_eq!(
+            signed_message.order_params(),
+            signed_order.signed_msg_order_params
+        );
+        assert!(!signed_message.using_delegate_signing());
     }
 
     #[test]
@@ -720,22 +781,96 @@ mod tests {
 
     #[test]
     fn deser_ix_payload() {
-        let data = hex_literal::hex!("204f658b1906620f040100000a09f3447ce77b9aa6374b05c5efb667042ca0cb15ca74af8a8b97b5ad09cd68aef5bda66b38c021c42ff59afad102b7ffa31bc9c52ee85a8752b3142d62b405833d29adc5096b41d5b9d3b2d6fe46deecb286644510a70f85b95853ec628209a20063386435613635653232333466353564303430313030303038306561383232623030303030303030303030303030303030303030303030303030303030303030303030303030303030313437373930303030303131343031623065386663666666666666666666663031343737393030303030303030303030303039303062323436383231343030303030303030363235393733333936393638343133353030303000");
-        let ix =
-            drift::instruction::PlaceSignedMsgTakerOrder::deserialize(&mut &data[8..]).unwrap();
-        // signature, pubkey, len(u16)
-        let mut payload = hex::decode(&ix.signed_msg_order_params_message_bytes[98..]).unwrap();
-        dbg!(payload[..8] == SWIFT_MSG_PREFIX);
+        // Regenerate the ix-payload fixture to the current format. The on-chain ix carries a
+        // `signed_msg_order_params_message_bytes` field whose contents are:
+        //   signature(64) + signer(32) + len(u16) + hex(SWIFT_MSG_PREFIX + borsh(SignedOrder))
+        // Build it from the current struct, sign with a deterministic in-test keypair, and
+        // verify the framing + anchor discriminator round-trips back into the struct.
+        let uuid = *b"ru9YBLRt";
+        let signed_order = sample_authority_order(uuid, 4);
 
-        payload.resize(std::mem::size_of::<SignedOrder>(), 0);
-        let res: SignedOrder = AnchorDeserialize::deserialize(&mut &payload[8..]).unwrap();
-        dbg!(&res);
-        dbg!(core::str::from_utf8(&res.uuid).unwrap());
+        // borsh message (with anchor prefix) and its hex encoding (what swift signs over)
+        let order_type = SignedOrderType::authority(signed_order.clone());
+        let message_bytes = order_type.to_borsh();
+        assert_eq!(message_bytes[..8], SWIFT_MSG_PREFIX);
+        let hex_message = hex::encode(&message_bytes);
+
+        // deterministic keypair so the signature is reproducible
+        let signer = Keypair::new_from_array([7u8; 32]);
+        let signature = signer.sign_message(hex_message.as_bytes());
+
+        // assemble the framed payload: signature(64) + signer(32) + len(u16) + hex
+        let mut payload: Vec<u8> = Vec::new();
+        payload.extend_from_slice(signature.as_ref());
+        payload.extend_from_slice(signer.pubkey().as_ref());
+        payload.extend_from_slice(&(hex_message.len() as u16).to_le_bytes());
+        payload.extend_from_slice(hex_message.as_bytes());
+
+        // wrap in the anchor ix and serialize to bytes (with the 8-byte ix discriminator),
+        // then decode exactly as an on-chain consumer would.
+        let ix = drift::instruction::PlaceSignedMsgTakerOrder {
+            signed_msg_order_params_message_bytes: payload.clone(),
+            is_delegate_signer: false,
+        };
+        let mut data: Vec<u8> = <drift::instruction::PlaceSignedMsgTakerOrder as anchor_lang::Discriminator>::DISCRIMINATOR.to_vec();
+        ix.serialize(&mut data).unwrap();
+
+        let decoded =
+            drift::instruction::PlaceSignedMsgTakerOrder::deserialize(&mut &data[8..]).unwrap();
+        let framed = &decoded.signed_msg_order_params_message_bytes;
+        // signature(64) + signer(32) + len(u16) = 98 bytes of header before the hex message
+        let recovered_signer = Pubkey::try_from(&framed[64..96]).unwrap();
+        assert_eq!(recovered_signer, signer.pubkey());
+
+        let mut hex_payload = hex::decode(&framed[98..]).unwrap();
+        assert_eq!(hex_payload[..8], SWIFT_MSG_PREFIX);
+
+        hex_payload.resize(std::mem::size_of::<SignedOrder>(), 0);
+        let res: SignedOrder = AnchorDeserialize::deserialize(&mut &hex_payload[8..]).unwrap();
+        assert_eq!(res, signed_order);
+        assert_eq!(core::str::from_utf8(&res.uuid).unwrap(), "ru9YBLRt");
     }
 
     #[test]
     fn deserialize_incoming_signed_message_delegated() {
-        let order_message_raw = "42656638c7259e230001010080841e00000000000000000000000000020000000000000000013201bb60507d000000000117c0127c00000000395311d51c1b87fd56c3b5872d1041111e51f399b12d291d981a0ea383407295272108160000000073386c754a4c5a650000";
+        // Regenerate the delegated wire fixture from the current struct layout (velocity fork
+        // added max_margin_ratio/builder_*/isolated_position_deposit fields). Construct the
+        // expected struct, borsh+hex it, then assert the JSON round-trips back to it.
+        let expected_delegate = SignedDelegateOrder {
+            signed_msg_order_params: OrderParams {
+                order_type: OrderType::Market,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Short,
+                user_order_id: 0,
+                base_asset_amount: 2000000,
+                price: 0,
+                market_index: 2,
+                reduce_only: false,
+                post_only: PostOnlyParam::None,
+                bit_flags: 0,
+                max_ts: None,
+                trigger_price: None,
+                trigger_condition: OrderTriggerCondition::Above,
+                oracle_price_offset: None,
+                auction_duration: Some(50),
+                auction_start_price: Some(2102419643),
+                auction_end_price: Some(2081603607),
+                builder_idx: None,
+                builder_fee_tenth_bps: None,
+            },
+            taker_pubkey: solana_pubkey::pubkey!("4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE"),
+            slot: 369631527,
+            uuid: [115, 56, 108, 117, 74, 76, 90, 101],
+            take_profit_order_params: None,
+            stop_loss_order_params: None,
+            max_margin_ratio: None,
+            builder_idx: None,
+            builder_fee_tenth_bps: None,
+            isolated_position_deposit: None,
+        };
+        let order_message_raw =
+            hex::encode(SignedOrderType::delegated(expected_delegate.clone()).to_borsh());
+        let order_message_raw = order_message_raw.as_str();
         let payload = serde_json::json!({
             "channel": "swift_orders_perp_2",
             "order": {
@@ -768,46 +903,14 @@ mod tests {
             raw,
         } = actual.order.order
         {
-            let expected = SignedDelegateOrder {
-                signed_msg_order_params: OrderParams {
-                    order_type: OrderType::Market,
-                    market_type: MarketType::Perp,
-                    direction: PositionDirection::Short,
-                    user_order_id: 0,
-                    base_asset_amount: 2000000,
-                    price: 0,
-                    market_index: 2,
-                    reduce_only: false,
-                    post_only: PostOnlyParam::None,
-                    bit_flags: 0,
-                    max_ts: None,
-                    trigger_price: None,
-                    trigger_condition: OrderTriggerCondition::Above,
-                    oracle_price_offset: None,
-                    auction_duration: Some(50),
-                    auction_start_price: Some(2102419643),
-                    auction_end_price: Some(2081603607),
-                },
-                taker_pubkey: solana_pubkey::pubkey!(
-                    "4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE"
-                ),
-                slot: 369631527,
-                uuid: [115, 56, 108, 117, 74, 76, 90, 101],
-                take_profit_order_params: None,
-                stop_loss_order_params: None,
-                max_margin_ratio: None,
-                builder_idx: None,
-                builder_fee_tenth_bps: None,
-                isolated_position_deposit: None,
-            };
-            assert_eq!(signed_msg, expected);
+            assert_eq!(signed_msg, expected_delegate);
             assert_eq!(
                 raw.unwrap().as_str(),
                 order_message_raw,
                 "preserved order message from payload"
             );
         } else {
-            assert!(false, "unexpected variant");
+            panic!("unexpected variant");
         }
     }
 }

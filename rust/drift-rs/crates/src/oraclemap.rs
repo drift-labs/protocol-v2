@@ -575,6 +575,7 @@ mod tests {
     const SOL_PERP_ORACLE: Pubkey =
         solana_pubkey::pubkey!("BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF");
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_sync() {
         let all_oracles = vec![
@@ -610,6 +611,7 @@ mod tests {
         map.sync(&markets, &rpc).await.expect("subd");
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_subscribe_mixed_spot_perp_source() {
         // bonk oracle uses a precision trick via 'oracle source'
@@ -645,6 +647,7 @@ mod tests {
         assert!(map.is_subscribed(&MarketId::perp(4)));
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_subscribes() {
         let _ = env_logger::try_init();
@@ -691,6 +694,7 @@ mod tests {
         assert!(!map.is_subscribed(&MarketId::perp(0)));
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn oraclemap_unsubscribe_all() {
         let all_oracles = vec![
@@ -727,58 +731,69 @@ mod tests {
         use crate::{
             marketmap::MarketMap,
             types::accounts::{PerpMarket, SpotMarket},
+            MarketType,
         };
         let commitment = CommitmentConfig::processed();
+        let rpc = RpcClient::new(mainnet_endpoint());
 
-        let spot_market_map =
-            MarketMap::<SpotMarket>::new(commitment.clone(), mainnet_endpoint(), true);
-        let perp_market_map =
-            MarketMap::<PerpMarket>::new(commitment.clone(), mainnet_endpoint(), true);
+        let spot_market_map = MarketMap::<SpotMarket>::new(
+            Arc::new(
+                PubsubClient::new(&get_ws_url(&mainnet_endpoint()).unwrap())
+                    .await
+                    .expect("ws connects"),
+            ),
+            commitment,
+        );
+        let perp_market_map = MarketMap::<PerpMarket>::new(
+            Arc::new(
+                PubsubClient::new(&get_ws_url(&mainnet_endpoint()).unwrap())
+                    .await
+                    .expect("ws connects"),
+            ),
+            commitment,
+        );
 
-        let _ = spot_market_map.sync().await;
-        let _ = perp_market_map.sync().await;
+        let _ = spot_market_map.sync(&rpc).await;
+        let _ = perp_market_map.sync(&rpc).await;
 
         let perp_oracles = perp_market_map.oracles();
         let spot_oracles = spot_market_map.oracles();
 
-        let mut oracles = vec![];
-        oracles.extend(perp_oracles.clone());
-        oracles.extend(spot_oracles.clone());
-
-        let mut oracle_infos = vec![];
-        for oracle_info in oracles {
-            if !oracle_infos.contains(&oracle_info) {
-                oracle_infos.push(oracle_info)
+        let mut all_oracles = vec![];
+        for oracle_info in perp_oracles.iter().chain(spot_oracles.iter()).copied() {
+            if !all_oracles.contains(&oracle_info) {
+                all_oracles.push(oracle_info)
             }
         }
 
-        let oracle_infos_len = oracle_infos.len();
+        let oracle_infos_len = all_oracles.len();
         dbg!(oracle_infos_len);
 
         let oracle_map = OracleMap::new(
+            Arc::new(
+                PubsubClient::new(&get_ws_url(&mainnet_endpoint()).unwrap())
+                    .await
+                    .expect("ws connects"),
+            ),
+            &all_oracles,
             commitment,
-            &mainnet_endpoint(),
-            true,
-            perp_oracles,
-            spot_oracles,
         );
 
-        let _ = oracle_map.subscribe().await;
+        let markets: Vec<MarketId> = perp_oracles
+            .iter()
+            .chain(spot_oracles.iter())
+            .map(|(market, _, _)| *market)
+            .collect();
+        let _ = oracle_map.subscribe(&markets).await;
 
-        dbg!(oracle_map.size());
+        dbg!(oracle_map.len());
 
         dbg!("sleeping");
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         dbg!("done sleeping");
 
-        let rlb_perp_market_oracle_pubkey = perp_market_map
-            .get(&17)
-            .expect("rlb perp market")
-            .data
-            .amm
-            .oracle;
         let rlb_oracle = oracle_map
-            .get(&rlb_perp_market_oracle_pubkey)
+            .get_by_market(&MarketId::new(17, MarketType::Perp))
             .expect("rlb oracle");
         dbg!("rlb oracle info:");
         dbg!(rlb_oracle.data.price);
@@ -792,14 +807,8 @@ mod tests {
         for _ in 0..10 {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             dbg!();
-            let sol_perp_market_oracle_pubkey = perp_market_map
-                .get(&0)
-                .expect("sol perp market")
-                .data
-                .amm
-                .oracle;
             let sol_oracle = oracle_map
-                .get(&sol_perp_market_oracle_pubkey)
+                .get_by_market(&MarketId::perp(0))
                 .expect("sol oracle");
             dbg!("sol oracle info:");
             dbg!(sol_oracle.data.price);
@@ -814,14 +823,8 @@ mod tests {
 
             dbg!();
 
-            let btc_perp_market_oracle_pubkey = perp_market_map
-                .get(&1)
-                .expect("btc perp market")
-                .data
-                .amm
-                .oracle;
             let btc_oracle = oracle_map
-                .get(&btc_perp_market_oracle_pubkey)
+                .get_by_market(&MarketId::perp(1))
                 .expect("btc oracle");
             dbg!("btc oracle info:");
             dbg!(btc_oracle.data.price);
@@ -845,14 +848,9 @@ mod tests {
         for _ in 0..10 {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             dbg!();
-            let rndr_spot_market_oracle_pubkey = spot_market_map
-                .get(&11)
-                .expect("sol perp market")
-                .data
-                .oracle;
             let rndr_oracle = oracle_map
-                .get(&rndr_spot_market_oracle_pubkey)
-                .expect("sol oracle");
+                .get_by_market(&MarketId::spot(11))
+                .expect("rndr oracle");
             dbg!("rndr oracle info:");
             dbg!(rndr_oracle.data.price);
             dbg!(rndr_oracle.slot);
@@ -866,14 +864,9 @@ mod tests {
 
             dbg!();
 
-            let weth_spot_market_oracle_pubkey = spot_market_map
-                .get(&4)
-                .expect("sol perp market")
-                .data
-                .oracle;
             let weth_oracle = oracle_map
-                .get(&weth_spot_market_oracle_pubkey)
-                .expect("sol oracle");
+                .get_by_market(&MarketId::spot(4))
+                .expect("weth oracle");
             dbg!("weth oracle info:");
             dbg!(weth_oracle.data.price);
             dbg!(weth_oracle.slot);
@@ -886,6 +879,6 @@ mod tests {
             last_weth_slot = weth_oracle.slot;
         }
 
-        let _ = oracle_map.unsubscribe().await;
+        let _ = oracle_map.unsubscribe_all();
     }
 }

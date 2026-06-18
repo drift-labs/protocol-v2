@@ -47,7 +47,7 @@ async function makeMockUser(
 	// console.log(spotOraclePriceList, myMockSpotMarkets.length);
 
 	for (let i = 0; i < myMockPerpMarkets.length; i++) {
-		oraclePriceMap[myMockPerpMarkets[i].amm.oracle.toString()] =
+		oraclePriceMap[myMockPerpMarkets[i].oracle.toString()] =
 			perpOraclePriceList[i];
 	}
 	for (let i = 0; i < myMockSpotMarkets.length; i++) {
@@ -88,7 +88,7 @@ async function makeMockUser(
 	}
 
 	function getOracleDataForPerpMarket(marketIndex) {
-		const oracle = getMockPerpMarket(marketIndex).amm.oracle;
+		const oracle = getMockPerpMarket(marketIndex).oracle;
 		return getMockOracle(oracle).data;
 	}
 
@@ -100,7 +100,7 @@ async function makeMockUser(
 	function getMMOracleDataForPerpMarket(
 		marketIndex: number
 	): MMOraclePriceData {
-		const oracle = getMockPerpMarket(marketIndex).amm.oracle;
+		const oracle = getMockPerpMarket(marketIndex).oracle;
 		return getMockOracle(oracle).data as unknown as MMOraclePriceData;
 	}
 

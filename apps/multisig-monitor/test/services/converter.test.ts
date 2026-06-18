@@ -4,7 +4,7 @@ import {
 	type YellowstoneTransaction,
 } from '../../src/services/converter';
 import { getDiscriminatorMap } from '../../src/squads/discriminator';
-import { extractOperations } from '../../src/squads/index';
+import { extractOperations } from '../../src/squads';
 
 const SQUADS = 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf';
 const MULTISIG = 'SMPLDaGKqbPfi8NhZMNGH2fRYU3WbNRZVj3xnTjEjXc';

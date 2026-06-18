@@ -1,6 +1,6 @@
 import { NotificationType } from '@backend/common';
 import { SQSEvent } from 'aws-lambda';
-import { handler } from '../src/index';
+import { handler } from '../src';
 
 // Mock all processors
 const mockProcessPriceUpdate = jest.fn();

@@ -106,7 +106,7 @@ describe('Redis Client', () => {
 			});
 
 			it('should handle empty array', async () => {
-				const result = await mGet([]);
+				const _result = await mGet([]);
 				expect(mockClient.mGet).toHaveBeenCalledWith([]);
 			});
 		});
@@ -224,7 +224,7 @@ describe('Redis Client', () => {
 			it('should handle LIMIT option', async () => {
 				const opts = { LIMIT: { offset: 0, count: 5 } };
 				mockClient.zRangeByScore.mockResolvedValue(['one']);
-				const result = await zRangeByScore('set', 1, 2, opts);
+				const _result = await zRangeByScore('set', 1, 2, opts);
 				expect(mockClient.zRangeByScore).toHaveBeenCalledWith('set', 1, 2, opts);
 			});
 		});

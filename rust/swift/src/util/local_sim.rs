@@ -1,4 +1,4 @@
-//! Off-chain replay of `drift::controller::orders::place_perp_order`.
+//! Off-chain replay of `drift_rs::drift::controller::orders::place_perp_order`.
 //!
 //! Mirrors the simulation that the on-chain `place_signed_msg_taker_order`
 //! ix runs for its main perp leg. The signature verification, slot freshness
@@ -14,10 +14,10 @@ use std::{
 };
 
 use anchor_lang::AccountDeserialize;
-use drift::{
+use drift_rs::drift::{
     controller::orders::place_perp_order,
-    error::{VelocityResult, ErrorCode},
-    sdk::{VelocityAccounts, OwnedAccount},
+    error::{ErrorCode, VelocityResult},
+    sdk::{OwnedAccount, VelocityAccounts},
     state::{
         oracle_map::OracleMap,
         order_params::{OrderParams, PlaceOrderOptions},

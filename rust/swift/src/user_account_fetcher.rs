@@ -146,6 +146,7 @@ mod tests {
     use super::*;
 
     #[ignore]
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn usermap_lookups() {
         let _ = env_logger::try_init();

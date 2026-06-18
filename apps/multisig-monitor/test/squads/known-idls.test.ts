@@ -11,7 +11,7 @@ describe('known-idls', () => {
 		const idls = await getKnownIdls();
 		const velocity = idls.get(VELOCITY_PROGRAM_ID);
 		expect(velocity).toBeDefined();
-		expect((velocity as IdlWithMetadata).metadata?.name).toBe('drift');
+		expect((velocity as IdlWithMetadata).metadata?.name).toBe('velocity');
 		// Sanity-check that instructions are populated. The exact count tracks
 		// the SDK version, so we just assert non-trivial.
 		expect(velocity!.instructions.length).toBeGreaterThan(50);
@@ -21,7 +21,7 @@ describe('known-idls', () => {
 		const idls = await getKnownIdls();
 		const vaults = idls.get(VELOCITY_VAULTS_PROGRAM_ID);
 		expect(vaults).toBeDefined();
-		expect((vaults as IdlWithMetadata).metadata?.name).toBe('drift_vaults');
+		expect((vaults as IdlWithMetadata).metadata?.name).toBe('vaults');
 		expect(vaults!.instructions.length).toBeGreaterThan(10);
 	});
 

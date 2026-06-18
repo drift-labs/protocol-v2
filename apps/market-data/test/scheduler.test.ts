@@ -11,7 +11,7 @@ jest.mock('@backend/common', () => ({
 
 jest.mock('cron', () => {
 	return {
-		CronJob: jest.fn().mockImplementation((cronTime, onTick, onComplete, start, timezone) => {
+		CronJob: jest.fn().mockImplementation((cronTime, onTick, _onComplete, _start, _timezone) => {
 			const mockDate = new Date();
 
 			return {

@@ -15,8 +15,15 @@ else
   if [ -f target/types/velocity.ts ]; then
     cp target/types/velocity.ts packages/sdk/src/idl/
   fi
-  ( cd packages/sdk && bun run build >/dev/null )
 fi
+
+# Build the SDK in both paths: many test files import the package root
+# (`from '../packages/sdk'`), which resolves through package.json `main` to
+# packages/sdk/lib/node/index.js. ts-mocha only transpiles the
+# `../packages/sdk/src/...` imports on the fly, so without this build those
+# bare-package imports fail with MODULE_NOT_FOUND in CI. Runs after the IDL is
+# synced into src/idl/ above so lib/ reflects the freshly-built program.
+( cd packages/sdk && bun run build >/dev/null )
 
 export ANCHOR_WALLET=~/.config/solana/id.json
 
@@ -103,5 +110,5 @@ test_files=(
 
 
 for test_file in ${test_files[@]}; do
-  ts-mocha --exit -t 300000 ./tests/${test_file} || exit 1
+  ts-mocha --exit -t 300000 ./tests/velocity/${test_file} || exit 1
 done

@@ -56,8 +56,11 @@ export const resolveAuthorities = async ({ userPubkeys }: { userPubkeys: string[
 		}
 	}
 
-	return uniquePubkeys.reduce((result, pubkey) => {
-		result[pubkey] = authorityCache.get(pubkey);
-		return result;
-	}, {} as Record<string, string | undefined>);
+	return uniquePubkeys.reduce(
+		(result, pubkey) => {
+			result[pubkey] = authorityCache.get(pubkey);
+			return result;
+		},
+		{} as Record<string, string | undefined>
+	);
 };

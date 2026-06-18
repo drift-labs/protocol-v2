@@ -7,7 +7,7 @@ use std::{
 
 use anchor_lang::Discriminator;
 use dashmap::DashMap;
-use drift::math::auction::calculate_auction_price;
+use drift_rs::drift::math::auction::calculate_auction_price;
 use drift_rs::{
     constants::PROGRAM_ID,
     dlob::{
@@ -696,7 +696,7 @@ async fn try_auction_fill(
 
             if let Ok(pos) = taker_account_data.get_perp_position(market_index) {
                 if let Ok((base_asset_amount, _limit_price)) =
-                    drift::math::orders::calculate_base_asset_amount_for_amm_to_fulfill(
+                    drift_rs::drift::math::orders::calculate_base_asset_amount_for_amm_to_fulfill(
                         taker_account_data
                             .orders
                             .iter()
@@ -711,7 +711,8 @@ async fn try_auction_fill(
                 {
                     // if user position is less than min order size, step size is the threshold
                     let amm_size_threshold = if !taker_order.is_reduce_only()
-                        && pos.base_asset_amount.unsigned_abs() > perp_market.market_stats.min_order_size
+                        && pos.base_asset_amount.unsigned_abs()
+                            > perp_market.market_stats.min_order_size
                     {
                         perp_market.market_stats.min_order_size
                     } else {

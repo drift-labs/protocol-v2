@@ -94,20 +94,66 @@ impl RequestContext {
 
 #[cfg(test)]
 mod tests {
+    use drift_rs::{
+        swift_order_subscriber::SignedOrderType,
+        types::{
+            OrderParams, OrderTriggerCondition, OrderType, PositionDirection, PostOnlyParam,
+            SignedMsgOrderParamsMessage,
+        },
+    };
+
     use super::*;
 
     #[test]
     fn from_incoming_message_valid_utf8_uuid() {
-        // Payload from messages::tests with uuid [115, 56, 108, 117, 74, 76, 90, 101] = "s8luJLZe"
-        let json = r#"{
+        // Regenerated to the current message format (velocity fork added OrderParams /
+        // SignedMsg*Message fields). Same uuid as the messages::tests fixture:
+        // [115, 56, 108, 117, 74, 76, 90, 101] = "s8luJLZe".
+        let order = SignedMsgOrderParamsMessage {
+            signed_msg_order_params: OrderParams {
+                order_type: OrderType::Market,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Short,
+                user_order_id: 0,
+                base_asset_amount: 2000000,
+                price: 0,
+                market_index: 2,
+                reduce_only: false,
+                post_only: PostOnlyParam::None,
+                bit_flags: 0,
+                max_ts: None,
+                trigger_price: None,
+                trigger_condition: OrderTriggerCondition::Above,
+                oracle_price_offset: None,
+                auction_duration: Some(50),
+                auction_start_price: Some(2102419643),
+                auction_end_price: Some(2081603607),
+                builder_idx: None,
+                builder_fee_tenth_bps: None,
+            },
+            sub_account_id: 0,
+            slot: 369631527,
+            uuid: [115, 56, 108, 117, 74, 76, 90, 101],
+            take_profit_order_params: None,
+            stop_loss_order_params: None,
+            max_margin_ratio: None,
+            builder_idx: None,
+            builder_fee_tenth_bps: None,
+            isolated_position_deposit: None,
+        };
+        let hex_msg =
+            faster_hex::hex_string(SignedOrderType::authority(order).to_borsh().as_slice());
+        let json = format!(
+            r#"{{
             "market_index": 2,
             "market_type": "perp",
-            "message": "c8d5a65e2234f55d0001010080841e00000000000000000000000000020000000000000000013201bb60507d000000000117c0127c000000000000272108160000000073386c754a4c5a650000",
+            "message": "{hex_msg}",
             "signature": "H8HRloc2vBdhHyiNK5W/Shv3kVKmIYsHTBzlD2ecyxyOUh7EuysU/Y5AOXZ3IpsMxRyLn6OSAHKEgCIQX4OpDQ==",
             "signing_authority": "4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE",
             "taker_pubkey": "4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE"
-        }"#;
-        let msg: IncomingSignedMessage = serde_json::from_str(json).expect("deserialize");
+        }}"#
+        );
+        let msg: IncomingSignedMessage = serde_json::from_str(&json).expect("deserialize");
         let ctx = RequestContext::from_incoming_message(&msg).expect("valid utf8 uuid");
         assert_eq!(ctx.order_uuid, "s8luJLZe");
         assert_eq!(ctx.market_index, 2);

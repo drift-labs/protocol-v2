@@ -1,0 +1,29 @@
+[package]
+name = "vaults"
+version = "0.11.0"
+description = "Velocity vaults program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "vaults"
+
+[features]
+no-entrypoint = []
+cpi = ["no-entrypoint"]
+anchor-test = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build", "velocity/idl-build"]
+default = []
+
+[dependencies]
+anchor-lang = "1.0.0"
+anchor-spl = { version = "1.0.0", features = ["metadata"] }
+solana-program = "3"
+borsh = "1"
+velocity = { path = "../velocity", default-features = false, features = ["cpi"] }
+bytemuck = { version = "1.4.0" }
+static_assertions = "1.1.0"
+drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
+
+[dev-dependencies]
+base64 = "0.13.0"

@@ -136,7 +136,7 @@ mod tests {
     use crate::{
         drift_idl::accounts::User,
         memcmp::{get_non_idle_user_filter, get_user_filter},
-        utils::test_envs::mainnet_endpoint,
+        utils::{get_ws_url, test_envs::mainnet_endpoint},
     };
 
     #[tokio::test]
@@ -150,22 +150,18 @@ mod tests {
         };
         let subscription_name = "Test";
 
-        let mut ws_subscriber = WebsocketProgramAccountSubscriber::<User>::new(
-            subscription_name,
-            mainnet_endpoint(),
+        let ws_subscriber = WebsocketProgramAccountSubscriber::new(
+            get_ws_url(&mainnet_endpoint()).unwrap(),
             options,
-            EventEmitter::new(),
         );
 
-        let _ = ws_subscriber.subscribe().await;
-        dbg!("sub'd");
-
-        ws_subscriber.event_emitter.clone().subscribe(move |event| {
+        let unsub = ws_subscriber.subscribe::<User, _>(subscription_name, move |event| {
             dbg!(event);
         });
+        dbg!("sub'd");
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-        let _ = ws_subscriber.unsubscribe().await;
+        let _ = unsub.send(());
         dbg!("unsub'd");
     }
 }

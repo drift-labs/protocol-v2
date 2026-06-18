@@ -250,6 +250,15 @@ impl DLOBNotifier {
     /// # Example
     ///
     /// ```rust
+    /// # use drift_rs::dlob::DLOB;
+    /// # use drift_rs::types::accounts::User;
+    /// # use solana_pubkey::Pubkey;
+    /// # let dlob: &'static DLOB = Box::leak(Box::new(DLOB::default()));
+    /// # let notifier = dlob.spawn_notifier();
+    /// # let user_pubkey = Pubkey::new_unique();
+    /// # let old_user = User::default();
+    /// # let new_user = User::default();
+    /// # let current_slot = 100u64;
     /// // Update existing user
     /// notifier.user_update(user_pubkey, Some(&old_user), &new_user, current_slot);
     ///
@@ -1722,6 +1731,10 @@ impl L2Book {
     ///
     /// # Example
     /// ```rust
+    /// # use drift_rs::dlob::L2Book;
+    /// # let mut l2_book = L2Book::default();
+    /// # l2_book.bids.insert(100, 5);
+    /// # l2_book.asks.insert(101, 7);
     /// let (bid, ask) = l2_book.bbo();
     /// if let (Some((bid_price, bid_size)), Some((ask_price, ask_size))) = (bid, ask) {
     ///     println!("Best bid: {} @ {}", bid_size, bid_price);
@@ -1741,6 +1754,9 @@ impl L2Book {
     ///
     /// # Example
     /// ```rust
+    /// # use drift_rs::dlob::L2Book;
+    /// # let mut l2_book = L2Book::default();
+    /// # l2_book.bids.insert(100, 5);
     /// let top_bids = l2_book.top_bids(5);
     /// for (price, size) in top_bids {
     ///     println!("Bid: {} @ {}", size, price);
@@ -1756,6 +1772,9 @@ impl L2Book {
     ///
     /// # Example
     /// ```rust
+    /// # use drift_rs::dlob::L2Book;
+    /// # let mut l2_book = L2Book::default();
+    /// # l2_book.asks.insert(101, 7);
     /// let top_asks = l2_book.top_asks(5);
     /// for (price, size) in top_asks {
     ///     println!("Ask: {} @ {}", size, price);

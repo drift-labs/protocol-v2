@@ -94,9 +94,8 @@ const exportRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
 				});
 			}
 
-			const signedAction = JSON.parse(
-				(request.headers['x-signed-message'] as string) ?? '{}'
-			)?.action;
+			const signedAction = JSON.parse((request.headers['x-signed-message'] as string) ?? '{}')
+				?.action;
 			if (signedAction !== SUBMIT_ACTION) {
 				return reply.code(401).send({
 					success: false,

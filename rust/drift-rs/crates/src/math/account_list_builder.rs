@@ -1,7 +1,7 @@
 use crate::solana_sdk::pubkey::Pubkey;
 use ahash::{HashMap, HashMapExt};
 
-use drift::sdk::{VelocityAccounts, OwnedAccount};
+use drift::sdk::{OwnedAccount, VelocityAccounts};
 
 use crate::{
     constants::{self, oracle_source_to_owner},

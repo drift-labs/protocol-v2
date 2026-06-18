@@ -351,13 +351,16 @@ export const storeAuctionLatencyResults = async (results: BackfillResult[]): Pro
 
 	for (const result of daysWithData) {
 		// Group stats by market for storage
-		const statsByMarket = result.stats.reduce((acc, stat) => {
-			if (!acc[stat.market]) {
-				acc[stat.market] = [];
-			}
-			acc[stat.market].push(stat);
-			return acc;
-		}, {} as Record<string, any[]>);
+		const statsByMarket = result.stats.reduce(
+			(acc, stat) => {
+				if (!acc[stat.market]) {
+					acc[stat.market] = [];
+				}
+				acc[stat.market].push(stat);
+				return acc;
+			},
+			{} as Record<string, any[]>
+		);
 
 		// Write the stats to DDB for each market
 		const storePromises = Object.entries(statsByMarket).map(([_symbol, marketStats]) =>

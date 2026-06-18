@@ -23,7 +23,7 @@
 		},
 		"test": {
 			"dependsOn": ["^build"],
-			"inputs": ["src/**", "tests/**", "package.json"],
+			"inputs": ["src/**", "tests/**", "test/**", "jest.config*", "package.json"],
 			"outputs": []
 		}
 	}

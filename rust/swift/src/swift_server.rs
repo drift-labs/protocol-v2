@@ -2089,7 +2089,10 @@ mod tests {
         });
         assert!(!is_isolated_deposit(&delegated_msg));
         let result = extract_signed_message_info(&delegated_msg, &taker_authority, current_slot);
-        assert!(result.is_ok_and(|(_, _, is_isolated)| is_isolated.is_none()));
+        // `extract_signed_message_info` returns the raw `isolated_position_deposit` field, so a
+        // zero deposit comes back as `Some(0)` (not `None`). The "zero == not isolated" semantics
+        // live in `is_isolated_deposit()`, asserted above.
+        assert!(result.is_ok_and(|(_, _, is_isolated)| is_isolated == Some(0)));
 
         // Test delegated order with isolated deposit > 0
         let delegated_msg = SignedOrderType::delegated(SignedMsgOrderParamsDelegateMessage {
@@ -2167,6 +2170,7 @@ mod tests {
         assert!(result.is_ok_and(|(_, _, is_isolated)| is_isolated.is_some()));
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn test_simulate_taker_order_rpc() {
         let _ = env_logger::try_init();

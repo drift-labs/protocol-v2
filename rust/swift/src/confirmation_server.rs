@@ -315,12 +315,15 @@ mod tests {
         assert_eq!(response.into_response().status(), StatusCode::BAD_REQUEST);
     }
 
-    #[ignore]
     #[tokio::test]
     async fn test_get_hash_status_invalid_hash() {
         let state = setup_test_server().await;
+        // `%ff` is a well-formed percent-escape that decodes to the byte 0xFF,
+        // which is not valid UTF-8 — so `urlencoding::decode` returns `Err` and
+        // the handler must reject it with BAD_REQUEST. (A merely "weird" string
+        // like `%invalid%` decodes fine and would instead miss in Redis -> 404.)
         let query = HashQuery {
-            hash: "%invalid%".to_string(),
+            hash: "%ff".to_string(),
         };
 
         let response = get_hash_status(State(state), Query(query)).await;
@@ -341,6 +344,19 @@ mod tests {
     #[tokio::test]
     async fn test_get_all_hashes_empty() {
         let state = setup_test_server().await;
+
+        // `get_all_hashes` returns NOT_FOUND for an empty store, so seed a hash
+        // matching the scan pattern (`swift-hashes::*`) first. This makes the
+        // test self-contained instead of relying on pre-existing Redis state.
+        // HASH_PREFIX ends in a `*` glob, so trim it for the concrete key.
+        let key_prefix = HASH_PREFIX.trim_end_matches('*');
+        let seeded_key = format!("{key_prefix}test_get_all_hashes_seed");
+        let mut conn = state.redis_pool.clone();
+        let _: () = conn
+            .set(&seeded_key, "confirmed")
+            .await
+            .expect("seed hash into redis");
+
         let response = get_all_hashes(State(state)).await;
         let response = response.into_response();
 

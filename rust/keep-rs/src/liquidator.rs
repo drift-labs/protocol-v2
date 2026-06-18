@@ -1671,7 +1671,7 @@ async fn setup_grpc(
                                 &owner,
                                 false,
                             );
-                            let oracle_price_data = drift::state::oracle::get_oracle_price(
+                            let oracle_price_data = drift_rs::drift::state::oracle::get_oracle_price(
                                 oracle_source,
                                 &account_info,
                                 slot,

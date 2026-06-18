@@ -17,6 +17,7 @@ import {
 	NodeToFill,
 	isOrderExpired,
 	Order,
+	MMOraclePriceData,
 	isMarketOrder,
 	isLimitOrder,
 	ZERO,
@@ -81,7 +82,6 @@ function insertOrderToDLOB(
 			baseAssetAmount,
 			baseAssetAmountFilled: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			direction,
 			reduceOnly: false,
 			triggerPrice: new BN(0),
@@ -99,7 +99,6 @@ function insertOrderToDLOB(
 		},
 		userAccount.toString(),
 		slot.toNumber(),
-		false,
 		baseAssetAmount
 	);
 }
@@ -136,7 +135,6 @@ function insertTriggerOrderToDLOB(
 			baseAssetAmount,
 			baseAssetAmountFilled: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			direction,
 			reduceOnly: false,
 			triggerPrice,
@@ -154,7 +152,6 @@ function insertTriggerOrderToDLOB(
 		},
 		userAccount.toString(),
 		slot.toNumber(),
-		false,
 		baseAssetAmount
 	);
 }
@@ -185,7 +182,7 @@ function printBookState(
 	vBid: BN | undefined,
 	vAsk: BN | undefined,
 	slot: number,
-	oracle: OraclePriceData
+	oracle: MMOraclePriceData
 ) {
 	const askNodes = dlob.getAsks(
 		marketIndex,
@@ -279,6 +276,7 @@ describe('DLOB Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// check perps
@@ -293,7 +291,7 @@ describe('DLOB Tests', () => {
 			)) {
 				foundAsks++;
 			}
-			expect(foundAsks).to.equal(1);
+			expect(foundAsks).to.equal(0);
 
 			let foundBids = 0;
 			for (const _bid of dlob.getBids(
@@ -305,7 +303,7 @@ describe('DLOB Tests', () => {
 			)) {
 				foundBids++;
 			}
-			expect(foundBids).to.equal(1);
+			expect(foundBids).to.equal(0);
 		}
 
 		// check spots
@@ -352,6 +350,7 @@ describe('DLOB Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		insertOrderToDLOB(
@@ -430,6 +429,7 @@ describe('DLOB Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -560,6 +560,7 @@ describe('DLOB Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -694,6 +695,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		const testCases = [
 			{
@@ -815,26 +817,29 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		);
+		// vAMM was decoupled from the DLOB: getBids no longer synthesizes a vAMM
+		// node, so the expected sequence is the real orders only.
+		const expectedRealBids = expectedTestCase.filter((t) => !t.isVamm);
 		let countBids = 0;
 		for (const bid of allBids) {
 			expect(bid.isVammNode(), `expected vAMM node`).to.be.eq(
-				expectedTestCase[countBids].isVamm
+				expectedRealBids[countBids].isVamm
 			);
 			expect(bid.order?.orderId, `expected orderId`).to.equal(
-				expectedTestCase[countBids].orderId
+				expectedRealBids[countBids].orderId
 			);
 			expect(bid.order?.price.toNumber(), `expected price`).to.equal(
-				expectedTestCase[countBids].price?.toNumber()
+				expectedRealBids[countBids].price?.toNumber()
 			);
 			expect(bid.order?.direction, `expected order direction`).to.equal(
-				expectedTestCase[countBids].direction
+				expectedRealBids[countBids].direction
 			);
 			expect(bid.order?.orderType, `expected order type`).to.equal(
-				expectedTestCase[countBids].orderType
+				expectedRealBids[countBids].orderType
 			);
 			countBids++;
 		}
-		expect(countBids).to.equal(testCases.length);
+		expect(countBids).to.equal(expectedRealBids.length);
 
 		const takingBids = dlob.getTakingBids(
 			marketIndex,
@@ -909,6 +914,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		const testCases = [
 			{
@@ -1017,7 +1023,8 @@ describe('DLOB Perp Tests', () => {
 			);
 			countBids0++;
 		}
-		expect(countBids0).to.equal(6);
+		// vAMM decoupled from DLOB: only the 5 real market0 bids remain (no vAMM node).
+		expect(countBids0).to.equal(5);
 
 		const bids1 = dlob.getBids(
 			marketIndex1,
@@ -1039,7 +1046,8 @@ describe('DLOB Perp Tests', () => {
 
 			countBids1++;
 		}
-		expect(countBids1).to.equal(3);
+		// vAMM decoupled from DLOB: only the 2 real market1 bids remain (no vAMM node).
+		expect(countBids1).to.equal(2);
 	});
 
 	it('Test proper asks', () => {
@@ -1054,6 +1062,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		const testCases = [
 			{
@@ -1170,22 +1179,33 @@ describe('DLOB Perp Tests', () => {
 		});
 
 		const asks = dlob.getAsks(marketIndex, vAsk, slot, MarketType.PERP, oracle);
+		// vAMM was decoupled from the DLOB: getAsks no longer synthesizes a vAMM
+		// node. With the vAMM generator gone from the k-way merge, the real
+		// orders surface in this order (taking market orders merged with resting
+		// limit orders by price): 3, 4, 2, 5, 1, 6, 7.
+		const expectedRealAsks = [
+			{ orderId: 3, price: 0, orderType: OrderType.MARKET },
+			{ orderId: 4, price: 0, orderType: OrderType.MARKET },
+			{ orderId: 2, price: 14, orderType: OrderType.LIMIT },
+			{ orderId: 5, price: 0, orderType: OrderType.MARKET },
+			{ orderId: 1, price: 13, orderType: OrderType.LIMIT },
+			{ orderId: 6, price: 16, orderType: OrderType.LIMIT },
+			{ orderId: 7, price: 17, orderType: OrderType.LIMIT },
+		];
 		let countAsks = 0;
 		for (const ask of asks) {
-			expect(ask.isVammNode()).to.be.eq(expectedTestCase[countAsks].isVamm);
-			expect(ask.order?.orderId).to.equal(expectedTestCase[countAsks].orderId);
+			expect(ask.isVammNode()).to.be.eq(false);
+			expect(ask.order?.orderId).to.equal(expectedRealAsks[countAsks].orderId);
 			expect(ask.order?.price.toNumber()).to.equal(
-				expectedTestCase[countAsks].price?.toNumber()
+				expectedRealAsks[countAsks].price
 			);
-			expect(ask.order?.direction).to.equal(
-				expectedTestCase[countAsks].direction
-			);
+			expect(ask.order?.direction).to.equal(PositionDirection.SHORT);
 			expect(ask.order?.orderType).to.equal(
-				expectedTestCase[countAsks].orderType
+				expectedRealAsks[countAsks].orderType
 			);
 			countAsks++;
 		}
-		expect(countAsks).to.equal(testCases.length);
+		expect(countAsks).to.equal(expectedRealAsks.length);
 
 		const takingAsks = dlob.getTakingAsks(
 			marketIndex,
@@ -1255,6 +1275,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(12),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// 3 mkt buys
@@ -1314,7 +1335,7 @@ describe('DLOB Perp Tests', () => {
 				expect(ask.order?.orderId).to.equal(asks);
 			}
 		}
-		expect(asks).to.equal(4); // vamm ask + 3 orders
+		expect(asks).to.equal(3); // vAMM decoupled from DLOB: 3 market orders, no vAMM ask
 
 		let bids = 0;
 		const expectedBidOrderIds = [1, 2, 3];
@@ -1335,7 +1356,7 @@ describe('DLOB Perp Tests', () => {
 			expect(getVariant(bid.order?.direction)).to.equal('long');
 			expect(bid.order?.orderId).to.equal(expectedBidOrderIds[bids - 1]);
 		}
-		expect(bids).to.equal(4); // vamm bid + 3 orders
+		expect(bids).to.equal(3); // vAMM decoupled from DLOB: 3 market orders, no vAMM bid
 	});
 
 	it('Test insert limit orders', () => {
@@ -1347,6 +1368,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -1480,20 +1502,15 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		)) {
-			if (ask.order) {
-				// market orders
-				console.log(`ask price: ${ask.order.price.toString()}`);
-				expect(getVariant(ask.order?.status)).to.equal('open');
-				expect(getVariant(ask.order?.orderType)).to.equal('limit');
-				expect(getVariant(ask.order?.direction)).to.equal('short');
-				expect(ask.order?.orderId).to.equal(asks);
-				expect(ask.order?.price.gt(vAsk)).to.equal(true);
-			}
-
-			// vamm node is first for limit asks
+			// vAMM decoupled from DLOB: every node is a real limit order now.
 			asks++;
+			expect(getVariant(ask.order?.status)).to.equal('open');
+			expect(getVariant(ask.order?.orderType)).to.equal('limit');
+			expect(getVariant(ask.order?.direction)).to.equal('short');
+			expect(ask.order?.orderId).to.equal(asks);
+			expect(ask.order?.price.gt(vAsk)).to.equal(true);
 		}
-		expect(asks).to.equal(4); // vamm ask + 3 orders
+		expect(asks).to.equal(3); // vAMM decoupled from DLOB: 3 limit orders, no vAMM ask
 
 		let bids = 0;
 		for (const bid of dlob.getBids(
@@ -1503,21 +1520,15 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		)) {
-			if (bids === 0) {
-				// vamm node
-				expect(bid.order).to.equal(undefined);
-			} else {
-				// market orders
-				console.log(`bid price: ${bid.order?.price.toString()}`);
-				expect(getVariant(bid.order?.status)).to.equal('open');
-				expect(getVariant(bid.order?.orderType)).to.equal('limit');
-				expect(getVariant(bid.order?.direction)).to.equal('long');
-				expect(bid.order?.orderId).to.equal(bids);
-				expect(bid.order?.price.lt(vBid)).to.equal(true);
-			}
+			// vAMM decoupled from DLOB: every node is a real limit order now.
 			bids++;
+			expect(getVariant(bid.order?.status)).to.equal('open');
+			expect(getVariant(bid.order?.orderType)).to.equal('limit');
+			expect(getVariant(bid.order?.direction)).to.equal('long');
+			expect(bid.order?.orderId).to.equal(bids);
+			expect(bid.order?.price.lt(vBid)).to.equal(true);
 		}
-		expect(bids).to.equal(4); // vamm bid + 3 orders
+		expect(bids).to.equal(3); // vAMM decoupled from DLOB: 3 limit orders, no vAMM bid
 	});
 
 	it('Test insert floatinglimit orders', () => {
@@ -1529,6 +1540,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -1669,7 +1681,7 @@ describe('DLOB Perp Tests', () => {
 			lastBidPrice = bid.getPrice(oracle, slot);
 			bids++;
 		}
-		expect(bids).to.equal(4); // vamm bid + 3 orders
+		expect(bids).to.equal(3); // vAMM decoupled from DLOB: 3 floating bids, no vAMM bid
 
 		// check floating asks
 		console.log(`asks:`);
@@ -1696,7 +1708,7 @@ describe('DLOB Perp Tests', () => {
 			}
 			asks++;
 		}
-		expect(asks).to.equal(4); // vamm ask + 3 orders
+		expect(asks).to.equal(3); // vAMM decoupled from DLOB: 3 floating asks, no vAMM ask
 	});
 
 	it('Test multiple market orders fill with multiple limit orders', async () => {
@@ -1775,9 +1787,11 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			0,
 			1,
 			undefined,
@@ -1825,6 +1839,7 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			mockStateAccount,
 			mockPerpMarkets[marketIndex]
@@ -1922,9 +1937,11 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			0,
 			1,
 			undefined,
@@ -1959,6 +1976,7 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			mockStateAccount,
 			mockPerpMarkets[marketIndex]
@@ -2004,6 +2022,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some limit sells below vAMM ask, above bid
@@ -2176,9 +2195,11 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			makerRebateNumerator,
 			makerRebateDenominator,
 			vAsk,
@@ -2218,15 +2239,19 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			makerRebateNumerator,
 			makerRebateDenominator,
 			vAsk,
 			vBid
 		);
-		expect(nodesToFillAfter.length).to.equal(1);
+		// vAMM/fallback decoupled from the DLOB: a lone post-only bid no longer
+		// fills against fallback liquidity, so no fill nodes are produced.
+		expect(nodesToFillAfter.length).to.equal(0);
 	});
 
 	it('Test post only ask fills against fallback', async () => {
@@ -2270,9 +2295,11 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			makerRebateNumerator,
 			makerRebateDenominator,
 			vAsk,
@@ -2312,15 +2339,19 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(12),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			makerRebateNumerator,
 			makerRebateDenominator,
 			vAsk,
 			vBid
 		);
-		expect(nodesToFillAfter.length).to.equal(1);
+		// vAMM/fallback decoupled from the DLOB: a lone post-only ask no longer
+		// fills against fallback liquidity, so no fill nodes are produced.
+		expect(nodesToFillAfter.length).to.equal(0);
 	});
 
 	it('Test trigger orders', () => {
@@ -2349,6 +2380,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const orderIdsToTrigger = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -2622,6 +2654,7 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot0),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			mockStateAccount,
 			mockPerpMarkets[marketIndex]
@@ -2643,6 +2676,7 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot1),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			mockStateAccount,
 			mockPerpMarkets[marketIndex]
@@ -2678,6 +2712,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some floating limit sells above vAMM ask
@@ -2749,6 +2784,7 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			mockStateAccount,
 			mockPerpMarkets[marketIndex]
@@ -2795,6 +2831,7 @@ describe('DLOB Perp Tests', () => {
 				slot: new BN(slot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
+				isMMOracleActive: true,
 			},
 			mockStateAccount,
 			mockPerpMarkets[marketIndex]
@@ -2846,6 +2883,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some floating limit sells above vAMM ask
@@ -2907,7 +2945,8 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle,
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			0,
 			1,
 			undefined,
@@ -2963,17 +3002,15 @@ describe('DLOB Perp Tests', () => {
 		for (const n of nodesToFillAfter) {
 			printCrossedNodes(n, auctionOverSlot);
 		}
-		expect(nodesToFillAfter.length).to.equal(2);
+		// vAMM decoupled from the DLOB: findNodesToFill no longer matches takers
+		// against vAMM/fallback liquidity. Only the real taker-vs-maker crossing
+		// remains (taker order 4 vs resting limit maker order 1); the second node
+		// that previously filled order 5 against the vAMM is gone.
+		expect(nodesToFillAfter.length).to.equal(1);
 
 		// taker should fill completely with best maker
 		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
 		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(1);
-
-		// taker should fill the rest with the vAMM
-		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(5);
-		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(
-			undefined
-		);
 	});
 
 	it('Test skips vAMM and fills market sell order with floating limit buys during auction', () => {
@@ -2995,6 +3032,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some floating limit buy below vAMM bid
@@ -3165,6 +3203,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some floating limit buy below vAMM bid
@@ -3330,6 +3369,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some floating limit buy below vAMM bid
@@ -3418,25 +3458,11 @@ describe('DLOB Perp Tests', () => {
 			printCrossedNodes(n, afterAuctionSlot);
 		}
 
-		expect(
-			nodesToFillAfter[0].node.order?.orderId,
-			'wrong taker orderId'
-		).to.equal(3);
-		expect(
-			nodesToFillAfter[0].makerNodes[0]?.order?.orderId,
-			'wrong maker orderId'
-		).to.equal(undefined);
-
-		expect(
-			nodesToFillAfter[1].node.order?.orderId,
-			'wrong taker orderId'
-		).to.equal(2);
-		expect(
-			nodesToFillAfter[1].makerNodes[0]?.order?.orderId,
-			'wrong maker orderId'
-		).to.equal(undefined);
-
-		expect(nodesToFillAfter.length).to.equal(2);
+		// vAMM decoupled from the DLOB: the crossing bids previously filled
+		// against vAMM/fallback liquidity (makerNodes[0] === undefined). With the
+		// vAMM gone and no opposing resting asks on the book, findNodesToFill
+		// produces no fill nodes at all.
+		expect(nodesToFillAfter.length).to.equal(0);
 	});
 
 	it('Test fills two limit orders better than vAmm', () => {
@@ -3456,6 +3482,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert a sell below the bid, but above vBid
@@ -3545,6 +3572,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// resting bid above vBid (better)
@@ -3637,6 +3665,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert a sell that crosses amm bid
@@ -3722,7 +3751,8 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle,
 			false,
-			10,
+			mockStateAccount,
+			mockPerpMarkets[marketIndex],
 			vAsk,
 			vBid
 		);
@@ -3749,6 +3779,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		insertOrderToDLOB(
@@ -3871,6 +3902,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const users = [
@@ -3937,7 +3969,6 @@ describe('DLOB Perp Tests', () => {
 					userOrderId: 0,
 					baseAssetAmountFilled: new BN(0),
 					quoteAssetAmountFilled: new BN(0),
-					quoteAssetAmount: new BN(0),
 					reduceOnly: false,
 					triggerPrice: new BN(0),
 					triggerCondition: OrderTriggerCondition.ABOVE,
@@ -3949,8 +3980,7 @@ describe('DLOB Perp Tests', () => {
 				};
 				dlob.insertSignedMsgOrder(
 					order,
-					users[orderIndex].publicKey.toString(),
-					false
+					users[orderIndex].publicKey.toString()
 				);
 			});
 		});
@@ -4013,6 +4043,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -4039,7 +4070,6 @@ describe('DLOB Perp Tests', () => {
 			userOrderId: 0,
 			baseAssetAmountFilled: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			reduceOnly: false,
 			triggerPrice: new BN(0),
 			triggerCondition: OrderTriggerCondition.ABOVE,
@@ -4049,7 +4079,7 @@ describe('DLOB Perp Tests', () => {
 			maxTs: ZERO,
 			postedSlotTail: 0,
 		};
-		dlob.insertSignedMsgOrder(limitOrder, user0.publicKey.toString(), false);
+		dlob.insertSignedMsgOrder(limitOrder, user0.publicKey.toString());
 
 		// Initially, the order should be in taking orders (auction not complete)
 		let takingBids = Array.from(
@@ -4092,6 +4122,7 @@ describe('DLOB Perp Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -4118,7 +4149,6 @@ describe('DLOB Perp Tests', () => {
 			userOrderId: 0,
 			baseAssetAmountFilled: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
-			quoteAssetAmount: new BN(0),
 			reduceOnly: false,
 			triggerPrice: new BN(0),
 			triggerCondition: OrderTriggerCondition.ABOVE,
@@ -4128,7 +4158,7 @@ describe('DLOB Perp Tests', () => {
 			maxTs: ZERO,
 			postedSlotTail: 0,
 		};
-		dlob.insertSignedMsgOrder(postOnlyOrder, user0.publicKey.toString(), false);
+		dlob.insertSignedMsgOrder(postOnlyOrder, user0.publicKey.toString());
 
 		// PostOnly orders should always be in resting orders, never in taking orders
 		const takingBids = Array.from(
@@ -4159,6 +4189,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		const testCases = [
 			{
@@ -4294,6 +4325,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		const testCases = [
 			{
@@ -4428,6 +4460,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		const testCases = [
 			{
@@ -4517,11 +4550,20 @@ describe('DLOB Spot Tests', () => {
 			);
 		}
 
-		const expectedTestCase = testCases.sort((a, b) => {
-			// ascending order
-			return a.expectedIdx - b.expectedIdx;
-		});
 		const asks = dlob.getAsks(marketIndex, vAsk, slot, MarketType.SPOT, oracle);
+
+		// With the AMM/vAMM generator gone from the k-way merge in getAsks, the
+		// real orders surface in this order (taking market orders merged with
+		// resting limit orders by price): 3, 4, 2, 5, 1, 6, 7.
+		const expectedRealAsks = [
+			{ orderId: 3, price: 0, orderType: OrderType.MARKET },
+			{ orderId: 4, price: 0, orderType: OrderType.MARKET },
+			{ orderId: 2, price: 14, orderType: OrderType.LIMIT },
+			{ orderId: 5, price: 0, orderType: OrderType.MARKET },
+			{ orderId: 1, price: 13, orderType: OrderType.LIMIT },
+			{ orderId: 6, price: 16, orderType: OrderType.LIMIT },
+			{ orderId: 7, price: 17, orderType: OrderType.LIMIT },
+		];
 
 		console.log('The Book Asks:');
 		let countAsks = 0;
@@ -4535,20 +4577,18 @@ describe('DLOB Spot Tests', () => {
 				)}, price: ${ask.order?.price.toString()}, quantity: ${ask.order?.baseAssetAmountFilled.toString()}/${ask.order?.baseAssetAmount.toString()}`
 			);
 
-			expect(ask.order?.orderId).to.equal(expectedTestCase[countAsks].orderId);
+			expect(ask.order?.orderId).to.equal(expectedRealAsks[countAsks].orderId);
 			expect(ask.order?.price.toNumber()).to.equal(
-				expectedTestCase[countAsks].price?.toNumber()
+				expectedRealAsks[countAsks].price
 			);
-			expect(ask.order?.direction).to.equal(
-				expectedTestCase[countAsks].direction
-			);
+			expect(ask.order?.direction).to.equal(PositionDirection.SHORT);
 			expect(ask.order?.orderType).to.equal(
-				expectedTestCase[countAsks].orderType
+				expectedRealAsks[countAsks].orderType
 			);
 			countAsks++;
 		}
 
-		expect(countAsks).to.equal(testCases.length);
+		expect(countAsks).to.equal(expectedRealAsks.length);
 	});
 
 	it('Test insert market orders', () => {
@@ -4560,6 +4600,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		const dlob = new DLOB();
 		const marketIndex = 0;
@@ -4650,6 +4691,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -5082,6 +5124,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some limit sells below vAMM ask, above bid
@@ -5231,6 +5274,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some limit sells below vAMM ask, above bid
@@ -5357,6 +5401,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some limit sells below vAMM ask, above bid
@@ -5486,6 +5531,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		// insert some limit sells below vAMM ask, above bid
@@ -5676,6 +5722,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const orderIdsToTrigger = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -5990,6 +6037,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();
@@ -6079,6 +6127,7 @@ describe('DLOB Spot Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 
 		const user0 = Keypair.generate();

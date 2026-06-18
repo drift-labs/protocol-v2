@@ -31,7 +31,7 @@ interface FillQualityData {
 	updatedAtTs: number;
 }
 
-interface SummaryData {
+interface _SummaryData {
 	markets: string[];
 	lastUpdated: string;
 	lookbackMs: number;
@@ -127,7 +127,7 @@ const pollRedis = async (redisClient: RedisClient, iteration: number) => {
 			const updatedMarkets = MARKET_INDEXES_TO_TEST.filter((idx) => {
 				const lastSeen = lastSeenUpdates.get(idx);
 				if (!lastSeen) return false;
-				const currentRaw = redisClient.get(
+				const _currentRaw = redisClient.get(
 					`taker_fill_vs_oracle_bps:market:${idx}`
 				);
 				return true; // If we have a last seen, we've tracked it

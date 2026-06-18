@@ -6,6 +6,7 @@
 	"typings": "src/index.ts",
 	"source": "src/index.ts",
 	"scripts": {
+		"test": "jest",
 		"build": "bun run clean && tsc",
 		"clean": "rm -rf dist"
 	},

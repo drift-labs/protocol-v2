@@ -958,7 +958,7 @@ describe('Market Routes', () => {
 			const mockResult = {
 				success: true,
 				records: mockRecords.map((record) => {
-					const { pk, sk, entity, source, ...rest } = record;
+					const { pk: _pk, sk: _sk, entity: _entity, source: _source, ...rest } = record;
 					return rest;
 				}),
 				meta: {
@@ -1042,7 +1042,7 @@ describe('Market Routes', () => {
 			expect(payload).toEqual({
 				success: true,
 				records: mockCandles.map((record) => {
-					const { pk, sk, symbol, resolution, ...rest } = record;
+					const { pk: _pk, sk: _sk, symbol: _symbol, resolution: _resolution, ...rest } = record;
 					return rest;
 				}),
 			});
@@ -1110,7 +1110,7 @@ describe('Market Routes', () => {
 			// DB candles will be pushed onto the cached candles object
 			const expectedResult = [
 				...cacheCandles.map((record) => {
-					const { pk, sk, symbol, resolution, ...rest } = record;
+					const { pk: _pk, sk: _sk, symbol: _symbol, resolution: _resolution, ...rest } = record;
 					return rest;
 				}),
 			];
@@ -1271,7 +1271,7 @@ describe('Market Routes', () => {
 			const mockResult = {
 				success: true,
 				records: mockRecords.map((record) => {
-					const { pk, sk, entity, source, ...rest } = record;
+					const { pk: _pk, sk: _sk, entity: _entity, source: _source, ...rest } = record;
 					return rest;
 				}),
 				meta: {
@@ -1436,7 +1436,7 @@ describe('Market Routes', () => {
 			const mockResult = {
 				success: true,
 				records: mockRecords.map((record) => {
-					const { pk, sk, entity, source, ...rest } = record;
+					const { pk: _pk, sk: _sk, entity: _entity, source: _source, ...rest } = record;
 					return rest;
 				}),
 				meta: {
@@ -1590,7 +1590,7 @@ describe('Market Routes', () => {
 			const mockResult = {
 				success: true,
 				records: mockRecords.map((record) => {
-					const { pk, sk, entity, source, ...rest } = record;
+					const { pk: _pk, sk: _sk, entity: _entity, source: _source, ...rest } = record;
 					return rest;
 				}),
 				meta: {
@@ -1756,7 +1756,7 @@ describe('Market Routes', () => {
 			const mockResult = {
 				success: true,
 				records: mockRecords.map((record) => {
-					const { pk, sk, entity, source, ...rest } = record;
+					const { pk: _pk, sk: _sk, entity: _entity, source: _source, ...rest } = record;
 					return rest;
 				}),
 				meta: {

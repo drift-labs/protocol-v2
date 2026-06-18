@@ -53,6 +53,11 @@ jest.mock('@solana/web3.js', () => {
 
 jest.mock('@velocity-exchange/sdk', () => {
 	return {
+		// `BN` is re-exported by the SDK and used by `@backend/common`'s
+		// `simpleSerialize` (`value instanceof BN`). The SDK's `BN` is bn.js's
+		// constructor, so requiring it directly keeps `instanceof` semantics
+		// without pulling the whole SDK into the test realm.
+		BN: require('bn.js'),
 		parseLogs: jest.fn().mockImplementation((program, logs) => {
 			if (
 				program.programId.toString() === 'driftProgramId' &&

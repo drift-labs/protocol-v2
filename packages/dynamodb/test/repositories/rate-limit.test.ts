@@ -33,8 +33,8 @@ describe('RateLimitRepository', () => {
 		getUserUsage,
 		getGlobalUsage,
 		getUserUsageHistory,
-		DEFAULT_RATE_LIMITS,
-		RATE_LIMIT_WINDOW_MS,
+		DEFAULT_RATE_LIMITS: _DEFAULT_RATE_LIMITS,
+		RATE_LIMIT_WINDOW_MS: _RATE_LIMIT_WINDOW_MS,
 	} = RateLimitRepository();
 
 	beforeEach(() => {

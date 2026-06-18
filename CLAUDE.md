@@ -207,6 +207,7 @@ This is **Velocity Protocol v2** — a Solana perpetuals and spot trading protoc
   - `keeper.rs` — keeper/crank instructions (settle PnL, funding, liquidations)
   - `admin.rs` — admin/governance instructions
   - `lp_pool.rs`, `lp_admin.rs` — LP pool management
+- **`vaults/`** — Velocity vaults program (Anchor 1.0; program id `vAuLTsyrv…`). Depends on the `velocity` program as a host/CPI path-dep, referenced by its real crate name `velocity` (not the `drift` alias drift-rs uses — anchor's IDL build resolves dependency programs by name, so `velocity` maps to `programs/velocity`). Its TS client is `packages/vaults-sdk` (`@velocity-exchange/vaults-sdk`). Regenerate the SDK's IDL + types from the program with `bun run program:idl:vaults` (writes `packages/vaults-sdk/src/idl/vaults.json` + `src/types/vaults.ts`) — never hand-edit them.
 - **`pyth/`, `pyth-lazer/`, `switchboard/`, `switchboard-on-demand/`** — Oracle stubs/integrations (minimal, mostly `no-entrypoint` wrappers)
 - **`openbook_v2/`, `token_faucet/`** — DEX integration and test utilities
 
@@ -235,7 +236,7 @@ TypeScript library (`@velocity-exchange/sdk`). Key modules in `src/`:
 
 Preferred layout for instruction code (reference: `instructions/protocol_fees/`): each instruction domain is a **folder** under `src/instructions/` with **one file per instruction** and a `mod.rs` that holds the domain-level doc comment and re-exports. Within each instruction file, the `#[derive(Accounts)]` context struct goes at the **top**, the handler below it. Use this pattern for new instruction domains and when an existing domain is being substantially reworked anyway. However, if an instruction belongs under one of the existing monolithic instruction trees (`user.rs`, `keeper.rs`, `admin.rs`, …), follow that file's established structure instead — don't split a tree just to add one instruction.
 
-**Constraints over in-handler validates — when trivial.** Account *identity* checks belong on the accounts struct, not in the handler: PDA `seeds`/`bump` derivation (including deriving one account's seeds from another's loaded field, e.g. `seeds = [b"spot_market", perp_market.load()?.quote_spot_market_index.to_le_bytes().as_ref()]`), `has_one` for top-level pubkey fields (e.g. `has_one = oracle`), and `address =` locks. Only keep a check in the handler when it is genuinely non-trivial as a constraint: multi-account/stateful logic, math on loaded data, or a *data invariant* rather than an account identity. Don't contort complex logic into constraint expressions just to move it.
+**Constraints over in-handler validates — when trivial.** Account _identity_ checks belong on the accounts struct, not in the handler: PDA `seeds`/`bump` derivation (including deriving one account's seeds from another's loaded field, e.g. `seeds = [b"spot_market", perp_market.load()?.quote_spot_market_index.to_le_bytes().as_ref()]`), `has_one` for top-level pubkey fields (e.g. `has_one = oracle`), and `address =` locks. Only keep a check in the handler when it is genuinely non-trivial as a constraint: multi-account/stateful logic, math on loaded data, or a _data invariant_ rather than an account identity. Don't contort complex logic into constraint expressions just to move it.
 
 ### Doc comments
 

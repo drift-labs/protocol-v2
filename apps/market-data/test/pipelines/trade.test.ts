@@ -48,12 +48,12 @@ jest.doMock('../../src/tasks/volume', () => ({
 
 describe('processTradePipeline', () => {
 	let processTradePipeline: any;
-	let processBatch: any;
+	let _processBatch: any;
 
 	beforeAll(async () => {
 		const module = await import('../../src/pipelines/trade');
 		processTradePipeline = module.processTradePipeline;
-		processBatch = module.processBatch;
+		_processBatch = module.processBatch;
 	});
 
 	beforeEach(() => {

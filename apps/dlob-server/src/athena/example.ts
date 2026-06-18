@@ -17,7 +17,7 @@ import { Athena } from './client';
 
 require('dotenv').config();
 
-async function exampleBasicQuery() {
+async function _exampleBasicQuery() {
 	console.log('\n=== Example 1: Basic Query ===\n');
 
 	const { query } = Athena();
@@ -72,12 +72,15 @@ async function exampleFillQualityAnalytics() {
 	console.log(`Retrieved ${results.length} data points across all markets`);
 
 	// Group by market to show summary
-	const marketGroups = results.reduce((acc, result) => {
-		const market = result.MarketIndex;
-		if (!acc[market]) acc[market] = [];
-		acc[market].push(result);
-		return acc;
-	}, {} as Record<string, typeof results>);
+	const marketGroups = results.reduce(
+		(acc, result) => {
+			const market = result.MarketIndex;
+			if (!acc[market]) acc[market] = [];
+			acc[market].push(result);
+			return acc;
+		},
+		{} as Record<string, typeof results>
+	);
 
 	console.log(`\nFound data for ${Object.keys(marketGroups).length} markets`);
 
@@ -184,7 +187,7 @@ async function exampleFillQualityAnalytics() {
 	);
 }
 
-async function exampleBatchQuery() {
+async function _exampleBatchQuery() {
 	console.log('\n=== Example 3: Batch Query ===\n');
 
 	const { batchQuery } = Athena();

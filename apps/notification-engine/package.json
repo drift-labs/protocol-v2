@@ -5,7 +5,8 @@
     "oracle-feed": "ts-node src/oracle-feed.ts",
     "risk-manager": "ts-node src/risk-manager.ts",
     "build": "bun run clean && node esbuild.config.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",

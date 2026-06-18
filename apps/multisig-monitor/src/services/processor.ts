@@ -20,7 +20,8 @@ import { resolveWebhookUrl } from '../config';
 import { extractSignerEvents } from '../signer/extractor';
 import { sendBatchNotification, sendSignerEvents } from '../slack';
 import { decodeOperations } from '../squads/cpi-decoder';
-import { extractOperations, type DetectedOperation } from '../squads/index';
+import { extractOperations } from '../squads';
+import type { DetectedOperation } from '../squads/types';
 import { yellowstoneToRawTransaction, type YellowstoneTransaction } from './converter';
 import {
 	incrementOperationsAlerted,

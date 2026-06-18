@@ -33,7 +33,6 @@ export const mockOrder: Order = {
 	price: ZERO,
 	baseAssetAmount: ZERO,
 	baseAssetAmountFilled: ZERO,
-	quoteAssetAmount: ZERO,
 	quoteAssetAmountFilled: ZERO,
 	direction: PositionDirection.LONG,
 	reduceOnly: false,
@@ -120,7 +119,7 @@ export async function makeMockUser(
 
 	const oraclePriceMap: Record<string, number> = {};
 	for (let i = 0; i < myMockPerpMarkets.length; i++) {
-		oraclePriceMap[myMockPerpMarkets[i].amm.oracle.toString()] =
+		oraclePriceMap[myMockPerpMarkets[i].oracle.toString()] =
 			perpOraclePriceList[i] ?? 1;
 	}
 	for (let i = 0; i < myMockSpotMarkets.length; i++) {
@@ -149,7 +148,7 @@ export async function makeMockUser(
 		return { data, slot: 0 };
 	}
 	function getOracleDataForPerpMarket(marketIndex: number) {
-		const oracle = getMockPerpMarket(marketIndex).amm.oracle;
+		const oracle = getMockPerpMarket(marketIndex).oracle;
 		return getMockOracle(oracle).data;
 	}
 	function getOracleDataForSpotMarket(marketIndex: number) {
@@ -160,7 +159,7 @@ export async function makeMockUser(
 	function getMMOracleDataForPerpMarket(
 		marketIndex: number
 	): MMOraclePriceData {
-		const oracle = getMockPerpMarket(marketIndex).amm.oracle;
+		const oracle = getMockPerpMarket(marketIndex).oracle;
 		return {
 			price: getMockOracle(oracle).data.price,
 			slot: getMockOracle(oracle).data.slot,

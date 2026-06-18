@@ -45,6 +45,11 @@ use constants::{
     high_leverage_mode_account, ASSOCIATED_TOKEN_PROGRAM_ID, PROGRAM_ID, SYSTEM_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
 };
+// Re-export the on-chain program crate so downstream consumers (keep-rs, swift,
+// …) reach program internals — math, controller, state, error, sdk — through the
+// SDK as `drift_rs::drift::…` rather than taking a second direct path-dep on the
+// velocity program. drift-rs is the single point that depends on the program.
+pub use drift;
 pub use drift_pubsub_client::PubsubClient;
 use futures_util::TryFutureExt;
 use log::debug;
@@ -3470,20 +3475,29 @@ impl<'a> TransactionBuilder<'a> {
     /// - `referrer`: Optional referrer pubkey for the account.
     ///
     /// # Example
-    /// ```
+    /// ```no_run
+    /// use std::borrow::Cow;
     /// use drift_rs::{TransactionBuilder, Wallet};
-    /// use solana_pubkey::Pubkey;
+    /// use drift_rs::constants::ProgramData;
+    /// use drift_rs::types::accounts::User;
+    /// use solana_keypair::Keypair;
     ///
-    /// let wallet = Wallet::new_random();
-    /// let program_data = /* obtain ProgramData */;
+    /// let wallet = Wallet::new(Keypair::new());
+    /// let program_data = ProgramData::uninitialized();
+    /// let user = User { authority: wallet.authority().clone(), ..Default::default() };
     /// let sub_account_id = 0;
-    /// let mut builder = TransactionBuilder::new(&program_data, wallet.default_sub_account(), /* user data */, false);
+    /// let mut builder = TransactionBuilder::new(
+    ///     &program_data,
+    ///     wallet.default_sub_account(),
+    ///     Cow::Owned(user),
+    ///     false,
+    /// );
     ///
     /// // Initialize the user account and the swift account, then deposit 100_000 USDC (spot market 0)
     /// builder = builder
     ///     .initialize_user_account(sub_account_id, None, None)
     ///     .initialize_swift_account()
-    ///     .deposit(100_000, 0, None);
+    ///     .deposit(100_000, 0, None, None);
     /// ```
     pub fn initialize_user_account(
         mut self,
@@ -4237,30 +4251,32 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "rpc_tests")]
     async fn test_marketmap_subscribe() {
+        use crate::event_subscriber::RpcClient;
         use utils::test_envs::mainnet_endpoint;
 
         let client = DriftClient::new(
             Context::MainNet,
-            RpcAccountProvider::new(&mainnet_endpoint()),
+            RpcClient::new(mainnet_endpoint()),
             Keypair::new().into(),
         )
         .await
         .unwrap();
 
-        let _ = client.subscribe().await;
+        let _ = client.subscribe_all_markets().await;
+        let _ = client.subscribe_all_oracles().await;
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
         for _ in 0..20 {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            let perp_market = client.get_perp_market_account_and_slot(0);
+            let perp_market = client.get_perp_market_account_and_slot(0).await;
             let slot = perp_market.unwrap().slot;
             dbg!(slot);
         }
 
         for _ in 0..20 {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            let spot_market = client.get_spot_market_account_and_slot(0);
+            let spot_market = client.get_spot_market_account_and_slot(0).await;
             let slot = spot_market.unwrap().slot;
             dbg!(slot);
         }

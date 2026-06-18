@@ -431,6 +431,7 @@ mod tests {
         MarketId,
     };
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn marketmap_subscribe() {
         let map = MarketMap::<PerpMarket>::new(
@@ -456,6 +457,7 @@ mod tests {
         assert!(!map.is_subscribed(1));
     }
 
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn get_market_accounts_with_fallback_works() {
         let result: Result<(Vec<PerpMarket>, _), _> =
@@ -477,53 +479,63 @@ mod rpc_tests {
     use crate::solana_sdk::commitment_config::CommitmentConfig;
 
     use super::*;
-    use crate::utils::test_envs::mainnet_endpoint;
+    use crate::utils::{get_ws_url, test_envs::mainnet_endpoint};
 
     #[tokio::test]
     async fn test_marketmap_perp() {
-        let commitment = CommitmentConfig {
-            commitment: CommitmentConfig::Processed,
-        };
+        let commitment = CommitmentConfig::processed();
 
-        let marketmap = MarketMap::<PerpMarket>::new(commitment, mainnet_endpoint(), true);
-        marketmap.subscribe().await.unwrap();
+        let marketmap = MarketMap::<PerpMarket>::new(
+            Arc::new(
+                PubsubClient::new(&get_ws_url(&mainnet_endpoint()).unwrap())
+                    .await
+                    .expect("ws connects"),
+            ),
+            commitment,
+        );
+
+        let markets: Vec<MarketId> = (0..28).map(MarketId::perp).collect();
+        marketmap.subscribe(&markets).await.unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
-        dbg!(marketmap.size());
-        assert!(marketmap.size() == 28);
+        dbg!(marketmap.len());
+        assert!(marketmap.len() == 28);
 
         dbg!(marketmap.get_latest_slot());
 
-        marketmap.unsubscribe().await.unwrap();
+        marketmap.unsubscribe_all().unwrap();
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-
-        assert_eq!(marketmap.size(), 0);
-        assert_eq!(marketmap.subscribed.load(Ordering::Relaxed), false);
+        assert_eq!(marketmap.len(), 0);
+        assert!(!marketmap.is_subscribed(0));
     }
 
     #[tokio::test]
     async fn test_marketmap_spot() {
-        let commitment = CommitmentConfig {
-            commitment: CommitmentConfig::Processed,
-        };
+        let commitment = CommitmentConfig::processed();
 
-        let marketmap = MarketMap::<SpotMarket>::new(commitment, RPC, true);
-        marketmap.subscribe().await.unwrap();
+        let marketmap = MarketMap::<SpotMarket>::new(
+            Arc::new(
+                PubsubClient::new(&get_ws_url(&mainnet_endpoint()).unwrap())
+                    .await
+                    .expect("ws connects"),
+            ),
+            commitment,
+        );
+
+        let markets: Vec<MarketId> = (0..13).map(MarketId::spot).collect();
+        marketmap.subscribe(&markets).await.unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
-        dbg!(marketmap.size());
-        assert!(marketmap.size() == 13);
+        dbg!(marketmap.len());
+        assert!(marketmap.len() == 13);
 
         dbg!(marketmap.get_latest_slot());
 
-        marketmap.unsubscribe().await.unwrap();
+        marketmap.unsubscribe_all().unwrap();
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-
-        assert_eq!(marketmap.size(), 0);
-        assert_eq!(marketmap.subscribed.get(), false);
+        assert_eq!(marketmap.len(), 0);
+        assert!(!marketmap.is_subscribed(0));
     }
 }

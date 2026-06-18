@@ -65,20 +65,35 @@ impl JupiterSwapApi for DriftClient {
     /// # Example
     ///
     /// ```no_run
-    /// use solana_pubkey::Pubkey;
+    /// use drift_rs::{Context, DriftClient, RpcClient, Wallet};
+    /// use drift_rs::jupiter::{JupiterSwapApi, SwapMode};
+    /// use drift_rs::types::SdkResult;
+    /// use solana_keypair::Keypair;
     ///
-    /// let swap_info = jupiter_swap_query(
-    ///     rpc_client,
-    ///     user_wallet.pubkey(),
-    ///     1_000_000, // 1 USDC
-    ///     SwapMode::ExactIn,
-    ///     50, // 0.5% slippage
-    ///     usdc_mint,
-    ///     sol_mint,
-    ///     Some(true),
-    ///     None,
-    ///     None
-    /// ).await?;
+    /// # async fn run() -> SdkResult<()> {
+    /// let wallet = Wallet::new(Keypair::new());
+    /// let client = DriftClient::new(
+    ///     Context::MainNet,
+    ///     RpcClient::new("https://api.mainnet-beta.solana.com".into()),
+    ///     wallet.clone(),
+    /// )
+    /// .await?;
+    ///
+    /// let swap_info = client
+    ///     .jupiter_swap_query(
+    ///         wallet.authority(),
+    ///         1_000_000, // 1 USDC
+    ///         SwapMode::ExactIn,
+    ///         50,  // 0.5% slippage
+    ///         0,   // in spot market index (e.g. USDC)
+    ///         1,   // out spot market index (e.g. SOL)
+    ///         Some(true),
+    ///         None,
+    ///         None,
+    ///     )
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn jupiter_swap_query(
         &self,
