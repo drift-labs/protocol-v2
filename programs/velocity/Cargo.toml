@@ -23,8 +23,8 @@ idl-build = [
 ]
 
 [dependencies]
-anchor-lang = { version = "1.0.0", features = ["init-if-needed"] }
-anchor-spl = "1.0.0"
+anchor-lang = { version = "1.0.2", features = ["init-if-needed"] }
+anchor-spl = "1.0.2"
 solana-program = "3"
 borsh = "1"
 pyth-client = "0.2.2"

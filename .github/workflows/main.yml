@@ -145,21 +145,17 @@ jobs:
         run: cargo check # run package checks
       - name: Run unit tests
         run: cargo test --lib # run unit tests
-  # disable until solana-client is upgraded
-  #  cargo-audit:
-  #    name: Cargo audit
-  #    runs-on: ubicloud
-  #    steps:
-  #      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-  #      - name: Cache cargo-audit version
-  #        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
-  #      - name: Download cargo-audit
-  #        uses: actions-rs/install@v0.1
-  #        with:
-  #          crate: cargo-audit
-  #          version: latest
-  #      - name: Run cargo-audit # Using args from .cargo/audit.toml
-  #        run: cargo audit
+  cargo-audit:
+    name: Cargo audit
+    runs-on: ubicloud
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Cache cargo-audit version
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Run cargo-audit # Using args from .cargo/audit.toml
+        run: cargo audit
   prettier:
     runs-on: ubicloud
     steps:

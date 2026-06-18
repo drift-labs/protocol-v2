@@ -16,8 +16,8 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build", "velocity/idl-buil
 default = []
 
 [dependencies]
-anchor-lang = "1.0.0"
-anchor-spl = { version = "1.0.0", features = ["metadata"] }
+anchor-lang = "1.0.2"
+anchor-spl = { version = "1.0.2", features = ["metadata"] }
 solana-program = "3"
 borsh = "1"
 velocity = { path = "../velocity", default-features = false, features = ["cpi"] }
