@@ -31,13 +31,13 @@ struct Stats {
     skipped_throttle: AtomicU64,
 }
 
-pub async fn run(config: Config, drift: VelocityClient) {
+pub async fn run(config: Config, velocity: VelocityClient) {
     let perp_market_ids = match config.use_markets() {
-        UseMarkets::All => drift.get_all_perp_market_ids(),
+        UseMarkets::All => velocity.get_all_perp_market_ids(),
         UseMarkets::Subset(m) => m,
     };
     let spot_market_ids: Vec<MarketId> = if config.use_spot_liquidation {
-        drift
+        velocity
             .program_data()
             .spot_market_configs()
             .iter()
@@ -76,22 +76,22 @@ pub async fn run(config: Config, drift: VelocityClient) {
         &extra_feeds,
     );
 
-    drift
+    velocity
         .subscribe_blockhashes()
         .await
         .expect("subscribed blockhashes");
 
-    let subaccount = drift.wallet.sub_account(config.sub_account_id);
-    let user = drift
+    let subaccount = velocity.wallet.sub_account(config.sub_account_id);
+    let user = velocity
         .get_user_account(&subaccount)
         .await
         .expect("bot subaccount exists (run --init-user first)");
 
-    let drift: &'static VelocityClient = Box::leak(Box::new(drift));
+    let velocity: &'static VelocityClient = Box::leak(Box::new(velocity));
     let user: &'static User = Box::leak(Box::new(user));
     let stats = Arc::new(Stats::default());
 
-    log::info!(target: TARGET, "subaccount={subaccount} authority={}", drift.wallet.authority());
+    log::info!(target: TARGET, "subaccount={subaccount} authority={}", velocity.wallet.authority());
 
     {
         let stats = Arc::clone(&stats);
@@ -144,14 +144,14 @@ pub async fn run(config: Config, drift: VelocityClient) {
         }
 
         let tx =
-            TransactionBuilder::new(drift.program_data(), subaccount, Cow::Borrowed(user), false)
+            TransactionBuilder::new(velocity.program_data(), subaccount, Cow::Borrowed(user), false)
                 .with_priority_fee(config.priority_fee, Some(CU_LIMIT))
                 .post_pyth_lazer_oracle_update(&[update.feed_id], &update.message)
                 .build();
 
         let stats = Arc::clone(&stats);
         tokio::spawn(async move {
-            let blockhash = match drift.get_latest_blockhash().await {
+            let blockhash = match velocity.get_latest_blockhash().await {
                 Ok(b) => b,
                 Err(e) => {
                     stats.failed.fetch_add(1, Ordering::Relaxed);
@@ -159,7 +159,7 @@ pub async fn run(config: Config, drift: VelocityClient) {
                     return;
                 }
             };
-            let signed = match drift.wallet().sign_tx(tx, blockhash) {
+            let signed = match velocity.wallet().sign_tx(tx, blockhash) {
                 Ok(t) => t,
                 Err(e) => {
                     stats.failed.fetch_add(1, Ordering::Relaxed);
@@ -172,7 +172,7 @@ pub async fn run(config: Config, drift: VelocityClient) {
                 max_retries: Some(0),
                 ..Default::default()
             };
-            match drift.rpc().send_transaction_with_config(&signed, cfg).await {
+            match velocity.rpc().send_transaction_with_config(&signed, cfg).await {
                 Ok(sig) => {
                     stats.sent.fetch_add(1, Ordering::Relaxed);
                     log::info!(
@@ -196,9 +196,9 @@ pub async fn run(config: Config, drift: VelocityClient) {
 }
 
 /// One-shot: initialize the bot's velocity sub-account, then exit.
-pub async fn init_user(config: Config, drift: VelocityClient) {
-    let subaccount = drift.wallet.sub_account(config.sub_account_id);
-    if drift.get_user_account(&subaccount).await.is_ok() {
+pub async fn init_user(config: Config, velocity: VelocityClient) {
+    let subaccount = velocity.wallet.sub_account(config.sub_account_id);
+    if velocity.get_user_account(&subaccount).await.is_ok() {
         log::info!(target: TARGET, "subaccount {subaccount} already exists; nothing to do");
         return;
     }
@@ -213,11 +213,11 @@ pub async fn init_user(config: Config, drift: VelocityClient) {
     // TransactionBuilder reads authority from the User; set it to our wallet
     // so signing matches.
     let placeholder = User {
-        authority: *drift.wallet.authority(),
+        authority: *velocity.wallet.authority(),
         ..User::default()
     };
     let tx = TransactionBuilder::new(
-        drift.program_data(),
+        velocity.program_data(),
         subaccount,
         Cow::Owned(placeholder),
         false,
@@ -226,16 +226,16 @@ pub async fn init_user(config: Config, drift: VelocityClient) {
     .initialize_user_account(config.sub_account_id, None, None)
     .build();
 
-    let blockhash = drift
+    let blockhash = velocity
         .get_latest_blockhash()
         .await
         .expect("fetched blockhash");
-    let signed = drift.wallet().sign_tx(tx, blockhash).expect("signed tx");
+    let signed = velocity.wallet().sign_tx(tx, blockhash).expect("signed tx");
     let cfg = RpcSendTransactionConfig {
         skip_preflight: false,
         ..Default::default()
     };
-    match drift.rpc().send_transaction_with_config(&signed, cfg).await {
+    match velocity.rpc().send_transaction_with_config(&signed, cfg).await {
         Ok(sig) => log::info!(target: TARGET, "init user submitted: sig={sig}"),
         Err(e) => log::error!(target: TARGET, "init user failed: {e}"),
     }

@@ -188,33 +188,33 @@ async fn main() {
     };
     let rpc_url =
         std::env::var("RPC_URL").unwrap_or_else(|_| "https://api.devnet.solana.com".to_string());
-    let drift = VelocityClient::new(context, RpcClient::new(rpc_url), wallet)
+    let velocity = VelocityClient::new(context, RpcClient::new(rpc_url), wallet)
         .await
         .expect("initialized client");
 
     tokio::spawn({
-        let drift = drift.clone();
+        let velocity = velocity.clone();
         async move {
             let _ = tokio::signal::ctrl_c().await;
             log::warn!("ctrl+c received, bot shutting down...");
-            drift.grpc_unsubscribe();
+            velocity.grpc_unsubscribe();
             std::process::exit(0);
         }
     });
 
     if config.init_user {
-        relayer::init_user(config, drift).await;
+        relayer::init_user(config, velocity).await;
         return;
     } else if config.relayer {
-        relayer::run(config, drift).await;
+        relayer::run(config, velocity).await;
     } else if config.liquidator {
-        let bot = LiquidatorBot::new(config, drift, metrics, dashboard_state).await;
+        let bot = LiquidatorBot::new(config, velocity, metrics, dashboard_state).await;
         bot.run().await;
     } else if config.quoter {
-        let bot = QuoterBot::new(config, drift).await;
+        let bot = QuoterBot::new(config, velocity).await;
         bot.run().await;
     } else if config.filler {
-        let bot = FillerBot::new(config, drift, metrics).await;
+        let bot = FillerBot::new(config, velocity, metrics).await;
         bot.run().await;
     } else {
         log::warn!("provide --filler, --liquidator, --quoter, or --relayer mode");

@@ -115,13 +115,13 @@ impl<'a> DLOBBuilder<'a> {
     /// This will notify the DLOB of slot/price updates for the given markets.
     pub fn slot_update_handler(
         &self,
-        drift: VelocityClient,
+        velocity: VelocityClient,
         markets: Vec<MarketId>,
     ) -> impl Fn(u64) + Send + Sync + 'static {
         let notifier = self.notifier.clone();
         move |new_slot| {
             for market in markets.iter() {
-                let oracle_price_data = drift
+                let oracle_price_data = velocity
                     .try_get_mmoracle_for_perp_market(market.index(), new_slot)
                     .expect("got oracle price");
 

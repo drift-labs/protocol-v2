@@ -89,14 +89,14 @@ async fn main() {
     };
     let rpc_url = std::env::var("RPC_URL")
         .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
-    let drift = VelocityClient::new(context, RpcClient::new(rpc_url), wallet.clone())
+    let velocity = VelocityClient::new(context, RpcClient::new(rpc_url), wallet.clone())
         .await
         .expect("initialized client");
 
     // choose a sub-account for order placement
     let maker_subaccount = wallet.default_sub_account();
 
-    let maker_subaccount_data = drift
+    let maker_subaccount_data = velocity
         .get_account_value(&maker_subaccount)
         .await
         .expect("velocity account exists");
@@ -159,7 +159,7 @@ async fn main() {
     let referrer = None; // Optional referrer
 
     let tx = TransactionBuilder::new(
-        drift.program_data(),
+        velocity.program_data(),
         maker_subaccount,
         std::borrow::Cow::Borrowed(&maker_subaccount_data),
         false,
@@ -168,7 +168,7 @@ async fn main() {
     .place_and_take(order, &makers, referrer, None, None)
     .build();
 
-    match drift.sign_and_send(tx).await {
+    match velocity.sign_and_send(tx).await {
         Ok(sig) => {
             println!("sent tx: {sig:?}");
         }

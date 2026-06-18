@@ -18,27 +18,27 @@ use solana_keypair::Keypair;
 pub async fn ws_maker(context: Context, wallet: Wallet) {
     let rpc_url = std::env::var("RPC_URL")
         .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
-    let drift = VelocityClient::new(context, RpcClient::new(rpc_url), Keypair::new().into())
+    let velocity = VelocityClient::new(context, RpcClient::new(rpc_url), Keypair::new().into())
         .await
         .expect("initialized client");
-    let _ = drift.subscribe_blockhashes().await; // subscribe blockhases for fast tx building
+    let _ = velocity.subscribe_blockhashes().await; // subscribe blockhases for fast tx building
 
-    let market_id = drift.market_lookup("sol-perp").unwrap();
-    let market_info = drift
+    let market_id = velocity.market_lookup("sol-perp").unwrap();
+    let market_info = velocity
         .try_get_perp_market_account(market_id.index())
         .unwrap();
 
-    let sub_account_address = drift.wallet().sub_account(0); // trade on the default sub-account index
-    let _ = drift
+    let sub_account_address = velocity.wallet().sub_account(0); // trade on the default sub-account index
+    let _ = velocity
         .subscribe_account(&sub_account_address)
         .await
         .expect("subscribed account");
-    let _ = drift
+    let _ = velocity
         .subscribe_oracles(&[market_id])
         .await
         .expect("subscribed oracle");
 
-    let mut account_events = EventSubscriber::subscribe(drift.ws(), sub_account_address)
+    let mut account_events = EventSubscriber::subscribe(velocity.ws(), sub_account_address)
         .await
         .unwrap();
 
@@ -47,8 +47,8 @@ pub async fn ws_maker(context: Context, wallet: Wallet) {
         tokio::select! {
             biased;
             _ = requote_interval.tick() => {
-                let sub_account_data: User = drift.try_get_account(&sub_account_address).expect("has account");
-                let oracle_account = drift.try_get_oracle_price_data_and_slot(market_id).expect("has oracle");
+                let sub_account_data: User = velocity.try_get_account(&sub_account_address).expect("has account");
+                let oracle_account = velocity.try_get_oracle_price_data_and_slot(market_id).expect("has oracle");
 
                 if let Ok(position) = sub_account_data.get_perp_position(market_info.market_index) {
                     let upnl = position.get_unrealized_pnl(oracle_account.data.price).unwrap();
@@ -59,7 +59,7 @@ pub async fn ws_maker(context: Context, wallet: Wallet) {
                 let quote_size = 5_u64 * BASE_PRECISION_U64; // 5.000_000_000
 
                 place_txs(
-                    &drift,
+                    &velocity,
                     &market_info,
                     sub_account_address,
                     &sub_account_data,
@@ -155,14 +155,14 @@ fn standardize_amount(amount: u64, tick_size: u64) -> u64 {
 }
 
 async fn place_txs(
-    drift: &VelocityClient,
+    velocity: &VelocityClient,
     market: &PerpMarket,
     sub_account: Pubkey,
     sub_account_data: &User,
     orders: Vec<OrderParams>,
 ) {
     let builder = TransactionBuilder::new(
-        drift.program_data(),
+        velocity.program_data(),
         sub_account,
         std::borrow::Cow::Borrowed(sub_account_data),
         false,
@@ -175,7 +175,7 @@ async fn place_txs(
         .place_orders(orders) // place new orders
         .build();
 
-    match drift.sign_and_send(tx).await {
+    match velocity.sign_and_send(tx).await {
         Ok(sig) => {
             println!("sent tx: {sig:?}");
         }

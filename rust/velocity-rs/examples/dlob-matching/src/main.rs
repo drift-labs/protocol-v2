@@ -34,7 +34,7 @@ async fn main() {
     // Initialize velocity client
     let rpc_url = std::env::var("RPC_URL")
         .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
-    let drift = VelocityClient::new(
+    let velocity = VelocityClient::new(
         Context::MainNet,
         RpcClient::new(rpc_url),
         Keypair::new().into(),
@@ -43,7 +43,7 @@ async fn main() {
     .expect("initialized client");
 
     // Sync initial user accounts to populate DLOB
-    let account_map = drift.backend().account_map();
+    let account_map = velocity.backend().account_map();
     account_map
         .sync_user_accounts(vec![velocity_rs::memcmp::get_user_with_order_filter()])
         .await
@@ -58,7 +58,7 @@ async fn main() {
     let grpc_x_token = std::env::var("GRPC_X_TOKEN").expect("GRPC_X_TOKEN must be set in .env");
 
     let grpc_handle = tokio::spawn(async move {
-        drift
+        velocity
             .grpc_subscribe(
                 grpc_url,
                 grpc_x_token,
@@ -86,7 +86,7 @@ async fn main() {
     
     // this is the most update to date oracle price from gRPC
     // however more advanced setups may query from pyth price feeds directly
-    let oracle_data = drift
+    let oracle_data = velocity
         .try_get_oracle_price_data_and_slot(MarketId::perp(market_index))
         .expect("oracle data exists");
     let oracle_price = oracle_data.data.price as u64;
@@ -95,7 +95,7 @@ async fn main() {
     println!("Slot: {}", oracle_data.slot);
     println!();
 
-    let perp_market = drift
+    let perp_market = velocity
         .backend()
         .perp_market(market_index)
         .map(|m| m.clone());

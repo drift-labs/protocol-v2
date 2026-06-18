@@ -32,7 +32,7 @@ impl UserAccountFetcher {
         }
     }
     /// Create a new `UserAccountFetcher` from env vars
-    pub async fn from_env(drift: VelocityClient) -> Self {
+    pub async fn from_env(velocity: VelocityClient) -> Self {
         let redis = {
             let elasticache_host = std::env::var("USERMAP_ELASTICACHE_HOST")
                 .unwrap_or_else(|_| "localhost".to_string());
@@ -63,7 +63,7 @@ impl UserAccountFetcher {
 
         Self {
             redis,
-            fallback: Fallback::Rpc(drift),
+            fallback: Fallback::Rpc(velocity),
         }
     }
 
@@ -85,7 +85,7 @@ impl UserAccountFetcher {
         match self.usermap_lookup(account, slot).await {
             Ok(res) => Ok(res),
             Err(_) => match &self.fallback {
-                Fallback::Rpc(drift) => drift.get_account_value(account).await.map_err(|_| ()),
+                Fallback::Rpc(velocity) => velocity.get_account_value(account).await.map_err(|_| ()),
                 Fallback::Mock(mocks) => mocks.get(account).copied().ok_or(()),
             },
         }
@@ -150,14 +150,14 @@ mod tests {
     #[tokio::test]
     async fn usermap_lookups() {
         let _ = env_logger::try_init();
-        let drift = VelocityClient::new(
+        let velocity = VelocityClient::new(
             Context::DevNet,
             RpcClient::new("https://api.devnet.solana.com".into()),
             Keypair::new().into(),
         )
         .await
         .unwrap();
-        let u = UserAccountFetcher::from_env(drift.clone()).await;
+        let u = UserAccountFetcher::from_env(velocity.clone()).await;
         let keys = [
             solana_pubkey::pubkey!("9wcC14v9n3YvGenSnAnsA8yTwnCyUg3ayTBGaJUNEnn6"),
             solana_pubkey::pubkey!("6nBSTpFpAqw32CKdauAL1FnSLvrtUpBgeXXjPEL2ooB7"),
@@ -169,7 +169,7 @@ mod tests {
             solana_pubkey::pubkey!("9TDcwUU43bbhGM8JDMY7FT8797foKA32ekSH9eieT3jX"),
         ];
 
-        let slot = drift.rpc().get_slot().await.unwrap();
+        let slot = velocity.rpc().get_slot().await.unwrap();
 
         for p in keys {
             let t0 = std::time::Instant::now();

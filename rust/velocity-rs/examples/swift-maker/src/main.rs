@@ -33,16 +33,16 @@ async fn main() {
     };
     let rpc_url =
         std::env::var("RPC_URL").unwrap_or_else(|_| "https://api.devnet.solana.com".to_string());
-    let drift = VelocityClient::new(context, RpcClient::new(rpc_url), wallet)
+    let velocity = VelocityClient::new(context, RpcClient::new(rpc_url), wallet)
         .await
         .expect("initialized client");
-    let _ = drift
+    let _ = velocity
         .subscribe_blockhashes()
         .await
         .expect("subscribed blockhashes");
 
     // subscribe to filler account (used when building Txs)
-    let _ = drift
+    let _ = velocity
         .subscribe_account(&filler_subaccount)
         .await
         .expect("subscribed");
@@ -50,10 +50,10 @@ async fn main() {
     // choose some markets by symbol
     let market_ids: Vec<MarketId> = ["sol-perp"]
         .iter()
-        .map(|m| drift.market_lookup(m).expect("market found"))
+        .map(|m| velocity.market_lookup(m).expect("market found"))
         .collect();
 
-    let mut swift_order_stream = drift
+    let mut swift_order_stream = velocity
         .subscribe_swift_orders(&market_ids, Some(true), None, None)
         .await
         .expect("subscribed swift orders");
@@ -69,7 +69,7 @@ async fn main() {
             swift_order = swift_order_stream.next() => {
                 match swift_order {
                     Some(order) => {
-                        let _handle = tokio::spawn(try_fill(drift.clone(), filler_subaccount, order));
+                        let _handle = tokio::spawn(try_fill(velocity.clone(), filler_subaccount, order));
                     }
                     None => {
                         println!("swift order stream finished");
@@ -82,7 +82,7 @@ async fn main() {
 }
 
 /// Try to fill a swift order
-async fn try_fill(drift: VelocityClient, filler_subaccount: Pubkey, swift_order: SignedOrderInfo) {
+async fn try_fill(velocity: VelocityClient, filler_subaccount: Pubkey, swift_order: SignedOrderInfo) {
     // TODO: filter `swift_order.order_params()` depending on strategy params
     println!("new swift order: {swift_order:?}");
     let taker_order = swift_order.order_params();
@@ -91,9 +91,9 @@ async fn try_fill(drift: VelocityClient, filler_subaccount: Pubkey, swift_order:
     // fetching taker accounts inline
     // TODO: for better fills maintain a gRPC map of user accounts
     let (taker_account_data, taker_stats, tx_builder) = tokio::try_join!(
-        drift.get_user_account(&taker_subaccount), // always hits RPC
-        drift.get_user_stats(&swift_order.taker_authority), // always hits RPC
-        drift.init_tx(&filler_subaccount, false)
+        velocity.get_user_account(&taker_subaccount), // always hits RPC
+        velocity.get_user_stats(&swift_order.taker_authority), // always hits RPC
+        velocity.init_tx(&filler_subaccount, false)
     )
     .unwrap();
 
@@ -127,7 +127,7 @@ async fn try_fill(drift: VelocityClient, filler_subaccount: Pubkey, swift_order:
         )
         .build();
 
-    match drift.sign_and_send(tx).await {
+    match velocity.sign_and_send(tx).await {
         Ok(sig) => {
             println!("sent fill: {sig}");
         }

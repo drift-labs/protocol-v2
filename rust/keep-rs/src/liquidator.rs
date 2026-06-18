@@ -232,7 +232,7 @@ fn validate_pyth_price_freshness(pyth_update: &PythPriceUpdate) -> Result<(), St
 
 /// Update dashboard state with current high-risk users and oracle prices
 async fn update_dashboard_state(
-    drift: &VelocityClient,
+    velocity: &VelocityClient,
     dashboard_state: &DashboardStateRef,
     users: &BTreeMap<Pubkey, UserAccountMetadata>,
     oracle_prices: &HashMap<MarketId, OraclePriceMetadata>,
@@ -291,7 +291,7 @@ async fn update_dashboard_state(
                     // Note: base_asset_amount calculation would require spot market access
                     // which isn't directly available from MarketState in this context.
                     // We'll calculate an approximation using scaled_balance and oracle price.
-                    let spot_market = match drift.try_get_spot_market_account(pos.market_index) {
+                    let spot_market = match velocity.try_get_spot_market_account(pos.market_index) {
                         Ok(market) => market,
                         Err(_) => continue,
                     };
@@ -473,7 +473,7 @@ pub enum GrpcEvent {
 }
 
 pub struct LiquidatorBot {
-    drift: VelocityClient,
+    velocity: VelocityClient,
     dlob_notifier: DLOBNotifier,
     config: Config,
     /// stores velocity perp+spot market metadata and oracle prices
@@ -505,18 +505,18 @@ pub struct LiquidatorBot {
 impl LiquidatorBot {
     pub async fn new(
         config: Config,
-        drift: VelocityClient,
+        velocity: VelocityClient,
         metrics: Arc<Metrics>,
         dashboard_state: DashboardStateRef,
     ) -> Self {
         let dlob: &'static DLOB = Box::leak(Box::new(DLOB::default()));
 
         let mut perp_market_ids = match config.use_markets() {
-            UseMarkets::All => drift.get_all_perp_market_ids(),
+            UseMarkets::All => velocity.get_all_perp_market_ids(),
             UseMarkets::Subset(m) => m,
         };
 
-        let spot_market_ids: Vec<MarketId> = drift
+        let spot_market_ids: Vec<MarketId> = velocity
             .program_data()
             .spot_market_configs()
             .iter()
@@ -525,7 +525,7 @@ impl LiquidatorBot {
 
         // remove bet perp markets
         perp_market_ids.retain(|x| {
-            let market = drift
+            let market = velocity
                 .program_data()
                 .perp_market_config_by_index(x.index())
                 .unwrap();
@@ -539,7 +539,7 @@ impl LiquidatorBot {
         let market_pubkeys: Vec<Pubkey> = perp_market_ids
             .iter()
             .map(|x| {
-                drift
+                velocity
                     .program_data()
                     .perp_market_config_by_index(x.index())
                     .unwrap()
@@ -548,27 +548,27 @@ impl LiquidatorBot {
             .collect();
 
         let priority_fee_subscriber =
-            PriorityFeeSubscriber::new(drift.rpc().url(), &market_pubkeys);
+            PriorityFeeSubscriber::new(velocity.rpc().url(), &market_pubkeys);
         let priority_fee_subscriber = priority_fee_subscriber.subscribe();
 
         let subaccounts: Vec<Pubkey> = config
             .get_subaccounts()
             .iter()
-            .map(|id| drift.wallet.sub_account(*id))
+            .map(|id| velocity.wallet.sub_account(*id))
             .collect();
 
-        log::info!(target: TARGET, "liquidator 🫠 bot started: authority={:?}, subaccount={:?}", drift.wallet.authority(), subaccounts);
+        log::info!(target: TARGET, "liquidator 🫠 bot started: authority={:?}, subaccount={:?}", velocity.wallet.authority(), subaccounts);
 
-        drift.subscribe_blockhashes().await.expect("subscribed");
+        velocity.subscribe_blockhashes().await.expect("subscribed");
 
         let subaccount_pubkeys: Vec<Pubkey> = config
             .get_subaccounts()
             .iter()
-            .map(|id| drift.wallet.sub_account(*id))
+            .map(|id| velocity.wallet.sub_account(*id))
             .collect();
 
         let collateral_info_per_subaccount =
-            Arc::new(get_collateral_info_per_subaccount(&drift, &subaccount_pubkeys).await);
+            Arc::new(get_collateral_info_per_subaccount(&velocity, &subaccount_pubkeys).await);
 
         // In flight txs tracking to prevent over committing
         let (txs_in_flight, free_collateral_per_subaccount) = {
@@ -586,7 +586,7 @@ impl LiquidatorBot {
         let tx_sig_to_collateral: Arc<DashMap<Signature, (u128, u64)>> = Arc::new(DashMap::new());
 
         let tx_worker = TxWorker::new(
-            drift.clone(),
+            velocity.clone(),
             Arc::clone(&metrics),
             config.dry,
             Some(Arc::clone(&txs_in_flight)),
@@ -598,7 +598,7 @@ impl LiquidatorBot {
 
         let dlob_notifier = dlob.spawn_notifier();
         let events_rx = setup_grpc(
-            drift.clone(),
+            velocity.clone(),
             dlob_notifier.clone(),
             tx_sender.clone(),
             perp_market_ids.clone(),
@@ -611,9 +611,9 @@ impl LiquidatorBot {
         // Only use pyth price when it differs from oracle by >5 bps
         market_state.pyth_oracle_diff_threshold_bps = 5;
 
-        for market in drift.program_data().perp_market_configs() {
+        for market in velocity.program_data().perp_market_configs() {
             market_state.set_perp_market(*market);
-            if let Some(oracle) = drift
+            if let Some(oracle) = velocity
                 .backend()
                 .oracle_map()
                 .get_by_market(&MarketId::perp(market.market_index))
@@ -622,9 +622,9 @@ impl LiquidatorBot {
             }
         }
 
-        for market in drift.program_data().spot_market_configs() {
+        for market in velocity.program_data().spot_market_configs() {
             market_state.set_spot_market(*market);
-            if let Some(oracle) = drift
+            if let Some(oracle) = velocity
                 .backend()
                 .oracle_map()
                 .get_by_market(&MarketId::spot(market.market_index))
@@ -673,7 +673,7 @@ impl LiquidatorBot {
             tx_sender.clone(),
             Arc::new(PrimaryLiquidationStrategy {
                 dlob,
-                drift: drift.clone(),
+                velocity: velocity.clone(),
                 market_state: Arc::clone(&market_state),
                 subaccounts: subaccounts.clone(),
                 metrics: Arc::clone(&metrics),
@@ -691,7 +691,7 @@ impl LiquidatorBot {
         log::info!(target: TARGET, "spawned liquidation worker");
 
         spawn_derisk_loop(
-            drift.clone(),
+            velocity.clone(),
             tx_sender.clone(),
             subaccounts,
             Arc::clone(&priority_fee_subscriber),
@@ -719,7 +719,7 @@ impl LiquidatorBot {
         log::info!(target: TARGET, "spawned stale in flight txs cleanup worker");
 
         LiquidatorBot {
-            drift,
+            velocity,
             dlob_notifier,
             events_rx,
             config,
@@ -737,14 +737,14 @@ impl LiquidatorBot {
 
     pub async fn run(self) {
         let mut events_rx = self.events_rx;
-        let drift: &'static VelocityClient = Box::leak(Box::new(self.drift));
+        let velocity: &'static VelocityClient = Box::leak(Box::new(self.velocity));
         let config = self.config.clone();
         let dlob_notifier = self.dlob_notifier;
         let mut current_slot = 0;
         let mut users = BTreeMap::<Pubkey, UserAccountMetadata>::new();
         let mut oracle_prices = HashMap::<MarketId, OraclePriceMetadata>::new();
         let mut high_risk = HashSet::<Pubkey>::new();
-        let liquidation_margin_buffer_ratio = drift
+        let liquidation_margin_buffer_ratio = velocity
             .state_account()
             .map(|x| x.liquidation_margin_buffer_ratio)
             .expect("State has liquidation_margin_buffer_ratio");
@@ -762,7 +762,7 @@ impl LiquidatorBot {
 
         log::info!(target: TARGET, "starting user account initialization");
 
-        drift
+        velocity
             .backend()
             .account_map()
             .iter_accounts_with::<User>(|pubkey, user, _slot| {
@@ -883,7 +883,7 @@ impl LiquidatorBot {
 
                             // Update collaterals
                             let new_collateral = get_collateral_info_per_subaccount(
-                                &drift,
+                                &velocity,
                                 &self.subaccount_pubkeys,
                             )
                             .await;
@@ -1397,13 +1397,13 @@ fn clean_stale_in_flight_txs(
 }
 
 async fn derisk_subaccount(
-    drift: &VelocityClient,
+    velocity: &VelocityClient,
     tx_sender: &TxSender,
     subaccount: Pubkey,
     priority_fee: u64,
     cu_limit: u32,
 ) {
-    let user = match drift.try_get_account::<User>(&subaccount) {
+    let user = match velocity.try_get_account::<User>(&subaccount) {
         Ok(u) => u,
         Err(_) => return,
     };
@@ -1414,7 +1414,7 @@ async fn derisk_subaccount(
         }
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             subaccount,
             std::borrow::Cow::Owned(user.clone()),
             false,
@@ -1469,7 +1469,7 @@ async fn derisk_subaccount(
 }
 
 fn spawn_derisk_loop(
-    drift: VelocityClient,
+    velocity: VelocityClient,
     tx_sender: TxSender,
     subaccounts: Vec<Pubkey>,
     priority_fee_subscriber: Arc<PriorityFeeSubscriber>,
@@ -1481,22 +1481,22 @@ fn spawn_derisk_loop(
             interval.tick().await;
             let priority_fee = priority_fee_subscriber.priority_fee_nth(0.6);
             for subaccount in &subaccounts {
-                derisk_subaccount(&drift, &tx_sender, *subaccount, priority_fee, cu_limit).await;
+                derisk_subaccount(&velocity, &tx_sender, *subaccount, priority_fee, cu_limit).await;
             }
         }
     });
 }
 
 async fn get_collateral_info_per_subaccount(
-    drift: &VelocityClient,
+    velocity: &VelocityClient,
     subaccounts: &[Pubkey],
 ) -> DashMap<Pubkey, CollateralInfo> {
     let collateral_info_per_subaccount = DashMap::<Pubkey, CollateralInfo>::new();
     for &subaccount_pubkey in subaccounts {
-        match drift.get_user_account(&subaccount_pubkey).await {
+        match velocity.get_user_account(&subaccount_pubkey).await {
             Ok(user_account) => {
                 match calculate_collateral(
-                    &drift,
+                    &velocity,
                     &user_account,
                     MarginRequirementType::Maintenance,
                 ) {
@@ -1547,13 +1547,13 @@ fn on_transaction_update_fn(
 
 fn on_slot_update_fn(
     dlob_notifier: DLOBNotifier,
-    drift: VelocityClient,
+    velocity: VelocityClient,
     market_ids: &[MarketId],
 ) -> impl Fn(u64) + Send + Sync + 'static {
     let market_ids: Vec<MarketId> = market_ids.to_vec();
     move |new_slot| {
         for market in market_ids.iter() {
-            let oracle_price_data = drift
+            let oracle_price_data = velocity
                 .try_get_mmoracle_for_perp_market(market.index(), new_slot)
                 .unwrap();
             dlob_notifier.slot_and_oracle_update(*market, new_slot, oracle_price_data.price as u64);
@@ -1562,7 +1562,7 @@ fn on_slot_update_fn(
 }
 
 async fn setup_grpc(
-    drift: VelocityClient,
+    velocity: VelocityClient,
     dlob_notifier: DLOBNotifier,
     transaction_tx: TxSender,
     market_ids: Vec<MarketId>,
@@ -1570,13 +1570,13 @@ async fn setup_grpc(
     let (tx, rx) = tokio::sync::mpsc::channel(102400);
 
     let _ = tokio::try_join!(
-        crate::filler::sync_stats_accounts(&drift),
-        crate::filler::sync_user_accounts(&drift, &dlob_notifier),
+        crate::filler::sync_stats_accounts(&velocity),
+        crate::filler::sync_user_accounts(&velocity, &dlob_notifier),
     );
 
     let mut oracle_to_market = HashMap::<Pubkey, Vec<(MarketId, OracleSource)>>::default();
 
-    for (market, (oracle, source)) in drift.backend().oracle_map().oracle_by_market.iter() {
+    for (market, (oracle, source)) in velocity.backend().oracle_map().oracle_by_market.iter() {
         oracle_to_market
             .entry(*oracle)
             .and_modify(|f| f.push((*market, *source)))
@@ -1585,7 +1585,7 @@ async fn setup_grpc(
 
     log::info!(target: TARGET, "oracle map has {} oracles", oracle_to_market.len());
 
-    let _res = drift
+    let _res = velocity
         .grpc_subscribe(
             std::env::var("GRPC_ENDPOINT")
                 .unwrap_or_else(|_| "https://api.rpcpool.com".to_string())
@@ -1594,11 +1594,11 @@ async fn setup_grpc(
             GrpcSubscribeOpts::default()
                 .connection_opts(GrpcConnectionOpts::default().enable_compression())
                 .commitment(solana_commitment_config::CommitmentLevel::Processed)
-                .transaction_include_accounts(vec![drift.wallet().default_sub_account()])
+                .transaction_include_accounts(vec![velocity.wallet().default_sub_account()])
                 .on_transaction(on_transaction_update_fn(transaction_tx.clone()))
                 .on_slot(on_slot_update_fn(
                     dlob_notifier,
-                    drift.clone(),
+                    velocity.clone(),
                     market_ids.as_ref(),
                 ))
                 .usermap_on()
@@ -1888,7 +1888,7 @@ struct PositionInfo {
 
 /// Primary liquidation strategy
 pub struct PrimaryLiquidationStrategy {
-    pub drift: VelocityClient,
+    pub velocity: VelocityClient,
     pub dlob: &'static DLOB,
     pub market_state: Arc<RwLock<MarketState>>,
     pub subaccounts: Vec<Pubkey>,
@@ -2251,7 +2251,7 @@ impl PrimaryLiquidationStrategy {
     }
 
     // Port of  https://github.com/drift-labs/protocol-v2/blob/master/sdk/src/user.ts#L3941-L3971
-    fn get_safest_tiers(user_account: &User, drift: &VelocityClient) -> (u8, u8) {
+    fn get_safest_tiers(user_account: &User, velocity: &VelocityClient) -> (u8, u8) {
         let mut safest_perp_tier = 4;
         let mut safest_spot_tier = 4;
 
@@ -2260,7 +2260,7 @@ impl PrimaryLiquidationStrategy {
             .iter()
             .filter(|p| !p.is_available())
         {
-            if let Some(perp_market) = drift
+            if let Some(perp_market) = velocity
                 .program_data()
                 .perp_market_config_by_index(perp_position.market_index)
             {
@@ -2273,7 +2273,7 @@ impl PrimaryLiquidationStrategy {
             .iter()
             .filter(|p| !p.is_available() && p.balance_type != SpotBalanceType::Deposit)
         {
-            if let Some(spot_market) = drift
+            if let Some(spot_market) = velocity
                 .program_data()
                 .spot_market_config_by_index(spot_position.market_index)
             {
@@ -2334,7 +2334,7 @@ impl PrimaryLiquidationStrategy {
 
     /// Returns the subaccount with most free collateral that has position room
     fn find_best_subaccount_for_liquidation(
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         subaccounts: &[Pubkey],
         needs_perp_room: bool,
         needs_spot_room: bool,
@@ -2353,7 +2353,7 @@ impl PrimaryLiquidationStrategy {
                     return None;
                 }
 
-                let user = drift.try_get_account::<User>(&subaccount).ok()?;
+                let user = velocity.try_get_account::<User>(&subaccount).ok()?;
 
                 if needs_perp_room {
                     let active_perp_positions = user
@@ -2394,7 +2394,7 @@ impl PrimaryLiquidationStrategy {
 
     /// Find top makers for a perp position
     fn find_top_makers(
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         dlob: &'static DLOB,
         market_state: Arc<RwLock<MarketState>>,
         market_index: u16,
@@ -2434,7 +2434,7 @@ impl PrimaryLiquidationStrategy {
 
         let makers: Vec<User> = maker_pubkeys
             .iter()
-            .filter_map(|p| drift.try_get_account::<User>(p).ok())
+            .filter_map(|p| velocity.try_get_account::<User>(p).ok())
             .collect();
 
         if makers.is_empty() {
@@ -2447,7 +2447,7 @@ impl PrimaryLiquidationStrategy {
 
     /// Try to fill liquidation with order match
     async fn try_liquidate_with_match(
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         market_index: u16,
         subaccount: Pubkey,
         liquidatee_subaccount: Pubkey,
@@ -2463,19 +2463,19 @@ impl PrimaryLiquidationStrategy {
             return;
         }
 
-        let keeper_account_data = drift.try_get_account::<User>(&subaccount);
+        let keeper_account_data = velocity.try_get_account::<User>(&subaccount);
         if keeper_account_data.is_err() {
             log::debug!(target: TARGET, "keeper acc lookup failed={subaccount:?}");
             return;
         }
-        let liquidatee_subaccount_data = drift.try_get_account::<User>(&liquidatee_subaccount);
+        let liquidatee_subaccount_data = velocity.try_get_account::<User>(&liquidatee_subaccount);
         if liquidatee_subaccount_data.is_err() {
             log::debug!(target: TARGET, "liquidatee acc lookup failed={liquidatee_subaccount:?}");
             return;
         }
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             subaccount,
             std::borrow::Cow::Owned(keeper_account_data.unwrap()),
             false,
@@ -2522,7 +2522,7 @@ impl PrimaryLiquidationStrategy {
     /// Try to liquidate by taking over position
     async fn try_liquidate_with_collateral(
         &self,
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         market_index: u16,
         subaccount: Pubkey,
         liquidatee_subaccount: Pubkey,
@@ -2534,19 +2534,19 @@ impl PrimaryLiquidationStrategy {
         slot: u64,
         pyth_price_update: Option<PythPriceUpdate>,
     ) {
-        let keeper_account_data = drift.try_get_account::<User>(&subaccount);
+        let keeper_account_data = velocity.try_get_account::<User>(&subaccount);
         if keeper_account_data.is_err() {
             log::debug!(target: TARGET, "keeper acc lookup failed={subaccount:?}");
             return;
         }
-        let liquidatee_subaccount_data = drift.try_get_account::<User>(&liquidatee_subaccount);
+        let liquidatee_subaccount_data = velocity.try_get_account::<User>(&liquidatee_subaccount);
         if liquidatee_subaccount_data.is_err() {
             log::debug!(target: TARGET, "liquidatee acc lookup failed={liquidatee_subaccount:?}");
             return;
         }
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             subaccount,
             std::borrow::Cow::Owned(keeper_account_data.unwrap()),
             false,
@@ -2609,7 +2609,7 @@ impl PrimaryLiquidationStrategy {
     /// Attempt perp liquidation with order matching or collateral
     async fn liquidate_perp(
         &self,
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         dlob: &'static DLOB,
         market_state: Arc<RwLock<MarketState>>,
         metrics: Arc<Metrics>,
@@ -2648,7 +2648,7 @@ impl PrimaryLiquidationStrategy {
                     );
 
                     let Some(makers) = Self::find_top_makers(
-                        drift,
+                        velocity,
                         dlob,
                         Arc::clone(&market_state),
                         *market_index,
@@ -2672,7 +2672,7 @@ impl PrimaryLiquidationStrategy {
                         pyth_price_update.filter(|update| update.price != oracle_price);
 
                     Self::try_liquidate_with_match(
-                        drift,
+                        velocity,
                         *market_index,
                         *subaccount,
                         liquidatee,
@@ -2747,7 +2747,7 @@ impl PrimaryLiquidationStrategy {
 
         // Find makers and decide method
         let makers = Self::find_top_makers(
-            drift,
+            velocity,
             dlob,
             Arc::clone(&market_state),
             pos.market_index,
@@ -2771,7 +2771,7 @@ impl PrimaryLiquidationStrategy {
         match method {
             LiquidationType::PerpWithFill => {
                 Self::try_liquidate_with_match(
-                    drift,
+                    velocity,
                     pos.market_index,
                     *subaccount,
                     liquidatee,
@@ -2786,7 +2786,7 @@ impl PrimaryLiquidationStrategy {
             }
             LiquidationType::PerpTakeover => {
                 let Some(subaccount) = Self::find_best_subaccount_for_liquidation(
-                    drift,
+                    velocity,
                     subaccounts,
                     true,
                     false,
@@ -2813,7 +2813,7 @@ impl PrimaryLiquidationStrategy {
 
                 Self::try_liquidate_with_collateral(
                     &self,
-                    &drift,
+                    &velocity,
                     pos.market_index,
                     subaccount,
                     liquidatee,
@@ -2835,7 +2835,7 @@ impl PrimaryLiquidationStrategy {
 
     /// Attempt spot liquidation with Jupiter swap
     async fn liquidate_spot(
-        drift: VelocityClient,
+        velocity: VelocityClient,
         metrics: Arc<Metrics>,
         market_state: Arc<RwLock<MarketState>>,
         subaccounts: &[Pubkey],
@@ -2846,7 +2846,7 @@ impl PrimaryLiquidationStrategy {
         cu_limit: u32,
         slot: u64,
     ) {
-        let authority = drift.wallet.authority();
+        let authority = velocity.wallet.authority();
         let Some(subaccount) = subaccounts.first() else {
             log::warn!(target: TARGET, "no subaccount configured");
             return;
@@ -2918,7 +2918,7 @@ impl PrimaryLiquidationStrategy {
             );
 
             // Fetch accounts once
-            let keeper_account_data = match drift.try_get_account::<User>(&subaccount) {
+            let keeper_account_data = match velocity.try_get_account::<User>(&subaccount) {
                 Ok(data) => data,
                 Err(_) => {
                     log::info!(target: TARGET, "keeper account not found: {:?}", &subaccount);
@@ -2926,7 +2926,7 @@ impl PrimaryLiquidationStrategy {
                 }
             };
 
-            let liquidatee_account_data = match drift.try_get_account::<User>(&liquidatee) {
+            let liquidatee_account_data = match velocity.try_get_account::<User>(&liquidatee) {
                 Ok(data) => data,
                 Err(_) => {
                     log::info!(target: TARGET, "liquidatee account not found: {liquidatee:?}");
@@ -2935,14 +2935,14 @@ impl PrimaryLiquidationStrategy {
             };
 
             // Fetch market configs inside async block to avoid lifetime issues
-            let asset_spot_market = drift
+            let asset_spot_market = velocity
                 .program_data()
                 .spot_market_config_by_index(asset_market_index)
                 .expect("asset spot market");
 
             let liability_market_index = pos.market_index;
 
-            let liability_spot_market = drift
+            let liability_spot_market = velocity
                 .program_data()
                 .spot_market_config_by_index(liability_market_index)
                 .expect("liability spot market");
@@ -2954,7 +2954,7 @@ impl PrimaryLiquidationStrategy {
 
             let t0 = std::time::Instant::now();
             let (jupiter_result, titan_result) = tokio::join!(
-                drift.jupiter_swap_query(
+                velocity.jupiter_swap_query(
                     &authority,
                     token_amount,
                     SwapMode::ExactIn,
@@ -2965,7 +2965,7 @@ impl PrimaryLiquidationStrategy {
                     None,
                     None,
                 ),
-                drift.titan_swap_query(
+                velocity.titan_swap_query(
                     &authority,
                     token_amount,
                     Some(50),
@@ -3017,7 +3017,7 @@ impl PrimaryLiquidationStrategy {
 
             let tx = if use_titan {
                 TransactionBuilder::new(
-                    drift.program_data(),
+                    velocity.program_data(),
                     *subaccount,
                     std::borrow::Cow::Owned(keeper_account_data),
                     false,
@@ -3036,7 +3036,7 @@ impl PrimaryLiquidationStrategy {
                 .build()
             } else {
                 TransactionBuilder::new(
-                    drift.program_data(),
+                    velocity.program_data(),
                     *subaccount,
                     std::borrow::Cow::Owned(keeper_account_data),
                     false,
@@ -3077,7 +3077,7 @@ impl PrimaryLiquidationStrategy {
 
     async fn try_liquidate_perp_pnl_for_deposit(
         &self,
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         subaccount: Pubkey,
         liquidatee: Pubkey,
         liability: &PositionInfo,
@@ -3089,7 +3089,7 @@ impl PrimaryLiquidationStrategy {
         slot: u64,
         pyth_price_update: Option<PythPriceUpdate>,
     ) {
-        let keeper_account = match drift.try_get_account::<User>(&subaccount) {
+        let keeper_account = match velocity.try_get_account::<User>(&subaccount) {
             Ok(data) => data,
             Err(_) => {
                 log::warn!(target: TARGET, "keeper account not found");
@@ -3097,7 +3097,7 @@ impl PrimaryLiquidationStrategy {
             }
         };
 
-        let liquidatee_account = match drift.try_get_account::<User>(&liquidatee) {
+        let liquidatee_account = match velocity.try_get_account::<User>(&liquidatee) {
             Ok(data) => data,
             Err(_) => {
                 log::warn!(target: TARGET, "liquidatee account not found");
@@ -3106,7 +3106,7 @@ impl PrimaryLiquidationStrategy {
         };
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             subaccount,
             std::borrow::Cow::Owned(keeper_account),
             false,
@@ -3161,7 +3161,7 @@ impl PrimaryLiquidationStrategy {
     /// Attempt perp pnl for deposit liquidation
     async fn liquidate_perp_pnl_for_deposit(
         &self,
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         market_state: Arc<RwLock<MarketState>>,
         subaccounts: &[Pubkey],
         liquidatee: Pubkey,
@@ -3181,7 +3181,7 @@ impl PrimaryLiquidationStrategy {
         );
 
         let Some(subaccount) = Self::find_best_subaccount_for_liquidation(
-            drift,
+            velocity,
             subaccounts,
             false,
             true,
@@ -3222,7 +3222,7 @@ impl PrimaryLiquidationStrategy {
 
         Self::try_liquidate_perp_pnl_for_deposit(
             &self,
-            drift,
+            velocity,
             subaccount,
             liquidatee,
             &liability,
@@ -3239,7 +3239,7 @@ impl PrimaryLiquidationStrategy {
 
     async fn try_liquidate_borrow_for_perp_pnl(
         &self,
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         subaccount: Pubkey,
         liquidatee: Pubkey,
         liability: &PositionInfo,
@@ -3251,7 +3251,7 @@ impl PrimaryLiquidationStrategy {
         slot: u64,
         pyth_price_update: Option<PythPriceUpdate>,
     ) {
-        let keeper_account = match drift.try_get_account::<User>(&subaccount) {
+        let keeper_account = match velocity.try_get_account::<User>(&subaccount) {
             Ok(data) => data,
             Err(_) => {
                 log::warn!(target: TARGET, "keeper account not found");
@@ -3259,7 +3259,7 @@ impl PrimaryLiquidationStrategy {
             }
         };
 
-        let liquidatee_account = match drift.try_get_account::<User>(&liquidatee) {
+        let liquidatee_account = match velocity.try_get_account::<User>(&liquidatee) {
             Ok(data) => data,
             Err(_) => {
                 log::warn!(target: TARGET, "liquidatee account not found");
@@ -3268,7 +3268,7 @@ impl PrimaryLiquidationStrategy {
         };
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             subaccount,
             std::borrow::Cow::Owned(keeper_account),
             false,
@@ -3323,7 +3323,7 @@ impl PrimaryLiquidationStrategy {
     /// Attempt borrow for perp pnl liquidation
     async fn liquidate_borrow_for_perp_pnl(
         &self,
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         market_state: Arc<RwLock<MarketState>>,
         subaccounts: &[Pubkey],
         liquidatee: Pubkey,
@@ -3343,7 +3343,7 @@ impl PrimaryLiquidationStrategy {
         );
 
         let Some(subaccount) = Self::find_best_subaccount_for_liquidation(
-            drift,
+            velocity,
             subaccounts,
             true,
             false,
@@ -3384,7 +3384,7 @@ impl PrimaryLiquidationStrategy {
 
         Self::try_liquidate_borrow_for_perp_pnl(
             &self,
-            drift,
+            velocity,
             subaccount,
             liquidatee,
             &liability,
@@ -3401,7 +3401,7 @@ impl PrimaryLiquidationStrategy {
 
     // Settle perp pnl
     async fn settle_perp_pnl(
-        drift: &VelocityClient,
+        velocity: &VelocityClient,
         subaccount: Pubkey,
         liquidatee: Pubkey,
         market_indexes: &[u16],
@@ -3409,7 +3409,7 @@ impl PrimaryLiquidationStrategy {
         priority_fee: u64,
         cu_limit: u32,
     ) {
-        let keeper_account = match drift.try_get_account::<User>(&subaccount) {
+        let keeper_account = match velocity.try_get_account::<User>(&subaccount) {
             Ok(data) => data,
             Err(_) => {
                 log::warn!(target: TARGET, "keeper account not found");
@@ -3417,7 +3417,7 @@ impl PrimaryLiquidationStrategy {
             }
         };
 
-        let liquidatee_account = match drift.try_get_account::<User>(&liquidatee) {
+        let liquidatee_account = match velocity.try_get_account::<User>(&liquidatee) {
             Ok(data) => data,
             Err(_) => {
                 log::warn!(target: TARGET, "liquidatee account not found");
@@ -3426,7 +3426,7 @@ impl PrimaryLiquidationStrategy {
         };
 
         let mut tx_builder = TransactionBuilder::new(
-            drift.program_data(),
+            velocity.program_data(),
             subaccount,
             std::borrow::Cow::Owned(keeper_account),
             false,
@@ -3476,7 +3476,7 @@ impl LiquidationStrategy for PrimaryLiquidationStrategy {
         );
 
         let (safest_perp_tier, safest_spot_tier) =
-            Self::get_safest_tiers(&user_account, &self.drift);
+            Self::get_safest_tiers(&user_account, &self.velocity);
 
         let Some((liability, asset)) = Self::pick_best_asset_liability_combo(
             Arc::clone(&self.market_state),
@@ -3490,7 +3490,7 @@ impl LiquidationStrategy for PrimaryLiquidationStrategy {
             return async move {
                 Self::liquidate_perp(
                     &self,
-                    &self.drift,
+                    &self.velocity,
                     self.dlob,
                     Arc::clone(&self.market_state),
                     Arc::clone(&self.metrics),
@@ -3542,7 +3542,7 @@ impl LiquidationStrategy for PrimaryLiquidationStrategy {
                 LiquidationType::PerpTakeover | LiquidationType::PerpWithFill => {
                     Self::liquidate_perp(
                         &self,
-                        &self.drift,
+                        &self.velocity,
                         self.dlob,
                         Arc::clone(&self.market_state),
                         Arc::clone(&self.metrics),
@@ -3562,7 +3562,7 @@ impl LiquidationStrategy for PrimaryLiquidationStrategy {
                 LiquidationType::SpotForSpot => {
                     if self.use_spot_liquidation {
                         Self::liquidate_spot(
-                            self.drift.clone(),
+                            self.velocity.clone(),
                             Arc::clone(&self.metrics),
                             Arc::clone(&self.market_state),
                             self.subaccounts.as_slice(),

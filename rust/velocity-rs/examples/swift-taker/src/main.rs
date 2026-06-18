@@ -39,11 +39,11 @@ async fn main() {
     };
     let rpc_url =
         std::env::var("RPC_URL").unwrap_or_else(|_| "https://api.devnet.solana.com".to_string());
-    let drift = VelocityClient::new(context, RpcClient::new(rpc_url), wallet.clone())
+    let velocity = VelocityClient::new(context, RpcClient::new(rpc_url), wallet.clone())
         .await
         .expect("initialized client");
 
-    let latest_slot = drift.rpc().get_slot().await.expect("get slot") + 200;
+    let latest_slot = velocity.rpc().get_slot().await.expect("get slot") + 200;
 
     let order_params = OrderParams {
         market_index: 0,
@@ -70,7 +70,7 @@ async fn main() {
     };
     let swift_order_type = SignedOrderType::authority(signed_order_params);
     let signed_msg = hex::encode(swift_order_type.to_borsh());
-    let signature = drift.wallet.sign_message(signed_msg.as_bytes()).unwrap();
+    let signature = velocity.wallet.sign_message(signed_msg.as_bytes()).unwrap();
 
     let swift_order_request = serde_json::json!({
         "message": signed_msg,
@@ -82,10 +82,10 @@ async fn main() {
 
     if args.deposit_trade {
         let signed_order_info =
-            SignedOrderInfo::authority(*drift.wallet.authority(), signed_order_params, signature);
+            SignedOrderInfo::authority(*velocity.wallet.authority(), signed_order_params, signature);
         // SOL deposit, 0 = usdc, 1 = sol
         swift_deposit_trade(
-            &drift,
+            &velocity,
             100_000_000,
             0,
             swift_order_request,
@@ -93,13 +93,13 @@ async fn main() {
         )
         .await;
     } else {
-        swift_place_order(&drift, swift_order_request).await;
+        swift_place_order(&velocity, swift_order_request).await;
     }
 }
 
-async fn swift_place_order(drift: &VelocityClient, swift_order_request: serde_json::Value) {
+async fn swift_place_order(velocity: &VelocityClient, swift_order_request: serde_json::Value) {
     println!("sending swift order: {swift_order_request:?}");
-    let swift_url = if drift.context == Context::MainNet {
+    let swift_url = if velocity.context == Context::MainNet {
         "https://swift.drift.trade/orders"
     } else {
         "https://master.swift.drift.trade/orders"
@@ -118,33 +118,33 @@ async fn swift_place_order(drift: &VelocityClient, swift_order_request: serde_js
 }
 
 async fn swift_deposit_trade(
-    drift: &VelocityClient,
+    velocity: &VelocityClient,
     deposit_amount: u64,
     deposit_market_index: u16,
     swift_order_request: serde_json::Value,
     signed_order_info: SignedOrderInfo,
 ) {
     println!("sending swift depositTrade order: {swift_order_request:?}, deposit amount: {deposit_amount}, market: {deposit_market_index}");
-    let taker_subaccount = drift.wallet().default_sub_account();
-    let taker_account_data = drift
+    let taker_subaccount = velocity.wallet().default_sub_account();
+    let taker_account_data = velocity
         .get_user_account(&taker_subaccount)
         .await
         .expect("user account exists");
 
-    let spot_market_config = drift
+    let spot_market_config = velocity
         .program_data()
         .spot_market_config_by_index(deposit_market_index)
         .unwrap();
     let create_ata_ix =
         spl_associated_token_account::instruction::create_associated_token_account_idempotent(
-            drift.wallet().authority(),
-            drift.wallet().authority(),
+            velocity.wallet().authority(),
+            velocity.wallet().authority(),
             &spot_market_config.mint,
             &spot_market_config.token_program(),
         );
 
     let unsigned_tx = TransactionBuilder::new(
-        drift.program_data(),
+        velocity.program_data(),
         taker_subaccount,
         std::borrow::Cow::Borrowed(&taker_account_data),
         false,
@@ -155,17 +155,17 @@ async fn swift_deposit_trade(
     .place_swift_order(&signed_order_info, &taker_account_data)
     // .add_ix(additional_clean_up_ixs)
     .build();
-    let signed_tx = drift
+    let signed_tx = velocity
         .wallet()
         .sign_tx(
             unsigned_tx.clone(),
-            drift.get_latest_blockhash().await.unwrap(),
+            velocity.get_latest_blockhash().await.unwrap(),
         )
         .unwrap();
     dbg!(&signed_tx.verify_with_results());
     dbg!(&signed_tx);
 
-    let sim_res = drift.simulate_tx(unsigned_tx).await;
+    let sim_res = velocity.simulate_tx(unsigned_tx).await;
     dbg!(sim_res);
 
     let req = serde_json::json!({
@@ -175,7 +175,7 @@ async fn swift_deposit_trade(
         "swift_order": swift_order_request,
     });
 
-    let swift_url = if drift.context == Context::MainNet {
+    let swift_url = if velocity.context == Context::MainNet {
         "https://swift.drift.trade/depositTrade"
     } else {
         "https://master.swift.drift.trade/depositTrade"

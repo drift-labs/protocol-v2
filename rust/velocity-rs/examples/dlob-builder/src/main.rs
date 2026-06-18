@@ -108,7 +108,7 @@ async fn get_l3_orderbook(
 ) -> Result<Json<L3Response>, StatusCode> {
     // Get the L3 snapshot from the DLOB
     let oracle_price = state
-        .drift
+        .velocity
         .try_get_oracle_price_data_and_slot(MarketId::perp(params.market_index))
         .unwrap()
         .data
@@ -130,7 +130,7 @@ async fn get_l3_orderbook(
     };
 
     let perp_market = state
-        .drift
+        .velocity
         .try_get_perp_market_account(params.market_index)
         .unwrap();
     let unix_now = std::time::SystemTime::now()
@@ -174,7 +174,7 @@ async fn clob_ui() -> Html<&'static str> {
 }
 
 struct AppState {
-    drift: VelocityClient,
+    velocity: VelocityClient,
     dlob: &'static DLOB,
 }
 
@@ -185,7 +185,7 @@ async fn main() {
 
     let rpc_url = std::env::var("RPC_URL")
         .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
-    let drift = VelocityClient::new(
+    let velocity = VelocityClient::new(
         Context::MainNet,
         RpcClient::new(rpc_url),
         Keypair::new().into(),
@@ -193,7 +193,7 @@ async fn main() {
     .await
     .expect("initialized client");
 
-    let account_map = drift.backend().account_map();
+    let account_map = velocity.backend().account_map();
     println!("syncing initial User accounts/orders");
     account_map
         .sync_user_accounts(vec![velocity_rs::memcmp::get_user_with_order_filter()])
@@ -215,7 +215,7 @@ async fn main() {
         MarketId::perp(79),
     ];
 
-    let res = drift
+    let res = velocity
         .grpc_subscribe(
             grpc_url,
             grpc_x_token,
@@ -223,7 +223,7 @@ async fn main() {
                 .commitment(CommitmentLevel::Confirmed)
                 .usermap_on()
                 .on_user_account(dlob_builder.account_update_handler(account_map))
-                .on_slot(dlob_builder.slot_update_handler(drift.clone(), perp_markets)),
+                .on_slot(dlob_builder.slot_update_handler(velocity.clone(), perp_markets)),
             true,
         )
         .await;
@@ -235,7 +235,7 @@ async fn main() {
 
     let dlob = dlob_builder.dlob();
     dlob.enable_l2_snapshot(); // disabled by default
-    let state = Arc::new(AppState { dlob, drift });
+    let state = Arc::new(AppState { dlob, velocity });
 
     // Build the web server
     let app = Router::new()
