@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.0](https://github.com/drift-labs/protocol-v2-shadow/compare/sdk-v0.1.0...sdk-v0.2.0) (2026-06-18)
+
+
+### Features
+
+* better fee collection and distribution architecture ([1999fbe](https://github.com/drift-labs/protocol-v2-shadow/commit/1999fbef3fcb81878dc56f510f06e28588cd1c40))
+* funding bias spread multiplier ([d7eb00c](https://github.com/drift-labs/protocol-v2-shadow/commit/d7eb00caa82b351f515b65dc4a7315a969059d91))
+* withdraw guard threshold to have a notional limit ([be33e8e](https://github.com/drift-labs/protocol-v2-shadow/commit/be33e8ed48cc319846d0896e435ed61050fc6a86))
+
+
+### Refactors
+
+* enable strict mode in SDK and fix initial strict errors ([#74](https://github.com/drift-labs/protocol-v2-shadow/issues/74)) ([5e045d8](https://github.com/drift-labs/protocol-v2-shadow/commit/5e045d8a7ca3a599420d3583975ddaab610a780e))
+* fix remaining strict errors and enable strict mode in SDK ([#78](https://github.com/drift-labs/protocol-v2-shadow/issues/78)) ([1fb7c07](https://github.com/drift-labs/protocol-v2-shadow/commit/1fb7c07ad95b696ecd09605358d86df3ef5d1102))
+
 ## [0.1.0](https://github.com/drift-labs/protocol-v2-shadow/compare/sdk-v0.0.5...sdk-v0.1.0) (2026-06-11)
 
 
