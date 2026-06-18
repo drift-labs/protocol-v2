@@ -18,9 +18,14 @@ ARG APP_BIN
 RUN --mount=type=cache,target=/repo/rust/target \
     --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked --manifest-path rust/Cargo.toml -p ${APP_BIN} \
- && cp rust/target/release/${APP_BIN} /usr/local/bin/app
+ && cp rust/target/release/${APP_BIN} /usr/local/bin/${APP_BIN}
 
 FROM debian:bookworm-slim AS runner
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /usr/local/bin/app /usr/local/bin/app
+ARG APP_BIN
+# Install the binary under its real name (keeprs, swift-server) — the k8s
+# manifests invoke it explicitly (e.g. `/usr/local/bin/swift-server --server …`).
+# Keep `/usr/local/bin/app` as a symlink so the default ENTRYPOINT still resolves.
+COPY --from=builder /usr/local/bin/${APP_BIN} /usr/local/bin/${APP_BIN}
+RUN ln -s /usr/local/bin/${APP_BIN} /usr/local/bin/app
 ENTRYPOINT ["/usr/local/bin/app"]
