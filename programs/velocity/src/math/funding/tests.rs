@@ -5,7 +5,8 @@ use crate::state::perp_market::MarketStats;
 use crate::vlp::amm::refresh::_update_amm;
 
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, ONE_HOUR_I128, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, BPS_PRECISION, ONE_HOUR_I128, PERCENTAGE_PRECISION_U32, PRICE_PRECISION,
+    PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::math::funding::*;
 use std::cmp::min;
@@ -585,6 +586,55 @@ fn unsettled_funding_pnl() {
                                                      // migration only changed how the AMM books its own settlement, not
                                                      // this aggregate.
     assert_eq!(market.net_unsettled_funding_pnl, -71613793);
+}
+
+// The funding premium must leave the dead zone continuously: crossing the
+// threshold should nudge the premium by the ramp, not snap on the full
+// threshold the way the old hard cliff did.
+#[test]
+fn funding_premium_continuous_across_dead_zone() {
+    let oracle_twap: i64 = 100 * PRICE_PRECISION_U64 as i64;
+    let clamp_threshold = oracle_twap * 5 / BPS_PRECISION as i64; // 5bps as a price
+    let ramp_slope = PERCENTAGE_PRECISION_U32; // 1.0x
+    let offset: i64 = 12_345; // arbitrary baseline carry
+
+    // at the edge of the band: still noise, offset only
+    let at_floor =
+        calculate_funding_premium_with_offset(clamp_threshold, clamp_threshold, ramp_slope, offset)
+            .unwrap();
+    assert_eq!(at_floor, offset);
+
+    // one tick past the band: premium turns on by the ramp (1 tick), not by
+    // the whole threshold. this single-tick step is the continuity guarantee
+    let just_above = calculate_funding_premium_with_offset(
+        clamp_threshold + 1,
+        clamp_threshold,
+        ramp_slope,
+        offset,
+    )
+    .unwrap();
+    assert_eq!(just_above - at_floor, 1);
+    assert!(just_above - at_floor < clamp_threshold); // a hard cliff would jump by ~threshold
+
+    // symmetric on the short side
+    let just_below = calculate_funding_premium_with_offset(
+        -(clamp_threshold + 1),
+        clamp_threshold,
+        ramp_slope,
+        offset,
+    )
+    .unwrap();
+    assert_eq!(just_below - at_floor, -1);
+
+    // well outside the band the premium is the spread shrunk by the threshold
+    let far = calculate_funding_premium_with_offset(
+        2 * clamp_threshold,
+        clamp_threshold,
+        ramp_slope,
+        offset,
+    )
+    .unwrap();
+    assert_eq!(far - offset, clamp_threshold);
 }
 
 /// Property tests for `calculate_amm_funding_payment` — the AMM-as-user

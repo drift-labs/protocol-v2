@@ -7,7 +7,7 @@ use crate::math::bn;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER,
-    PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
+    PERCENTAGE_PRECISION_I128, PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math::safe_math::SafeMath;
 
@@ -62,6 +62,34 @@ impl FundingMarketInputs {
             .unsigned_abs()
             .safe_div(3)
     }
+}
+
+/// Funding premium plus the baseline offset, with a continuous soft dead zone.
+///
+/// `price_spread` is `mark_twap - oracle_twap`; `clamp_threshold` is the dead
+/// zone as a price delta off the oracle. Spreads within +/- the threshold are
+/// noise and yield the offset alone. Past it the spread is shrunk toward zero
+/// by the threshold and scaled by `ramp_slope` (PERCENTAGE_PRECISION), so the
+/// premium leaves the dead zone continuously rather than stepping by the full
+/// threshold at the boundary
+pub fn calculate_funding_premium_with_offset(
+    price_spread: i64,
+    clamp_threshold: i64,
+    ramp_slope: u32,
+    funding_rate_offset: i64,
+) -> VelocityResult<i64> {
+    if price_spread.abs() <= clamp_threshold {
+        return Ok(funding_rate_offset);
+    }
+
+    let shrunk = price_spread.safe_sub(price_spread.signum().safe_mul(clamp_threshold)?)?;
+    let ramped = shrunk
+        .cast::<i128>()?
+        .safe_mul(ramp_slope.cast::<i128>()?)?
+        .safe_div(PERCENTAGE_PRECISION_I128)?
+        .cast::<i64>()?;
+
+    ramped.safe_add(funding_rate_offset)
 }
 
 /// With a virtual AMM, there can be an imbalance between longs and shorts and thus funding can be asymmetric.

@@ -9,12 +9,12 @@ use crate::controller::position::{
 use crate::error::VelocityResult;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_U64, FUNDING_RATE_BUFFER, FUNDING_RATE_CLAMP_DENOMINATOR,
-    FUNDING_RATE_OFFSET_DENOMINATOR, ONE_HOUR_I128, TWENTY_FOUR_HOUR,
+    BASE_PRECISION_U64, BPS_PRECISION, FUNDING_RATE_BUFFER, FUNDING_RATE_OFFSET_DENOMINATOR,
+    ONE_HOUR_I128, TWENTY_FOUR_HOUR,
 };
 use crate::math::funding::{
-    calculate_funding_payment, calculate_funding_rate_long_short,
-    validate_funding_pnl_profitability, FundingMarketInputs,
+    calculate_funding_payment, calculate_funding_premium_with_offset,
+    calculate_funding_rate_long_short, validate_funding_pnl_profitability, FundingMarketInputs,
 };
 use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
@@ -351,20 +351,22 @@ pub fn update_funding_rate(
     let price_spread = mid_price_twap.cast::<i64>()?.safe_sub(oracle_price_twap)?;
 
     // add offset 1/FUNDING_RATE_OFFSET_DENOMINATOR*365. if FUNDING_RATE_OFFSET_DENOMINATOR = 3333 => 10.95% annualized rate
-    // clamp when |price_spread| <= 0.05% to floor 10.95% annualized rate
     let funding_rate_offset = oracle_price_twap
         .abs()
         .safe_div(FUNDING_RATE_OFFSET_DENOMINATOR)?;
 
-    let price_spread_with_offset = if price_spread.abs()
-        <= oracle_price_twap
-            .abs()
-            .safe_div(FUNDING_RATE_CLAMP_DENOMINATOR)?
-    {
-        funding_rate_offset
-    } else {
-        price_spread.safe_add(funding_rate_offset)?
-    };
+    // dead-zone threshold (per-market bps) as a price delta off the oracle twap
+    let clamp_threshold = oracle_price_twap
+        .abs()
+        .safe_mul(market.funding_clamp_threshold.cast::<i64>()?)?
+        .safe_div(BPS_PRECISION.cast::<i64>()?)?;
+
+    let price_spread_with_offset = calculate_funding_premium_with_offset(
+        price_spread,
+        clamp_threshold,
+        market.funding_ramp_slope,
+        funding_rate_offset,
+    )?;
 
     let clamped_price_spread = price_spread_with_offset.clamp(-max_price_spread, max_price_spread);
     let funding_rate = clamped_price_spread

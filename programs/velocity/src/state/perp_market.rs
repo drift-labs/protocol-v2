@@ -14,8 +14,8 @@ use crate::{
             AMM_TO_QUOTE_PRECISION_RATIO, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
             FUNDING_RATE_BUFFER_I128, FUNDING_RATE_OFFSET_PERCENTAGE, LIQUIDATION_FEE_PRECISION,
             MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER,
-            PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64,
-            PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+            PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U32,
+            PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
         },
         margin::{
             calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -312,9 +312,17 @@ pub struct PerpMarket {
     pub last_funding_rate_ts: i64,
     /// unsettled funding pnl across the market (protocol-wide)
     pub net_unsettled_funding_pnl: i64,
-    /// Explicit padding where `last_funding_oracle_twap` used to live
-    /// (moved to `MarketStats`); keeps every later field at its old offset.
-    pub _padding_funding_twap: [u8; 8],
+    /// dead-zone threshold for the funding premium. mark/oracle twap spreads
+    /// within +/- this band are treated as noise and add no premium; spreads
+    /// past it are shrunk toward zero by this amount so funding stays continuous
+    /// across the boundary. fit per market post-launch
+    /// precision: BPS_PRECISION
+    pub funding_clamp_threshold: u32,
+    /// slope of the funding premium ramp above the dead zone. 1.0x passes the
+    /// shrunk spread through unchanged; higher leans into the premium harder
+    /// fit per market post-launch
+    /// precision: PERCENTAGE_PRECISION
+    pub funding_ramp_slope: u32,
     /// the base step size (increment) of orders
     /// precision: BASE_PRECISION
     pub order_step_size: u64,
@@ -457,7 +465,8 @@ impl Default for PerpMarket {
             last_funding_rate_short: 0,
             last_funding_rate_ts: 0,
             net_unsettled_funding_pnl: 0,
-            _padding_funding_twap: [0; 8],
+            funding_clamp_threshold: 5,                   // 5bps
+            funding_ramp_slope: PERCENTAGE_PRECISION_U32, // 1.0x
             order_step_size: 0,
             order_tick_size: 0,
             unrealized_pnl_max_imbalance: 0,

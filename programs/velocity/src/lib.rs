@@ -847,6 +847,8 @@ pub mod velocity {
         amm_jit_intensity: u8,
         name: [u8; 32],
         lp_pool_id: u8,
+        funding_clamp_threshold: u32,
+        funding_ramp_slope: u32,
     ) -> Result<()> {
         handle_initialize_perp_market(
             ctx,
@@ -876,6 +878,8 @@ pub mod velocity {
             amm_jit_intensity,
             name,
             lp_pool_id,
+            funding_clamp_threshold,
+            funding_ramp_slope,
         )
     }
 
@@ -1037,6 +1041,18 @@ pub mod velocity {
         funding_period: i64,
     ) -> Result<()> {
         handle_update_perp_market_funding_period(ctx, funding_period)
+    }
+
+    pub fn update_perp_market_funding_dead_zone(
+        ctx: Context<AdminUpdatePerpMarket>,
+        funding_clamp_threshold: u32,
+        funding_ramp_slope: u32,
+    ) -> Result<()> {
+        handle_update_perp_market_funding_dead_zone(
+            ctx,
+            funding_clamp_threshold,
+            funding_ramp_slope,
+        )
     }
 
     pub fn update_perp_market_max_imbalances(

@@ -3317,6 +3317,14 @@ export type Velocity = {
         {
           "name": "lpPoolId",
           "type": "u8"
+        },
+        {
+          "name": "fundingClampThreshold",
+          "type": "u32"
+        },
+        {
+          "name": "fundingRampSlope",
+          "type": "u32"
         }
       ]
     },
@@ -9892,6 +9900,42 @@ export type Velocity = {
         {
           "name": "fundingBiasSensitivity",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketFundingDeadZone",
+      "discriminator": [
+        249,
+        58,
+        136,
+        96,
+        2,
+        116,
+        111,
+        127
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "perpMarket",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "fundingClampThreshold",
+          "type": "u32"
+        },
+        {
+          "name": "fundingRampSlope",
+          "type": "u32"
         }
       ]
     },
@@ -20656,17 +20700,25 @@ export type Velocity = {
             "type": "i64"
           },
           {
-            "name": "paddingFundingTwap",
+            "name": "fundingClampThreshold",
             "docs": [
-              "Explicit padding where `last_funding_oracle_twap` used to live",
-              "(moved to `MarketStats`); keeps every later field at its old offset."
+              "dead-zone threshold for the funding premium. mark/oracle twap spreads",
+              "within +/- this band are treated as noise and add no premium; spreads",
+              "past it are shrunk toward zero by this amount so funding stays continuous",
+              "across the boundary. fit per market post-launch",
+              "precision: BPS_PRECISION"
             ],
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
+            "type": "u32"
+          },
+          {
+            "name": "fundingRampSlope",
+            "docs": [
+              "slope of the funding premium ramp above the dead zone. 1.0x passes the",
+              "shrunk spread through unchanged; higher leans into the premium harder",
+              "fit per market post-launch",
+              "precision: PERCENTAGE_PRECISION"
+            ],
+            "type": "u32"
           },
           {
             "name": "orderStepSize",

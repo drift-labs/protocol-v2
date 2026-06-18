@@ -352,7 +352,9 @@ export class AdminClient extends VelocityClient {
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME,
-		lpPoolId: number = 0
+		lpPoolId: number = 0,
+		fundingClampThreshold = 0,
+		fundingRampSlope = 0
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 
@@ -383,7 +385,9 @@ export class AdminClient extends VelocityClient {
 			curveUpdateIntensity,
 			ammJitIntensity,
 			name,
-			lpPoolId
+			lpPoolId,
+			fundingClampThreshold,
+			fundingRampSlope
 		);
 		const tx = await this.buildTransaction(initializeMarketIxs);
 
@@ -430,7 +434,9 @@ export class AdminClient extends VelocityClient {
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME,
-		lpPoolId: number = 0
+		lpPoolId: number = 0,
+		fundingClampThreshold = 0,
+		fundingRampSlope = 0
 	): Promise<TransactionInstruction[]> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -467,6 +473,8 @@ export class AdminClient extends VelocityClient {
 			ammJitIntensity,
 			nameBuffer,
 			lpPoolId,
+			fundingClampThreshold,
+			fundingRampSlope,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -1525,6 +1533,48 @@ export class AdminClient extends VelocityClient {
 		return await this.program.instruction.updatePerpMarketMarginRatio(
 			marginRatioInitial,
 			marginRatioMaintenance,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().coldAdmin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketFundingDeadZone(
+		perpMarketIndex: number,
+		fundingClampThreshold: number,
+		fundingRampSlope: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketFundingDeadZoneIx =
+			await this.getUpdatePerpMarketFundingDeadZoneIx(
+				perpMarketIndex,
+				fundingClampThreshold,
+				fundingRampSlope
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketFundingDeadZoneIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketFundingDeadZoneIx(
+		perpMarketIndex: number,
+		fundingClampThreshold: number,
+		fundingRampSlope: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketFundingDeadZone(
+			fundingClampThreshold,
+			fundingRampSlope,
 			{
 				accounts: {
 					admin: this.isSubscribed
