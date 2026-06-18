@@ -1461,7 +1461,6 @@ export class FillerBot extends TxThreaded implements Bot {
 				takerUser,
 				takerUserPubKey,
 				takerUserSlot,
-				referrerInfo,
 				marketType,
 			} = await this.getNodeFillInfo(nodeToFill);
 

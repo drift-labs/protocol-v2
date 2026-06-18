@@ -10,7 +10,6 @@ import {
 	PublicKey,
 	PriorityFeeSubscriberMap,
 	VelocityMarketInfo,
-	isVariant,
 } from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 

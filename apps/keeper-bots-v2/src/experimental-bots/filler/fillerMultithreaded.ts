@@ -1755,7 +1755,6 @@ export class FillerMultithreaded {
 			takerUser,
 			takerUserPubKey,
 			takerUserSlot,
-			referrerInfo,
 			marketType,
 			takerStatsPubKey,
 			isSignedMsg,

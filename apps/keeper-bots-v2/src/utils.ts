@@ -30,8 +30,6 @@ import {
 	WhileValidTxSender,
 	PriorityFeeSubscriberMap,
 	isOneOfVariant,
-	BulkAccountLoader,
-	PollingVelocityClientAccountSubscriber,
 	isVariant,
 	SpotMarketConfig,
 	PerpMarketConfig,

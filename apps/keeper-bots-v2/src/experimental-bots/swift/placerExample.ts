@@ -20,7 +20,6 @@ import {
 	PRICE_PRECISION,
 	PriorityFeeSubscriberMap,
 	PublicKey,
-	ReferrerInfo,
 	ReferrerMap,
 	SignedMsgOrderParamsDelegateMessage,
 	SignedMsgOrderParamsMessage,
@@ -327,15 +326,6 @@ export class SwiftPlacer {
 							),
 							makerUserAccount: makerUser.getUserAccountOrThrow(),
 						});
-					}
-
-					let referrerInfo: ReferrerInfo | undefined;
-					try {
-						referrerInfo = await this.referrerMap?.mustGet(
-							takerUserAccount.authority.toString()
-						);
-					} catch (e) {
-						logger.warn(`getNodeFillInfo: Failed to get referrer info: ${e}`);
 					}
 
 					let fillIx = await this.velocityClient.getFillPerpOrderIx(

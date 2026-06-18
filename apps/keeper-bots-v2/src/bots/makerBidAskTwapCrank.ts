@@ -96,8 +96,8 @@ export async function sendVersionedTransaction(
 	opts?: ConfirmOptions,
 	timeoutMs = 5000
 ): Promise<TransactionSignature | null> {
-	// @ts-ignore
 	tx.sign(
+		// @ts-ignore provider.wallet.payer is a Keypair at runtime
 		(additionalSigners ?? []).concat(velocityClient.provider.wallet.payer)
 	);
 

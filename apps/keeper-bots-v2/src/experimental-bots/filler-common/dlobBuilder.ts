@@ -292,8 +292,8 @@ class DLOBBuilder {
 			let oraclePriceData: OraclePriceData;
 			let fallbackAsk: BN | undefined = undefined;
 			let fallbackBid: BN | undefined = undefined;
-			let fallbackAskSource: FallbackLiquiditySource | undefined = undefined;
-			let fallbackBidSource: FallbackLiquiditySource | undefined = undefined;
+			const fallbackAskSource: FallbackLiquiditySource | undefined = undefined;
+			const fallbackBidSource: FallbackLiquiditySource | undefined = undefined;
 			if (this.marketTypeString.toLowerCase() === 'perp') {
 				market = this.velocityClient.getPerpMarketAccount(marketIndex);
 				if (!market) {
