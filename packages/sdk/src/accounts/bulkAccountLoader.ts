@@ -22,7 +22,7 @@ export class BulkAccountLoader {
 	intervalId?: ReturnType<typeof setTimeout>;
 	// to handle clients spamming load
 	loadPromise?: Promise<void>;
-	loadPromiseResolver: () => void = () => {};
+	private loadPromiseResolver: () => void = () => {};
 	lastTimeLoadingPromiseCleared = Date.now();
 	mostRecentSlot = 0;
 

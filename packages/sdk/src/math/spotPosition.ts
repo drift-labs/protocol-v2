@@ -25,14 +25,14 @@ export type OrderFillSimulation = {
 	tokenValue: BN;
 	weight: BN;
 	weightedTokenValue: BN;
-	freeCollateralContribution;
+	freeCollateralContribution: BN;
 };
 
 export function getWorstCaseTokenAmounts(
 	spotPosition: SpotPosition,
 	spotMarketAccount: SpotMarketAccount,
 	strictOraclePrice: StrictOraclePrice,
-	marginCategory: MarginCategory,
+	marginCategory: MarginCategory | undefined,
 	customMarginRatio?: number,
 	includeOpenOrders: boolean = true
 ): OrderFillSimulation {
@@ -108,7 +108,7 @@ export function calculateWeightedTokenValue(
 	tokenValue: BN,
 	oraclePrice: BN,
 	spotMarket: SpotMarketAccount,
-	marginCategory: MarginCategory,
+	marginCategory: MarginCategory | undefined,
 	customMarginRatio?: number
 ): { weight: BN; weightedTokenValue: BN } {
 	let weight: BN;
@@ -158,7 +158,7 @@ export function simulateOrderFill(
 	openOrders: BN,
 	strictOraclePrice: StrictOraclePrice,
 	spotMarket: SpotMarketAccount,
-	marginCategory: MarginCategory,
+	marginCategory: MarginCategory | undefined,
 	customMarginRatio?: number
 ): OrderFillSimulation {
 	const ordersValue = getTokenValue(openOrders.neg(), spotMarket.decimals, {

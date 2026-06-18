@@ -30,7 +30,10 @@ export class OneShotUserStatsAccountSubscriber
 
 	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
 		if (userStatsAccount) {
-			this.userStats = { data: userStatsAccount, slot: this.userStats.slot };
+			this.userStats = {
+				data: userStatsAccount,
+				slot: this.userStats?.slot ?? 0,
+			};
 			return true;
 		}
 
@@ -42,7 +45,7 @@ export class OneShotUserStatsAccountSubscriber
 	}
 
 	async fetchIfUnloaded(): Promise<void> {
-		if (this.userStats.data === undefined) {
+		if (!this.userStats) {
 			await this.fetch();
 		}
 	}

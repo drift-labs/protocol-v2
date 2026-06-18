@@ -9,7 +9,7 @@ export async function fetchSolanaPriorityFee(
 	connection: Connection,
 	lookbackDistance: number,
 	addresses: string[]
-): Promise<SolanaPriorityFeeResponse[]> {
+): Promise<SolanaPriorityFeeResponse[] | undefined> {
 	try {
 		// @ts-ignore
 		const rpcJSONResponse: any = await connection._rpcRequest(

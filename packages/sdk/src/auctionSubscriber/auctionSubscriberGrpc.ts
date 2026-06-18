@@ -36,6 +36,11 @@ export class AuctionSubscriberGrpc {
 	public async subscribe() {
 		let subscriber = this.subscriber;
 		if (!subscriber) {
+			if (!this.grpcConfigs) {
+				throw new Error(
+					'grpcConfigs must be provided to use AuctionSubscriberGrpc'
+				);
+			}
 			subscriber = await grpcProgramAccountSubscriber.create<UserAccount>(
 				this.grpcConfigs,
 				'AuctionSubscriber',

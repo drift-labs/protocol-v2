@@ -113,7 +113,6 @@ export * from './tx/txHandler';
 export * from './tx/txParamProcessor';
 export * from './util/computeUnits';
 export * from './util/digest';
-export * from './util/tps';
 export * from './util/promiseTimeout';
 export * from './math/spotBalance';
 export * from './velocityClientConfig';

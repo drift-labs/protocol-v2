@@ -25,11 +25,11 @@ export type RemainingAccountsContext = {
 
 	/** Used to resolve user's last slot for cache invalidation. */
 	getUserAccountAndSlot: (
-		subAccountId: number,
+		subAccountId: number | undefined,
 		authority: PublicKey
 	) => { slot: number } | undefined;
 
-	activeSubAccountId: number;
+	activeSubAccountId: number | undefined;
 	authority: PublicKey;
 
 	/** Mutable caches + forced-market sets (owned by caller). */
@@ -57,7 +57,7 @@ export function getRemainingAccounts(
 		)?.slot;
 
 		for (const [marketIndex, slot] of ctx.perpMarketLastSlotCache.entries()) {
-			if (slot > lastUserSlot) {
+			if (lastUserSlot !== undefined && slot > lastUserSlot) {
 				addPerpMarketToRemainingAccountMaps(
 					ctx,
 					marketIndex,
@@ -72,7 +72,7 @@ export function getRemainingAccounts(
 		}
 
 		for (const [marketIndex, slot] of ctx.spotMarketLastSlotCache.entries()) {
-			if (slot > lastUserSlot) {
+			if (lastUserSlot !== undefined && slot > lastUserSlot) {
 				addSpotMarketToRemainingAccountMaps(
 					ctx,
 					marketIndex,

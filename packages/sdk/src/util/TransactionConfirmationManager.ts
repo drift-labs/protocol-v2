@@ -62,7 +62,7 @@ export class TransactionConfirmationManager {
 
 		let response: RpcResponseAndContext<SignatureResult> | null = null;
 
-		let subscriptionId: ClientSubscriptionId;
+		let subscriptionId: ClientSubscriptionId | undefined;
 
 		const confirmationPromise = new Promise((resolve, reject) => {
 			try {
@@ -276,6 +276,7 @@ export class TransactionConfirmationManager {
 			}
 
 			if (
+				status.confirmationStatus === undefined ||
 				confirmationStatusValues[status.confirmationStatus] === undefined ||
 				confirmationStatusValues[request.desiredConfirmationStatus] ===
 					undefined

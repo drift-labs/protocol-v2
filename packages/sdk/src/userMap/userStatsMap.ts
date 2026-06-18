@@ -32,7 +32,7 @@ export class UserStatsMap {
 	private syncConfig: SyncConfig;
 
 	private syncPromise?: Promise<void>;
-	private syncPromiseResolver?: () => void;
+	private syncPromiseResolver: () => void = () => {};
 
 	/**
 	 * Creates a new UserStatsMap instance.
@@ -110,8 +110,12 @@ export class UserStatsMap {
 
 	public async updateWithOrderRecord(record: OrderRecord, userMap: UserMap) {
 		const user = await userMap.mustGet(record.user.toString());
-		if (!this.has(user.getUserAccount().authority.toString())) {
-			await this.addUserStat(user.getUserAccount().authority, undefined, false);
+		if (!this.has(user.getUserAccountOrThrow().authority.toString())) {
+			await this.addUserStat(
+				user.getUserAccountOrThrow().authority,
+				undefined,
+				false
+			);
 		}
 	}
 
@@ -133,12 +137,14 @@ export class UserStatsMap {
 			const liqRecord = record as LiquidationRecord;
 
 			const user = await userMap.mustGet(liqRecord.user.toString());
-			await this.mustGet(user.getUserAccount().authority.toString());
+			await this.mustGet(user.getUserAccountOrThrow().authority.toString());
 
 			const liquidatorUser = await userMap.mustGet(
 				liqRecord.liquidator.toString()
 			);
-			await this.mustGet(liquidatorUser.getUserAccount().authority.toString());
+			await this.mustGet(
+				liquidatorUser.getUserAccountOrThrow().authority.toString()
+			);
 		} else if (record.eventType === 'OrderRecord') {
 			if (!userMap) {
 				return;
@@ -153,11 +159,11 @@ export class UserStatsMap {
 
 			if (actionRecord.taker) {
 				const taker = await userMap.mustGet(actionRecord.taker.toString());
-				await this.mustGet(taker.getUserAccount().authority.toString());
+				await this.mustGet(taker.getUserAccountOrThrow().authority.toString());
 			}
 			if (actionRecord.maker) {
 				const maker = await userMap.mustGet(actionRecord.maker.toString());
-				await this.mustGet(maker.getUserAccount().authority.toString());
+				await this.mustGet(maker.getUserAccountOrThrow().authority.toString());
 			}
 		} else if (record.eventType === 'SettlePnlRecord') {
 			if (!userMap) {
@@ -165,7 +171,7 @@ export class UserStatsMap {
 			}
 			const settlePnlRecord = record as SettlePnlRecord;
 			const user = await userMap.mustGet(settlePnlRecord.user.toString());
-			await this.mustGet(user.getUserAccount().authority.toString());
+			await this.mustGet(user.getUserAccountOrThrow().authority.toString());
 		} else if (record.eventType === 'NewUserRecord') {
 			const newUserRecord = record as NewUserRecord;
 			await this.mustGet(newUserRecord.userAuthority.toString());
@@ -351,9 +357,7 @@ export class UserStatsMap {
 		} catch (err) {
 			console.error(`Error in UserStatsMap.paginatedSync():`, err);
 		} finally {
-			if (this.syncPromiseResolver) {
-				this.syncPromiseResolver();
-			}
+			this.syncPromiseResolver();
 			this.syncPromise = undefined;
 		}
 	}

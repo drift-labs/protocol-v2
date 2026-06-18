@@ -116,7 +116,9 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		}
 	}
 
-	public getInsuranceFundStakeAccountAndSlot(): DataAndSlot<InsuranceFundStake> {
+	public getInsuranceFundStakeAccountAndSlot():
+		| DataAndSlot<InsuranceFundStake>
+		| undefined {
 		this.assertIsSubscribed();
 		return this.insuranceFundStakeDataAccountSubscriber.dataAndSlot;
 	}

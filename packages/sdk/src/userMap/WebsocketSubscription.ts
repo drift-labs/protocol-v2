@@ -14,7 +14,7 @@ export class WebsocketSubscription {
 	private additionalFilters?: MemcmpFilter[];
 	private decodeFn: (name: string, data: Buffer) => UserAccount;
 
-	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
+	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 
 	constructor({
 		userMap,

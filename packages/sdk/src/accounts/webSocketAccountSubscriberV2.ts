@@ -423,7 +423,10 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 		const accountInfo = rpcResponse.value;
 
-		this.handleRpcResponse({ slot: BigInt(context.slot) }, accountInfo);
+		this.handleRpcResponse(
+			{ slot: BigInt(context.slot) },
+			accountInfo ?? undefined
+		);
 	}
 
 	handleRpcResponse(
@@ -492,7 +495,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		if (this.decodeBufferFn) {
 			return this.decodeBufferFn(buffer);
 		} else {
-			return this.program.account[this.accountName].coder.accounts.decode(
+			return this.program.coder.accounts.decode(
 				capitalize(this.accountName),
 				buffer
 			);

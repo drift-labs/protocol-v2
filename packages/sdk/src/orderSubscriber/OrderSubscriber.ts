@@ -27,7 +27,7 @@ export class OrderSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
 	fetchPromise?: Promise<void>;
-	fetchPromiseResolver!: () => void; // set synchronously inside the Promise executor in fetch()
+	private fetchPromiseResolver: () => void = () => {};
 
 	mostRecentSlot = 0;
 	decodeFn: (name: string, data: Buffer) => UserAccount;

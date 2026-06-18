@@ -22,8 +22,8 @@
     "test:dlob": "mocha -r ts-node/register tests/dlob/**/*.ts",
     "test:events": "mocha -r ts-node/register tests/events/**/*.ts",
     "test:velocitycore": "bun test tests/VelocityCore",
-    "prettify": "prettier --check './src/***/*.ts'",
-    "prettify:fix": "prettier --write './{src,tests}/***/*.ts'",
+    "prettify": "prettier --check './src/**/*.ts'",
+    "prettify:fix": "prettier --write './{src,tests}/**/*.ts'",
     "version": "node ./scripts/updateVersion.js",
     "circular-deps": "bunx madge --circular --circular --extensions ts src"
   },

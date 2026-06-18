@@ -868,7 +868,7 @@ export class AdminClient extends VelocityClient {
 
 	public async getRecenterPerpMarketAmmCrankIx(
 		perpMarketIndex: number,
-		depth: BN
+		depth?: BN
 	): Promise<TransactionInstruction> {
 		const perpMarketAccount = this.getPerpMarketAccountOrThrow(perpMarketIndex);
 		return await this.program.instruction.recenterPerpMarketAmmCrank(
@@ -2093,6 +2093,11 @@ export class AdminClient extends VelocityClient {
 				const accountInfo = await this.connection.getAccountInfo(
 					spotMarketPublicKey
 				);
+				if (!accountInfo) {
+					throw new Error(
+						`Spot market account not found: ${spotMarketPublicKey.toString()}`
+					);
+				}
 				const spotMarket = (
 					this.program.account as any
 				).spotMarket.coder.accounts.decodeUnchecked(
@@ -3785,8 +3790,8 @@ export class AdminClient extends VelocityClient {
 		marketIndex: number,
 		amount: BN
 	): Promise<TransactionInstruction> {
-		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		const quoteSpotMarket = this.getSpotMarketAccount(
+		const perpMarket = this.getPerpMarketAccountOrThrow(marketIndex);
+		const quoteSpotMarket = this.getSpotMarketAccountOrThrow(
 			perpMarket.quoteSpotMarketIndex
 		);
 		const tokenProgramId = this.getTokenProgramForSpotMarket(quoteSpotMarket);

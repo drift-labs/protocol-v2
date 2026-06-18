@@ -104,9 +104,7 @@ export class UserMap implements UserMapInterface {
 	private syncConfig: SyncConfig;
 
 	private syncPromise?: Promise<void>;
-	// Set synchronously inside the Promise executor in defaultSync()/paginatedSync()
-	// before syncPromise resolves; TS can't prove the executor ran synchronously.
-	private syncPromiseResolver!: () => void;
+	private syncPromiseResolver: () => void = () => {};
 
 	private throwOnFailedSync: boolean;
 
@@ -297,7 +295,7 @@ export class UserMap implements UserMapInterface {
 
 	public async mustGetUserAccount(key: string): Promise<UserAccount> {
 		const user = await this.mustGet(key);
-		return user.getUserAccount();
+		return user.getUserAccountOrThrow();
 	}
 
 	/**
@@ -310,7 +308,7 @@ export class UserMap implements UserMapInterface {
 		if (!user) {
 			return undefined;
 		}
-		return user.data.getUserAccount().authority;
+		return user.data.getUserAccount()?.authority;
 	}
 
 	/**
@@ -394,15 +392,15 @@ export class UserMap implements UserMapInterface {
 		filterCriteria?: UserFilterCriteria
 	): PublicKey[] {
 		const usersMeetingCriteria = Array.from(this.values()).filter((user) => {
-			let pass = true;
+			const userAccount = user.getUserAccountOrThrow();
 			if (filterCriteria && filterCriteria.hasOpenOrders) {
-				pass = pass && user.getUserAccount().hasOpenOrder;
+				return userAccount.hasOpenOrder;
 			}
-			return pass;
+			return true;
 		});
 		const userAuths = new Set(
 			usersMeetingCriteria.map((user) =>
-				user.getUserAccount().authority.toBase58()
+				user.getUserAccountOrThrow().authority.toBase58()
 			)
 		);
 		const userAuthKeys = Array.from(userAuths).map(
@@ -648,9 +646,7 @@ export class UserMap implements UserMapInterface {
 				throw err;
 			}
 		} finally {
-			if (this.syncPromiseResolver) {
-				this.syncPromiseResolver();
-			}
+			this.syncPromiseResolver();
 			this.syncPromise = undefined;
 		}
 	}

@@ -7,6 +7,16 @@ export function capitalize(value: string): string {
 	return value[0].toUpperCase() + value.slice(1);
 }
 
+export function assertDataAndSlot<T>(
+	dataAndSlot: DataAndSlot<T> | undefined,
+	message: string
+): DataAndSlot<T> {
+	if (!dataAndSlot) {
+		throw new Error(message);
+	}
+	return dataAndSlot;
+}
+
 export function findDelistedPerpMarketsAndOracles(
 	perpMarkets: DataAndSlot<PerpMarketAccount>[],
 	spotMarkets: DataAndSlot<SpotMarketAccount>[]

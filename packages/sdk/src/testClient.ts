@@ -7,7 +7,7 @@ import { VelocityClientConfig } from './velocityClientConfig';
 export class TestClient extends AdminClient {
 	public constructor(config: VelocityClientConfig) {
 		config.txVersion = 'legacy';
-		if (config.accountSubscription.type !== 'polling') {
+		if (config.accountSubscription?.type !== 'polling') {
 			throw new Error('Test client must be polling');
 		}
 		super(config);

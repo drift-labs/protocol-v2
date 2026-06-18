@@ -213,10 +213,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		if (this.decodeBufferFn) {
 			return this.decodeBufferFn(buffer);
 		} else {
-			return this.program.account[this.accountName].coder.accounts.decode(
-				this.accountName,
-				buffer
-			);
+			return this.program.coder.accounts.decode(this.accountName, buffer);
 		}
 	}
 

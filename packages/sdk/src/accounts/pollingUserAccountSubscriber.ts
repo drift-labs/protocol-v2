@@ -45,7 +45,9 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		}
 
 		if (userAccount) {
-			this.user = { data: userAccount, slot: undefined };
+			// `slot: 0` keeps {data, slot} atomic: a seeded account always carries a
+			// slot (0 = oldest-possible sentinel, overwritten by the first real fetch).
+			this.user = { data: userAccount, slot: 0 };
 		}
 
 		await this.addToAccountLoader();

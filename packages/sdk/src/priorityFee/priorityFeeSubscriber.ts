@@ -113,6 +113,9 @@ export class PriorityFeeSubscriber {
 			this.lookbackDistance,
 			this.addresses
 		);
+		if (samples === undefined) {
+			throw new Error('fetchSolanaPriorityFee returned no samples');
+		}
 		if (samples.length > 0) {
 			this.latestPriorityFee = samples[0].prioritizationFee;
 			this.lastSlotSeen = samples[0].slot;
@@ -138,7 +141,7 @@ export class PriorityFeeSubscriber {
 		);
 		this.lastHeliusSample = sample?.result?.priorityFeeLevels ?? undefined;
 
-		if (this.lastHeliusSample) {
+		if (sample !== undefined && this.lastHeliusSample) {
 			this.lastAvgStrategyResult =
 				this.lastHeliusSample[HeliusPriorityLevel.MEDIUM];
 			this.lastMaxStrategyResult =
@@ -164,10 +167,28 @@ export class PriorityFeeSubscriber {
 			this.velocityMarkets.map((m) => m.marketIndex)
 		);
 		if (sample.length > 0) {
-			this.lastAvgStrategyResult = sample[HeliusPriorityLevel.MEDIUM];
-			this.lastMaxStrategyResult = sample[HeliusPriorityLevel.UNSAFE_MAX];
+			// The endpoint returns one fee-level set per requested market. Take the
+			// max level across markets so a transaction touching several markets is
+			// covered by the most expensive one. (Base indexed the array itself with
+			// a string enum key — `sample['medium']` — which yielded `undefined` and
+			// produced NaN strategy results; the missing per-element index is fixed
+			// here.)
+			this.lastAvgStrategyResult = Math.max(
+				...sample.map((s) => s[HeliusPriorityLevel.MEDIUM])
+			);
+			this.lastMaxStrategyResult = Math.max(
+				...sample.map((s) => s[HeliusPriorityLevel.UNSAFE_MAX])
+			);
 			if (this.customStrategy) {
-				this.lastCustomStrategyResult = this.customStrategy.calculate(sample);
+				// Custom strategies expect `{ slot, prioritizationFee }[]`; map each
+				// market's medium level into that shape so they aggregate real values
+				// instead of summing the absent `prioritizationFee` field (NaN).
+				this.lastCustomStrategyResult = this.customStrategy.calculate(
+					sample.map((s) => ({
+						slot: 0,
+						prioritizationFee: s[HeliusPriorityLevel.MEDIUM],
+					}))
+				);
 			}
 		}
 	}

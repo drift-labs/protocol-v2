@@ -35,7 +35,7 @@ export class ChainClock {
 		}
 	}
 
-	public getState(commitment: Commitment): ChainClockProgress {
+	public getState(commitment: Commitment): ChainClockProgress | undefined {
 		return this._state.get(commitment);
 	}
 }
