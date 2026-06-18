@@ -14,9 +14,18 @@ set -e
 trap 'echo -e "\nStopped by signal $? (SIGINT)"; exit 0' INT
 
 if [ "$1" != "--skip-build" ]; then
-  anchor build --ignore-keys --skip-lint -- --no-default-features --features no-entrypoint,anchor-test
+  # Build velocity ALONE with the no-default-features flags (drops mainnet-beta so
+  # the external-depositor whitelist gate is compiled out — see header).
+  anchor build --ignore-keys --skip-lint -p velocity -- --no-default-features --features no-entrypoint,anchor-test
   cp target/idl/velocity.json packages/sdk/src/idl/
   cp target/types/velocity.ts packages/sdk/src/idl/
+  # vaults + fixture programs build with their DEFAULT features. Passing velocity's
+  # `--no-default-features` to them strips their own entrypoints, producing 896-byte
+  # stub .so files that bankrun then rejects at runtime with "Program is not
+  # deployed" → "invalid account data for instruction". Build each on its own.
+  anchor build --ignore-keys --skip-lint -p vaults
+  anchor build --ignore-keys --skip-lint -p pyth
+  anchor build --ignore-keys --skip-lint -p token_faucet
 fi
 
 # The vault tests import the velocity + vaults SDKs by package root, which resolves
