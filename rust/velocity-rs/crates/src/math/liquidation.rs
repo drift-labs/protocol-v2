@@ -23,7 +23,7 @@ use crate::{
         accounts::{PerpMarket, SpotMarket, User},
         MarginRequirementType, PerpPosition,
     },
-    VelocityClient, MarketId, SdkError, SdkResult, SpotPosition,
+    MarketId, SdkError, SdkResult, SpotPosition, VelocityClient,
 };
 
 /// Info on a position's liquidation price and unrealized PnL

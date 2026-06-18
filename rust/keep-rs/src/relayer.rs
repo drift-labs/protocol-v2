@@ -15,7 +15,7 @@ use std::{
 
 use velocity_rs::{
     types::{accounts::User, MarketId, RpcSendTransactionConfig},
-    VelocityClient, TransactionBuilder,
+    TransactionBuilder, VelocityClient,
 };
 
 use crate::{Config, UseMarkets};
@@ -143,11 +143,15 @@ pub async fn run(config: Config, velocity: VelocityClient) {
             continue;
         }
 
-        let tx =
-            TransactionBuilder::new(velocity.program_data(), subaccount, Cow::Borrowed(user), false)
-                .with_priority_fee(config.priority_fee, Some(CU_LIMIT))
-                .post_pyth_lazer_oracle_update(&[update.feed_id], &update.message)
-                .build();
+        let tx = TransactionBuilder::new(
+            velocity.program_data(),
+            subaccount,
+            Cow::Borrowed(user),
+            false,
+        )
+        .with_priority_fee(config.priority_fee, Some(CU_LIMIT))
+        .post_pyth_lazer_oracle_update(&[update.feed_id], &update.message)
+        .build();
 
         let stats = Arc::clone(&stats);
         tokio::spawn(async move {
@@ -172,7 +176,11 @@ pub async fn run(config: Config, velocity: VelocityClient) {
                 max_retries: Some(0),
                 ..Default::default()
             };
-            match velocity.rpc().send_transaction_with_config(&signed, cfg).await {
+            match velocity
+                .rpc()
+                .send_transaction_with_config(&signed, cfg)
+                .await
+            {
                 Ok(sig) => {
                     stats.sent.fetch_add(1, Ordering::Relaxed);
                     log::info!(
@@ -235,7 +243,11 @@ pub async fn init_user(config: Config, velocity: VelocityClient) {
         skip_preflight: false,
         ..Default::default()
     };
-    match velocity.rpc().send_transaction_with_config(&signed, cfg).await {
+    match velocity
+        .rpc()
+        .send_transaction_with_config(&signed, cfg)
+        .await
+    {
         Ok(sig) => log::info!(target: TARGET, "init user submitted: sig={sig}"),
         Err(e) => log::error!(target: TARGET, "init user failed: {e}"),
     }

@@ -4,15 +4,15 @@
 // the default run.
 #![cfg(all(feature = "titan", feature = "rpc_tests"))]
 
+use solana_transaction::{InstructionError, TransactionError};
+use tokio::sync::OnceCell;
 use velocity_rs::{
     event_subscriber::RpcClient,
     titan::{Provider, SwapMode, TitanSwapApi},
     types::{accounts::User, Context, MarketId},
     utils::test_envs::{mainnet_endpoint, mainnet_test_keypair},
-    VelocityClient, TransactionBuilder, Wallet,
+    TransactionBuilder, VelocityClient, Wallet,
 };
-use solana_transaction::{InstructionError, TransactionError};
-use tokio::sync::OnceCell;
 
 const DRIFT_CLIENT: OnceCell<VelocityClient> = OnceCell::const_new();
 

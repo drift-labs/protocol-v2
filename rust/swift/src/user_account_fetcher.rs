@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use anchor_lang::AccountDeserialize;
 use base64::Engine;
-use velocity_rs::{types::accounts::User, VelocityClient};
 use redis::{aio::MultiplexedConnection, AsyncCommands};
 use solana_clock::Slot;
 use solana_pubkey::Pubkey;
+use velocity_rs::{types::accounts::User, VelocityClient};
 
 /// Fallback lookup strategy
 #[derive(Clone)]
@@ -85,7 +85,9 @@ impl UserAccountFetcher {
         match self.usermap_lookup(account, slot).await {
             Ok(res) => Ok(res),
             Err(_) => match &self.fallback {
-                Fallback::Rpc(velocity) => velocity.get_account_value(account).await.map_err(|_| ()),
+                Fallback::Rpc(velocity) => {
+                    velocity.get_account_value(account).await.map_err(|_| ())
+                }
                 Fallback::Mock(mocks) => mocks.get(account).copied().ok_or(()),
             },
         }
@@ -140,8 +142,8 @@ impl UserAccountFetcher {
 
 #[cfg(test)]
 mod tests {
-    use velocity_rs::{Context, RpcClient};
     use solana_keypair::Keypair;
+    use velocity_rs::{Context, RpcClient};
 
     use super::*;
 

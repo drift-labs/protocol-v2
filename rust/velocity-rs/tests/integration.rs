@@ -7,6 +7,10 @@
 use std::{str::FromStr, time::Duration};
 
 use anchor_lang::Discriminator;
+use futures_util::StreamExt;
+use solana_keypair::Keypair;
+use solana_rpc_client_api::config::RpcSimulateTransactionConfig;
+use solana_signature::Signature;
 use velocity_rs::{
     constants::DEFAULT_PUBKEY,
     event_subscriber::RpcClient,
@@ -17,12 +21,8 @@ use velocity_rs::{
         OrderParams, OrderType, PositionDirection, PostOnlyParam, SettlePnlMode,
     },
     utils::test_envs::{devnet_endpoint, mainnet_endpoint, test_keypair},
-    VelocityClient, GrpcSubscribeOpts, Pubkey, TransactionBuilder, Wallet,
+    GrpcSubscribeOpts, Pubkey, TransactionBuilder, VelocityClient, Wallet,
 };
-use futures_util::StreamExt;
-use solana_keypair::Keypair;
-use solana_rpc_client_api::config::RpcSimulateTransactionConfig;
-use solana_signature::Signature;
 
 #[tokio::test]
 async fn client_sync_subscribe_all_devnet() {
@@ -416,9 +416,9 @@ async fn initialize_user_subaccount_0() {
 
 #[tokio::test]
 async fn place_order_sim_via_privy_account() {
-    use velocity_rs::utils::test_envs::mainnet_endpoint;
     use solana_commitment_config::CommitmentConfig;
     use solana_transaction::versioned::VersionedTransaction;
+    use velocity_rs::utils::test_envs::mainnet_endpoint;
 
     let authority = Pubkey::from_str("GoHqm1MJ2JY7XoMtvedRNHBzUncY1uPaRJNeB1oAgQbQ").unwrap();
     let sub_account_pubkey = Wallet::derive_user_account(&authority, 0);

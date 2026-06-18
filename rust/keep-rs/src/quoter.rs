@@ -20,7 +20,7 @@ use velocity_rs::{
         accounts::User, MarketId, MarketType, OrderParams, OrderType, PerpPosition,
         PositionDirection, PostOnlyParam, SpotBalanceType,
     },
-    VelocityClient, Pubkey, TransactionBuilder,
+    Pubkey, TransactionBuilder, VelocityClient,
 };
 
 use crate::{Config, UseMarkets};

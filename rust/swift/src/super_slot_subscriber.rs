@@ -6,8 +6,8 @@ use std::{
     time::Duration,
 };
 
-use velocity_rs::{event_subscriber::PubsubClient, slot_subscriber::SlotSubscriber, RpcClient};
 use solana_clock::Slot;
+use velocity_rs::{event_subscriber::PubsubClient, slot_subscriber::SlotSubscriber, RpcClient};
 
 /// Combines multiple slot subscribers for redundancy
 /// Tracks the latest slot known by its constituents

@@ -19,8 +19,8 @@ use crate::{
     constants::{self, derive_revenue_share_escrow, state_account, JIT_PROXY_ID},
     swift_order_subscriber::SignedOrderInfo,
     types::{OrderExt, PositionDirection},
-    VelocityClient, MarketId, MarketType, PostOnlyParam, ReferrerInfo, SdkError, SdkResult,
-    TransactionBuilder, Wallet,
+    MarketId, MarketType, PostOnlyParam, ReferrerInfo, SdkError, SdkResult, TransactionBuilder,
+    VelocityClient, Wallet,
 };
 
 #[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]

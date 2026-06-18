@@ -27,7 +27,7 @@ use crate::{
         state_account, MarketExt, ProgramData, DEFAULT_PUBKEY, PYTH_LAZER_STORAGE_ACCOUNT_KEY,
         SYSVAR_INSTRUCTIONS_PUBKEY, SYSVAR_RENT_PUBKEY,
     },
-    grpc::grpc_subscriber::{AccountFilter, VelocityGrpcClient, GeyserSubscribeOpts},
+    grpc::grpc_subscriber::{AccountFilter, GeyserSubscribeOpts, VelocityGrpcClient},
     jupiter::JupiterSwapInfo,
     marketmap::MarketMap,
     oraclemap::{Oracle, OracleMap},
@@ -49,16 +49,16 @@ use constants::{
 // …) reach program internals — math, controller, state, error, sdk — through the
 // SDK as `velocity_rs::program::…` rather than taking a second direct path-dep on the
 // velocity program. velocity-rs is the single point that depends on the program.
-pub use program;
-pub use velocity_pubsub_client::PubsubClient;
 use futures_util::TryFutureExt;
 use log::debug;
+pub use program;
 pub use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_rpc_client_api::{
     config::RpcSimulateTransactionConfig,
     filter::RpcFilterType,
     response::{Response, RpcSimulateTransactionResult},
 };
+pub use velocity_pubsub_client::PubsubClient;
 
 // utils
 pub mod async_utils;
@@ -73,9 +73,9 @@ pub mod wallet;
 
 // constants & types
 pub mod constants;
-pub mod velocity_idl;
 mod layout_check;
 pub mod types;
+pub mod velocity_idl;
 
 // internal infra
 pub mod grpc;
@@ -2036,11 +2036,13 @@ impl<'a> TransactionBuilder<'a> {
         let ix = Instruction {
             program_id: constants::PROGRAM_ID,
             accounts,
-            data: InstructionData::data(&program::instruction::TransferIsolatedPerpPositionDeposit {
-                perp_market_index: market_index,
-                spot_market_index: quote_spot_market.market_index,
-                amount,
-            }),
+            data: InstructionData::data(
+                &program::instruction::TransferIsolatedPerpPositionDeposit {
+                    perp_market_index: market_index,
+                    spot_market_index: quote_spot_market.market_index,
+                    amount,
+                },
+            ),
         };
 
         self.ixs.push(ix);

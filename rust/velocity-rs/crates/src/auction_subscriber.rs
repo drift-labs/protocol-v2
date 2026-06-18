@@ -4,9 +4,9 @@ use crate::solana_sdk::commitment_config::CommitmentConfig;
 use solana_account_decoder_client_types::UiAccountEncoding;
 
 use crate::{
-    velocity_idl::accounts::User,
     memcmp::{get_user_filter, get_user_with_auction_filter},
     types::SdkResult,
+    velocity_idl::accounts::User,
     websocket_program_account_subscriber::{
         ProgramAccountUpdate, WebsocketProgramAccountOptions, WebsocketProgramAccountSubscriber,
     },

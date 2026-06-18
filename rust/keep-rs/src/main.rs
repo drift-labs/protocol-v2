@@ -19,8 +19,8 @@ use crate::{
 };
 use clap::Parser;
 
-use velocity_rs::{types::MarketId, VelocityClient, RpcClient, Wallet};
 use mimalloc::MiMalloc;
+use velocity_rs::{types::MarketId, RpcClient, VelocityClient, Wallet};
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;

@@ -37,19 +37,6 @@ use axum::{
 };
 use base64::Engine;
 use dotenv::dotenv;
-use velocity_rs::{
-    constants::state_account,
-    velocity_idl,
-    event_subscriber::PubsubClient,
-    math::account_list_builder::AccountsListBuilder,
-    swift_order_subscriber::{SignedMessageInfo, SignedOrderType},
-    types::{
-        accounts::User, errors::ErrorCode, CommitmentConfig, MarketId, MarketStatus, MarketType,
-        MarketTypeExt, OrderParams, OrderParamsExt, OrderType, PositionDirection, ProgramError,
-        SdkError, SdkResult, SignedMsgTriggerOrderParams, VersionedMessage, VersionedTransaction,
-    },
-    Context, VelocityClient, RpcClient, TransactionBuilder, Wallet,
-};
 use log::warn;
 use prometheus::Registry;
 use redis::{aio::MultiplexedConnection, AsyncCommands};
@@ -68,6 +55,18 @@ use solana_signature::Signature;
 use solana_signer::Signer;
 use solana_system_interface::instruction as system_instruction;
 use tower_http::cors::{Any, CorsLayer};
+use velocity_rs::{
+    constants::state_account,
+    event_subscriber::PubsubClient,
+    math::account_list_builder::AccountsListBuilder,
+    swift_order_subscriber::{SignedMessageInfo, SignedOrderType},
+    types::{
+        accounts::User, errors::ErrorCode, CommitmentConfig, MarketId, MarketStatus, MarketType,
+        MarketTypeExt, OrderParams, OrderParamsExt, OrderType, PositionDirection, ProgramError,
+        SdkError, SdkResult, SignedMsgTriggerOrderParams, VersionedMessage, VersionedTransaction,
+    },
+    velocity_idl, Context, RpcClient, TransactionBuilder, VelocityClient, Wallet,
+};
 
 /// Accept orders under-collaterized upto this ratio.
 const COLLATERAL_BUFFER: f64 = 1.01;
@@ -1515,8 +1514,10 @@ fn dump_account_state(
     );
     let mut debug_log = String::with_capacity(8192 * 2);
     debug_log.push_str("user:");
-    base64::engine::general_purpose::STANDARD
-        .encode_string(velocity_rs::utils::zero_account_to_bytes(user), &mut debug_log);
+    base64::engine::general_purpose::STANDARD.encode_string(
+        velocity_rs::utils::zero_account_to_bytes(user),
+        &mut debug_log,
+    );
     debug_log.push('|');
     for p in user.spot_positions.iter().filter(|p| !p.is_available()) {
         if let Ok(market) = velocity.try_get_spot_market_account(p.market_index) {
@@ -1607,12 +1608,12 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use ed25519_dalek::Signature as Ed25519Signature;
+    use solana_native_token::LAMPORTS_PER_SOL;
     use velocity_rs::types::{
         accounts::User, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
         SignedMsgTriggerOrderParams,
     };
-    use ed25519_dalek::Signature as Ed25519Signature;
-    use solana_native_token::LAMPORTS_PER_SOL;
 
     fn is_isolated_deposit(signed_msg: &SignedOrderType) -> bool {
         match signed_msg {

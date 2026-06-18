@@ -9,7 +9,6 @@ use crate::solana_sdk::{clock::Slot, commitment_config::CommitmentConfig, pubkey
 use anchor_lang::Discriminator;
 use bytemuck::Pod;
 use dashmap::DashMap;
-use velocity_pubsub_client::PubsubClient;
 use log::debug;
 use solana_account_decoder_client_types::UiAccountEncoding;
 use solana_rpc_client::nonblocking::rpc_client::RpcClient;
@@ -17,6 +16,7 @@ use solana_rpc_client_api::{
     config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
     filter::RpcFilterType,
 };
+use velocity_pubsub_client::PubsubClient;
 
 use crate::{
     constants::PROGRAM_ID,

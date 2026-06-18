@@ -14,6 +14,9 @@ use std::{
 };
 
 use anchor_lang::AccountDeserialize;
+use solana_account_info::AccountInfo;
+use solana_clock::Clock;
+use solana_pubkey::Pubkey;
 use velocity_rs::program::{
     controller::orders::place_perp_order,
     error::{ErrorCode, VelocityResult},
@@ -27,9 +30,6 @@ use velocity_rs::program::{
         user::User,
     },
 };
-use solana_account_info::AccountInfo;
-use solana_clock::Clock;
-use solana_pubkey::Pubkey;
 
 #[allow(deprecated)]
 fn account_info_from<'a>(slot: &'a mut (Pubkey, OwnedAccount)) -> AccountInfo<'a> {

@@ -10,7 +10,6 @@ use crate::solana_sdk::{clock::Slot, commitment_config::CommitmentConfig, pubkey
 use anchor_lang::{AccountDeserialize, Discriminator};
 use bytemuck::Pod;
 use dashmap::DashMap;
-use velocity_pubsub_client::PubsubClient;
 use futures_util::{
     stream::{FuturesOrdered, FuturesUnordered},
     StreamExt,
@@ -23,6 +22,7 @@ use solana_rpc_client_api::{
     request::RpcRequest,
     response::{OptionalContext, RpcKeyedAccount},
 };
+use velocity_pubsub_client::PubsubClient;
 
 use crate::{
     accounts::State,
@@ -421,8 +421,8 @@ mod tests {
     use std::sync::Arc;
 
     use crate::solana_sdk::commitment_config::CommitmentConfig;
-    use velocity_pubsub_client::PubsubClient;
     use solana_rpc_client::nonblocking::rpc_client::RpcClient;
+    use velocity_pubsub_client::PubsubClient;
 
     use super::{get_market_accounts_with_fallback, MarketMap};
     use crate::{

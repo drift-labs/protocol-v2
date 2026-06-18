@@ -1,7 +1,7 @@
 use std::time::UNIX_EPOCH;
 
-use velocity_rs::types::MarketType;
 use solana_pubkey::Pubkey;
+use velocity_rs::types::MarketType;
 
 use crate::types::messages::IncomingSignedMessage;
 

@@ -6,14 +6,14 @@
 use solana_transaction::{InstructionError, TransactionError};
 
 const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
+use tokio::sync::OnceCell;
 use velocity_rs::{
     event_subscriber::RpcClient,
     jupiter::{JupiterSwapApi, SwapMode},
     types::{accounts::User, Context, MarketId},
     utils::test_envs::{mainnet_endpoint, mainnet_test_keypair},
-    VelocityClient, TransactionBuilder, Wallet,
+    TransactionBuilder, VelocityClient, Wallet,
 };
-use tokio::sync::OnceCell;
 
 const DRIFT_CLIENT: OnceCell<VelocityClient> = OnceCell::const_new();
 

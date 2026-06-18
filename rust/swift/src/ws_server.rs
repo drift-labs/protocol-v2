@@ -16,15 +16,6 @@ use anyhow::{Context, Result};
 use axum::{routing::get, Router};
 use dashmap::DashMap;
 use dotenv::dotenv;
-use velocity_rs::{
-    constants::MarketExt,
-    swift_order_subscriber::SignedMessageInfo,
-    types::{
-        accounts::{PerpMarket, SignedMsgWsDelegates, UserStats},
-        MarketType, MarketTypeExt,
-    },
-    Pubkey, RpcClient, Wallet,
-};
 use ed25519_dalek::{PublicKey, Signature, Verifier};
 use futures_util::{
     stream::{self, FuturesUnordered},
@@ -44,6 +35,15 @@ use tokio::{
 };
 use tokio_tungstenite::tungstenite::{
     self, extensions::DeflateConfig, protocol::WebSocketConfig, Message,
+};
+use velocity_rs::{
+    constants::MarketExt,
+    swift_order_subscriber::SignedMessageInfo,
+    types::{
+        accounts::{PerpMarket, SignedMsgWsDelegates, UserStats},
+        MarketType, MarketTypeExt,
+    },
+    Pubkey, RpcClient, Wallet,
 };
 
 use crate::{

@@ -1,10 +1,10 @@
 use std::sync::{atomic::AtomicU64, Arc, Mutex};
 
 use crate::solana_sdk::clock::Slot;
-use velocity_pubsub_client::PubsubClient;
 use futures_util::StreamExt;
 use log::{debug, error, warn};
 use tokio::sync::oneshot;
+use velocity_pubsub_client::PubsubClient;
 
 use crate::types::{SdkError, SdkResult};
 

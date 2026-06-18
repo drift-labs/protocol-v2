@@ -3,15 +3,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use velocity_rs::{
-    constants::{
-        perp_market_index_to_pyth_lazer_feed_id, pyth_lazer_feed_id_to_perp_market_index,
-        pyth_lazer_feed_id_to_spot_market_index, spot_market_index_to_pyth_lazer_feed_id,
-    },
-    dlob::{L3Order, MakerCrosses},
-    types::{MarketId, MarketType},
-    Pubkey,
-};
 use futures_util::StreamExt;
 use pyth_lazer_client::AnyResponse;
 use pyth_lazer_protocol::{
@@ -24,6 +15,15 @@ use pyth_lazer_protocol::{
     subscription::{Response, SubscribeRequest, SubscriptionId},
 };
 use solana_sdk::signature::Signature;
+use velocity_rs::{
+    constants::{
+        perp_market_index_to_pyth_lazer_feed_id, pyth_lazer_feed_id_to_perp_market_index,
+        pyth_lazer_feed_id_to_spot_market_index, spot_market_index_to_pyth_lazer_feed_id,
+    },
+    dlob::{L3Order, MakerCrosses},
+    types::{MarketId, MarketType},
+    Pubkey,
+};
 
 pub struct OrderSlotLimiter<const N: usize> {
     slots: [Vec<u32>; N],

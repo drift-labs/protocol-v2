@@ -7,6 +7,15 @@ use std::{
 
 use anchor_lang::Discriminator;
 use dashmap::DashMap;
+use futures_util::StreamExt;
+use solana_account_decoder_client_types::UiAccountEncoding;
+use solana_compute_budget_interface::ComputeBudgetInstruction;
+use solana_rpc_client_api::config::{
+    RpcAccountInfoConfig, RpcProgramAccountsConfig, RpcTransactionConfig,
+};
+use solana_sdk::{signature::Signature, transaction::TransactionError};
+use solana_transaction_status_client_types::UiTransactionEncoding;
+use tokio::{runtime::Handle, sync::RwLock};
 use velocity_rs::program::math::auction::calculate_auction_price;
 use velocity_rs::{
     constants::PROGRAM_ID,
@@ -27,17 +36,8 @@ use velocity_rs::{
         OrderParamsExt, OrderTriggerCondition, OrderType, PositionDirection, PostOnlyParam,
         RpcSendTransactionConfig, StateExt, VersionedMessage, VersionedTransaction, AMM,
     },
-    VelocityClient, GrpcSubscribeOpts, Pubkey, TransactionBuilder, Wallet,
+    GrpcSubscribeOpts, Pubkey, TransactionBuilder, VelocityClient, Wallet,
 };
-use futures_util::StreamExt;
-use solana_account_decoder_client_types::UiAccountEncoding;
-use solana_compute_budget_interface::ComputeBudgetInstruction;
-use solana_rpc_client_api::config::{
-    RpcAccountInfoConfig, RpcProgramAccountsConfig, RpcTransactionConfig,
-};
-use solana_sdk::{signature::Signature, transaction::TransactionError};
-use solana_transaction_status_client_types::UiTransactionEncoding;
-use tokio::{runtime::Handle, sync::RwLock};
 
 use crate::{
     http::Metrics,

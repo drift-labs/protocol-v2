@@ -16,6 +16,8 @@ use std::{
 };
 use tokio::sync::mpsc::error::TryRecvError;
 
+use solana_compute_budget_interface::ComputeBudgetInstruction;
+use solana_sdk::{account::Account, clock::Slot, signature::Signature};
 use velocity_rs::{
     dlob::{DLOBNotifier, DLOB},
     grpc::{
@@ -39,11 +41,9 @@ use velocity_rs::{
         MarginRequirementType, MarketId, MarketStatus, MarketType, OraclePriceData, OracleSource,
         OrderParams, OrderType, PerpPosition, PositionDirection, SpotBalanceType, SpotPosition,
     },
-    VelocityClient, GrpcSubscribeOpts, MarketState, Pubkey, TransactionBuilder,
+    GrpcSubscribeOpts, MarketState, Pubkey, TransactionBuilder, VelocityClient,
 };
 use velocity_rs::{jupiter::JupiterSwapApi, titan::TitanSwapApi};
-use solana_compute_budget_interface::ComputeBudgetInstruction;
-use solana_sdk::{account::Account, clock::Slot, signature::Signature};
 
 use crate::{
     filler::{TxSender, TxWorker},
@@ -2949,8 +2949,10 @@ impl PrimaryLiquidationStrategy {
 
             let in_token_account =
                 velocity_rs::Wallet::derive_associated_token_address(authority, asset_spot_market);
-            let out_token_account =
-                velocity_rs::Wallet::derive_associated_token_address(authority, liability_spot_market);
+            let out_token_account = velocity_rs::Wallet::derive_associated_token_address(
+                authority,
+                liability_spot_market,
+            );
 
             let t0 = std::time::Instant::now();
             let (jupiter_result, titan_result) = tokio::join!(

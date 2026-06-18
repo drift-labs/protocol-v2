@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use clap::Parser;
-use velocity_rs::event_subscriber::VelocityEvent;
 use futures_util::stream::FuturesUnordered;
 use futures_util::StreamExt;
 use solana_commitment_config::CommitmentConfig;
@@ -9,6 +8,7 @@ use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_rpc_client_api::config::RpcTransactionConfig;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signature;
+use velocity_rs::event_subscriber::VelocityEvent;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

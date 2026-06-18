@@ -2,7 +2,6 @@ use std::time::Instant;
 
 use crate::solana_sdk::commitment_config::CommitmentConfig;
 use anchor_lang::AnchorDeserialize;
-use velocity_pubsub_client::PubsubClient;
 use futures_util::StreamExt;
 use log::warn;
 use solana_account_decoder_client_types::UiAccountEncoding;
@@ -11,6 +10,7 @@ use solana_rpc_client_api::{
     filter::RpcFilterType,
 };
 use tokio::sync::oneshot;
+use velocity_pubsub_client::PubsubClient;
 
 use crate::{constants, types::DataAndSlot, UnsubHandle};
 
@@ -134,9 +134,9 @@ impl WebsocketProgramAccountSubscriber {
 mod tests {
     use super::*;
     use crate::{
-        velocity_idl::accounts::User,
         memcmp::{get_non_idle_user_filter, get_user_filter},
         utils::{get_ws_url, test_envs::mainnet_endpoint},
+        velocity_idl::accounts::User,
     };
 
     #[tokio::test]

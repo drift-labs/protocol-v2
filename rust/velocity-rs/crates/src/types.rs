@@ -79,7 +79,9 @@ pub use program::state::order_params::{
     SignedMsgTriggerOrderParams,
 };
 pub use program::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
-pub use program::state::perp_market::{ContractTier, ContractType, InsuranceClaim, PoolBalance, AMM};
+pub use program::state::perp_market::{
+    ContractTier, ContractType, InsuranceClaim, PoolBalance, AMM,
+};
 pub use program::state::revenue_share::{BuilderInfo, RevenueShareOrder};
 pub use program::state::settle_pnl_mode::SettlePnlMode;
 pub use program::state::spot_market::{AssetTier, SpotBalanceType, TokenProgramFlag};
@@ -515,7 +517,9 @@ impl SdkError {
                     Some(code) => {
                         // this will saturate e.g. if u32 > |ErrorCode\ then it always returns the
                         // highest idx variant
-                        ProgramError::Velocity(unsafe { std::mem::transmute::<u32, ErrorCode>(code) })
+                        ProgramError::Velocity(unsafe {
+                            std::mem::transmute::<u32, ErrorCode>(code)
+                        })
                     }
                     None => ProgramError::Other { ix_idx, code },
                 };

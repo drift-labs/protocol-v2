@@ -7,7 +7,7 @@ use crate::{
     constants::{self, oracle_source_to_owner},
     types::accounts::User,
     utils::zero_account_to_bytes,
-    VelocityClient, MarketId, SdkError, SdkResult,
+    MarketId, SdkError, SdkResult, VelocityClient,
 };
 
 /// Builds a list of users's associated spot, perp, and oracle accounts

@@ -10,8 +10,8 @@ use super::{
     constants::{AMM_RESERVE_PRECISION, BASE_PRECISION, MARGIN_PRECISION, PRICE_PRECISION},
 };
 use crate::{
-    accounts::PerpMarket, types::accounts::User, ContractType, VelocityClient, MarginRequirementType,
-    MarketId, PositionDirection, SdkError, SdkResult,
+    accounts::PerpMarket, types::accounts::User, ContractType, MarginRequirementType, MarketId,
+    PositionDirection, SdkError, SdkResult, VelocityClient,
 };
 
 pub fn get_leverage(client: &VelocityClient, user: &User) -> SdkResult<u128> {

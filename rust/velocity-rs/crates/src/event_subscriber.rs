@@ -13,7 +13,6 @@ use crate::solana_sdk::{
 use ahash::HashSet;
 use anchor_lang::{AnchorDeserialize, Discriminator};
 use base64::Engine;
-pub use velocity_pubsub_client::PubsubClient;
 use futures_util::{future::BoxFuture, stream::FuturesOrdered, FutureExt, Stream, StreamExt};
 use log::{debug, info, warn};
 use regex::Regex;
@@ -33,18 +32,19 @@ use tokio::{
     },
     task::JoinHandle,
 };
+pub use velocity_pubsub_client::PubsubClient;
 
 use crate::{
     constants::{self, PROGRAM_ID},
+    grpc::{
+        grpc_subscriber::{GeyserSubscribeOpts, GrpcConnectionOpts, VelocityGrpcClient},
+        TransactionUpdate,
+    },
+    types::{events::SwapRecord, SdkResult},
     velocity_idl::{
         events::{FundingPaymentRecord, OrderActionRecord, OrderRecord},
         types::{MarketType, Order, OrderAction, OrderActionExplanation, PositionDirection},
     },
-    grpc::{
-        grpc_subscriber::{VelocityGrpcClient, GeyserSubscribeOpts, GrpcConnectionOpts},
-        TransactionUpdate,
-    },
-    types::{events::SwapRecord, SdkResult},
 };
 
 const LOG_TARGET: &str = "events";
@@ -132,7 +132,10 @@ impl EventSubscriber {
         log_stream(ws, sub_account).await
     }
     /// Subscribe to velocity events of `sub_account`, backed by RPC polling APIs
-    pub fn subscribe_polled(provider: impl EventRpcProvider, account: Pubkey) -> VelocityEventStream {
+    pub fn subscribe_polled(
+        provider: impl EventRpcProvider,
+        account: Pubkey,
+    ) -> VelocityEventStream {
         polled_stream(provider, account)
     }
 
@@ -244,8 +247,9 @@ impl GrpcLogEventStream {
             "grpc log stream connecting: {sub_account:?}"
         );
 
-        let mut grpc = VelocityGrpcClient::new(self.grpc_endpoint.clone(), self.grpc_x_token.clone())
-            .grpc_connection_opts(GrpcConnectionOpts::default());
+        let mut grpc =
+            VelocityGrpcClient::new(self.grpc_endpoint.clone(), self.grpc_x_token.clone())
+                .grpc_connection_opts(GrpcConnectionOpts::default());
 
         let (raw_event_tx, mut raw_event_rx): (
             Sender<TransactionUpdate>,
