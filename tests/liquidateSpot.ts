@@ -29,7 +29,6 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
-	sleep,
 	setFeedPriceNoProgram,
 } from './testHelpers';
 import { PERCENTAGE_PRECISION } from '../sdk';
@@ -205,7 +204,7 @@ describe('liquidate spot', () => {
 		);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 179, solOracle, 10000);
-		await sleep(1000);
+		await bulkAccountLoader.load();
 
 		await velocityClient.fetchAccounts();
 		await user.fetchAccounts();
@@ -233,7 +232,7 @@ describe('liquidate spot', () => {
 			solOracle,
 			10000
 		);
-		await sleep(1000);
+		await bulkAccountLoader.load();
 
 		await velocityClient.fetchAccounts();
 		await user.fetchAccounts();
@@ -258,7 +257,7 @@ describe('liquidate spot', () => {
 		);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 190, solOracle, 10000);
-		await sleep(1000);
+		await bulkAccountLoader.load();
 
 		const spotMarketBefore = velocityClient.getSpotMarketAccount(0);
 		const spotMarket1Before = velocityClient.getSpotMarketAccount(1);

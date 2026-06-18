@@ -27,7 +27,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
-	sleep,
 } from './testHelpers';
 import { PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
@@ -238,7 +237,7 @@ describe('liquidate perp (no open orders)', () => {
 
 		const oracle = velocityClient.getPerpMarketAccount(0).oracle;
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle, 10000);
-		await sleep(2000);
+		await bulkAccountLoader.load();
 		await velocityClient.fetchAccounts();
 		await velocityClientUser.fetchAccounts();
 
@@ -268,7 +267,7 @@ describe('liquidate perp (no open orders)', () => {
 			velocityClientUser.getUserAccount(),
 			0
 		);
-		await sleep(2000);
+		await bulkAccountLoader.load();
 		await velocityClient.fetchAccounts();
 		await velocityClientUser.fetchAccounts();
 		const oraclePrice2 = velocityClient.getOracleDataForPerpMarket(0).price;
@@ -294,7 +293,7 @@ describe('liquidate perp (no open orders)', () => {
 		);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle, 10000);
-		await sleep(2000);
+		await bulkAccountLoader.load();
 		await velocityClient.fetchAccounts();
 		await velocityClientUser.fetchAccounts();
 		const oraclePrice3 = velocityClient.getOracleDataForPerpMarket(0).price;

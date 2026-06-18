@@ -1,0 +1,29 @@
+#!/bin/bash
+# Find the real cargo-build-sbf, skipping this wrapper's directory
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+real=""
+IFS=: read -ra dirs <<< "$PATH"
+for dir in "${dirs[@]}"; do
+  abs="$(cd "$dir" 2>/dev/null && pwd)"
+  if [ "$abs" != "$self_dir" ] && [ -x "$dir/cargo-build-sbf" ]; then
+    real="$dir/cargo-build-sbf"
+    break
+  fi
+done
+if [ -z "$real" ]; then
+  echo "cargo-build-sbf: not found in PATH" >&2
+  exit 1
+fi
+# Strip legacy 'build-sbf' first arg (passed by some anchor versions for compat)
+# and strip any existing --tools-version (anchor passes one; we need to override it
+# to v1.54 so the bundled cargo can parse Cargo.lock v4).
+args=()
+skip_next=0
+for arg in "$@"; do
+  if [ $skip_next -eq 1 ]; then skip_next=0; continue; fi
+  if [ "$arg" = "build-sbf" ] && [ ${#args[@]} -eq 0 ]; then continue; fi
+  if [ "$arg" = "--tools-version" ]; then skip_next=1; continue; fi
+  if [[ "$arg" == --tools-version=* ]]; then continue; fi
+  args+=("$arg")
+done
+exec "$real" --tools-version v1.54 "${args[@]}"

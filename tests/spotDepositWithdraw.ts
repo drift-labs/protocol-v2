@@ -440,7 +440,7 @@ describe('spot deposit and withdraw', () => {
 		const oldSpotMarketAccount =
 			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
-		await sleep(5000);
+		await bulkAccountLoader.load();
 
 		const txSig =
 			await firstUserVelocityClient.updateSpotMarketCumulativeInterest(
@@ -593,7 +593,7 @@ describe('spot deposit and withdraw', () => {
 		const oldSpotMarketAccount =
 			firstUserVelocityClient.getSpotMarketAccount(usdcmarketIndex);
 
-		await sleep(5000);
+		await bulkAccountLoader.load();
 
 		const txSig =
 			await firstUserVelocityClient.updateSpotMarketCumulativeInterest(

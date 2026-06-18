@@ -23,7 +23,6 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	sleep,
 } from './testHelpers';
 import { PEG_PRECISION, PerpOperation, PostOnlyParams } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
@@ -152,7 +151,7 @@ describe('place and make perp order', () => {
 	it('make', async () => {
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		await sleep(1000);
+		await bulkAccountLoader.load();
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,

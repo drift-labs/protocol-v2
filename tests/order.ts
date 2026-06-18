@@ -34,7 +34,6 @@ import {
 	mockUSDCMint,
 	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
-	sleep,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -194,7 +193,7 @@ describe('orders', () => {
 			if (found) {
 				oraclesLoaded = true;
 			}
-			await sleep(1000);
+			await bulkAccountLoader.load();
 		}
 
 		console.log(bulkAccountLoader.mostRecentSlot);

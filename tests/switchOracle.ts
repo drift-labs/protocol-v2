@@ -201,7 +201,7 @@ describe('switch oracles', () => {
 			await velocityClient.getOracleDataForPerpMarket(0);
 		assert(perpOraclePriceBefore.price.eq(PRICE_PRECISION.muln(30)));
 
-		await sleep(1000);
+		await bulkAccountLoader.load();
 
 		const perpOraclePriceAfter =
 			await velocityClient.getOracleDataForPerpMarket(0);
@@ -219,7 +219,7 @@ describe('switch oracles', () => {
 			await velocityClient.getOracleDataForSpotMarket(1);
 		assert(spotOraclePriceBefore.price.eq(PRICE_PRECISION.muln(30)));
 
-		await sleep(1000);
+		await bulkAccountLoader.load();
 
 		const spotOraclePriceAfter =
 			await velocityClient.getOracleDataForSpotMarket(1);

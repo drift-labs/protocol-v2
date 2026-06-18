@@ -53,7 +53,6 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	sleep,
 } from './testHelpers';
 import {
 	getTriggerLimitOrderParams,
@@ -1724,7 +1723,7 @@ async function initializeNewTakerClientAndUser(
 ): Promise<[TestClient, User]> {
 	const keypair = new Keypair();
 	await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-	await sleep(1000);
+	await bulkAccountLoader.load();
 	const wallet = new Wallet(keypair);
 	const userUSDCAccount = await mockUserUSDCAccount(
 		usdcMint,
