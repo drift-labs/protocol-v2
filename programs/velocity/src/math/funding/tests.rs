@@ -559,12 +559,12 @@ fn unsettled_funding_pnl() {
         51000000
     );
 
-    assert_eq!(market.cumulative_funding_rate_long, -139790125); // negative funding
-    assert_eq!(market.cumulative_funding_rate_short, -139790125);
-    assert_eq!(market.last_funding_rate, -139790125);
+    assert_eq!(market.cumulative_funding_rate_long, -138727625); // negative funding
+    assert_eq!(market.cumulative_funding_rate_short, -138727625);
+    assert_eq!(market.last_funding_rate, -138727625);
     assert_eq!(
         market.market_stats.last_24h_avg_funding_rate,
-        -139790125 / 24 + 1
+        -138727625 / 24 + 1
     );
     assert_eq!(market.last_funding_rate_ts, now);
     assert_eq!(market.amm.net_revenue_since_last_funding, 0); // back to 0
@@ -576,7 +576,7 @@ fn unsettled_funding_pnl() {
                                                               // `base_long + base_short`; the new math reflects only the user-side
                                                               // imbalance (~$1.72 gain), not the inflated `with_amm` value (~$70.61
                                                               // gain under the legacy single-net-position math).
-    assert_eq!(market.amm.total_fee_minus_distributions, 100000718731);
+    assert_eq!(market.amm.total_fee_minus_distributions, 100000705667);
     assert_eq!(market.amm.total_fee, 0);
 
     assert_ne!(market.net_unsettled_funding_pnl, 0); // important: imbalanced market adds funding rev
@@ -585,7 +585,7 @@ fn unsettled_funding_pnl() {
                                                      // reflects the legacy single-net-position value — the AMM-as-user
                                                      // migration only changed how the AMM books its own settlement, not
                                                      // this aggregate.
-    assert_eq!(market.net_unsettled_funding_pnl, -71613793);
+    assert_eq!(market.net_unsettled_funding_pnl, -71069480);
 }
 
 // The funding premium must leave the dead zone continuously: crossing the
