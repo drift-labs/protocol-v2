@@ -86,8 +86,6 @@
 	},
 	"resolutions": {
 		"@solana/web3.js": "1.98.0",
-		"@solana/errors": "2.0.0-preview.4",
-		"@solana/codecs-data-structures": "2.0.0-preview.4",
 		"chalk": "4.1.2",
 		"debug": "<4.4.2",
 		"ansi-styles": "4.3.0",
@@ -109,8 +107,6 @@
 	},
 	"overrides": {
 		"@solana/web3.js": "1.98.0",
-		"@solana/errors": "2.0.0-preview.4",
-		"@solana/codecs-data-structures": "2.0.0-preview.4",
 		"chalk": "4.1.2",
 		"debug": "<4.4.2",
 		"ansi-styles": "4.3.0",
