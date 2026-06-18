@@ -1,6 +1,6 @@
 {
   "name": "@velocity-exchange/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "lib/node/index.js",
   "types": "lib/node/index.d.ts",
   "module": "./lib/browser/index.js",
@@ -24,7 +24,6 @@
     "test:velocitycore": "bun test tests/VelocityCore",
     "prettify": "prettier --check './src/**/*.ts'",
     "prettify:fix": "prettier --write './{src,tests}/**/*.ts'",
-    "version": "node ./scripts/updateVersion.js",
     "circular-deps": "bunx madge --circular --circular --extensions ts src"
   },
   "keywords": [
