@@ -49,12 +49,12 @@ has no `test` script and is Firebase/env-dependent — can't silently slip into 
 | @backend/sns                   | jest   | 5             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @backend/sqs                   | jest   | 9             | ✅ gated              | —                                                                                                                                                                                                                                       |
 | @drift-labs/keeper-bots-v2     | mocha  | 2             | ✅ gated              | —                                                                                                                                                                                                                                       |
-| @velocity-exchange/sdk         | mixed  | many          | ❌ multi-issue        | needs a real test-restoration pass — see below |
+| @velocity-exchange/sdk         | mixed  | 185+          | ✅ gated (own `sdk-tests` job) | restored — see below. Offline: test 102 / dlob 52(+1 pending) / bignum 12 / events 3 / velocitycore 16. `tests/ci` is live-RPC (verify-sdk-configs). |
 | @velocity-exchange/dlob-server | jest   | 54            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/aggregator-api        | jest   | 337           | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/candles               | jest   | 61            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/market-data           | jest   | 63            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
-| @backend/notification-engine   | jest   | 158 (88 fail) | ⚠️ failing            | Firebase/env-dependent — needs `setupFiles` + test env (partly Tier 2); no `test` script yet                                                                                                                                            |
+| @backend/notification-engine   | jest   | 158           | ✅ gated (app preset) | — (Firebase fully mocked; the only failures were a stale User-buffer fixture, now `Buffer.alloc(4496)`)                                                                                                                                  |
 | @backend/multisig-monitor      | jest   | 79            | ✅ gated (app preset) | —                                                                                                                                                                                                                                       |
 | @backend/realtime-archiver     | swc    | 120           | ✅ gated (app preset)  | —                                                                                                                                                                                                     |
 
@@ -74,57 +74,43 @@ realtime-archiver: all suites green (120 tests).
   that constructor is real. Fix: add `BN: require('bn.js')` to the SDK mock factory (the
   SDK's `BN` is bn.js's constructor, so `instanceof` semantics are preserved).
 
-### SDK test restoration (not a quick fix)
+### SDK test restoration — DONE (gated via `sdk-tests`)
 
-The sdk has three independent problems; greening it is its own project. The sdk
-tsconfig now allowlists `types: ["node", "mocha", "chai"]` (the earlier `types: []`
-hoist fix had stripped the mocha globals, breaking test compilation), but that only
-unblocks compilation — the suites themselves need work:
+All three original problems are resolved; the SDK now runs in a dedicated `sdk-tests` CI job
+(mocha + `bun test`, separate from the jest `ts-tests` filter). Offline green:
+`test` 102 / `test:dlob` 52 (+1 intentional pending) / `test:bignum` 12 / `test:events` 3 /
+`test:velocitycore` 16.
 
-1. **Runner split.** `tests/VelocityCore/*` `import 'bun:test'` and cannot run under
-   mocha — the kitchen-sink `test` script (`mocha tests/**/*.ts`) chokes on them.
-   They have a dedicated `test:velocitycore` (`bun test`) script, but it is **not
-   wired into CI and currently fails 2/16**, so they are not actually covered. To
-   split honestly: exclude `tests/VelocityCore` from the mocha `test` script AND add
-   a CI step running `bun test tests/VelocityCore` (after fixing the 2 failures).
-2. **Stale tests vs source.** `tests/amm/test.ts` references `AMM` fields removed in
-   the funding refactor (`historicalOracleData`, `orderStepSize`, `minOrderSize`) and
-   has `MMOraclePriceData`→`MarketStats` type drift. These assertions need updating to
-   the current sdk types.
-3. **Tier 2.** `tests/ci/*` need `MAINNET/DEVNET_RPC_ENDPOINT`. Their home is the
-   `verify-sdk-configs` job, which is currently `if: ${{ false }}` (disabled) — so
-   excluding them from an offline `test` does not lose coverage that exists today, but
-   re-enabling that job (with secrets) is the way to actually preserve them.
+1. **Runner split** — `tests/VelocityCore/*` (`import 'bun:test'`) excluded from the mocha
+   `test` glob and run via `test:velocitycore`; the 2 failures were fixed (a fixture put
+   `oracle` under `amm` instead of top-level `PerpMarketAccount`; the User-buffer fixtures
+   were regenerated to the 4491-byte layout). Now 16/16.
+2. **Stale tests vs source** — `tests/amm/test.ts` + `tests/dlob/helpers.ts` ported to the
+   decoupled-AMM types (`MarketStats` split, top-level oracle); `tests/dlob/test.ts` expected
+   fill counts updated to the real vAMM-decoupled DLOB behavior; dead `tests/decode/phoenix.ts`
+   removed (feature gone). Also fixed a real circular-dependency bug in
+   `src/constants/numericConstants.ts` surfaced by `test:bignum`.
+3. **Tier 2 / live** — `tests/ci/*` stay out of the offline scripts; `verify-sdk-configs` now
+   runs them on `schedule`/`workflow_dispatch` (was `if: false`) — set
+   `MAINNET/DEVNET_RPC_ENDPOINT` secrets to enable.
 
-## Rust (`rust/` workspace)
+## Rust (`rust/` workspace) — offline subset gates; live split out
 
-`rust-workspace-check` runs `cargo check --all-targets` (the **gate** — compiles all test
-code; fixed: builder-codes `OrderParams` fields + a `UiTransactionError` `.into()` drift),
-then `cargo test --all-targets` as a **non-gating** step (`continue-on-error`, 20-min
-timeout). Both run only when rust paths change. The decision is deliberate: the rust
-tests **execute** whenever the workspace compiles (visible in CI logs) but never block a
-merge — because, as below, much of the suite needs live RPC/Redis and there is no clean
-offline subset to select.
+`rust-workspace-check` runs `cargo test --workspace --all-targets` (rpc_tests OFF) with a
+**Redis service container**, **gating** (no `continue-on-error`). Green: drift-rs lib 90,
+swift 38, doctests 7. Live tests (RPC / funded keys / gRPC / Jupiter/Titan) are compiled out
+via the project's `rpc_tests` cargo feature and run in a separate **non-blocking**
+`rust-live-tests` job (`--features rpc_tests`, secrets, schedule/dispatch) — see handover #2.
 
-| Crate    | Crate type | Tests in `src` (`#[test]`)        | Integration (`tests/*.rs`)           |
-| -------- | ---------- | --------------------------------- | ------------------------------------ |
-| drift-rs | **lib**    | ~123, **network-intermixed**      | tests/{integration,jupiter,titan}.rs (live APIs → Tier 2) |
-| keep-rs  | **bin**    | **0**                             | —                                    |
-| swift    | **bin**    | ~40, **mixed** (9 pure + RPC/Redis) | —                                  |
+| Crate    | Crate type | Offline (`src` + doctests)        | Live (`rpc_tests`-gated / `tests/*.rs`) |
+| -------- | ---------- | --------------------------------- | --------------------------------------- |
+| drift-rs | **lib**    | 90 pass + 7 doctests              | per-test `#[cfg(feature="rpc_tests")]` + tests/{integration,jupiter,titan}.rs (file-gated) |
+| keep-rs  | **bin**    | 0 tests                           | —                                       |
+| swift    | **bin**    | 38 pass                           | `swift_server::test_simulate_taker_order_rpc`, `user_account_fetcher::usermap_lookups` |
 
-Why gating on `cargo test` (and why an `#[ignore]` pass is **not** required):
-
-1. **`--lib` only matches lib targets.** keep-rs and swift are **binary** crates, so
-   `--lib` would run **none** of their tests. The non-gating step uses `--all-targets`
-   so bin-crate tests run too.
-2. **drift-rs's lib tests are network-intermixed.** ~8 of 23 `src` test files call
-   `test_envs::{mainnet,devnet}_endpoint` (live RPC). They live as `#[tokio::test]`
-   unit tests in `src`, not under `tests/`, with **no `#[ignore]` marker** — so there's
-   no offline subset to select. Run non-gating, their failures don't block merges.
-3. **keep-rs has no unit tests** (the earlier "9" was wrong).
-
-If the rust suite is ever wanted **as a gate** (not the current decision), the work is:
-mark every RPC/Redis test `#[ignore]` (or put it behind a `live`/`tier2` feature) across
-drift-rs + swift, gate `cargo test` on the offline subset, and add a **separate
-secrets+Redis job** running `-- --ignored`. Until/unless that's wanted, the non-gating
-step above preserves execution without the annotation pass.
+The split uses `rpc_tests` rather than `#[ignore]` (no silent skips): live tests are compiled
+out of the default build entirely. **Feature-unification trap:** `cargo test --workspace
+--features X` enables X for every member, so the offline gate stays clean only because no
+member enables `rpc_tests` by default. The remaining `#[ignore]`s (6 in the velocity program,
+4 `event_subscriber` base64-log tests) are tracked in the handover — none are mechanical
+fixture fixes.
