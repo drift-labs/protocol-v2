@@ -5,16 +5,12 @@ import {
 	MarginCategory,
 	SpotMarketAccount,
 	SpotBalanceType,
-	MarketType,
 	isVariant,
 } from '../types';
 import {
-	calculateAmmReservesAfterSwap,
 	calculatePrice,
 	calculateUpdatedAMMSpreadReserves,
-	getSwapDirection,
 	calculateUpdatedAMM,
-	calculateMarketOpenBidAsk,
 } from './amm';
 import {
 	calculateSizeDiscountAssetWeight,
@@ -32,7 +28,6 @@ import {
 	FUNDING_RATE_PRECISION,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
-import { DLOB } from '../dlob/DLOB';
 import { assert } from '../assert/assert';
 
 /**
@@ -97,36 +92,6 @@ export function calculateAskPrice(
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
-}
-
-export function calculateNewMarketAfterTrade(
-	baseAssetAmount: BN,
-	direction: PositionDirection,
-	market: PerpMarketAccount
-): PerpMarketAccount {
-	const [newQuoteAssetReserve, newBaseAssetReserve] =
-		calculateAmmReservesAfterSwap(
-			market.amm,
-			'base',
-			baseAssetAmount.abs(),
-			getSwapDirection('base', direction)
-		);
-
-	const newAmm = Object.assign({}, market.amm);
-	const newMarket = Object.assign({}, market);
-	newMarket.amm = newAmm;
-	newMarket.amm.quoteAssetReserve = newQuoteAssetReserve;
-	newMarket.amm.baseAssetReserve = newBaseAssetReserve;
-
-	return newMarket;
-}
-
-export function calculateOracleReserveSpread(
-	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
-): BN {
-	const reservePrice = calculateReservePrice(market, mmOraclePriceData);
-	return calculateOracleSpread(reservePrice, mmOraclePriceData);
 }
 
 export function calculateOracleSpread(
@@ -287,61 +252,6 @@ export function calculateNetUserPnlImbalance(
 	const imbalance = netUserPnl.sub(pnlPool.add(feePool));
 
 	return imbalance;
-}
-
-export function calculateAvailablePerpLiquidity(
-	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData,
-	dlob: DLOB,
-	slot: number
-): { bids: BN; asks: BN } {
-	let [bids, asks] = calculateMarketOpenBidAsk(
-		market.amm.baseAssetReserve,
-		market.amm.minBaseAssetReserve,
-		market.amm.maxBaseAssetReserve,
-		market.orderStepSize
-	);
-
-	asks = asks.abs();
-
-	for (const bid of dlob.getRestingLimitBids(
-		market.marketIndex,
-		slot,
-		MarketType.PERP,
-		mmOraclePriceData
-	)) {
-		if (!bid.order) {
-			continue;
-		}
-		bids = bids.add(
-			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
-		);
-	}
-
-	for (const ask of dlob.getRestingLimitAsks(
-		market.marketIndex,
-		slot,
-		MarketType.PERP,
-		mmOraclePriceData
-	)) {
-		if (!ask.order) {
-			continue;
-		}
-		asks = asks.add(
-			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)
-		);
-	}
-
-	return {
-		bids: bids,
-		asks: asks,
-	};
-}
-
-export function calculatePerpMarketBaseLiquidatorFee(
-	market: PerpMarketAccount
-): number {
-	return market.liquidatorFee;
 }
 
 /**

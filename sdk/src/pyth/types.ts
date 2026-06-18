@@ -4445,8 +4445,6 @@ export const IDL: PythSolanaReceiver = {
 		},
 	],
 };
-
-export declare const PYTH_SOLANA_RECEIVER_IDL: PythSolanaReceiver;
 //# sourceMappingURL=pyth_solana_receiver.d.ts.map
 
 export type PriceUpdateAccount =

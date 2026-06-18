@@ -15,7 +15,6 @@ export const NINE = new BN(9);
 export const TEN = new BN(10);
 export const TEN_THOUSAND = new BN(10000);
 export const BN_MAX = new BN(Number.MAX_SAFE_INTEGER);
-export const TEN_MILLION = TEN_THOUSAND.mul(TEN_THOUSAND);
 
 export const MAX_LEVERAGE = new BN(5);
 export const MAX_LEVERAGE_ORDER_SIZE = new BN('18446744073709551615');
@@ -117,5 +116,4 @@ export const DUST_POSITION_SIZE = QUOTE_PRECISION.divn(100); // Dust position is
 export const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 
 // integer constants
-export const MAX_I64 = BigNum.fromPrint('9223372036854775807').val;
 export const MIN_I64 = BigNum.fromPrint('-9223372036854775808').val;

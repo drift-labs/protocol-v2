@@ -8,7 +8,6 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_IMF_PRECISION,
 	ZERO,
-	BID_ASK_SPREAD_PRECISION,
 	AMM_RESERVE_PRECISION,
 	BASE_PRECISION,
 	MARGIN_PRECISION,
@@ -20,15 +19,7 @@ import { OraclePriceData } from '../oracles/types';
 import { calculateMarketMarginRatio } from './market';
 import { calculateScaledInitialAssetWeight } from './spotBalance';
 import { VelocityClient } from '../velocityClient';
-import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
-import {
-	PerpMarketAccount,
-	PerpPosition,
-	PositionDirection,
-	UserAccount,
-} from '../types';
-import { PublicKey } from '@solana/web3.js';
-import { User } from '../user';
+import { PerpMarketAccount, PerpPosition } from '../types';
 import { isVariant } from '../types';
 import { assert } from '../assert/assert';
 
@@ -95,32 +86,6 @@ export function calculateSizeDiscountAssetWeight(
 	const minAssetWeight = BN.min(assetWeight, sizeDiscountAssetWeight);
 
 	return minAssetWeight;
-}
-
-export function calculateOraclePriceForPerpMargin(
-	perpPosition: PerpPosition,
-	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
-): BN {
-	const oraclePriceOffset = BN.min(
-		new BN(market.amm.maxSpread)
-			.mul(oraclePriceData.price)
-			.div(BID_ASK_SPREAD_PRECISION),
-		oraclePriceData.confidence.add(
-			new BN(market.amm.baseSpread)
-				.mul(oraclePriceData.price)
-				.div(BID_ASK_SPREAD_PRECISION)
-		)
-	);
-
-	let marginPrice: BN;
-	if (perpPosition.baseAssetAmount.gt(ZERO)) {
-		marginPrice = oraclePriceData.price.sub(oraclePriceOffset);
-	} else {
-		marginPrice = oraclePriceData.price.add(oraclePriceOffset);
-	}
-
-	return marginPrice;
 }
 
 /**
@@ -293,79 +258,4 @@ export function calculateCollateralDepositRequiredForTrade(
 	// TODO : Round by step size?
 
 	return baseAmountRequired;
-}
-
-export function calculateCollateralValueOfDeposit(
-	velocityClient: VelocityClient,
-	collateralIndex: number,
-	baseSize: BN
-): BN {
-	const collateralMarket =
-		velocityClient.getSpotMarketAccountOrThrow(collateralIndex);
-
-	const collateralOracleData =
-		velocityClient.getOracleDataForSpotMarket(collateralIndex);
-
-	const scaledAssetWeight = calculateScaledInitialAssetWeight(
-		collateralMarket,
-		collateralOracleData.price
-	);
-
-	// CollateralBaseValue = oracle price * collateral base amount (and shift to QUOTE_PRECISION)
-	const collateralBaseValue = collateralOracleData.price
-		.mul(baseSize)
-		.mul(QUOTE_PRECISION)
-		.div(PRICE_PRECISION)
-		.div(new BN(10).pow(new BN(collateralMarket.decimals)));
-
-	const depositCollateralValue = collateralBaseValue
-		.mul(scaledAssetWeight)
-		.div(SPOT_MARKET_WEIGHT_PRECISION);
-
-	return depositCollateralValue;
-}
-
-export function calculateLiquidationPrice(
-	freeCollateral: BN,
-	freeCollateralDelta: BN,
-	oraclePrice: BN
-): BN {
-	const liqPriceDelta = freeCollateral
-		.mul(QUOTE_PRECISION)
-		.div(freeCollateralDelta);
-
-	const liqPrice = oraclePrice.sub(liqPriceDelta);
-
-	if (liqPrice.lt(ZERO)) {
-		return new BN(-1);
-	}
-
-	return liqPrice;
-}
-
-export function calculateUserMaxPerpOrderSize(
-	velocityClient: VelocityClient,
-	userAccountKey: PublicKey,
-	userAccount: UserAccount,
-	targetMarketIndex: number,
-	tradeSide: PositionDirection
-): { tradeSize: BN; oppositeSideTradeSize: BN } {
-	const userAccountSubscriber = new OneShotUserAccountSubscriber(
-		velocityClient.program,
-		userAccountKey,
-		userAccount
-	);
-
-	const user = new User({
-		velocityClient,
-		userAccountPublicKey: userAccountKey,
-		accountSubscription: {
-			type: 'custom',
-			userAccountSubscriber: userAccountSubscriber,
-		},
-	});
-
-	user.isSubscribed = true;
-
-	return user.getMaxTradeSizeUSDCForPerp(targetMarketIndex, tradeSide);
 }

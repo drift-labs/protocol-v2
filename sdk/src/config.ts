@@ -49,8 +49,9 @@ export const VELOCITY_DEVNET_PROGRAM_ID =
 export const VELOCITY_ORACLE_RECEIVER_ID =
 	'G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha';
 
-export const PTYH_LAZER_PROGRAM_ID =
+export const PYTH_LAZER_PROGRAM_ID =
 	'pytd2yyk641x7ak7mkaasSJVXh6YYZnC7wTmtgAyxPt';
+
 export const SB_ON_DEMAND_DEVNET_PID = new PublicKey(
 	'Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2'
 );

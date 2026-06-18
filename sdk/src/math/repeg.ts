@@ -148,35 +148,6 @@ export function calculateBudgetedKBN(
 	return [numerator, denominator];
 }
 
-export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
-	// wolframalpha.com
-	// (1/(x+d) - p/(x*p+d))*y*d*Q = C solve for p
-	// p = (d(y*d*Q - C(x+d))) / (C*x(x+d) + y*d*d*Q)
-
-	// numer
-	//   =  y*d*d*Q - Cxd - Cdd
-	//   =  y/x*Q*d*d - Cd - Cd/x
-	//   = mark      - C/d - C/(x)
-	//   =  mark/C    - 1/d - 1/x
-
-	// denom
-	// = C*x*x + C*x*d + y*d*d*Q
-	// = x/d**2 + 1 / d + mark/C
-
-	// todo: assumes k = x * y
-	// otherwise use: (y(1-p) + (kp^2/(x*p+d)) - k/(x+d)) * Q = C solve for p
-
-	const x = amm.baseAssetReserve;
-	const y = amm.quoteAssetReserve;
-
-	const d = amm.baseAssetAmountWithAmm;
-	const Q = amm.pegMultiplier;
-
-	const [numerator, denominator] = calculateBudgetedKBN(x, y, cost, Q, d);
-
-	return [numerator, denominator];
-}
-
 export function calculateBudgetedPeg(
 	amm: AMM,
 	budget: BN,
