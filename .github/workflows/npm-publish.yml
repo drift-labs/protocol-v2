@@ -64,7 +64,7 @@ jobs:
       - name: Ensure npm supports trusted publishing
         run: |
           set -euo pipefail
-          npm install -g npm@latest
+          sudo npm install -g npm@latest # global prefix is root-owned on hosted runners
           npm --version # must be >= 11.5.1 for OIDC trusted publishing
       - name: Publish
         run: |
