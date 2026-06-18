@@ -7,10 +7,16 @@ name: npm-publish
 # (`docker-<app>-v<version>`). The tag version must match that package's
 # package.json `version` (set by the changesets "Version Packages" flow).
 #
-# Uses `bun publish` (NOT `npm`/`changeset publish`) because bun rewrites
-# `workspace:*` dependency ranges to concrete versions in the published manifest —
-# this is what lets cli-admin depend on the local sdk via `workspace:*` with no
-# pre-publish rewrite hack.
+# Publishes via npm OIDC **trusted publishing** (no static NPM token). The job
+# requests an `id-token`, and `npm publish` exchanges it with the registry for a
+# short-lived credential — so each package must have this workflow configured as
+# a trusted publisher on npmjs.com. Requires npm >= 11.5.1 (installed below).
+#
+# `bun publish` is NOT used: bun does not implement npm's OIDC trusted-publishing
+# flow (it only reads a static token and would fail with "missing
+# authentication"). The one thing bun gave us — rewriting `workspace:*` ranges to
+# concrete versions in the manifest, which npm does not do — is handled instead
+# by `.github/scripts/rewrite-workspace-deps.mjs`, run before publish.
 on:
   push:
     tags:
@@ -18,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write # mint the OIDC token npm trusted publishing exchanges for a credential
 
 jobs:
   publish:
@@ -54,6 +61,11 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Build package (+ deps)
         run: bunx turbo run build --filter="${{ steps.parse.outputs.name }}"
+      - name: Ensure npm supports trusted publishing
+        run: |
+          set -euo pipefail
+          npm install -g npm@latest
+          npm --version # must be >= 11.5.1 for OIDC trusted publishing
       - name: Publish
         run: |
           set -euo pipefail
@@ -64,8 +76,11 @@ jobs:
           if [ "$published" = "$ver" ]; then
             echo "already published $name@$ver — nothing to do"; exit 0
           fi
+          # npm does not understand the workspace: protocol — rewrite those
+          # ranges to concrete versions before packing.
+          node .github/scripts/rewrite-workspace-deps.mjs "$path"
           echo "publishing $name@$ver"
-          ( cd "$path" && bun publish --access public )
+          ( cd "$path" && npm publish --access public )
       - name: Notify Slack on failure
         if: failure()
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
