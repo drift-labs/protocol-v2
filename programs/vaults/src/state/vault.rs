@@ -1,7 +1,6 @@
 use std::cell::RefMut;
 
 use anchor_lang::prelude::*;
-use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 use velocity::math::casting::Cast;
 use velocity::math::constants::{ONE_YEAR, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128};
@@ -16,6 +15,7 @@ use velocity::state::oracle_map::OracleMap;
 use velocity::state::perp_market_map::PerpMarketMap;
 use velocity::state::spot_market_map::SpotMarketMap;
 use velocity::state::user::User;
+use velocity_macros::assert_no_slop;
 
 use crate::constants::TIME_FOR_LIQUIDATION;
 use crate::error::{ErrorCode, VaultResult};

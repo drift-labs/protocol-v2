@@ -788,15 +788,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "drift-macros"
-version = "0.1.0"
-source = "git+https://github.com/drift-labs/drift-macros.git?rev=c57d87#c57d87e073d13d43f4d1fb09fe6822915a4ccc11"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "ecdsa"
 version = "0.16.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3150,10 +3141,10 @@ dependencies = [
  "base64 0.13.1",
  "borsh 1.6.1",
  "bytemuck",
- "drift-macros",
  "solana-program",
  "static_assertions",
  "velocity",
+ "velocity-macros",
 ]
 
 [[package]]
@@ -3168,7 +3159,6 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "bytes",
- "drift-macros",
  "enumflags2",
  "hex",
  "num-integer",
@@ -3180,6 +3170,14 @@ dependencies = [
  "solana-security-txt",
  "static_assertions",
  "uint",
+]
+
+[[package]]
+name = "velocity-macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

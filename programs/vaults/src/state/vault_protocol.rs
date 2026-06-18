@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
+use velocity_macros::assert_no_slop;
 
 use crate::state::withdraw_request::WithdrawRequest;
 use crate::state::Size;

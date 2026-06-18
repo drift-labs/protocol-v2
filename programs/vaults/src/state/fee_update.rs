@@ -2,8 +2,8 @@ use crate::events::{FeeUpdateAction, FeeUpdateRecord};
 use crate::state::{FeeUpdateStatus, Vault};
 use crate::Size;
 use anchor_lang::prelude::*;
-use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
+use velocity_macros::assert_no_slop;
 
 #[assert_no_slop]
 #[account(zero_copy(unsafe))]
