@@ -1,0 +1,106 @@
+global:
+  # devnet or mainnet-beta
+  driftEnv: mainnet-beta
+
+  # RPC endpoint to use
+  endpoint: https://api.mainnet-beta.solana.com
+  wsEndpoint:
+
+  # Private key to use to sign transactions.
+  # will load from KEEPER_PRIVATE_KEY env var if null
+  keeperPrivateKey:
+
+  initUser: false # initialize user on startup
+  testLiveness: false # test liveness, by failing liveness test after 1 min
+
+  # Force deposit this amount of USDC to collateral account, the program will
+  # end after the deposit transaction is sent
+  #forceDeposit: 1000
+
+  websocket: true # use websocket for account loading and events (limited support)
+  runOnce: false # Set true to run once and exit, useful for testing or one off bot runs
+  debug: false # Enable debug logging
+
+  # subaccountIDs to load, if null will load subaccount 0 (default).
+  # Even if bot specific configs requires subaccountIDs, you should still
+  # specify it here, since we load the subaccounts before loading individual
+  # bots.
+  # subaccounts:
+  # - 0
+  # - 1
+  # - 2
+
+  eventSubscriberPollingInterval: 0
+  bulkAccountLoaderPollingInterval: 0
+
+  useJito: false
+
+  # which subaccounts to load, if null will load subaccount 0 (default)
+  subaccounts:
+
+# Which bots to run, be careful with this, running multiple bots in one instance
+# might use more resources than expected.
+# Bot specific configs are below
+enabledBots:
+  # Perp order filler bot
+  # - fillerLite
+
+  # Spot order filler bot
+  # - spotFiller
+
+  # Trigger bot (triggers trigger orders)
+  # - trigger
+
+  # Liquidator bot, liquidates unhealthy positions by taking over the risk (caution, you should manage risk here)
+  # - liquidator
+
+  # Example maker bot that participates in JIT auction (caution: you will probably lose money)
+  # - jitMaker
+
+  # Example maker bot that posts floating oracle orders
+  # - floatingMaker
+
+  # settles PnLs for the insurance fund (may want to run with runOnce: true)
+  # - ifRevenueSettler
+
+  # settles negative PnLs for users (may want to run with runOnce: true)
+  # - userPnlSettler
+
+  - markTwapCrank
+
+# below are bot configs
+botConfigs:
+  fillerLite:
+    botId: "fillerLite"
+    dryRun: false
+    fillerPollingInterval: 500
+    metricsPort: 9464
+
+    # will revert a transaction during simulation if a fill fails, this will save on tx fees,
+    # and be friendlier for use with services like Jito.
+    # Default is true
+
+  markTwapCrank:
+    botId: "mark-twap-cranker"
+    dryRun: false
+    metricsPort: 9465
+    crankIntervalToMarketIndicies:
+      15000:
+        - 0
+        - 1
+        - 2
+      60000:
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 9
+        - 10
+        - 11
+        - 12
+        - 13
+        - 14
+        - 15
+        - 16

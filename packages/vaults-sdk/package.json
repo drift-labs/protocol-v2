@@ -1,0 +1,54 @@
+{
+	"name": "@velocity-exchange/vaults-sdk",
+	"version": "0.1.1",
+	"description": "TypeScript SDK for the Velocity vaults program.",
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:drift-labs/protocol-v2-shadow.git",
+		"directory": "packages/vaults-sdk"
+	},
+	"license": "Apache-2.0",
+	"main": "lib/index.js",
+	"types": "lib/index.d.ts",
+	"files": [
+		"lib"
+	],
+	"engines": {
+		"node": ">=20"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"cli": "ts-node cli/cli.ts",
+		"clean": "rm -rf lib",
+		"build": "bun run clean && tsc",
+		"lint": "eslint './src/**/*.ts' --quiet --format unix",
+		"prettify": "prettier --check './src/**/*.ts'",
+		"prettify:fix": "prettier --write './src/**/*.ts'"
+	},
+	"dependencies": {
+		"@metaplex-foundation/js": "0.20.1",
+		"@velocity-exchange/sdk": "workspace:*",
+		"commander": "11.1.0",
+		"dotenv": "16.4.5",
+		"strict-event-emitter-types": "2.0.0",
+		"ts-node": "10.9.2"
+	},
+	"peerDependencies": {
+		"@coral-xyz/anchor": "npm:@anchor-lang/core@1.0.1",
+		"@solana/web3.js": "1.98.0"
+	},
+	"optionalDependencies": {
+		"@ledgerhq/hw-app-solana": "7.2.4",
+		"@ledgerhq/hw-transport": "6.31.4",
+		"@ledgerhq/hw-transport-node-hid": "6.29.5",
+		"@solana/wallet-adapter-ledger": "0.9.25"
+	},
+	"devDependencies": {
+		"@coral-xyz/anchor": "npm:@anchor-lang/core@1.0.1",
+		"@types/bn.js": "5.1.6",
+		"@types/node": "^20",
+		"typescript": "5.4.5"
+	}
+}

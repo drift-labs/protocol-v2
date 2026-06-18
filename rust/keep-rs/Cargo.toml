@@ -1,0 +1,47 @@
+[package]
+name = "keeprs"
+version = "0.1.0"
+edition = "2021"
+description = "Rust keeper bots for Velocity protocol"
+license = "MIT"
+repository = "https://github.com/drift-labs/protocol-v2-shadow"
+keywords = ["velocity", "defi", "solana", "trading-bot", "liquidity"]
+categories = ["financial", "network-programming"]
+
+[dependencies]
+anchor-lang = "1.0"
+axum = "0.8"
+clap = { version = "4.5.40", "features" = ["env", "derive"] }
+crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
+dotenv = "0.15.0"
+velocity-rs = { path = "../velocity-rs", features = ["unsafe_pub", "titan"] }
+# Program internals are reached via `velocity_rs::program::…`; no direct path-dep on
+# the velocity program. velocity-rs pulls it with `cpi` (⊇ `no-entrypoint`).
+env_logger = "0.11"
+# DLOB 'trace' logs are expensive so compile them out
+log = { version = "0.4", features = ["max_level_trace"] }
+futures-util = "0.3.31"
+mimalloc = "0.1.47"
+prometheus = "*"
+pyth-lazer-client = "0.1.3"
+pyth-lazer-protocol = "0.7.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+solana-account-decoder-client-types = "3"
+solana-rpc-client = "3"
+solana-rpc-client-api = "3"
+solana-sdk = "3"
+solana-commitment-config = "3"
+solana-compute-budget-interface = "3"
+solana-transaction-status = "3"
+solana-transaction-status-client-types = "3"
+tokio = "1.48"
+dashmap = "6.1.0"
+
+[[bin]]
+name = "tx_history"
+path = "src/tx_history.rs"
+
+# NOTE: [patch.crates-io] (pyth-lazer-protocol = vendor/pyth-lazer-protocol) is
+# hoisted to the rust/ workspace root Cargo.toml — Cargo only honors patches at
+# the workspace root.

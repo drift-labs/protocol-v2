@@ -1,0 +1,30 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"globalDependencies": ["bun.lock"],
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["lib/**", "dist/**", "build/**"],
+			"inputs": [
+				"src/**",
+				"scripts/**",
+				"tsconfig*.json",
+				"esbuild.config.js",
+				"package.json"
+			]
+		},
+		"lint": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "tests/**", ".eslintrc*", "package.json"]
+		},
+		"typecheck": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "tsconfig*.json", "package.json"]
+		},
+		"test": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "tests/**", "test/**", "jest.config*", "package.json"],
+			"outputs": []
+		}
+	}
+}

@@ -1,2 +1,2 @@
 **/node_modules/**
-sdk/src/idl/velocity.ts
+packages/sdk/src/idl/velocity.ts

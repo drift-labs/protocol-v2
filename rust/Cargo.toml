@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = [
+	"velocity-rs",
+	"velocity-rs/crates/velocity-idl-gen",
+	"velocity-rs/crates/pubsub-client",
+	"keep-rs",
+	"swift",
+]
+
+# This is a SEPARATE workspace from the program workspace at the repo root
+# (which is `exclude = ["rust"]`). Keeping it separate isolates the heavy
+# solana-sdk 3.x dependency tree used by velocity-rs/keep-rs/swift from the
+# program's SBF build, and gives this side its own Cargo.lock and target dir
+# (see .cargo/config.toml). The `drift` (velocity) program crate is consumed
+# as a HOST library path-dep (../../programs/velocity) — independent of the
+# `cargo build-sbf` program build.
+
+# NOT the program's `lto = "fat", codegen-units = 1` (that profile is tuned for
+# the on-chain SBF artifact). These crates build for the host; keep dev/release
+# builds reasonable over the large solana-sdk graph.
+[profile.release]
+lto = "thin"
+codegen-units = 16
+
+# Hoisted from swift/Cargo.toml — Cargo only applies profiles at the workspace
+# root. Keeps proc-macro/native deps cheap to compile in dev builds.
+[profile.dev.package]
+ring = { opt-level = 0 }
+zstd-sys = { opt-level = 0 }
+solana-program = { opt-level = 0 }
+
+# Hoisted from keep-rs/Cargo.toml — patches only apply at the workspace root.
+[patch.crates-io]
+pyth-lazer-protocol = { path = "keep-rs/vendor/pyth-lazer-protocol" }

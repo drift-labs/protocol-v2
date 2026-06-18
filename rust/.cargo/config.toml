@@ -1,0 +1,7 @@
+# Build the rust/ workspace into rust/target so it never clobbers the program
+# workspace's ./target (and its SBF cache under target/sbpf-solana-solana/).
+# This path is relative to this config file's directory (rust/), resolving to
+# rust/target. Do NOT add a repo-root .cargo/config.toml with a global
+# target-dir — that would redirect `anchor build` too.
+[build]
+target-dir = "target"

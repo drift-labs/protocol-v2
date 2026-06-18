@@ -1,0 +1,25 @@
+[package]
+name = "velocity-pubsub-client"
+version = "0.1.1"
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/drift-labs/protocol-v2-shadow"
+description = "Solana Pubsub Client patched with proper connection handling"
+
+[dependencies]
+futures-util = "0.3"
+gjson = "0.8.1"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+solana-account-decoder-client-types = "3"
+solana-clock = "3"
+solana-pubkey = "3"
+solana-signature = "3"
+solana-rpc-client-api = "3"
+thiserror = "1"
+tokio = { version = "1.48", features = ["full"] }
+tokio-stream = "0.1"
+tokio-tungstenite = { version = "0.28.0", features = ["native-tls"] }
+url = "2.5"

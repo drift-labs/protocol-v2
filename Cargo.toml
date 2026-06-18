@@ -1,10 +1,17 @@
 [workspace]
 members = [
 	"programs/velocity",
+	"programs/vaults",
 	"programs/pyth",
 	"programs/pyth-lazer",
 	"programs/token_faucet",
+	"crates/velocity-macros",
 ]
+# The `rust/` directory is a SEPARATE Cargo workspace (velocity-rs/keep-rs/swift).
+# It is excluded here so its solana-sdk 3.x dependency tree never unifies with
+# the program (SBF) build, and so the two workspaces don't collide as nested
+# workspace roots. See rust/Cargo.toml.
+exclude = ["rust"]
 resolver = "2"
 
 [profile.release]

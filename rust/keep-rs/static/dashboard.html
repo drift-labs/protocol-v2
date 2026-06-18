@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquidator Bot Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0e27;
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #1a1f3a;
+        }
+
+        h1 {
+            color: #4fc3f7;
+            font-size: 28px;
+        }
+
+        .status {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .last-updated {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #1a1f3a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #2a2f4a;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+
+        .section {
+            background: #1a1f3a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid #2a2f4a;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2a2f4a;
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: #4fc3f7;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #2a2f4a;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #1a1f3a;
+        }
+
+        tr:hover {
+            background: #252a4a;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-liquidatable {
+            background: #f44336;
+            color: white;
+        }
+
+        .badge-high-risk {
+            background: #ff9800;
+            color: white;
+        }
+
+        .badge-stale {
+            background: #9e9e9e;
+            color: white;
+        }
+
+        .badge-fresh {
+            background: #4caf50;
+            color: white;
+        }
+
+        .pubkey {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #4fc3f7;
+            word-break: break-all;
+            cursor: pointer;
+            user-select: all;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .pubkey:hover {
+            background-color: #2a2f4a;
+        }
+
+        .pubkey:active {
+            background-color: #3a3f5a;
+        }
+
+        .number {
+            font-family: 'Courier New', monospace;
+        }
+
+        .positive {
+            color: #4caf50;
+        }
+
+        .negative {
+            color: #f44336;
+        }
+
+        .market-id {
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: #1a1f3a;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #2a2f4a;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2a2f4a;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            color: #4fc3f7;
+        }
+
+        .close {
+            color: #888;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #fff;
+        }
+
+        .user-row {
+            cursor: pointer;
+        }
+
+        .user-row:hover {
+            background: #252a4a !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🫠 Liquidator Bot Dashboard</h1>
+            <div class="status">
+                <div class="status-indicator"></div>
+                <span class="last-updated" id="lastUpdated">Loading...</span>
+            </div>
+        </header>
+
+        <div id="error" style="display: none;"></div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-label">High Risk Users</div>
+                <div class="stat-value" id="highRiskCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Liquidatable</div>
+                <div class="stat-value" id="liquidatableCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Current Slot</div>
+                <div class="stat-value" id="currentSlot">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Oracle Prices</div>
+                <div class="stat-value" id="oracleCount">-</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">High Risk Users</h2>
+            </div>
+            <div id="usersTable">
+                <div class="loading">Loading users...</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Oracle Prices</h2>
+            </div>
+            <div id="oraclesTable">
+                <div class="loading">Loading oracle prices...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for user position details -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalUserTitle">User Positions</h2>
+                <span class="close" onclick="closeUserModal()">&times;</span>
+            </div>
+            <div id="modalUserContent">
+                <div class="loading">Loading positions...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/dashboard';
+        const REFRESH_INTERVAL = 2000; // 2 seconds
+        
+        // Store dashboard data globally for access in modals
+        let dashboardData = null;
+
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '-';
+            if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (Math.abs(num) >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+            return num.toLocaleString();
+        }
+
+        function formatSlotNumber(num) {
+            if (num === null || num === undefined) return '-';
+            // Format with thousands separators, no abbreviation
+            return num.toLocaleString();
+        }
+
+        function formatOraclePrice(price) {
+            if (price === null || price === undefined) return '-';
+            // Price is stored as integer with 6 decimal places
+            // e.g., 123456 => 0.123456
+            return (price / 1000000).toFixed(6);
+        }
+
+        function formatMarginValue(value) {
+            if (value === null || value === undefined) return '-';
+            // Margin values are stored as integers with 6 decimal places
+            // e.g., 123456 => 0.123456
+            return (value / 1000000).toFixed(6);
+        }
+
+        function formatPubkey(pubkey) {
+            if (!pubkey) return '-';
+            return pubkey; // Show full pubkey
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Show brief feedback
+                const toast = document.createElement('div');
+                toast.textContent = 'Copied!';
+                toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 10px 20px; border-radius: 4px; z-index: 1000;';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        function formatTimeAgo(ms) {
+            const seconds = Math.floor(ms / 1000);
+            if (seconds < 60) return seconds + 's ago';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return minutes + 'm ago';
+            const hours = Math.floor(minutes / 60);
+            return hours + 'h ago';
+        }
+
+        function formatSlotAge(slots) {
+            const seconds = Math.floor(slots * 0.4); // ~400ms per slot
+            if (seconds < 60) return seconds + 's';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return minutes + 'm';
+            const hours = Math.floor(minutes / 60);
+            return hours + 'h';
+        }
+
+        async function fetchDashboard() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                updateDashboard(data);
+                document.getElementById('error').style.display = 'none';
+            } catch (error) {
+                console.error('Failed to fetch dashboard:', error);
+                document.getElementById('error').textContent = 
+                    `Error loading dashboard: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function formatStatus(status) {
+            // Convert camelCase enum to display format
+            if (status === 'liquidatable') return 'Liquidatable';
+            if (status === 'highRisk') return 'High Risk';
+            if (status === 'safe') return 'Safe';
+            return status;
+        }
+
+        function formatMarketType(marketType) {
+            // Convert camelCase enum to display format
+            if (marketType === 'perp') return 'Perp';
+            if (marketType === 'spot') return 'Spot';
+            return marketType;
+        }
+
+        function formatMarketId(marketType, marketIndex) {
+            // Generate market ID string from enum and index
+            const type = marketType === 'perp' ? 'perp' : 'spot';
+            return `${type}:${marketIndex}`;
+        }
+
+        function updateDashboard(data) {
+            // Store data globally
+            dashboardData = data;
+            
+            // Update stats
+            const highRiskUsers = data.high_risk_users || [];
+            const liquidatable = highRiskUsers.filter(u => u.status === 'liquidatable').length;
+            
+            document.getElementById('highRiskCount').textContent = highRiskUsers.length;
+            document.getElementById('liquidatableCount').textContent = liquidatable;
+            document.getElementById('currentSlot').textContent = formatSlotNumber(data.current_slot || 0);
+            document.getElementById('oracleCount').textContent = (data.oracle_prices || []).length;
+            
+            const now = Date.now();
+            const lastUpdated = data.last_updated_ms || now;
+            document.getElementById('lastUpdated').textContent = 
+                `Updated ${formatTimeAgo(now - lastUpdated)}`;
+
+            // Update users table
+            updateUsersTable(highRiskUsers, data.oracle_prices || []);
+
+            // Update oracles table
+            updateOraclesTable(data.oracle_prices || []);
+        }
+
+        function updateUsersTable(users, oraclePrices) {
+            const container = document.getElementById('usersTable');
+            
+            if (users.length === 0) {
+                container.innerHTML = '<div class="loading">No high-risk users</div>';
+                return;
+            }
+
+            // Sort by lowest free margin % (ascending) and limit to top 10
+            const sortedUsers = [...users]
+                .sort((a, b) => a.free_margin_ratio - b.free_margin_ratio)
+                .slice(0, 10);
+
+            let html = '<table><thead><tr>';
+            html += '<th>Status</th>';
+            html += '<th>User</th>';
+            html += '<th>Collateral</th>';
+            html += '<th>Margin Req</th>';
+            html += '<th>Free Margin</th>';
+            html += '<th>Free Margin %</th>';
+            html += '<th>Last Updated</th>';
+            html += '</tr></thead><tbody>';
+
+            sortedUsers.forEach(user => {
+                const freeMarginPct = (user.free_margin_ratio * 100).toFixed(2);
+                const statusDisplay = formatStatus(user.status);
+                const badgeClass = user.status === 'liquidatable' ? 'badge-liquidatable' : 'badge-high-risk';
+                
+                html += '<tr class="user-row" onclick="showUserPositions(\'' + user.pubkey + '\')">';
+                html += `<td><span class="badge ${badgeClass}">${statusDisplay}</span></td>`;
+                html += `<td><div class="pubkey" onclick="event.stopPropagation(); copyToClipboard('${user.pubkey}')" title="Click to copy pubkey">${formatPubkey(user.pubkey)}</div></td>`;
+                html += `<td class="number">${formatMarginValue(user.total_collateral)}</td>`;
+                html += `<td class="number">${formatMarginValue(user.margin_requirement)}</td>`;
+                html += `<td class="number ${user.free_margin >= 0 ? 'positive' : 'negative'}">${formatMarginValue(user.free_margin)}</td>`;
+                html += `<td class="number ${user.free_margin >= 0 ? 'positive' : 'negative'}">${freeMarginPct}%</td>`;
+                html += `<td>${formatTimeAgo(Date.now() - user.last_updated_ms)}</td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function showUserPositions(pubkey) {
+            if (!dashboardData) return;
+            
+            const user = dashboardData.high_risk_users.find(u => u.pubkey === pubkey);
+            if (!user) return;
+            
+            const modal = document.getElementById('userModal');
+            const modalTitle = document.getElementById('modalUserTitle');
+            const modalContent = document.getElementById('modalUserContent');
+            
+            modalTitle.textContent = `Positions: ${formatPubkey(pubkey)}`;
+            
+            // Build positions table
+            let html = '<table><thead><tr>';
+            html += '<th>Market Type</th>';
+            html += '<th>Market Index</th>';
+            html += '<th>Quote Asset Amount</th>';
+            html += '<th>Price</th>';
+            html += '<th>Value (Quote × Price)</th>';
+            html += '</tr></thead><tbody>';
+            
+            const positions = user.positions || [];
+            if (positions.length === 0) {
+                html += '<tr><td colspan="5" style="text-align: center; padding: 20px;">No positions</td></tr>';
+            } else {
+                positions.forEach(pos => {
+                    // Find price for this market
+                    const marketId = formatMarketId(pos.market_type, pos.market_index);
+                    const oracle = dashboardData.oracle_prices.find(o => 
+                        formatMarketId(o.market_type, o.market_index) === marketId
+                    );
+                    const price = oracle ? oracle.price : null;
+                    
+                    // Calculate value: quote_asset_amount * price
+                    // Both are integers with 6 decimal places, so result has 12 decimal places
+                    // We'll display with 6 decimal places
+                    let value = null;
+                    if (price !== null && pos.quote_asset_amount !== null) {
+                        // Convert to actual numbers, multiply, then format back
+                        const quoteValue = pos.quote_asset_amount / 1000000;
+                        const priceValue = price / 1000000;
+                        value = (quoteValue * priceValue).toFixed(6);
+                    }
+                    
+                    html += '<tr>';
+                    html += `<td>${formatMarketType(pos.market_type)}</td>`;
+                    html += `<td class="number">${pos.market_index}</td>`;
+                    html += `<td class="number">${formatMarginValue(pos.quote_asset_amount)}</td>`;
+                    html += `<td class="number">${price !== null ? formatOraclePrice(price) : 'N/A'}</td>`;
+                    html += `<td class="number">${value !== null ? value : 'N/A'}</td>`;
+                    html += '</tr>';
+                });
+            }
+            
+            html += '</tbody></table>';
+            modalContent.innerHTML = html;
+            modal.style.display = 'block';
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('userModal');
+            if (event.target === modal) {
+                closeUserModal();
+            }
+        }
+
+        function updateOraclesTable(oracles) {
+            const container = document.getElementById('oraclesTable');
+            
+            if (oracles.length === 0) {
+                container.innerHTML = '<div class="loading">No oracle prices</div>';
+                return;
+            }
+
+            // Sort by market type, then index
+            oracles.sort((a, b) => {
+                if (a.market_type !== b.market_type) {
+                    return a.market_type.localeCompare(b.market_type);
+                }
+                return a.market_index - b.market_index;
+            });
+
+            let html = '<table><thead><tr>';
+            html += '<th>Market</th>';
+            html += '<th>Type</th>';
+            html += '<th>Price</th>';
+            html += '<th>Status</th>';
+            html += '<th>Age (Slots)</th>';
+            html += '<th>Age (Time)</th>';
+            html += '<th>Last Updated</th>';
+            html += '</tr></thead><tbody>';
+
+            oracles.forEach(oracle => {
+                const staleBadge = oracle.is_stale ? 
+                    '<span class="badge badge-stale">Stale</span>' : 
+                    '<span class="badge badge-fresh">Fresh</span>';
+                const marketId = formatMarketId(oracle.market_type, oracle.market_index);
+                
+                html += '<tr>';
+                html += `<td class="market-id">${marketId}</td>`;
+                html += `<td>${formatMarketType(oracle.market_type)}</td>`;
+                html += `<td class="number">${formatOraclePrice(oracle.price)}</td>`;
+                html += `<td>${staleBadge}</td>`;
+                html += `<td class="number">${formatSlotAge(oracle.age_slots)}</td>`;
+                html += `<td>${formatTimeAgo(oracle.age_ms)}</td>`;
+                html += `<td>${formatTimeAgo(Date.now() - oracle.last_updated_ms)}</td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Initial load
+        fetchDashboard();
+
+        // Auto-refresh
+        setInterval(fetchDashboard, REFRESH_INTERVAL);
+    </script>
+</body>
+</html>
+

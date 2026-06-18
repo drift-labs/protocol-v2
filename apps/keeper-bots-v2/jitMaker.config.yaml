@@ -1,0 +1,84 @@
+global:
+  # devnet or mainnet-beta
+  driftEnv: mainnet-beta
+
+  # RPC endpoint to use
+  endpoint: 
+  # custom websocket endpoint to use (if null will be determined from rpc endpoint)
+  wsEndpoint:
+  resubTimeoutMs: 10000 # timeout for resubscribing to websocket
+
+  # Private key to use to sign transactions.
+  # will load from KEEPER_PRIVATE_KEY env var if null
+  keeperPrivateKey:
+
+  initUser: false # initialize user on startup
+  testLiveness: false # test liveness, by failing liveness test after 1 min
+
+  # Force deposit this amount of USDC to collateral account, the program will
+  # end after the deposit transaction is sent
+  #forceDeposit: 1000
+
+  websocket: true # use websocket for account loading and events (limited support)
+  runOnce: false # Set true to run once and exit, useful for testing or one off bot runs
+  debug: false # Enable debug logging
+
+  eventSubscriberPollingInterval: 0
+  bulkAccountLoaderPollingInterval: 0
+
+  useJito: false
+  jitoBlockEngineUrl: frankfurt.mainnet.block-engine.jito.wtf
+  jitoAuthPrivateKey: /path/to/jito/bundle/signing/key/auth.json
+
+  # which subaccounts to load and get info for, if null will load subaccount 0 (default)
+  subaccounts: [0]
+
+# Which bots to run, be careful with this, running multiple bots in one instance
+# might use more resources than expected.
+# Bot specific configs are below
+enabledBots:
+  # Perp order filler bot
+  # - filler
+
+  # Spot order filler bot
+  # - spotFiller
+
+  # Trigger bot (triggers trigger orders)
+  # - trigger
+
+  # Liquidator bot, liquidates unhealthy positions by taking over the risk (caution, you should manage risk here)
+  # - liquidator
+
+  # Example maker bot that participates in JIT auction (caution: you will probably lose money)
+  - jitMaker
+
+  # Example maker bot that posts floating oracle orders
+  # - floatingMaker
+
+  # settles PnLs for the insurance fund (may want to run with runOnce: true)
+  # - ifRevenueSettler
+
+  # settles negative PnLs for users (may want to run with runOnce: true)
+  # - userPnlSettler
+
+  # uncross the book to capture an arb
+  # - uncrossArb
+
+# below are bot configs
+botConfigs:
+  jitMaker:
+    botId: "jitMaker"
+    dryRun: false
+    # below, ordering is important: match the subaccountIds to perpMarketindices.
+    # e.g. to MM perp markets 0, 1 both on subaccount 0, then subaccounts=[0,0], perpMarketIndicies=[0,1]
+    #      to MM perp market 0 on subaccount 0 and perp market 1 on subaccount 1, then subaccounts=[0, 1], perpMarketIndicies=[0, 1]
+    # also, make sure all subaccounts are loaded in the global config subaccounts above to avoid errors
+    subaccounts: [0] 
+    perpMarketIndicies: [0]
+    marketType: PERP
+
+  # uncrossArb:
+  #   botId: "uncrossArb"
+  #   dryRun: false
+  #   driftEnv: "mainnet-beta"
+

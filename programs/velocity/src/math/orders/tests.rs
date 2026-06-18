@@ -3107,9 +3107,26 @@ mod calculate_max_perp_order_size {
         assert!(total_collateral.unsigned_abs() - margin_requirement < 100 * QUOTE_PRECISION);
     }
 
-    // Ignored: hardcoded base64 test data uses old User struct layout. Re-snapshot needed for new program.
+    // The BTC and JUP PerpMarket base64 blobs below are *upstream*
+    // drift-labs/protocol-v2 snapshots (content 1248 → SIZE 1256). That
+    // PerpMarket layout never existed in this repo: it still carries the LP and
+    // fuel-boost fields (and other upstream-only members) that the velocity fork
+    // removed, so it can't be migrated with the test_utils::legacy_snapshot
+    // translators (which only cover layouts that appear in *this* repo's
+    // history — SIZE 1216 / 1176). The USDC SpotMarket blob is already
+    // current-layout (size 800) and the User only grew its trailing padding, so
+    // those two would load fine; the perp markets are the blocker.
+    //
+    // Fixing this offline is not possible from this repo alone: it needs the
+    // upstream drift PerpMarket struct definition at the snapshot's vintage
+    // (≈ the velocity fork point 0ae3e3b1d or a nearby drift commit) to build a
+    // faithful Legacy* mirror, OR a freshly-captured velocity-layout snapshot
+    // that reproduces the same swift fill-failure scenario.
     #[test]
-    #[ignore]
+    #[ignore = "BTC/JUP PerpMarket blobs are upstream drift (SIZE 1256) — that layout is \
+                not in this repo's history, so no offline translator can migrate them. \
+                Needs the upstream drift struct (fork point ~0ae3e3b1d) or a fresh \
+                velocity-layout snapshot. See the comment above."]
     pub fn swift_failure() {
         let clock_slot = 0_u64;
 

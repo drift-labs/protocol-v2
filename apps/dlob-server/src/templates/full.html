@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Drift Orderbook (full)</title>
+		<style>
+			body {
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 20px;
+				background-color: #f5f5f5;
+				color: #333;
+			}
+
+			#header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 20px;
+			}
+
+			#symbol-info {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+
+			.market-data {
+				padding: 8px 16px;
+				background-color: #e9ecef;
+				border-radius: 4px;
+				font-weight: bold;
+				margin-right: 10px;
+			}
+
+			#market-name {
+				background-color: #6c757d;
+				color: white;
+			}
+
+			#oracle-price {
+				background-color: #17a2b8;
+				color: white;
+			}
+
+			#bandwidth-counter {
+				background-color: #6f42c1;
+				color: white;
+			}
+
+			#status {
+				padding: 10px;
+				margin-bottom: 20px;
+				border-radius: 4px;
+				text-align: center;
+				font-weight: bold;
+			}
+
+			.connected {
+				background-color: #d4edda;
+				color: #155724;
+			}
+
+			.disconnected {
+				background-color: #f8d7da;
+				color: #721c24;
+			}
+
+			#orderbook-container {
+				display: flex;
+				justify-content: space-between;
+				gap: 20px;
+				margin-bottom: 20px;
+			}
+
+			.orderbook-column {
+				flex: 1;
+				background-color: #fff;
+				border-radius: 8px;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+				padding: 15px;
+			}
+
+			.orderbook-title {
+				text-align: center;
+				font-weight: bold;
+				padding-bottom: 10px;
+				margin-bottom: 10px;
+				border-bottom: 1px solid #eee;
+			}
+
+			.column-header {
+				display: grid;
+				grid-template-columns: 1fr 1fr 1fr;
+				padding: 5px 0;
+				border-bottom: 1px solid #ddd;
+				font-weight: bold;
+				font-size: 0.9em;
+				margin-bottom: 5px;
+			}
+
+			.column-header span:first-child {
+				padding-left: 10px;
+			}
+
+			.column-header span:nth-child(2),
+			.column-header span:nth-child(3) {
+				text-align: right;
+				padding-right: 10px;
+			}
+
+			.orderbook-table {
+				width: 100%;
+			}
+
+			.orderbook-row {
+				display: grid;
+				grid-template-columns: 1fr 1fr 1fr;
+				padding: 4px 0;
+				border-bottom: 1px solid #f0f0f0;
+				font-family: monospace;
+				position: relative;
+				height: 24px;
+			}
+
+			/* Alternating row styling */
+			.bid-row:nth-child(even) {
+				background-color: rgba(40, 167, 69, 0.05);
+			}
+
+			.ask-row:nth-child(even) {
+				background-color: rgba(220, 53, 69, 0.05);
+			}
+
+			.empty-row {
+				color: #aaa;
+			}
+
+			.price-cell {
+				font-weight: bold;
+				padding-left: 10px;
+			}
+
+			.bid-price {
+				color: #28a745;
+			}
+
+			.ask-price {
+				color: #dc3545;
+			}
+
+			.size-cell,
+			.total-cell {
+				text-align: right;
+				padding-right: 10px;
+			}
+
+			.total-cell {
+				font-weight: bold;
+			}
+
+			.depth-bar {
+				position: absolute;
+				height: 100%;
+				top: 0;
+				z-index: 0;
+				opacity: 0.4;
+			}
+
+			.bid-depth {
+				background-color: rgba(40, 167, 69, 0.5);
+				right: 0;
+			}
+
+			.ask-depth {
+				background-color: rgba(220, 53, 69, 0.5);
+				left: 0;
+			}
+
+			.orderbook-row span {
+				position: relative;
+				z-index: 1;
+			}
+
+			#log-container {
+				background-color: #fff;
+				border-radius: 8px;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+				padding: 15px;
+				margin-top: 20px;
+			}
+
+			#log-title {
+				font-weight: bold;
+				padding-bottom: 10px;
+				margin-bottom: 10px;
+				border-bottom: 1px solid #eee;
+				display: flex;
+				justify-content: space-between;
+			}
+
+			#toggle-log {
+				cursor: pointer;
+				color: #007bff;
+				font-size: 14px;
+			}
+
+			#messageBox {
+				height: 200px;
+				overflow-y: auto;
+				font-family: monospace;
+				white-space: pre-wrap;
+				font-size: 12px;
+				background-color: #f8f9fa;
+				padding: 10px;
+				border-radius: 4px;
+				display: none;
+			}
+
+			.message-init {
+				color: #0066cc;
+			}
+
+			.message-create {
+				color: #006600;
+			}
+
+			.message-update {
+				color: #cc6600;
+			}
+
+			.message-system {
+				color: #666666;
+			}
+
+			.message-error {
+				color: #cc0000;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="header">
+			<h1>Drift Orderbook (full)</h1>
+			<div id="symbol-info">
+				<div id="market-name" class="market-data">Loading...</div>
+				<div id="oracle-price" class="market-data">Oracle: -</div>
+				<div id="bandwidth-counter" class="market-data">Bandwidth: 0 KB</div>
+				<div id="controls">
+					<div id="precision-control">
+						<label for="price-precision">Precision:</label>
+						<select id="price-precision">
+							<option value="1">$0.0001</option>
+							<option value="10">$0.001</option>
+							<option value="100" selected>$0.01</option>
+							<option value="500">$0.05</option>
+							<option value="1000">$0.1</option>
+						</select>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="status" class="disconnected">Disconnected</div>
+
+		<div id="orderbook-container">
+			<div class="orderbook-column">
+				<div class="orderbook-title">Bids</div>
+				<div class="column-header">
+					<span>Price</span>
+					<span>Size</span>
+					<span>Total</span>
+				</div>
+				<div id="bids" class="orderbook-table"></div>
+			</div>
+			<div class="orderbook-column">
+				<div class="orderbook-title">Asks</div>
+				<div class="column-header">
+					<span>Price</span>
+					<span>Size</span>
+					<span>Total</span>
+				</div>
+				<div id="asks" class="orderbook-table"></div>
+			</div>
+		</div>
+
+		<div id="log-container">
+			<div id="log-title">
+				<span>Connection Log</span>
+				<span id="toggle-log">Show Log</span>
+			</div>
+			<div id="messageBox"></div>
+		</div>
+
+		<script>
+			// DOM elements
+			const statusDiv = document.getElementById('status');
+			const messageBox = document.getElementById('messageBox');
+			const toggleLogBtn = document.getElementById('toggle-log');
+			const bidsTable = document.getElementById('bids');
+			const asksTable = document.getElementById('asks');
+			const spreadDisplay = document.getElementById('spread-display');
+			const marketNameDisplay = document.getElementById('market-name');
+			const oraclePriceDisplay = document.getElementById('oracle-price');
+			const bandwidthCounter = document.getElementById('bandwidth-counter');
+			const groupingSelect = document.getElementById('price-precision');
+
+			// Orderbook data
+			const orderbook = {
+				bids: new Map(),
+				asks: new Map(),
+			};
+
+			// Price aggregation level
+			let grouping = 100; // Default to $0.1 grouping
+
+			// Constants
+			const PRICE_SCALE = 1000000; // Divide prices by this factor
+			const SIZE_SCALE = 1000000000; // Divide sizes by this factor
+			const MAX_ORDERBOOK_LEVELS = 20; // Number of levels to display
+
+			// Pre-create rows for the orderbook (fixed number of rows)
+			function initializeOrderbookRows() {
+				// Clear existing content
+				bidsTable.innerHTML = '';
+				asksTable.innerHTML = '';
+
+				// Create fixed bid rows
+				for (let i = 0; i < MAX_ORDERBOOK_LEVELS; i++) {
+					const row = document.createElement('div');
+					row.className = 'orderbook-row bid-row empty-row';
+					row.setAttribute('data-index', i);
+
+					// Depth bar (initially hidden)
+					const depthBar = document.createElement('div');
+					depthBar.className = 'depth-bar bid-depth';
+					depthBar.style.width = '0%';
+					row.appendChild(depthBar);
+
+					// Price cell
+					const priceCell = document.createElement('span');
+					priceCell.className = 'price-cell bid-price';
+					priceCell.textContent = '-';
+
+					// Size cell
+					const sizeCell = document.createElement('span');
+					sizeCell.className = 'size-cell';
+					sizeCell.textContent = '-';
+
+					// Total cell
+					const totalCell = document.createElement('span');
+					totalCell.className = 'total-cell';
+					totalCell.textContent = '-';
+
+					row.appendChild(priceCell);
+					row.appendChild(sizeCell);
+					row.appendChild(totalCell);
+					bidsTable.appendChild(row);
+				}
+
+				// Create fixed ask rows
+				for (let i = 0; i < MAX_ORDERBOOK_LEVELS; i++) {
+					const row = document.createElement('div');
+					row.className = 'orderbook-row ask-row empty-row';
+					row.setAttribute('data-index', i);
+
+					// Depth bar (initially hidden)
+					const depthBar = document.createElement('div');
+					depthBar.className = 'depth-bar ask-depth';
+					depthBar.style.width = '0%';
+					row.appendChild(depthBar);
+
+					// Price cell
+					const priceCell = document.createElement('span');
+					priceCell.className = 'price-cell ask-price';
+					priceCell.textContent = '-';
+
+					// Size cell
+					const sizeCell = document.createElement('span');
+					sizeCell.className = 'size-cell';
+					sizeCell.textContent = '-';
+
+					// Total cell
+					const totalCell = document.createElement('span');
+					totalCell.className = 'total-cell';
+					totalCell.textContent = '-';
+
+					row.appendChild(priceCell);
+					row.appendChild(sizeCell);
+					row.appendChild(totalCell);
+					asksTable.appendChild(row);
+				}
+			}
+
+			// Toggle log visibility
+			toggleLogBtn.addEventListener('click', () => {
+				if (
+					messageBox.style.display === 'none' ||
+					messageBox.style.display === ''
+				) {
+					messageBox.style.display = 'block';
+					toggleLogBtn.textContent = 'Hide Log';
+				} else {
+					messageBox.style.display = 'none';
+					toggleLogBtn.textContent = 'Show Log';
+				}
+			});
+
+			// Bandwidth tracking
+			let totalBytesReceived = 0;
+			let bandwidthRecords = [];
+			let lastBandwidthUpdateTime = Date.now();
+
+			// Function to update the bandwidth counter
+			function updateBandwidthCounter(bytes) {
+				// Add to total
+				totalBytesReceived += bytes;
+
+				// Track for rate calculation
+				const now = Date.now();
+				bandwidthRecords.push({
+					time: now,
+					bytes: bytes,
+				});
+
+				// Keep only records from the last 5 seconds for rate calculation
+				const cutoffTime = now - 5000;
+				bandwidthRecords = bandwidthRecords.filter(
+					(record) => record.time >= cutoffTime
+				);
+
+				// Calculate bandwidth rate
+				const bytesInPeriod = bandwidthRecords.reduce(
+					(sum, record) => sum + record.bytes,
+					0
+				);
+				const oldestRecord = Math.min(...bandwidthRecords.map((r) => r.time));
+				const timeSpanSeconds = Math.max(1, (now - oldestRecord) / 1000);
+				const rateKBps = (bytesInPeriod / 1024 / timeSpanSeconds).toFixed(2);
+
+				// Update display only if it's time (to prevent flashing)
+				if (now - lastBandwidthUpdateTime >= 1000) {
+					const totalKB = (totalBytesReceived / 1024).toFixed(2);
+					bandwidthCounter.textContent = `Total: ${totalKB} KB | Rate: ${rateKBps} KB/s`;
+					lastBandwidthUpdateTime = now;
+				}
+			}
+
+			// Drift Trade WebSocket URL
+			// const wsUrl = 'wss://staging.dlob.drift.trade/ws'
+			const wsUrl = 'ws://localhost:3000/ws';
+			let socket;
+
+			// Function to connect to WebSocket server
+			function connectWebSocket() {
+				// Create WebSocket connection
+				socket = new WebSocket(wsUrl);
+
+				socket.addEventListener('open', () => {
+					statusDiv.textContent = 'Connected';
+					statusDiv.className = 'connected';
+					appendMessage('System', 'WebSocket connected');
+					subscribeOrderbook(); // subscribe with current selector value
+				});
+
+				// Listen for messages
+				socket.addEventListener('message', (event) => {
+					try {
+						// Track bandwidth
+						const messageSize = event.data.length;
+						updateBandwidthCounter(messageSize);
+
+						// Try to parse the message data
+						const message = parseWebSocketMessage(event.data);
+						if (message) {
+							appendMessage(
+								'Data',
+								JSON.stringify(message).substring(0, 150) + '...'
+							);
+							processOrderbookData(message);
+						}
+					} catch (error) {
+						appendMessage('Error', 'Failed to parse message: ' + error.message);
+						console.error('Error parsing message:', error);
+					}
+				});
+
+				// Listen for errors
+				socket.addEventListener('error', (error) => {
+					appendMessage('Error', 'WebSocket error');
+					console.error('WebSocket error:', error);
+				});
+
+				// Listen for disconnection
+				socket.addEventListener('close', (event) => {
+					statusDiv.textContent = 'Disconnected';
+					statusDiv.className = 'disconnected';
+					appendMessage(
+						'System',
+						'Disconnected from Drift Trade WebSocket server'
+					);
+
+					// Try to reconnect after a delay
+					setTimeout(connectWebSocket, 5000);
+				});
+			}
+
+			function subscribeOrderbook() {
+				if (socket && socket.readyState === WebSocket.OPEN) {
+					socket.send(
+						JSON.stringify({
+							channel: 'orderbook_indicative',
+							market: 'SOL-PERP',
+							marketType: 'perp',
+							type: 'subscribe',
+							grouping,
+						})
+					);
+					appendMessage('System', `Subscribed (grouping=${grouping})`);
+				}
+			}
+
+			function unsubscribeOrderbook(grouping) {
+				if (socket && socket.readyState === WebSocket.OPEN) {
+					socket.send(
+						JSON.stringify({
+							channel: 'orderbook_indicative',
+							market: 'SOL-PERP',
+							marketType: 'perp',
+							type: 'unsubscribe',
+							grouping,
+						})
+					);
+					appendMessage('System', `Unsubscribed (grouping=${grouping})`);
+				}
+			}
+
+			// Parse the WebSocket message which might be in a strange format
+			function parseWebSocketMessage(data) {
+				try {
+					// First try to parse as normal JSON
+					const parsed = JSON.parse(data);
+
+					// If it has a 'data' property that's a string, parse that too
+					if (parsed.data && typeof parsed.data === 'string') {
+						parsed.data = JSON.parse(parsed.data);
+					}
+
+					return parsed;
+				} catch (error) {
+					// If standard parsing fails, try to extract JSON from the string
+					try {
+						// Find data property pattern
+						const dataMatch = data.match(/data\s*:\s*"({.*})"/);
+						if (dataMatch && dataMatch[1]) {
+							// Replace escaped quotes and parse
+							const jsonStr = dataMatch[1].replace(/\\"/g, '"');
+							const parsedData = JSON.parse(jsonStr);
+
+							// Create a structure similar to what we expect
+							return {
+								channel: data.includes('orderbook_perp_0')
+									? 'orderbook_perp_0'
+									: 'unknown',
+								data: parsedData,
+							};
+						}
+					} catch (innerError) {
+						console.error('Inner parsing error:', innerError);
+					}
+
+					console.error('Parsing error:', error);
+					return null;
+				}
+			}
+
+			function processOrderbookData(message) {
+				let orderbookData;
+
+				if (message.data && (message.data.bids || message.data.asks)) {
+					orderbookData = message.data;
+				} else if (message.bids || message.asks) {
+					orderbookData = message;
+				} else {
+					console.warn('Unknown message format:', message);
+					return;
+				}
+
+				if (orderbookData.marketName) {
+					marketNameDisplay.textContent = orderbookData.marketName;
+				}
+
+				if (orderbookData.oracle) {
+					const oraclePrice = parseFloat(orderbookData.oracle) / PRICE_SCALE;
+					oraclePriceDisplay.textContent = `Oracle: ${oraclePrice.toFixed(3)}`;
+				}
+
+				if (orderbookData.bids && Array.isArray(orderbookData.bids)) {
+					orderbook.bids.clear();
+					orderbookData.bids.forEach((bid) => {
+						price = parseFloat(bid.price);
+						size = parseFloat(bid.size);
+
+						orderbook.bids.set(price, {
+							price,
+							size,
+							sources: bid.sources || null,
+						});
+					});
+				}
+
+				if (orderbookData.asks && Array.isArray(orderbookData.asks)) {
+					orderbook.asks.clear();
+					orderbookData.asks.forEach((ask) => {
+						price = parseFloat(ask.price);
+						size = parseFloat(ask.size);
+
+						orderbook.asks.set(price, {
+							price,
+							size,
+							sources: ask.sources || null,
+						});
+					});
+				}
+
+				renderOrderbook();
+			}
+
+			function renderOrderbook() {
+				const sortedBids = [...orderbook.bids.values()].sort(
+					(a, b) => b[0] - a[0]
+				);
+				const sortedAsks = [...orderbook.asks.values()].sort(
+					(a, b) => a[0] - b[0]
+				);
+
+				let totalBidVolume = 0;
+				let totalAskVolume = 0;
+
+				sortedBids.forEach((data) => {
+					totalBidVolume += data.size / SIZE_SCALE;
+				});
+
+				sortedAsks.forEach((data) => {
+					totalAskVolume += data.size / SIZE_SCALE;
+				});
+
+				updateOrderbookRows(bidsTable, sortedBids, totalBidVolume, 'bid');
+				updateOrderbookRows(asksTable, sortedAsks, totalAskVolume, 'ask');
+			}
+
+			// Update the content of pre-created rows
+			function updateOrderbookRows(
+				tableElement,
+				sortedData,
+				totalVolume,
+				side
+			) {
+				const isAsk = side === 'ask';
+				const rows = tableElement.querySelectorAll('.orderbook-row');
+
+				let cumulativeSize = 0;
+				const decimalPlaces = Math.max(
+					1,
+					-Math.log10(grouping / PRICE_SCALE) - 1
+				);
+
+				for (let i = 0; i < rows.length; i++) {
+					const row = rows[i];
+					if (i < sortedData.length) {
+						const data = sortedData[i];
+						const formattedPrice = (data.price / PRICE_SCALE).toFixed(
+							decimalPlaces
+						);
+						const normalizedSize = data.size / SIZE_SCALE;
+						const formattedSize = normalizedSize.toFixed(2);
+
+						cumulativeSize += normalizedSize;
+						const formattedTotal = cumulativeSize.toFixed(2);
+
+						// Update cells
+						row.querySelector('.price-cell').textContent = formattedPrice;
+						row.querySelector('.size-cell').textContent = formattedSize;
+						row.querySelector('.total-cell').textContent = formattedTotal;
+
+						// Update depth bar - calculate as percentage of total volume for this side
+						const depthBar = row.querySelector('.depth-bar');
+						// Calculate depth based on cumulative size rather than individual size
+						// This gives a better visualization of the orderbook depth
+						let depthPercentage;
+						if (isAsk) {
+							// For asks, calculate based on cumulative total from this level down
+							depthPercentage = ((cumulativeSize / totalVolume) * 100).toFixed(
+								2
+							);
+						} else {
+							// For bids, calculate based on cumulative total from this level down
+							depthPercentage = ((cumulativeSize / totalVolume) * 100).toFixed(
+								2
+							);
+						}
+						depthBar.style.width = `${Math.min(100, depthPercentage)}%`;
+
+						// Remove empty class if present
+						row.classList.remove('empty-row');
+					} else {
+						// No data for this row, clear it
+						row.querySelector('.price-cell').textContent = '-';
+						row.querySelector('.size-cell').textContent = '-';
+						row.querySelector('.total-cell').textContent = '-';
+						row.querySelector('.depth-bar').style.width = '0%';
+
+						// Add empty class if not present
+						if (!row.classList.contains('empty-row')) {
+							row.classList.add('empty-row');
+						}
+					}
+				}
+			}
+
+			// Function to append a message to the message box
+			function appendMessage(sender, message) {
+				const messageElement = document.createElement('div');
+
+				// Add specific class for styling based on sender
+				let senderClass = '';
+				if (sender === 'Data') senderClass = 'message-init';
+				else if (sender === 'Create') senderClass = 'message-create';
+				else if (sender === 'Update') senderClass = 'message-update';
+				else if (sender === 'System') senderClass = 'message-system';
+				else if (sender === 'Error') senderClass = 'message-error';
+
+				messageElement.className = senderClass;
+
+				const timestamp = new Date().toLocaleTimeString();
+				messageElement.innerHTML = `<strong>[${timestamp}] ${sender}:</strong> ${message}`;
+				messageBox.appendChild(messageElement);
+
+				// Auto scroll to bottom
+				messageBox.scrollTop = messageBox.scrollHeight;
+
+				// Limit the number of messages to prevent browser slowdown
+				if (messageBox.children.length > 100) {
+					messageBox.removeChild(messageBox.children[0]);
+				}
+			}
+
+			// Handle paste events for testing
+			document.addEventListener('paste', (event) => {
+				const pasteData = event.clipboardData.getData('text');
+				try {
+					appendMessage('System', 'Processing pasted data');
+					const message = parseWebSocketMessage(pasteData);
+					if (message) {
+						processOrderbookData(message);
+					}
+				} catch (error) {
+					appendMessage(
+						'Error',
+						'Failed to process pasted data: ' + error.message
+					);
+				}
+			});
+
+			// Initialize and connect
+			initializeOrderbookRows();
+
+			// Setup price precision selector
+			groupingSelect.addEventListener('change', function () {
+				const newGrouping = this.value;
+
+				if (newGrouping !== grouping) {
+					unsubscribeOrderbook(grouping); 
+					grouping = newGrouping;
+					subscribeOrderbook(); 
+				}
+			});
+
+			// Initialize with default value
+			grouping = parseFloat(groupingSelect.value);
+
+			// Connect to WebSocket
+			connectWebSocket();
+		</script>
+	</body>
+</html>

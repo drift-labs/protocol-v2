@@ -1,0 +1,50 @@
+global:
+  driftEnv: mainnet-beta
+  endpoint:
+  wsEndpoint:
+
+  # Private key to use to sign transactions.
+  # will load from KEEPER_PRIVATE_KEY env var if null
+  keeperPrivateKey:
+
+  initUser: false # set to true if you are starting with a fresh keypair and want to initialize a user
+  testLiveness: false # test liveness, by failing liveness test after 1 min
+  cancelOpenOrders: false # cancel open orders on startup
+  closeOpenPositions: false # close all open positions
+
+  websocket: true # use websocket for account loading and events (limited support)
+  resubTimeoutMs: 30000
+  debug: false # Enable debug logging
+
+  # subaccountIDs to load, if null will load subaccount 0 (default).
+  subaccounts:
+    - 0
+
+  maxPriorityFeeMicroLamports: 100000
+
+# Which bots to run, be careful with this, running multiple bots in one instance
+# might use more resources than expected.
+# Bot specific configs are below
+enabledBots:
+  - jitMaker
+
+# below are bot configs
+botConfigs:
+  jitMaker:
+    botId: "jitMaker"
+    dryRun: false # no effect for jit maker
+    metricsPort: 9464
+
+    # will jit make on perp market 20 (JTO-PERP) on subaccount 0
+    marketType: "perp"
+    marketIndexes:
+      - 1
+    subaccounts:
+      - 2
+
+    # bot will try to buy 30 bps above the best bid, and sell 30 bps below the best bid.
+    aggressivenessBps: 100
+
+    # CU limit to set for jit fill, you might need to increase it
+    # if your account has many positions
+    jitCULimit: 800000

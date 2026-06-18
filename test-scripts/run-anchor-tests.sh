@@ -6,11 +6,14 @@ trap 'echo -e "\nStopped by signal $? (SIGINT)"; exit 0' INT
 export PATH="$PWD/bin:$PWD/node_modules/.bin:$PATH"
 
 if [ "$1" != "--skip-build" ]; then
-  anchor build --ignore-keys --skip-lint -- --features anchor-test &&
-    cp target/idl/velocity.json sdk/src/idl/ && cp target/types/velocity.ts sdk/src/idl/
+  anchor build --ignore-keys --skip-lint -- --features anchor-test && anchor test --skip-build --skip-local-validator --skip-deploy &&
+    cp target/idl/velocity.json packages/sdk/src/idl/ && cp target/types/velocity.ts packages/sdk/src/idl/
 else
   # --skip-build still needs the bundled SDK IDL to match the deployed program ID,
-  # otherwise tx instructions target a program that bankrun never loaded.
+  # otherwise tx instructions target a program that bankrun never loaded. With the
+  # CI program cache this dir is always populated (restored on a hit, freshly built
+  # on a miss), so a missing IDL means the caller skipped the build by mistake — fail
+  # loudly rather than silently testing against a stale bundled IDL.
   if [ ! -f target/idl/velocity.json ]; then
     echo "ERROR: target/idl/velocity.json is missing — cannot guarantee SDK IDL matches deployed program." >&2
     echo "       Run without --skip-build, or copy a fresh IDL into target/idl/ first." >&2
@@ -21,10 +24,17 @@ else
     echo "       Run without --skip-build, or copy fresh types into target/types/ first." >&2
     exit 1
   fi
-  cp target/idl/velocity.json sdk/src/idl/
-  cp target/types/velocity.ts sdk/src/idl/
-  ( cd sdk && bun run build >/dev/null )
+  cp target/idl/velocity.json packages/sdk/src/idl/
+  cp target/types/velocity.ts packages/sdk/src/idl/
 fi
+
+# Build the SDK in both paths: many test files import the package root
+# (`from '../packages/sdk'`), which resolves through package.json `main` to
+# packages/sdk/lib/node/index.js. ts-mocha only transpiles the
+# `../packages/sdk/src/...` imports on the fly, so without this build those
+# bare-package imports fail with MODULE_NOT_FOUND in CI. Runs after the IDL is
+# synced into src/idl/ above so lib/ reflects the freshly-built program.
+( cd packages/sdk && bun run build >/dev/null )
 
 export ANCHOR_WALLET=~/.config/solana/id.json
 
@@ -179,7 +189,7 @@ for test_file in "${test_files[@]}"; do
     [ $overall_failed -eq 1 ] && break 2
   done
   log="$tmpdir/${test_file}"
-  ts-mocha --exit -t 300000 "./tests/$test_file" >"$log" 2>&1 &
+  ts-mocha --exit -t 300000 "./tests/velocity/$test_file" >"$log" 2>&1 &
   q_pids+=($!)
   q_files+=("$test_file")
   q_logs+=("$log")
