@@ -18,6 +18,9 @@ ARG APP_START=dist/index.js
 
 FROM oven/bun:1.3.13 AS builder
 WORKDIR /app
+# Disable Turborepo anonymous telemetry for the image build.
+ENV TURBO_TELEMETRY_DISABLED=1 \
+    DO_NOT_TRACK=1
 # bunfig.toml carries the supply-chain install policy (exact pins,
 # minimumReleaseAge) — copy it so the image build is governed by it too.
 COPY package.json bun.lock bunfig.toml turbo.json ./
