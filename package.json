@@ -85,6 +85,8 @@
 		"node": ">=12"
 	},
 	"resolutions": {
+		"@opentelemetry/auto-instrumentations-node": "0.62.2",
+		"@opentelemetry/api": "1.7.0",
 		"@solana/web3.js": "1.98.0",
 		"chalk": "4.1.2",
 		"debug": "<4.4.2",
@@ -106,6 +108,8 @@
 		"has-ansi": "<6.0.1"
 	},
 	"overrides": {
+		"@opentelemetry/auto-instrumentations-node": "0.62.2",
+		"@opentelemetry/api": "1.7.0",
 		"@solana/web3.js": "1.98.0",
 		"chalk": "4.1.2",
 		"debug": "<4.4.2",

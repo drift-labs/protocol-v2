@@ -51,7 +51,7 @@ import {
 	TransactionExpiredBlockheightExceededError,
 	TransactionInstruction,
 } from '@solana/web3.js';
-import { ENUM_UTILS } from '@drift-labs/common';
+import { ENUM_UTILS } from '@velocity-exchange/common';
 
 // =============================================================================
 // CONSTANTS

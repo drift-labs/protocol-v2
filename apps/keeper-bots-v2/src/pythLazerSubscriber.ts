@@ -1,6 +1,6 @@
 import { Channel, PythLazerClient } from '@pythnetwork/pyth-lazer-sdk';
 import { VelocityEnv, PerpMarkets } from '@velocity-exchange/sdk';
-import { RedisClient } from '@drift-labs/common/clients';
+import { RedisClient } from '@velocity-exchange/common/clients';
 import * as axios from 'axios';
 
 export type PythLazerPriceFeedArray = {

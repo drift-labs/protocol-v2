@@ -294,7 +294,7 @@ jobs:
           bunx turbo run test
           --filter='./packages/*' --filter='!@velocity-exchange/sdk'
           --filter=@velocity-exchange/dlob-server
-          --filter=@drift-labs/keeper-bots-v2
+          --filter=@velocity-exchange/keeper-bots-v2
   sdk-tests:
     name: SDK offline tests (@velocity-exchange/sdk)
     runs-on: ubicloud
@@ -736,7 +736,7 @@ jobs:
           - {
               app: keeper-bots-v2,
               path: apps/keeper-bots-v2,
-              scope: '@drift-labs/keeper-bots-v2',
+              scope: '@velocity-exchange/keeper-bots-v2',
               out: lib,
               start: lib/index.js,
             }
