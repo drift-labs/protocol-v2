@@ -252,6 +252,11 @@ const defaultConfig: Partial<Config> = {
 		priorityFeeMultiplier: 1.0,
 		keeperPrivateKey: process.env.KEEPER_PRIVATE_KEY,
 
+		// Pyth Lazer token is a secret, injected via the PYTH_LAZER_TOKEN env
+		// (loadConfigFromFile does no env interpolation, so the YAML config can't
+		// carry it without committing the secret). Same pattern as keeperPrivateKey.
+		lazerToken: process.env.PYTH_LAZER_TOKEN,
+
 		useJito: false,
 		jitoStrategy: 'jito-only',
 		jitoMinBundleTip: 10_000,
