@@ -71,6 +71,7 @@ import {
 	AssetTier,
 	BASE_PRECISION,
 	ContractTier,
+	HotRole,
 	VELOCITY_DEVNET_PROGRAM_ID,
 	OracleSource,
 	PEG_PRECISION,
@@ -129,6 +130,34 @@ const USDT_DECIMALS = 6;
 const WRAPPED_SOL_MINT = new PublicKey(
 	'So11111111111111111111111111111111111111112'
 );
+// Devnet hot-admin authorities. The native high-frequency cranks assert
+// signer == State.hot_<role> before doing work, so each role must hold the key
+// the corresponding bot/keeper signs with or the crank panics. Values are the
+// non-mainnet-beta keys from drift-labs/protocol-v2 ids.rs (the velocity bots
+// reuse them). Roles with no dedicated wallet there default to admin_hot_wallet.
+const ADMIN_HOT_WALLET = '1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N';
+const MM_ORACLE_CRANK_WALLET = '8X35rQUK2u9hfn8rMPwwr6ZSEUhbmfDPEapp589XyoM1';
+const LP_POOL_SWAP_WALLET = '25qbsE2oWri76c9a86ubn17NKKdo6Am4HXD2Jm8vT8K4';
+const LP_POOL_HOT_WALLET = 'GP9qHLX8rx4BgRULGPV1poWQPdGuzbxGbvTB12DfmwFk';
+
+// HotRole -> (decoded-State field, authority). Each pubkey overridable via env.
+const HOT_ROLE_CONFIG: Array<{
+	role: HotRole;
+	field: string;
+	pubkey: PublicKey;
+}> = [
+	{ role: HotRole.MmOracleCrank, field: 'hotMmOracleCrank', pubkey: new PublicKey(process.env.HOT_MM_ORACLE_CRANK ?? MM_ORACLE_CRANK_WALLET) },
+	{ role: HotRole.AmmSpreadAdjust, field: 'hotAmmSpreadAdjust', pubkey: new PublicKey(process.env.HOT_AMM_SPREAD_ADJUST ?? ADMIN_HOT_WALLET) },
+	{ role: HotRole.LpSwap, field: 'hotLpSwap', pubkey: new PublicKey(process.env.HOT_LP_SWAP ?? LP_POOL_SWAP_WALLET) },
+	{ role: HotRole.LpCache, field: 'hotLpCache', pubkey: new PublicKey(process.env.HOT_LP_CACHE ?? LP_POOL_HOT_WALLET) },
+	{ role: HotRole.LpSettle, field: 'hotLpSettle', pubkey: new PublicKey(process.env.HOT_LP_SETTLE ?? LP_POOL_HOT_WALLET) },
+	{ role: HotRole.AmmCrank, field: 'hotAmmCrank', pubkey: new PublicKey(process.env.HOT_AMM_CRANK ?? ADMIN_HOT_WALLET) },
+	{ role: HotRole.FeatureFlag, field: 'hotFeatureFlag', pubkey: new PublicKey(process.env.HOT_FEATURE_FLAG ?? ADMIN_HOT_WALLET) },
+	{ role: HotRole.Fuel, field: 'hotFuel', pubkey: new PublicKey(process.env.HOT_FUEL ?? ADMIN_HOT_WALLET) },
+	{ role: HotRole.UserFlag, field: 'hotUserFlag', pubkey: new PublicKey(process.env.HOT_USER_FLAG ?? ADMIN_HOT_WALLET) },
+	{ role: HotRole.VaultDeposit, field: 'hotVaultDeposit', pubkey: new PublicKey(process.env.HOT_VAULT_DEPOSIT ?? ADMIN_HOT_WALLET) },
+	{ role: HotRole.FeeWithdraw, field: 'hotFeeWithdraw', pubkey: new PublicKey(process.env.HOT_FEE_WITHDRAW ?? ADMIN_HOT_WALLET) },
+];
 
 function getFaucetConfigPda(
 	programId: PublicKey,
@@ -537,6 +566,35 @@ async function main() {
 	// subscribe now that State exists; AdminClient method-level code paths
 	// expect this.getStateAccount() to be hydrated for subsequent calls.
 	await client.subscribe();
+
+	// === Phase A.1b: native-crank authorities + feature flags ===
+	// Native high-frequency cranks assert against State before doing any work, so
+	// a freshly-initialized State (all zero) makes every crank panic:
+	//   - mm-oracle (dispatcher opcode 0): gated on feature_bit_flags bit0 AND
+	//     signer == hot_mm_oracle_crank
+	//   - the rest: gated on signer == State.hot_<role>
+	// Set every hot role to its devnet keeper authority and enable the mm-oracle
+	// feature. Idempotent: reads the decoded State and only sends a tx when the
+	// on-chain value differs, so re-running is a no-op.
+	{
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const stateAcc = client.getStateAccount() as unknown as Record<string, any>;
+		if ((Number(stateAcc.featureBitFlags) & 1) === 0) {
+			logStep('updateFeatureBitFlagsMMOracle(enable=true)');
+			await client.updateFeatureBitFlagsMMOracle(true);
+		} else {
+			logStep('mm-oracle feature bit already enabled');
+		}
+		for (const { role, field, pubkey } of HOT_ROLE_CONFIG) {
+			const current = stateAcc[field] as PublicKey | undefined;
+			if (!current || !current.equals(pubkey)) {
+				logStep(`updateHotAdmin(${role})`, pubkey.toBase58());
+				await client.updateHotAdmin(role, pubkey);
+			} else {
+				logStep(`hot ${role} already set`, pubkey.toBase58());
+			}
+		}
+	}
 
 	// === Phase A.2: AmmCache ===
 	const ammCachePk = getAmmCachePublicKey(programId);
