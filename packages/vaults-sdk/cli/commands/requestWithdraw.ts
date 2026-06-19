@@ -19,7 +19,7 @@ export const requestWithdraw = async (
 		}
 	}
 
-	const { driftVault, driftClient } = await getCommandContext(program, true);
+	const { velocityVault, velocityClient } = await getCommandContext(program, true);
 
 	let vaultDepositorAddress: PublicKey;
 	if (cmdOpts.vaultDepositorAddress) {
@@ -43,7 +43,7 @@ export const requestWithdraw = async (
 
 	const withdrawAmountBN = new BN(cmdOpts.amount);
 
-	const tx = await driftVault.requestWithdraw(
+	const tx = await velocityVault.requestWithdraw(
 		vaultDepositorAddress,
 		withdrawAmountBN,
 		WithdrawUnit.SHARES
@@ -52,7 +52,7 @@ export const requestWithdraw = async (
 		`Requested to withdraw ${
 			cmdOpts.amount
 		} shares from the vault: https://solana.fm/tx/${tx}${
-			driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+			velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 		}`
 	);
 };

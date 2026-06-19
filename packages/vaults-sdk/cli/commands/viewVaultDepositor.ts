@@ -11,7 +11,7 @@ export const viewVaultDepositor = async (program: Command, cmdOpts: OptionValues
     let vaultDepositorAddress: PublicKey;
 
     const {
-        driftVault
+        velocityVault
     } = await getCommandContext(program, false);
 
     try {
@@ -19,7 +19,7 @@ export const viewVaultDepositor = async (program: Command, cmdOpts: OptionValues
             vaultDepositorAddress = new PublicKey(cmdOpts.vaultDepositorAddress as string);
         } else if (cmdOpts.authority !== undefined && cmdOpts.vaultAddress !== undefined) {
             vaultDepositorAddress = getVaultDepositorAddressSync(
-                driftVault.program.programId,
+                velocityVault.program.programId,
                 new PublicKey(cmdOpts.vaultAddress as string),
                 new PublicKey(cmdOpts.authority as string));
         } else {
@@ -31,6 +31,6 @@ export const viewVaultDepositor = async (program: Command, cmdOpts: OptionValues
         process.exit(1);
     }
 
-    const vaultDepositor = await driftVault.getVaultDepositor(vaultDepositorAddress);
+    const vaultDepositor = await velocityVault.getVaultDepositor(vaultDepositorAddress);
     printVaultDepositor(vaultDepositor);
 };

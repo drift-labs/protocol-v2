@@ -24,11 +24,11 @@ export const managerUpdateVaultManager = async (program: Command, cmdOpts: Optio
     }
 
     const {
-        driftVault,
-        driftClient,
+        velocityVault,
+        velocityClient,
     } = await getCommandContext(program, true);
 
-    const vault = await driftVault.getVault(vaultAddress);
+    const vault = await velocityVault.getVault(vaultAddress);
 
     console.log(`Updating vault manager:`);
     console.log(`  Current manager: ${vault.manager.toString()}`);
@@ -55,11 +55,11 @@ export const managerUpdateVaultManager = async (program: Command, cmdOpts: Optio
     while (!done) {
         try {
             if (cmdOpts.dumpTransactionMessage) {
-                const tx = await driftVault.getManagerUpdateVaultManagerIx(vaultAddress, manager);
-                console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+                const tx = await velocityVault.getManagerUpdateVaultManagerIx(vaultAddress, manager);
+                console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
             } else {
-                const tx = await driftVault.managerUpdateVaultManager(vaultAddress, manager);
-                console.log(`Updated vault manager: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+                const tx = await velocityVault.managerUpdateVaultManager(vaultAddress, manager);
+                console.log(`Updated vault manager: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
                 done = true;
             }
             break;

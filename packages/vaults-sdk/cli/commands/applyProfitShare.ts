@@ -24,19 +24,19 @@ export const applyProfitShare = async (
 		process.exit(1);
 	}
 
-	const { driftVault, driftClient, wallet } = await getCommandContext(
+	const { velocityVault, velocityClient, wallet } = await getCommandContext(
 		program,
 		true
 	);
 
-	const vault = await driftVault.getVault(vaultAddress);
+	const vault = await velocityVault.getVault(vaultAddress);
 	const vdWithNoWithdrawRequests =
-		await driftVault.getAllVaultDepositorsWithNoWithdrawRequest(vaultAddress);
-	const vaultEquitySpot = await driftVault.calculateVaultEquityInDepositAsset({
+		await velocityVault.getAllVaultDepositorsWithNoWithdrawRequest(vaultAddress);
+	const vaultEquitySpot = await velocityVault.calculateVaultEquityInDepositAsset({
 		vault,
 	});
 
-	const spotMarket = driftClient.getSpotMarketAccount(vault.spotMarketIndex);
+	const spotMarket = velocityClient.getSpotMarketAccount(vault.spotMarketIndex);
 	if (!spotMarket) {
 		throw new Error(
 			`Spot market account ${vault.spotMarketIndex} has not been loaded`
@@ -85,7 +85,7 @@ export const applyProfitShare = async (
 		const chunk = vdWithPendingProfitShare.slice(i, i + chunkSize);
 		const ixs = await Promise.all(
 			chunk.map((vd: ProgramAccount<VaultDepositor>) => {
-				return driftVault.getApplyProfitShareIx(vaultAddress, vd.publicKey);
+				return velocityVault.getApplyProfitShareIx(vaultAddress, vd.publicKey);
 			})
 		);
 
@@ -109,9 +109,9 @@ export const applyProfitShare = async (
 			);
 
 			const message = new TransactionMessage({
-				payerKey: driftClient.wallet.publicKey,
+				payerKey: velocityClient.wallet.publicKey,
 				recentBlockhash: (
-					await driftClient.connection.getLatestBlockhash('finalized')
+					await velocityClient.connection.getLatestBlockhash('finalized')
 				).blockhash,
 				instructions: ixs,
 			}).compileToV0Message();
@@ -121,10 +121,10 @@ export const applyProfitShare = async (
 			);
 
 			try {
-				const txid = await driftClient.connection.sendTransaction(tx);
+				const txid = await velocityClient.connection.sendTransaction(tx);
 				console.log(
 					`Sent chunk: https://solana.fm/tx/${txid}${
-						driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+						velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 					}`
 				);
 			} catch (e) {

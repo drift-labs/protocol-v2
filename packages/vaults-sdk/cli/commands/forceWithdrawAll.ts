@@ -27,16 +27,16 @@ export const forceWithdrawAll = async (
 		throw new Error('Failed to derive vault depositor address');
 	}
 
-	const { driftVault, driftClient, wallet } = await getCommandContext(
+	const { velocityVault, velocityClient, wallet } = await getCommandContext(
 		program,
 		true
 	);
 
-	const vault = await driftVault.getVault(vaultAddress);
-	const allVaultDepositors = await driftVault.getAllVaultDepositors(
+	const vault = await velocityVault.getVault(vaultAddress);
+	const allVaultDepositors = await velocityVault.getAllVaultDepositors(
 		vaultAddress
 	);
-	const spotMarket = driftVault.driftClient.getSpotMarketAccount(
+	const spotMarket = velocityVault.velocityClient.getSpotMarketAccount(
 		vault.spotMarketIndex
 	);
 	const spotPrecision = new BN(10).pow(new BN(spotMarket!.decimals));
@@ -79,7 +79,7 @@ export const forceWithdrawAll = async (
 	}
 
 	console.log(`Withdrawing ${withdrawables.length} depositors`);
-	const luts = await driftClient.fetchAllLookupTableAccounts();
+	const luts = await velocityClient.fetchAllLookupTableAccounts();
 	const chunkSize = 1;
 	for (let i = 0; i < withdrawables.length; i += chunkSize) {
 		const chunk = withdrawables.slice(i, i + chunkSize);
@@ -98,7 +98,7 @@ export const forceWithdrawAll = async (
 		for (const depositorAddress of chunk) {
 			try {
 				console.log(`Trying deposit: ${depositorAddress.toBase58()}`);
-				ixs.push(...(await driftVault.getForceWithdrawIx(depositorAddress)));
+				ixs.push(...(await velocityVault.getForceWithdrawIx(depositorAddress)));
 			} catch (error) {
 				console.error(
 					`Error withdrawing for ${depositorAddress.toBase58()}:`,
@@ -108,9 +108,9 @@ export const forceWithdrawAll = async (
 		}
 
 		const message = new TransactionMessage({
-			payerKey: driftClient.wallet.publicKey,
+			payerKey: velocityClient.wallet.publicKey,
 			recentBlockhash: (
-				await driftClient.connection.getLatestBlockhash('finalized')
+				await velocityClient.connection.getLatestBlockhash('finalized')
 			).blockhash,
 			instructions: [
 				ComputeBudgetProgram.setComputeUnitLimit({
@@ -129,7 +129,7 @@ export const forceWithdrawAll = async (
 
 		console.log(`Sending chunk: ${bs58.encode(tx.signatures[0])}`);
 		try {
-			const txid = await driftClient.connection.sendTransaction(tx);
+			const txid = await velocityClient.connection.sendTransaction(tx);
 			console.log(`Sent chunk: https://solana.fm/tx/${txid}`);
 		} catch (e) {
 			console.error(`Error sending chunk: ${e}`);
@@ -137,6 +137,6 @@ export const forceWithdrawAll = async (
 		}
 	}
 
-	// const tx = await driftVault.forceWithdraw(vaultDepositorAddress);
+	// const tx = await velocityVault.forceWithdraw(vaultDepositorAddress);
 	// console.log(`Forced withdraw from vault: ${tx}`);
 };

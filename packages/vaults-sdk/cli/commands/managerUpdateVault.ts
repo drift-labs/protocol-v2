@@ -21,10 +21,10 @@ export const managerUpdateVault = async (
 		process.exit(1);
 	}
 
-	const { driftVault, driftClient } = await getCommandContext(program, true);
+	const { velocityVault, velocityClient } = await getCommandContext(program, true);
 
-	const vault = await driftVault.getVault(vaultAddress);
-	const spotMarket = driftClient.getSpotMarketAccount(vault.spotMarketIndex);
+	const vault = await velocityVault.getVault(vaultAddress);
+	const spotMarket = velocityClient.getSpotMarketAccount(vault.spotMarketIndex);
 	if (!spotMarket) {
 		throw new Error('No spot market found');
 	}
@@ -181,16 +181,16 @@ export const managerUpdateVault = async (
 	while (!done) {
 		try {
 			if (cmdOpts.dumpTransactionMessage) {
-				const tx = await driftVault.getManagerUpdateVaultIx(
+				const tx = await velocityVault.getManagerUpdateVaultIx(
 					vaultAddress,
 					newParams
 				);
-				console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+				console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
 			} else {
-				const tx = await driftVault.managerUpdateVault(vaultAddress, newParams);
+				const tx = await velocityVault.managerUpdateVault(vaultAddress, newParams);
 				console.log(
 					`Updated vault params as vault manager: https://solana.fm/tx/${tx}${
-						driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+						velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 					}`
 				);
 				done = true;

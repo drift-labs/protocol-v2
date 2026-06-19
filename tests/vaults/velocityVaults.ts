@@ -21,7 +21,7 @@ import {
 	calculatePositionPNL,
 	getInsuranceFundStakeAccountPublicKey,
 	InsuranceFundStake,
-	VelocityClient as DriftClient,
+	VelocityClient,
 	OracleInfo,
 	PERCENTAGE_PRECISION,
 	TWO,
@@ -57,7 +57,7 @@ import {
 	getVaultAddressSync,
 	getVaultDepositorAddressSync,
 	encodeName,
-	Vaults as DriftVaults,
+	Vaults,
 	VaultProtocolParams,
 	getVaultProtocolAddressSync,
 	WithdrawUnit,
@@ -115,7 +115,7 @@ async function bootstrapBankrun(): Promise<{
 	bankrunContextWrapper: BankrunContextWrapper;
 	bulkAccountLoader: TestBulkAccountLoader;
 	adminClient: AdminClient;
-	program: Program<DriftVaults>;
+	program: Program<Vaults>;
 	usdcMint: Keypair;
 	solPerpOracle: PublicKey;
 	metaplex: Metaplex;
@@ -139,7 +139,7 @@ async function bootstrapBankrun(): Promise<{
 	);
 
 	const wallet = bankrunContextWrapper.provider.wallet as Wallet;
-	const program = new Program<DriftVaults>(
+	const program = new Program<Vaults>(
 		IDL,
 		new BankrunProvider(context, wallet)
 	);
@@ -204,14 +204,14 @@ async function bootstrapBankrun(): Promise<{
 	};
 }
 
-describe('driftVaults', () => {
+describe('velocityVaults', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let connection: ReturnType<
 		BankrunContextWrapper['connection']['toConnection']
 	>;
 	let adminClient: AdminClient;
-	let program: Program<DriftVaults>;
+	let program: Program<Vaults>;
 	let usdcMint: Keypair;
 
 	let _manager: Keypair;
@@ -242,7 +242,7 @@ describe('driftVaults', () => {
 
 		vault = getVaultAddressSync(program.programId, encodeName(vaultName));
 
-		const driftClientConfig = {
+		const velocityClientConfig = {
 			accountSubscription: {
 				type: 'polling' as const,
 				accountLoader: bulkAccountLoader as BulkAccountLoader,
@@ -262,7 +262,7 @@ describe('driftVaults', () => {
 			usdcMint,
 			usdcAmount,
 			vaultClientCliMode: true,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		_manager = bootstrapManager.signer;
 		managerClient = bootstrapManager.vaultClient;
@@ -277,7 +277,7 @@ describe('driftVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			skipUser: true,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		_delegate = bootstrapDelegate.signer;
 		delegateClient = bootstrapDelegate.vaultClient;
@@ -292,7 +292,7 @@ describe('driftVaults', () => {
 			vaultClientCliMode: true,
 			skipUser: true,
 			depositCollateral: false,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd2 = bootstrapVD2.signer;
 		vd2Client = bootstrapVD2.vaultClient;
@@ -304,9 +304,9 @@ describe('driftVaults', () => {
 	after(async () => {
 		await adminClient.unsubscribe();
 
-		await managerClient.driftClient.unsubscribe();
-		await vd2Client.driftClient.unsubscribe();
-		await delegateClient.driftClient.unsubscribe();
+		await managerClient.velocityClient.unsubscribe();
+		await vd2Client.velocityClient.unsubscribe();
+		await delegateClient.velocityClient.unsubscribe();
 
 		await managerUser.unsubscribe();
 
@@ -363,7 +363,7 @@ describe('driftVaults', () => {
 			vault,
 			vd2.publicKey
 		);
-		const remainingAccounts = vd2Client.driftClient.getRemainingAccounts({
+		const remainingAccounts = vd2Client.velocityClient.getRemainingAccounts({
 			userAccounts: [],
 			writableSpotMarketIndexes: [0],
 		});
@@ -396,7 +396,7 @@ describe('driftVaults', () => {
 			vault,
 			vd2.publicKey
 		);
-		const remainingAccounts = vd2Client.driftClient.getRemainingAccounts({
+		const remainingAccounts = vd2Client.velocityClient.getRemainingAccounts({
 			userAccounts: [],
 			writableSpotMarketIndexes: [0],
 		});
@@ -494,7 +494,7 @@ describe('TestProtocolVaults', () => {
 		BankrunContextWrapper['connection']['toConnection']
 	>;
 	let adminClient: AdminClient;
-	let program: Program<DriftVaults>;
+	let program: Program<Vaults>;
 	let usdcMint: Keypair;
 
 	let manager: Keypair;
@@ -544,7 +544,7 @@ describe('TestProtocolVaults', () => {
 			encodeName(protocolVaultName)
 		);
 
-		const driftClientConfig = {
+		const velocityClientConfig = {
 			accountSubscription: {
 				type: 'polling' as const,
 				accountLoader: bulkAccountLoader as BulkAccountLoader,
@@ -564,7 +564,7 @@ describe('TestProtocolVaults', () => {
 			usdcMint,
 			usdcAmount,
 			vaultClientCliMode: true,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		manager = bootstrapManager.signer;
 		managerClient = bootstrapManager.vaultClient;
@@ -579,7 +579,7 @@ describe('TestProtocolVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			skipUser: true,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		delegate = bootstrapDelegate.signer;
 		delegateClient = bootstrapDelegate.vaultClient;
@@ -593,7 +593,7 @@ describe('TestProtocolVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			depositCollateral: true,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		fillerClient = bootstrapFiller.vaultClient;
 		fillerUser = bootstrapFiller.user;
@@ -607,7 +607,7 @@ describe('TestProtocolVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			depositCollateral: false,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd = bootstrapVD.signer;
 		vdClient = bootstrapVD.vaultClient;
@@ -623,7 +623,7 @@ describe('TestProtocolVaults', () => {
 			vaultClientCliMode: true,
 			skipUser: true,
 			depositCollateral: false,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd2Client = bootstrapVD2.vaultClient;
 
@@ -636,7 +636,7 @@ describe('TestProtocolVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			skipUser: true,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		protocol = bootstrapProtocol.signer;
 		protocolClient = bootstrapProtocol.vaultClient;
@@ -648,12 +648,12 @@ describe('TestProtocolVaults', () => {
 	after(async () => {
 		await adminClient.unsubscribe();
 
-		await managerClient.driftClient.unsubscribe();
-		await fillerClient.driftClient.unsubscribe();
-		await vdClient.driftClient.unsubscribe();
-		await vd2Client.driftClient.unsubscribe();
-		await delegateClient.driftClient.unsubscribe();
-		await protocolClient.driftClient.unsubscribe();
+		await managerClient.velocityClient.unsubscribe();
+		await fillerClient.velocityClient.unsubscribe();
+		await vdClient.velocityClient.unsubscribe();
+		await vd2Client.velocityClient.unsubscribe();
+		await delegateClient.velocityClient.unsubscribe();
+		await protocolClient.velocityClient.unsubscribe();
 
 		await managerUser.unsubscribe();
 
@@ -747,7 +747,7 @@ describe('TestProtocolVaults', () => {
 			protocolVault,
 			vd.publicKey
 		);
-		const remainingAccounts = vdClient.driftClient.getRemainingAccounts({
+		const remainingAccounts = vdClient.velocityClient.getRemainingAccounts({
 			userAccounts: [],
 			writableSpotMarketIndexes: [0],
 		});
@@ -787,12 +787,12 @@ describe('TestProtocolVaults', () => {
 		// use getUserAccountsForDelegate (getProgramAccounts) — fetch the known
 		// vault user PDA directly instead.
 		const vaultUserKey = await getUserAccountPublicKey(
-			delegateClient.driftClient.program.programId,
+			delegateClient.velocityClient.program.programId,
 			protocolVault,
 			0
 		);
 		const vaultUserAcct =
-			(await delegateClient.driftClient.program.account.user.fetch(
+			(await delegateClient.velocityClient.program.account.user.fetch(
 				vaultUserKey
 			)) as unknown as UserAccount;
 		assert(vaultUserAcct.authority.equals(protocolVault));
@@ -806,11 +806,15 @@ describe('TestProtocolVaults', () => {
 		const marketIndex = 0;
 
 		// delegate assumes control of vault user
-		await delegateClient.driftClient.addUser(0, protocolVault, vaultUserAcct);
-		await delegateClient.driftClient.switchActiveUser(0, protocolVault);
+		await delegateClient.velocityClient.addUser(
+			0,
+			protocolVault,
+			vaultUserAcct
+		);
+		await delegateClient.velocityClient.switchActiveUser(0, protocolVault);
 		console.log('delegate assumed control of protocol vault user');
 
-		const delegateActiveUser = delegateClient.driftClient.getUser(
+		const delegateActiveUser = delegateClient.velocityClient.getUser(
 			0,
 			protocolVault
 		);
@@ -819,7 +823,7 @@ describe('TestProtocolVaults', () => {
 			'delegate active user is not vault user'
 		);
 
-		const fillerUser = fillerClient.driftClient.getUser();
+		const fillerUser = fillerClient.velocityClient.getUser();
 
 		try {
 			// manager places long order and waits to be filler by the filler
@@ -838,7 +842,7 @@ describe('TestProtocolVaults', () => {
 				userOrderId: 1,
 				postOnly: PostOnlyParams.NONE,
 			});
-			await fillerClient.driftClient.placePerpOrder(takerOrderParams);
+			await fillerClient.velocityClient.placePerpOrder(takerOrderParams);
 		} catch (e) {
 			console.log('filler failed to short:', e);
 		}
@@ -861,44 +865,44 @@ describe('TestProtocolVaults', () => {
 				marketType: MarketType.PERP,
 			});
 			const userStatsPublicKey =
-				delegateClient.driftClient.getUserStatsAccountPublicKey();
+				delegateClient.velocityClient.getUserStatsAccountPublicKey();
 
-			const remainingAccounts = delegateClient.driftClient.getRemainingAccounts(
-				{
+			const remainingAccounts =
+				delegateClient.velocityClient.getRemainingAccounts({
 					userAccounts: [
 						delegateActiveUser.getUserAccount(),
 						fillerUser.getUserAccount(),
 					],
 					useMarketLastSlotCache: true,
 					writablePerpMarketIndexes: [orderParams.marketIndex],
-				}
-			);
+				});
 
 			const takerOrderId = order.orderId;
 			const placeAndMakeOrderIx =
-				await delegateClient.driftClient.program.methods
+				await delegateClient.velocityClient.program.methods
 					.placeAndMakePerpOrder(orderParams, takerOrderId)
 					.accounts({
-						state: await delegateClient.driftClient.getStatePublicKey(),
+						state: await delegateClient.velocityClient.getStatePublicKey(),
 						user: delegateActiveUser.userAccountPublicKey,
 						userStats: userStatsPublicKey,
 						taker: fillerUser.userAccountPublicKey,
-						takerStats: fillerClient.driftClient.getUserStatsAccountPublicKey(),
-						authority: delegateClient.driftClient.wallet.publicKey,
+						takerStats:
+							fillerClient.velocityClient.getUserStatsAccountPublicKey(),
+						authority: delegateClient.velocityClient.wallet.publicKey,
 					})
 					.remainingAccounts(remainingAccounts)
 					.instruction();
 
-			const { slot } = await delegateClient.driftClient.sendTransaction(
-				await delegateClient.driftClient.buildTransaction(
+			const { slot } = await delegateClient.velocityClient.sendTransaction(
+				await delegateClient.velocityClient.buildTransaction(
 					placeAndMakeOrderIx,
-					delegateClient.driftClient.txParams
+					delegateClient.velocityClient.txParams
 				),
 				[],
-				delegateClient.driftClient.opts
+				delegateClient.velocityClient.opts
 			);
 
-			delegateClient.driftClient.perpMarketLastSlotCache.set(
+			delegateClient.velocityClient.perpMarketLastSlotCache.set(
 				orderParams.marketIndex,
 				slot
 			);
@@ -968,11 +972,11 @@ describe('TestProtocolVaults', () => {
 	it('Short SOL-PERP', async () => {
 		const marketIndex = 0;
 
-		const delegateActiveUser = delegateClient.driftClient.getUser(
+		const delegateActiveUser = delegateClient.velocityClient.getUser(
 			0,
 			protocolVault
 		);
-		const fillerUser = fillerClient.driftClient.getUser();
+		const fillerUser = fillerClient.velocityClient.getUser();
 
 		try {
 			// manager places long order and waits to be filler by the filler
@@ -991,7 +995,7 @@ describe('TestProtocolVaults', () => {
 				userOrderId: 1,
 				postOnly: PostOnlyParams.NONE,
 			});
-			await fillerClient.driftClient.placePerpOrder(takerOrderParams);
+			await fillerClient.velocityClient.placePerpOrder(takerOrderParams);
 		} catch (e) {
 			console.log('filler failed to long:', e);
 		}
@@ -1014,44 +1018,44 @@ describe('TestProtocolVaults', () => {
 				marketType: MarketType.PERP,
 			});
 			const userStatsPublicKey =
-				delegateClient.driftClient.getUserStatsAccountPublicKey();
+				delegateClient.velocityClient.getUserStatsAccountPublicKey();
 
-			const remainingAccounts = delegateClient.driftClient.getRemainingAccounts(
-				{
+			const remainingAccounts =
+				delegateClient.velocityClient.getRemainingAccounts({
 					userAccounts: [
 						delegateActiveUser.getUserAccount(),
 						fillerUser.getUserAccount(),
 					],
 					useMarketLastSlotCache: true,
 					writablePerpMarketIndexes: [orderParams.marketIndex],
-				}
-			);
+				});
 
 			const takerOrderId = order.orderId;
 			const placeAndMakeOrderIx =
-				await delegateClient.driftClient.program.methods
+				await delegateClient.velocityClient.program.methods
 					.placeAndMakePerpOrder(orderParams, takerOrderId)
 					.accounts({
-						state: await delegateClient.driftClient.getStatePublicKey(),
+						state: await delegateClient.velocityClient.getStatePublicKey(),
 						user: delegateActiveUser.userAccountPublicKey,
 						userStats: userStatsPublicKey,
 						taker: fillerUser.userAccountPublicKey,
-						takerStats: fillerClient.driftClient.getUserStatsAccountPublicKey(),
-						authority: delegateClient.driftClient.wallet.publicKey,
+						takerStats:
+							fillerClient.velocityClient.getUserStatsAccountPublicKey(),
+						authority: delegateClient.velocityClient.wallet.publicKey,
 					})
 					.remainingAccounts(remainingAccounts)
 					.instruction();
 
-			const { slot } = await delegateClient.driftClient.sendTransaction(
-				await delegateClient.driftClient.buildTransaction(
+			const { slot } = await delegateClient.velocityClient.sendTransaction(
+				await delegateClient.velocityClient.buildTransaction(
 					placeAndMakeOrderIx,
-					delegateClient.driftClient.txParams
+					delegateClient.velocityClient.txParams
 				),
 				[],
-				delegateClient.driftClient.opts
+				delegateClient.velocityClient.opts
 			);
 
-			delegateClient.driftClient.perpMarketLastSlotCache.set(
+			delegateClient.velocityClient.perpMarketLastSlotCache.set(
 				orderParams.marketIndex,
 				slot
 			);
@@ -1069,7 +1073,7 @@ describe('TestProtocolVaults', () => {
 	});
 
 	it('Settle Pnl', async () => {
-		const vaultUser = delegateClient.driftClient.getUser(0, protocolVault);
+		const vaultUser = delegateClient.velocityClient.getUser(0, protocolVault);
 		const uA = vaultUser.getUserAccount();
 		assert(uA.idle === false);
 		const solPerpPos = vaultUser.getPerpPosition(0);
@@ -1087,7 +1091,8 @@ describe('TestProtocolVaults', () => {
 		);
 		assert(usdcAmount.eq(vaultUser.getFreeCollateral()));
 
-		const solPrice = delegateClient.driftClient.getOracleDataForPerpMarket(0);
+		const solPrice =
+			delegateClient.velocityClient.getOracleDataForPerpMarket(0);
 		console.log(
 			'SOL price:',
 			solPrice.price.toNumber() / PRICE_PRECISION.toNumber()
@@ -1097,7 +1102,7 @@ describe('TestProtocolVaults', () => {
 				solPrice.price.toNumber() / PRICE_PRECISION.toNumber()
 		);
 
-		const solPerpMarket = delegateClient.driftClient.getPerpMarketAccount(0);
+		const solPerpMarket = delegateClient.velocityClient.getPerpMarketAccount(0);
 		const pnl =
 			calculatePositionPNL(
 				solPerpMarket,
@@ -1118,7 +1123,7 @@ describe('TestProtocolVaults', () => {
 
 		await fillerUser.fetchAccounts();
 		await vaultUser.fetchAccounts();
-		await delegateClient.driftClient.fetchAccounts();
+		await delegateClient.velocityClient.fetchAccounts();
 
 		try {
 			// settle_pnl requires the AMM to have been updated in the same slot
@@ -1127,7 +1132,7 @@ describe('TestProtocolVaults', () => {
 			// separate tx would leave the AMM stale by the time settle runs.
 			// Instead prepend the AMM-update ix into the SAME transaction as each
 			// settle so both execute in one slot.
-			const dc = delegateClient.driftClient;
+			const dc = delegateClient.velocityClient;
 			const updateAmmIx = await dc.getUpdateAMMsIx([0]);
 
 			// settle market maker who lost trade and pays taker fees
@@ -1160,8 +1165,8 @@ describe('TestProtocolVaults', () => {
 		}
 
 		// vault user account is delegated to "delegate"
-		await delegateClient.driftClient.fetchAccounts();
-		const vaultUserAcct = delegateClient.driftClient
+		await delegateClient.velocityClient.fetchAccounts();
+		const vaultUserAcct = delegateClient.velocityClient
 			.getUser(0, protocolVault)
 			.getUserAccount();
 		const settledPnl =
@@ -1185,7 +1190,7 @@ describe('TestProtocolVaults', () => {
 			vaultDepositor
 		);
 
-		const remainingAccounts = vdClient.driftClient.getRemainingAccounts({
+		const remainingAccounts = vdClient.velocityClient.getRemainingAccounts({
 			userAccounts: [],
 			writableSpotMarketIndexes: [0],
 		});
@@ -1305,10 +1310,11 @@ describe('TestProtocolVaults', () => {
 	it('Protocol Withdraw Profit Share', async () => {
 		const vaultAccount = await program.account.vault.fetch(protocolVault);
 
-		const remainingAccounts = protocolClient.driftClient.getRemainingAccounts({
-			userAccounts: [],
-			writableSpotMarketIndexes: [0],
-		});
+		const remainingAccounts =
+			protocolClient.velocityClient.getRemainingAccounts({
+				userAccounts: [],
+				writableSpotMarketIndexes: [0],
+			});
 		const vaultProtocol = getVaultProtocolAddressSync(
 			program.programId,
 			protocolVault
@@ -1435,26 +1441,26 @@ describe('TestProtocolVaults', () => {
 	});
 });
 
-describe('TestTokenizedDriftVaults', () => {
+describe('TestTokenizedVaults', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let connection: ReturnType<
 		BankrunContextWrapper['connection']['toConnection']
 	>;
 	let adminClient: AdminClient;
-	let program: Program<DriftVaults>;
+	let program: Program<Vaults>;
 	let usdcMint: Keypair;
 	let metaplex: Metaplex;
 	let oracleInfos: OracleInfo[];
 
 	let managerClient: VaultClient;
-	let managerDriftClient: DriftClient;
+	let managerVelocityClient: VelocityClient;
 
 	let vd0Client: VaultClient;
-	let vd0DriftClient: DriftClient;
+	let vd0VelocityClient: VelocityClient;
 
 	let vd1Client: VaultClient;
-	let vd1DriftClient: DriftClient;
+	let vd1VelocityClient: VelocityClient;
 
 	const usdcAmount = new BN(1_000).mul(QUOTE_PRECISION);
 
@@ -1477,7 +1483,7 @@ describe('TestTokenizedDriftVaults', () => {
 			encodeName(commonVaultName)
 		);
 
-		const driftClientConfig = {
+		const velocityClientConfig = {
 			accountSubscription: {
 				type: 'polling' as const,
 				accountLoader: bulkAccountLoader as BulkAccountLoader,
@@ -1497,10 +1503,10 @@ describe('TestTokenizedDriftVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		managerClient = bootstrapManager.vaultClient;
-		managerDriftClient = bootstrapManager.driftClient;
+		managerVelocityClient = bootstrapManager.velocityClient;
 
 		const vd0Bootstrap = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
@@ -1510,10 +1516,10 @@ describe('TestTokenizedDriftVaults', () => {
 			usdcAmount: new BN(10).mul(usdcAmount),
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd0Client = vd0Bootstrap.vaultClient;
-		vd0DriftClient = vd0Bootstrap.driftClient;
+		vd0VelocityClient = vd0Bootstrap.velocityClient;
 		const vd1Bootstrap = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
 			signer: Keypair.generate(),
@@ -1522,10 +1528,10 @@ describe('TestTokenizedDriftVaults', () => {
 			usdcAmount: new BN(10).mul(usdcAmount),
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd1Client = vd1Bootstrap.vaultClient;
-		vd1DriftClient = vd1Bootstrap.driftClient;
+		vd1VelocityClient = vd1Bootstrap.velocityClient;
 
 		await managerClient.initializeVault(
 			{
@@ -1548,11 +1554,11 @@ describe('TestTokenizedDriftVaults', () => {
 	after(async () => {
 		await adminClient.unsubscribe();
 		await managerClient.unsubscribe();
-		await managerDriftClient.unsubscribe();
+		await managerVelocityClient.unsubscribe();
 		await vd0Client.unsubscribe();
-		await vd0DriftClient.unsubscribe();
+		await vd0VelocityClient.unsubscribe();
 		await vd1Client.unsubscribe();
-		await vd1DriftClient.unsubscribe();
+		await vd1VelocityClient.unsubscribe();
 	});
 
 	async function _fetchAccountStates(
@@ -1659,7 +1665,7 @@ describe('TestTokenizedDriftVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig: {
+			velocityClientConfig: {
 				accountSubscription: {
 					type: 'polling',
 					accountLoader: bulkAccountLoader as BulkAccountLoader,
@@ -1692,7 +1698,7 @@ describe('TestTokenizedDriftVaults', () => {
 				usdcAmount,
 				{
 					vault: commonVaultKey,
-					authority: bootstrapVd.vaultClient.driftClient.wallet.publicKey,
+					authority: bootstrapVd.vaultClient.velocityClient.wallet.publicKey,
 				},
 				{ noLut: true },
 				bootstrapVd.userUSDCAccount.publicKey
@@ -1900,7 +1906,7 @@ describe('TestTokenizedDriftVaults', () => {
 			[tokenizedVaultDepositor]
 		);
 
-		await bootstrapVd.driftClient.unsubscribe();
+		await bootstrapVd.velocityClient.unsubscribe();
 		await bootstrapVd.vaultClient.unsubscribe();
 	});
 
@@ -1931,21 +1937,21 @@ describe('TestInsuranceFundStake', () => {
 		BankrunContextWrapper['connection']['toConnection']
 	>;
 	let adminClient: AdminClient;
-	let program: Program<DriftVaults>;
+	let program: Program<Vaults>;
 	let usdcMint: Keypair;
 
 	let managerClient: VaultClient;
-	let managerDriftClient: DriftClient;
+	let managerVelocityClient: VelocityClient;
 	let managerUsdcAccount: PublicKey;
 	let managerWSOLAccount: PublicKey;
 
 	let vd0Client: VaultClient;
-	let vd0DriftClient: DriftClient;
+	let vd0VelocityClient: VelocityClient;
 	let vd0UsdcAccount: PublicKey;
 	let vd0WSOLAccount: PublicKey;
 
 	let vd1Client: VaultClient;
-	let vd1DriftClient: DriftClient;
+	let vd1VelocityClient: VelocityClient;
 
 	const usdcAmount = new BN(1_000).mul(QUOTE_PRECISION);
 	const solAmount = new BN(100).mul(new BN(LAMPORTS_PER_SOL));
@@ -1963,7 +1969,7 @@ describe('TestInsuranceFundStake', () => {
 		const metaplex = bootstrap.metaplex;
 		const oracleInfos = bootstrap.oracleInfos;
 
-		const driftClientConfig = {
+		const velocityClientConfig = {
 			accountSubscription: {
 				type: 'polling' as const,
 				accountLoader: bulkAccountLoader as BulkAccountLoader,
@@ -1984,10 +1990,10 @@ describe('TestInsuranceFundStake', () => {
 			solAmount,
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		managerClient = bootstrapManager.vaultClient;
-		managerDriftClient = bootstrapManager.driftClient;
+		managerVelocityClient = bootstrapManager.velocityClient;
 		managerUsdcAccount = bootstrapManager.userUSDCAccount.publicKey;
 		managerWSOLAccount = bootstrapManager.userWSOLAccount;
 		const vd0Bootstrap = await bootstrapSignerClientAndUserBankrun({
@@ -1999,10 +2005,10 @@ describe('TestInsuranceFundStake', () => {
 			solAmount,
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd0Client = vd0Bootstrap.vaultClient;
-		vd0DriftClient = vd0Bootstrap.driftClient;
+		vd0VelocityClient = vd0Bootstrap.velocityClient;
 		vd0UsdcAccount = vd0Bootstrap.userUSDCAccount.publicKey;
 		vd0WSOLAccount = vd0Bootstrap.userWSOLAccount;
 		const vd1Bootstrap = await bootstrapSignerClientAndUserBankrun({
@@ -2013,10 +2019,10 @@ describe('TestInsuranceFundStake', () => {
 			usdcAmount: new BN(10).mul(usdcAmount),
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd1Client = vd1Bootstrap.vaultClient;
-		vd1DriftClient = vd1Bootstrap.driftClient;
+		vd1VelocityClient = vd1Bootstrap.velocityClient;
 
 		await managerClient.initializeVault(
 			{
@@ -2039,11 +2045,11 @@ describe('TestInsuranceFundStake', () => {
 	after(async () => {
 		await adminClient.unsubscribe();
 		await managerClient.unsubscribe();
-		await managerDriftClient.unsubscribe();
+		await managerVelocityClient.unsubscribe();
 		await vd0Client.unsubscribe();
-		await vd0DriftClient.unsubscribe();
+		await vd0VelocityClient.unsubscribe();
 		await vd1Client.unsubscribe();
-		await vd1DriftClient.unsubscribe();
+		await vd1VelocityClient.unsubscribe();
 	});
 
 	const testInsuranceFundStake = async (marketIndex: number) => {
@@ -2097,12 +2103,12 @@ describe('TestInsuranceFundStake', () => {
 
 		// test initializing an IF stake account
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
-			managerDriftClient.program.programId,
+			managerVelocityClient.program.programId,
 			vault,
 			marketIndex
 		);
 		const ifStakeAccount =
-			(await managerDriftClient.program.account.insuranceFundStake.fetch(
+			(await managerVelocityClient.program.account.insuranceFundStake.fetch(
 				ifStakeAccountPublicKey
 			)) as InsuranceFundStake;
 
@@ -2162,10 +2168,10 @@ describe('TestInsuranceFundStake', () => {
 		);
 
 		const ifStakeAccount1 =
-			(await managerDriftClient.program.account.insuranceFundStake.fetch(
+			(await managerVelocityClient.program.account.insuranceFundStake.fetch(
 				ifStakeAccountPublicKey
 			)) as InsuranceFundStake;
-		await managerDriftClient.fetchAccounts();
+		await managerVelocityClient.fetchAccounts();
 		assert(
 			ifStakeAccount1.ifShares.eq(ifStakeAmount),
 			'Shares are not equal to amount deposited'
@@ -2181,7 +2187,7 @@ describe('TestInsuranceFundStake', () => {
 		);
 
 		const ifStakeAccount2 =
-			(await managerDriftClient.program.account.insuranceFundStake.fetch(
+			(await managerVelocityClient.program.account.insuranceFundStake.fetch(
 				ifStakeAccountPublicKey
 			)) as InsuranceFundStake;
 		assert(
@@ -2197,7 +2203,7 @@ describe('TestInsuranceFundStake', () => {
 		);
 
 		const ifStakeAccount3 =
-			(await managerDriftClient.program.account.insuranceFundStake.fetch(
+			(await managerVelocityClient.program.account.insuranceFundStake.fetch(
 				ifStakeAccountPublicKey
 			)) as InsuranceFundStake;
 		assert(
@@ -2246,15 +2252,15 @@ describe('TestSOLDenomindatedVault', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let adminClient: AdminClient;
-	let program: Program<DriftVaults>;
+	let program: Program<Vaults>;
 	let usdcMint: Keypair;
 
 	let managerClient: VaultClient;
-	let managerDriftClient: DriftClient;
+	let managerVelocityClient: VelocityClient;
 
 	let vd0Signer: Signer;
 	let vd0Client: VaultClient;
-	let vd0DriftClient: DriftClient;
+	let vd0VelocityClient: VelocityClient;
 
 	const usdcAmount = new BN(1_000).mul(QUOTE_PRECISION);
 
@@ -2276,7 +2282,7 @@ describe('TestSOLDenomindatedVault', () => {
 			encodeName(commonVaultName)
 		);
 
-		const driftClientConfig = {
+		const velocityClientConfig = {
 			accountSubscription: {
 				type: 'polling' as const,
 				accountLoader: bulkAccountLoader as BulkAccountLoader,
@@ -2296,10 +2302,10 @@ describe('TestSOLDenomindatedVault', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		managerClient = bootstrapManager.vaultClient;
-		managerDriftClient = bootstrapManager.driftClient;
+		managerVelocityClient = bootstrapManager.velocityClient;
 
 		const vd0Bootstrap = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
@@ -2309,11 +2315,11 @@ describe('TestSOLDenomindatedVault', () => {
 			usdcAmount: new BN(10).mul(usdcAmount),
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd0Signer = vd0Bootstrap.signer;
 		vd0Client = vd0Bootstrap.vaultClient;
-		vd0DriftClient = vd0Bootstrap.driftClient;
+		vd0VelocityClient = vd0Bootstrap.velocityClient;
 
 		await managerClient.initializeVault(
 			{
@@ -2336,22 +2342,22 @@ describe('TestSOLDenomindatedVault', () => {
 	after(async () => {
 		await adminClient.unsubscribe();
 		await managerClient.unsubscribe();
-		await managerDriftClient.unsubscribe();
+		await managerVelocityClient.unsubscribe();
 		await vd0Client.unsubscribe();
-		await vd0DriftClient.unsubscribe();
+		await vd0VelocityClient.unsubscribe();
 	});
 
 	it('Initialized SOL denominated vault', async () => {
 		const vault = await program.account.vault.fetch(commonVaultKey);
 		assert(vault.spotMarketIndex === 1, 'Vault spot market index is not 1');
 
-		const spotMarket1 = vd0DriftClient.getSpotMarketAccount(1);
+		const spotMarket1 = vd0VelocityClient.getSpotMarketAccount(1);
 		assert(
 			spotMarket1.mint.equals(WRAPPED_SOL_MINT),
 			'Spot market mint is not SOL'
 		);
 
-		const vdSolBalance = await vd0DriftClient.connection.getBalance(
+		const vdSolBalance = await vd0VelocityClient.connection.getBalance(
 			vd0Signer.publicKey
 		);
 		assert(vdSolBalance > 0, 'Vault depositor SOL balance is 0');
@@ -2359,7 +2365,7 @@ describe('TestSOLDenomindatedVault', () => {
 
 	it('Test deposit then withdraw SOL', async () => {
 		const balanceBefore = Number(
-			await vd0DriftClient.connection.getBalance(vd0Signer.publicKey)
+			await vd0VelocityClient.connection.getBalance(vd0Signer.publicKey)
 		);
 		const vaultEquityBefore =
 			await vd0Client.calculateVaultEquityInDepositAsset({
@@ -2382,7 +2388,7 @@ describe('TestSOLDenomindatedVault', () => {
 		);
 
 		const balanceAfter = Number(
-			await vd0DriftClient.connection.getBalance(vd0Signer.publicKey)
+			await vd0VelocityClient.connection.getBalance(vd0Signer.publicKey)
 		);
 		console.log(`sol balance ${balanceBefore} -> ${balanceAfter}`);
 		assert(
@@ -2421,7 +2427,7 @@ describe('TestSOLDenomindatedVault', () => {
 		);
 
 		const balanceEnd = Number(
-			await vd0DriftClient.connection.getBalance(vd0Signer.publicKey)
+			await vd0VelocityClient.connection.getBalance(vd0Signer.publicKey)
 		);
 		console.log(
 			`sol balance 333 ${balanceBefore} -> ${balanceAfter} -> ${balanceEnd}`
@@ -2440,24 +2446,24 @@ describe('TestWithdrawFromVaults', () => {
 		BankrunContextWrapper['connection']['toConnection']
 	>;
 	let adminClient: AdminClient;
-	let program: Program<DriftVaults>;
+	let program: Program<Vaults>;
 	let usdcMint: Keypair;
 	let solPerpOracle: PublicKey;
 	let oracleInfos: OracleInfo[];
 
 	let managerSigner: Signer;
 	let managerClient: VaultClient;
-	let managerDriftClient: DriftClient;
+	let managerVelocityClient: VelocityClient;
 	let managerUsdcAccount: PublicKey;
 
 	let vd0Signer: Signer;
 	let vd0Client: VaultClient;
-	let vd0DriftClient: DriftClient;
+	let vd0VelocityClient: VelocityClient;
 	let vd0UsdcAccount: PublicKey;
 
 	let protocol: Keypair;
 	let protocolClient: VaultClient;
-	let protocolDriftClient: DriftClient;
+	let protocolVelocityClient: VelocityClient;
 
 	const usdcAmount = new BN(1_000).mul(QUOTE_PRECISION);
 
@@ -2483,7 +2489,7 @@ describe('TestWithdrawFromVaults', () => {
 			encodeName(commonVaultName)
 		);
 
-		const driftClientConfig = {
+		const velocityClientConfig = {
 			accountSubscription: {
 				type: 'polling' as const,
 				accountLoader: bulkAccountLoader as BulkAccountLoader,
@@ -2503,11 +2509,11 @@ describe('TestWithdrawFromVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		managerSigner = bootstrapManager.signer;
 		managerClient = bootstrapManager.vaultClient;
-		managerDriftClient = bootstrapManager.driftClient;
+		managerVelocityClient = bootstrapManager.velocityClient;
 		managerUsdcAccount = bootstrapManager.userUSDCAccount.publicKey;
 
 		const vd0Bootstrap = await bootstrapSignerClientAndUserBankrun({
@@ -2518,11 +2524,11 @@ describe('TestWithdrawFromVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			metaplex,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		vd0Signer = vd0Bootstrap.signer;
 		vd0Client = vd0Bootstrap.vaultClient;
-		vd0DriftClient = vd0Bootstrap.driftClient;
+		vd0VelocityClient = vd0Bootstrap.velocityClient;
 		vd0UsdcAccount = vd0Bootstrap.userUSDCAccount.publicKey;
 
 		const bootstrapProtocol = await bootstrapSignerClientAndUserBankrun({
@@ -2533,11 +2539,11 @@ describe('TestWithdrawFromVaults', () => {
 			usdcAmount,
 			vaultClientCliMode: true,
 			skipUser: true,
-			driftClientConfig,
+			velocityClientConfig,
 		});
 		protocol = bootstrapProtocol.signer;
 		protocolClient = bootstrapProtocol.vaultClient;
-		protocolDriftClient = bootstrapProtocol.driftClient;
+		protocolVelocityClient = bootstrapProtocol.velocityClient;
 
 		{
 			const vpParams: VaultProtocolParams = {
@@ -2599,11 +2605,11 @@ describe('TestWithdrawFromVaults', () => {
 	after(async () => {
 		await adminClient.unsubscribe();
 		await managerClient.unsubscribe();
-		await managerDriftClient.unsubscribe();
+		await managerVelocityClient.unsubscribe();
 		await vd0Client.unsubscribe();
-		await vd0DriftClient.unsubscribe();
+		await vd0VelocityClient.unsubscribe();
 		await protocolClient.unsubscribe();
-		await protocolDriftClient.unsubscribe();
+		await protocolVelocityClient.unsubscribe();
 	});
 
 	async function fetchAccountStates(
@@ -2694,7 +2700,7 @@ describe('TestWithdrawFromVaults', () => {
 		// 3) withdraw in reverse order:
 		// 3.1) vd withdraws
 		try {
-			const remainingAccounts = vd0Client.driftClient.getRemainingAccounts({
+			const remainingAccounts = vd0Client.velocityClient.getRemainingAccounts({
 				userAccounts: [],
 				writableSpotMarketIndexes: [0],
 			});
@@ -2729,10 +2735,11 @@ describe('TestWithdrawFromVaults', () => {
 
 		// 3.2) manager withdraws
 		try {
-			const remainingAccounts = managerClient.driftClient.getRemainingAccounts({
-				userAccounts: [],
-				writableSpotMarketIndexes: [0],
-			});
+			const remainingAccounts =
+				managerClient.velocityClient.getRemainingAccounts({
+					userAccounts: [],
+					writableSpotMarketIndexes: [0],
+				});
 			remainingAccounts.push({
 				pubkey: managerClient.getVaultProtocolAddress(commonVaultKey),
 				isSigner: false,
@@ -2771,7 +2778,7 @@ describe('TestWithdrawFromVaults', () => {
 		// websocket-subscribed vaultUsers map, which never receives updates on
 		// bankrun. Force a one-time fetch of the known vault user so equity
 		// reflects the post-withdraw (drained) state.
-		await managerClient.driftClient.fetchAccounts();
+		await managerClient.velocityClient.fetchAccounts();
 		const vaultDriftUser = await managerClient.getSubscribedVaultUser(
 			vaultState1.user
 		);
@@ -2809,11 +2816,11 @@ describe('TestWithdrawFromVaults', () => {
 	// otherwise complete (vault-user PDA fetch + equity refresh); it cannot pass
 	// against the velocity program regardless of harness.
 	it.skip('Test manager cancel withdraw owning 100% of vault', async () => {
-		const { driftClient: mmDriftClient, requoteFunc } =
+		const { velocityClient: mmVelocityClient, requoteFunc } =
 			await initializeSolSpotMarketMaker(
 				bankrunContextWrapper,
 				usdcMint,
-				managerDriftClient.program,
+				managerVelocityClient.program,
 				[
 					{
 						publicKey: solPerpOracle,
@@ -2851,7 +2858,7 @@ describe('TestWithdrawFromVaults', () => {
 
 		// 3) vault trades into profit
 		try {
-			const oracle0 = mmDriftClient.getOracleDataForSpotMarket(1);
+			const oracle0 = mmVelocityClient.getOracleDataForSpotMarket(1);
 
 			await managerClient.updateDelegate(
 				commonVaultKey,
@@ -2862,16 +2869,16 @@ describe('TestWithdrawFromVaults', () => {
 			// bankrun); assume control of the vault user by fetching its known
 			// PDA directly and adding it to the manager (delegate) client.
 			const vaultUserKey = await getUserAccountPublicKey(
-				managerDriftClient.program.programId,
+				managerVelocityClient.program.programId,
 				commonVaultKey,
 				0
 			);
 			const vaultUserAcct =
-				(await managerDriftClient.program.account.user.fetch(
+				(await managerVelocityClient.program.account.user.fetch(
 					vaultUserKey
 				)) as unknown as UserAccount;
-			await managerDriftClient.addUser(0, commonVaultKey, vaultUserAcct);
-			await managerDriftClient.switchActiveUser(0, commonVaultKey);
+			await managerVelocityClient.addUser(0, commonVaultKey, vaultUserAcct);
+			await managerVelocityClient.switchActiveUser(0, commonVaultKey);
 
 			const washVaultUser = await managerClient.getSubscribedVaultUser(
 				vaultState0.user
@@ -2882,8 +2889,8 @@ describe('TestWithdrawFromVaults', () => {
 			});
 
 			await doWashTrading({
-				mmDriftClient,
-				traderDriftClient: managerDriftClient,
+				mmVelocityClient,
+				traderVelocityClient: managerVelocityClient,
 				traderAuthority: commonVaultKey,
 				traderSubAccount: 0,
 				vaultClient: managerClient,
@@ -2911,7 +2918,7 @@ describe('TestWithdrawFromVaults', () => {
 				solMarket.oracle
 			);
 
-			await managerDriftClient.fetchAccounts();
+			await managerVelocityClient.fetchAccounts();
 			await washVaultUser.fetchAccounts();
 
 			const vaultEquity1 = await managerClient.calculateVaultEquity({
@@ -2932,7 +2939,7 @@ describe('TestWithdrawFromVaults', () => {
 		// @ts-ignore
 		await printTxLogs(connection, tx1, false, program);
 
-		await managerClient.driftClient.fetchAccounts();
+		await managerClient.velocityClient.fetchAccounts();
 
 		const { vault: vaultState1 } = await fetchAccountStates(commonVaultKey);
 

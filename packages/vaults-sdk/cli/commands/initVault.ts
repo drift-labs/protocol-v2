@@ -14,7 +14,7 @@ import { dumpTransactionMessage, getCommandContext } from '../utils';
 import { VAULT_PROGRAM_ID } from '../../src/types/types';
 
 export const initVault = async (program: Command, cmdOpts: OptionValues) => {
-	const { driftClient, driftVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(program, true);
 
 	const newVaultName = cmdOpts.name;
 	if (!newVaultName) {
@@ -27,7 +27,7 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 		spotMarketIndex = '0';
 	}
 	spotMarketIndex = parseInt(spotMarketIndex);
-	const spotMarket = driftClient.getSpotMarketAccount(spotMarketIndex);
+	const spotMarket = velocityClient.getSpotMarketAccount(spotMarketIndex);
 	if (!spotMarket) {
 		throw new Error('No spot market found');
 	}
@@ -81,13 +81,13 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 
 	let delegate = cmdOpts.delegate;
 	if (!delegate) {
-		delegate = driftClient.wallet.publicKey;
+		delegate = velocityClient.wallet.publicKey;
 	} else {
 		try {
 			delegate = new PublicKey(delegate);
 		} catch (err) {
 			console.error(`Invalid delegate address: ${err}`);
-			delegate = driftClient.wallet.publicKey;
+			delegate = velocityClient.wallet.publicKey;
 		}
 	}
 
@@ -124,7 +124,7 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 		`  Manager:                ${
 			cmdOpts.manager
 				? cmdOpts.manager
-				: driftClient.wallet.publicKey.toBase58()
+				: velocityClient.wallet.publicKey.toBase58()
 		}`
 	);
 
@@ -150,13 +150,13 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 
 	const vaultAddress = getVaultAddressSync(VAULT_PROGRAM_ID, vaultNameBytes);
 	const vaultDriftUser = await getUserAccountPublicKey(
-		driftClient.program.programId,
+		velocityClient.program.programId,
 		vaultAddress,
 		0
 	);
 
 	const ixs = [
-		await driftVault.getInitializeVaultIx({
+		await velocityVault.getInitializeVaultIx({
 			name: vaultNameBytes,
 			spotMarketIndex,
 			redeemPeriod: new BN(redeemPeriodSec),
@@ -168,7 +168,7 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 			minDepositAmount: minDepositAmountBN,
 			manager: cmdOpts.manager,
 		}),
-		await driftVault.getUpdateDelegateIx(
+		await velocityVault.getUpdateDelegateIx(
 			vaultAddress,
 			delegate,
 			vaultDriftUser,
@@ -177,13 +177,13 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 	];
 
 	const signedOrdersAccountAddress = getSignedMsgUserAccountPublicKey(
-		driftClient.program.programId,
+		velocityClient.program.programId,
 		vaultAddress
 	);
 
 	let swiftUsersAccountExists = false;
 	try {
-		const acc = await driftClient.connection.getAccountInfo(
+		const acc = await velocityClient.connection.getAccountInfo(
 			signedOrdersAccountAddress
 		);
 		swiftUsersAccountExists = acc !== null;
@@ -194,7 +194,7 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 	if (!swiftUsersAccountExists) {
 		ixs.push(
 			(
-				await driftClient.getInitializeSignedMsgUserOrdersAccountIx(
+				await velocityClient.getInitializeSignedMsgUserOrdersAccountIx(
 					vaultAddress,
 					8
 				)
@@ -212,15 +212,15 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 			dumpTransactionMessage(
 				cmdOpts.manager
 					? new PublicKey(cmdOpts.manager)
-					: driftClient.wallet.publicKey,
+					: velocityClient.wallet.publicKey,
 				ixs
 			)
 		);
 	} else {
-		const initTx = await driftVault.createAndSendTxn(ixs);
+		const initTx = await velocityVault.createAndSendTxn(ixs);
 		console.log(
 			`Initialized vault, tx: https://solana.fm/tx/${initTx}${
-				driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+				velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 			}`
 		);
 	}

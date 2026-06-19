@@ -16,7 +16,7 @@ export async function managerRepay(
 		dumpTransactionMessage: dumpTx,
 	} = cmdOpts;
 
-	const { driftClient, driftVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(program, true);
 
 	if (!vaultAddress) {
 		throw new Error('Must provide vault address with --vault-address');
@@ -35,13 +35,13 @@ export async function managerRepay(
 	const vault = new PublicKey(vaultAddress);
 	const repayIndex = parseInt(repaySpotMarketIndex);
 
-	const repaySpotMarket = driftClient.getSpotMarketAccount(repayIndex);
+	const repaySpotMarket = velocityClient.getSpotMarketAccount(repayIndex);
 	if (!repaySpotMarket) {
 		throw new Error('No repay spot market found');
 	}
 
-	const vaultAccount = await driftVault.program.account.vault.fetch(vault);
-	const depositSpotMarket = driftClient.getSpotMarketAccount(
+	const vaultAccount = await velocityVault.program.account.vault.fetch(vault);
+	const depositSpotMarket = velocityClient.getSpotMarketAccount(
 		vaultAccount.spotMarketIndex
 	);
 	if (!depositSpotMarket) {
@@ -62,7 +62,7 @@ export async function managerRepay(
 
 	try {
 		if (dumpTx) {
-			const ixs = await driftVault.getManagerRepayIxs(
+			const ixs = await velocityVault.getManagerRepayIxs(
 				vault,
 				repayIndex,
 				repayBN,
@@ -70,11 +70,11 @@ export async function managerRepay(
 				managerTokenAccountPubkey
 			);
 			console.log('Transaction Instructions:');
-			console.log(dumpTransactionMessage(driftClient.wallet.publicKey, ixs));
+			console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, ixs));
 			return;
 		}
 
-		const txSig = await driftVault.managerRepay(
+		const txSig = await velocityVault.managerRepay(
 			vault,
 			repayIndex,
 			repayBN,
@@ -84,7 +84,7 @@ export async function managerRepay(
 		console.log(`Manager repay transaction signature: ${txSig}`);
 		console.log(
 			`Transaction: https://solana.fm/tx/${txSig}${
-				driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+				velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 			}`
 		);
 	} catch (error) {

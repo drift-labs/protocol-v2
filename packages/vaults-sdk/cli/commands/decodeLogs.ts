@@ -16,16 +16,16 @@ export const decodeLogs = async (program: Command, cmdOpts: OptionValues) => {
 		process.exit(1);
 	}
 
-	const { driftVault, driftClient } = await getCommandContext(program, false);
+	const { velocityVault, velocityClient } = await getCommandContext(program, false);
 
-	const tx = await driftClient.connection.getParsedTransaction(txId, {
+	const tx = await velocityClient.connection.getParsedTransaction(txId, {
 		commitment: 'confirmed',
 		maxSupportedTransactionVersion: 0,
 	});
 
 	let i = 0;
 	// @ts-ignore
-	for (const event of driftVault.program._events._eventParser.parseLogs(
+	for (const event of velocityVault.program._events._eventParser.parseLogs(
 		tx!.meta!.logMessages
 	)) {
 		console.log(`--------------- Event: ${i} ${event.name} -----------------`);
@@ -35,7 +35,7 @@ export const decodeLogs = async (program: Command, cmdOpts: OptionValues) => {
 		switch (event.name) {
 			case 'VaultDepositorRecord':
 				const data: VaultDepositorRecord = event.data;
-				const spotMarket = driftClient.getSpotMarketAccount(
+				const spotMarket = velocityClient.getSpotMarketAccount(
 					data.spotMarketIndex
 				);
 				const spotPrecision = TEN.pow(new BN(spotMarket!.decimals));

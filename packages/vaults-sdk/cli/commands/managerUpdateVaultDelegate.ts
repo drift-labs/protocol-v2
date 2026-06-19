@@ -16,8 +16,8 @@ export const managerUpdateVaultDelegate = async (program: Command, cmdOpts: Opti
     }
 
     const {
-        driftVault,
-        driftClient
+        velocityVault,
+        velocityClient
     } = await getCommandContext(program, true);
 
     let delegate = cmdOpts.delegate;
@@ -32,12 +32,12 @@ export const managerUpdateVaultDelegate = async (program: Command, cmdOpts: Opti
     }
 
     if (cmdOpts.dumpTransactionMessage) {
-        const vaultAccount = await driftVault.program.account.vault.fetch(vaultAddress);
-        const tx = await driftVault.getUpdateDelegateIx(vaultAddress, delegate, vaultAccount.user, vaultAccount.manager);
-        console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+        const vaultAccount = await velocityVault.program.account.vault.fetch(vaultAddress);
+        const tx = await velocityVault.getUpdateDelegateIx(vaultAddress, delegate, vaultAccount.user, vaultAccount.manager);
+        console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
     } else {
-        const tx = await driftVault.updateDelegate(vaultAddress, delegate);
-        console.log(`Updated vault delegate to ${delegate.toBase58()}: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+        const tx = await velocityVault.updateDelegate(vaultAddress, delegate);
+        console.log(`Updated vault delegate to ${delegate.toBase58()}: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
     }
 
 };

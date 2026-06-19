@@ -17,8 +17,8 @@ export const withdraw = async (program: Command, cmdOpts: OptionValues) => {
     }
 
     const {
-        driftVault,
-        driftClient
+        velocityVault,
+        velocityClient
     } = await getCommandContext(program, true);
 
     let vaultDepositorAddress: PublicKey;
@@ -35,6 +35,6 @@ export const withdraw = async (program: Command, cmdOpts: OptionValues) => {
         vaultDepositorAddress = getVaultDepositorAddressSync(VAULT_PROGRAM_ID, vaultAddress, authority);
     }
 
-    const tx = await driftVault.withdraw(vaultDepositorAddress);
-    console.log(`Withdrew from vault: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+    const tx = await velocityVault.withdraw(vaultDepositorAddress);
+    console.log(`Withdrew from vault: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
 };

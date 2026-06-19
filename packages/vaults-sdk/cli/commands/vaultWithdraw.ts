@@ -28,7 +28,7 @@ export const vaultWithdraw= async (program: Command, cmdOpts: OptionValues) => {
     }
 
     const {
-        driftVault
+        velocityVault
     } = await getCommandContext(program, true);
 
     const vaultDepositorAddress = getVaultDepositorAddressSync(
@@ -36,7 +36,7 @@ export const vaultWithdraw= async (program: Command, cmdOpts: OptionValues) => {
         vaultAddress,
         depositAuthority,
     );
-    const tx = await driftVault.initializeVaultDepositor(vaultAddress, depositAuthority);
+    const tx = await velocityVault.initializeVaultDepositor(vaultAddress, depositAuthority);
     console.log(`VaultDepositor initialized for ${depositAuthority}: ${tx}`);
     console.log(`VaultDepositor address: ${vaultDepositorAddress}`);
 };

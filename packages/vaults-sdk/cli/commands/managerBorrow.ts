@@ -15,7 +15,7 @@ export async function managerBorrow(
 		dumpTransactionMessage: dumpTx,
 	} = cmdOpts;
 
-	const { driftClient, driftVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(program, true);
 
 	if (!vaultAddress) {
 		throw new Error('Must provide vault address with --vault-address');
@@ -34,7 +34,7 @@ export async function managerBorrow(
 	const vault = new PublicKey(vaultAddress);
 	const borrowIndex = parseInt(borrowSpotMarketIndex);
 
-	const borrowSpotMarket = driftClient.getSpotMarketAccount(borrowIndex);
+	const borrowSpotMarket = velocityClient.getSpotMarketAccount(borrowIndex);
 	if (!borrowSpotMarket) {
 		throw new Error('No borrow spot market found');
 	}
@@ -47,18 +47,18 @@ export async function managerBorrow(
 
 	try {
 		if (dumpTx) {
-			const ixs = await driftVault.getManagerBorrowIx(
+			const ixs = await velocityVault.getManagerBorrowIx(
 				vault,
 				borrowIndex,
 				borrowBN,
 				managerTokenAccountPubkey
 			);
 			console.log('Transaction Instructions:');
-			console.log(dumpTransactionMessage(driftClient.wallet.publicKey, ixs));
+			console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, ixs));
 			return;
 		}
 
-		const txSig = await driftVault.managerBorrow(
+		const txSig = await velocityVault.managerBorrow(
 			vault,
 			borrowIndex,
 			borrowBN,
@@ -67,7 +67,7 @@ export async function managerBorrow(
 		console.log(`Manager borrow transaction signature: ${txSig}`);
 		console.log(
 			`Transaction: https://solana.fm/tx/${txSig}${
-				driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+				velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 			}`
 		);
 	} catch (error) {

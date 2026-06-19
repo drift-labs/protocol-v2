@@ -26,7 +26,7 @@ export const vaultInvariantChecks = async (
 		process.exit(1);
 	}
 
-	const { driftVault, driftClient } = await getCommandContext(program, true);
+	const { velocityVault, velocityClient } = await getCommandContext(program, true);
 
 	/*
     Invariants:
@@ -34,12 +34,12 @@ export const vaultInvariantChecks = async (
     * sum(vault_depositors.profit_share_paid) == vault.manager_total_profit_share
     */
 
-	const vault = await driftVault.getVault(vaultAddress);
-	const spotMarket = driftVault.driftClient.getSpotMarketAccount(
+	const vault = await velocityVault.getVault(vaultAddress);
+	const spotMarket = velocityVault.velocityClient.getSpotMarketAccount(
 		vault.spotMarketIndex
 	);
 	const spotPrecision = new BN(10).pow(new BN(spotMarket!.decimals));
-	const spotOracle = driftVault.driftClient.getOracleDataForSpotMarket(
+	const spotOracle = velocityVault.velocityClient.getOracleDataForSpotMarket(
 		vault.spotMarketIndex
 	);
 	const spotOraclePriceNum = convertToNumber(spotOracle.price, PRICE_PRECISION);
@@ -47,20 +47,20 @@ export const vaultInvariantChecks = async (
 
 	const user = new User({
 		// accountSubscription,
-		driftClient,
+		velocityClient,
 		userAccountPublicKey: vault.user,
 	});
 	await user.subscribe();
 
-	const vaultEquity = await driftVault.calculateVaultEquity({
+	const vaultEquity = await velocityVault.calculateVaultEquity({
 		vault,
 	});
 	const vaultEquitySpot = vaultEquity.mul(spotPrecision).div(spotOracle.price);
 
-	const allVaultDepositors = await driftVault.getAllVaultDepositors(
+	const allVaultDepositors = await velocityVault.getAllVaultDepositors(
 		vaultAddress
 	);
-	const approxSlot = await driftVault.driftClient.connection.getSlot();
+	const approxSlot = await velocityVault.velocityClient.connection.getSlot();
 	const now = Date.now();
 
 	// let nonZeroDepositors = allVaultDepositors.filter(vd => vd.account.vaultShares.gt(new BN(0)));

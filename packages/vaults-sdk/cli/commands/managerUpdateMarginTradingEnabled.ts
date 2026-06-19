@@ -16,17 +16,17 @@ export const managerUpdateMarginTradingEnabled = async (program: Command, cmdOpt
     }
 
     const {
-        driftVault,
-        driftClient
+        velocityVault,
+        velocityClient
     } = await getCommandContext(program, true);
 
     const enabled = cmdOpts.enabled ? (cmdOpts.enabled as string).toLowerCase() === "true" : false;
 
     if (cmdOpts.dumpTransactionMessage) {
-        const tx = await driftVault.getUpdateMarginTradingEnabledIx(vaultAddress, enabled);
-        console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+        const tx = await velocityVault.getUpdateMarginTradingEnabledIx(vaultAddress, enabled);
+        console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
     } else {
-        const tx = await driftVault.updateMarginTradingEnabled(vaultAddress, enabled);
-        console.log(`Updated margin trading vault manager: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+        const tx = await velocityVault.updateMarginTradingEnabled(vaultAddress, enabled);
+        console.log(`Updated margin trading vault manager: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
     }
 };

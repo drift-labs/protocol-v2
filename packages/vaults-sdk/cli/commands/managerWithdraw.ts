@@ -16,15 +16,15 @@ export const managerWithdraw = async (program: Command, cmdOpts: OptionValues) =
     }
 
     const {
-        driftVault,
-        driftClient
+        velocityVault,
+        velocityClient
     } = await getCommandContext(program, true);
 
     if (cmdOpts.dumpTransactionMessage) {
-        const tx = await driftVault.getManagerWithdrawIx(vaultAddress);
-        console.log(dumpTransactionMessage(driftClient.wallet.publicKey, tx));
+        const tx = await velocityVault.getManagerWithdrawIx(vaultAddress);
+        console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, tx));
     } else {
-        const tx = await driftVault.managerWithdraw(vaultAddress);
-        console.log(`Withrew as vault manager: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+        const tx = await velocityVault.managerWithdraw(vaultAddress);
+        console.log(`Withrew as vault manager: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
     }
 };

@@ -8,7 +8,7 @@ import { getCommandContext } from "../utils";
 export const listDepositorsForVault = async (program: Command, cmdOpts: OptionValues) => {
 
     const {
-        driftVault
+        velocityVault
     } = await getCommandContext(program, false);
 
     let vaultAddress: PublicKey | undefined = undefined;
@@ -24,7 +24,7 @@ export const listDepositorsForVault = async (program: Command, cmdOpts: OptionVa
         process.exit(1);
     }
 
-    const vaultDepositors = await driftVault.getAllVaultDepositors(vaultAddress);
+    const vaultDepositors = await velocityVault.getAllVaultDepositors(vaultAddress);
     vaultDepositors.forEach((vaultDepositor) => {
         console.log(vaultDepositor.publicKey.toBase58());
     });

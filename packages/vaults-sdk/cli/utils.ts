@@ -1,7 +1,7 @@
 import {
 	BASE_PRECISION,
 	BN,
-	DriftClient,
+	VelocityClient,
 	DriftEnv,
 	OraclePriceData,
 	PRICE_PRECISION,
@@ -42,7 +42,7 @@ import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 export async function printVault(
 	slot: number,
-	driftClient: DriftClient,
+	velocityClient: VelocityClient,
 	vault: Vault,
 	vaultEquity: BN,
 	spotMarket: SpotMarketAccount,
@@ -191,13 +191,13 @@ export async function printVault(
 
 	const user = new User({
 		// accountSubscription,
-		driftClient,
+		velocityClient,
 		userAccountPublicKey: vault.user,
 	});
 	await user.subscribe();
 
 	for (const spotPos of user.getActiveSpotPositions()) {
-		const sm = driftClient.getSpotMarketAccount(spotPos.marketIndex)!;
+		const sm = velocityClient.getSpotMarketAccount(spotPos.marketIndex)!;
 		const prec = TEN.pow(new BN(sm.decimals));
 		const sym = decodeName(sm.name);
 		const bal = getSignedTokenAmount(
@@ -287,8 +287,8 @@ export async function getCommandContext(
 	program: Command,
 	needToSign: boolean
 ): Promise<{
-	driftClient: DriftClient;
-	driftVault: VaultClient;
+	velocityClient: VelocityClient;
+	velocityVault: VaultClient;
 	wallet: Wallet;
 }> {
 	const opts = program.opts();
@@ -335,7 +335,7 @@ export async function getCommandContext(
 		commitment: opts.commitment,
 	});
 
-	const driftClient = new DriftClient({
+	const velocityClient = new VelocityClient({
 		connection,
 		wallet,
 		env: driftEnv as DriftEnv,
@@ -353,21 +353,21 @@ export async function getCommandContext(
 			retrySleep: 1000,
 		}),
 	});
-	await driftClient.subscribe();
+	await velocityClient.subscribe();
 
 	const provider = new AnchorProvider(connection, wallet as AnchorWallet, {});
 	anchor.setProvider(provider);
 	const vaultProgram = new anchor.Program<Vaults>(IDL, provider);
 
-	const driftVault = new VaultClient({
-		driftClient,
+	const velocityVault = new VaultClient({
+		velocityClient,
 		program: vaultProgram,
 		cliMode: true,
 	});
 
 	return {
-		driftClient,
-		driftVault,
+		velocityClient,
+		velocityVault,
 		wallet,
 	};
 }

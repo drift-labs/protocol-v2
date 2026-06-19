@@ -7,7 +7,7 @@ import {
 	getVaultAddressSync,
 	getVaultDepositorAddressSync,
 	encodeName,
-	Vaults as DriftVaults,
+	Vaults,
 	VAULT_PROGRAM_ID,
 	IDL,
 	WithdrawUnit,
@@ -15,7 +15,7 @@ import {
 import {
 	BulkAccountLoader,
 	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
-	VelocityClient as DriftClient,
+	VelocityClient,
 	OracleSource,
 	PEG_PRECISION,
 	PublicKey,
@@ -38,9 +38,9 @@ const ammInitialQuoteAssetReserve = new BN(5 * 10 ** 13).mul(mantissaSqrtScale);
 const ammInitialBaseAssetReserve = new BN(5 * 10 ** 13).mul(mantissaSqrtScale);
 
 describe('transferVaultDepositorShares', () => {
-	let vaultProgram: Program<DriftVaults>;
+	let vaultProgram: Program<Vaults>;
 	const initialSolPerpPrice = 100;
-	let adminDriftClient: TestClient;
+	let adminVelocityClient: TestClient;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint: Keypair;
@@ -54,21 +54,21 @@ describe('transferVaultDepositorShares', () => {
 
 	const managerSigner = Keypair.generate();
 	let managerClient: VaultClient;
-	let managerDriftClient: DriftClient;
+	let managerVelocityClient: VelocityClient;
 
 	const user1Signer = Keypair.generate();
 	let user1Client: VaultClient;
-	let user1DriftClient: DriftClient;
+	let user1VelocityClient: VelocityClient;
 	let user1UserUSDCAccount: PublicKey;
 	let user1VaultDepositor: PublicKey;
 
 	const user2Signer = Keypair.generate();
 	let user2Client: VaultClient;
-	let user2DriftClient: DriftClient;
+	let user2VelocityClient: VelocityClient;
 	let user2UserUSDCAccount: PublicKey;
 	let user2VaultDepositor: PublicKey;
 
-	const driftClientConfig = (
+	const velocityClientConfig = (
 		bulkAccountLoader: TestBulkAccountLoader,
 		solPerpOracle: PublicKey
 	) => ({
@@ -90,10 +90,7 @@ describe('transferVaultDepositorShares', () => {
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-		vaultProgram = new Program<DriftVaults>(
-			IDL,
-			bankrunContextWrapper.provider
-		);
+		vaultProgram = new Program<Vaults>(IDL, bankrunContextWrapper.provider);
 
 		bulkAccountLoader = new TestBulkAccountLoader(
 			bankrunContextWrapper.connection.toConnection(),
@@ -108,7 +105,7 @@ describe('transferVaultDepositorShares', () => {
 			initialSolPerpPrice
 		);
 
-		adminDriftClient = new TestClient({
+		adminVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: new PublicKey(DRIFT_PROGRAM_ID),
@@ -128,13 +125,13 @@ describe('transferVaultDepositorShares', () => {
 			},
 		});
 
-		await adminDriftClient.initialize(usdcMint.publicKey, true);
-		await adminDriftClient.subscribe();
+		await adminVelocityClient.initialize(usdcMint.publicKey, true);
+		await adminVelocityClient.subscribe();
 
-		await initializeQuoteSpotMarket(adminDriftClient, usdcMint.publicKey);
-		await initializeSolSpotMarket(adminDriftClient, solPerpOracle);
+		await initializeQuoteSpotMarket(adminVelocityClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(adminVelocityClient, solPerpOracle);
 
-		await adminDriftClient.initializePerpMarket(
+		await adminVelocityClient.initializePerpMarket(
 			0,
 			solPerpOracle,
 			ammInitialBaseAssetReserve,
@@ -143,7 +140,7 @@ describe('transferVaultDepositorShares', () => {
 			new BN(initialSolPerpPrice).mul(PEG_PRECISION)
 		);
 
-		await adminDriftClient.fetchAccounts();
+		await adminVelocityClient.fetchAccounts();
 
 		const managerBootstrap = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
@@ -152,10 +149,13 @@ describe('transferVaultDepositorShares', () => {
 			usdcMint: usdcMint,
 			usdcAmount,
 			vaultClientCliMode: true,
-			driftClientConfig: driftClientConfig(bulkAccountLoader, solPerpOracle),
+			velocityClientConfig: velocityClientConfig(
+				bulkAccountLoader,
+				solPerpOracle
+			),
 		});
 		managerClient = managerBootstrap.vaultClient;
-		managerDriftClient = managerBootstrap.driftClient;
+		managerVelocityClient = managerBootstrap.velocityClient;
 
 		const user1Bootstrap = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
@@ -164,10 +164,13 @@ describe('transferVaultDepositorShares', () => {
 			usdcMint: usdcMint,
 			usdcAmount,
 			vaultClientCliMode: true,
-			driftClientConfig: driftClientConfig(bulkAccountLoader, solPerpOracle),
+			velocityClientConfig: velocityClientConfig(
+				bulkAccountLoader,
+				solPerpOracle
+			),
 		});
 		user1Client = user1Bootstrap.vaultClient;
-		user1DriftClient = user1Bootstrap.driftClient;
+		user1VelocityClient = user1Bootstrap.velocityClient;
 		user1UserUSDCAccount = user1Bootstrap.userUSDCAccount.publicKey;
 		user1VaultDepositor = getVaultDepositorAddressSync(
 			VAULT_PROGRAM_ID,
@@ -182,10 +185,13 @@ describe('transferVaultDepositorShares', () => {
 			usdcMint: usdcMint,
 			usdcAmount,
 			vaultClientCliMode: true,
-			driftClientConfig: driftClientConfig(bulkAccountLoader, solPerpOracle),
+			velocityClientConfig: velocityClientConfig(
+				bulkAccountLoader,
+				solPerpOracle
+			),
 		});
 		user2Client = user2Bootstrap.vaultClient;
-		user2DriftClient = user2Bootstrap.driftClient;
+		user2VelocityClient = user2Bootstrap.velocityClient;
 		user2UserUSDCAccount = user2Bootstrap.userUSDCAccount.publicKey;
 		user2VaultDepositor = getVaultDepositorAddressSync(
 			VAULT_PROGRAM_ID,
@@ -243,13 +249,13 @@ describe('transferVaultDepositorShares', () => {
 	});
 
 	afterEach(async () => {
-		await adminDriftClient.unsubscribe();
+		await adminVelocityClient.unsubscribe();
 		await managerClient.unsubscribe();
-		await managerDriftClient.unsubscribe();
+		await managerVelocityClient.unsubscribe();
 		await user1Client.unsubscribe();
-		await user1DriftClient.unsubscribe();
+		await user1VelocityClient.unsubscribe();
 		await user2Client.unsubscribe();
-		await user2DriftClient.unsubscribe();
+		await user2VelocityClient.unsubscribe();
 	});
 
 	it('basic transfer shares from user1 to user2', async () => {
