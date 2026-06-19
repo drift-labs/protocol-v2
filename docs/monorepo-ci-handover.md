@@ -37,7 +37,7 @@ builds, ~15–20 min).
   clean. 6 remaining `#[ignore]`s now carry precise reasons (Outstanding #4).
 - **Vaults integration tests gated & green** — `vault-tests` job (bankrun). Full suite passes
   (41 tests across managerUpdate / depositMax / feeUpdate / sharesExamples /
-  transferVaultDepositorShares / trustedVault / driftVaults) after fixing `run-vault-tests.sh`
+  transferVaultDepositorShares / trustedVault / velocityVaults) after fixing `run-vault-tests.sh`
   (see below).
 - **Docker image build checks** — `docker-images-ts` (dlob-server, keeper-bots-v2) +
   `docker-images-rust` (keep-rs/swift) build every shipped image (same Dockerfiles + `docker-info.json` args as
