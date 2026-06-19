@@ -125,8 +125,18 @@ Workflow:
 1. In a PR that changes a publishable package, run `bun run changeset` and describe the bump.
 2. On merge to `master`, the `changesets` workflow opens/updates a **Version Packages** PR that
    runs `changeset version` (bumps versions + writes CHANGELOGs). Merge it to commit the bumps.
-3. Push a tag `release-v<date-or-number>` — the `npm-publish` workflow publishes every
-   non-private `packages/*` whose committed version isn't already on the registry (idempotent).
+3. Push a per-package tag `npm-<pkg>-v<version>` — the `npm-publish` workflow builds and publishes
+   that package via npm OIDC trusted publishing (idempotent: skipped if that version is already on
+   the registry). `<pkg>` is the directory name under `packages/`:
+
+| Package                         | Tag example             |
+| ------------------------------- | ----------------------- |
+| `@velocity-exchange/sdk`        | `npm-sdk-v0.2.3`        |
+| `@velocity-exchange/admin-cli`  | `npm-cli-admin-v0.2.3`  |
+| `@velocity-exchange/vaults-sdk` | `npm-vaults-sdk-v0.2.3` |
+
+The tag version must match the `package.json` version committed by the "Version Packages" PR. Do
+not manually edit `package.json` versions — changesets and the bot own those fields.
 
 # Bug Bounty
 

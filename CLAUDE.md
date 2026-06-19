@@ -160,11 +160,20 @@ contain `-v` (e.g. `docker-keeper-bots-v2-v1.4.2`). Add a new app by adding a `d
 
 Library packages under `packages/*` publish via [changesets](https://github.com/changesets/changesets),
 NOT release-please (removed). Add a changeset in your PR (`bun run changeset`); merging the
-auto-maintained "Version Packages" PR commits the version bumps; pushing a tag **`release-v<n>`** runs
-`.github/workflows/npm-publish.yml`, which publishes every non-private `packages/*` whose version
-isn't already on the registry (idempotent). It uses **`bun publish`** (not `npm`/`changeset publish`)
-because bun rewrites `workspace:*` dep ranges to concrete versions in the published manifest — which is
-why cli-admin can depend on the local SDK via `workspace:*` with no pre-publish rewrite hack.
+auto-maintained "Version Packages" PR commits the version bumps; then push a tag **`npm-<pkg>-v<version>`**
+to trigger `.github/workflows/npm-publish.yml`, which builds and publishes that one package via npm
+OIDC trusted publishing. `<pkg>` is the directory name under `packages/`:
+
+| Package                         | Tag example             |
+| ------------------------------- | ----------------------- |
+| `@velocity-exchange/sdk`        | `npm-sdk-v0.2.3`        |
+| `@velocity-exchange/admin-cli`  | `npm-cli-admin-v0.2.3`  |
+| `@velocity-exchange/vaults-sdk` | `npm-vaults-sdk-v0.2.3` |
+
+The tag version must match the `package.json` version set by the "Version Packages" PR. The workflow
+is idempotent — it skips publish if that version is already on the registry. `npm` (not `bun`) is used
+for publishing because bun does not implement npm's OIDC trusted-publishing flow; workspace dep ranges
+are rewritten to concrete versions by `.github/scripts/rewrite-workspace-deps.mjs` before publish.
 
 **PRs that change user-facing behavior in a publishable package should include a changeset.** This includes new features, bug fixes, and API changes — but not chores, CI config, or internal refactors that don't affect consumers. To add one: run `bun run changeset` at the repo root, select the affected package(s), choose the bump type (patch/minor/major), and write a short description. Commit the generated `.changeset/*.md` file with your changes. Do not manually edit `package.json` versions — changesets and the "Version Packages" bot own those fields.
 
