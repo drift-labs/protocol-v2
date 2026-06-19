@@ -36,7 +36,7 @@ jobs:
         uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda # main @ 2026-02-11
         with:
           claude-api-key: ${{ secrets.CLAUDE_SECURITY_API_KEY }}
-          claude-model: claude-fable-5
+          claude-model: claude-opus-4-8
           comment-pr: 'true'
           false-positive-filtering-instructions: .github/claude-security-guidance.md
           # Action only supports directory exclusions (not file globs). File-level

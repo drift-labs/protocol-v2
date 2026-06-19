@@ -166,6 +166,8 @@ isn't already on the registry (idempotent). It uses **`bun publish`** (not `npm`
 because bun rewrites `workspace:*` dep ranges to concrete versions in the published manifest — which is
 why cli-admin can depend on the local SDK via `workspace:*` with no pre-publish rewrite hack.
 
+**PRs that change user-facing behavior in a publishable package should include a changeset.** This includes new features, bug fixes, and API changes — but not chores, CI config, or internal refactors that don't affect consumers. To add one: run `bun run changeset` at the repo root, select the affected package(s), choose the bump type (patch/minor/major), and write a short description. Commit the generated `.changeset/*.md` file with your changes. Do not manually edit `package.json` versions — changesets and the "Version Packages" bot own those fields.
+
 ## Devnet program upgrade
 
 Full runbook lives in [`deploy-scripts/README.md`](./deploy-scripts/README.md). Read its "Operational notes" section before any devnet upgrade. The key rules:
