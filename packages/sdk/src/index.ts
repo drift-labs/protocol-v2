@@ -108,6 +108,7 @@ export * from './swift/swiftOrderSubscriber';
 export * from './swift/signedMsgUserAccountSubscriber';
 export * from './swift/grpcSignedMsgUserAccountSubscriber';
 export * from './tx/fastSingleTxSender';
+export * from './tx/forwardOnlyTxSender';
 export * from './tx/retryTxSender';
 export * from './tx/whileValidTxSender';
 export * from './tx/priorityFeeCalculator';
