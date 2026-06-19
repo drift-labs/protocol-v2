@@ -146,7 +146,7 @@ export type BotConfigMap = {
 };
 
 export interface GlobalConfig {
-	driftEnv: VelocityEnv;
+	velocityEnv: VelocityEnv;
 	/// rpc endpoint to use
 	endpoint: string;
 	/// ws endpoint to use (inferred from endpoint using web3.js rules, only provide if you want to use a different one)
@@ -156,7 +156,7 @@ export interface GlobalConfig {
 	lazerEndpoints?: string[];
 	lazerToken?: string;
 
-	// Optional to specify markets loaded by drift client
+	// Optional to specify markets loaded by velocity client
 	perpMarketsToLoad?: Array<number>;
 	spotMarketsToLoad?: Array<number>;
 
@@ -221,7 +221,7 @@ export interface Config {
 
 const defaultConfig: Partial<Config> = {
 	global: {
-		driftEnv: (process.env.ENV ?? 'devnet') as VelocityEnv,
+		velocityEnv: (process.env.ENV ?? 'devnet') as VelocityEnv,
 		initUser: false,
 		testLiveness: false,
 		cancelOpenOrders: false,
@@ -337,7 +337,7 @@ export function loadConfigFromFile(path: string): Config {
 export function loadConfigFromOpts(opts: any): Config {
 	const config: Config = {
 		global: {
-			driftEnv: (process.env.ENV ?? 'devnet') as VelocityEnv,
+			velocityEnv: (process.env.ENV ?? 'devnet') as VelocityEnv,
 			endpoint: opts.endpoint ?? process.env.ENDPOINT,
 			wsEndpoint: opts.wsEndpoint ?? process.env.WS_ENDPOINT,
 			hermesEndpoint: opts.hermesEndpoint ?? process.env.HERMES_ENDPOINT,

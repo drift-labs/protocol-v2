@@ -181,7 +181,7 @@ describe('Auction Parameters Functions', () => {
 	});
 
 	describe('mapToMarketOrderParams with Mock L2 Data', () => {
-		const mockDriftClient = {
+		const mockVelocityClient = {
 			getMMOracleDataForPerpMarket: jest.fn(),
 			getOracleDataForSpotMarket: jest.fn(),
 		};
@@ -209,7 +209,7 @@ describe('Auction Parameters Functions', () => {
 		it('should successfully calculate prices with mock L2 orderbook data', async () => {
 			const solPrice = 160; // $160 SOL price
 
-			mockDriftClient.getMMOracleDataForPerpMarket.mockReturnValue({
+			mockVelocityClient.getMMOracleDataForPerpMarket.mockReturnValue({
 				price: new BN(solPrice).mul(PRICE_PRECISION),
 			});
 
@@ -234,7 +234,7 @@ describe('Auction Parameters Functions', () => {
 
 			const result = await mapToMarketOrderParams(
 				validParams,
-				mockDriftClient as any,
+				mockVelocityClient as any,
 				mockFetchFromRedis as any,
 				mockSelectMostRecentBySlot as any
 			);
@@ -265,7 +265,7 @@ describe('Auction Parameters Functions', () => {
 			const quoteAmount = 1000; // $1,000 worth
 			const quoteAmountInPrecision = new BN(quoteAmount).mul(QUOTE_PRECISION); // Convert to quote precision
 
-			mockDriftClient.getMMOracleDataForPerpMarket.mockReturnValue({
+			mockVelocityClient.getMMOracleDataForPerpMarket.mockReturnValue({
 				price: new BN(solPrice).mul(PRICE_PRECISION),
 			});
 
@@ -291,7 +291,7 @@ describe('Auction Parameters Functions', () => {
 
 			const result = await mapToMarketOrderParams(
 				quoteParams,
-				mockDriftClient as any,
+				mockVelocityClient as any,
 				mockFetchFromRedis as any,
 				mockSelectMostRecentBySlot as any
 			);
@@ -314,7 +314,7 @@ describe('Auction Parameters Functions', () => {
 		it('should handle different market types correctly', async () => {
 			const usdcPrice = 1; // $1 USDC price
 
-			mockDriftClient.getOracleDataForSpotMarket.mockReturnValue({
+			mockVelocityClient.getOracleDataForSpotMarket.mockReturnValue({
 				price: new BN(usdcPrice).mul(PRICE_PRECISION),
 			});
 
@@ -339,7 +339,7 @@ describe('Auction Parameters Functions', () => {
 
 			const result = await mapToMarketOrderParams(
 				spotParams,
-				mockDriftClient as any,
+				mockVelocityClient as any,
 				mockFetchFromRedis as any,
 				mockSelectMostRecentBySlot as any
 			);
@@ -352,7 +352,7 @@ describe('Auction Parameters Functions', () => {
 		it('should handle different directions correctly', async () => {
 			const solPrice = 160; // $160 SOL price
 
-			mockDriftClient.getMMOracleDataForPerpMarket.mockReturnValue({
+			mockVelocityClient.getMMOracleDataForPerpMarket.mockReturnValue({
 				price: new BN(solPrice).mul(PRICE_PRECISION),
 			});
 
@@ -377,7 +377,7 @@ describe('Auction Parameters Functions', () => {
 
 			const result = await mapToMarketOrderParams(
 				shortParams,
-				mockDriftClient as any,
+				mockVelocityClient as any,
 				mockFetchFromRedis as any,
 				mockSelectMostRecentBySlot as any
 			);
@@ -392,7 +392,7 @@ describe('Auction Parameters Functions', () => {
 		it('should handle various order sizes with L2 depth', async () => {
 			const solPrice = 160; // $160 SOL price
 
-			mockDriftClient.getMMOracleDataForPerpMarket.mockReturnValue({
+			mockVelocityClient.getMMOracleDataForPerpMarket.mockReturnValue({
 				price: new BN(solPrice).mul(PRICE_PRECISION),
 			});
 
@@ -423,7 +423,7 @@ describe('Auction Parameters Functions', () => {
 
 			const smallResult = await mapToMarketOrderParams(
 				smallOrderParams,
-				mockDriftClient as any,
+				mockVelocityClient as any,
 				mockFetchFromRedis as any,
 				mockSelectMostRecentBySlot as any
 			);
@@ -439,7 +439,7 @@ describe('Auction Parameters Functions', () => {
 
 			const largeResult = await mapToMarketOrderParams(
 				largeOrderParams,
-				mockDriftClient as any,
+				mockVelocityClient as any,
 				mockFetchFromRedis as any,
 				mockSelectMostRecentBySlot as any
 			);
@@ -456,7 +456,7 @@ describe('Auction Parameters Functions', () => {
 		});
 
 		it('should handle zero oracle price scenario', async () => {
-			mockDriftClient.getMMOracleDataForPerpMarket.mockReturnValue({
+			mockVelocityClient.getMMOracleDataForPerpMarket.mockReturnValue({
 				price: ZERO,
 			});
 
@@ -476,7 +476,7 @@ describe('Auction Parameters Functions', () => {
 
 			const result = await mapToMarketOrderParams(
 				validParams,
-				mockDriftClient as any,
+				mockVelocityClient as any,
 				mockFetchFromRedis as any,
 				mockSelectMostRecentBySlot as any
 			);
@@ -695,7 +695,7 @@ describe('Auction Parameters Functions', () => {
 });
 
 describe('calculateDynamicSlippage - crossed book handling', () => {
-	const mockDriftClient = {
+	const mockVelocityClient = {
 		getMMOracleDataForPerpMarket: jest.fn(),
 		getOracleDataForSpotMarket: jest.fn(),
 	} as any;
@@ -714,7 +714,7 @@ describe('calculateDynamicSlippage - crossed book handling', () => {
 		process.env.DYNAMIC_CROSS_SPREAD_CAP = '0.1'; // 0.1%
 
 		// Oracle 100
-		mockDriftClient.getMMOracleDataForPerpMarket.mockReturnValue({
+		mockVelocityClient.getMMOracleDataForPerpMarket.mockReturnValue({
 			price: new BN(100).mul(PRICE_PRECISION),
 		});
 
@@ -729,7 +729,7 @@ describe('calculateDynamicSlippage - crossed book handling', () => {
 		const slip = calculateDynamicSlippage(
 			0, // major perp
 			'perp',
-			mockDriftClient,
+			mockVelocityClient,
 			l2Crossed,
 			startPrice,
 			worstPrice
@@ -748,7 +748,7 @@ describe('calculateDynamicSlippage - crossed book handling', () => {
 		delete process.env.DYNAMIC_CROSS_SPREAD_MODE; // default cap
 		process.env.DYNAMIC_CROSS_SPREAD_CAP = '0.1';
 
-		mockDriftClient.getMMOracleDataForPerpMarket.mockReturnValue({
+		mockVelocityClient.getMMOracleDataForPerpMarket.mockReturnValue({
 			price: new BN(100).mul(PRICE_PRECISION),
 		});
 
@@ -763,7 +763,7 @@ describe('calculateDynamicSlippage - crossed book handling', () => {
 		const slipNormal = calculateDynamicSlippage(
 			0,
 			'perp',
-			mockDriftClient,
+			mockVelocityClient,
 			l2Normal,
 			startPrice,
 			worstPrice
@@ -777,7 +777,7 @@ describe('calculateDynamicSlippage - crossed book handling', () => {
 		const slipCrossed = calculateDynamicSlippage(
 			0,
 			'perp',
-			mockDriftClient,
+			mockVelocityClient,
 			l2Crossed,
 			startPrice,
 			worstPrice

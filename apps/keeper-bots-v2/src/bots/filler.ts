@@ -120,7 +120,7 @@ export const CONFIRM_TX_RATE_LIMIT_BACKOFF_MS = 5_000; // wait this long until t
 export const CACHED_BLOCKHASH_OFFSET = 5;
 const DUMP_TXS_IN_SIM = false;
 
-const EXPIRE_ORDER_BUFFER_SEC = 60; // add extra time before trying to expire orders (want to avoid 6252 error due to clock drift)
+const EXPIRE_ORDER_BUFFER_SEC = 60; // add extra time before trying to expire orders (want to avoid 6252 error due to clock velocity)
 const NUM_MAKERS = 3; // number of makers to pull for triggerable orders
 
 const errorCodesToSuppress = [
@@ -310,7 +310,7 @@ export class FillerBot extends TxThreaded implements Bot {
 
 		if (
 			this.fillerConfig.rebalanceFiller &&
-			this.runtimeSpec.driftEnv === 'mainnet-beta'
+			this.runtimeSpec.velocityEnv === 'mainnet-beta'
 		) {
 			this.jupiterClient = new JupiterClient({
 				connection: this.velocityClient.connection,
@@ -365,12 +365,12 @@ export class FillerBot extends TxThreaded implements Bot {
 		this.signerPubkey = this.velocityClient.wallet.publicKey.toBase58();
 
 		// Pyth lazer: remember to remove devnet guard
-		if (this.globalConfig.driftEnv == 'devnet') {
+		if (this.globalConfig.velocityEnv == 'devnet') {
 			if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
 				throw new Error('Missing lazerEndpoint or lazerToken in global config');
 			}
 
-			const markets = PerpMarkets[this.globalConfig.driftEnv!].filter(
+			const markets = PerpMarkets[this.globalConfig.velocityEnv!].filter(
 				(market) =>
 					market.pythLazerId !== undefined &&
 					(!market.marketStatus ||
@@ -387,7 +387,7 @@ export class FillerBot extends TxThreaded implements Bot {
 						channel: 'fixed_rate@200ms',
 					};
 				}),
-				this.globalConfig.driftEnv
+				this.globalConfig.velocityEnv
 			);
 		}
 	}
@@ -2020,7 +2020,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				referrerInfo = undefined;
 			}
 
-			const driftUser = this.velocityClient.getUser();
+			const velocityUser = this.velocityClient.getUser();
 
 			const getSimResult = async (makerInfos: MakerInfo[]) => {
 				const fillIx = await this.velocityClient.getFillPerpOrderIx(
@@ -2086,16 +2086,16 @@ export class FillerBot extends TxThreaded implements Bot {
 				type: 'trigger',
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
-					driftUser.userAccountPublicKey,
-					driftUser.getUserAccountOrThrow()
+					velocityUser.userAccountPublicKey,
+					velocityUser.getUserAccountOrThrow()
 				),
 			});
 			this.estTxCuHistogram?.record(simResult.cuEstimate, {
 				type: 'trigger',
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
-					driftUser.userAccountPublicKey,
-					driftUser.getUserAccountOrThrow()
+					velocityUser.userAccountPublicKey,
+					velocityUser.getUserAccountOrThrow()
 				),
 			});
 
@@ -2309,20 +2309,20 @@ export class FillerBot extends TxThreaded implements Bot {
 		// If we are rebalancing, check if we have enough settled pnl in usdc account to rebalance,
 		// or if we have to go below threshold since we don't have enough sol
 		if (this.rebalanceFiller) {
-			const fillerDriftAccountUsdcBalance =
+			const fillerVelocityAccountUsdcBalance =
 				this.velocityClient.getTokenAmount(0);
 			const usdcSpotMarket = this.velocityClient.getSpotMarketAccount(0);
-			const normalizedFillerDriftAccountUsdcBalance =
-				fillerDriftAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
+			const normalizedFillerVelocityAccountUsdcBalance =
+				fillerVelocityAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
 
 			if (
-				normalizedFillerDriftAccountUsdcBalance.gte(
+				normalizedFillerVelocityAccountUsdcBalance.gte(
 					this.rebalanceSettledPnlThreshold
 				) ||
 				!this.hasEnoughSolToFill
 			) {
 				logger.info(
-					`Filler has ${normalizedFillerDriftAccountUsdcBalance.toNumber()} usdc to rebalance`
+					`Filler has ${normalizedFillerVelocityAccountUsdcBalance.toNumber()} usdc to rebalance`
 				);
 				await this.rebalance();
 			}

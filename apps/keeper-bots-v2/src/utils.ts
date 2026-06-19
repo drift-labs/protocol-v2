@@ -912,7 +912,7 @@ export async function swapFillerHardEarnedUSDCForSOL(
 			`Quoted ${quoteInNum} USDC for ${quoteOutNum} SOL, swapPrice: ${swapPrice}, oraclePrice: ${oraclePrice}`
 		);
 
-		const driftLuts = await velocityClient.fetchAllLookupTableAccounts();
+		const velocityLuts = await velocityClient.fetchAllLookupTableAccounts();
 
 		const transaction = await jupiterClient.getSwap({
 			quote,
@@ -1012,7 +1012,7 @@ export async function swapFillerHardEarnedUSDCForSOL(
 					}),
 					...ixs,
 				],
-				[...lookupTables, ...driftLuts],
+				[...lookupTables, ...velocityLuts],
 				blockhash
 			);
 		};
@@ -1057,8 +1057,8 @@ export async function swapFillerHardEarnedUSDCForSOL(
 		console.error(e);
 	}
 }
-export function getDriftPriorityFeeEndpoint(driftEnv: VelocityEnv): string {
-	switch (driftEnv) {
+export function getVelocityPriorityFeeEndpoint(velocityEnv: VelocityEnv): string {
+	switch (velocityEnv) {
 		case 'devnet':
 		case 'mainnet-beta':
 			return 'https://dlob.drift.trade';

@@ -56,7 +56,7 @@ export class JitMaker implements Bot {
 	public readonly dryRun: boolean;
 	public readonly defaultIntervalMs: number = 30000;
 
-	private driftEnv: VelocityEnv;
+	private velocityEnv: VelocityEnv;
 	private periodicTaskMutex = new Mutex();
 
 	private jitter: JitterSniper | JitterShotgun;
@@ -84,7 +84,7 @@ export class JitMaker implements Bot {
 		velocityClient: VelocityClient, // velocityClient needs to have correct number of subaccounts listed
 		jitter: JitterSniper | JitterShotgun,
 		config: JitMakerConfig,
-		driftEnv: VelocityEnv,
+		velocityEnv: VelocityEnv,
 		priorityFeeSubscriber: PriorityFeeSubscriber
 	) {
 		this.config = config;
@@ -114,7 +114,7 @@ export class JitMaker implements Bot {
 		this.velocityClient = velocityClient;
 		this.name = this.config.botId;
 		this.dryRun = this.config.dryRun;
-		this.driftEnv = driftEnv;
+		this.velocityEnv = velocityEnv;
 
 		this.slotSubscriber = new SlotSubscriber(this.velocityClient.connection);
 
@@ -188,7 +188,7 @@ export class JitMaker implements Bot {
 		);
 		this.intervalIds.push(intervalId);
 
-		logger.info(`${this.name} Bot started! driftEnv: ${this.driftEnv}`);
+		logger.info(`${this.name} Bot started! velocityEnv: ${this.velocityEnv}`);
 	}
 
 	/**
@@ -250,7 +250,7 @@ export class JitMaker implements Bot {
 		const subId = this.subAccountIds[index];
 		await this.velocityClient.switchActiveUser(subId);
 
-		const driftUser = this.velocityClient.getUser(subId);
+		const velocityUser = this.velocityClient.getUser(subId);
 		const perpMarketAccount =
 			this.velocityClient.getPerpMarketAccount(perpIdx)!;
 		const mmOraclePriceData =
@@ -261,11 +261,11 @@ export class JitMaker implements Bot {
 		).length;
 
 		const targetLeverage = this.targetLeverage / numMarketsForSubaccount;
-		const actualLeverage = driftUser.getLeverage().div(new BN(10_000));
+		const actualLeverage = velocityUser.getLeverage().div(new BN(10_000));
 
 		const maxBase: number = calculateBaseAmountToMarketMakePerp(
 			perpMarketAccount,
-			driftUser,
+			velocityUser,
 			targetLeverage
 		);
 
@@ -277,7 +277,7 @@ export class JitMaker implements Bot {
 				`jit maker at or above max leverage actual: ${actualLeverage} target: ${targetLeverage}`
 			);
 			const overleveredBaseAssetAmount =
-				driftUser.getPerpPosition(perpIdx)!.baseAssetAmount;
+				velocityUser.getPerpPosition(perpIdx)!.baseAssetAmount;
 			if (overleveredBaseAssetAmount.gt(new BN(0))) {
 				overleveredLong = true;
 			} else if (overleveredBaseAssetAmount.lt(new BN(0))) {
@@ -286,7 +286,7 @@ export class JitMaker implements Bot {
 		}
 
 		this.jitter.setUserFilter((userAccount, userKey) => {
-			let skip = userKey == driftUser.userAccountPublicKey.toBase58();
+			let skip = userKey == velocityUser.userAccountPublicKey.toBase58();
 
 			if (
 				isMarketVolatile(
@@ -380,7 +380,7 @@ export class JitMaker implements Bot {
 		const subId = this.subAccountIds[index];
 		await this.velocityClient.switchActiveUser(subId);
 
-		const driftUser = this.velocityClient.getUser(subId);
+		const velocityUser = this.velocityClient.getUser(subId);
 		const spotMarketAccount =
 			this.velocityClient.getSpotMarketAccount(spotIdx)!;
 		const oraclePriceData =
@@ -391,11 +391,11 @@ export class JitMaker implements Bot {
 		).length;
 
 		const targetLeverage = this.targetLeverage / numMarketsForSubaccount;
-		const actualLeverage = driftUser.getLeverage().div(new BN(10_000));
+		const actualLeverage = velocityUser.getLeverage().div(new BN(10_000));
 
 		const maxBase: number = calculateBaseAmountToMarketMakeSpot(
 			spotMarketAccount,
-			driftUser,
+			velocityUser,
 			targetLeverage
 		);
 
@@ -407,7 +407,7 @@ export class JitMaker implements Bot {
 				`jit maker at or above max leverage actual: ${actualLeverage} target: ${targetLeverage}`
 			);
 			const overleveredBaseAssetAmount =
-				driftUser.getSpotPosition(spotIdx)!.scaledBalance;
+				velocityUser.getSpotPosition(spotIdx)!.scaledBalance;
 			if (overleveredBaseAssetAmount.gt(new BN(0))) {
 				overleveredLong = true;
 			} else if (overleveredBaseAssetAmount.lt(new BN(0))) {
@@ -416,7 +416,7 @@ export class JitMaker implements Bot {
 		}
 
 		this.jitter.setUserFilter((userAccount, userKey) => {
-			let skip = userKey == driftUser.userAccountPublicKey.toBase58();
+			let skip = userKey == velocityUser.userAccountPublicKey.toBase58();
 
 			if (
 				isSpotMarketVolatile(
@@ -436,35 +436,35 @@ export class JitMaker implements Bot {
 			return skip;
 		});
 
-		const bestDriftBid = getBestLimitBidExcludePubKey(
+		const bestVelocityBid = getBestLimitBidExcludePubKey(
 			this.dlobSubscriber.dlob,
 			spotMarketAccount.marketIndex,
 			MarketType.SPOT,
 			oraclePriceData.slot.toNumber(),
 			oraclePriceData,
-			driftUser.userAccountPublicKey.toString()
+			velocityUser.userAccountPublicKey.toString()
 		);
 
-		const bestDriftAsk = getBestLimitAskExcludePubKey(
+		const bestVelocityAsk = getBestLimitAskExcludePubKey(
 			this.dlobSubscriber.dlob,
 			spotMarketAccount.marketIndex,
 			MarketType.SPOT,
 			oraclePriceData.slot.toNumber(),
 			oraclePriceData,
-			driftUser.userAccountPublicKey.toString()
+			velocityUser.userAccountPublicKey.toString()
 		);
 
-		if (!bestDriftBid || !bestDriftAsk) {
+		if (!bestVelocityBid || !bestVelocityAsk) {
 			logger.warn('skipping, no best bid/ask');
 			return;
 		}
 
-		const bestBidPrice = bestDriftBid.getPrice(
+		const bestBidPrice = bestVelocityBid.getPrice(
 			oraclePriceData,
 			this.dlobSubscriber.slotSource.getSlot()
 		);
 
-		const bestAskPrice = bestDriftAsk.getPrice(
+		const bestAskPrice = bestVelocityAsk.getPrice(
 			oraclePriceData,
 			this.dlobSubscriber.slotSource.getSlot()
 		);

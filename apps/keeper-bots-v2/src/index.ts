@@ -70,7 +70,7 @@ import { FundingRateUpdaterBot } from './bots/fundingRateUpdater';
 import { FillerLiteBot } from './bots/fillerLite';
 import { MakerBidAskTwapCrank } from './bots/makerBidAskTwapCrank';
 import { BundleSender } from './bundleSender';
-import { DriftStateWatcher, StateChecks } from './driftStateWatcher';
+import { VelocityStateWatcher, StateChecks } from './velocityStateWatcher';
 import { webhookMessage } from './webhook';
 import { PythLazerCrankerBot } from './bots/pythLazerCranker';
 import { JitMaker } from './bots/jitMaker';
@@ -230,7 +230,7 @@ logger.info(
 );
 
 // @ts-ignore
-const sdkConfig = initialize({ env: config.global.driftEnv });
+const sdkConfig = initialize({ env: config.global.velocityEnv });
 const agent = new Agent({
 	connections: 200,
 	allowH2: false,
@@ -248,7 +248,7 @@ const jetTxEndpoints = config.global.jetTxEndpoints;
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
 logger.info(`Helius endpoint:  ${heliusEndpoint}`);
-logger.info(`VelocityEnv:     ${config.global.driftEnv}`);
+logger.info(`VelocityEnv:     ${config.global.velocityEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 
 const bots: Bot[] = [];
@@ -261,7 +261,7 @@ const runBot = async () => {
 		);
 	}
 	const [keypair, wallet] = getWallet(privateKeyOrFilepath);
-	const driftPublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
+	const velocityPublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
 
 	const connection = new Connection(endpoint, {
 		wsEndpoint: wsEndpoint,
@@ -409,13 +409,13 @@ const runBot = async () => {
 	}
 
 	/**
-	 * Creating and subscribing to the drift client
+	 * Creating and subscribing to the velocity client
 	 */
 
 	// keeping these arrays undefined will prompt VelocityClient to call `findAllMarketAndOracles`
 	// and load all markets and oracle accounts from on-chain
 	const marketLookupTables = configs[
-		config.global.driftEnv!
+		config.global.velocityEnv!
 	].MARKET_LOOKUP_TABLES.map((key) => new PublicKey(key));
 	const marketsAndOracleInfos = getMarketsAndOracleInfosToLoad(
 		sdkConfig,
@@ -423,13 +423,13 @@ const runBot = async () => {
 		config.global.spotMarketsToLoad
 	);
 	const oracleInfos = marketsAndOracleInfos.oracleInfos;
-	const driftClientConfig = {
+	const velocityClientConfig = {
 		connection,
 		wallet,
-		programID: driftPublicKey,
+		programID: velocityPublicKey,
 		opts,
 		accountSubscription,
-		env: config.global.driftEnv,
+		env: config.global.velocityEnv,
 		userStats: true,
 		perpMarketIndexes: marketsAndOracleInfos.perpMarketIndicies,
 		spotMarketIndexes: marketsAndOracleInfos.spotMarketIndicies,
@@ -440,7 +440,7 @@ const runBot = async () => {
 		txSender,
 		marketLookupTables,
 	};
-	const velocityClient = new VelocityClient(driftClientConfig);
+	const velocityClient = new VelocityClient(velocityClientConfig);
 	velocityClient.eventEmitter.on('error', (e) => {
 		logger.info('clearing house error');
 		logger.error(e);
@@ -478,7 +478,7 @@ const runBot = async () => {
 	try {
 		const tokenAccount = await getOrCreateAssociatedTokenAccount(
 			connection,
-			new PublicKey(constants[config.global.driftEnv!].USDCMint),
+			new PublicKey(constants[config.global.velocityEnv!].USDCMint),
 			wallet
 		);
 		const usdcBalance = await connection.getTokenAccountBalance(tokenAccount);
@@ -527,7 +527,7 @@ const runBot = async () => {
 	 * Start bots depending on flags enabled
 	 */
 	let needPythPriceSubscriber = false;
-	let needCheckDriftUser = false;
+	let needCheckVelocityUser = false;
 	let needForceCollateral = !!config.global.forceDeposit;
 	let needUserMapSubscribe = false;
 	const userMapConnection = new Connection(endpoint);
@@ -574,12 +574,12 @@ const runBot = async () => {
 		updateIntervalMs: 2000,
 	});
 
-	let needDriftStateWatcher = false;
-	let needDriftClient = false;
+	let needVelocityStateWatcher = false;
+	let needVelocityClient = false;
 
 	if (configHasBot(config, 'pythLazerCranker')) {
 		needPriorityFeeSubscriber = true;
-		needDriftClient = true;
+		needVelocityClient = true;
 
 		bots.push(
 			new PythLazerCrankerBot(
@@ -593,7 +593,7 @@ const runBot = async () => {
 	}
 	if (configHasBot(config, 'jitMaker')) {
 		needPriorityFeeSubscriber = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 		needUserMapSubscribe = true;
 
 		const auctionSubscriber = new AuctionSubscriber({
@@ -601,7 +601,7 @@ const runBot = async () => {
 			resubTimeoutMs: 30_000,
 		});
 		let swiftOrderSubscriber: SwiftOrderSubscriber | undefined = undefined;
-		if (config.global.driftEnv === 'devnet') {
+		if (config.global.velocityEnv === 'devnet') {
 			if (!config.botConfigs?.jitMaker?.marketIndexes) {
 				throw new Error('Market indexes must be specified for JIT Maker bot');
 			}
@@ -636,7 +636,7 @@ const runBot = async () => {
 				velocityClient,
 				jitter,
 				config.botConfigs!.jitMaker!,
-				config.global.driftEnv,
+				config.global.velocityEnv,
 				priorityFeeSubscriber
 			)
 		);
@@ -644,11 +644,11 @@ const runBot = async () => {
 
 	if (configHasBot(config, 'filler')) {
 		needPythPriceSubscriber = true;
-		needCheckDriftUser = true;
+		needCheckVelocityUser = true;
 		needUserMapSubscribe = true;
 		needPriorityFeeSubscriber = true;
 		needBlockhashSubscriber = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 
 		bots.push(
 			new FillerBot(
@@ -659,8 +659,8 @@ const runBot = async () => {
 				{
 					rpcEndpoint: endpoint,
 					commit: commitHash,
-					driftEnv: config.global.driftEnv!,
-					driftPid: driftPublicKey.toBase58(),
+					velocityEnv: config.global.velocityEnv!,
+					velocityPid: velocityPublicKey.toBase58(),
 					walletAuthority: wallet.publicKey.toBase58(),
 				},
 				config.global,
@@ -675,10 +675,10 @@ const runBot = async () => {
 
 	if (configHasBot(config, 'fillerLite')) {
 		needPythPriceSubscriber = true;
-		needCheckDriftUser = true;
+		needCheckVelocityUser = true;
 		needPriorityFeeSubscriber = true;
 		needBlockhashSubscriber = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 
 		logger.info(`Starting filler lite bot`);
 		bots.push(
@@ -688,8 +688,8 @@ const runBot = async () => {
 				{
 					rpcEndpoint: endpoint,
 					commit: commitHash,
-					driftEnv: config.global.driftEnv!,
-					driftPid: driftPublicKey.toBase58(),
+					velocityEnv: config.global.velocityEnv!,
+					velocityPid: velocityPublicKey.toBase58(),
 					walletAuthority: wallet.publicKey.toBase58(),
 				},
 				config.global,
@@ -703,12 +703,12 @@ const runBot = async () => {
 	}
 
 	if (configHasBot(config, 'spotFiller')) {
-		needCheckDriftUser = true;
+		needCheckVelocityUser = true;
 		// to avoid long startup, spotFiller will fetch userAccounts as needed and build the map over time
 		needUserMapSubscribe = false;
 		needPriorityFeeSubscriber = true;
 		needBlockhashSubscriber = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 
 		bots.push(
 			new SpotFillerBot(
@@ -717,8 +717,8 @@ const runBot = async () => {
 				{
 					rpcEndpoint: endpoint,
 					commit: commitHash,
-					driftEnv: config.global.driftEnv!,
-					driftPid: driftPublicKey.toBase58(),
+					velocityEnv: config.global.velocityEnv!,
+					velocityPid: velocityPublicKey.toBase58(),
 					walletAuthority: wallet.publicKey.toBase58(),
 				},
 				config.global,
@@ -733,7 +733,7 @@ const runBot = async () => {
 
 	if (configHasBot(config, 'trigger')) {
 		needUserMapSubscribe = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 		needBlockhashSubscriber = true;
 
 		bots.push(
@@ -745,8 +745,8 @@ const runBot = async () => {
 				{
 					rpcEndpoint: endpoint,
 					commit: commitHash,
-					driftEnv: config.global.driftEnv!,
-					driftPid: driftPublicKey.toBase58(),
+					velocityEnv: config.global.velocityEnv!,
+					velocityPid: velocityPublicKey.toBase58(),
 					walletAuthority: wallet.publicKey.toBase58(),
 				},
 				config.botConfigs!.trigger!,
@@ -757,11 +757,11 @@ const runBot = async () => {
 	}
 
 	if (configHasBot(config, 'liquidator')) {
-		needCheckDriftUser = true;
+		needCheckVelocityUser = true;
 		needUserMapSubscribe = true;
 		needForceCollateral = true;
 		needPriorityFeeSubscriber = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 
 		bots.push(
 			new LiquidatorBot(
@@ -770,8 +770,8 @@ const runBot = async () => {
 				{
 					rpcEndpoint: endpoint,
 					commit: commitHash,
-					driftEnv: config.global.driftEnv!,
-					driftPid: driftPublicKey.toBase58(),
+					velocityEnv: config.global.velocityEnv!,
+					velocityPid: velocityPublicKey.toBase58(),
 					walletAuthority: wallet.publicKey.toBase58(),
 				},
 				config.botConfigs!.liquidator!,
@@ -785,7 +785,7 @@ const runBot = async () => {
 	}
 
 	if (configHasBot(config, 'floatingMaker')) {
-		needCheckDriftUser = true;
+		needCheckVelocityUser = true;
 		bots.push(
 			new FloatingPerpMakerBot(
 				velocityClient,
@@ -793,8 +793,8 @@ const runBot = async () => {
 				{
 					rpcEndpoint: endpoint,
 					commit: commitHash,
-					driftEnv: config.global.driftEnv!,
-					driftPid: driftPublicKey.toBase58(),
+					velocityEnv: config.global.velocityEnv!,
+					velocityPid: velocityPublicKey.toBase58(),
 					walletAuthority: wallet.publicKey.toBase58(),
 				},
 				config.botConfigs!.floatingMaker!
@@ -803,7 +803,7 @@ const runBot = async () => {
 	}
 
 	if (configHasBot(config, 'userPnlSettler')) {
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 		needPriorityFeeSubscriber = true;
 		bots.push(
 			new UserPnlSettlerBot(
@@ -818,7 +818,7 @@ const runBot = async () => {
 	if (configHasBot(config, 'userIdleFlipper')) {
 		needUserMapSubscribe = true;
 		needBlockhashSubscriber = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 
 		bots.push(
 			new UserIdleFlipperBot(
@@ -830,7 +830,7 @@ const runBot = async () => {
 	}
 
 	if (configHasBot(config, 'ifRevenueSettler')) {
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 
 		bots.push(
 			new IFRevenueSettlerBot(
@@ -841,8 +841,8 @@ const runBot = async () => {
 	}
 
 	if (configHasBot(config, 'fundingRateUpdater')) {
-		needCheckDriftUser = true;
-		needDriftStateWatcher = true;
+		needCheckVelocityUser = true;
+		needVelocityStateWatcher = true;
 
 		bots.push(
 			new FundingRateUpdaterBot(
@@ -855,9 +855,9 @@ const runBot = async () => {
 	if (configHasBot(config, 'markTwapCrank')) {
 		needPythPriceSubscriber = true;
 		needBlockhashSubscriber = true;
-		needCheckDriftUser = true;
+		needCheckVelocityUser = true;
 		needUserMapSubscribe = true;
-		needDriftStateWatcher = true;
+		needVelocityStateWatcher = true;
 
 		bots.push(
 			new MakerBidAskTwapCrank(
@@ -876,13 +876,13 @@ const runBot = async () => {
 
 	// Run subscribe functions once
 	if (
-		needDriftClient ||
-		needCheckDriftUser ||
+		needVelocityClient ||
+		needCheckVelocityUser ||
 		needForceCollateral ||
 		eventSubscriber ||
 		needUserMapSubscribe ||
 		needPythPriceSubscriber ||
-		needDriftStateWatcher
+		needVelocityStateWatcher
 	) {
 		const hrStart = process.hrtime();
 		while (!(await velocityClient.subscribe())) {
@@ -895,8 +895,8 @@ const runBot = async () => {
 		);
 	}
 
-	logger.info(`Checking user exists: ${needCheckDriftUser}`);
-	if (needCheckDriftUser) await checkUserExists(config, velocityClient, wallet);
+	logger.info(`Checking user exists: ${needCheckVelocityUser}`);
+	if (needCheckVelocityUser) await checkUserExists(config, velocityClient, wallet);
 
 	logger.info(`Checking if bot needs collateral: ${needForceCollateral}`);
 	if (needForceCollateral)
@@ -932,9 +932,9 @@ const runBot = async () => {
 
 	const activeBots = bots.map((bot) => bot.name);
 
-	let driftStateWatcher: DriftStateWatcher | undefined;
-	if (needDriftStateWatcher) {
-		driftStateWatcher = new DriftStateWatcher({
+	let velocityStateWatcher: VelocityStateWatcher | undefined;
+	if (needVelocityStateWatcher) {
+		velocityStateWatcher = new VelocityStateWatcher({
 			velocityClient,
 			intervalMs: 10_000,
 			stateChecks: {
@@ -943,7 +943,7 @@ const runBot = async () => {
 				newPerpMarkets: true,
 				newSpotMarkets: true,
 				onStateChange: async (message: string, changes: StateChecks) => {
-					const msg = `DriftStateWatcher triggered: ${message}]\nactive bots: ${JSON.stringify(
+					const msg = `VelocityStateWatcher triggered: ${message}]\nactive bots: ${JSON.stringify(
 						activeBots
 					)}\nstate changes: ${JSON.stringify(changes)}`;
 					logger.info(msg);
@@ -951,7 +951,7 @@ const runBot = async () => {
 				},
 			},
 		});
-		driftStateWatcher.subscribe();
+		velocityStateWatcher.subscribe();
 	}
 
 	if (bots.length === 0) {
@@ -1022,18 +1022,18 @@ const runBot = async () => {
 					}
 				}
 
-				if (driftStateWatcher && driftStateWatcher.triggered) {
+				if (velocityStateWatcher && velocityStateWatcher.triggered) {
 					const triggeredStates = JSON.stringify(
-						driftStateWatcher.triggeredStates
+						velocityStateWatcher.triggeredStates
 					);
 					logger.error(
-						`Health check failed for DriftStateWatcher, bot names: ${JSON.stringify(
+						`Health check failed for VelocityStateWatcher, bot names: ${JSON.stringify(
 							activeBots
 						)}, state changes: ${triggeredStates}`
 					);
 					res.writeHead(503);
 					res.end(
-						`DriftStateWatcher is not healthy, triggeredStates: ${triggeredStates}`
+						`VelocityStateWatcher is not healthy, triggeredStates: ${triggeredStates}`
 					);
 					return;
 				}
@@ -1108,11 +1108,11 @@ async function checkAndForceCollateral(
 			throw new Error('Deposit amount must be greater than 0');
 		}
 
-		const mint = SpotMarkets[config.global.driftEnv!][0].mint; // TODO: are index 0 always USDC???, support other collaterals
+		const mint = SpotMarkets[config.global.velocityEnv!][0].mint; // TODO: are index 0 always USDC???, support other collaterals
 		const ata = await getAssociatedTokenAddress(mint, wallet.publicKey);
 		const amount = new BN(config.global.forceDeposit).mul(QUOTE_PRECISION);
 
-		if (config.global.driftEnv === 'devnet') {
+		if (config.global.velocityEnv === 'devnet') {
 			const tokenFaucet = new TokenFaucet(
 				velocityClient.connection,
 				wallet,

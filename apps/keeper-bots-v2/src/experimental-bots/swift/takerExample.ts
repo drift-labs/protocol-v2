@@ -28,7 +28,7 @@ export class SwiftTaker {
 		private intervalMs: number
 	) {
 		this.swiftUrl =
-			runtimeSpec.driftEnv === 'mainnet-beta'
+			runtimeSpec.velocityEnv === 'mainnet-beta'
 				? 'https://swift.drift.trade'
 				: 'https://master.swift.drift.trade';
 	}

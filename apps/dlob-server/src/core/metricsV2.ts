@@ -22,9 +22,9 @@ import {
  */
 export type RuntimeSpec = {
 	rpcEndpoint: string;
-	driftEnv: string;
+	velocityEnv: string;
 	commit: string;
-	driftPid: string;
+	velocityPid: string;
 	walletAuthority: string;
 };
 

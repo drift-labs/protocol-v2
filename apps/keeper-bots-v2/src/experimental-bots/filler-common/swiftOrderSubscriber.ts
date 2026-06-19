@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 import parseArgs from 'minimist';
 
 export type SwiftOrderSubscriberConfig = {
-	driftEnv: VelocityEnv;
+	velocityEnv: VelocityEnv;
 	endpoint: string;
 	marketIndexes: number[];
 	keypair: Keypair;
@@ -29,7 +29,7 @@ export class SwiftOrderSubscriber {
 
 	getSymbolForMarketIndex(marketIndex: number) {
 		const markets =
-			this.config.driftEnv === 'devnet'
+			this.config.velocityEnv === 'devnet'
 				? DevnetPerpMarkets
 				: MainnetPerpMarkets;
 		return markets[marketIndex].symbol;
@@ -162,7 +162,7 @@ async function main() {
 	dotenv.config();
 
 	const args = parseArgs(process.argv.slice(2));
-	const driftEnv = args['drift-env'] ?? 'devnet';
+	const velocityEnv = args['velocity-env'] ?? 'devnet';
 	const marketIndexesStr = String(args['market-indexes']);
 	const marketIndexes = marketIndexesStr.split(',').map(Number);
 
@@ -175,9 +175,9 @@ async function main() {
 
 	const keypair = loadKeypair(privateKey);
 	const swiftOrderSubscriberConfig: SwiftOrderSubscriberConfig = {
-		driftEnv,
+		velocityEnv,
 		endpoint:
-			driftEnv === 'devnet'
+			velocityEnv === 'devnet'
 				? 'wss://master.swift.drift.trade/ws'
 				: 'wss://swift.drift.trade/ws',
 		marketIndexes,

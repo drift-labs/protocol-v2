@@ -43,7 +43,7 @@ export class SwiftMaker {
 		runtimeSpec: RuntimeSpec,
 		private dryRun?: boolean
 	) {
-		this.isMainnet = runtimeSpec.driftEnv === 'mainnet-beta';
+		this.isMainnet = runtimeSpec.velocityEnv === 'mainnet-beta';
 		this.signedMsgUrl = this.isMainnet
 			? 'wss://swift.drift.trade/ws'
 			: 'wss://master.swift.drift.trade/ws';

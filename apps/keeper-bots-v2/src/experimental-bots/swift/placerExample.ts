@@ -70,12 +70,12 @@ export class SwiftPlacer {
 		private runtimeSpec: RuntimeSpec
 	) {
 		this.signedMsgUrl =
-			runtimeSpec.driftEnv === 'mainnet-beta'
+			runtimeSpec.velocityEnv === 'mainnet-beta'
 				? 'wss://swift.drift.trade/ws'
 				: 'wss://master.swift.drift.trade/ws';
 
 		this.baseDlobUrl =
-			runtimeSpec.driftEnv == 'mainnet-beta'
+			runtimeSpec.velocityEnv == 'mainnet-beta'
 				? 'https://dlob.drift.trade'
 				: 'https://master.dlob.drift.trade';
 
@@ -149,7 +149,7 @@ export class SwiftPlacer {
 					message['message'] === 'Authenticated'
 				) {
 					for (const perpMarket of PerpMarkets[
-						this.runtimeSpec.driftEnv as VelocityEnv
+						this.runtimeSpec.velocityEnv as VelocityEnv
 					]) {
 						console.log(
 							`Subscribing to perp market: ${perpMarket.marketIndex}`

@@ -43,7 +43,7 @@ setGlobalDispatcher(
 );
 
 require('dotenv').config();
-const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
+const velocityEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const REDIS_CLIENT = process.env.REDIS_CLIENT || 'DLOB';
 const metricsPort = process.env.METRICS_PORT
@@ -123,7 +123,7 @@ const mockFillPort = process.env.MOCK_FILL_PORT
 	: 9470;
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
-logger.info(`VelocityEnv:     ${driftEnv}`);
+logger.info(`VelocityEnv:     ${velocityEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 
 const startMockFillEndpoint = (
@@ -202,7 +202,7 @@ const main = async () => {
 			commitment: stateCommitment,
 			resubTimeoutMs: 30_000,
 		},
-		env: driftEnv,
+		env: velocityEnv,
 	});
 
 	const redisClient = new RedisClient({ prefix: redisClientPrefix });
@@ -383,7 +383,7 @@ export {
 	sdkConfig,
 	endpoint,
 	wsEndpoint,
-	driftEnv,
+	velocityEnv,
 	commitHash,
 	velocityClient,
 };

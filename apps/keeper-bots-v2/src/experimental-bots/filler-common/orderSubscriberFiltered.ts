@@ -15,7 +15,7 @@ import { Connection, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import dotenv from 'dotenv';
 import { logger } from '../../logger';
 import parseArgs from 'minimist';
-import { getDriftClientFromArgs } from './utils';
+import { getVelocityClientFromArgs } from './utils';
 
 const logPrefix = '[OrderSubscriberFiltered]';
 
@@ -241,7 +241,7 @@ const main = async () => {
 	dotenv.config();
 
 	const args = parseArgs(process.argv.slice(2));
-	const driftEnv = args['drift-env'] ?? 'devnet';
+	const velocityEnv = args['velocity-env'] ?? 'devnet';
 	const marketIndexesStr = String(args['market-indexes']);
 	const marketIndexes = marketIndexesStr.split(',').map(Number);
 	const marketTypeStr = args['market-type'] as string;
@@ -272,12 +272,12 @@ const main = async () => {
 	const wallet = new Wallet(loadKeypair(privateKey));
 	const connection = new Connection(endpoint, 'processed');
 
-	const velocityClient = getDriftClientFromArgs({
+	const velocityClient = getVelocityClientFromArgs({
 		connection,
 		wallet,
 		marketIndexes,
 		marketTypeStr,
-		env: driftEnv,
+		env: velocityEnv,
 	});
 	await velocityClient.subscribe();
 

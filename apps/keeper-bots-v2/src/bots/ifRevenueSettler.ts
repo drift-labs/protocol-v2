@@ -14,7 +14,7 @@ import { Bot } from '../types';
 import { webhookMessage } from '../webhook';
 import { BaseBotConfig } from '../config';
 import {
-	getDriftPriorityFeeEndpoint,
+	getVelocityPriorityFeeEndpoint,
 	simulateAndGetTxWithCUs,
 	sleepS,
 } from '../utils';
@@ -65,7 +65,7 @@ export class IFRevenueSettlerBot implements Bot {
 		}
 
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
-			velocityPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
+			velocityPriorityFeeEndpoint: getVelocityPriorityFeeEndpoint('mainnet-beta'),
 			velocityMarkets,
 			frequencyMs: 10_000,
 		});

@@ -20,8 +20,8 @@ export type StateChecks = {
 	onStateChange?: (message: string, changes: StateChecks) => void;
 };
 
-export type DriftStateWatcherConfig = {
-	/// access drift program
+export type VelocityStateWatcherConfig = {
+	/// access velocity program
 	velocityClient: VelocityClient;
 	/// interval to check for updates
 	intervalMs: number;
@@ -32,7 +32,7 @@ export type DriftStateWatcherConfig = {
 /**
  * Watches for updates on the VelocityClient
  */
-export class DriftStateWatcher {
+export class VelocityStateWatcher {
 	private lastStateAccount?: StateAccount;
 	private lastSpotMarketAccounts: Map<number, SpotMarketAccount> = new Map();
 	private lastPerpMarketAccounts: Map<number, PerpMarketAccount> = new Map();
@@ -41,7 +41,7 @@ export class DriftStateWatcher {
 	private _lastTriggered: boolean;
 	private _lastTriggeredStates: StateChecks;
 
-	constructor(private config: DriftStateWatcherConfig) {
+	constructor(private config: VelocityStateWatcherConfig) {
 		this._lastTriggeredStates = {
 			newPerpMarkets: false,
 			newSpotMarkets: false,
@@ -62,7 +62,7 @@ export class DriftStateWatcher {
 	public subscribe() {
 		if (!this.config.velocityClient.isSubscribed) {
 			throw new Error(
-				'VelocityClient must be subscribed before calling DriftStateWatcher.subscribe()'
+				'VelocityClient must be subscribed before calling VelocityStateWatcher.subscribe()'
 			);
 		}
 		this.lastStateAccount = this.config.velocityClient.getStateAccount();

@@ -40,12 +40,12 @@ import {
 	SerializedNodeToFill,
 	NodeToFillWithContext,
 } from './types';
-import { getDriftClientFromArgs, serializeNodeToFill } from './utils';
+import { getVelocityClientFromArgs, serializeNodeToFill } from './utils';
 import { sleepMs } from '../../utils';
 import { LRUCache } from 'lru-cache';
 import { sha256 } from '@noble/hashes/sha256';
 
-const EXPIRE_ORDER_BUFFER_SEC = 30; // add an extra 30 seconds before trying to expire orders (want to avoid 6252 error due to clock drift)
+const EXPIRE_ORDER_BUFFER_SEC = 30; // add an extra 30 seconds before trying to expire orders (want to avoid 6252 error due to clock velocity)
 
 const logPrefix = '[DLOBBuilder]';
 class DLOBBuilder {
@@ -435,7 +435,7 @@ const main = async () => {
 	const endpoint = process.env.ENDPOINT;
 	const privateKey = process.env.KEEPER_PRIVATE_KEY;
 	const args = parseArgs(process.argv.slice(2));
-	const driftEnv = args['drift-env'] ?? 'devnet';
+	const velocityEnv = args['velocity-env'] ?? 'devnet';
 	const marketTypeStr = args['market-type'];
 
 	let marketIndexes;
@@ -471,12 +471,12 @@ const main = async () => {
 		commitment: 'processed',
 	});
 
-	const velocityClient = getDriftClientFromArgs({
+	const velocityClient = getVelocityClientFromArgs({
 		connection,
 		wallet,
 		marketIndexes,
 		marketTypeStr,
-		env: driftEnv,
+		env: velocityEnv,
 	});
 	await velocityClient.subscribe();
 

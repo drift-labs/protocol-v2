@@ -77,7 +77,7 @@ const REDIS_CLIENTS = envClients.length
 	: [RedisClientPrefix.DLOB, RedisClientPrefix.DLOB_HELIUS];
 console.log('Redis Clients:', REDIS_CLIENTS);
 
-const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
+const velocityEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 //@ts-ignore
 const sdkConfig = initialize({ env: process.env.ENV });
@@ -89,7 +89,7 @@ export const ORDERBOOK_UPDATE_INTERVAL =
 const WS_FALLBACK_FETCH_INTERVAL = ORDERBOOK_UPDATE_INTERVAL * 60;
 const useWebsocket = process.env.USE_WEBSOCKET?.toLowerCase() === 'true';
 const hermesUrl = process.env.HERMES_ENDPOINT;
-const pythLazerDriftToken = process.env.PYTH_LAZER_DRIFT_TOKEN;
+const pythLazerVelocityToken = process.env.PYTH_LAZER_DRIFT_TOKEN;
 const pythLazerEndpoint = process.env.PYTH_LAZER_ENDPOINT;
 
 const metricsPort = process.env.METRICS_PORT
@@ -164,7 +164,7 @@ const wsEndpoint = process.env.WS_ENDPOINT;
 logger.info(`RPC endpoint:       ${endpoint}`);
 logger.info(`WS endpoint:        ${wsEndpoint}`);
 logger.info(`useWebsocket:       ${useWebsocket}`);
-logger.info(`VelocityEnv:           ${driftEnv}`);
+logger.info(`VelocityEnv:           ${velocityEnv}`);
 logger.info(`Commit:             ${commitHash}`);
 
 const main = async (): Promise<void> => {
@@ -190,7 +190,7 @@ const main = async (): Promise<void> => {
 			commitment: stateCommitment,
 			resubTimeoutMs: 60_000,
 		},
-		env: driftEnv,
+		env: velocityEnv,
 		delistedMarketSetting: DelistedMarketSetting.Discard,
 	});
 
@@ -374,7 +374,7 @@ const main = async (): Promise<void> => {
 
 			const { normedMarketType, normedMarketIndex, error } = validateDlobQuery(
 				velocityClient,
-				driftEnv,
+				velocityEnv,
 				marketType as string,
 				marketIndex as string,
 				marketName as string
@@ -556,7 +556,7 @@ const main = async (): Promise<void> => {
 
 			const { normedMarketType, normedMarketIndex, error } = validateDlobQuery(
 				velocityClient,
-				driftEnv,
+				velocityEnv,
 				marketType as string,
 				marketIndex as string,
 				marketName as string
@@ -670,7 +670,7 @@ const main = async (): Promise<void> => {
 					const { normedMarketType, normedMarketIndex, error } =
 						validateDlobQuery(
 							velocityClient,
-							driftEnv,
+							velocityEnv,
 							normedParam['marketType'] as string,
 							normedParam['marketIndex'] as string,
 							normedParam['marketName'] as string
@@ -766,7 +766,7 @@ const main = async (): Promise<void> => {
 
 			const { normedMarketType, normedMarketIndex, error } = validateDlobQuery(
 				velocityClient,
-				driftEnv,
+				velocityEnv,
 				marketType as string,
 				marketIndex as string,
 				marketName as string
@@ -851,7 +851,7 @@ const main = async (): Promise<void> => {
 			const latestPriceRes = await fetch(pythLazerEndpoint, {
 				method: 'POST',
 				headers: {
-					Authorization: `Bearer ${pythLazerDriftToken}`,
+					Authorization: `Bearer ${pythLazerVelocityToken}`,
 				},
 				body: JSON.stringify(latestLazerPricePayload),
 			}).then((res) => res.json());
@@ -1141,7 +1141,7 @@ recursiveTryCatch(() => main());
 export {
 	commitHash,
 	velocityClient,
-	driftEnv,
+	velocityEnv,
 	endpoint,
 	sdkConfig,
 	wsEndpoint,

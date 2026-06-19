@@ -139,7 +139,7 @@ enum BOT_STATE {
 }
 
 /**
- * LiquidatorBot implements a simple liquidation bot for the Drift V2 Protocol. Liquidations work by taking over
+ * LiquidatorBot implements a simple liquidation bot for the Velocity V2 Protocol. Liquidations work by taking over
  * a portion of the endangered account's position, so collateral is required in order to run this bot. The bot
  * will spend at most maxPositionTakeoverPctOfCollateral of its free collateral on any endangered account.
  *
@@ -174,8 +174,8 @@ export class LiquidatorBot implements Bot {
 
 	private velocityClient: VelocityClient;
 	private serumLookupTableAddress?: PublicKey;
-	private driftLookupTables?: AddressLookupTableAccount[];
-	private driftSpotLookupTables?: AddressLookupTableAccount;
+	private velocityLookupTables?: AddressLookupTableAccount[];
+	private velocitySpotLookupTables?: AddressLookupTableAccount;
 
 	private perpMarketIndicies: number[] = [];
 	private spotMarketIndicies: number[] = [];
@@ -335,8 +335,8 @@ export class LiquidatorBot implements Bot {
 			config: this.liquidatorConfig,
 			name: this.name,
 			priorityFeeSubscriber: this.priorityFeeSubscriber,
-			driftLookupTables: this.driftLookupTables,
-			driftSpotLookupTables: this.driftSpotLookupTables,
+			velocityLookupTables: this.velocityLookupTables,
+			velocitySpotLookupTables: this.velocitySpotLookupTables,
 		});
 
 		if (!config.maxPositionTakeoverPctOfCollateral) {
@@ -473,7 +473,7 @@ export class LiquidatorBot implements Bot {
 	public async init() {
 		logger.info(`${this.name} initing`);
 
-		this.driftLookupTables =
+		this.velocityLookupTables =
 			await this.velocityClient.fetchAllLookupTableAccounts();
 
 		let serumLut: AddressLookupTableAccount | null = null;
@@ -484,12 +484,12 @@ export class LiquidatorBot implements Bot {
 				)
 			).value;
 		}
-		if (this.runtimeSpecs.driftEnv === 'mainnet-beta' && serumLut === null) {
+		if (this.runtimeSpecs.velocityEnv === 'mainnet-beta' && serumLut === null) {
 			throw new Error(
-				`Failed to load LUT for drift spot accounts at ${this.serumLookupTableAddress?.toBase58()}, jupiter swaps will fail`
+				`Failed to load LUT for velocity spot accounts at ${this.serumLookupTableAddress?.toBase58()}, jupiter swaps will fail`
 			);
 		} else {
-			this.driftSpotLookupTables = serumLut!;
+			this.velocitySpotLookupTables = serumLut!;
 		}
 
 		// If no perp subaccount config was provided, map all perp markets to the default subaccount
@@ -534,8 +534,8 @@ export class LiquidatorBot implements Bot {
 
 		// Update derisk helper with loaded lookup tables
 		this.deriskHelper?.setLookupTables(
-			this.driftLookupTables,
-			this.driftSpotLookupTables
+			this.velocityLookupTables,
+			this.velocitySpotLookupTables
 		);
 
 		await webhookMessage(`[${this.name}]: started`);
@@ -760,7 +760,7 @@ export class LiquidatorBot implements Bot {
 			);
 			const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 				[ix],
-				this.driftLookupTables!,
+				this.velocityLookupTables!,
 				Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 			);
 			if (simResult.simError !== null) {
@@ -818,7 +818,7 @@ export class LiquidatorBot implements Bot {
 			);
 			const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 				[ix],
-				this.driftLookupTables!,
+				this.velocityLookupTables!,
 				Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 			);
 			if (simResult.simError !== null) {
@@ -895,7 +895,7 @@ export class LiquidatorBot implements Bot {
 				position.marketIndex
 			);
 			if (!market) {
-				throw new Error('No spot market found, drift client misconfigured');
+				throw new Error('No spot market found, velocity client misconfigured');
 				continue;
 			}
 
@@ -993,7 +993,7 @@ export class LiquidatorBot implements Bot {
 		);
 		const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 			[ix],
-			this.driftLookupTables!,
+			this.velocityLookupTables!,
 			Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 		);
 		if (simResult.simError !== null) {
@@ -1142,7 +1142,7 @@ export class LiquidatorBot implements Bot {
 				);
 				const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 					ix,
-					this.driftLookupTables!,
+					this.velocityLookupTables!,
 					Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 				);
 				if (simResult.simError !== null) {
@@ -1210,7 +1210,7 @@ export class LiquidatorBot implements Bot {
 				);
 				const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 					[ix],
-					this.driftLookupTables!,
+					this.velocityLookupTables!,
 					Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 				);
 				if (simResult.simError !== null) {
@@ -1302,7 +1302,7 @@ export class LiquidatorBot implements Bot {
 				);
 				const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 					[ix],
-					this.driftLookupTables!,
+					this.velocityLookupTables!,
 					Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 				);
 
@@ -1391,7 +1391,7 @@ export class LiquidatorBot implements Bot {
 		);
 		const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 			[ix],
-			this.driftLookupTables!,
+			this.velocityLookupTables!,
 			Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 		);
 		if (simResult.simError !== null) {

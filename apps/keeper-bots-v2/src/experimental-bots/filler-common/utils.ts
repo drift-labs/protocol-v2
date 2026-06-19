@@ -326,7 +326,7 @@ export const getOracleInfoForMarket = (
 	}
 };
 
-export const getDriftClientFromArgs = ({
+export const getVelocityClientFromArgs = ({
 	connection,
 	wallet,
 	marketIndexes,

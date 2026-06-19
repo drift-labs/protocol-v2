@@ -55,7 +55,7 @@ import {
 
 const BPS_PRECISION = 10000;
 
-export type SpotDeriskMethod = 'jupiter' | 'drift';
+export type SpotDeriskMethod = 'jupiter' | 'velocity';
 export type PerpDeriskMethod = 'swift' | 'on-chain';
 
 export class LiquidatorDerisk {
@@ -65,8 +65,8 @@ export class LiquidatorDerisk {
 	private name: string;
 	private priorityFeeSubscriber: PriorityFeeSubscriber;
 	private jupiterClient?: JupiterClient;
-	private driftLookupTables?: AddressLookupTableAccount[];
-	private driftSpotLookupTables?: AddressLookupTableAccount;
+	private velocityLookupTables?: AddressLookupTableAccount[];
+	private velocitySpotLookupTables?: AddressLookupTableAccount;
 	private spotDeriskMethod?: SpotDeriskMethod;
 	private perpDeriskMethod?: PerpDeriskMethod;
 
@@ -76,8 +76,8 @@ export class LiquidatorDerisk {
 		config: LiquidatorConfig;
 		name: string;
 		priorityFeeSubscriber: PriorityFeeSubscriber;
-		driftLookupTables?: AddressLookupTableAccount[];
-		driftSpotLookupTables?: AddressLookupTableAccount;
+		velocityLookupTables?: AddressLookupTableAccount[];
+		velocitySpotLookupTables?: AddressLookupTableAccount;
 		spotDeriskMethod?: SpotDeriskMethod;
 		perpDeriskMethod?: PerpDeriskMethod;
 	}) {
@@ -86,8 +86,8 @@ export class LiquidatorDerisk {
 		this.config = opts.config;
 		this.name = opts.name;
 		this.priorityFeeSubscriber = opts.priorityFeeSubscriber;
-		this.driftLookupTables = opts.driftLookupTables;
-		this.driftSpotLookupTables = opts.driftSpotLookupTables;
+		this.velocityLookupTables = opts.velocityLookupTables;
+		this.velocitySpotLookupTables = opts.velocitySpotLookupTables;
 		this.spotDeriskMethod = opts.spotDeriskMethod ?? 'jupiter';
 		this.perpDeriskMethod = opts.perpDeriskMethod ?? 'swift';
 
@@ -103,8 +103,8 @@ export class LiquidatorDerisk {
 		luts: AddressLookupTableAccount[],
 		spotLut?: AddressLookupTableAccount
 	) {
-		this.driftLookupTables = luts;
-		this.driftSpotLookupTables = spotLut;
+		this.velocityLookupTables = luts;
+		this.velocitySpotLookupTables = spotLut;
 	}
 
 	private calculateOrderLimitPrice(
@@ -189,7 +189,7 @@ export class LiquidatorDerisk {
 		return resp;
 	}
 
-	private async driftSpotTrade(
+	private async velocitySpotTrade(
 		orderDirection: PositionDirection,
 		marketIndex: number,
 		tokenAmount: BN,
@@ -212,7 +212,7 @@ export class LiquidatorDerisk {
 
 		if (standardizedTokenAmount.eq(ZERO)) {
 			logger.info(
-				`Skipping drift spot trade, would have traded 0. ${tokenAmount.toString()} -> ${positionNetOpenOrders.toString()} -> ${standardizedTokenAmount.toString()}`
+				`Skipping velocity spot trade, would have traded 0. ${tokenAmount.toString()} -> ${positionNetOpenOrders.toString()} -> ${standardizedTokenAmount.toString()}`
 			);
 			return false;
 		}
@@ -245,7 +245,7 @@ export class LiquidatorDerisk {
 
 		const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 			[cancelOrdersIx, placeOrderIx],
-			this.driftLookupTables!,
+			this.velocityLookupTables!,
 			Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 		);
 		if (simResult.simError !== null) {
@@ -280,7 +280,7 @@ export class LiquidatorDerisk {
 		);
 		const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 			[cancelOrdersIx],
-			this.driftLookupTables!,
+			this.velocityLookupTables!,
 			Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 		);
 		if (simResult.simError !== null) {
@@ -323,9 +323,9 @@ export class LiquidatorDerisk {
 				subAccountId
 			),
 		});
-		const lookupTables = [...swapIx.lookupTables, ...this.driftLookupTables!];
-		if (this.driftSpotLookupTables) {
-			lookupTables.push(this.driftSpotLookupTables);
+		const lookupTables = [...swapIx.lookupTables, ...this.velocityLookupTables!];
+		if (this.velocitySpotLookupTables) {
+			lookupTables.push(this.velocitySpotLookupTables);
 		}
 
 		const simResult = await this.buildVersionedTransactionWithSimulatedCus(
@@ -661,7 +661,7 @@ export class LiquidatorDerisk {
 
 				const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 					[cancelOrdersIx, placeOrderIx],
-					this.driftLookupTables!,
+					this.velocityLookupTables!,
 					Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 				);
 
@@ -705,7 +705,7 @@ export class LiquidatorDerisk {
 
 				const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 					ix,
-					this.driftLookupTables!,
+					this.velocityLookupTables!,
 					Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 				);
 				if (simResult.simError !== null) {
@@ -755,7 +755,7 @@ export class LiquidatorDerisk {
 					const simResult =
 						await this.buildVersionedTransactionWithSimulatedCus(
 							ix,
-							this.driftLookupTables!,
+							this.velocityLookupTables!,
 							Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 						);
 					if (simResult.simError !== null) {
@@ -878,7 +878,7 @@ export class LiquidatorDerisk {
 
 			const simResult = await this.buildVersionedTransactionWithSimulatedCus(
 				ixs,
-				this.driftLookupTables!,
+				this.velocityLookupTables!,
 				Math.floor(this.priorityFeeSubscriber.getCustomStrategyResult())
 			);
 			if (simResult.simError !== null) {
@@ -987,7 +987,7 @@ export class LiquidatorDerisk {
 			);
 			if (!jupQuote) {
 				console.log('no jup quote');
-				const placed = await this.driftSpotTrade(
+				const placed = await this.velocitySpotTrade(
 					orderParams.direction,
 					position.marketIndex,
 					orderParams.tokenAmount,

@@ -34,7 +34,7 @@ import { ConfirmOptions, Signer } from '@solana/web3.js';
 import {
 	chunks,
 	getAllPythOracleUpdateIxs,
-	getDriftPriorityFeeEndpoint,
+	getVelocityPriorityFeeEndpoint,
 	handleSimResultError,
 	simulateAndGetTxWithCUs,
 	SimulateAndGetTxWithCUsResponse,
@@ -267,7 +267,7 @@ export class MakerBidAskTwapCrank implements Bot {
 			throw new Error('Missing lazerEndpoint or lazerToken in global config');
 		}
 
-		const markets = PerpMarkets[this.globalConfig.driftEnv!].filter(
+		const markets = PerpMarkets[this.globalConfig.velocityEnv!].filter(
 			(market) =>
 				market.pythLazerId !== undefined &&
 				(!market.marketStatus ||
@@ -284,7 +284,7 @@ export class MakerBidAskTwapCrank implements Bot {
 					channel: 'fixed_rate@200ms',
 				};
 			}),
-			this.globalConfig.driftEnv
+			this.globalConfig.velocityEnv
 		);
 	}
 
@@ -330,7 +330,7 @@ export class MakerBidAskTwapCrank implements Bot {
 		}
 
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
-			velocityPriorityFeeEndpoint: getDriftPriorityFeeEndpoint('mainnet-beta'),
+			velocityPriorityFeeEndpoint: getVelocityPriorityFeeEndpoint('mainnet-beta'),
 			velocityMarkets,
 			frequencyMs: 10_000,
 		});

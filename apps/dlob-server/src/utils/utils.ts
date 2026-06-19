@@ -469,7 +469,7 @@ export const validateWsSubscribeMsg = (
 
 export const validateDlobQuery = (
 	velocityClient: VelocityClient,
-	driftEnv: VelocityEnv,
+	velocityEnv: VelocityEnv,
 	marketType?: string,
 	marketIndex?: string,
 	marketName?: string

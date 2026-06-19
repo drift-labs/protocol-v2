@@ -47,7 +47,7 @@ const REDIS_CLIENTS = envClients.length
 	: [RedisClientPrefix.DLOB, RedisClientPrefix.DLOB_HELIUS];
 console.log('Redis Clients:', REDIS_CLIENTS);
 
-const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
+const velocityEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const endpoint = process.env.ENDPOINT;
 const wsEndpoint = process.env.WS_ENDPOINT;
@@ -119,7 +119,7 @@ setLogLevel(opts.debug ? 'debug' : 'info');
 
 logger.info(`RPC endpoint:       ${endpoint}`);
 logger.info(`WS endpoint:        ${wsEndpoint}`);
-logger.info(`VelocityEnv:           ${driftEnv}`);
+logger.info(`VelocityEnv:           ${velocityEnv}`);
 logger.info(`Commit:             ${commitHash}`);
 
 const main = async (): Promise<void> => {
@@ -225,4 +225,4 @@ async function recursiveTryCatch(f: () => Promise<void>) {
 
 recursiveTryCatch(() => main());
 
-export { commitHash, driftEnv, endpoint, sdkConfig, wsEndpoint };
+export { commitHash, velocityEnv, endpoint, sdkConfig, wsEndpoint };

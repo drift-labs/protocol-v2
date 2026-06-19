@@ -178,18 +178,18 @@ export class TriggerBot implements Bot {
 			this.updateOracleWithTrigger = true;
 
 			const spotMarkets =
-				this.globalConfig.driftEnv === 'mainnet-beta'
+				this.globalConfig.velocityEnv === 'mainnet-beta'
 					? MainnetSpotMarkets
 					: DevnetSpotMarkets;
 			const perpMarkets =
-				this.globalConfig.driftEnv === 'mainnet-beta'
+				this.globalConfig.velocityEnv === 'mainnet-beta'
 					? MainnetPerpMarkets
 					: DevnetPerpMarkets;
 			this.pythLazerClient = new PythLazerSubscriber(
 				this.globalConfig.lazerEndpoints,
 				this.globalConfig.lazerToken,
 				getPythLazerFeedIdChunks(spotMarkets, perpMarkets, 1),
-				this.globalConfig.driftEnv
+				this.globalConfig.velocityEnv
 			);
 
 			for (const market of [...spotMarkets, ...perpMarkets]) {

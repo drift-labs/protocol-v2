@@ -168,7 +168,7 @@ class StreamSelector {
 
 // Set up env constants
 require('dotenv').config();
-const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
+const velocityEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const metricsPort = process.env.METRICS_PORT
 	? parseInt(process.env.METRICS_PORT)
 	: 9464;
@@ -247,11 +247,11 @@ const getRedisChannelFromMessage = (message: any): string => {
 
 	let marketIndex: number;
 	if (marketType === 'spot') {
-		marketIndex = SpotMarkets[driftEnv].find(
+		marketIndex = SpotMarkets[velocityEnv].find(
 			(market) => market.symbol.toUpperCase() === marketName
 		).marketIndex;
 	} else if (marketType === 'perp') {
-		marketIndex = PerpMarkets[driftEnv].find(
+		marketIndex = PerpMarkets[velocityEnv].find(
 			(market) => market.symbol.toUpperCase() === marketName
 		).marketIndex;
 	}

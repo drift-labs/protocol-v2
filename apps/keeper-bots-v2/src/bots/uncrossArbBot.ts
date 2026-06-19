@@ -66,7 +66,7 @@ export class UncrossArbBot implements Bot {
 	public readonly dryRun: boolean;
 	public readonly defaultIntervalMs: number = 1000;
 
-	private driftEnv: VelocityEnv;
+	private velocityEnv: VelocityEnv;
 	private periodicTaskMutex = new Mutex();
 
 	private jitProxyClient: JitProxyClient;
@@ -91,14 +91,14 @@ export class UncrossArbBot implements Bot {
 		jitProxyClient: JitProxyClient,
 		slotSubscriber: SlotSubscriber,
 		config: BaseBotConfig,
-		driftEnv: VelocityEnv,
+		velocityEnv: VelocityEnv,
 		priorityFeeSubscriber: PriorityFeeSubscriber
 	) {
 		this.jitProxyClient = jitProxyClient;
 		this.velocityClient = velocityClient;
 		this.name = config.botId;
 		this.dryRun = config.dryRun;
-		this.driftEnv = driftEnv;
+		this.velocityEnv = velocityEnv;
 		this.slotSubscriber = slotSubscriber;
 
 		let accountSubscription:
@@ -197,7 +197,7 @@ export class UncrossArbBot implements Bot {
 			)
 		);
 
-		logger.info(`${this.name} Bot started! driftEnv: ${this.driftEnv}`);
+		logger.info(`${this.name} Bot started! velocityEnv: ${this.velocityEnv}`);
 	}
 
 	/**
@@ -244,7 +244,7 @@ export class UncrossArbBot implements Bot {
 					inArbIx = true;
 				} else {
 					inArbIx = false;
-					console.log('Failed in drift ix');
+					console.log('Failed in velocity ix');
 				}
 				continue;
 			}
@@ -386,7 +386,7 @@ export class UncrossArbBot implements Bot {
 				const perpMarkets = this.velocityClient.getPerpMarketAccounts();
 				for (let i = 0; i < perpMarkets.length; i++) {
 					const perpIdx = perpMarkets[i].marketIndex;
-					const driftUser = this.velocityClient.getUser();
+					const velocityUser = this.velocityClient.getUser();
 
 					const perpMarketAccount =
 						this.velocityClient.getPerpMarketAccount(perpIdx)!;
@@ -417,48 +417,48 @@ export class UncrossArbBot implements Bot {
 						}
 					}
 
-					const bestDriftBid = getBestLimitBidExcludePubKey(
+					const bestVelocityBid = getBestLimitBidExcludePubKey(
 						this.dlobSubscriber.dlob,
 						perpMarketAccount.marketIndex,
 						MarketType.PERP,
 						oraclePriceData.slot.toNumber(),
 						mmOraclePriceData,
-						driftUser.getUserAccountPublicKey().toBase58(),
+						velocityUser.getUserAccountPublicKey().toBase58(),
 						excludedPubKeysOrderIdPairs
 					);
 
-					const bestDriftAsk = getBestLimitAskExcludePubKey(
+					const bestVelocityAsk = getBestLimitAskExcludePubKey(
 						this.dlobSubscriber.dlob,
 						perpMarketAccount.marketIndex,
 						MarketType.PERP,
 						oraclePriceData.slot.toNumber(),
 						mmOraclePriceData,
-						driftUser.getUserAccountPublicKey().toBase58(),
+						velocityUser.getUserAccountPublicKey().toBase58(),
 						excludedPubKeysOrderIdPairs
 					);
 
-					if (!bestDriftBid || !bestDriftAsk) {
+					if (!bestVelocityBid || !bestVelocityAsk) {
 						continue;
 					}
 
 					const currentSlot = this.slotSubscriber.getSlot();
-					const bestDriftBidPrice = bestDriftBid.getPrice(
+					const bestVelocityBidPrice = bestVelocityBid.getPrice(
 						oraclePriceData,
 						currentSlot
 					);
-					const bestDriftAskPrice = bestDriftAsk.getPrice(
+					const bestVelocityAskPrice = bestVelocityAsk.getPrice(
 						oraclePriceData,
 						currentSlot
 					);
-					if (!bestDriftBidPrice || !bestDriftAskPrice) {
+					if (!bestVelocityBidPrice || !bestVelocityAskPrice) {
 						continue;
 					}
 					const bestBidPrice = convertToNumber(
-						bestDriftBidPrice,
+						bestVelocityBidPrice,
 						PRICE_PRECISION
 					);
 					const bestAskPrice = convertToNumber(
-						bestDriftAskPrice,
+						bestVelocityAskPrice,
 						PRICE_PRECISION
 					);
 
@@ -469,7 +469,7 @@ export class UncrossArbBot implements Bot {
 							this.velocityClient.getMarketFees(
 								MarketType.PERP,
 								perpIdx,
-								driftUser
+								velocityUser
 							).takerFee
 					) {
 						let bidMakerInfo: MakerInfo;
@@ -477,28 +477,28 @@ export class UncrossArbBot implements Bot {
 						try {
 							bidMakerInfo = {
 								makerUserAccount: this.orderSubscriber.usersAccounts.get(
-									bestDriftBid.userAccount!
+									bestVelocityBid.userAccount!
 								)!.userAccount,
-								order: bestDriftBid.order,
-								maker: new PublicKey(bestDriftBid.userAccount!),
+								order: bestVelocityBid.order,
+								maker: new PublicKey(bestVelocityBid.userAccount!),
 								makerStats: getUserStatsAccountPublicKey(
 									this.velocityClient.program.programId,
 									this.orderSubscriber.usersAccounts.get(
-										bestDriftBid.userAccount!
+										bestVelocityBid.userAccount!
 									)!.userAccount.authority
 								),
 							};
 
 							askMakerInfo = {
 								makerUserAccount: this.orderSubscriber.usersAccounts.get(
-									bestDriftAsk.userAccount!
+									bestVelocityAsk.userAccount!
 								)!.userAccount,
-								order: bestDriftAsk.order,
-								maker: new PublicKey(bestDriftAsk.userAccount!),
+								order: bestVelocityAsk.order,
+								maker: new PublicKey(bestVelocityAsk.userAccount!),
 								makerStats: getUserStatsAccountPublicKey(
 									this.velocityClient.program.programId,
 									this.orderSubscriber.usersAccounts.get(
-										bestDriftAsk.userAccount!
+										bestVelocityAsk.userAccount!
 									)!.userAccount.authority
 								),
 							};

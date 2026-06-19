@@ -103,7 +103,7 @@ const MAX_ACCOUNTS_PER_TX = 64; // solana limit, track https://github.com/solana
 
 const DUMP_TXS_IN_SIM = false;
 
-const EXPIRE_ORDER_BUFFER_SEC = 60; // add extra time before trying to expire orders (want to avoid 6252 error due to clock drift)
+const EXPIRE_ORDER_BUFFER_SEC = 60; // add extra time before trying to expire orders (want to avoid 6252 error due to clock velocity)
 
 const errorCodesToSuppress = [
 	6061, // 0x17AD Error Number: 6061. Error Message: Order does not exist.
@@ -335,7 +335,7 @@ export class SpotFillerBot implements Bot {
 		this.priorityFeeSubscriber.updateAddresses([
 			new PublicKey('8BnEgHoWFysVcuFFX7QztDmzuH8r5ZFvyP3sYwn1XTh6'), // Openbook SOL/USDC
 			new PublicKey('4DoNfFBfF7UokCC2FQzriy7yHK6DY6NVdYpuekQ5pRgg'), // Phoenix SOL/USDC
-			new PublicKey('6gMq3mRCKf8aP3ttTyYhuijVZ2LGi14oDsBbkgubfLB3'), // Drift USDC market
+			new PublicKey('6gMq3mRCKf8aP3ttTyYhuijVZ2LGi14oDsBbkgubfLB3'), // Velocity USDC market
 		]);
 
 		this.revertOnFailure = config.revertOnFailure ?? true;
@@ -345,7 +345,7 @@ export class SpotFillerBot implements Bot {
 			`${this.name}: revertOnFailure: ${this.revertOnFailure}, simulateTxForCUEstimate: ${this.simulateTxForCUEstimate}`
 		);
 
-		if (this.rebalanceFiller && this.runtimeSpec.driftEnv === 'mainnet-beta') {
+		if (this.rebalanceFiller && this.runtimeSpec.velocityEnv === 'mainnet-beta') {
 			this.jupiterClient = new JupiterClient({
 				connection: this.velocityClient.connection,
 			});
@@ -2071,21 +2071,21 @@ export class SpotFillerBot implements Bot {
 				recentBlockhash: await this.getBlockhashForTx(),
 				dumpTx: DUMP_TXS_IN_SIM,
 			});
-			const driftUser = this.velocityClient.getUser();
+			const velocityUser = this.velocityClient.getUser();
 			this.simulateTxHistogram?.record(simResult.simTxDuration, {
 				type: 'trigger',
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
-					driftUser.userAccountPublicKey,
-					driftUser.getUserAccountOrThrow()
+					velocityUser.userAccountPublicKey,
+					velocityUser.getUserAccountOrThrow()
 				),
 			});
 			this.estTxCuHistogram?.record(simResult.cuEstimate, {
 				type: 'trigger',
 				simError: simResult.simError !== null,
 				...metricAttrFromUserAccount(
-					driftUser.userAccountPublicKey,
-					driftUser.getUserAccountOrThrow()
+					velocityUser.userAccountPublicKey,
+					velocityUser.getUserAccountOrThrow()
 				),
 			});
 
@@ -2303,17 +2303,17 @@ export class SpotFillerBot implements Bot {
 		);
 		this.hasEnoughSolToFill = fillerSolBalance >= this.minGasBalanceToFill;
 
-		const fillerDriftAccountUsdcBalance = this.velocityClient.getTokenAmount(0);
+		const fillerVelocityAccountUsdcBalance = this.velocityClient.getTokenAmount(0);
 		const usdcSpotMarket = this.velocityClient.getSpotMarketAccount(0);
-		const normalizedFillerDriftAccountUsdcBalance =
-			fillerDriftAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
+		const normalizedFillerVelocityAccountUsdcBalance =
+			fillerVelocityAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
 		const isUsdcAmountRebalanceable =
-			normalizedFillerDriftAccountUsdcBalance.gte(
+			normalizedFillerVelocityAccountUsdcBalance.gte(
 				this.rebalanceSettledPnlThreshold
 			) || !this.hasEnoughSolToFill;
 
 		logger.info(
-			`SpotFiller has ${normalizedFillerDriftAccountUsdcBalance.toNumber()} USDC`
+			`SpotFiller has ${normalizedFillerVelocityAccountUsdcBalance.toNumber()} USDC`
 		);
 
 		if (isUsdcAmountRebalanceable) {

@@ -42,7 +42,7 @@ type AllPnlUsers = {
 const startTime = Date.now();
 const endpoint = process.env.ENDPOINT as string;
 const wsEndpoint = process.env.WS_ENDPOINT as string;
-const driftEnv = process.env.ENV as string;
+const velocityEnv = process.env.ENV as string;
 const chunkSize = Number(process.env.CHUNK_SIZE) || 100;
 const sleepTimeMs = Number(process.env.SLEEP_TIME_MS) || 500;
 const delayMs = Number(process.env.DEFAULT_DELAY_MS) || 100;
@@ -174,7 +174,7 @@ const createMarketPnlLeaderboards = (allPnlUsers: AllPnlUsers): UserPnlMap => {
 			};
 		} catch (e) {
 			logger.info(
-				`Error in ${PerpMarkets[driftEnv][perpMarketIndex].symbol}: ${e}`
+				`Error in ${PerpMarkets[velocityEnv][perpMarketIndex].symbol}: ${e}`
 			);
 
 			pnlMap[perpMarketIndex] = {
@@ -197,7 +197,7 @@ const buildUserMarketLists = (
 		QUOTE_SPOT_MARKET_INDEX
 	);
 
-	for (const perpMarket of PerpMarkets[driftEnv]) {
+	for (const perpMarket of PerpMarkets[velocityEnv]) {
 		try {
 			const perpMarketAccount = velocityClient.getPerpMarketAccount(
 				perpMarket.marketIndex

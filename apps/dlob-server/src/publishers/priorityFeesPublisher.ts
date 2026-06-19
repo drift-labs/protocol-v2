@@ -28,7 +28,7 @@ setGlobalDispatcher(
 
 require('dotenv').config();
 const stateCommitment: Commitment = 'confirmed';
-const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
+const velocityEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const redisClientPrefix = RedisClientPrefix.DLOB_HELIUS;
 // Set up express for health checks
@@ -55,7 +55,7 @@ if (!endpoint.includes('helius')) {
 
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
-logger.info(`VelocityEnv:     ${driftEnv}`);
+logger.info(`VelocityEnv:     ${velocityEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 
 class PriorityFeeSubscriber {
@@ -205,8 +205,8 @@ const main = async () => {
 	for (const market of sdkConfig.SPOT_MARKETS) {
 		const pubkeysForMarket = [usdcMarket];
 
-		const driftMarket = velocityClient.getSpotMarketAccount(market.marketIndex);
-		pubkeysForMarket.push(driftMarket.pubkey.toString());
+		const velocityMarket = velocityClient.getSpotMarketAccount(market.marketIndex);
+		pubkeysForMarket.push(velocityMarket.pubkey.toString());
 
 		spotMarketPubkeys.push({
 			marketIndex: market.marketIndex,
@@ -250,7 +250,7 @@ export {
 	sdkConfig,
 	endpoint,
 	wsEndpoint,
-	driftEnv,
+	velocityEnv,
 	commitHash,
 	velocityClient,
 };

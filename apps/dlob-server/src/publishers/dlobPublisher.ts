@@ -54,7 +54,7 @@ setGlobalDispatcher(
 
 require('dotenv').config();
 const stateCommitment: Commitment = 'confirmed';
-const driftEnv = (process.env.ENV || 'devnet') as VelocityEnv;
+const velocityEnv = (process.env.ENV || 'devnet') as VelocityEnv;
 const commitHash = process.env.COMMIT;
 const metricsPort = process.env.METRICS_PORT
 	? parseInt(process.env.METRICS_PORT)
@@ -174,7 +174,7 @@ logger.info(`GRPC Token:    ${token}`);
 logger.info(
 	`useOrderSubscriber: ${useOrderSubscriber}, useWebsocket: ${useWebsocket}, useGrpc: ${useGrpc}`
 );
-logger.info(`VelocityEnv:     ${driftEnv}`);
+logger.info(`VelocityEnv:     ${velocityEnv}`);
 logger.info(`Commit:       ${commitHash}`);
 logger.info(
 	`TOB Monitoring: ${ENABLE_TOB_MONITORING ? 'enabled' : 'disabled'}`
@@ -401,7 +401,7 @@ const main = async () => {
 		wallet,
 		programID: clearingHousePublicKey,
 		accountSubscription,
-		env: driftEnv,
+		env: velocityEnv,
 		perpMarketIndexes: perpMarketInfos.map((m) => m.marketIndex),
 		spotMarketIndexes: spotMarketInfos.map((m) => m.marketIndex),
 		oracleInfos,
@@ -505,7 +505,7 @@ const main = async () => {
 
 	const dlobSubscriber = new DLOBSubscriberIO({
 		velocityClient,
-		env: driftEnv,
+		env: velocityEnv,
 		dlobSource: dlobProvider,
 		slotSource,
 		updateFrequency: ORDERBOOK_UPDATE_INTERVAL,
@@ -519,7 +519,7 @@ const main = async () => {
 
 	const dlobSubscriberIndicative = new DLOBSubscriberIO({
 		velocityClient,
-		env: driftEnv,
+		env: velocityEnv,
 		dlobSource: dlobProvider,
 		slotSource,
 		updateFrequency: ORDERBOOK_UPDATE_INTERVAL,
@@ -1045,7 +1045,7 @@ export {
 	sdkConfig,
 	endpoint,
 	wsEndpoint,
-	driftEnv,
+	velocityEnv,
 	commitHash,
 	velocityClient,
 };

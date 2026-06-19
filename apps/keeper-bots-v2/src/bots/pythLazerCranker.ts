@@ -95,11 +95,11 @@ export class PythLazerCrankerBot implements Bot {
 			!this.crankConfigs.pythLazerIdsByChannel
 		) {
 			const spotMarkets =
-				this.globalConfig.driftEnv === 'mainnet-beta'
+				this.globalConfig.velocityEnv === 'mainnet-beta'
 					? MainnetSpotMarkets
 					: DevnetSpotMarkets;
 			const perpMarkets =
-				this.globalConfig.driftEnv === 'mainnet-beta'
+				this.globalConfig.velocityEnv === 'mainnet-beta'
 					? MainnetPerpMarkets
 					: DevnetPerpMarkets;
 
@@ -230,7 +230,7 @@ export class PythLazerCrankerBot implements Bot {
 			this.globalConfig.lazerEndpoints!,
 			this.globalConfig.lazerToken!,
 			feedIdChunks,
-			this.globalConfig.driftEnv,
+			this.globalConfig.velocityEnv,
 			undefined,
 			undefined,
 			this.crankConfigs.feedProperties

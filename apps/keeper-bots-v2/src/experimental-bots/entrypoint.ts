@@ -120,7 +120,7 @@ logger.info(
 );
 
 // @ts-ignore
-const sdkConfig = initialize({ env: config.global.driftEnv });
+const sdkConfig = initialize({ env: config.global.velocityEnv });
 setLogLevel(config.global.debug ? 'debug' : 'info');
 
 const endpoint = config.global.endpoint;
@@ -129,7 +129,7 @@ const heliusEndpoint = config.global.heliusEndpoint;
 logger.info(`RPC endpoint: ${endpoint}`);
 logger.info(`WS endpoint:  ${wsEndpoint}`);
 logger.info(`Helius endpoint:  ${heliusEndpoint}`);
-logger.info(`VelocityEnv:     ${config.global.driftEnv}`);
+logger.info(`VelocityEnv:     ${config.global.velocityEnv}`);
 if (!endpoint) {
 	throw new Error('Must set environment variable ENDPOINT');
 }
@@ -144,7 +144,7 @@ const runBot = async () => {
 		);
 	}
 	const [keypair, wallet] = getWallet(privateKeyOrFilepath);
-	const driftPublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
+	const velocityPublicKey = new PublicKey(sdkConfig.VELOCITY_PROGRAM_ID);
 	const connection = new Connection(endpoint, {
 		wsEndpoint: wsEndpoint,
 		commitment: stateCommitment,
@@ -221,18 +221,18 @@ const runBot = async () => {
 
 	const { perpMarketIndexes, spotMarketIndexes, oracleInfos } =
 		getMarketsAndOraclesForSubscription(
-			config.global.driftEnv || 'mainnet-beta'
+			config.global.velocityEnv || 'mainnet-beta'
 		);
 	const marketLookupTables = configs[
-		config.global.driftEnv || 'mainnet-beta'
+		config.global.velocityEnv || 'mainnet-beta'
 	].MARKET_LOOKUP_TABLES.map((lut) => new PublicKey(lut));
-	const driftClientConfig: VelocityClientConfig = {
+	const velocityClientConfig: VelocityClientConfig = {
 		connection,
 		wallet,
-		programID: driftPublicKey,
+		programID: velocityPublicKey,
 		opts,
 		accountSubscription,
-		env: config.global.driftEnv,
+		env: config.global.velocityEnv,
 		perpMarketIndexes,
 		spotMarketIndexes,
 		oracleInfos,
@@ -241,7 +241,7 @@ const runBot = async () => {
 		marketLookupTables,
 		activeSubAccountId: config.global.subaccounts?.[0] || 0,
 	};
-	const velocityClient = new VelocityClient(driftClientConfig);
+	const velocityClient = new VelocityClient(velocityClientConfig);
 	await velocityClient.subscribe();
 	await velocityClient.fetchAllLookupTableAccounts();
 
@@ -315,8 +315,8 @@ const runBot = async () => {
 			{
 				rpcEndpoint: endpoint,
 				commit: '',
-				driftEnv: config.global.driftEnv!,
-				driftPid: driftPublicKey.toBase58(),
+				velocityEnv: config.global.velocityEnv!,
+				velocityPid: velocityPublicKey.toBase58(),
 				walletAuthority: wallet.publicKey.toBase58(),
 			},
 			bundleSender,
@@ -350,8 +350,8 @@ const runBot = async () => {
 			{
 				rpcEndpoint: endpoint,
 				commit: '',
-				driftEnv: config.global.driftEnv!,
-				driftPid: driftPublicKey.toBase58(),
+				velocityEnv: config.global.velocityEnv!,
+				velocityPid: velocityPublicKey.toBase58(),
 				walletAuthority: wallet.publicKey.toBase58(),
 			},
 			config.global,
@@ -380,8 +380,8 @@ const runBot = async () => {
 			{
 				rpcEndpoint: endpoint,
 				commit: '',
-				driftEnv: config.global.driftEnv!,
-				driftPid: driftPublicKey.toBase58(),
+				velocityEnv: config.global.velocityEnv!,
+				velocityPid: velocityPublicKey.toBase58(),
 				walletAuthority: wallet.publicKey.toBase58(),
 			},
 			config.global.testLiveness
@@ -408,8 +408,8 @@ const runBot = async () => {
 			{
 				rpcEndpoint: endpoint,
 				commit: '',
-				driftEnv: config.global.driftEnv!,
-				driftPid: driftPublicKey.toBase58(),
+				velocityEnv: config.global.velocityEnv!,
+				velocityPid: velocityPublicKey.toBase58(),
 				walletAuthority: wallet.publicKey.toBase58(),
 			}
 		);
@@ -422,8 +422,8 @@ const runBot = async () => {
 			{
 				rpcEndpoint: endpoint,
 				commit: '',
-				driftEnv: config.global.driftEnv!,
-				driftPid: driftPublicKey.toBase58(),
+				velocityEnv: config.global.velocityEnv!,
+				velocityPid: velocityPublicKey.toBase58(),
 				walletAuthority: wallet.publicKey.toBase58(),
 			},
 			1000

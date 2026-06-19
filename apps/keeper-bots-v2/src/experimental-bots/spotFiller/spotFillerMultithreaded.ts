@@ -251,7 +251,7 @@ export class SpotFillerMultithreaded {
 		lookupTableAccounts: AddressLookupTableAccount[] = []
 	) {
 		this.globalConfig = globalConfig;
-		if (!this.globalConfig.useJito && runtimeSpec.driftEnv === 'mainnet-beta') {
+		if (!this.globalConfig.useJito && runtimeSpec.velocityEnv === 'mainnet-beta') {
 			throw new Error('Jito is required for spot multithreaded filler');
 		}
 		this.config = config;
@@ -306,7 +306,7 @@ export class SpotFillerMultithreaded {
 
 		if (
 			config.rebalanceFiller &&
-			this.runtimeSpec.driftEnv === 'mainnet-beta'
+			this.runtimeSpec.velocityEnv === 'mainnet-beta'
 		) {
 			this.jupiterClient = new JupiterClient({
 				connection: this.velocityClient.connection,
@@ -395,7 +395,7 @@ export class SpotFillerMultithreaded {
 	private startProcesses() {
 		logger.info(`${this.name}: Starting processes`);
 		const orderSubscriberArgs = [
-			`--drift-env=${this.runtimeSpec.driftEnv}`,
+			`--velocity-env=${this.runtimeSpec.velocityEnv}`,
 			`--market-type=${this.config.marketType}`,
 			`--market-indexes=${this.config.marketIndexes.map(String)}`,
 		];
@@ -406,7 +406,7 @@ export class SpotFillerMultithreaded {
 				`${this.name}: Spawning dlobBuilder for marketIndexes: ${marketIndexes}`
 			);
 			const dlobBuilderArgs = [
-				`--drift-env=${this.runtimeSpec.driftEnv}`,
+				`--velocity-env=${this.runtimeSpec.velocityEnv}`,
 				`--market-type=${this.config.marketType}`,
 				`--market-indexes=${marketIndexes.map(String)}`,
 			];

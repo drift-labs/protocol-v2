@@ -292,7 +292,7 @@ export class FillerMultithreaded {
 			connection: velocityClient.connection,
 		});
 
-		const marketIndexesToUse = PerpMarkets[this.globalConfig.driftEnv!].map(
+		const marketIndexesToUse = PerpMarkets[this.globalConfig.velocityEnv!].map(
 			(m) => m.marketIndex
 		);
 		const perpMarketsToWatchForFees = marketIndexesToUse.map((m) => {
@@ -325,7 +325,7 @@ export class FillerMultithreaded {
 		this.initializeMetrics(config.metricsPort ?? this.globalConfig.metricsPort);
 
 		this.rebalanceFiller = config.rebalanceFiller ?? true;
-		if (this.rebalanceFiller && this.runtimeSpec.driftEnv === 'mainnet-beta') {
+		if (this.rebalanceFiller && this.runtimeSpec.velocityEnv === 'mainnet-beta') {
 			this.jupiterClient = new JupiterClient({
 				connection: this.velocityClient.connection,
 			});
@@ -383,7 +383,7 @@ export class FillerMultithreaded {
 			throw new Error('Missing lazerEndpoints or lazerToken in global config');
 		}
 
-		const markets = PerpMarkets[this.globalConfig.driftEnv!]
+		const markets = PerpMarkets[this.globalConfig.velocityEnv!]
 			.filter((market) =>
 				this.marketIndexesFlattened.includes(market.marketIndex)
 			)
@@ -401,7 +401,7 @@ export class FillerMultithreaded {
 						channel: 'fixed_rate@200ms',
 					};
 				}),
-				this.globalConfig.driftEnv
+				this.globalConfig.velocityEnv
 			);
 		} else {
 			logger.info(
@@ -436,7 +436,7 @@ export class FillerMultithreaded {
 	private startProcesses() {
 		logger.info(`${this.name}: Starting processes`);
 		const orderSubscriberArgs = [
-			`--drift-env=${this.runtimeSpec.driftEnv}`,
+			`--velocity-env=${this.runtimeSpec.velocityEnv}`,
 			`--market-type=${this.config.marketType}`,
 			`--market-indexes=${this.config.marketIndexes.map(String)}`,
 		];
@@ -447,7 +447,7 @@ export class FillerMultithreaded {
 				`${this.name}: Spawning dlobBuilder for marketIndexes: ${marketIndexes}`
 			);
 			const dlobBuilderArgs = [
-				`--drift-env=${this.runtimeSpec.driftEnv}`,
+				`--velocity-env=${this.runtimeSpec.velocityEnv}`,
 				`--market-type=${this.config.marketType}`,
 				`--market-indexes=${marketIndexes.map(String)}`,
 			];
@@ -2196,20 +2196,20 @@ export class FillerMultithreaded {
 		// If we are rebalancing, check if we have enough settled pnl in usdc account to rebalance,
 		// or if we have to go below threshold since we don't have enough sol
 		if (this.rebalanceFiller) {
-			const fillerDriftAccountUsdcBalance =
+			const fillerVelocityAccountUsdcBalance =
 				this.velocityClient.getTokenAmount(0);
 			const usdcSpotMarket = this.velocityClient.getSpotMarketAccount(0);
-			const normalizedFillerDriftAccountUsdcBalance =
-				fillerDriftAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
+			const normalizedFillerVelocityAccountUsdcBalance =
+				fillerVelocityAccountUsdcBalance.divn(10 ** usdcSpotMarket!.decimals);
 
 			if (
-				normalizedFillerDriftAccountUsdcBalance.gte(
+				normalizedFillerVelocityAccountUsdcBalance.gte(
 					this.rebalanceSettledPnlThreshold
 				) ||
 				!this.hasEnoughSolToFill
 			) {
 				logger.info(
-					`Filler has ${normalizedFillerDriftAccountUsdcBalance.toNumber()} usdc to rebalance`
+					`Filler has ${normalizedFillerVelocityAccountUsdcBalance.toNumber()} usdc to rebalance`
 				);
 				await this.rebalance();
 			}
