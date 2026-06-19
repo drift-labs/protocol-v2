@@ -208,6 +208,8 @@ function mockPerpMarketCommon(): Omit<
 		lastFundingRateShort: new BN(0),
 		lastFundingRateTs: new BN(0),
 		netUnsettledFundingPnl: new BN(0),
+		fundingClampThreshold: 5,
+		fundingRampSlope: 1000000,
 		orderStepSize: new BN(1),
 		orderTickSize: new BN(1),
 	};

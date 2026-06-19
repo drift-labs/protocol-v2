@@ -30,6 +30,7 @@ velocity-admin auth init-config [--initial-warm <pk>]
 
 velocity-admin perp-market set-status <market> <status>
 velocity-admin perp-market set-fee-buffer <market> <amount>
+velocity-admin perp-market set-funding-dead-zone <market> <threshold> <slope>
 velocity-admin spot-market set-status <market> <status>
 velocity-admin spot-market set-guard-threshold <market> <threshold>
 velocity-admin spot-market set-fee-factors <market> <ifFeeFactor> <protocolFeeFactor>

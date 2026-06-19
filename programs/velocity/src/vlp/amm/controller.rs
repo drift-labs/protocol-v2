@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 #[cfg(test)]
-use crate::math::constants::FEE_POOL_TO_REVENUE_POOL_THRESHOLD;
 #[cfg(test)]
 use crate::state::oracle::OraclePriceData;
 #[cfg(test)]

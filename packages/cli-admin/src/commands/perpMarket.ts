@@ -104,4 +104,59 @@ export function registerPerpMarket(parent: Command): void {
 			}
 		}
 	);
+
+	withGlobalOptions(
+		pm
+			.command('set-funding-dead-zone <market> <threshold> <slope>')
+			.description(
+				'Funding dead zone: threshold (u32, bps) is the noise band where the premium stays zero; slope (u32, PERCENTAGE_PRECISION, 1000000 = 1.0x) is the ramp applied to the spread past the band. 5 / 1000000 reproduces the launch defaults.'
+			)
+	).action(
+		async (
+			market: string,
+			threshold: string,
+			slope: string,
+			_flags,
+			cmd: Command
+		) => {
+			const opts = readGlobalOpts(cmd);
+			const provider = buildProvider(opts);
+			const client = await buildAdminClient(opts);
+			try {
+				const thresholdValue = Number.parseInt(threshold, 10);
+				if (
+					!Number.isInteger(thresholdValue) ||
+					thresholdValue < 0 ||
+					thresholdValue >= 10000
+				) {
+					throw new Error(
+						`threshold must be an integer in [0, 10000) bps, got "${threshold}"`
+					);
+				}
+				const slopeValue = Number.parseInt(slope, 10);
+				if (!Number.isInteger(slopeValue) || slopeValue <= 0) {
+					throw new Error(
+						`slope must be a positive integer (PERCENTAGE_PRECISION), got "${slope}"`
+					);
+				}
+				const ix = await client.getUpdatePerpMarketFundingDeadZoneIx(
+					Number.parseInt(market, 10),
+					thresholdValue,
+					slopeValue
+				);
+				const result = await sendOrPropose(
+					provider,
+					[ix],
+					opts.multisig ? new PublicKey(opts.multisig) : undefined,
+					'velocity-admin perp-market set-funding-dead-zone'
+				);
+				reportDispatch(
+					`perp-market[${market}] funding_clamp_threshold = ${thresholdValue}, funding_ramp_slope = ${slopeValue}`,
+					result
+				);
+			} finally {
+				await client.unsubscribe();
+			}
+		}
+	);
 }

@@ -29,14 +29,14 @@ use crate::{
         bn,
         casting::Cast,
         constants::{
-            DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_ADJUSTMENT_MAX,
+            BPS_PRECISION, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_ADJUSTMENT_MAX,
             FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX,
             INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
             MAX_CONCENTRATION_COEFFICIENT, MM_ORACLE_MAX_STEP_PCT_PRECISION,
             MM_ORACLE_MIN_SLOT_GAP, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128,
-            PERCENTAGE_PRECISION_I64, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX,
-            SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
-            SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+            PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U32, QUOTE_PRECISION_I64,
+            QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+            SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
         },
         orders::is_multiple_of_step_size,
         safe_math::SafeMath,
@@ -457,10 +457,24 @@ pub fn handle_initialize_perp_market(
     amm_jit_intensity: u8,
     name: [u8; 32],
     lp_pool_id: u8,
+    funding_clamp_threshold: u32,
+    funding_ramp_slope: u32,
 ) -> Result<()> {
     msg!("perp market {}", market_index);
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
     let perp_market = &mut ctx.accounts.perp_market.load_init()?;
+
+    // 0 means "unset" -> fall back to the launch defaults (5bps / 1.0x)
+    let funding_clamp_threshold = if funding_clamp_threshold == 0 {
+        5
+    } else {
+        funding_clamp_threshold
+    };
+    let funding_ramp_slope = if funding_ramp_slope == 0 {
+        PERCENTAGE_PRECISION_U32
+    } else {
+        funding_ramp_slope
+    };
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
@@ -703,7 +717,8 @@ pub fn handle_initialize_perp_market(
         last_funding_rate_short: 0,
         last_funding_rate_ts: now,
         net_unsettled_funding_pnl: 0,
-        _padding_funding_twap: [0; 8],
+        funding_clamp_threshold,
+        funding_ramp_slope,
         order_step_size,
         order_tick_size,
         base_asset_amount_long: 0,
@@ -1421,6 +1436,46 @@ pub fn handle_update_perp_market_funding_period(
     );
 
     perp_market.market_stats.funding_period = funding_period;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_funding_dead_zone(
+    ctx: Context<AdminUpdatePerpMarket>,
+    funding_clamp_threshold: u32,
+    funding_ramp_slope: u32,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "updating funding dead zone for perp market {}",
+        perp_market.market_index
+    );
+
+    // threshold is a fraction of the oracle price; keep it well below 100%
+    validate!(
+        funding_clamp_threshold < BPS_PRECISION,
+        ErrorCode::DefaultError
+    )?;
+    // a zero slope would flatten every premium past the band to the offset
+    validate!(funding_ramp_slope > 0, ErrorCode::DefaultError)?;
+
+    msg!(
+        "perp_market.funding_clamp_threshold: {:?} -> {:?}",
+        perp_market.funding_clamp_threshold,
+        funding_clamp_threshold
+    );
+
+    msg!(
+        "perp_market.funding_ramp_slope: {:?} -> {:?}",
+        perp_market.funding_ramp_slope,
+        funding_ramp_slope
+    );
+
+    perp_market.funding_clamp_threshold = funding_clamp_threshold;
+    perp_market.funding_ramp_slope = funding_ramp_slope;
     Ok(())
 }
 

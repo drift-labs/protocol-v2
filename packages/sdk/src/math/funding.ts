@@ -6,7 +6,8 @@ import {
 	ZERO,
 	ONE,
 	FUNDING_RATE_OFFSET_DENOMINATOR,
-	FUNDING_RATE_CLAMP_DENOMINATOR,
+	BPS_PRECISION,
+	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
 import { BigNum } from '../factory/bigNum';
 import { PerpMarketAccount, isVariant } from '../types';
@@ -183,11 +184,28 @@ export function calculateAllEstimatedFundingRate(
 
 	const twapSpread = markTwap.sub(oracleTwap);
 	const offset = oracleTwap.abs().div(FUNDING_RATE_OFFSET_DENOMINATOR);
-	const twapSpreadWithOffset = twapSpread
+
+	// dead-zone threshold (per-market bps) as a price delta off the oracle twap
+	const clampThreshold = oracleTwap
 		.abs()
-		.lte(oracleTwap.abs().div(FUNDING_RATE_CLAMP_DENOMINATOR))
-		? offset
-		: twapSpread.add(offset);
+		.mul(new BN(market.fundingClampThreshold))
+		.div(BPS_PRECISION);
+
+	let twapSpreadWithOffset: BN;
+	if (twapSpread.abs().lte(clampThreshold)) {
+		// inside the band: noise, no premium, baseline offset only
+		twapSpreadWithOffset = offset;
+	} else {
+		// outside the band: shrink the spread toward zero by the band width
+		// (keeping its sign), scale by the per-market ramp slope, add the offset
+		const shrunk = twapSpread.isNeg()
+			? twapSpread.add(clampThreshold)
+			: twapSpread.sub(clampThreshold);
+		const ramped = shrunk
+			.mul(new BN(market.fundingRampSlope))
+			.div(PERCENTAGE_PRECISION);
+		twapSpreadWithOffset = ramped.add(offset);
+	}
 
 	const maxSpread = getMaxPriceDivergenceForFundingRate(market, oracleTwap);
 

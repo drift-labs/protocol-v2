@@ -28,7 +28,7 @@ pub mod liquidate_perp {
     use crate::state::market_status::MarketStatus;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
-    use crate::state::perp_market::{FeeLedger, MarketStats, PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};

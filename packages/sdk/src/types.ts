@@ -838,6 +838,8 @@ export type PerpMarketAccount = {
 	lastFundingRateShort: BN;
 	lastFundingRateTs: BN;
 	netUnsettledFundingPnl: BN;
+	fundingClampThreshold: number;
+	fundingRampSlope: number;
 	orderStepSize: BN;
 	orderTickSize: BN;
 };

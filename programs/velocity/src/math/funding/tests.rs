@@ -5,7 +5,8 @@ use crate::state::perp_market::MarketStats;
 use crate::vlp::amm::refresh::_update_amm;
 
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, ONE_HOUR_I128, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, BPS_PRECISION, ONE_HOUR_I128, PERCENTAGE_PRECISION_U32, PRICE_PRECISION,
+    PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::math::funding::*;
 use std::cmp::min;
@@ -558,12 +559,12 @@ fn unsettled_funding_pnl() {
         51000000
     );
 
-    assert_eq!(market.cumulative_funding_rate_long, -139790125); // negative funding
-    assert_eq!(market.cumulative_funding_rate_short, -139790125);
-    assert_eq!(market.last_funding_rate, -139790125);
+    assert_eq!(market.cumulative_funding_rate_long, -138727625); // negative funding
+    assert_eq!(market.cumulative_funding_rate_short, -138727625);
+    assert_eq!(market.last_funding_rate, -138727625);
     assert_eq!(
         market.market_stats.last_24h_avg_funding_rate,
-        -139790125 / 24 + 1
+        -138727625 / 24 + 1
     );
     assert_eq!(market.last_funding_rate_ts, now);
     assert_eq!(market.amm.net_revenue_since_last_funding, 0); // back to 0
@@ -575,7 +576,7 @@ fn unsettled_funding_pnl() {
                                                               // `base_long + base_short`; the new math reflects only the user-side
                                                               // imbalance (~$1.72 gain), not the inflated `with_amm` value (~$70.61
                                                               // gain under the legacy single-net-position math).
-    assert_eq!(market.amm.total_fee_minus_distributions, 100000718731);
+    assert_eq!(market.amm.total_fee_minus_distributions, 100000705667);
     assert_eq!(market.amm.total_fee, 0);
 
     assert_ne!(market.net_unsettled_funding_pnl, 0); // important: imbalanced market adds funding rev
@@ -584,7 +585,56 @@ fn unsettled_funding_pnl() {
                                                      // reflects the legacy single-net-position value — the AMM-as-user
                                                      // migration only changed how the AMM books its own settlement, not
                                                      // this aggregate.
-    assert_eq!(market.net_unsettled_funding_pnl, -71613793);
+    assert_eq!(market.net_unsettled_funding_pnl, -71069480);
+}
+
+// The funding premium must leave the dead zone continuously: crossing the
+// threshold should nudge the premium by the ramp, not snap on the full
+// threshold the way the old hard cliff did.
+#[test]
+fn funding_premium_continuous_across_dead_zone() {
+    let oracle_twap: i64 = 100 * PRICE_PRECISION_U64 as i64;
+    let clamp_threshold = oracle_twap * 5 / BPS_PRECISION as i64; // 5bps as a price
+    let ramp_slope = PERCENTAGE_PRECISION_U32; // 1.0x
+    let offset: i64 = 12_345; // arbitrary baseline carry
+
+    // at the edge of the band: still noise, offset only
+    let at_floor =
+        calculate_funding_premium_with_offset(clamp_threshold, clamp_threshold, ramp_slope, offset)
+            .unwrap();
+    assert_eq!(at_floor, offset);
+
+    // one tick past the band: premium turns on by the ramp (1 tick), not by
+    // the whole threshold. this single-tick step is the continuity guarantee
+    let just_above = calculate_funding_premium_with_offset(
+        clamp_threshold + 1,
+        clamp_threshold,
+        ramp_slope,
+        offset,
+    )
+    .unwrap();
+    assert_eq!(just_above - at_floor, 1);
+    assert!(just_above - at_floor < clamp_threshold); // a hard cliff would jump by ~threshold
+
+    // symmetric on the short side
+    let just_below = calculate_funding_premium_with_offset(
+        -(clamp_threshold + 1),
+        clamp_threshold,
+        ramp_slope,
+        offset,
+    )
+    .unwrap();
+    assert_eq!(just_below - at_floor, -1);
+
+    // well outside the band the premium is the spread shrunk by the threshold
+    let far = calculate_funding_premium_with_offset(
+        2 * clamp_threshold,
+        clamp_threshold,
+        ramp_slope,
+        offset,
+    )
+    .unwrap();
+    assert_eq!(far - offset, clamp_threshold);
 }
 
 /// Property tests for `calculate_amm_funding_payment` — the AMM-as-user
