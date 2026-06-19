@@ -7,8 +7,8 @@ export async function adminUpdateVaultClass(program: Command, cmdOpts: OptionVal
     const { vaultAddress, vaultClass, dumpTransactionMessage: dumpTx } = cmdOpts;
 
     const {
-        driftClient,
-        driftVault
+        velocityClient,
+        velocityVault
     } = await getCommandContext(program, true);
 
     if (!vaultAddress) {
@@ -33,15 +33,15 @@ export async function adminUpdateVaultClass(program: Command, cmdOpts: OptionVal
 
     try {
         if (dumpTx) {
-            const ix = await driftVault.getAdminUpdateVaultClassIx(vault, newVaultClass);
+            const ix = await velocityVault.getAdminUpdateVaultClassIx(vault, newVaultClass);
             console.log("Transaction Instruction:");
-            console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [ix]));
+            console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [ix]));
             return;
         }
 
-        const txSig = await driftVault.adminUpdateVaultClass(vault, newVaultClass);
+        const txSig = await velocityVault.adminUpdateVaultClass(vault, newVaultClass);
         console.log(`Admin update vault class transaction signature: ${txSig}`);
-        console.log(`Transaction: https://solana.fm/tx/${txSig}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+        console.log(`Transaction: https://solana.fm/tx/${txSig}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
     } catch (error) {
         console.error("Error updating vault class:", error);
         throw error;

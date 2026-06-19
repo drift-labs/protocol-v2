@@ -17,34 +17,34 @@ export const viewVault = async (program: Command, cmdOpts: OptionValues) => {
     }
 
     const {
-        driftVault,
-        driftClient,
+        velocityVault,
+        velocityClient,
     } = await getCommandContext(program, false);
 
 
-    const vaultAndSlot = await driftVault.getVaultAndSlot(address);
+    const vaultAndSlot = await velocityVault.getVaultAndSlot(address);
     const vault = vaultAndSlot.vault;
-    const spotMarket = driftClient.getSpotMarketAccount(vault.spotMarketIndex);
+    const spotMarket = velocityClient.getSpotMarketAccount(vault.spotMarketIndex);
     if (!spotMarket) {
         throw new Error(`Spot market ${vault.spotMarketIndex} not found`);
     }
-    const spotOracle = driftClient.getOracleDataForSpotMarket(vault.spotMarketIndex);
+    const spotOracle = velocityClient.getOracleDataForSpotMarket(vault.spotMarketIndex);
     if (!spotOracle) {
         throw new Error(`Spot oracle ${vault.spotMarketIndex} not found`);
     }
-    const vaultEquity = await driftVault.calculateVaultEquity({
+    const vaultEquity = await velocityVault.calculateVaultEquity({
         vault,
     });
 
     let feeUpdateAccount: FeeUpdate | null = null;
 
     try {
-        const feeUpdatePubkey = getFeeUpdateAddressSync(driftVault.program.programId, address);
-        feeUpdateAccount = await driftVault.getFeeUpdate(feeUpdatePubkey);
+        const feeUpdatePubkey = getFeeUpdateAddressSync(velocityVault.program.programId, address);
+        feeUpdateAccount = await velocityVault.getFeeUpdate(feeUpdatePubkey);
     } catch (err) {
         feeUpdateAccount = null;
     }
 
-    await printVault(vaultAndSlot.slot, driftClient, vault, vaultEquity, spotMarket, spotOracle, feeUpdateAccount);
+    await printVault(vaultAndSlot.slot, velocityClient, vault, vaultEquity, spotMarket, spotOracle, feeUpdateAccount);
 };
 

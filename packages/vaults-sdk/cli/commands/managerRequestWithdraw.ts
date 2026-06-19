@@ -16,7 +16,7 @@ export const managerRequestWithdraw = async (
 		process.exit(1);
 	}
 
-	const { driftClient, driftVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(program, true);
 
 	if (!cmdOpts.shares && !cmdOpts.amount) {
 		console.error('One of --shares or --amount must be provided.');
@@ -25,14 +25,14 @@ export const managerRequestWithdraw = async (
 
 	if (cmdOpts.shares && !cmdOpts.amount) {
 		if (cmdOpts.dumpTransactionMessage) {
-			const tx = await driftVault.getManagerRequestWithdrawIx(
+			const tx = await velocityVault.getManagerRequestWithdrawIx(
 				vaultAddress,
 				new BN(cmdOpts.shares),
 				WithdrawUnit.SHARES
 			);
-			console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+			console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
 		} else {
-			const tx = await driftVault.managerRequestWithdraw(
+			const tx = await velocityVault.managerRequestWithdraw(
 				vaultAddress,
 				new BN(cmdOpts.shares),
 				WithdrawUnit.SHARES
@@ -41,13 +41,13 @@ export const managerRequestWithdraw = async (
 				`Requested to withraw ${
 					cmdOpts.shares
 				} shares as vault manager: https://solana.fm/tx/${tx}${
-					driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+					velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 				}`
 			);
 		}
 	} else if (cmdOpts.amount && !cmdOpts.shares) {
-		const vault = await driftVault.getVault(vaultAddress);
-		const spotMarket = driftClient.getSpotMarketAccount(vault.spotMarketIndex);
+		const vault = await velocityVault.getVault(vaultAddress);
+		const spotMarket = velocityClient.getSpotMarketAccount(vault.spotMarketIndex);
 		if (!spotMarket) {
 			console.error('Error: Spot market not found');
 			process.exit(1);
@@ -57,14 +57,14 @@ export const managerRequestWithdraw = async (
 		const amountBN = numberToSafeBN(amount, spotPrecision);
 
 		if (cmdOpts.dumpTransactionMessage) {
-			const tx = await driftVault.getManagerRequestWithdrawIx(
+			const tx = await velocityVault.getManagerRequestWithdrawIx(
 				vaultAddress,
 				amountBN,
 				WithdrawUnit.TOKEN
 			);
-			console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+			console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
 		} else {
-			const tx = await driftVault.managerRequestWithdraw(
+			const tx = await velocityVault.managerRequestWithdraw(
 				vaultAddress,
 				amountBN,
 				WithdrawUnit.TOKEN
@@ -73,7 +73,7 @@ export const managerRequestWithdraw = async (
 				`Requested to withdraw ${amount} ${decodeName(
 					spotMarket.name
 				)} as vault manager: https://solana.fm/tx/${tx}${
-					driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+					velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 				}`
 			);
 		}

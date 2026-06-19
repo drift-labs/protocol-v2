@@ -16,16 +16,16 @@ export const adminInitFeeUpdate = async (program: Command, cmdOpts: OptionValues
     }
 
     const {
-        driftVault,
-        driftClient,
+        velocityVault,
+        velocityClient,
     } = await getCommandContext(program, true);
 
-    if (!driftClient.wallet.publicKey.equals(VAULT_ADMIN_KEY)) {
+    if (!velocityClient.wallet.publicKey.equals(VAULT_ADMIN_KEY)) {
         console.error("Only vault admin can initialize fee update");
         process.exit(1);
     }
 
-    const vault = await driftVault.getVault(vaultAddress);
+    const vault = await velocityVault.getVault(vaultAddress);
 
     console.log(`Initializing fee update for vault:`);
     console.log(`  Vault: ${vault.pubkey.toBase58()}`);
@@ -51,11 +51,11 @@ export const adminInitFeeUpdate = async (program: Command, cmdOpts: OptionValues
     while (!done) {
         try {
             if (cmdOpts.dumpTransactionMessage) {
-                const tx = await driftVault.getAdminInitFeeUpdateIx(vaultAddress);
-                console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+                const tx = await velocityVault.getAdminInitFeeUpdateIx(vaultAddress);
+                console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
             } else {
-                const tx = await driftVault.adminInitFeeUpdate(vaultAddress);
-                console.log(`Initialized fee update as admin: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+                const tx = await velocityVault.adminInitFeeUpdate(vaultAddress);
+                console.log(`Initialized fee update as admin: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
                 done = true;
             }
             break;

@@ -20,8 +20,8 @@ import { Metaplex } from '@metaplex-foundation/js';
 import {
 	TestClient,
 	User,
-	VelocityClient as DriftClient,
-	VelocityClientConfig as DriftClientConfig,
+	VelocityClient,
+	VelocityClientConfig,
 	UserMapConfig,
 	parseLogs,
 	OracleInfo,
@@ -44,7 +44,7 @@ import {
 import {
 	VaultClient,
 	IDL,
-	Vaults as DriftVaults,
+	Vaults,
 	getVaultDepositorAddressSync,
 	getTokenizedVaultAddressSync,
 	getTokenizedVaultMintAddressSync,
@@ -136,7 +136,7 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 	depositCollateral?: boolean;
 	// If provided, a WSOL token account is funded with this many lamports.
 	solAmount?: BN;
-	driftClientConfig?: Omit<DriftClientConfig, 'connection' | 'wallet'>;
+	velocityClientConfig?: Omit<VelocityClientConfig, 'connection' | 'wallet'>;
 	userMapConfig?: UserMapConfig;
 	metaplex?: Metaplex;
 }): Promise<{
@@ -145,7 +145,7 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 	user: User;
 	userUSDCAccount: Keypair;
 	userWSOLAccount: PublicKey | undefined;
-	driftClient: TestClient;
+	velocityClient: TestClient;
 	vaultClient: VaultClient;
 }> {
 	const {
@@ -156,7 +156,7 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 		skipUser,
 		depositCollateral,
 		solAmount,
-		driftClientConfig,
+		velocityClientConfig,
 		bankrunContext,
 	} = params;
 
@@ -164,17 +164,17 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 
 	const wallet = new Wallet(signer);
 
-	const driftClient = new TestClient({
+	const velocityClient = new TestClient({
 		connection: bankrunContext.connection.toConnection(),
 		wallet: new Wallet(signer),
 		txVersion: 'legacy',
-		activeSubAccountId: driftClientConfig?.activeSubAccountId,
-		subAccountIds: driftClientConfig?.subAccountIds,
-		accountSubscription: driftClientConfig?.accountSubscription,
-		perpMarketIndexes: driftClientConfig?.perpMarketIndexes,
-		spotMarketIndexes: driftClientConfig?.spotMarketIndexes,
-		oracleInfos: driftClientConfig?.oracleInfos,
-		authority: driftClientConfig?.authority,
+		activeSubAccountId: velocityClientConfig?.activeSubAccountId,
+		subAccountIds: velocityClientConfig?.subAccountIds,
+		accountSubscription: velocityClientConfig?.accountSubscription,
+		perpMarketIndexes: velocityClientConfig?.perpMarketIndexes,
+		spotMarketIndexes: velocityClientConfig?.spotMarketIndexes,
+		oracleInfos: velocityClientConfig?.oracleInfos,
+		authority: velocityClientConfig?.authority,
 	});
 
 	const provider = new BankrunProvider(
@@ -183,7 +183,7 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 	);
 	const program = new Program(IDL, provider);
 	const vaultClient = new VaultClient({
-		driftClient,
+		velocityClient,
 		// @ts-ignore
 		program,
 		cliMode: vaultClientCliMode ?? true,
@@ -210,23 +210,23 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 		);
 	}
 
-	await driftClient.subscribe();
-	if (!skipUser && !driftClientConfig?.authority) {
-		await driftClient.initializeUserAccount(
-			driftClientConfig?.activeSubAccountId ?? 0
+	await velocityClient.subscribe();
+	if (!skipUser && !velocityClientConfig?.authority) {
+		await velocityClient.initializeUserAccount(
+			velocityClientConfig?.activeSubAccountId ?? 0
 		);
 		if (depositCollateral) {
-			await driftClient.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
+			await velocityClient.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
 		}
 	}
 
 	return {
 		signer,
 		wallet,
-		user: skipUser ? undefined : driftClient.getUser(),
+		user: skipUser ? undefined : velocityClient.getUser(),
 		userUSDCAccount,
 		userWSOLAccount,
-		driftClient,
+		velocityClient,
 		vaultClient,
 	};
 }
@@ -246,7 +246,7 @@ export async function initializeSolSpotMarketMaker(
 	usdcAmount?: BN,
 	accountLoader?: any
 ): Promise<{
-	driftClient: TestClient;
+	velocityClient: TestClient;
 	solAccount: PublicKey;
 	usdcAccount: PublicKey;
 	userKeyPair: Keypair;
@@ -255,7 +255,7 @@ export async function initializeSolSpotMarketMaker(
 	const solDepositAmount = solAmount ?? new BN(10_000 * LAMPORTS_PER_SOL);
 	const usdcDepositAmount = usdcAmount ?? new BN(1_000_000 * 1e6);
 
-	const [driftClient, solAccount, usdcAccount, userKeyPair] =
+	const [velocityClient, solAccount, usdcAccount, userKeyPair] =
 		await createUserWithUSDCAndWSOLAccount(
 			bankrunContext,
 			usdcMint,
@@ -267,31 +267,31 @@ export async function initializeSolSpotMarketMaker(
 			oracleInfos,
 			accountLoader
 		);
-	await driftClient.updateUserMarginTradingEnabled([
+	await velocityClient.updateUserMarginTradingEnabled([
 		{
 			marginTradingEnabled: true,
 			subAccountId: 0,
 		},
 	]);
 
-	const usdcMarket = driftClient.getSpotMarketAccount(0);
+	const usdcMarket = velocityClient.getSpotMarketAccount(0);
 	assert(usdcMarket !== undefined, 'usdcMarket was not initialized');
-	const solMarket = driftClient.getSpotMarketAccount(1);
+	const solMarket = velocityClient.getSpotMarketAccount(1);
 	assert(solMarket !== undefined, 'solMarket was not initialized');
 
-	await driftClient.deposit(usdcDepositAmount, 0, usdcAccount);
-	await driftClient.deposit(solDepositAmount, 1, solAccount);
+	await velocityClient.deposit(usdcDepositAmount, 0, usdcAccount);
+	await velocityClient.deposit(solDepositAmount, 1, solAccount);
 
 	const requoteFunc = async (bid?: BN, ask?: BN, print?: boolean) => {
-		await driftClient.fetchAccounts();
-		const solOracle = driftClient.getOracleDataForSpotMarket(1);
+		await velocityClient.fetchAccounts();
+		const solOracle = velocityClient.getOracleDataForSpotMarket(1);
 
 		const bidPrice =
 			bid ?? solOracle.price.sub(new BN(10).mul(solMarket!.orderTickSize));
 		const askPrice =
 			ask ?? solOracle.price.add(new BN(10).mul(solMarket!.orderTickSize));
 
-		const solPos = driftClient.getUser().getSpotPosition(1);
+		const solPos = velocityClient.getUser().getSpotPosition(1);
 		const solBal = getSignedTokenAmount(
 			getTokenAmount(solPos!.scaledBalance, solMarket!, solPos!.balanceType),
 			solPos!.balanceType
@@ -304,7 +304,7 @@ export async function initializeSolSpotMarketMaker(
 			const bidAmount = askAmount;
 			if (print) {
 				console.log(
-					`mm ${driftClient.authority.toBase58()} requoting around ${convertToNumber(
+					`mm ${velocityClient.authority.toBase58()} requoting around ${convertToNumber(
 						solOracle.price
 					)}. bid: ${bidAmount}@$${convertToNumber(
 						bidPrice
@@ -312,7 +312,7 @@ export async function initializeSolSpotMarketMaker(
 				);
 			}
 
-			await driftClient.cancelAndPlaceOrders(
+			await velocityClient.cancelAndPlaceOrders(
 				{
 					marketType: MarketType.SPOT,
 					marketIndex: 1,
@@ -343,7 +343,7 @@ export async function initializeSolSpotMarketMaker(
 	};
 
 	return {
-		driftClient,
+		velocityClient,
 		solAccount,
 		usdcAccount,
 		userKeyPair,
@@ -423,11 +423,11 @@ export async function getVaultDepositorValue(params: {
 		if (params.tokenizedVaultAta) {
 			try {
 				const ata =
-					await params.vaultClient.driftClient.connection.getTokenAccountBalance(
+					await params.vaultClient.velocityClient.connection.getTokenAccountBalance(
 						params.tokenizedVaultAta
 					);
 				const mint = await getMint(
-					params.vaultClient.driftClient.connection,
+					params.vaultClient.velocityClient.connection,
 					tokenizedVaultDepositorAccount.mint
 				);
 				const totalSupply = new BN(mint.supply.toString());
@@ -575,7 +575,7 @@ export function calculateAllTokenizedVaultPdas(
  * skipped, so over-listing is safe.
  */
 export async function validateTotalUserShares(
-	program: anchor.Program<DriftVaults>,
+	program: anchor.Program<Vaults>,
 	vault: PublicKey,
 	vaultDepositors: PublicKey[] = [],
 	tokenizedVaultDepositors: PublicKey[] = []
@@ -614,8 +614,8 @@ export async function validateTotalUserShares(
  * drift-vaults.
  */
 export async function doWashTrading({
-	mmDriftClient,
-	traderDriftClient,
+	mmVelocityClient,
+	traderVelocityClient,
 	vaultClient,
 	vaultAddress,
 	startVaultEquity,
@@ -628,8 +628,8 @@ export async function doWashTrading({
 	mmQuoteOffsetBps = 0,
 	doSell = true,
 }: {
-	mmDriftClient: DriftClient;
-	traderDriftClient: DriftClient;
+	mmVelocityClient: VelocityClient;
+	traderVelocityClient: VelocityClient;
 	vaultClient: VaultClient;
 	vaultAddress: PublicKey;
 	startVaultEquity: BN;
@@ -656,7 +656,7 @@ export async function doWashTrading({
 	);
 	let vaultEquity = startVaultEquity;
 
-	const usdcSpotMarket = mmDriftClient.getSpotMarketAccount(0);
+	const usdcSpotMarket = mmVelocityClient.getSpotMarketAccount(0);
 	if (!usdcSpotMarket) {
 		throw new Error('No USDC spot market at idx 0, misconfigured?');
 	}
@@ -665,7 +665,7 @@ export async function doWashTrading({
 
 	while (diff > stopPnlDiffPct && i < maxIters) {
 		try {
-			const oracle = mmDriftClient.getOracleDataForSpotMarket(marketIndex);
+			const oracle = mmVelocityClient.getOracleDataForSpotMarket(marketIndex);
 			if (!oracle) {
 				throw new Error(
 					`No oracle for spot market at idx ${marketIndex}, misconfigured?`
@@ -686,9 +686,9 @@ export async function doWashTrading({
 			);
 
 			i++;
-			await traderDriftClient.fetchAccounts();
+			await traderVelocityClient.fetchAccounts();
 
-			const mmUser = mmDriftClient.getUser();
+			const mmUser = mmVelocityClient.getUser();
 			const mmOffer = mmUser
 				.getOpenOrders()
 				.find(
@@ -708,7 +708,7 @@ export async function doWashTrading({
 			assert(mmOffer !== undefined, 'mm has no offers');
 			assert(mmBid !== undefined, 'mm has no bids');
 
-			const vaultSpotPos0 = traderDriftClient
+			const vaultSpotPos0 = traderVelocityClient
 				.getUser(traderSubAccount, traderAuthority)
 				.getSpotPosition(0);
 			const vaultUsdcBalance = getTokenAmount(
@@ -721,7 +721,7 @@ export async function doWashTrading({
 
 			const bidAmount = vaultUsdcBalance.mul(BASE_PRECISION).div(mmOffer.price);
 
-			await traderDriftClient.placeAndTakeSpotOrder(
+			await traderVelocityClient.placeAndTakeSpotOrder(
 				{
 					orderType: OrderType.LIMIT,
 					marketIndex,
@@ -736,7 +736,7 @@ export async function doWashTrading({
 					maker: mmUser.getUserAccountPublicKey(),
 					makerStats: getUserStatsAccountPublicKey(
 						new PublicKey(DRIFT_PROGRAM_ID),
-						mmDriftClient.authority
+						mmVelocityClient.authority
 					),
 					makerUserAccount: mmUser.getUserAccount(),
 					order: mmOffer,
@@ -744,7 +744,7 @@ export async function doWashTrading({
 			);
 
 			if (doSell) {
-				await traderDriftClient.placeAndTakeSpotOrder(
+				await traderVelocityClient.placeAndTakeSpotOrder(
 					{
 						orderType: OrderType.LIMIT,
 						marketIndex,
@@ -760,7 +760,7 @@ export async function doWashTrading({
 						maker: mmUser.getUserAccountPublicKey(),
 						makerStats: getUserStatsAccountPublicKey(
 							new PublicKey(DRIFT_PROGRAM_ID),
-							mmDriftClient.authority
+							mmVelocityClient.authority
 						),
 						makerUserAccount: mmUser.getUserAccount(),
 						order: mmBid,

@@ -16,8 +16,8 @@ export const managerUpdatePoolId = async (program: Command, cmdOpts: OptionValue
     }
 
     const {
-        driftVault,
-        driftClient
+        velocityVault,
+        velocityClient
     } = await getCommandContext(program, true);
 
     const poolId = cmdOpts.poolId ? Number(cmdOpts.poolId) : null;
@@ -27,10 +27,10 @@ export const managerUpdatePoolId = async (program: Command, cmdOpts: OptionValue
     }
 
     if (cmdOpts.dumpTransactionMessage) {
-        const tx = await driftVault.getUpdatePoolIdIx(vaultAddress, poolId);
-        console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+        const tx = await velocityVault.getUpdatePoolIdIx(vaultAddress, poolId);
+        console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
     } else {
-        const tx = await driftVault.updateUserPoolId(vaultAddress, poolId);
-        console.log(`Updated pool id vault manager: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+        const tx = await velocityVault.updateUserPoolId(vaultAddress, poolId);
+        console.log(`Updated pool id vault manager: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
     }
 };

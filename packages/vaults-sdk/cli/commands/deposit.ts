@@ -15,7 +15,7 @@ export const deposit = async (program: Command, cmdOpts: OptionValues) => {
 		}
 	}
 
-	const { driftClient, driftVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(program, true);
 
 	let vaultDepositorAddress: PublicKey;
 	let vaultAddress: PublicKey | undefined;
@@ -35,7 +35,7 @@ export const deposit = async (program: Command, cmdOpts: OptionValues) => {
 	}
 
 	const vaultDepositorAccount =
-		await driftVault.program.account.vaultDepositor.fetchNullable(
+		await velocityVault.program.account.vaultDepositor.fetchNullable(
 			vaultDepositorAddress
 		);
 	if (!vaultDepositorAccount) {
@@ -46,10 +46,10 @@ export const deposit = async (program: Command, cmdOpts: OptionValues) => {
 			process.exit(1);
 		}
 
-		const vaultAccount = await driftVault.program.account.vault.fetch(
+		const vaultAccount = await velocityVault.program.account.vault.fetch(
 			vaultAddress
 		);
-		const spotMarket = driftClient.getSpotMarketAccount(
+		const spotMarket = velocityClient.getSpotMarketAccount(
 			vaultAccount.spotMarketIndex
 		);
 		if (!spotMarket) {
@@ -61,22 +61,22 @@ export const deposit = async (program: Command, cmdOpts: OptionValues) => {
 		console.log(
 			`depositing (initializing VaultDepositor account): ${depositBN.toString()}`
 		);
-		const tx = await driftVault.deposit(vaultDepositorAddress, depositBN, {
+		const tx = await velocityVault.deposit(vaultDepositorAddress, depositBN, {
 			authority: depositAuthority,
 			vault: vaultAddress,
 		});
 		console.log(
 			`Deposited ${cmdOpts.amount} to vault: https://solana.fm/tx/${tx}${
-				driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+				velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 			}`
 		);
 	} else {
 		// VaultDepositor exists
 		const vaultAddress = vaultDepositorAccount.vault;
-		const vaultAccount = await driftVault.program.account.vault.fetch(
+		const vaultAccount = await velocityVault.program.account.vault.fetch(
 			vaultAddress
 		);
-		const spotMarket = driftClient.getSpotMarketAccount(
+		const spotMarket = velocityClient.getSpotMarketAccount(
 			vaultAccount.spotMarketIndex
 		);
 		if (!spotMarket) {
@@ -88,10 +88,10 @@ export const deposit = async (program: Command, cmdOpts: OptionValues) => {
 		console.log(
 			`depositing (existing VaultDepositor account): ${depositBN.toString()}`
 		);
-		const tx = await driftVault.deposit(vaultDepositorAddress, depositBN);
+		const tx = await velocityVault.deposit(vaultDepositorAddress, depositBN);
 		console.log(
 			`Deposited ${cmdOpts.amount} to vault: https://solana.fm/tx/${tx}${
-				driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+				velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 			}`
 		);
 	}

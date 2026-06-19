@@ -16,17 +16,17 @@ export const managerApplyProfitShare = async (program: Command, cmdOpts: OptionV
     }
 
     const {
-        driftVault,
-        driftClient
+        velocityVault,
+        velocityClient
     } = await getCommandContext(program, true);
 
     const vaultDepositorAddress = new PublicKey(cmdOpts.vaultDepositor as string);
 
     if (cmdOpts.dumpTransactionMessage) {
-        const tx = await driftVault.getApplyProfitShareIx(vaultAddress, vaultDepositorAddress);
-        console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+        const tx = await velocityVault.getApplyProfitShareIx(vaultAddress, vaultDepositorAddress);
+        console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
     } else {
-        const tx = await driftVault.applyProfitShare(vaultAddress, vaultDepositorAddress);
-        console.log(`Applied profit share: https://solana.fm/tx/${tx}${driftClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
+        const tx = await velocityVault.applyProfitShare(vaultAddress, vaultDepositorAddress);
+        console.log(`Applied profit share: https://solana.fm/tx/${tx}${velocityClient.env === "devnet" ? "?cluster=devnet-solana" : ""}`);
     }
 };

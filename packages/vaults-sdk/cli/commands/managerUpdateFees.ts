@@ -19,9 +19,9 @@ export const managerUpdateFees = async (
 		process.exit(1);
 	}
 
-	const { driftVault, driftClient } = await getCommandContext(program, true);
+	const { velocityVault, velocityClient } = await getCommandContext(program, true);
 
-	const vault = await driftVault.getVault(vaultAddress);
+	const vault = await velocityVault.getVault(vaultAddress);
 
 	const timelockDuration = cmdOpts.timelockDuration;
 	let timelockDurationBN: BN | null = null;
@@ -127,16 +127,16 @@ export const managerUpdateFees = async (
 	while (!done) {
 		try {
 			if (cmdOpts.dumpTransactionMessage) {
-				const tx = await driftVault.getManagerUpdateFeesIx(
+				const tx = await velocityVault.getManagerUpdateFeesIx(
 					vaultAddress,
 					newParams
 				);
-				console.log(dumpTransactionMessage(driftClient.wallet.publicKey, [tx]));
+				console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
 			} else {
-				const tx = await driftVault.managerUpdateFees(vaultAddress, newParams);
+				const tx = await velocityVault.managerUpdateFees(vaultAddress, newParams);
 				console.log(
 					`Updated vault fees as vault manager: https://solana.fm/tx/${tx}${
-						driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+						velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 					}`
 				);
 				done = true;

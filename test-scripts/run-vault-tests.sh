@@ -46,7 +46,7 @@ test_files=(
   sharesExamples.test.ts
   transferVaultDepositorShares.test.ts
   trustedVault.test.ts
-  driftVaults.ts
+  velocityVaults.ts
 )
 
 for test_file in "${test_files[@]}"; do

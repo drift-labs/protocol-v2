@@ -15,12 +15,12 @@ export const managerDeposit = async (
 		process.exit(1);
 	}
 
-	const { driftClient, driftVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(program, true);
 
-	const vaultAccount = await driftVault.program.account.vault.fetch(
+	const vaultAccount = await velocityVault.program.account.vault.fetch(
 		vaultAddress
 	);
-	const spotMarket = driftClient.getSpotMarketAccount(
+	const spotMarket = velocityClient.getSpotMarketAccount(
 		vaultAccount.spotMarketIndex
 	);
 	if (!spotMarket) {
@@ -30,15 +30,15 @@ export const managerDeposit = async (
 	const depositBN = new BN(cmdOpts.amount * spotPrecision.toNumber());
 
 	if (cmdOpts.dumpTransactionMessage) {
-		const txs = await driftVault.getManagerDepositIx(vaultAddress, depositBN);
-		console.log(dumpTransactionMessage(driftClient.wallet.publicKey, txs));
+		const txs = await velocityVault.getManagerDepositIx(vaultAddress, depositBN);
+		console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, txs));
 	} else {
-		const tx = await driftVault.managerDeposit(vaultAddress, depositBN);
+		const tx = await velocityVault.managerDeposit(vaultAddress, depositBN);
 		console.log(
 			`Deposited ${
 				cmdOpts.amount
 			} to vault as manager: https://solana.fm/tx/${tx}${
-				driftClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
+				velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''
 			}`
 		);
 	}

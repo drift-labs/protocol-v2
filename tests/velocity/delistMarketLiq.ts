@@ -784,6 +784,6 @@ describe('delist market, liquidation of expired position', () => {
 		);
 		assert(marketAfter0.amm.feePool.scaledBalance.eq(ZERO));
 		assert(marketAfter0.feeLedger.totalExchangeFee.eq(new BN(8712501)));
-		await liquidatorDriftClientUser.unsubscribe();
+		await liquidatorVelocityClientUser.unsubscribe();
 	});
 });
