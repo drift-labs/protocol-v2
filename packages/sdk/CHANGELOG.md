@@ -1,5 +1,11 @@
 # @velocity-exchange/sdk
 
+## 0.2.3
+
+### Patch Changes
+
+- [#100](https://github.com/drift-labs/protocol-v2-shadow/pull/100) [`ae78769`](https://github.com/drift-labs/protocol-v2-shadow/commit/ae78769ef58355202c030435c2796ef045fe30a0) Thanks [@ChesterSim](https://github.com/ChesterSim)! - add back ForwardOnlyTxSender and calculateMaxRemainingDeposit
+
 ## 0.2.2
 
 ### Patch Changes
