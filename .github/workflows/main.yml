@@ -406,6 +406,9 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
+          # rustfmt: velocity-idl-gen shells out to it during codegen and panics if
+          # missing (the other rust jobs install it too).
+          components: rustfmt
           override: true
       - name: Cache build artefacts
         uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
