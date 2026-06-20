@@ -32,6 +32,7 @@ async fn drift_client() -> VelocityClient {
         .clone()
 }
 
+#[ignore = "LIVE_INFRA: mainnet swap test — needs mainnet RPC + funded keypair + swap API key"]
 #[tokio::test]
 async fn titan_swap_exact_in_usdc_to_sol() {
     let _ = env_logger::try_init();
@@ -106,6 +107,7 @@ async fn titan_swap_exact_in_usdc_to_sol() {
     }
 }
 
+#[ignore = "LIVE_INFRA: mainnet swap test — needs mainnet RPC + funded keypair + swap API key"]
 #[tokio::test]
 async fn titan_swap_exact_in_usdc_jto() {
     let _ = env_logger::try_init();

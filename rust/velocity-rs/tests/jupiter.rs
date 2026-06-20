@@ -33,6 +33,7 @@ async fn drift_client() -> VelocityClient {
         .clone()
 }
 
+#[ignore = "LIVE_INFRA: mainnet swap test — needs mainnet RPC + funded keypair + swap API key"]
 #[tokio::test]
 async fn jupiter_swap_exact_in_udsc_to_sol() {
     let _ = env_logger::try_init();
@@ -106,6 +107,7 @@ async fn jupiter_swap_exact_in_udsc_to_sol() {
     }
 }
 
+#[ignore = "LIVE_INFRA: mainnet swap test — needs mainnet RPC + funded keypair + swap API key"]
 #[tokio::test]
 async fn jupiter_swap_exact_out_udsc_to_sol() {
     let _ = env_logger::try_init();
@@ -180,6 +182,7 @@ async fn jupiter_swap_exact_out_udsc_to_sol() {
     }
 }
 
+#[ignore = "LIVE_INFRA: mainnet swap test — needs mainnet RPC + funded keypair + swap API key"]
 #[tokio::test]
 async fn jupiter_swap_exact_out_udsc_jto() {
     let _ = env_logger::try_init();
@@ -254,6 +257,7 @@ async fn jupiter_swap_exact_out_udsc_jto() {
     }
 }
 
+#[ignore = "LIVE_INFRA: mainnet swap test — needs mainnet RPC + funded keypair + swap API key"]
 #[tokio::test]
 async fn jupiter_swap_sol_unwrap() {
     let _ = env_logger::try_init();
