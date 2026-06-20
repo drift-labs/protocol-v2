@@ -898,9 +898,16 @@ mod test {
         .unwrap()
         .take(5);
 
-        while let Some(event) = event_stream.next().await {
-            dbg!(event);
-        }
+        // Bound the wait: this account has no event activity on the velocity devnet, so
+        // the stream never yields and the test would hang forever (no harness timeout).
+        // The real assertion above is that subscribe() connects + subscribes; drain
+        // whatever arrives within the window and finish either way.
+        let _ = tokio::time::timeout(Duration::from_secs(30), async {
+            while let Some(event) = event_stream.next().await {
+                dbg!(event);
+            }
+        })
+        .await;
     }
 
     #[ignore = "base64 encoded logs need updating"]
