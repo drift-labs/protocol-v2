@@ -268,6 +268,11 @@ describe('multiple maker orders', () => {
 					await secondMakerVelocityClient.getUserStatsAccountPublicKey(),
 			},
 		];
+		// Refresh the oracle's posted slot to the current slot before filling. The
+		// oracle was mocked in `before`, and the bankrun slot advances through the
+		// deposits/order-placement above, leaving it stale for the AMM low-risk-fill
+		// validity check ("oracle not valid for low risk fills"). Same price (100).
+		await setFeedPriceNoProgram(bankrunContextWrapper, 100, solUsd);
 		const txSig = await fillerVelocityClient.fillPerpOrder(
 			await takerVelocityClient.getUserAccountPublicKey(),
 			takerVelocityClient.getUserAccount(),

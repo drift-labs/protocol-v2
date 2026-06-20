@@ -40,7 +40,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		poolId: 0,
 		oracle: new PublicKey('Dai8hT1YRBBm5rBSJUSKcdR11psM55LVAkshbypfC4k4'),
 		oracleSource: OracleSource.PYTH_LAZER_STABLE_COIN,
-		mint: new PublicKey('8FfvSRKMZRDHrCBy142XMUXrKEkXnxDQ4YmJv7xbAw8Q'),
+		mint: new PublicKey('GqmEqYsy8EyvofDpmtFxK8zhYrgWgNokAtYoduQdL7v6'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		pythLazerId: 8,
