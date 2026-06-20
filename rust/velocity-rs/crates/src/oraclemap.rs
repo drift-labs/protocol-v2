@@ -572,8 +572,9 @@ mod tests {
         test_envs::{devnet_endpoint, mainnet_endpoint},
     };
 
+    // SOL pyth-lazer oracle on the velocity devnet (shared by SOL-PERP perp 0 and SOL spot 1).
     const SOL_PERP_ORACLE: Pubkey =
-        solana_pubkey::pubkey!("BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF");
+        solana_pubkey::pubkey!("2k3UHX6ehRFzx5fTVvbL6FwXhMjkucjJDL9MuVKLo8TV");
 
     #[cfg(feature = "rpc_tests")]
     #[tokio::test]
@@ -581,16 +582,11 @@ mod tests {
         let all_oracles = vec![
             (
                 MarketId::spot(0),
-                solana_pubkey::pubkey!("5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7"),
-                OracleSource::PythStableCoin,
+                solana_pubkey::pubkey!("Dai8hT1YRBBm5rBSJUSKcdR11psM55LVAkshbypfC4k4"),
+                OracleSource::PythLazerStableCoin,
             ),
-            (MarketId::perp(0), SOL_PERP_ORACLE, OracleSource::PythPull),
-            (
-                MarketId::perp(1),
-                solana_pubkey::pubkey!("486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4"),
-                OracleSource::PythPull,
-            ),
-            (MarketId::spot(1), SOL_PERP_ORACLE, OracleSource::PythPull),
+            (MarketId::perp(0), SOL_PERP_ORACLE, OracleSource::PythLazer),
+            (MarketId::spot(1), SOL_PERP_ORACLE, OracleSource::PythLazer),
         ];
         let rpc = Arc::new(RpcClient::new(devnet_endpoint().into()));
         let pubsub = Arc::new(
@@ -605,7 +601,7 @@ mod tests {
         let markets = [
             MarketId::perp(0),
             MarketId::spot(1),
-            MarketId::perp(1),
+            MarketId::spot(0),
             MarketId::spot(1),
         ];
         map.sync(&markets, &rpc).await.expect("subd");
@@ -655,16 +651,11 @@ mod tests {
         let all_oracles = vec![
             (
                 MarketId::spot(0),
-                solana_pubkey::pubkey!("5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7"),
-                OracleSource::PythStableCoin,
+                solana_pubkey::pubkey!("Dai8hT1YRBBm5rBSJUSKcdR11psM55LVAkshbypfC4k4"),
+                OracleSource::PythLazerStableCoin,
             ),
-            (MarketId::perp(0), SOL_PERP_ORACLE, OracleSource::PythPull),
-            (
-                MarketId::perp(1),
-                solana_pubkey::pubkey!("486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4"),
-                OracleSource::PythPull,
-            ),
-            (MarketId::spot(1), SOL_PERP_ORACLE, OracleSource::PythPull),
+            (MarketId::perp(0), SOL_PERP_ORACLE, OracleSource::PythLazer),
+            (MarketId::spot(1), SOL_PERP_ORACLE, OracleSource::PythLazer),
         ];
         let pubsub = Arc::new(
             PubsubClient::new(&get_ws_url(&devnet_endpoint()).unwrap())
@@ -678,7 +669,7 @@ mod tests {
         let markets = [
             MarketId::perp(0),
             MarketId::spot(1),
-            MarketId::perp(1),
+            MarketId::spot(0),
             MarketId::spot(1),
         ];
         map.subscribe(&markets).await.expect("subd");
@@ -688,7 +679,7 @@ mod tests {
         assert_eq!(map.len(), 2);
 
         assert!(map.is_subscribed(&MarketId::perp(0)));
-        assert!(map.is_subscribed(&MarketId::perp(1)));
+        assert!(map.is_subscribed(&MarketId::spot(0)));
 
         // check unsub ok
         assert!(map.unsubscribe(&[MarketId::perp(0)]).is_ok());
