@@ -607,6 +607,9 @@ const runBot = async () => {
 			}
 			swiftOrderSubscriber = new SwiftOrderSubscriber({
 				velocityEnv: 'devnet',
+				// Point at the deployment's own swift ws-server when set (velocity runs
+				// swift-ws-server-app in-cluster); else the SDK default (public host).
+				endpoint: process.env.SWIFT_WS_ENDPOINT,
 				marketIndexes: config.botConfigs?.jitMaker?.marketIndexes,
 				keypair: new Keypair(),
 				velocityClient,
