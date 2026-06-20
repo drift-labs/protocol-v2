@@ -57,23 +57,18 @@ async fn client_sync_subscribe_devnet() {
     )
     .await
     .expect("connects");
-    let markets = [
-        MarketId::spot(1),
-        MarketId::spot(2),
-        MarketId::perp(0),
-        MarketId::perp(1),
-        MarketId::perp(2),
-    ];
+    // Markets that exist on the velocity devnet: dUSDT spot 0, SOL spot 1, SOL-PERP perp 0.
+    let markets = [MarketId::spot(0), MarketId::spot(1), MarketId::perp(0)];
     tokio::try_join!(
         client.subscribe_markets(&markets),
         client.subscribe_oracles(&markets),
     )
     .expect("subscribes");
 
-    let price = client.oracle_price(MarketId::perp(1)).await.expect("ok");
+    let price = client.oracle_price(MarketId::perp(0)).await.expect("ok");
     assert!(price > 0);
     dbg!(price);
-    let price = client.oracle_price(MarketId::spot(2)).await.expect("ok");
+    let price = client.oracle_price(MarketId::spot(1)).await.expect("ok");
     assert!(price > 0);
     dbg!(price);
 }
@@ -116,6 +111,7 @@ async fn client_sync_subscribe_mainnet() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 5)]
+#[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
 async fn client_sync_subscribe_mainnet_grpc() {
     let _ = env_logger::try_init();
     let client = VelocityClient::new(
@@ -183,6 +179,7 @@ async fn client_sync_subscribe_mainnet_grpc() {
 }
 
 #[tokio::test]
+#[ignore = "LIVE_INFRA: needs a funded devnet keypair (TEST_PRIVATE_KEY)"]
 async fn place_and_cancel_orders() {
     let _ = env_logger::try_init();
     let btc_perp = MarketId::perp(1);
@@ -263,6 +260,7 @@ async fn place_and_take() {
 }
 
 #[tokio::test]
+#[ignore = "LIVE_INFRA: swift server not reachable from CI (no public velocity swift endpoint)"]
 async fn client_subscribe_swift_orders() {
     let _ = env_logger::try_init();
     let client = VelocityClient::new(
