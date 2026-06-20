@@ -174,12 +174,15 @@ async function main() {
 	}
 
 	const keypair = loadKeypair(privateKey);
+	// SWIFT_WS_ENDPOINT lets a deployment point at its own swift ws-server (velocity
+	// runs swift-ws-server-app in-cluster). Falls back to the public hosts otherwise.
 	const swiftOrderSubscriberConfig: SwiftOrderSubscriberConfig = {
 		velocityEnv,
 		endpoint:
-			velocityEnv === 'devnet'
+			process.env.SWIFT_WS_ENDPOINT ??
+			(velocityEnv === 'devnet'
 				? 'wss://master.swift.drift.trade/ws'
-				: 'wss://swift.drift.trade/ws',
+				: 'wss://swift.drift.trade/ws'),
 		marketIndexes,
 		keypair,
 	};

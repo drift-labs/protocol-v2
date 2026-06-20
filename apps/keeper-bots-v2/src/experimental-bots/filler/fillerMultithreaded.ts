@@ -325,7 +325,10 @@ export class FillerMultithreaded {
 		this.initializeMetrics(config.metricsPort ?? this.globalConfig.metricsPort);
 
 		this.rebalanceFiller = config.rebalanceFiller ?? true;
-		if (this.rebalanceFiller && this.runtimeSpec.velocityEnv === 'mainnet-beta') {
+		if (
+			this.rebalanceFiller &&
+			this.runtimeSpec.velocityEnv === 'mainnet-beta'
+		) {
 			this.jupiterClient = new JupiterClient({
 				connection: this.velocityClient.connection,
 			});

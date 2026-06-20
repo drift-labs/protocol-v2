@@ -323,7 +323,10 @@ export class LiquidatorDerisk {
 				subAccountId
 			),
 		});
-		const lookupTables = [...swapIx.lookupTables, ...this.velocityLookupTables!];
+		const lookupTables = [
+			...swapIx.lookupTables,
+			...this.velocityLookupTables!,
+		];
 		if (this.velocitySpotLookupTables) {
 			lookupTables.push(this.velocitySpotLookupTables);
 		}

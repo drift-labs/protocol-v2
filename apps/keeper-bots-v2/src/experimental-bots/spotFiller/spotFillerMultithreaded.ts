@@ -251,7 +251,10 @@ export class SpotFillerMultithreaded {
 		lookupTableAccounts: AddressLookupTableAccount[] = []
 	) {
 		this.globalConfig = globalConfig;
-		if (!this.globalConfig.useJito && runtimeSpec.velocityEnv === 'mainnet-beta') {
+		if (
+			!this.globalConfig.useJito &&
+			runtimeSpec.velocityEnv === 'mainnet-beta'
+		) {
 			throw new Error('Jito is required for spot multithreaded filler');
 		}
 		this.config = config;
