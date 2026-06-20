@@ -81,7 +81,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_auction_subscriber() {
-        env_logger::init();
+        // try_init: env_logger::init() panics if another test already initialized the
+        // global logger (tests share the process).
+        let _ = env_logger::try_init();
 
         let config = AuctionSubscriberConfig {
             commitment: CommitmentConfig::confirmed(),
