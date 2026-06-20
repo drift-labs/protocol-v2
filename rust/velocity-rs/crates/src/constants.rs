@@ -70,7 +70,7 @@ pub const LUTS_MAINNET: &[Pubkey] = &[
 pub fn state_account() -> &'static Pubkey {
     STATE_ACCOUNT.get_or_init(|| {
         let (state_account, _seed) =
-            Pubkey::find_program_address(&[&b"drift_state"[..]], &PROGRAM_ID);
+            Pubkey::find_program_address(&[&b"velocity_state"[..]], &PROGRAM_ID);
         state_account
     })
 }
