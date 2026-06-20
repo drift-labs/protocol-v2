@@ -78,6 +78,7 @@ async fn client_sync_subscribe_devnet() {
     dbg!(price);
 }
 
+#[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
 #[tokio::test]
 async fn client_sync_subscribe_mainnet() {
     let _ = env_logger::try_init();
@@ -287,6 +288,7 @@ async fn client_subscribe_swift_orders() {
     }
 }
 
+#[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
 #[tokio::test]
 async fn oracle_source_mixed_precision() {
     let _ = env_logger::try_init();
@@ -320,6 +322,7 @@ async fn oracle_source_mixed_precision() {
     assert!(price % 100_000 > 0);
 }
 
+#[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
 #[tokio::test]
 async fn settle_pnl_txs() {
     let wallet = Wallet::read_only(
@@ -414,6 +417,7 @@ async fn initialize_user_subaccount_0() {
     assert!(result.is_ok_and(|x| x.err.is_none()));
 }
 
+#[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
 #[tokio::test]
 async fn place_order_sim_via_privy_account() {
     use solana_commitment_config::CommitmentConfig;

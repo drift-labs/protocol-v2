@@ -79,6 +79,7 @@ mod tests {
     use super::*;
     use crate::utils::{get_ws_url, test_envs::mainnet_endpoint};
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_auction_subscriber() {
         // try_init: env_logger::init() panics if another test already initialized the
