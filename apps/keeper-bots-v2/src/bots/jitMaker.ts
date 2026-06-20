@@ -13,6 +13,7 @@ import {
 	getVariant,
 	isVariant,
 	getUserAccountPublicKeySync,
+	getUserStatsAccountPublicKey,
 } from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 import { logger } from '../logger';
@@ -172,16 +173,36 @@ export class JitMaker implements Bot {
 				userAccountPublicKey
 			);
 			if (!accountInfo) {
-				logger.info(
-					`Subaccount ${subAccountId} user account ${userAccountPublicKey.toBase58()} does not exist; initializing`
+				// InitializeUser for any subaccount requires UserStats to exist, but
+				// only initializeUserAccount(0) creates UserStats. A fresh wallet has
+				// neither, so bootstrap sub-0 + UserStats first, then the configured
+				// subaccount. (initializeUserAccount also adds the user to the client.)
+				const userStatsPublicKey = getUserStatsAccountPublicKey(
+					this.velocityClient.program.programId,
+					this.velocityClient.wallet.publicKey
 				);
-				const [txSig] = await this.velocityClient.initializeUserAccount(
-					subAccountId,
-					`jit-maker-${subAccountId}`
-				);
-				logger.info(
-					`Initialized subaccount ${subAccountId} user account in tx: ${txSig}`
-				);
+				const userStatsInfo =
+					await this.velocityClient.connection.getAccountInfo(
+						userStatsPublicKey
+					);
+				if (!userStatsInfo) {
+					logger.info(
+						'UserStats does not exist; initializing sub-0 + UserStats'
+					);
+					await this.velocityClient.initializeUserAccount(0);
+				}
+				if (subAccountId !== 0) {
+					logger.info(
+						`Subaccount ${subAccountId} user account ${userAccountPublicKey.toBase58()} does not exist; initializing`
+					);
+					const [txSig] = await this.velocityClient.initializeUserAccount(
+						subAccountId,
+						`jit-maker-${subAccountId}`
+					);
+					logger.info(
+						`Initialized subaccount ${subAccountId} user account in tx: ${txSig}`
+					);
+				}
 			} else if (!this.velocityClient.hasUser(subAccountId)) {
 				logger.info(`Adding subaccountId ${subAccountId} to velocityClient`);
 				await this.velocityClient.addUser(subAccountId);
