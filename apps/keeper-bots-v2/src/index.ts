@@ -896,7 +896,8 @@ const runBot = async () => {
 	}
 
 	logger.info(`Checking user exists: ${needCheckVelocityUser}`);
-	if (needCheckVelocityUser) await checkUserExists(config, velocityClient, wallet);
+	if (needCheckVelocityUser)
+		await checkUserExists(config, velocityClient, wallet);
 
 	logger.info(`Checking if bot needs collateral: ${needForceCollateral}`);
 	if (needForceCollateral)

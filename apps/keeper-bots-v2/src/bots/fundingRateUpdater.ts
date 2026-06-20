@@ -105,7 +105,8 @@ export class FundingRateUpdaterBot implements Bot {
 			});
 		}
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
-			velocityPriorityFeeEndpoint: getVelocityPriorityFeeEndpoint('mainnet-beta'),
+			velocityPriorityFeeEndpoint:
+				getVelocityPriorityFeeEndpoint('mainnet-beta'),
 			velocityMarkets,
 			frequencyMs: 10_000,
 		});

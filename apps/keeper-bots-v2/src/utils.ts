@@ -1057,7 +1057,9 @@ export async function swapFillerHardEarnedUSDCForSOL(
 		console.error(e);
 	}
 }
-export function getVelocityPriorityFeeEndpoint(velocityEnv: VelocityEnv): string {
+export function getVelocityPriorityFeeEndpoint(
+	velocityEnv: VelocityEnv
+): string {
 	switch (velocityEnv) {
 		case 'devnet':
 		case 'mainnet-beta':

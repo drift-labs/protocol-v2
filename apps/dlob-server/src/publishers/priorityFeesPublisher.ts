@@ -205,7 +205,9 @@ const main = async () => {
 	for (const market of sdkConfig.SPOT_MARKETS) {
 		const pubkeysForMarket = [usdcMarket];
 
-		const velocityMarket = velocityClient.getSpotMarketAccount(market.marketIndex);
+		const velocityMarket = velocityClient.getSpotMarketAccount(
+			market.marketIndex
+		);
 		pubkeysForMarket.push(velocityMarket.pubkey.toString());
 
 		spotMarketPubkeys.push({
