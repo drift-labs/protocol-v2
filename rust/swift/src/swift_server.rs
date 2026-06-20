@@ -2292,5 +2292,13 @@ mod tests {
             dbg!(&msg);
             status == axum::http::StatusCode::BAD_REQUEST && msg.contains("invalid order")
         }));
+
+        // Tear down the client's auto-started account/market subscriptions before the
+        // test ends. VelocityClient::new spawns background polling tasks; if one's RPC
+        // call is in flight (its DNS resolves on an uncancellable tokio blocking thread)
+        // when the test's runtime is dropped, runtime teardown blocks on that thread and
+        // the test binary never exits. unsubscribe() stops the polling tasks (async
+        // cleanup that can't live in Drop).
+        server_params.velocity.unsubscribe().await.unwrap();
     }
 }
