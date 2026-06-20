@@ -4250,6 +4250,7 @@ mod tests {
         });
     }
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     #[cfg(feature = "rpc_tests")]
     async fn test_marketmap_subscribe() {

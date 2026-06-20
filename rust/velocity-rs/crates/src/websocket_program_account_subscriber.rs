@@ -139,6 +139,7 @@ mod tests {
         velocity_idl::accounts::User,
     };
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_subscribe() {
         let filters = vec![get_user_filter(), get_non_idle_user_filter()];

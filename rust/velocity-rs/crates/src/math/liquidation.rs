@@ -514,6 +514,7 @@ mod tests {
     }
 
     #[cfg(feature = "rpc_tests")]
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn calculate_liq_price() {
         use solana_client::nonblocking::rpc_client::RpcClient;
@@ -540,6 +541,7 @@ mod tests {
     }
 
     #[cfg(feature = "rpc_tests")]
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn calculate_margin_requirements_works() {
         use solana_client::nonblocking::rpc_client::RpcClient;

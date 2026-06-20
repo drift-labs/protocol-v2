@@ -249,6 +249,7 @@ mod rpc_tests {
         Context, Wallet,
     };
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_get_spot_market_value() {
         let wallet: Wallet = test_keypair().into();
@@ -278,6 +279,7 @@ mod rpc_tests {
         println!("spot_asset_value: {}", spot_asset_value);
     }
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_leverage() {
         let wallet: Wallet = test_keypair().into();

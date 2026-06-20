@@ -612,6 +612,7 @@ mod tests {
     }
 
     #[cfg(feature = "rpc_tests")]
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn oraclemap_subscribe_mixed_spot_perp_source() {
         // bonk oracle uses a precision trick via 'oracle source'
@@ -726,6 +727,7 @@ mod tests {
     }
 
     #[cfg(feature = "rpc_tests")]
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_oracle_map() {
         use crate::{

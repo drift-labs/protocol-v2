@@ -186,6 +186,7 @@ impl GlobalUserMap {
 mod tests {
     use crate::utils::test_envs::mainnet_endpoint;
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_usermap() {
         use crate::solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};

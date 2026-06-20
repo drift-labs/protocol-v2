@@ -481,6 +481,7 @@ mod rpc_tests {
     use super::*;
     use crate::utils::{get_ws_url, test_envs::mainnet_endpoint};
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_marketmap_perp() {
         let commitment = CommitmentConfig::processed();
@@ -510,6 +511,7 @@ mod rpc_tests {
         assert!(!marketmap.is_subscribed(0));
     }
 
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_marketmap_spot() {
         let commitment = CommitmentConfig::processed();

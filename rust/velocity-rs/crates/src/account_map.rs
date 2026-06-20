@@ -484,6 +484,7 @@ mod tests {
     };
 
     #[cfg(feature = "rpc_tests")]
+    #[ignore = "MAINNET_NOT_LIVE: velocity mainnet not deployed yet — re-enable when live"]
     #[tokio::test]
     async fn test_user_subscribe() {
         let _ = env_logger::try_init();
