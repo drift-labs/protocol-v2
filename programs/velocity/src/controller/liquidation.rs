@@ -673,7 +673,8 @@ pub fn liquidate_perp(
         taker_fee: Some(
             liquidator_fee
                 .unsigned_abs()
-                .safe_add(if_fee.unsigned_abs())?,
+                .safe_add(if_fee.unsigned_abs())?
+                .safe_add(protocol_fee.unsigned_abs())?,
         ),
         maker_fee: Some(liquidator_fee),
         referrer_reward: None,
