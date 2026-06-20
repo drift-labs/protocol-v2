@@ -12,6 +12,7 @@ import {
 	calculateBidAskPrice,
 	getVariant,
 	isVariant,
+	getUserAccountPublicKeySync,
 } from '@velocity-exchange/sdk';
 import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 import { logger } from '../logger';
@@ -157,7 +158,31 @@ export class JitMaker implements Bot {
 		await this.velocityClient.fetchAllLookupTableAccounts();
 
 		for (const subAccountId of this.subAccountIds) {
-			if (!this.velocityClient.hasUser(subAccountId)) {
+			// The jit-maker needs an on-chain user account per configured subaccount.
+			// Global initUser only creates sub-0, so a dedicated maker subaccount
+			// (e.g. 1) won't exist on a fresh deployment. Create it if missing
+			// (initializeUserAccount also adds the user to the client); otherwise
+			// just add it to client tracking.
+			const userAccountPublicKey = getUserAccountPublicKeySync(
+				this.velocityClient.program.programId,
+				this.velocityClient.wallet.publicKey,
+				subAccountId
+			);
+			const accountInfo = await this.velocityClient.connection.getAccountInfo(
+				userAccountPublicKey
+			);
+			if (!accountInfo) {
+				logger.info(
+					`Subaccount ${subAccountId} user account ${userAccountPublicKey.toBase58()} does not exist; initializing`
+				);
+				const [txSig] = await this.velocityClient.initializeUserAccount(
+					subAccountId,
+					`jit-maker-${subAccountId}`
+				);
+				logger.info(
+					`Initialized subaccount ${subAccountId} user account in tx: ${txSig}`
+				);
+			} else if (!this.velocityClient.hasUser(subAccountId)) {
 				logger.info(`Adding subaccountId ${subAccountId} to velocityClient`);
 				await this.velocityClient.addUser(subAccountId);
 			}
