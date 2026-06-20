@@ -2284,11 +2284,13 @@ mod tests {
                 &context_secondary,
             )
             .await;
-        // it fails later at remote sim since the account is not a real velocity account
+        // it fails later at remote sim since the account is not a real velocity
+        // account (surfaces as a program error, e.g. 3007 AccountOwnedByWrongProgram,
+        // formatted "invalid order. error code: ..."). Match the stable "invalid order"
+        // prefix so a delegate-rejection regression (different message) still fails here.
         assert!(result.is_err_and(|(status, msg, _)| {
             dbg!(&msg);
-            status == axum::http::StatusCode::BAD_REQUEST
-                && msg.contains("invalid order: AccountNotFound")
+            status == axum::http::StatusCode::BAD_REQUEST && msg.contains("invalid order")
         }));
     }
 }
