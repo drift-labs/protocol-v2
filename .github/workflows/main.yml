@@ -424,6 +424,39 @@ jobs:
           TEST_MAINNET_PRIVATE_KEY: ${{ secrets.TEST_MAINNET_PRIVATE_KEY }}
           TEST_GRPC_X_TOKEN: ${{ secrets.TEST_GRPC_X_TOKEN }}
         run: cargo test --manifest-path rust/Cargo.toml --locked --workspace --all-targets --features "rpc_tests"
+  # Devnet end-to-end suite proving the DEPLOYED bots act (tests/devnet_e2e.rs).
+  # Manual-only (workflow_dispatch): submits real devnet txs, sets up one side of
+  # each flow and polls for the deployed filler/jit-maker/liquidator/settler/crank
+  # to act. Single-threaded (all subaccounts share the one TEST_PRIVATE_KEY
+  # authority). `--include-ignored` also runs the flaky/infra-dependent scenarios
+  # (swift reachability, liquidation via oracle drift), which log INCONCLUSIVE
+  # rather than fail when their precondition can't be established.
+  devnet-e2e:
+    name: Devnet e2e (deployed bots)
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubicloud
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          profile: minimal
+          components: rustfmt
+          override: true
+      - name: Cache build artefacts
+        uses: Swatinem/rust-cache@81d053bdb0871dcd3f10763c8cc60d0adc41762b # v1
+        with:
+          workspaces: rust
+          cache-on-failure: 'true'
+      - name: cargo test devnet e2e
+        timeout-minutes: 30
+        env:
+          TEST_DEVNET_RPC_ENDPOINT: ${{ secrets.TEST_DEVNET_RPC_ENDPOINT }}
+          TEST_PRIVATE_KEY: ${{ secrets.TEST_PRIVATE_KEY }}
+          # Optional: velocity swift HTTP endpoint; defaults to the drift one if unset.
+          SWIFT_HTTP_ENDPOINT: ${{ secrets.SWIFT_HTTP_ENDPOINT }}
+        run: cargo test --manifest-path rust/Cargo.toml --locked -p velocity-rs --test devnet_e2e --features "rpc_tests" -- --include-ignored --test-threads=1 --nocapture
   sdk-typecheck:
     name: SDK TypeScript strict check
     runs-on: ubicloud

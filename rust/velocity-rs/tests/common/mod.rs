@@ -18,10 +18,7 @@ use std::{
 use solana_instruction::{AccountMeta, Instruction};
 use velocity_rs::{
     event_subscriber::RpcClient,
-    types::{
-        accounts::{PerpPosition, SpotPosition, User},
-        Context, MarketId,
-    },
+    types::{accounts::User, Context, MarketId, PerpPosition, SpotMarketExt, SpotPosition},
     utils::test_envs::{devnet_endpoint, test_keypair},
     Pubkey, TransactionBuilder, VelocityClient, Wallet,
 };
@@ -117,14 +114,9 @@ impl TestCtx {
         let mut user = User::default();
         user.authority = self.authority();
         user.sub_account_id = sub_id;
-        let tx = TransactionBuilder::new(
-            self.client.program_data(),
-            sub,
-            Cow::Owned(user),
-            false,
-        )
-        .initialize_user_account(sub_id, None, None)
-        .build();
+        let tx = TransactionBuilder::new(self.client.program_data(), sub, Cow::Owned(user), false)
+            .initialize_user_account(sub_id, None, None)
+            .build();
         self.client
             .sign_and_send(tx)
             .await

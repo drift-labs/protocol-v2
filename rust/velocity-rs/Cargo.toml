@@ -73,6 +73,8 @@ velocity-pubsub-client = { version = "0.1.1", path = "crates/pubsub-client" }
 bs58 = { version = "0.5.1", default-features = false }
 bytes = "1"
 hex-literal = "0.4"
+nanoid = "0.4.0"
+reqwest = "0.12.22"
 solana-account-decoder = "3"
 solana-signature = { version = "3", features = ["rand"] }
 toml = "0.8"
