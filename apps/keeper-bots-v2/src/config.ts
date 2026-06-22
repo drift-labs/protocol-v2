@@ -67,6 +67,18 @@ export type FillerConfig = BaseBotConfig & {
 
 export type MakerBidAskTwapCrankConfig = BaseBotConfig & {
 	crankIntervalToMarketIndicies?: { [key: number]: number[] };
+	/**
+	 * When true, on init the bot ensures the keeper has enough insurance-fund
+	 * stake in the quote (USDC) market to run `update_perp_bid_ask_twap`. The
+	 * program gates that ix on `if_staked_quote_asset_amount >= 1000 USDC` and
+	 * otherwise throws `CantUpdatePerpBidAskTwap` ("Keeper doesnt have min if
+	 * stake"). If the keeper's stake is below that floor, the bot tops it up to
+	 * `ifStakeTargetQuote` whole USDC from the keeper's quote token account,
+	 * creating the IF-stake account on first run. Disabled by default.
+	 */
+	autoStakeIfBelowMin?: boolean;
+	/** Whole USDC to top the IF stake up to when auto-staking. Default 1500. */
+	ifStakeTargetQuote?: number;
 };
 
 export type SubaccountConfig = {
@@ -512,6 +524,10 @@ export function loadConfigFromOpts(opts: any): Config {
 			botId: process.env.BOT_ID ?? 'crank',
 			metricsPort: 9464,
 			runOnce: opts.runOnce ?? false,
+			autoStakeIfBelowMin: process.env.AUTO_STAKE_IF_BELOW_MIN === 'true',
+			ifStakeTargetQuote: process.env.IF_STAKE_TARGET_QUOTE
+				? parseInt(process.env.IF_STAKE_TARGET_QUOTE)
+				: undefined,
 		};
 	}
 	return mergeDefaults(defaultConfig, config) as Config;
