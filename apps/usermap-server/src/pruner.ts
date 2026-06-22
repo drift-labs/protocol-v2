@@ -84,7 +84,7 @@ async function main() {
 		// Process the keys
 		for (let key of keys) {
 			if (key.includes(':')) {
-				key = key.split(':').at(-1);
+				key = key.split(':').slice(-1)[0];
 			}
 			if (key == 'user_pubkeys') continue;
 			if (userMap.get(key) === undefined) {

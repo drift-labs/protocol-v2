@@ -542,7 +542,7 @@ jobs:
             target/deploy
             target/idl/velocity.json
             target/types/velocity.ts
-          key: ${{ runner.os }}-velocity-program-anchortest-ltothin-cu16-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
+          key: ${{ runner.os }}-velocity-program-anchortest-ltothin-cu16-anchor${{ env.ANCHOR_VERSION }}-rust${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
 
       # Only recompile when the program sources changed (cache miss). bankrun's
       # startAnchor loads velocity/pyth/token_faucet from target/deploy, so the
@@ -575,7 +575,7 @@ jobs:
             target/deploy
             target/idl/velocity.json
             target/types/velocity.ts
-          key: ${{ runner.os }}-velocity-program-anchortest-ltothin-cu16-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
+          key: ${{ runner.os }}-velocity-program-anchortest-ltothin-cu16-anchor${{ env.ANCHOR_VERSION }}-rust${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
 
       # run-anchor-tests.sh --skip-build syncs the freshly built/restored IDL
       # into packages/sdk/src/idl and builds the SDK before running the suites:
@@ -646,13 +646,54 @@ jobs:
           npm install ts-mocha@10.0.0 -g
           npm install --global mocha@11.7.5
 
-      # Separate from anchor-tests: the vaults suite needs a velocity .so built
-      # WITHOUT mainnet-beta (the external-depositor whitelist gate blocks vault
-      # CPIs otherwise). run-vault-tests.sh handles that build + the SDK builds.
+      # Restore compiled programs from cache, same split restore/build/save pattern
+      # as the anchor-tests job — without it this job recompiled the ~5 MB velocity
+      # SBF program (the slowest build in the repo) from scratch on every run.
+      #
+      # The cache key is DISTINCT from anchor-tests' (`-vaulttest-nomainnet-`):
+      # the vaults suite needs velocity built WITHOUT mainnet-beta (the
+      # external-depositor whitelist gate blocks vault CPIs otherwise), so its .so +
+      # IDL are a different flavor and must not collide with the anchor-test build.
+      # Bump the literal if the feature flags or profile overrides below change.
+      - name: Restore compiled program cache
+        id: cache-program-vaults
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            target/deploy
+            target/idl/velocity.json
+            target/types/velocity.ts
+          key: ${{ runner.os }}-velocity-program-vaulttest-nomainnet-thin-cu16-anchor${{ env.ANCHOR_VERSION }}-rust${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
+
+      # Only recompile when the program sources changed (cache miss). The thin-LTO
+      # override matches anchor-tests: the committed release profile uses fat LTO +
+      # 1 codegen unit (slowest possible compile) for the production .so, which the
+      # bankrun test build doesn't need.
+      - name: Build vault test programs
+        if: steps.cache-program-vaults.outputs.cache-hit != 'true'
+        env:
+          CARGO_PROFILE_RELEASE_LTO: 'thin'
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
+        run: bash test-scripts/run-vault-tests.sh --build-only
+
+      # Save only on a cache miss AND only when the build succeeded — prevents a
+      # partial build from poisoning subsequent runs with the same key.
+      - name: Save compiled program cache
+        if: steps.cache-program-vaults.outputs.cache-hit != 'true' && success()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            target/deploy
+            target/idl/velocity.json
+            target/types/velocity.ts
+          key: ${{ runner.os }}-velocity-program-vaulttest-nomainnet-thin-cu16-anchor${{ env.ANCHOR_VERSION }}-rust${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('programs/**', 'Cargo.toml', 'Cargo.lock', 'Anchor.toml') }}
+
+      # --skip-build syncs the freshly built/restored IDL into packages/sdk/src/idl,
+      # builds the SDKs, and runs the suite (programs already built/restored above).
       - name: run vault tests
         env:
           RUST_LOG: solana_runtime::message_processor::stable_log=info
-        run: bash test-scripts/run-vault-tests.sh
+        run: bash test-scripts/run-vault-tests.sh --skip-build
   verify-sdk-configs:
     name: Verify SDK Configs
     # Live-RPC SDK tests (tests/ci needs MAINNET/DEVNET_RPC_ENDPOINT). Not a PR

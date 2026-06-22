@@ -63,11 +63,13 @@ describe('feeUpdate', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint: Keypair;
 	let solPerpOracle: PublicKey;
-	const vaultName = 'fuel distribution vault';
-	const commonVaultKey = getVaultAddressSync(
-		VAULT_PROGRAM_ID,
-		encodeName(vaultName)
-	);
+	// Each test gets a fresh, uniquely-named vault (the vault PDA derives from the
+	// name only), so the expensive protocol + client bootstrap can move to a
+	// one-time `before` while per-test vault state stays fully isolated — see the
+	// before/beforeEach split below.
+	let vaultName: string;
+	let commonVaultKey: PublicKey;
+	let vaultCounter = 0;
 	const usdcAmount = new BN(1_000_000_000).mul(QUOTE_PRECISION);
 
 	const managerSigner = Keypair.generate();
@@ -88,7 +90,7 @@ describe('feeUpdate', () => {
 	let user3Client: VaultClient;
 	let user3VelocityClient: VelocityClient;
 
-	beforeEach(async () => {
+	before(async () => {
 		const context = await startAnchor('', [], []);
 
 		// wrap the context to use it with the test helpers
@@ -263,7 +265,34 @@ describe('feeUpdate', () => {
 		user3Client = user3Bootstrap.vaultClient;
 		user3VelocityClient = user3Bootstrap.velocityClient;
 
-		// initialize a vault and depositors
+		// `before` runs once but each test below initializes its own vault +
+		// depositor accounts (rent paid by manager/users), so top these reused
+		// signers up to cover the whole suite's worth of account creation.
+		await bankrunContextWrapper.fundKeypair(
+			managerSigner,
+			100 * LAMPORTS_PER_SOL
+		);
+		await bankrunContextWrapper.fundKeypair(
+			user1Signer,
+			100 * LAMPORTS_PER_SOL
+		);
+		await bankrunContextWrapper.fundKeypair(
+			user2Signer,
+			100 * LAMPORTS_PER_SOL
+		);
+	});
+
+	// Per-test: a fresh, uniquely-named vault + its depositors. The chain, markets,
+	// and clients are shared from `before`; these tests neither deposit user
+	// collateral nor assert on global balances, so the only state that must reset
+	// between them is the vault itself.
+	beforeEach(async () => {
+		vaultName = `fuel distribution vault ${vaultCounter++}`;
+		commonVaultKey = getVaultAddressSync(
+			VAULT_PROGRAM_ID,
+			encodeName(vaultName)
+		);
+
 		await managerClient.initializeVault(
 			{
 				name: encodeName(vaultName),
@@ -292,7 +321,7 @@ describe('feeUpdate', () => {
 		);
 	});
 
-	afterEach(async () => {
+	after(async () => {
 		await adminVelocityClient.unsubscribe();
 		await adminClient.unsubscribe();
 		await managerClient.unsubscribe();

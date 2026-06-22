@@ -74,6 +74,13 @@ describe('TestTrustedVault', () => {
 	let user1UserUSDCAccount: PublicKey;
 	let user1VaultDepositor: PublicKey;
 
+	// NOTE: this stays `beforeEach` (full chain rebuild per test) on purpose — do
+	// not "optimize" it to a shared `before` like feeUpdate/transferVaultDepositorShares.
+	// The borrow tests assert on ABSOLUTE global spot-market balances (e.g.
+	// `spotMarket1.depositBalance === 100 * LAMPORTS_PER_SOL`) and each deposits SOL
+	// into the same spot market, so a shared chain would accumulate balances across
+	// tests and break those exact-equality assertions. A fresh chain per test is
+	// required for correctness here.
 	beforeEach(async () => {
 		const context = await startAnchor('', [], []);
 

@@ -29,8 +29,9 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 	mockUSDCMintBankrun,
+	mockUserUSDCAccountBankrun,
 } from './common/testHelpers';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { mockOracleNoProgram } from './common/bankrunOracle';
 
 const mantissaSqrtScale = new BN(100_000);
@@ -45,11 +46,12 @@ describe('transferVaultDepositorShares', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint: Keypair;
 	let solPerpOracle: PublicKey;
-	const vaultName = 'transfer shares vault';
-	const commonVaultKey = getVaultAddressSync(
-		VAULT_PROGRAM_ID,
-		encodeName(vaultName)
-	);
+	// Fresh, uniquely-named vault per test (the vault PDA derives from the name)
+	// so the chain + client bootstrap can move to a one-time `before`; see the
+	// before/beforeEach split below.
+	let vaultName: string;
+	let commonVaultKey: PublicKey;
+	let vaultCounter = 0;
 	const usdcAmount = new BN(1_000_000_000).mul(QUOTE_PRECISION);
 
 	const managerSigner = Keypair.generate();
@@ -85,7 +87,7 @@ describe('transferVaultDepositorShares', () => {
 		],
 	});
 
-	beforeEach(async () => {
+	before(async () => {
 		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
@@ -171,12 +173,6 @@ describe('transferVaultDepositorShares', () => {
 		});
 		user1Client = user1Bootstrap.vaultClient;
 		user1VelocityClient = user1Bootstrap.velocityClient;
-		user1UserUSDCAccount = user1Bootstrap.userUSDCAccount.publicKey;
-		user1VaultDepositor = getVaultDepositorAddressSync(
-			VAULT_PROGRAM_ID,
-			commonVaultKey,
-			user1Signer.publicKey
-		);
 
 		const user2Bootstrap = await bootstrapSignerClientAndUserBankrun({
 			bankrunContext: bankrunContextWrapper,
@@ -192,12 +188,62 @@ describe('transferVaultDepositorShares', () => {
 		});
 		user2Client = user2Bootstrap.vaultClient;
 		user2VelocityClient = user2Bootstrap.velocityClient;
-		user2UserUSDCAccount = user2Bootstrap.userUSDCAccount.publicKey;
+
+		// `before` runs once; each test re-mints USDC and builds its own vault +
+		// depositors below, so top the reused signers up for the whole suite.
+		await bankrunContextWrapper.fundKeypair(
+			managerSigner,
+			100 * LAMPORTS_PER_SOL
+		);
+		await bankrunContextWrapper.fundKeypair(
+			user1Signer,
+			100 * LAMPORTS_PER_SOL
+		);
+		await bankrunContextWrapper.fundKeypair(
+			user2Signer,
+			100 * LAMPORTS_PER_SOL
+		);
+	});
+
+	// Per-test: a fresh uniquely-named vault, fresh USDC for each depositor, and
+	// fresh deposits. The chain, markets, and clients are shared from `before`. A
+	// vault deposit moves USDC from the depositor's token account into the vault's
+	// own drift account (it doesn't touch the depositor's drift user account), so
+	// re-minting per test is all that's needed to keep tests isolated.
+	beforeEach(async () => {
+		vaultName = `transfer shares vault ${vaultCounter++}`;
+		commonVaultKey = getVaultAddressSync(
+			VAULT_PROGRAM_ID,
+			encodeName(vaultName)
+		);
+		user1VaultDepositor = getVaultDepositorAddressSync(
+			VAULT_PROGRAM_ID,
+			commonVaultKey,
+			user1Signer.publicKey
+		);
 		user2VaultDepositor = getVaultDepositorAddressSync(
 			VAULT_PROGRAM_ID,
 			commonVaultKey,
 			user2Signer.publicKey
 		);
+
+		// fresh USDC for each depositor
+		user1UserUSDCAccount = (
+			await mockUserUSDCAccountBankrun(
+				usdcMint,
+				usdcAmount,
+				bankrunContextWrapper,
+				user1Signer.publicKey
+			)
+		).publicKey;
+		user2UserUSDCAccount = (
+			await mockUserUSDCAccountBankrun(
+				usdcMint,
+				usdcAmount,
+				bankrunContextWrapper,
+				user2Signer.publicKey
+			)
+		).publicKey;
 
 		// initialize vault
 		await managerClient.initializeVault(
@@ -248,7 +294,7 @@ describe('transferVaultDepositorShares', () => {
 		);
 	});
 
-	afterEach(async () => {
+	after(async () => {
 		await adminVelocityClient.unsubscribe();
 		await managerClient.unsubscribe();
 		await managerVelocityClient.unsubscribe();
