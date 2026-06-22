@@ -11,6 +11,13 @@ import {
 	ONE,
 } from '../constants/numericConstants';
 
+/**
+ * @param ifLiquidationFee Since PR#75 the program sizes liquidations against the
+ *   COMBINED insurance-fund + protocol liquidation fee budget:
+ *   `market.ifLiquidationFee + market.protocolLiquidationFee` (split IF-first
+ *   on-chain). Pass that sum here to match on-chain sizing; passing
+ *   `market.ifLiquidationFee` alone under-sizes the estimate.
+ */
 export function calculateBaseAssetAmountToCoverMarginShortage(
 	marginShortage: BN,
 	marginRatio: number,
@@ -41,6 +48,13 @@ export function calculateBaseAssetAmountToCoverMarginShortage(
 	);
 }
 
+/**
+ * @param ifLiquidationFee Since PR#75 the program sizes liquidations against the
+ *   COMBINED insurance-fund + protocol liquidation fee budget:
+ *   `market.ifLiquidationFee + market.protocolLiquidationFee` (split IF-first
+ *   on-chain). Pass that sum here to match on-chain sizing; passing
+ *   `market.ifLiquidationFee` alone under-sizes the estimate.
+ */
 export function calculateLiabilityTransferToCoverMarginShortage(
 	marginShortage: BN,
 	assetWeight: number,

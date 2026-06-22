@@ -264,6 +264,36 @@ These public exports were **added** (or restored) relative to the fork point:
   and `calculateMaxRemainingDeposit` (`math/spotMarket`).
 - `PriceUpdateAccount` is now re-exported from the package root (#97); previously it was only
   reachable via a subpath import.
+- Several types were added by the `types.ts` ↔ IDL reconciliation — see §4.7.
+
+### 4.7 SDK type reconciliation (`types.ts` ↔ IDL)
+
+The hand-maintained TypeScript mirrors in `sdk/src/types.ts` are not generated from the IDL
+(the SDK does not use Anchor's `IdlAccounts`/`IdlTypes`/`IdlEvents` helpers), and had drifted
+from the generated `idl/velocity.json`. This batch realigns them. Integrators who decoded
+accounts/events with the previous TS shapes should note:
+
+- **Added fields** (present in the IDL / emitted on-chain all along, missing from the TS type):
+  - Account structs: `StateAccount.pauseAdmin` + `lpPoolFeatureBitFlags`; `PerpMarketAccount.poolId`;
+    `SpotMarketAccount.expiryTs`; `UserStatsAccount.disableUpdatePerpBidAskTwap` + `pausedOperations`;
+    `InsuranceFundStake.lastValidTs`; `AmmCache.bump`;
+    `LPPoolAccount.targetOracleDelayFeeBpsPer10Slots` + `targetPositionDelayFeeBpsPer10Slots`.
+  - `AMM`: the bid/ask reserve set (`askBaseAssetReserve`, `askQuoteAssetReserve`,
+    `bidBaseAssetReserve`, `bidQuoteAssetReserve`), `lastOracleReservePriceSpreadPct`,
+    `lastSpreadUpdateSlot`, `longSpread`, `shortSpread`, `referencePriceOffset`.
+  - Event/record types: `DepositRecord` (`signer?`, `userTokenAmountAfter`);
+    `OrderActionRecord` (`triggerPrice`, `builderIdx`, `builderFee`); `LiquidationRecord` (`bitFlags`);
+    `LiquidatePerpRecord` + `LiquidateSpotRecord` (`protocolFee`).
+- **Corrected field types** (no on-chain change — the TS type was wrong):
+  - `LiquidationRecord.canceledOrderIds`: `BN[]` → `number[]`.
+  - `LiquidatePerpRecord.userOrderId` / `liquidatorOrderId`: `BN` → `number`.
+  - `OrderFillerRewardStructure.rewardNumerator` / `rewardDenominator`: `BN` → `number`.
+  - `RevenueShareSettleRecord.ts`: `number` → `BN`.
+- **Removed phantom fields** (never existed on-chain): `LPSwapRecord.outMint` / `inMint`,
+  `LPMintRedeemRecord.lpMint`.
+- **New exported types**: `PrelaunchOracleParams`, `PythLazerOracle`,
+  `UpdatePerpMarketSummaryStatsParams`, `SignedMsgWsDelegatesAccount`, `PerpMarketFeeSweepRecord`,
+  `ProtocolFeeWithdrawRecord`, `TransferFeeAndPnlPoolRecord`.
 
 ---
 
@@ -349,6 +379,7 @@ These public exports were **added** (or restored) relative to the fork point:
 | #89       | Restore `ForwardOnlyTxSender` (`tx/forwardOnlyTxSender`) and `calculateMaxRemainingDeposit` (`math/spotMarket`) to the SDK public API (both removed in #82)                                                                                                                                                                                                                   |
 | #94       | Continuous funding dead zone: per-market `funding_clamp_threshold` + `funding_ramp_slope` (recycle `_padding_funding_twap`) replace #12's global hard cutoff; `update_perp_market_funding_dead_zone` ix; `AdminClient.updatePerpMarketFundingDeadZone`; `PerpMarketAccount.fundingClampThreshold`/`fundingRampSlope` replace `paddingFundingTwap`                              |
 | #97       | Re-export `PriceUpdateAccount` from the `@velocity-exchange/sdk` package root; migrate dlob-server + keeper-bots-v2 to the workspace SDK                                                                                                                                                                                                                                       |
+| #127 | Reconcile hand-written `sdk/src/types.ts` mirrors with the generated IDL: add previously-missing account/event fields, correct `BN`↔`number` field types, drop phantom (never-on-chain) `*Mint` record fields, export new param/record types (§4.7). No on-chain layout change                                                                                |
 
 ---
 

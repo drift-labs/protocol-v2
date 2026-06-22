@@ -52,9 +52,23 @@ export const mockAMM: AMM = {
 	quoteAssetReserve: new BN(12)
 		.mul(QUOTE_PRECISION)
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO),
+	// zero-spread mock: bid/ask reserves mirror the base/quote reserves
+	askBaseAssetReserve: new BN(1).mul(BASE_PRECISION),
+	askQuoteAssetReserve: new BN(12)
+		.mul(QUOTE_PRECISION)
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO),
+	bidBaseAssetReserve: new BN(1).mul(BASE_PRECISION),
+	bidQuoteAssetReserve: new BN(12)
+		.mul(QUOTE_PRECISION)
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO),
 	sqrtK: new BN(1),
 	pegMultiplier: new BN(1),
 	maxSlippageRatio: 1_000_000,
+	lastOracleReservePriceSpreadPct: new BN(0),
+	lastSpreadUpdateSlot: new BN(0),
+	longSpread: 0,
+	shortSpread: 0,
+	referencePriceOffset: 0,
 
 	feePool: {
 		scaledBalance: new BN(0),
@@ -177,6 +191,7 @@ function mockPerpMarketCommon(): Omit<
 		},
 		quoteSpotMarketIndex: 0,
 		feeAdjustment: 0,
+		poolId: 0,
 		pausedOperations: 0,
 		hedgeConfig: {
 			poolId: 0,
@@ -285,6 +300,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowBalance: new BN(0),
 		lastInterestTs: new BN(0),
 		lastTwapTs: new BN(0),
+		expiryTs: new BN(0),
 		oracle: PublicKey.default,
 		initialAssetWeight: SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
 		maintenanceAssetWeight: SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
@@ -378,6 +394,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowBalance: new BN(0),
 		lastInterestTs: new BN(0),
 		lastTwapTs: new BN(0),
+		expiryTs: new BN(0),
 		oracle: PublicKey.default,
 		initialAssetWeight: 0,
 		maintenanceAssetWeight: 0,
@@ -473,6 +490,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowBalance: new BN(0),
 		lastInterestTs: new BN(0),
 		lastTwapTs: new BN(0),
+		expiryTs: new BN(0),
 		oracle: PublicKey.default,
 		initialAssetWeight: 0,
 		maintenanceAssetWeight: 0,
@@ -526,6 +544,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 export const mockStateAccount: StateAccount = {
 	coldAdmin: PublicKey.default,
 	warmAdmin: PublicKey.default,
+	pauseAdmin: PublicKey.default,
 	hotAmmCrank: PublicKey.default,
 	hotLpCache: PublicKey.default,
 	hotLpSwap: PublicKey.default,
@@ -540,6 +559,7 @@ export const mockStateAccount: StateAccount = {
 	protocolFeeRecipientPerp: PublicKey.default,
 	protocolFeeRecipientSpot: PublicKey.default,
 	featureBitFlags: 0,
+	lpPoolFeatureBitFlags: 0,
 	defaultMarketOrderTimeInForce: 0,
 	defaultSpotAuctionDuration: 0,
 	discountMint: PublicKey.default,
@@ -578,8 +598,8 @@ export const mockStateAccount: StateAccount = {
 			},
 		],
 		fillerRewardStructure: {
-			rewardNumerator: new BN(0),
-			rewardDenominator: new BN(0),
+			rewardNumerator: 0,
+			rewardDenominator: 0,
 			timeBasedRewardLowerBound: new BN(0),
 		},
 		flatFillerFee: new BN(0),
@@ -603,8 +623,8 @@ export const mockStateAccount: StateAccount = {
 			},
 		],
 		fillerRewardStructure: {
-			rewardNumerator: new BN(0),
-			rewardDenominator: new BN(0),
+			rewardNumerator: 0,
+			rewardDenominator: 0,
 			timeBasedRewardLowerBound: new BN(0),
 		},
 		flatFillerFee: new BN(0),

@@ -371,6 +371,8 @@ export type DepositRecord = {
 	depositRecordId: BN;
 	explanation: DepositExplanation;
 	transferUser?: PublicKey;
+	signer?: PublicKey;
+	userTokenAmountAfter: BN;
 };
 
 export type SpotInterestRecord = {
@@ -465,13 +467,14 @@ export type LiquidationRecord = {
 	marginFreed: BN;
 	liquidationId: number;
 	bankrupt: boolean;
-	canceledOrderIds: BN[];
+	canceledOrderIds: number[];
 	liquidatePerp: LiquidatePerpRecord;
 	liquidateSpot: LiquidateSpotRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
 	perpBankruptcy: PerpBankruptcyRecord;
 	spotBankruptcy: SpotBankruptcyRecord;
+	bitFlags: number;
 };
 
 export class LiquidationType {
@@ -498,11 +501,12 @@ export type LiquidatePerpRecord = {
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
-	userOrderId: BN;
-	liquidatorOrderId: BN;
+	userOrderId: number;
+	liquidatorOrderId: number;
 	fillRecordId: BN;
 	liquidatorFee: BN;
 	ifFee: BN;
+	protocolFee: BN;
 };
 
 export type LiquidateSpotRecord = {
@@ -513,6 +517,7 @@ export type LiquidateSpotRecord = {
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
 	ifFee: BN;
+	protocolFee: BN;
 };
 
 export type LiquidateBorrowForPerpPnlRecord = {
@@ -615,6 +620,9 @@ export type OrderActionRecord = {
 	takerExistingBaseAssetAmount: BN | null;
 	makerExistingQuoteEntryAmount: BN | null;
 	makerExistingBaseAssetAmount: BN | null;
+	triggerPrice: BN | null;
+	builderIdx: number | null;
+	builderFee: BN | null;
 };
 
 export type SwapRecord = {
@@ -661,8 +669,6 @@ export type LPSwapRecord = {
 	inConstituentIndex: number;
 	outOraclePrice: BN;
 	inOraclePrice: BN;
-	outMint: PublicKey;
-	inMint: PublicKey;
 	lastAum: BN;
 	lastAumSlot: BN;
 	inMarketCurrentWeight: BN;
@@ -685,7 +691,6 @@ export type LPMintRedeemRecord = {
 	constituentIndex: number;
 	oraclePrice: BN;
 	mint: PublicKey;
-	lpMint: PublicKey;
 	lpAmount: BN;
 	lpFee: BN;
 	lpPrice: BN;
@@ -728,6 +733,7 @@ export type LPBorrowLendDepositRecord = {
 export type StateAccount = {
 	coldAdmin: PublicKey;
 	warmAdmin: PublicKey;
+	pauseAdmin: PublicKey;
 	hotAmmCrank: PublicKey;
 	hotLpCache: PublicKey;
 	hotLpSwap: PublicKey;
@@ -764,6 +770,7 @@ export type StateAccount = {
 	liquidationDuration: number;
 	maxInitializeUserFee: number;
 	featureBitFlags: number;
+	lpPoolFeatureBitFlags: number;
 };
 
 export type PerpMarketAccount = {
@@ -807,6 +814,7 @@ export type PerpMarketAccount = {
 	pausedOperations: number;
 
 	lastFillPrice: BN;
+	poolId: number;
 
 	hedgeConfig: {
 		poolId: number;
@@ -908,6 +916,7 @@ export type SpotMarketAccount = {
 
 	lastInterestTs: BN;
 	lastTwapTs: BN;
+	expiryTs: BN;
 	initialAssetWeight: number;
 	maintenanceAssetWeight: number;
 	initialLiabilityWeight: number;
@@ -988,12 +997,21 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	/// @deprecated frozen pre-isolation analytics counter
 	totalFeeWithdrawn: BN;
+	askBaseAssetReserve: BN;
+	askQuoteAssetReserve: BN;
+	bidBaseAssetReserve: BN;
+	bidQuoteAssetReserve: BN;
 	lastUpdateSlot: BN;
 	netRevenueSinceLastFunding: BN;
 	lastCumulativeFundingRateLong: BN;
 	lastCumulativeFundingRateShort: BN;
+	lastOracleReservePriceSpreadPct: BN;
+	lastSpreadUpdateSlot: BN;
 	baseSpread: number;
 	maxSpread: number;
+	longSpread: number;
+	shortSpread: number;
+	referencePriceOffset: number;
 	maxFillReserveFraction: number;
 	maxSlippageRatio: number;
 	curveUpdateIntensity: number;
@@ -1066,6 +1084,8 @@ export type UserStatsAccount = {
 	};
 	referrer: PublicKey;
 	referrerStatus: number;
+	disableUpdatePerpBidAskTwap: number;
+	pausedOperations: number;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 	delegatePermissions: number;
@@ -1388,8 +1408,8 @@ export type FeeTier = {
 };
 
 export type OrderFillerRewardStructure = {
-	rewardNumerator: BN;
-	rewardDenominator: BN;
+	rewardNumerator: number;
+	rewardDenominator: number;
 	timeBasedRewardLowerBound: BN;
 };
 
@@ -1426,6 +1446,25 @@ export type PrelaunchOracle = {
 	perpMarketIndex: number;
 };
 
+export type PrelaunchOracleParams = {
+	perpMarketIndex: number;
+	price: BN | null;
+	maxPrice: BN | null;
+};
+
+export type PythLazerOracle = {
+	price: BN;
+	publishTime: BN;
+	postedSlot: BN;
+	exponent: number;
+	conf: BN;
+};
+
+export type UpdatePerpMarketSummaryStatsParams = {
+	netUnsettledFundingPnl: BN | null;
+	updateAmmSummaryStats: boolean | null;
+};
+
 export type MarginCategory = 'Initial' | 'Maintenance';
 
 export type InsuranceFundStake = {
@@ -1436,6 +1475,7 @@ export type InsuranceFundStake = {
 
 	ifShares: BN;
 	ifBase: BN;
+	lastValidTs: BN;
 
 	lastWithdrawRequestShares: BN;
 	lastWithdrawRequestValue: BN;
@@ -1523,6 +1563,10 @@ export type SignedMsgUserOrdersAccount = {
 	signedMsgOrderData: SignedMsgOrderId[];
 };
 
+export type SignedMsgWsDelegatesAccount = {
+	delegates: PublicKey[];
+};
+
 export type RevenueShareAccount = {
 	authority: PublicKey;
 	totalReferrerRewards: BN;
@@ -1557,8 +1601,25 @@ export type BuilderInfo = {
 	padding: number[];
 };
 
+export type PerpMarketFeeSweepRecord = {
+	ts: BN;
+	marketIndex: number;
+	ifSwept: BN;
+	protocolSwept: BN;
+	ammProvisionTokenized: BN;
+};
+
+export type ProtocolFeeWithdrawRecord = {
+	ts: BN;
+	marketIndex: number;
+	isPerp: boolean;
+	spotMarketIndex: number;
+	amount: BN;
+	recipientTokenAccount: PublicKey;
+};
+
 export type RevenueShareSettleRecord = {
-	ts: number;
+	ts: BN;
 	builder: PublicKey | null;
 	referrer: PublicKey | null;
 	feeSettled: BN;
@@ -1628,6 +1689,8 @@ export type LPPoolAccount = {
 	bump: number;
 	gammaExecution: number;
 	xi: number;
+	targetOracleDelayFeeBpsPer10Slots: number;
+	targetPositionDelayFeeBpsPer10Slots: number;
 };
 
 export type ConstituentSpotBalance = {
@@ -1726,6 +1789,7 @@ export type CacheInfo = {
 };
 
 export type AmmCache = {
+	bump: number;
 	cache: CacheInfo[];
 };
 
@@ -1739,3 +1803,12 @@ export class TransferFeeAndPnlPoolDirection {
 	static readonly FEE_TO_PNL_POOL = { feeToPnlPool: {} };
 	static readonly PNL_TO_FEE_POOL = { pnlToFeePool: {} };
 }
+
+export type TransferFeeAndPnlPoolRecord = {
+	ts: BN;
+	slot: BN;
+	perpMarketIndexWithFeePool: number;
+	perpMarketIndexWithPnlPool: number;
+	direction: TransferFeeAndPnlPoolDirection;
+	amount: BN;
+};

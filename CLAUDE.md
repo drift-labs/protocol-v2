@@ -53,6 +53,21 @@ bunx turbo run build --filter=@velocity-exchange/sdk # build the SDK (+ its deps
 
 NEVER hand-edit `packages/sdk/src/idl/velocity.json` or `packages/sdk/src/idl/velocity.ts` — they are generated artifacts. To change them, modify the Rust program and regenerate (`bun run program:build`, or `bun run program:idl` for the fast path). Manual edits will silently drift from on-chain layout and break clients. Note a full `anchor build` already emits both `target/idl/velocity.json` and `target/types/velocity.ts`; the scripts just copy them into `packages/sdk/src/idl/` — no separate `anchor idl build`/`anchor idl type` step is needed after a full build.
 
+**Keep `packages/sdk/src/types.ts` in sync with the IDL.** The TypeScript types in `packages/sdk/src/types.ts` (`UserAccount`, `PerpMarketAccount`, `SpotMarketAccount`, `StateAccount`, `AMM`, the `*Record` event types, etc.) are **hand-maintained mirrors** of the on-chain structs — they are NOT derived from the IDL automatically (the SDK does not use Anchor's `IdlAccounts`/`IdlTypes`/`IdlEvents` helpers, because the enum variant classes and SDK-only types can't be generated). Whenever a struct, account, or event changes in the IDL (a field is added, removed, renamed, reordered, or its type changes — including `BN` ↔ `number` width differences), update the corresponding type in `types.ts` in the same change so the mirror stays faithful to the regenerated IDL. The file header already states this contract; treat the IDL as the authoritative layout source and reconcile `types.ts` against it, never the reverse.
+
+**Mirror Rust program logic changes in the TypeScript SDK.** Beyond layout, the SDK re-implements
+chunks of the program's *logic* in TypeScript — pricing, margin/health, funding, fees, AMM math
+(`packages/sdk/src/math/`), the DLOB matching/auction logic (`packages/sdk/src/dlob/`), and account
+abstractions (`user.ts`, `velocityClient.ts`). Whenever you change program behavior — a formula,
+rounding/precision, a threshold or clamp, validity gating, an enum's semantics, the order in which
+operations apply, or any other computation a client must reproduce to predict on-chain results —
+update the corresponding TypeScript so the SDK stays a faithful off-chain mirror, **in the same
+change**. A silent divergence between the Rust computation and its TS counterpart is a bug: it makes
+the SDK mispredict fills, margin, liquidation prices, funding, or fees. Port the same constants and
+edge-case handling (don't approximate), and update/extend the SDK unit tests
+(`cd packages/sdk/ && bun run test:ci`) that pin the behavior. This applies even when the IDL/layout is
+unchanged — pure logic changes still require a matching SDK update.
+
 **Update the admin CLI when admin instructions change:**
 
 `packages/cli-admin/` wraps the admin/keeper surface. Whenever admin instructions are added, removed, renamed, or change signature, update the CLI in the same change: add/remove the dedicated wrapper in `packages/cli-admin/src/commands/` (mirroring the existing command style), update `packages/cli-admin/README.md`'s command list, and verify with `bunx turbo run build --filter=@velocity-exchange/admin-cli && bunx turbo run lint --filter=@velocity-exchange/admin-cli` (CI builds the whole TS workspace on every PR via the `ts-build` job). The generic `call` dispatcher is an escape hatch, not a substitute for wrappers on routinely-used operations.
