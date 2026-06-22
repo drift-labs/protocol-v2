@@ -87,98 +87,56 @@ class PriorityFeeSubscriber {
 	}
 
 	async fetchAndPushPriorityFees() {
-		const [resultPerp, resultSpot] = await Promise.all([
-			fetch(this.endpoint, {
+		// Helius `getPriorityFeeEstimate` is a custom (Atlas) method that does NOT
+		// support JSON-RPC batch (array) requests — sending an array body gets back
+		// a single error object, which is why the old `.forEach` on the response
+		// crashed every cycle. Send one request per market instead and read the
+		// single result object. Run them concurrently; allSettled so one market's
+		// failure doesn't drop the rest.
+		const post = async (accountKeys: string[]): Promise<any> => {
+			const res = await fetch(this.endpoint, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(
-					this.perpMarketPubkeys.map((xx) => {
-						return {
-							jsonrpc: '2.0',
-							id: xx.marketIndex.toString(),
-							method: 'getPriorityFeeEstimate',
-							params: [
-								{
-									accountKeys: [xx.pubkey],
-									options: {
-										includeAllPriorityFeeLevels: true,
-									},
-								},
-							],
-						};
-					})
-				),
-			}),
-			fetch(this.endpoint, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(
-					this.spotMarketPubkeys.map((xx) => {
-						return {
-							jsonrpc: '2.0',
-							id: (100 + xx.marketIndex).toString(),
-							method: 'getPriorityFeeEstimate',
-							params: [
-								{
-									accountKeys: xx.pubkeys,
-									options: {
-										includeAllPriorityFeeLevels: true,
-									},
-								},
-							],
-						};
-					})
-				),
-			}),
-		]);
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					jsonrpc: '2.0',
+					id: '1',
+					method: 'getPriorityFeeEstimate',
+					params: [
+						{ accountKeys, options: { includeAllPriorityFeeLevels: true } },
+					],
+				}),
+			});
+			return res.json();
+		};
 
-		const [dataPerp, dataSpot] = await Promise.all([
-			resultPerp.json(),
-			resultSpot.json(),
-		]);
-
-		// Helius returns a batch array for a batch request, but on errors (bad
-		// params, unsupported on this cluster, rate limit, auth) it replies with a
-		// single JSON-RPC error object. Calling .forEach on that throws and, via
-		// recursiveTryCatch, restarts the whole subscriber in a tight crash-loop.
-		// Guard + log the actual payload so the real cause is visible, and skip
-		// this cycle instead of crashing.
-		if (!Array.isArray(dataPerp) || !Array.isArray(dataSpot)) {
-			logger.warn(
-				`getPriorityFeeEstimate did not return a batch array; skipping cycle. ` +
-					`perp=${JSON.stringify(dataPerp)?.slice(0, 500)} ` +
-					`spot=${JSON.stringify(dataSpot)?.slice(0, 500)}`
-			);
-			return;
-		}
-
-		dataPerp.forEach((result: any) => {
-			const marketIndex = parseInt(result['id']);
+		const publish = (
+			kind: 'perp' | 'spot',
+			marketIndex: number,
+			data: any
+		): void => {
+			const levels = data?.result?.priorityFeeLevels;
+			if (data?.error || !levels) {
+				logger.warn(
+					`getPriorityFeeEstimate ${kind} ${marketIndex} returned no levels: ` +
+						`${JSON.stringify(data)?.slice(0, 300)}`
+				);
+				return;
+			}
 			this.redisClient.publish(
-				`${redisClientPrefix}priorityFees_perp_${marketIndex}`,
-				result.result['priorityFeeLevels']
+				`${redisClientPrefix}priorityFees_${kind}_${marketIndex}`,
+				levels
 			);
-			this.redisClient.set(
-				`priorityFees_perp_${marketIndex}`,
-				result.result['priorityFeeLevels']
-			);
-		});
+			this.redisClient.set(`priorityFees_${kind}_${marketIndex}`, levels);
+		};
 
-		dataSpot.forEach((result: any) => {
-			const marketIndex = parseInt(result['id']) - 100;
-			this.redisClient.publish(
-				`${redisClientPrefix}priorityFees_spot_${marketIndex}`,
-				result.result['priorityFeeLevels']
-			);
-			this.redisClient.set(
-				`priorityFees_spot_${marketIndex}`,
-				result.result['priorityFeeLevels']
-			);
-		});
+		await Promise.allSettled([
+			...this.perpMarketPubkeys.map(async (xx) =>
+				publish('perp', xx.marketIndex, await post([xx.pubkey]))
+			),
+			...this.spotMarketPubkeys.map(async (xx) =>
+				publish('spot', xx.marketIndex, await post(xx.pubkeys))
+			),
+		]);
 	}
 }
 
