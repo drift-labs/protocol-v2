@@ -1007,21 +1007,29 @@ async function main() {
 		const markPrice = pm.amm.quoteAssetReserve
 			.mul(pm.amm.pegMultiplier)
 			.div(pm.amm.baseAssetReserve);
-		const tolerance = oraclePrice.divn(100); // 1%
+		// A single repegAmmCurve can only push the terminal price up to the
+		// *bottom* of the oracle confidence band (calculate_repeg_validity), so
+		// targeting the oracle exactly fails (InvalidRepegProfitability /
+		// "out of bounds pnl"). Target ~1% below the oracle: comfortably under the
+		// band bottom, well within funding's mark-divergence tolerance, and the
+		// curveUpdateIntensity formulaic repeg closes the residual on later cranks.
+		// Skip when already within 2% (so a prior ~1%-below repeg counts as done).
+		const tolerance = oraclePrice.divn(50); // 2%
+		const targetPrice = oraclePrice.sub(oraclePrice.divn(100)); // 1% below oracle
 		if (oraclePrice.lten(0)) {
 			logStep('Phase D2 skipped — oracle price unavailable/zero');
 		} else if (markPrice.sub(oraclePrice).abs().lte(tolerance)) {
 			logStep(
-				'SOL-PERP mark already within 1% of oracle; skip repeg',
+				'SOL-PERP mark already within 2% of oracle; skip repeg',
 				`mark=${markPrice.toString()} oracle=${oraclePrice.toString()}`
 			);
 		} else {
-			const newPeg = oraclePrice
+			const newPeg = targetPrice
 				.mul(pm.amm.baseAssetReserve)
 				.div(pm.amm.quoteAssetReserve);
 			logStep(
-				'repegAmmCurve SOL-PERP -> oracle',
-				`newPeg=${newPeg.toString()} (oracle=${oraclePrice.toString()}, oldPeg=${pm.amm.pegMultiplier.toString()}, mark=${markPrice.toString()})`
+				'repegAmmCurve SOL-PERP -> ~1% below oracle',
+				`newPeg=${newPeg.toString()} (target=${targetPrice.toString()}, oracle=${oraclePrice.toString()}, oldPeg=${pm.amm.pegMultiplier.toString()}, mark=${markPrice.toString()})`
 			);
 			// RepegAmmCurve validates oracle freshness (InvalidOracle/6035 when
 			// stale_for_amm_immediate). On quiet devnet the lazer oracle goes stale
