@@ -464,8 +464,13 @@ export class MakerBidAskTwapCrank implements Bot {
 		}
 
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
+			// Prefer an explicitly-configured endpoint (PRIORITY_FEE_ENDPOINT, e.g.
+			// the in-cluster dlob-server), falling back to the per-env default.
+			// The previous hardcoded getVelocityPriorityFeeEndpoint('mainnet-beta')
+			// pointed every env at dlob.drift.trade, which 502s for velocity.
 			velocityPriorityFeeEndpoint:
-				getVelocityPriorityFeeEndpoint('mainnet-beta'),
+				this.globalConfig.priorityFeeEndpoint ??
+				getVelocityPriorityFeeEndpoint(this.globalConfig.velocityEnv!),
 			velocityMarkets,
 			frequencyMs: 10_000,
 		});

@@ -6,6 +6,19 @@ import {
 import { VelocityEnv, PerpMarkets } from '@velocity-exchange/sdk';
 import { RedisClient } from '@velocity-exchange/common/clients';
 import * as axios from 'axios';
+import { logger } from './logger';
+
+// ts-log compatible logger for the pyth-lazer client. debug/trace are dropped:
+// the WebSocketPool logs "Dropping duplicate message" at debug for every message
+// deduped across its redundant connections (~once per 200ms per extra
+// connection), which floods stdout. info/warn/error still surface.
+const lazerLogger = {
+	trace: () => {},
+	debug: () => {},
+	info: (...args: unknown[]) => logger.info(args.map(String).join(' ')),
+	warn: (...args: unknown[]) => logger.warn(args.map(String).join(' ')),
+	error: (...args: unknown[]) => logger.error(args.map(String).join(' ')),
+};
 
 export type PythLazerPriceFeedArray = {
 	channel?: Channel;
@@ -89,7 +102,7 @@ export class PythLazerSubscriber {
 				},
 			},
 			token: this.token,
-			logger: console,
+			logger: lazerLogger,
 		});
 		let subscriptionId = 1;
 		for (const priceFeedIds of this.priceFeedArrays) {

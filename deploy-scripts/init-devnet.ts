@@ -11,6 +11,7 @@
  *   C+) post initial Pyth Lazer signed price update for SOL + USDT (one tx)
  *   C2) SOL spot market at index 1 (uses SOL Pyth Lazer oracle)
  *   D)  SOL-PERP at index 0 (uses SOL Pyth Lazer oracle)
+ *   D2) repeg SOL-PERP so mark ≈ oracle (avoids funding 6251; fixes live market on rerun)
  *   E)  switch dUSDT spot market oracle to PythLazerStableCoin pointing at USDT lazer PDA
  *
  * Phase F below is an OPTIONAL follow-on. A minimal functional devnet deploy
@@ -924,6 +925,63 @@ async function main() {
 		);
 		receipt.perpMarkets[0] = { pubkey: perp0Pk.toBase58(), txSig };
 		await client.fetchAccounts();
+	}
+
+	// === Phase D2: repeg SOL-PERP to the oracle price ===
+	// Phase D seeds the AMM with placeholder reserves -> mark price = $1. The
+	// program blocks funding updates when mark diverges too far from the oracle
+	// (math/oracle.rs block_operation -> FundingWasNotUpdated / 6251). Repeg the
+	// curve so mark ≈ oracle. With base==quote reserves mark == peg; in general
+	// peg = oracle * base / quote yields mark == oracle. Idempotent (skips when
+	// already within 1%), and runs whether the market was just created or already
+	// existed — so a rerun fixes a live placeholder market.
+	if (!skipPhaseD) {
+		await confirm('Begin Phase D2 — repeg SOL-PERP to oracle price?', [
+			'Reads the SOL oracle and repegs the AMM so mark ≈ oracle.',
+			'No-op if mark is already within 1% of the oracle.',
+		]);
+		await client.unsubscribe();
+		const repegClient = new AdminClient({
+			connection,
+			wallet,
+			programID: programId,
+			env: 'devnet',
+			accountSubscription: { type: 'websocket', commitment: 'confirmed' },
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [],
+			oracleInfos: [{ publicKey: lazerPk, source: OracleSource.PYTH_LAZER }],
+			skipLoadUsers: true,
+		});
+		await repegClient.subscribe();
+		const pm = repegClient.getPerpMarketAccount(0);
+		if (!pm) {
+			throw new Error('perp market 0 not found after subscribe');
+		}
+		const oraclePrice = repegClient.getOracleDataForPerpMarket(0).price;
+		const markPrice = pm.amm.quoteAssetReserve
+			.mul(pm.amm.pegMultiplier)
+			.div(pm.amm.baseAssetReserve);
+		const tolerance = oraclePrice.divn(100); // 1%
+		if (oraclePrice.lten(0)) {
+			logStep('Phase D2 skipped — oracle price unavailable/zero');
+		} else if (markPrice.sub(oraclePrice).abs().lte(tolerance)) {
+			logStep(
+				'SOL-PERP mark already within 1% of oracle; skip repeg',
+				`mark=${markPrice.toString()} oracle=${oraclePrice.toString()}`
+			);
+		} else {
+			const newPeg = oraclePrice
+				.mul(pm.amm.baseAssetReserve)
+				.div(pm.amm.quoteAssetReserve);
+			logStep(
+				'repegAmmCurve SOL-PERP -> oracle',
+				`newPeg=${newPeg.toString()} (oracle=${oraclePrice.toString()}, oldPeg=${pm.amm.pegMultiplier.toString()}, mark=${markPrice.toString()})`
+			);
+			const sig = await repegClient.repegAmmCurve(newPeg, 0);
+			console.log(`  tx: ${sig}`);
+		}
+		await repegClient.unsubscribe();
+		await client.subscribe();
 	}
 
 	// === Phase E: switch dUSDT spot market oracle to PythLazerStableCoin ===

@@ -187,6 +187,10 @@ export interface GlobalConfig {
 	disableMetrics?: boolean;
 
 	priorityFeeMethod?: string;
+	/// HTTP base URL of the cached priority-fee service (velocity dlob-server's
+	/// /batchPriorityFees). Set via PRIORITY_FEE_ENDPOINT; defaults per-env.
+	/// Point at the in-cluster dlob-server to avoid the public drift endpoint.
+	priorityFeeEndpoint?: string;
 	maxPriorityFeeMicroLamports?: number;
 	resubTimeoutMs?: number;
 	priorityFeeMultiplier?: number;
@@ -261,6 +265,7 @@ const defaultConfig: Partial<Config> = {
 		additionalSendTxEndpoints: [],
 		txConfirmationEndpoint: process.env.TX_CONFIRMATION_ENDPOINT,
 		priorityFeeMethod: process.env.PRIORITY_FEE_METHOD ?? 'solana',
+		priorityFeeEndpoint: process.env.PRIORITY_FEE_ENDPOINT,
 		maxPriorityFeeMicroLamports: parseInt(
 			process.env.MAX_PRIORITY_FEE_MICRO_LAMPORTS ?? '1000000'
 		),
@@ -364,6 +369,8 @@ export function loadConfigFromOpts(opts: any): Config {
 				opts.txConfirmationEndpoint ?? process.env.TX_CONFIRMATION_ENDPOINT,
 			priorityFeeMethod:
 				opts.priorityFeeMethod ?? process.env.PRIORITY_FEE_METHOD,
+			priorityFeeEndpoint:
+				opts.priorityFeeEndpoint ?? process.env.PRIORITY_FEE_ENDPOINT,
 			maxPriorityFeeMicroLamports: parseInt(
 				opts.maxPriorityFeeMicroLamports ??
 					process.env.MAX_PRIORITY_FEE_MICRO_LAMPORTS ??
