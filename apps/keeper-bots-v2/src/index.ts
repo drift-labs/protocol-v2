@@ -1202,7 +1202,9 @@ async function checkAndStakeInsuranceFund(
 		}
 		if (balance.lt(delta)) {
 			const toMint = delta.sub(balance);
-			logger.info(`Minting ${toMint.toString()} dUSDT to keeper ATA via faucet`);
+			logger.info(
+				`Minting ${toMint.toString()} dUSDT to keeper ATA via faucet`
+			);
 			const tokenFaucet = new TokenFaucet(
 				velocityClient.connection,
 				wallet,
