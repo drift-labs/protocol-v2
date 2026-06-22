@@ -22,7 +22,6 @@ import {
 	SpotMarkets,
 	BN,
 	TokenFaucet,
-	getInsuranceFundStakeAccountPublicKey,
 	VelocityClientSubscriptionConfig,
 	LogProviderConfig,
 	FastSingleTxSender,
@@ -530,11 +529,6 @@ const runBot = async () => {
 	let needPythPriceSubscriber = false;
 	let needCheckVelocityUser = false;
 	let needForceCollateral = !!config.global.forceDeposit;
-	const needIfStake = !!(
-		config.global.minIfStake && config.global.minIfStake > 0
-	);
-	// IF staking needs a User/UserStats to exist and the client subscribed.
-	if (needIfStake) needCheckVelocityUser = true;
 	let needUserMapSubscribe = false;
 	const userMapConnection = new Connection(endpoint);
 	const userMap = new UserMap({
@@ -912,10 +906,6 @@ const runBot = async () => {
 	if (needForceCollateral)
 		await checkAndForceCollateral(config, velocityClient, wallet);
 
-	logger.info(`Checking if bot needs IF stake: ${needIfStake}`);
-	if (needIfStake)
-		await checkAndStakeInsuranceFund(config, velocityClient, wallet);
-
 	logger.info(
 		`Checking if need eventSubscriber: ${eventSubscriber !== undefined}`
 	);
@@ -1144,93 +1134,5 @@ async function checkAndForceCollateral(
 		logger.info(`Deposit transaction: ${tx}`);
 		logger.info(`exiting...run again without --force-deposit flag`);
 	}
-	return true;
-}
-
-/**
- * Ensure the keeper holds at least `config.global.minIfStake` whole quote tokens
- * staked in the spot[0] insurance fund, topping up the shortfall. The bid/ask
- * twap crank (`MakerBidAskTwapCrank`) is gated on-chain by a >=1000 quote IF
- * stake — without it the program rejects every UpdatePerpBidAskTwap with
- * CantUpdatePerpBidAskTwap. Idempotent: re-reads UserStats each startup and
- * no-ops once the stake meets the minimum.
- */
-async function checkAndStakeInsuranceFund(
-	config: Config,
-	velocityClient: VelocityClient,
-	wallet: Wallet
-) {
-	const minWhole = config.global.minIfStake;
-	if (!minWhole || minWhole <= 0) return true;
-
-	const marketIndex = 0; // quote (dUSDT/USDC) spot market
-	const target = new BN(minWhole).mul(QUOTE_PRECISION);
-
-	// Read the keeper's current IF stake straight from UserStats — this is the
-	// exact field (`if_staked_quote_asset_amount`) the program checks.
-	const userStatsPk = velocityClient.getUserStatsAccountPublicKey();
-	const userStats = (await (
-		velocityClient.program.account as any
-	).userStats.fetch(userStatsPk)) as { ifStakedQuoteAssetAmount: BN };
-	const current = userStats.ifStakedQuoteAssetAmount;
-
-	if (current.gte(target)) {
-		logger.info(
-			`IF stake already meets minimum (${current.toString()} >= ${target.toString()}), skipping`
-		);
-		return true;
-	}
-
-	const delta = target.sub(current);
-	logger.info(
-		`Topping up IF stake on market ${marketIndex} by ${delta.toString()} ` +
-			`(have ${current.toString()}, want ${target.toString()})`
-	);
-
-	const mint = SpotMarkets[config.global.velocityEnv!][marketIndex].mint;
-	const ata = await getAssociatedTokenAddress(mint, wallet.publicKey);
-
-	// The wallet must hold enough tokens to stake the shortfall. On devnet the
-	// token_faucet can mint the difference (a self-healing net in case the wallet
-	// wasn't seeded by init-devnet); elsewhere it must be funded out-of-band.
-	if (config.global.velocityEnv === 'devnet') {
-		const ataInfo = await velocityClient.connection.getAccountInfo(ata);
-		let balance = new BN(0);
-		if (ataInfo) {
-			const bal = await velocityClient.connection.getTokenAccountBalance(ata);
-			balance = new BN(bal.value.amount);
-		}
-		if (balance.lt(delta)) {
-			const toMint = delta.sub(balance);
-			logger.info(
-				`Minting ${toMint.toString()} dUSDT to keeper ATA via faucet`
-			);
-			const tokenFaucet = new TokenFaucet(
-				velocityClient.connection,
-				wallet,
-				TOKEN_FAUCET_PROGRAM_ID,
-				mint,
-				{ commitment: 'confirmed' }
-			);
-			await tokenFaucet.mintToUser(ata, toMint);
-		}
-	}
-
-	// initializeStakeAccount only on the first stake for this authority + market.
-	const ifStakePk = getInsuranceFundStakeAccountPublicKey(
-		velocityClient.program.programId,
-		wallet.publicKey,
-		marketIndex
-	);
-	const ifStakeExists =
-		(await velocityClient.connection.getAccountInfo(ifStakePk)) !== null;
-
-	const txSig = await velocityClient.addInsuranceFundStake({
-		marketIndex,
-		amount: delta,
-		collateralAccountPublicKey: ata,
-		initializeStakeAccount: !ifStakeExists,
-	});
-	logger.info(`Added IF stake in transaction: ${txSig}`);
 	return true;
 }

@@ -545,9 +545,9 @@ async function main() {
 	// The bid/ask-twap crank requires keepers to hold a minimum insurance-fund
 	// stake (>=1000 dUSDT — CantUpdatePerpBidAskTwap in keeper.rs). Seed each
 	// keeper authority from the admin's pre-minted supply so the keeper bot can
-	// stake on startup (it self-stakes via the `minIfStake` config). Skipped when
-	// KEEPER_PUBKEYS is unset. Idempotent: skips a keeper already holding >= the
-	// fund amount.
+	// stake on startup (the mark-twap-crank bot self-stakes via its
+	// `autoStakeIfBelowMin` config). Skipped when KEEPER_PUBKEYS is unset.
+	// Idempotent: skips a keeper already holding >= the fund amount.
 	const keeperPubkeys = (process.env.KEEPER_PUBKEYS ?? '')
 		.split(',')
 		.map((s) => s.trim())
