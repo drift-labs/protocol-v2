@@ -320,7 +320,7 @@ export class MakerBidAskTwapCrank implements Bot {
 		}
 
 		const marketIndex = QUOTE_SPOT_MARKET_INDEX;
-		// quote token symbol for logs (dUSDT on devnet, USDC on mainnet)
+		// quote token symbol for logs (dUSDT on devnet, USDT on mainnet)
 		const quoteSymbol =
 			SpotMarkets[this.globalConfig.velocityEnv!].find(
 				(m) => m.marketIndex === marketIndex
