@@ -352,6 +352,7 @@ describe('spot deposit and withdraw 22', () => {
 			secondUserVelocityClientWSOLAccount
 		);
 		bankrunContextWrapper.printTxLogs(txSig);
+		await bulkAccountLoader.load();
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
 		assert(spotMarket.depositBalance.eq(SPOT_MARKET_BALANCE_PRECISION));
