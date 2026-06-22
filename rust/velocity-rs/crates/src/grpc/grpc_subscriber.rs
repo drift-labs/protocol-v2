@@ -311,44 +311,45 @@ impl VelocityGrpcClient {
         commitment: CommitmentLevel,
         subscribe_opts: GeyserSubscribeOpts,
     ) -> Result<UnsubHandle, GrpcError> {
-        let mut grpc_client = grpc_connect(
-            self.endpoint.as_str(),
-            self.x_token.as_str(),
-            self.grpc_opts.clone().unwrap_or_default(),
-        )
-        .await
-        .map_err(|err| {
-            error!(target: "grpc", "connect failed: {err:?}");
-            GrpcError::Geyser(err)
-        })?;
-
-        let resp = grpc_client.get_version().await.map_err(GrpcError::Client)?;
-        info!("gRPC connected 🔌: {}", resp.version);
         let request = subscribe_opts.to_subscribe_request(commitment);
         info!(target: "grpc", "gRPC subscribing: {request:?}");
 
         let (unsub_tx, mut unsub_rx) = tokio::sync::oneshot::channel::<()>();
 
+        // geyser_subscribe owns the connect + reconnect loop, so move the
+        // connection params in alongside the hooks (it rebuilds the client on
+        // every failure rather than fail-fasting here).
+        let endpoint = self.endpoint;
+        let x_token = self.x_token;
+        let grpc_opts = self.grpc_opts;
+        let on_account_hooks = self.on_account_hooks;
+        let on_transaction_hooks = self.on_transaction_hooks;
+        let on_slot = self.on_slot;
+        let on_block_meta = self.on_block_meta;
+
         // gRPC receives updates very frequently, don't want tokio scheduler moving it
-        std::thread::spawn(|| {
+        std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .unwrap();
             let ls = tokio::task::LocalSet::new();
             let geyser_task = ls.spawn_local(Self::geyser_subscribe(
-                grpc_client,
+                endpoint,
+                x_token,
+                grpc_opts,
                 request,
-                self.on_account_hooks,
-                self.on_transaction_hooks,
-                self.on_slot,
-                self.on_block_meta,
+                on_account_hooks,
+                on_transaction_hooks,
+                on_slot,
+                on_block_meta,
             ));
             let mut waiter = FuturesUnordered::new();
             waiter.push(geyser_task);
 
             // nb: will cause grpc task to drop when triggered but-
-            // it doesn't call any 'unsub' endpoint
+            // it doesn't call any 'unsub' endpoint. geyser_subscribe reconnects
+            // forever, so the waiter arm only fires if the task panics/aborts.
             ls.block_on(&rt, async move {
                 tokio::select! {
                     biased;
@@ -365,7 +366,6 @@ impl VelocityGrpcClient {
             info!(target: "grpc", "gRPC connection unsubscribed");
         });
 
-        info!(target: "grpc", "gRPC subscribed ⚡️");
         Ok(unsub_tx)
     }
 
@@ -373,36 +373,58 @@ impl VelocityGrpcClient {
     ///
     /// It receives all configured updates and routes them to registered callbacks
     async fn geyser_subscribe(
-        mut client: GeyserGrpcClient<impl Interceptor>,
+        endpoint: String,
+        x_token: String,
+        grpc_opts: Option<GrpcConnectionOpts>,
         request: SubscribeRequest,
         on_account: Hooks,
         on_transaction: TransactionHooks,
         on_slot: impl Fn(Slot),
         on_block_meta: impl Fn(SubscribeUpdateBlockMeta),
     ) -> Option<GrpcError> {
-        let max_retries = 3;
-        let mut retry_count = 0;
         let mut latest_slot = 0;
-        let mut last_error: Option<GrpcError> = None;
+        // Reconnect forever with capped exponential backoff. A long-running
+        // subscriber must never permanently give up: previously, after a stream
+        // error this re-subscribed on the SAME (already-dead) client and, after 3
+        // tries, broke the loop so the task exited with no restart — leaving the
+        // bot silently disconnected (observed on devnet: rust-filler went dark
+        // after a Geyser stream drop while its peers recovered). Now every failure
+        // path rebuilds a fresh client via grpc_connect.
+        let mut backoff_secs: u64 = 1;
         loop {
-            if retry_count >= max_retries {
-                log::warn!(target: "grpc", "max retry attempts reached. disconnecting...");
-                break;
+            let mut client = match grpc_connect(
+                &endpoint,
+                &x_token,
+                grpc_opts.clone().unwrap_or_default(),
+            )
+            .await
+            {
+                Ok(client) => client,
+                Err(err) => {
+                    error!(target: "grpc", "gRPC connect failed: {err:?}; retrying in {backoff_secs}s");
+                    tokio::time::sleep(Duration::from_secs(backoff_secs)).await;
+                    backoff_secs = (backoff_secs * 2).min(30);
+                    continue;
+                }
+            };
+            match client.get_version().await {
+                Ok(resp) => info!(target: "grpc", "gRPC connected 🔌: {}", resp.version),
+                Err(err) => warn!(target: "grpc", "gRPC get_version failed: {err:?}"),
             }
-            let (mut subscribe_tx, mut stream) =
-                match client.subscribe_with_request(Some(request.clone())).await {
-                    Ok(res) => {
-                        retry_count = 0;
-                        res
-                    }
-                    Err(err) => {
-                        log::warn!(target: "grpc", "failed subscription: {err:?}");
-                        retry_count += 1;
-                        tokio::time::sleep(Duration::from_secs(2_u64.pow(retry_count + 1))).await;
-                        let _ = last_error.insert(GrpcError::Client(err));
-                        continue;
-                    }
-                };
+            let (mut subscribe_tx, mut stream) = match client
+                .subscribe_with_request(Some(request.clone()))
+                .await
+            {
+                Ok(res) => res,
+                Err(err) => {
+                    warn!(target: "grpc", "failed subscription: {err:?}; reconnecting in {backoff_secs}s");
+                    tokio::time::sleep(Duration::from_secs(backoff_secs)).await;
+                    backoff_secs = (backoff_secs * 2).min(30);
+                    continue;
+                }
+            };
+            backoff_secs = 1;
+            info!(target: "grpc", "gRPC subscribed ⚡️");
 
             while let Some(message) = stream.next().await {
                 match message {
@@ -518,16 +540,15 @@ impl VelocityGrpcClient {
                         }
                     }
                     Err(status) => {
-                        error!(target: "grpc", "stream error: {status:?}");
-                        let _ = last_error.insert(GrpcError::Stream(status));
+                        error!(target: "grpc", "stream error: {status:?}; reconnecting");
                         break;
                     }
                 }
             }
+            warn!(target: "grpc", "gRPC stream ended; reconnecting in {backoff_secs}s");
+            tokio::time::sleep(Duration::from_secs(backoff_secs)).await;
+            backoff_secs = (backoff_secs * 2).min(30);
         }
-
-        error!(target: "grpc", "gRPC stream closed");
-        last_error
     }
 }
 
