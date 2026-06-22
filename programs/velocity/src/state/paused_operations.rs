@@ -27,8 +27,22 @@ const ALL_PERP_OPERATIONS: [PerpOperation; 8] = [
 ];
 
 impl PerpOperation {
+    /// Pause bits a warm admin is allowed to flip. Every other bit on the
+    /// mask is reserved for cold / pause_admin and must be preserved across a
+    /// warm update.
+    pub const WARM_EDITABLE: u8 =
+        PerpOperation::UpdateFunding as u8 | PerpOperation::SettleRevPool as u8;
+
     pub fn is_operation_paused(current: u8, operation: PerpOperation) -> bool {
         current & operation as u8 != 0
+    }
+
+    /// True if moving the mask `current` -> `next` only toggles
+    /// warm-editable bits. `^` marks the bits that differ; `& !WARM_EDITABLE`
+    /// keeps only the differing bits outside warm's budget, so a zero result
+    /// means warm left every reserved bit untouched.
+    pub fn is_warm_update_allowed(current: u8, next: u8) -> bool {
+        (current ^ next) & !Self::WARM_EDITABLE == 0
     }
 
     pub fn log_all_operations_paused(current: u8) {
