@@ -159,4 +159,40 @@ export function registerPerpMarket(parent: Command): void {
 			}
 		}
 	);
+
+	withGlobalOptions(
+		pm
+			.command('set-oracle-slot-delay <market> <slots>')
+			.description(
+				'oracle_slot_delay_override (i8): max slot age before the oracle is "stale for amm immediate". Threshold is max(slots, 0); -1 (the init default) clamps to 0, so any age >0 reads stale and spams the "Stale (oracle_delay=N)" log. Set a positive value (e.g. 5) below the low-risk guard rail (10).'
+			)
+	).action(async (market: string, slots: string, _flags, cmd: Command) => {
+		const opts = readGlobalOpts(cmd);
+		const provider = buildProvider(opts);
+		const client = await buildAdminClient(opts);
+		try {
+			const value = Number.parseInt(slots, 10);
+			if (!Number.isInteger(value) || value < -128 || value > 127) {
+				throw new Error(
+					`slots must be an integer in [-128, 127] (i8), got "${slots}"`
+				);
+			}
+			const ix = await client.getUpdatePerpMarketOracleSlotDelayOverrideIx(
+				Number.parseInt(market, 10),
+				value
+			);
+			const result = await sendOrPropose(
+				provider,
+				[ix],
+				opts.multisig ? new PublicKey(opts.multisig) : undefined,
+				'velocity-admin perp-market set-oracle-slot-delay'
+			);
+			reportDispatch(
+				`perp-market[${market}] oracle_slot_delay_override = ${value}`,
+				result
+			);
+		} finally {
+			await client.unsubscribe();
+		}
+	});
 }

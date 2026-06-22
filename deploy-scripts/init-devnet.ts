@@ -1081,6 +1081,33 @@ async function main() {
 				`${pm.amm.curveUpdateIntensity}`
 			);
 		}
+
+		// Set oracle_slot_delay_override. The init default is -1, which the program
+		// clamps to a 0-slot threshold for "stale for amm immediate"
+		// (math/oracle.rs: max(override, 0)). With a multi-slot MM-oracle crank
+		// cadence (and MM_ORACLE_MIN_SLOT_GAP=2), the oracle is then *always* >0
+		// slots old between cranks, so every UpdatePerpBidAskTwap / curve refresh
+		// logs "MM Oracle: Stale (oracle_delay=N), stale_for_amm_immediate=true".
+		// Set a positive tolerance below the low-risk guard rail
+		// (slots_before_stale_for_amm = 10) so immediate actions tolerate the crank
+		// gap without weakening the low-risk/margin staleness checks. Idempotent.
+		const TARGET_ORACLE_SLOT_DELAY_OVERRIDE = 5;
+		if (pm.oracleSlotDelayOverride !== TARGET_ORACLE_SLOT_DELAY_OVERRIDE) {
+			logStep(
+				'updatePerpMarketOracleSlotDelayOverride SOL-PERP',
+				`${pm.oracleSlotDelayOverride} -> ${TARGET_ORACLE_SLOT_DELAY_OVERRIDE}`
+			);
+			const sig = await repegClient.updatePerpMarketOracleSlotDelayOverride(
+				0,
+				TARGET_ORACLE_SLOT_DELAY_OVERRIDE
+			);
+			console.log(`  tx: ${sig}`);
+		} else {
+			logStep(
+				'SOL-PERP oracleSlotDelayOverride already set; skip',
+				`${pm.oracleSlotDelayOverride}`
+			);
+		}
 		await repegClient.unsubscribe();
 		await client.subscribe();
 	}
