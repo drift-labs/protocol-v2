@@ -252,6 +252,50 @@ function tryLoadExistingReceipt(receiptPath: string): Receipt | null {
 	}
 }
 
+// Subscribe to Pyth Lazer, wait for the first signed message for `feedIds`, and
+// return its hex. Used both to post initial prices (Phase C+) and to bundle a
+// fresh price with the Phase D2 repeg (RepegAmmCurve rejects a stale oracle).
+async function fetchLazerMessageHex(
+	endpoints: string[],
+	token: string,
+	feedIds: number[],
+	waitMs: number
+): Promise<string> {
+	const subscriber = new PythLazerSubscriber(
+		endpoints,
+		token,
+		[{ priceFeedIds: feedIds }],
+		'devnet',
+		2000,
+		false,
+		['price', 'bestAskPrice', 'bestBidPrice', 'exponent', 'feedUpdateTimestamp']
+	);
+	await subscriber.subscribe();
+	const deadline = Date.now() + waitMs;
+	let messageHex: string | undefined;
+	while (Date.now() < deadline) {
+		const messages = Array.from(subscriber.feedIdChunkToPriceMessage.values());
+		if (messages.length > 0) {
+			messageHex = messages[0];
+			break;
+		}
+		await new Promise((r) => setTimeout(r, 250));
+	}
+	try {
+		await subscriber.unsubscribe();
+	} catch {
+		/* ignore */
+	}
+	if (!messageHex) {
+		throw new Error(
+			`Timed out waiting ${waitMs}ms for a Pyth Lazer message for feeds [${feedIds.join(
+				', '
+			)}]`
+		);
+	}
+	return messageHex;
+}
+
 async function main() {
 	const rpcUrl = process.env.RPC_URL ?? 'https://api.devnet.solana.com';
 	const adminPath = requireEnv('DEVNET_ADMIN');
@@ -979,7 +1023,32 @@ async function main() {
 				'repegAmmCurve SOL-PERP -> oracle',
 				`newPeg=${newPeg.toString()} (oracle=${oraclePrice.toString()}, oldPeg=${pm.amm.pegMultiplier.toString()}, mark=${markPrice.toString()})`
 			);
-			const sig = await repegClient.repegAmmCurve(newPeg, 0);
+			// RepegAmmCurve validates oracle freshness (InvalidOracle/6035 when
+			// stale_for_amm_immediate). On quiet devnet the lazer oracle goes stale
+			// between cranks, so post a fresh price in the SAME tx as the repeg:
+			// [ed25519 verify (0), postPythLazerOracleUpdate (1), repegAmmCurve (2)].
+			// getPostPythLazerOracleUpdateIxs defaults the verify to reference ix
+			// index 1, so the post ix must sit at index 1 — build the tx by hand
+			// (no buildTransaction, which would prepend compute-budget ixs and shift
+			// the index).
+			const msgHex = await fetchLazerMessageHex(
+				pythLazerEndpoints,
+				pythLazerToken,
+				[solLazerFeedId],
+				pythLazerWaitMs
+			);
+			const postIxs = await repegClient.getPostPythLazerOracleUpdateIxs(
+				[solLazerFeedId],
+				msgHex
+			);
+			const repegIx = await repegClient.getRepegAmmCurveIx(newPeg, 0);
+			const { blockhash } = await connection.getLatestBlockhash('confirmed');
+			const tx = new Transaction();
+			tx.add(...postIxs, repegIx);
+			tx.recentBlockhash = blockhash;
+			tx.feePayer = keypair.publicKey;
+			const sig = await connection.sendTransaction(tx, [keypair]);
+			await connection.confirmTransaction(sig, 'confirmed');
 			console.log(`  tx: ${sig}`);
 		}
 
