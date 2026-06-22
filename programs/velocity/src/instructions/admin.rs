@@ -2210,7 +2210,8 @@ pub fn handle_update_perp_market_paused_operations(
 
     // Authority matrix for perp paused_operations:
     //   * cold       — may set any value (full unpause + pause)
-    //   * warm       — historically limited to UpdateFunding / SettleRevPool only
+    //   * warm       — may only flip the UpdateFunding / SettleRevPool bits;
+    //                  all other pause bits must be preserved
     //   * pause_admin — may set any bit but only *add* bits (no unpause)
     let signer = ctx.accounts.admin.key();
     let state = ctx.accounts.state.load()?;
@@ -2218,10 +2219,9 @@ pub fn handle_update_perp_market_paused_operations(
     let is_pause_admin = state.pause_admin != Pubkey::default() && state.pause_admin == signer;
     if !is_cold && !is_pause_admin {
         validate!(
-            paused_operations == PerpOperation::UpdateFunding as u8
-                || paused_operations == PerpOperation::SettleRevPool as u8,
+            PerpOperation::is_warm_update_allowed(perp_market.paused_operations, paused_operations),
             ErrorCode::DefaultError,
-            "warm admin may only pause UpdateFunding or SettleRevPool",
+            "warm admin may only change the UpdateFunding / SettleRevPool pause bits",
         )?;
     }
     require_pause_only_added(
