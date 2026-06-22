@@ -120,7 +120,12 @@ impl TestCtx {
             Box::pin(self.ensure_subaccount(0)).await;
         }
         let sub = self.sub(sub_id);
-        if self.client.get_user_account(&sub).await.is_ok() {
+        // NB: get_user_account() returns Ok (default) for a non-existent account,
+        // so it can't gate initialization — checking it skipped creating sub-0 +
+        // its UserStats, then InitializeUser for other subs failed with
+        // user_stats AccountOwnedByWrongProgram (3007). Probe the raw account
+        // instead (Err == missing).
+        if self.client.rpc().get_account(&sub).await.is_ok() {
             return;
         }
         let mut user = User::default();
