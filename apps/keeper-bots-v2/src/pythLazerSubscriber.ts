@@ -127,7 +127,13 @@ export class PythLazerSubscriber {
 				}
 				this.setTimeout();
 			});
-			this.pythLazerClient.send({
+			// Use subscribe() (not send()): subscribe() registers the request with
+			// the pool so it is replayed on every socket (re)connect. send() fires
+			// once and is never replayed, so after the first 5s heartbeat reconnect
+			// the connection goes silent — no stream data, perpetual reconnect loop
+			// ("Connection timed out. Reconnecting..."). It also covers the initial
+			// race where a pool connection isn't open yet at subscribe time.
+			this.pythLazerClient.subscribe({
 				type: 'subscribe',
 				subscriptionId,
 				priceFeedIds: priceFeedIds.priceFeedIds,
