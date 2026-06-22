@@ -141,6 +141,21 @@ class PriorityFeeSubscriber {
 			resultSpot.json(),
 		]);
 
+		// Helius returns a batch array for a batch request, but on errors (bad
+		// params, unsupported on this cluster, rate limit, auth) it replies with a
+		// single JSON-RPC error object. Calling .forEach on that throws and, via
+		// recursiveTryCatch, restarts the whole subscriber in a tight crash-loop.
+		// Guard + log the actual payload so the real cause is visible, and skip
+		// this cycle instead of crashing.
+		if (!Array.isArray(dataPerp) || !Array.isArray(dataSpot)) {
+			logger.warn(
+				`getPriorityFeeEstimate did not return a batch array; skipping cycle. ` +
+					`perp=${JSON.stringify(dataPerp)?.slice(0, 500)} ` +
+					`spot=${JSON.stringify(dataSpot)?.slice(0, 500)}`
+			);
+			return;
+		}
+
 		dataPerp.forEach((result: any) => {
 			const marketIndex = parseInt(result['id']);
 			this.redisClient.publish(
