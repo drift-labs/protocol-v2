@@ -10,6 +10,8 @@
 #   USDT_MINT                 reuse an existing USDT mint instead of creating one
 #   USDT_MINT_KEYPAIR         keypair file for the USDT mint (vanity address)
 #   USDT_INITIAL_SUPPLY       whole-token amount pre-minted to admin (default 10_000_000)
+#   KEEPER_PUBKEYS            comma-sep keeper authority pubkeys to seed with dUSDT (Phase K; unset = skip)
+#   KEEPER_FUND_AMOUNT        whole dUSDT to send each keeper (default 1000)
 #   TOKEN_FAUCET_PROGRAM_ID   override (default V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB)
 #   RPC_URL, LP_POOL_ID, LP_MAX_AUM, PROTECTED_MAKER_MAX_USERS, RECEIPT_PATH
 

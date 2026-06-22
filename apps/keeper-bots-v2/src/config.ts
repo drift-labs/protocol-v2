@@ -196,6 +196,11 @@ export interface GlobalConfig {
 	cancelOpenOrders?: boolean;
 	closeOpenPositions?: boolean;
 	forceDeposit?: number | null;
+	/// On startup, ensure the keeper holds at least this many whole quote tokens
+	/// (dUSDT/USDC) staked in the spot[0] insurance fund, topping up the
+	/// difference. Required for the bid/ask-twap crank, which the program gates
+	/// on a >=1000 quote IF stake (CantUpdatePerpBidAskTwap). null/0 = disabled.
+	minIfStake?: number | null;
 	websocket?: boolean;
 	eventSubscriber?: false;
 	runOnce?: boolean;
@@ -242,6 +247,7 @@ const defaultConfig: Partial<Config> = {
 		cancelOpenOrders: false,
 		closeOpenPositions: false,
 		forceDeposit: null,
+		minIfStake: null,
 		websocket: false,
 		eventSubscriber: false,
 		runOnce: false,
@@ -382,6 +388,7 @@ export function loadConfigFromOpts(opts: any): Config {
 			cancelOpenOrders: opts.cancelOpenOrders ?? false,
 			closeOpenPositions: opts.closeOpenPositions ?? false,
 			forceDeposit: opts.forceDeposit ?? null,
+			minIfStake: opts.minIfStake ?? 1000,
 			websocket: opts.websocket ?? false,
 			eventSubscriber: opts.eventSubscriber ?? false,
 			runOnce: opts.runOnce ?? false,

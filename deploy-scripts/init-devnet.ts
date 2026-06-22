@@ -38,6 +38,10 @@
  *                       to the receipt as usdt-mint.json.
  *   USDT_INITIAL_SUPPLY amount (whole tokens) to mint to admin before the
  *                       faucet takes over mint authority. Default 10_000_000.
+ *   KEEPER_PUBKEYS      comma-separated keeper authority pubkeys to seed with
+ *                       dUSDT (Phase K) so they can stake the insurance fund the
+ *                       bid/ask-twap crank requires. Unset = skip Phase K.
+ *   KEEPER_FUND_AMOUNT  whole dUSDT to send each keeper (default 1000).
  *   TOKEN_FAUCET_PROGRAM_ID  defaults to V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB.
  *   RPC_URL             default https://api.devnet.solana.com
  *   LP_POOL_ID          default 1 (id 0 is the sentinel "not in a pool")
@@ -63,6 +67,7 @@ import {
 	getAssociatedTokenAddress,
 	createAssociatedTokenAccountInstruction,
 	createMintToInstruction,
+	createTransferInstruction,
 } from '@solana/spl-token';
 import tokenFaucetIdl from '../packages/sdk/src/idl/token_faucet.json';
 import {
@@ -535,6 +540,78 @@ async function main() {
 
 	if (!usdtMint) throw new Error('usdtMint not resolved after Phase 0');
 	const quoteMint: PublicKey = usdtMint;
+
+	// === Phase K: fund keeper wallet(s) with dUSDT ===
+	// The bid/ask-twap crank requires keepers to hold a minimum insurance-fund
+	// stake (>=1000 dUSDT — CantUpdatePerpBidAskTwap in keeper.rs). Seed each
+	// keeper authority from the admin's pre-minted supply so the keeper bot can
+	// stake on startup (it self-stakes via the `minIfStake` config). Skipped when
+	// KEEPER_PUBKEYS is unset. Idempotent: skips a keeper already holding >= the
+	// fund amount.
+	const keeperPubkeys = (process.env.KEEPER_PUBKEYS ?? '')
+		.split(',')
+		.map((s) => s.trim())
+		.filter(Boolean)
+		.map((s) => new PublicKey(s));
+	const keeperFundWhole = new BN(process.env.KEEPER_FUND_AMOUNT ?? '1000');
+	if (keeperPubkeys.length > 0) {
+		await confirm(
+			`Begin Phase K — fund ${keeperPubkeys.length} keeper wallet(s) with ${keeperFundWhole.toString()} dUSDT each?`,
+			[
+				`source: admin ATA (${keypair.publicKey.toBase58()})`,
+				...keeperPubkeys.map((k) => `keeper: ${k.toBase58()}`),
+			]
+		);
+		const fundAmount = keeperFundWhole.mul(
+			new BN(10).pow(new BN(USDT_DECIMALS))
+		);
+		const adminAta = await getAssociatedTokenAddress(
+			quoteMint,
+			keypair.publicKey
+		);
+		for (const keeper of keeperPubkeys) {
+			const keeperAta = await getAssociatedTokenAddress(quoteMint, keeper);
+			const existing = await connection.getAccountInfo(keeperAta, 'confirmed');
+			if (existing) {
+				const bal = await connection.getTokenAccountBalance(
+					keeperAta,
+					'confirmed'
+				);
+				if (new BN(bal.value.amount).gte(fundAmount)) {
+					logStep(
+						`keeper ${keeper.toBase58()} already funded`,
+						`${bal.value.uiAmountString ?? bal.value.amount} dUSDT`
+					);
+					continue;
+				}
+			}
+			const tx = new Transaction();
+			if (!existing) {
+				tx.add(
+					createAssociatedTokenAccountInstruction(
+						keypair.publicKey,
+						keeperAta,
+						keeper,
+						quoteMint
+					)
+				);
+			}
+			tx.add(
+				createTransferInstruction(
+					adminAta,
+					keeperAta,
+					keypair.publicKey,
+					BigInt(fundAmount.toString())
+				)
+			);
+			logStep(
+				`fund keeper ${keeper.toBase58()} with ${keeperFundWhole.toString()} dUSDT`,
+				keeperAta.toBase58()
+			);
+			const sig = await connection.sendTransaction(tx, [keypair]);
+			await connection.confirmTransaction(sig, 'confirmed');
+		}
+	}
 
 	const client = new AdminClient({
 		connection,
