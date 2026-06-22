@@ -1,4 +1,8 @@
-import { Channel, PythLazerClient } from '@pythnetwork/pyth-lazer-sdk';
+import {
+	Channel,
+	PriceFeedProperty,
+	PythLazerClient,
+} from '@pythnetwork/pyth-lazer-sdk';
 import { VelocityEnv, PerpMarkets } from '@velocity-exchange/sdk';
 import { RedisClient } from '@velocity-exchange/common/clients';
 import * as axios from 'axios';
@@ -127,7 +131,18 @@ export class PythLazerSubscriber {
 				type: 'subscribe',
 				subscriptionId,
 				priceFeedIds: priceFeedIds.priceFeedIds,
-				properties: ['price', 'bestAskPrice', 'bestBidPrice', 'exponent'],
+				// `feedUpdateTimestamp` is REQUIRED: the velocity program's
+				// PostPythLazerOracleUpdate handler skips the update with
+				// "next_timestamp is None" unless the payload carries it.
+				// (5.2.1's PriceFeedProperty type omits it, but the Lazer
+				// server supports the wire string, so cast.)
+				properties: [
+					'price',
+					'bestAskPrice',
+					'bestBidPrice',
+					'exponent',
+					'feedUpdateTimestamp' as PriceFeedProperty,
+				],
 				formats: ['solana'],
 				deliveryFormat: 'json',
 				channel: priceFeedIds.channel ?? ('fixed_rate@200ms' as Channel),
@@ -200,7 +215,15 @@ export class PythLazerSubscriber {
 				url,
 				{
 					priceFeedIds: feedIds,
-					properties: ['price', 'bestAskPrice', 'bestBidPrice', 'exponent'],
+					// `feedUpdateTimestamp` is REQUIRED — see note on the WS
+					// subscribe path; without it the on-chain update is skipped.
+					properties: [
+						'price',
+						'bestAskPrice',
+						'bestBidPrice',
+						'exponent',
+						'feedUpdateTimestamp',
+					],
 					chains: ['solana'],
 					channel: 'real_time',
 					jsonBinaryEncoding: 'hex',
