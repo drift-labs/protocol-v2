@@ -13,7 +13,12 @@ import {
 	isOneOfVariant,
 	getVariant,
 	PerpMarkets,
+	SpotMarkets,
 	BlockhashSubscriber,
+	BN,
+	QUOTE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	getInsuranceFundStakeAccountPublicKey,
 } from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 
@@ -59,6 +64,11 @@ const NUM_MAKERS_TO_LOOK_AT_FOR_TWAP_CRANK = 2;
 const TX_PER_JITO_BUNDLE = 3;
 
 const CONCURRENCY_LIMIT = 3;
+
+// update_perp_bid_ask_twap requires the keeper to hold at least this much
+// quote-asset insurance-fund stake (program: keeper.rs `1000 * QUOTE_PRECISION_U64`).
+const MIN_IF_STAKE_QUOTE_WHOLE = 1000;
+const DEFAULT_IF_STAKE_TARGET_QUOTE = 1500;
 
 // Timeouts and watchdog thresholds
 const SIM_TIMEOUT_MS = 10_000;
@@ -239,6 +249,9 @@ export class MakerBidAskTwapCrank implements Bot {
 	private bundleSender?: BundleSender;
 	private crankIntervalToMarketIndicies?: { [key: number]: number[] };
 
+	private autoStakeIfBelowMin: boolean;
+	private ifStakeTargetQuote: number;
+
 	constructor(
 		velocityClient: VelocityClient,
 		slotSubscriber: SlotSubscriber,
@@ -261,6 +274,9 @@ export class MakerBidAskTwapCrank implements Bot {
 		this.bundleSender = bundleSender;
 		this.crankIntervalToMarketIndicies = config.crankIntervalToMarketIndicies;
 		this.blockhashSubscriber = blockhashSubscriber;
+		this.autoStakeIfBelowMin = config.autoStakeIfBelowMin ?? false;
+		this.ifStakeTargetQuote =
+			config.ifStakeTargetQuote ?? DEFAULT_IF_STAKE_TARGET_QUOTE;
 
 		// Pyth lazer: remember to remove devnet guard
 		if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
@@ -288,10 +304,128 @@ export class MakerBidAskTwapCrank implements Bot {
 		);
 	}
 
+	/**
+	 * The program gates `update_perp_bid_ask_twap` on the keeper holding at
+	 * least {@link MIN_IF_STAKE_QUOTE_WHOLE} whole quote tokens of
+	 * insurance-fund stake in the quote market — otherwise it throws
+	 * `CantUpdatePerpBidAskTwap` ("Keeper doesnt have min if stake"). When
+	 * `autoStakeIfBelowMin` is enabled and the keeper's stake is below that
+	 * floor, top it up to `ifStakeTargetQuote` whole tokens from the keeper's
+	 * quote token account, creating the IF-stake account on first run. No-op
+	 * (with a log) when the stake is already sufficient or the feature is off.
+	 */
+	private async maybeAutoStakeIfStake(): Promise<void> {
+		if (!this.autoStakeIfBelowMin) {
+			return;
+		}
+
+		const marketIndex = QUOTE_SPOT_MARKET_INDEX;
+		// quote token symbol for logs (dUSDT on devnet, USDT on mainnet)
+		const quoteSymbol =
+			SpotMarkets[this.globalConfig.velocityEnv!].find(
+				(m) => m.marketIndex === marketIndex
+			)?.symbol ?? 'quote';
+		const minStake = new BN(MIN_IF_STAKE_QUOTE_WHOLE).mul(QUOTE_PRECISION);
+		let stakeTarget = new BN(this.ifStakeTargetQuote).mul(QUOTE_PRECISION);
+		if (stakeTarget.lt(minStake)) {
+			logger.warn(
+				`[${this.name}] ifStakeTargetQuote=${this.ifStakeTargetQuote} is below the ${MIN_IF_STAKE_QUOTE_WHOLE} ${quoteSymbol} program minimum; clamping to ${MIN_IF_STAKE_QUOTE_WHOLE}`
+			);
+			stakeTarget = minStake;
+		}
+
+		const currentStake =
+			this.velocityClient.getUserStats()?.getAccount()
+				?.ifStakedQuoteAssetAmount ?? new BN(0);
+
+		if (currentStake.gte(minStake)) {
+			logger.info(
+				`[${this.name}] IF stake ok: ${currentStake
+					.div(QUOTE_PRECISION)
+					.toString()} ${quoteSymbol} >= ${MIN_IF_STAKE_QUOTE_WHOLE} ${quoteSymbol} min; skipping auto-stake`
+			);
+			return;
+		}
+
+		const amountToStake = stakeTarget.sub(currentStake);
+		const authority = this.velocityClient.wallet.publicKey;
+		const collateralAccount =
+			await this.velocityClient.getAssociatedTokenAccount(
+				marketIndex,
+				false // quote token is not native; return the ATA, not the wallet
+			);
+
+		let ataBalance = new BN(0);
+		try {
+			const bal = await this.velocityClient.connection.getTokenAccountBalance(
+				collateralAccount
+			);
+			ataBalance = new BN(bal.value.amount);
+		} catch (e) {
+			logger.error(
+				`[${
+					this.name
+				}] auto-stake: keeper quote token account ${collateralAccount.toBase58()} not found/unreadable; fund it with ${quoteSymbol} and restart. ${e}`
+			);
+			return;
+		}
+		if (ataBalance.lt(amountToStake)) {
+			logger.error(
+				`[${
+					this.name
+				}] auto-stake: insufficient ${quoteSymbol}. need ${amountToStake
+					.div(QUOTE_PRECISION)
+					.toString()} more, have ${ataBalance
+					.div(QUOTE_PRECISION)
+					.toString()} in ${collateralAccount.toBase58()}. Fund the keeper and restart.`
+			);
+			return;
+		}
+
+		// First-time stakers need the IF-stake account created in the same tx.
+		const ifStakeKey = getInsuranceFundStakeAccountPublicKey(
+			this.velocityClient.program.programId,
+			authority,
+			marketIndex
+		);
+		const initializeStakeAccount =
+			!(await this.velocityClient.connection.getAccountInfo(ifStakeKey));
+
+		logger.info(
+			`[${this.name}] auto-staking ${amountToStake
+				.div(QUOTE_PRECISION)
+				.toString()} ${quoteSymbol} into IF (market ${marketIndex}) to reach ${stakeTarget
+				.div(QUOTE_PRECISION)
+				.toString()} ${quoteSymbol}; current=${currentStake
+				.div(QUOTE_PRECISION)
+				.toString()} init=${initializeStakeAccount}`
+		);
+
+		if (this.dryRun) {
+			logger.info(`[${this.name}] dryRun: skipping auto-stake tx`);
+			return;
+		}
+
+		try {
+			const sig = await this.velocityClient.addInsuranceFundStake({
+				marketIndex,
+				amount: amountToStake,
+				collateralAccountPublicKey: collateralAccount,
+				initializeStakeAccount,
+			});
+			logger.info(`[${this.name}] auto-stake tx: ${sig}`);
+		} catch (e) {
+			logger.error(`[${this.name}] auto-stake failed: ${e}`);
+			throw e;
+		}
+	}
+
 	public async init() {
 		await this.pythLazerSubscriber?.subscribe();
 
 		logger.info(`[${this.name}] initing, runOnce: ${this.runOnce}`);
+
+		await this.maybeAutoStakeIfStake();
 		this.lookupTableAccounts.push(
 			...(await this.velocityClient.fetchAllLookupTableAccounts())
 		);

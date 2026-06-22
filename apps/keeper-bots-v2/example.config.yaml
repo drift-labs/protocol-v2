@@ -202,6 +202,13 @@ botConfigs:
     botId: 'mark-twap-cranker'
     dryRun: false
     metricsPort: 9465
+    # update_perp_bid_ask_twap requires the keeper to hold >= 1000 whole quote
+    # tokens of insurance-fund stake (else CantUpdatePerpBidAskTwap). When true,
+    # on init the bot tops the stake up to ifStakeTargetQuote whole quote tokens
+    # from the keeper's quote token account if it is below the floor.
+    # (env equivalents for CLI runs: AUTO_STAKE_IF_BELOW_MIN, IF_STAKE_TARGET_QUOTE)
+    autoStakeIfBelowMin: false
+    ifStakeTargetQuote: 1500
     crankIntervalToMarketIndicies:
       15000:
         - 0
