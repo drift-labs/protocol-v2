@@ -105,7 +105,11 @@ export class FundingRateUpdaterBot implements Bot {
 			});
 		}
 		this.priorityFeeSubscriberMap = new PriorityFeeSubscriberMap({
+			// Prefer the configured endpoint (PRIORITY_FEE_ENDPOINT, e.g. the
+			// in-cluster dlob-server) over the hardcoded dlob.drift.trade, which
+			// 502s for velocity.
 			velocityPriorityFeeEndpoint:
+				process.env.PRIORITY_FEE_ENDPOINT ??
 				getVelocityPriorityFeeEndpoint('mainnet-beta'),
 			velocityMarkets,
 			frequencyMs: 10_000,
