@@ -13,6 +13,7 @@ import {
 	isOneOfVariant,
 	getVariant,
 	PerpMarkets,
+	SpotMarkets,
 	BlockhashSubscriber,
 	BN,
 	QUOTE_PRECISION,
@@ -63,6 +64,11 @@ const NUM_MAKERS_TO_LOOK_AT_FOR_TWAP_CRANK = 2;
 const TX_PER_JITO_BUNDLE = 3;
 
 const CONCURRENCY_LIMIT = 3;
+
+// update_perp_bid_ask_twap requires the keeper to hold at least this much
+// quote-asset insurance-fund stake (program: keeper.rs `1000 * QUOTE_PRECISION_U64`).
+const MIN_IF_STAKE_QUOTE_WHOLE = 1000;
+const DEFAULT_IF_STAKE_TARGET_QUOTE = 1500;
 
 // Timeouts and watchdog thresholds
 const SIM_TIMEOUT_MS = 10_000;
@@ -269,7 +275,8 @@ export class MakerBidAskTwapCrank implements Bot {
 		this.crankIntervalToMarketIndicies = config.crankIntervalToMarketIndicies;
 		this.blockhashSubscriber = blockhashSubscriber;
 		this.autoStakeIfBelowMin = config.autoStakeIfBelowMin ?? false;
-		this.ifStakeTargetQuote = config.ifStakeTargetQuote ?? 1500;
+		this.ifStakeTargetQuote =
+			config.ifStakeTargetQuote ?? DEFAULT_IF_STAKE_TARGET_QUOTE;
 
 		// Pyth lazer: remember to remove devnet guard
 		if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
@@ -299,10 +306,11 @@ export class MakerBidAskTwapCrank implements Bot {
 
 	/**
 	 * The program gates `update_perp_bid_ask_twap` on the keeper holding at
-	 * least 1000 USDC of insurance-fund stake in the quote market — otherwise
-	 * it throws `CantUpdatePerpBidAskTwap` ("Keeper doesnt have min if stake").
-	 * When `autoStakeIfBelowMin` is enabled and the keeper's stake is below that
-	 * floor, top it up to `ifStakeTargetQuote` whole USDC from the keeper's
+	 * least {@link MIN_IF_STAKE_QUOTE_WHOLE} whole quote tokens of
+	 * insurance-fund stake in the quote market — otherwise it throws
+	 * `CantUpdatePerpBidAskTwap` ("Keeper doesnt have min if stake"). When
+	 * `autoStakeIfBelowMin` is enabled and the keeper's stake is below that
+	 * floor, top it up to `ifStakeTargetQuote` whole tokens from the keeper's
 	 * quote token account, creating the IF-stake account on first run. No-op
 	 * (with a log) when the stake is already sufficient or the feature is off.
 	 */
@@ -312,11 +320,16 @@ export class MakerBidAskTwapCrank implements Bot {
 		}
 
 		const marketIndex = QUOTE_SPOT_MARKET_INDEX;
-		const minStake = new BN(1000).mul(QUOTE_PRECISION); // program floor
+		// quote token symbol for logs (dUSDT on devnet, USDC on mainnet)
+		const quoteSymbol =
+			SpotMarkets[this.globalConfig.velocityEnv!].find(
+				(m) => m.marketIndex === marketIndex
+			)?.symbol ?? 'quote';
+		const minStake = new BN(MIN_IF_STAKE_QUOTE_WHOLE).mul(QUOTE_PRECISION);
 		let stakeTarget = new BN(this.ifStakeTargetQuote).mul(QUOTE_PRECISION);
 		if (stakeTarget.lt(minStake)) {
 			logger.warn(
-				`[${this.name}] ifStakeTargetQuote=${this.ifStakeTargetQuote} is below the 1000 USDC program minimum; clamping to 1000`
+				`[${this.name}] ifStakeTargetQuote=${this.ifStakeTargetQuote} is below the ${MIN_IF_STAKE_QUOTE_WHOLE} ${quoteSymbol} program minimum; clamping to ${MIN_IF_STAKE_QUOTE_WHOLE}`
 			);
 			stakeTarget = minStake;
 		}
@@ -329,7 +342,7 @@ export class MakerBidAskTwapCrank implements Bot {
 			logger.info(
 				`[${this.name}] IF stake ok: ${currentStake
 					.div(QUOTE_PRECISION)
-					.toString()} USDC >= 1000 USDC min; skipping auto-stake`
+					.toString()} ${quoteSymbol} >= ${MIN_IF_STAKE_QUOTE_WHOLE} ${quoteSymbol} min; skipping auto-stake`
 			);
 			return;
 		}
@@ -339,7 +352,7 @@ export class MakerBidAskTwapCrank implements Bot {
 		const collateralAccount =
 			await this.velocityClient.getAssociatedTokenAccount(
 				marketIndex,
-				false // USDC is not native; return the ATA, not the wallet
+				false // quote token is not native; return the ATA, not the wallet
 			);
 
 		let ataBalance = new BN(0);
@@ -352,13 +365,15 @@ export class MakerBidAskTwapCrank implements Bot {
 			logger.error(
 				`[${
 					this.name
-				}] auto-stake: keeper quote token account ${collateralAccount.toBase58()} not found/unreadable; fund it with USDC and restart. ${e}`
+				}] auto-stake: keeper quote token account ${collateralAccount.toBase58()} not found/unreadable; fund it with ${quoteSymbol} and restart. ${e}`
 			);
 			return;
 		}
 		if (ataBalance.lt(amountToStake)) {
 			logger.error(
-				`[${this.name}] auto-stake: insufficient USDC. need ${amountToStake
+				`[${
+					this.name
+				}] auto-stake: insufficient ${quoteSymbol}. need ${amountToStake
 					.div(QUOTE_PRECISION)
 					.toString()} more, have ${ataBalance
 					.div(QUOTE_PRECISION)
@@ -379,9 +394,9 @@ export class MakerBidAskTwapCrank implements Bot {
 		logger.info(
 			`[${this.name}] auto-staking ${amountToStake
 				.div(QUOTE_PRECISION)
-				.toString()} USDC into IF (market ${marketIndex}) to reach ${stakeTarget
+				.toString()} ${quoteSymbol} into IF (market ${marketIndex}) to reach ${stakeTarget
 				.div(QUOTE_PRECISION)
-				.toString()} USDC; current=${currentStake
+				.toString()} ${quoteSymbol}; current=${currentStake
 				.div(QUOTE_PRECISION)
 				.toString()} init=${initializeStakeAccount}`
 		);
