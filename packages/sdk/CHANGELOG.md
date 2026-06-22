@@ -1,5 +1,11 @@
 # @velocity-exchange/sdk
 
+## 0.2.4
+
+### Patch Changes
+
+- [#127](https://github.com/drift-labs/protocol-v2-shadow/pull/127) [`4f8e7aa`](https://github.com/drift-labs/protocol-v2-shadow/commit/4f8e7aaef0e35b190fc0b91cd29314d902d1ccab) Thanks [@ChesterSim](https://github.com/ChesterSim)! - reflect Typescript types on IDL changes
+
 ## 0.2.3
 
 ### Patch Changes
