@@ -51,10 +51,22 @@ pub struct TestCtx {
 
 impl TestCtx {
     /// Connect to devnet, load the funded `TEST_PRIVATE_KEY` payer, subscribe to
-    /// the three devnet markets + their oracles. Panics with a clear message if
-    /// the payer isn't funded or the markets aren't initialized.
+    /// the three devnet markets + their oracles.
+    ///
+    /// Missing/empty live-infra env is a hard failure (NOT a skip): a
+    /// misconfigured CI run must be obvious. The explicit check just replaces the
+    /// cryptic `test_keypair()` base58 panic with a legible message.
     pub async fn new() -> Self {
         let _ = env_logger::try_init();
+        for var in ["TEST_PRIVATE_KEY", "TEST_DEVNET_RPC_ENDPOINT"] {
+            assert!(
+                std::env::var(var)
+                    .map(|v| !v.trim().is_empty())
+                    .unwrap_or(false),
+                "{var} must be set for the devnet e2e suite \
+                 (funded TEST_PRIVATE_KEY + TEST_DEVNET_RPC_ENDPOINT)"
+            );
+        }
         let wallet: Wallet = test_keypair().into();
         let client = VelocityClient::new(
             Context::DevNet,
@@ -214,6 +226,41 @@ impl TestCtx {
                 .filter(|p| p.base_asset_amount != 0)
         })
         .await
+    }
+
+    /// Wait until the perp base equals `expected` exactly — the bot filled
+    /// precisely the requested size (base fills are exact; only quote varies).
+    pub async fn wait_perp_base_eq(
+        &self,
+        sub: Pubkey,
+        market_index: u16,
+        expected: i64,
+        timeout: Duration,
+    ) -> Option<PerpPosition> {
+        self.poll(timeout, || async {
+            self.client
+                .perp_position(&sub, market_index)
+                .await
+                .ok()
+                .flatten()
+                .filter(|p| p.base_asset_amount == expected)
+        })
+        .await
+    }
+
+    /// Exact token amount in native units (6-dp dUSDT, 9-dp SOL) held in a spot
+    /// market — scaled balance converted via the market's interest index. 0 when
+    /// the position is absent.
+    pub async fn spot_token_amount(&self, sub: Pubkey, market_index: u16) -> u128 {
+        let market = self
+            .client
+            .get_spot_market_account(market_index)
+            .await
+            .expect("spot market");
+        match self.client.spot_position(&sub, market_index).await {
+            Ok(Some(p)) => p.get_token_amount(&market).expect("token amount"),
+            _ => 0,
+        }
     }
 
     pub async fn wait_perp_base_below(

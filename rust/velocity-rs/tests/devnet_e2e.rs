@@ -31,7 +31,11 @@ use velocity_rs::{
     },
 };
 
-const ONE_SOL: i64 = BASE_PRECISION_I64;
+const ONE_SOL: i64 = BASE_PRECISION_I64; // 1e9, 9 decimals
+/// Slack (native units) on spot token-amount asserts to absorb the
+/// scaled-balance ↔ token-amount interest-index round-trip rounding. 100 native
+/// dUSDT units = 1e-4 dUSDT.
+const DUSDT_SLACK: u128 = 100;
 
 // ---- Scenario 3: deposit (self-driven) -------------------------------------
 #[tokio::test]
@@ -40,16 +44,13 @@ async fn deposit_into_spot_market() {
     let sub = ctx.sub(10);
     ctx.fund_and_deposit_dusdt(10, 50).await;
 
-    let pos = ctx
-        .client
-        .spot_position(&sub, 0)
-        .await
-        .expect("read spot position")
-        .expect("dUSDT deposit present");
+    // Deposited exactly 50 dUSDT — assert the on-chain collateral is 50 dUSDT
+    // (50 * 1e6 native), not merely "> 0".
+    let amount = ctx.spot_token_amount(sub, 0).await;
+    let expected = 50 * DUSDT_PRECISION as u128;
     assert!(
-        pos.scaled_balance > 0,
-        "expected positive dUSDT balance after deposit, got {}",
-        pos.scaled_balance
+        amount.abs_diff(expected) <= DUSDT_SLACK,
+        "deposited dUSDT collateral {amount} != {expected} (±{DUSDT_SLACK} native)"
     );
 }
 
@@ -58,15 +59,8 @@ async fn deposit_into_spot_market() {
 async fn withdraw_from_spot_market() {
     let ctx = TestCtx::new().await;
     let sub = ctx.sub(11);
-    ctx.fund_and_deposit_dusdt(11, 50).await;
-
-    let before = ctx
-        .client
-        .spot_position(&sub, 0)
-        .await
-        .unwrap()
-        .expect("balance present")
-        .scaled_balance;
+    ctx.fund_and_deposit_dusdt(11, 50).await; // 50 dUSDT in
+    let before = ctx.spot_token_amount(sub, 0).await;
 
     let tx = ctx
         .client
@@ -77,16 +71,18 @@ async fn withdraw_from_spot_market() {
         .build();
     ctx.client.sign_and_send(tx).await.expect("withdraw");
 
-    let after = ctx
-        .client
-        .spot_position(&sub, 0)
-        .await
-        .unwrap()
-        .expect("balance present")
-        .scaled_balance;
+    // Withdrew exactly 10 dUSDT: balance drops by 10 and lands at 40.
+    let after = ctx.spot_token_amount(sub, 0).await;
+    let withdrawn = before.abs_diff(after);
+    let want_withdrawn = 10 * DUSDT_PRECISION as u128;
     assert!(
-        after < before,
-        "expected dUSDT balance to drop after withdraw ({after} !< {before})"
+        withdrawn.abs_diff(want_withdrawn) <= DUSDT_SLACK,
+        "withdrew {withdrawn} != {want_withdrawn} (±{DUSDT_SLACK} native)"
+    );
+    let want_after = 40 * DUSDT_PRECISION as u128;
+    assert!(
+        after.abs_diff(want_after) <= DUSDT_SLACK,
+        "remaining dUSDT {after} != {want_after} (±{DUSDT_SLACK} native)"
     );
 }
 
@@ -129,7 +125,13 @@ async fn taker_fills_against_amm() {
         .await
         .unwrap()
         .expect("perp position opened against AMM");
-    assert!(pos.base_asset_amount > 0, "expected long position vs AMM");
+    // Marketable order for 1 SOL against a 1000-SOL AMM fills fully: base is
+    // exactly +1 SOL (base fills are exact; only quote varies with price/fees).
+    assert_eq!(
+        pos.base_asset_amount, ONE_SOL,
+        "expected exactly +1 SOL long vs AMM, got {}",
+        pos.base_asset_amount
+    );
     ctx.cleanup(16).await;
 }
 
@@ -174,16 +176,15 @@ async fn dlob_maker_taker_filled_by_filler() {
         .build();
     ctx.client.sign_and_send(tx).await.expect("taker rests ask");
 
-    let pos = ctx
-        .wait_perp_position_opened(taker, 0, Duration::from_secs(60))
+    // The maker bid (oracle-5bps) is the best bid, so the deployed filler must
+    // match the taker against it: taker ends exactly -1 SOL, maker exactly +1 SOL
+    // (a 1-SOL maker vs a 1-SOL taker is a full, exact cross).
+    ctx.wait_perp_base_eq(taker, 0, -ONE_SOL, Duration::from_secs(60))
         .await
-        .expect("deployed filler did not fill the taker within 60s");
-    assert!(pos.base_asset_amount < 0, "taker should be short");
-    // Best-effort: the maker should have taken the opposite side if it was best
-    // priced (vs the AMM). Log rather than hard-fail on matching priority.
-    if let Ok(Some(m)) = ctx.client.perp_position(&maker, 0).await {
-        log::info!("maker position after fill: base={}", m.base_asset_amount);
-    }
+        .expect("deployed filler did not fill the taker to exactly -1 SOL within 60s");
+    ctx.wait_perp_base_eq(maker, 0, ONE_SOL, Duration::from_secs(30))
+        .await
+        .expect("best-bid maker was not filled to exactly +1 SOL by the deployed filler");
     ctx.cleanup(30).await;
     ctx.cleanup(12).await;
 }
@@ -203,7 +204,13 @@ async fn mark_twap_crank_advances() {
         .wait_mark_twap_ts_after(0, from_ts, Duration::from_secs(60))
         .await
         .expect("mark-twap crank did not advance last_mark_price_twap_ts within 60s");
-    assert!(new_ts > from_ts);
+    // It advanced (monotonic) and by a bounded amount — the crank cadence is
+    // ~10s, so within the 60s poll the jump must be modest, not a stale/garbage ts.
+    let delta = new_ts - from_ts;
+    assert!(
+        (1..=180).contains(&delta),
+        "mark-twap ts advanced by {delta}s; expected 1..=180 (≈crank cadence within the poll)"
+    );
 }
 
 // ---- Scenario 2: JIT auction taker, DEPLOYED jit-maker fills ---------------
@@ -239,12 +246,13 @@ async fn jit_auction_filled_by_jit_maker() {
         .build();
     ctx.client.sign_and_send(tx).await.expect("place jit order");
 
-    match ctx
-        .wait_perp_position_opened(sub, 0, Duration::from_secs(60))
+    // If the jit-maker fills, it fills the whole 1-SOL auction order (exact base).
+    if ctx
+        .wait_perp_base_eq(sub, 0, ONE_SOL, Duration::from_secs(60))
         .await
+        .is_none()
     {
-        Some(p) => assert!(p.base_asset_amount > 0, "jit taker should be long"),
-        None => log::warn!("INCONCLUSIVE: jit-maker did not fill the auction within 60s"),
+        log::warn!("INCONCLUSIVE: jit-maker did not fill the 1-SOL auction within 60s");
     }
     ctx.cleanup(14).await;
 }
@@ -309,12 +317,13 @@ async fn swift_taker_filled_by_deployed_maker() {
         }
     }
 
-    match ctx
-        .wait_perp_position_opened(sub, 0, Duration::from_secs(90))
+    // If the deployed swift maker fills, the taker ends exactly +1 SOL.
+    if ctx
+        .wait_perp_base_eq(sub, 0, ONE_SOL, Duration::from_secs(90))
         .await
+        .is_none()
     {
-        Some(p) => assert!(p.base_asset_amount > 0, "swift taker should be long"),
-        None => log::warn!("INCONCLUSIVE: swift maker did not fill within 90s"),
+        log::warn!("INCONCLUSIVE: swift maker did not fill to 1 SOL within 90s");
     }
     ctx.cleanup(sub_id).await;
 }
@@ -353,18 +362,36 @@ async fn bad_perp_trade_gets_liquidated() {
         .place_and_take(order, &[], None, None)
         .build();
     if ctx.client.sign_and_send(tx).await.is_err() {
-        log::warn!("INCONCLUSIVE: could not open max-leverage position");
+        log::warn!("INCONCLUSIVE: could not open position");
         return;
     }
+    // The open is exact: +1 SOL.
+    let opened = ctx
+        .client
+        .perp_position(&sub, 0)
+        .await
+        .ok()
+        .flatten()
+        .map(|p| p.base_asset_amount)
+        .unwrap_or(0);
+    assert_eq!(
+        opened, ONE_SOL,
+        "open should be exactly +1 SOL, got {opened}"
+    );
 
-    match ctx
+    // Liquidation depends on oracle drift crossing maintenance — inconclusive (not
+    // a failure) if it doesn't happen in time. When it does, the liquidator MUST
+    // set the being-liquidated flag AND reduce the position below the opened size.
+    if ctx
         .wait_being_liquidated(sub, Duration::from_secs(120))
         .await
+        .is_some()
     {
-        Some(()) => {} // liquidator engaged
-        None => log::warn!(
-            "INCONCLUSIVE: account did not become liquidatable / liquidator did not act in 120s"
-        ),
+        ctx.wait_perp_base_below(sub, 0, ONE_SOL, Duration::from_secs(30))
+            .await
+            .expect("liquidator set the flag but never reduced the position below 1 SOL");
+    } else {
+        log::warn!("INCONCLUSIVE: account did not become liquidatable / no liquidation in 120s");
     }
     ctx.cleanup(sub_id).await;
 }
@@ -391,15 +418,21 @@ async fn bad_spot_borrow_gets_liquidated() {
         log::warn!("INCONCLUSIVE: SOL borrow not available on devnet spot market");
         return;
     }
+    // Borrowed exactly 0.25 SOL (SOL spot is 9-dp); assert the liability size.
+    let borrowed = ctx.spot_token_amount(sub, 1).await;
+    let want_borrow = ONE_SOL as u128 / 4; // 0.25 SOL = 250_000_000 native
+    let sol_slack = 100_000u128; // 1e-4 SOL
+    assert!(
+        borrowed.abs_diff(want_borrow) <= sol_slack,
+        "SOL borrow {borrowed} != {want_borrow} (±{sol_slack} native)"
+    );
 
-    match ctx
+    if ctx
         .wait_being_liquidated(sub, Duration::from_secs(120))
         .await
+        .is_none()
     {
-        Some(()) => {}
-        None => {
-            log::warn!("INCONCLUSIVE: borrow did not breach maintenance / no liquidation in 120s")
-        }
+        log::warn!("INCONCLUSIVE: borrow did not breach maintenance / no liquidation in 120s");
     }
 }
 
