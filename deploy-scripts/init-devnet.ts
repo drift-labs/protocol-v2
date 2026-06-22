@@ -918,7 +918,9 @@ async function main() {
 			PRICE_PRECISION.divn(100000),
 			BASE_PRECISION.divn(10000),
 			undefined, // concentrationCoefScale -> default ONE
-			0, // curveUpdateIntensity
+			100, // curveUpdateIntensity — >0 enables the AMM's formulaic
+			// peg-toward-oracle repeg during refresh (capped at 100 internally).
+			// 0 would freeze the peg and re-block funding (6251). See Phase D2.
 			0, // ammJitIntensity
 			'SOL-PERP',
 			0 // lpPoolId (not in a pool)
@@ -979,6 +981,28 @@ async function main() {
 			);
 			const sig = await repegClient.repegAmmCurve(newPeg, 0);
 			console.log(`  tx: ${sig}`);
+		}
+
+		// Enable formulaic curve updates so the AMM self-repegs toward the oracle
+		// during refresh (the cranks trigger it). Without this the peg freezes and
+		// funding re-blocks (6251) as the oracle moves. Idempotent: only sends when
+		// the on-chain value differs. Fixes markets created before this was set.
+		const TARGET_CURVE_UPDATE_INTENSITY = 100;
+		if (pm.amm.curveUpdateIntensity !== TARGET_CURVE_UPDATE_INTENSITY) {
+			logStep(
+				'updatePerpMarketCurveUpdateIntensity SOL-PERP',
+				`${pm.amm.curveUpdateIntensity} -> ${TARGET_CURVE_UPDATE_INTENSITY}`
+			);
+			const sig = await repegClient.updatePerpMarketCurveUpdateIntensity(
+				0,
+				TARGET_CURVE_UPDATE_INTENSITY
+			);
+			console.log(`  tx: ${sig}`);
+		} else {
+			logStep(
+				'SOL-PERP curveUpdateIntensity already set; skip',
+				`${pm.amm.curveUpdateIntensity}`
+			);
 		}
 		await repegClient.unsubscribe();
 		await client.subscribe();
