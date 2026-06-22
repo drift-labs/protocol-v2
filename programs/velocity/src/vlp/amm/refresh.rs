@@ -283,8 +283,7 @@ pub fn snap_to_oracle(
     // `refresh_perp_market_stats_from_oracle` alongside this call.
     if let Some(validity) = oracle_validity {
         if is_oracle_valid_for_action(validity, Some(VelocityAction::FillOrderAmmLowRisk))? {
-            let suppress = projection.cost > 0 && !projection.applied;
-            if !suppress {
+            if !projection.rejected_due_to_affordability {
                 market.amm.last_update_slot = slot;
             }
         }

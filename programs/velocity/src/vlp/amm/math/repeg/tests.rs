@@ -439,6 +439,13 @@ fn project_post_refresh_matches_dispatch_amm_refresh() {
             .unwrap();
     }
 
+    // A non-rejected refresh under a valid oracle must advance
+    // `last_update_slot` to the crank slot (regression: the old `suppress`
+    // guard keyed off a cost that was always zeroed, so this never fired
+    // correctly for the rejection case and over-fired here).
+    assert!(!projection.rejected_due_to_affordability);
+    assert_eq!(market_a.amm.last_update_slot, 1337);
+
     assert_eq!(cost_via_dispatch, projection.cost);
     assert_eq!(market_a.amm.peg_multiplier, market_b.amm.peg_multiplier);
     assert_eq!(market_a.amm.sqrt_k, market_b.amm.sqrt_k);
@@ -499,9 +506,12 @@ fn project_post_refresh_noop_when_oracle_invalid() {
     )
     .unwrap();
 
-    // Settlement/Delisted markets surface as None — passthrough.
+    // Settlement/Delisted markets surface as None. A genuine
+    // passthrough is NOT an affordability rejection, so `snap_to_oracle` is
+    // still free to advance `last_update_slot`.
     let p = project_post_refresh(&market, &mm_oracle_price_data, None).unwrap();
     assert!(!p.applied);
+    assert!(!p.rejected_due_to_affordability);
     assert_eq!(p.cost, 0);
     assert_eq!(p.peg_multiplier, market.amm.peg_multiplier);
     assert_eq!(p.sqrt_k, market.amm.sqrt_k);
@@ -514,6 +524,7 @@ fn project_post_refresh_noop_when_oracle_invalid() {
     )
     .unwrap();
     assert!(!p.applied);
+    assert!(!p.rejected_due_to_affordability);
     assert_eq!(p.cost, 0);
     assert_eq!(p.peg_multiplier, market.amm.peg_multiplier);
 }

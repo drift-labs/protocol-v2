@@ -475,6 +475,11 @@ pub struct ProjectedAmmState {
     pub sqrt_k: u128,
     pub cost: i128,
     pub applied: bool,
+    /// A positive-cost curve update was computed but the affordability
+    /// floor rejected the debit. Distinct from a plain passthrough
+    /// (`applied == false`, this `false`): callers must not treat the AMM
+    /// as freshly snapped to oracle in this case.
+    pub rejected_due_to_affordability: bool,
 }
 
 impl ProjectedAmmState {
@@ -490,6 +495,7 @@ impl ProjectedAmmState {
             sqrt_k: amm.sqrt_k,
             cost: 0,
             applied: false,
+            rejected_due_to_affordability: false,
         }
     }
 
@@ -554,6 +560,7 @@ pub fn project_post_refresh(
         sqrt_k: market.amm.sqrt_k,
         cost: 0,
         applied: false,
+        rejected_due_to_affordability: false,
     };
 
     let Some(validity) = oracle_validity else {
@@ -596,8 +603,14 @@ pub fn project_post_refresh(
             sqrt_k: repegged.amm.sqrt_k,
             cost,
             applied: true,
+            rejected_due_to_affordability: false,
         })
     } else {
-        Ok(noop)
+        // Peg/reserves/cost stay at passthrough; flag the affordability
+        // rejection so the keeper crank won't mark the AMM fresh.
+        Ok(ProjectedAmmState {
+            rejected_due_to_affordability: true,
+            ..noop
+        })
     }
 }
