@@ -14,8 +14,12 @@ const REQUIRED_PROPERTY = 'feedUpdateTimestamp';
 describe('PythLazerSubscriber subscription properties', () => {
 	it('WS subscribe requests feedUpdateTimestamp, with price first', async () => {
 		const sentRequests: any[] = [];
+		// The subscriber registers feeds via `subscribe()` (so the pool replays
+		// them on reconnect, not `send()` which fires once). Capture from both so
+		// the assertion holds regardless of which the implementation uses.
 		const fakeClient = {
 			addMessageListener: (_fn: unknown) => {},
+			subscribe: (request: any) => sentRequests.push(request),
 			send: (request: any) => sentRequests.push(request),
 			shutdown: () => {},
 		};
