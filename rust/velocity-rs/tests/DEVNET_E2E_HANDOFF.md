@@ -31,6 +31,29 @@ cargo test -p velocity-rs --test devnet_e2e --features rpc_tests -- --include-ig
 Devnet: program `vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P`. Markets: SOL-PERP =
 perp 0, dUSDT = spot 0 (6dp), SOL = spot 1 (9dp).
 
+## Provisioning the deployed MM / taker bots
+
+The `rust-quoter-bot` (MM) and `rust-taker-bot` run on subaccounts **1** and **2**
+of the filler authority (sub 0 = filler). Before they can quote/trade they need
+those subaccounts initialized and funded with dUSDT collateral. The one-shot
+`fund_mm_taker_subaccounts` (`#[ignore]`, in `devnet_e2e.rs`) does init + faucet +
+deposit for sub 1 and sub 2 via `ensure_subaccount` + `fund_and_deposit_dusdt`.
+
+It is a plain set of devnet txs signed by `TEST_PRIVATE_KEY` — run it **with the
+filler key**, from anywhere with a devnet RPC. It does **not** need cluster access
+(the keep-rs pod only ships the `keeprs` binary, which can `--init-user` but cannot
+faucet/deposit). The only real prerequisite is the **filler private key**
+(in AWS Secrets Manager `velocity/non-prod/master-secret-store`, key
+`FILLER_PRIVATE_KEY` — needs Secrets Manager read, not kube access):
+
+```bash
+cd rust
+TEST_PRIVATE_KEY="$FILLER_PRIVATE_KEY" TEST_DEVNET_RPC_ENDPOINT="<devnet rpc>" \
+FUND_DUSDT=5000 \
+  cargo test -p velocity-rs --test devnet_e2e --features rpc_tests \
+  fund_mm_taker_subaccounts -- --ignored --nocapture
+```
+
 ## CI topology (why "unreliable" matters per job)
 
 - **`rust-live-tests`** (`.github/workflows/main.yml`) — nightly cron + manual

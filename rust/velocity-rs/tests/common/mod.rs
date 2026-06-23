@@ -141,6 +141,27 @@ impl TestCtx {
     /// `number_of_sub_accounts_created` rather than guessing ids. Creating sub 0
     /// also initializes UserStats. Confirmed before returning. Serial use only.
     /// Returns the sub-account id (use [`Self::sub`] for its pubkey).
+    /// Ensure a SPECIFIC subaccount id exists (idempotent), provisioning sub 0 +
+    /// UserStats first. Unlike `new_subaccount` (which auto-allocates the next free
+    /// id for test isolation), this targets a fixed id — used to provision the
+    /// deployed bots' subaccounts (e.g. MM=1, taker=2 under the filler authority).
+    pub async fn ensure_subaccount(&self, sub_id: u16) {
+        if sub_id != 0 {
+            Box::pin(self.ensure_subaccount(0)).await;
+        }
+        let sub = self.sub(sub_id);
+        if self.client.rpc().get_account(&sub).await.is_ok() {
+            return;
+        }
+        let mut user = User::default();
+        user.authority = self.authority();
+        user.sub_account_id = sub_id;
+        let tx = TransactionBuilder::new(self.client.program_data(), sub, Cow::Owned(user), false)
+            .initialize_user_account(sub_id, None, None)
+            .build();
+        self.send_confirmed(tx).await;
+    }
+
     pub async fn new_subaccount(&self) -> u16 {
         let authority = self.authority();
         let sub_id = match self.client.get_user_stats(&authority).await {

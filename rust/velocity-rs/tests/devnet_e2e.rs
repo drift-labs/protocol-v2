@@ -55,6 +55,42 @@ fn marketable_limit(px: u64, direction: PositionDirection) -> OrderParams {
         .build()
 }
 
+// ---- One-shot devnet provisioning (NOT a CI assertion) ---------------------
+// Initialize + fund the MM (sub 1) and taker (sub 2) subaccounts of whatever
+// authority TEST_PRIVATE_KEY holds, so the deployed rust-quoter-bot (sub 1) and
+// rust-taker-bot (sub 2) have dUSDT collateral. Run it with the FILLER key.
+//
+// This is a plain set of devnet transactions — it needs only the key + a devnet
+// RPC, run from anywhere. It does NOT need cluster access: the keep-rs pod can't
+// faucet/deposit (it only ships the keeprs binary), so provisioning is done here.
+// `#[ignore]` so it never runs in CI. Amount per subaccount via FUND_DUSDT (whole
+// dUSDT, default 5000).
+//
+//   TEST_PRIVATE_KEY=<filler base58> TEST_DEVNET_RPC_ENDPOINT=<rpc> \
+//     cargo test -p velocity-rs --test devnet_e2e --features rpc_tests \
+//     fund_mm_taker_subaccounts -- --ignored --nocapture
+#[tokio::test]
+#[ignore = "one-shot devnet provisioning for the MM/taker bots, not a CI assertion"]
+async fn fund_mm_taker_subaccounts() {
+    let ctx = TestCtx::new().await;
+    let amount: u64 = std::env::var("FUND_DUSDT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(5_000);
+    for sub_id in [1u16, 2u16] {
+        ctx.ensure_subaccount(sub_id).await;
+        ctx.fund_and_deposit_dusdt(ctx.sub(sub_id), amount).await;
+        let bal = ctx.spot_token_amount(ctx.sub(sub_id), 0).await;
+        let role = if sub_id == 1 { "maker" } else { "taker" };
+        log::warn!(
+            "provisioned sub {sub_id} ({role}) for {}: dUSDT collateral = {} (~{} whole)",
+            ctx.authority(),
+            bal,
+            bal / DUSDT_PRECISION as u128,
+        );
+    }
+}
+
 // ---- Scenario 3: deposit (self-driven) -------------------------------------
 #[tokio::test]
 async fn deposit_into_spot_market() {
