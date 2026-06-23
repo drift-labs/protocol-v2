@@ -10,9 +10,12 @@
 //! driven directly. Each scenario allocates fresh sequential subaccount(s) of the
 //! one funded payer; run with `--test-threads=1`.
 //!
-//! `#[ignore]` marks scenarios that depend on conditional bot behavior or oracle
-//! drift (swift reachability, jit-maker incentive, liquidation, settler
-//! thresholds); they treat "bot didn't act in time" as inconclusive, not failure.
+//! Bot-timing-dependent scenarios (jit-maker incentive, liquidation via oracle
+//! drift, settler thresholds) RUN — their setup is deterministic and they treat
+//! "bot didn't act in time" as inconclusive (warn, not failure), so they're safe
+//! in the nightly non-gating job. `#[ignore]` is reserved for scenarios whose
+//! setup itself can't be established on devnet right now (swift HTTP 502, SOL
+//! borrow unavailable); those run only in the manual `--include-ignored` job.
 #![cfg(feature = "rpc_tests")]
 
 mod common;
@@ -461,8 +464,9 @@ async fn mark_twap_crank_advances() {
 }
 
 // ---- Scenario 2: JIT auction taker, DEPLOYED jit-maker fills ---------------
+// Nightly-safe: warn-skips (not fails) if the jit-maker doesn't fill in time, so
+// it never blocks. Verified live: the deployed jit-maker fills the 1-SOL auction.
 #[tokio::test]
-#[ignore = "LIVE_INFRA: jit-maker only fills when the auction is attractive"]
 async fn jit_auction_filled_by_jit_maker() {
     let ctx = TestCtx::new().await;
     let sub = ctx.sub(ctx.new_subaccount().await);
@@ -505,7 +509,13 @@ async fn jit_auction_filled_by_jit_maker() {
 
 // ---- Scenario 1s / 2s: swift taker submitted to deployed swift server -------
 #[tokio::test]
-#[ignore = "LIVE_INFRA: velocity swift server may not be reachable from CI (SWIFT_HTTP_ENDPOINT)"]
+// Kept ignored: the swift HTTP server is flaky on devnet. The host is
+// swift.master.velocity.exchange (the WS feed on it works fine for the filler;
+// the swapped `master.swift.…` does NOT resolve), but POST /orders intermittently
+// returns 502 from the ALB/cloudfront (occasionally 422 = up), so it can't be
+// relied on. Un-ignore once the swift HTTP API is stable at SWIFT_HTTP_ENDPOINT
+// (the test already warn-skips on a non-200, so it's safe to enable then).
+#[ignore = "LIVE_INFRA: swift HTTP /orders intermittently 502s on devnet (SWIFT_HTTP_ENDPOINT)"]
 async fn swift_taker_filled_by_deployed_maker() {
     let ctx = TestCtx::new().await;
     let sub_id = ctx.new_subaccount().await;
@@ -575,8 +585,10 @@ async fn swift_taker_filled_by_deployed_maker() {
 }
 
 // ---- Scenario 5: bad perp trade → DEPLOYED liquidator ----------------------
+// Nightly-safe: the setup (open +1 SOL vs AMM via the deployed filler) is
+// deterministic and verified live; liquidation needs adverse oracle drift to
+// cross maintenance, so that part warn-skips (not fails) if it doesn't happen.
 #[tokio::test]
-#[ignore = "LIVE_INFRA: needs the account to cross maintenance via oracle drift; best-effort"]
 async fn bad_perp_trade_gets_liquidated() {
     let ctx = TestCtx::new().await;
     let sub = ctx.sub(ctx.new_subaccount().await);
@@ -625,7 +637,11 @@ async fn bad_perp_trade_gets_liquidated() {
 
 // ---- Scenario 6: bad spot borrow → DEPLOYED liquidator ---------------------
 #[tokio::test]
-#[ignore = "LIVE_INFRA: needs SOL borrow availability + maintenance breach; best-effort"]
+// Kept ignored: SOL borrow (spot market 1) is not available on devnet — the
+// withdraw-as-borrow fails, so the test returns early before it can set anything
+// up (verified live). Un-ignore once spot-1 borrows are enabled/liquid; note the
+// borrow would then need a repay step (cleanup only cancels orders).
+#[ignore = "LIVE_INFRA: SOL borrow (spot 1) unavailable on devnet; setup can't run"]
 async fn bad_spot_borrow_gets_liquidated() {
     let ctx = TestCtx::new().await;
     let sub = ctx.sub(ctx.new_subaccount().await);
@@ -663,8 +679,10 @@ async fn bad_spot_borrow_gets_liquidated() {
 }
 
 // ---- Scenario A: userPnlSettler settles unsettled pnl ----------------------
+// Nightly-safe: the setup (open+close vs AMM via the deployed filler, banking
+// unsettled pnl) is deterministic and verified live; the userPnlSettler only acts
+// above its pnl threshold, so that part warn-skips (not fails) if it doesn't run.
 #[tokio::test]
-#[ignore = "LIVE_INFRA: settler only acts above its pnl threshold; best-effort"]
 async fn unsettled_pnl_gets_settled() {
     let ctx = TestCtx::new().await;
     let sub = ctx.sub(ctx.new_subaccount().await);
