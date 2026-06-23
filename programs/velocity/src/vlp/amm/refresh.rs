@@ -128,7 +128,7 @@ pub fn update_amms(
         //      last_oracle_valid). Distinct concerns; both happen here
         //      because this keeper crank is the one place that touches both.
         let validity = compute_amm_refresh_validity(market, &mm_oracle_price_data, state)?;
-        snap_to_oracle(market, &mm_oracle_price_data, validity, clock_slot)?;
+        snap_to_oracle(market, &mm_oracle_price_data, validity, clock_slot, now)?;
         market.update_oracle_derived_stats(&mm_oracle_price_data, validity, now, clock_slot)?;
     }
 
@@ -152,7 +152,13 @@ pub fn update_amm(
 
     // Same explicit two-step refresh as `update_amms`. See doc there.
     let validity = compute_amm_refresh_validity(market, &mm_oracle_price_data, state)?;
-    let outcome: i128 = snap_to_oracle(market, &mm_oracle_price_data, validity, clock.slot)?;
+    let outcome: i128 = snap_to_oracle(
+        market,
+        &mm_oracle_price_data,
+        validity,
+        clock.slot,
+        clock.unix_timestamp,
+    )?;
     market.update_oracle_derived_stats(
         &mm_oracle_price_data,
         validity,
@@ -177,7 +183,7 @@ pub fn _update_amm(
     clock_slot: u64,
 ) -> VelocityResult<i128> {
     let validity = compute_amm_refresh_validity(market, mm_oracle_price_data, state)?;
-    let outcome: i128 = snap_to_oracle(market, mm_oracle_price_data, validity, clock_slot)?;
+    let outcome: i128 = snap_to_oracle(market, mm_oracle_price_data, validity, clock_slot, now)?;
     market.update_oracle_derived_stats(mm_oracle_price_data, validity, now, clock_slot)?;
     Ok(outcome)
 }
@@ -245,6 +251,7 @@ pub fn snap_to_oracle(
     mm_oracle_price_data: &MMOraclePriceData,
     oracle_validity: Option<OracleValidity>,
     slot: u64,
+    now: i64,
 ) -> VelocityResult<i128> {
     let projection = repeg::project_post_refresh(market, mm_oracle_price_data, oracle_validity)?;
 
@@ -253,7 +260,6 @@ pub fn snap_to_oracle(
     let quote_before = market.amm.quote_asset_reserve;
     let sqrt_k_before = market.amm.sqrt_k;
     let market_index = market.market_index;
-    let now = mm_oracle_price_data.get_exchange_oracle_price_data().delay;
 
     projection.apply_to(&mut market.amm)?;
 
