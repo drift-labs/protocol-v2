@@ -1,10 +1,10 @@
 [package]
 name = "keeprs"
-version = "0.1.4"
+version = "0.1.6"
 edition = "2021"
 description = "Rust keeper bots for Velocity protocol"
 license = "MIT"
-repository = "https://github.com/drift-labs/protocol-v2-shadow"
+repository = "https://github.com/velocity-exchange/velocity-v1"
 keywords = ["velocity", "defi", "solana", "trading-bot", "liquidity"]
 categories = ["financial", "network-programming"]
 

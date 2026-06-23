@@ -2,7 +2,13 @@
 //!
 //! Simulates market-maker flow on devnet by placing resting limits at ±N bps
 //! around the oracle for each configured perp market and refreshing them
-//! every `quote_refresh_secs`. Two safety caps prevent runaway inventory:
+//! every `quote_refresh_secs`.
+//!
+//! Order size is preferably set as a constant **notional** (`quote_size_notional`,
+//! QUOTE_PRECISION USD) which is converted to base per market via the oracle, so
+//! a quote is the same dollar size across markets regardless of price. If that is
+//! 0 it falls back to a fixed base size (`quote_size_base`). Two safety caps
+//! prevent runaway inventory:
 //!
 //! - **Per-market base cap** (`quote_max_base_per_market`): after a
 //!   hypothetical fill on a given side, |position| must stay within the cap.
@@ -43,6 +49,9 @@ struct MarketSnapshot {
     target_bid: u64,
     target_ask: u64,
     base_position: i64,
+    /// Per-market order size in BASE_PRECISION, resolved from either the fixed
+    /// base size or (preferred) a constant notional converted via the oracle.
+    size_base: u64,
 }
 
 impl QuoterBot {
@@ -261,6 +270,13 @@ impl QuoterBot {
         let base_position = find_position(user, market_index)
             .map(|p| p.base_asset_amount)
             .unwrap_or(0);
+        let size_base = resolve_size_base(
+            self.config.quote_size_notional,
+            self.config.quote_size_base,
+            perp_market.order_step_size,
+            perp_market.market_stats.min_order_size,
+            oracle_price,
+        );
         Ok(MarketSnapshot {
             market_index,
             oracle_price,
@@ -268,6 +284,7 @@ impl QuoterBot {
             target_bid,
             target_ask,
             base_position,
+            size_base,
         })
     }
 
@@ -278,7 +295,7 @@ impl QuoterBot {
         projected_gross: &mut u128,
         max_gross: u128,
     ) -> Result<(), String> {
-        let size = self.config.quote_size_base;
+        let size = snap.size_base;
         let refresh_bps = self.config.quote_refresh_bps as u64;
 
         let (bid_needed, bid_replace) = evaluate_side(
@@ -457,6 +474,31 @@ impl QuoterBot {
     }
 }
 
+/// Resolve the per-market order size in BASE_PRECISION.
+///
+/// When `quote_size_notional` (QUOTE_PRECISION, USD*1e6) is > 0 it wins: the
+/// dollar size is converted to base via the oracle price so a quote is the same
+/// notional on every market — `base = notional * BASE_PRECISION / oracle`. The
+/// result is floored to the market `step_size` and floored-up to `min_order_size`
+/// so the order is always placeable. Falls back to the fixed `quote_size_base`
+/// when notional is 0.
+fn resolve_size_base(
+    quote_size_notional: u64,
+    quote_size_base: u64,
+    step_size: u64,
+    min_order_size: u64,
+    oracle_price: u64,
+) -> u64 {
+    if quote_size_notional == 0 {
+        return quote_size_base;
+    }
+    let raw = (quote_size_notional as u128).saturating_mul(BASE_PRECISION_U64 as u128)
+        / oracle_price.max(1) as u128;
+    let step = step_size.max(1) as u128;
+    let rounded = (raw / step) * step; // floor to a whole number of steps
+    (rounded as u64).max(min_order_size)
+}
+
 fn notional_abs(base: i64, oracle_price: u64) -> u128 {
     // base is BASE_PRECISION (1e9), oracle_price is PRICE_PRECISION (1e6).
     // Notional in QUOTE_PRECISION (1e6) = |base| * oracle / BASE_PRECISION.
@@ -521,4 +563,41 @@ fn make_limit(
 fn _assert_tick(t: u64) -> u64 {
     debug_assert!(t > 0);
     t
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_size_base;
+
+    #[test]
+    fn notional_converts_to_base_via_oracle() {
+        // $25 notional, SOL @ $150, step 0.001 SOL, min 0.001 SOL.
+        // 25/150 = 0.16666… SOL = 166_666_666 base, floored to the step => 166_000_000.
+        let size = resolve_size_base(25_000_000, 999, 1_000_000, 1_000_000, 150_000_000);
+        assert_eq!(size, 166_000_000);
+    }
+
+    #[test]
+    fn same_notional_different_price_scales_base() {
+        // Same $25 on a $25k market => 0.001 base; on a $150 market => ~0.166 base.
+        let cheap = resolve_size_base(25_000_000, 0, 1_000_000, 1_000_000, 150_000_000);
+        let pricey = resolve_size_base(25_000_000, 0, 1_000_000, 1_000_000, 25_000_000_000);
+        assert!(cheap > pricey, "{cheap} !> {pricey}");
+        assert_eq!(pricey, 1_000_000); // 25/25000 = 0.001 base
+    }
+
+    #[test]
+    fn notional_zero_falls_back_to_base() {
+        assert_eq!(
+            resolve_size_base(0, 555, 1_000_000, 1_000_000, 150_000_000),
+            555
+        );
+    }
+
+    #[test]
+    fn floors_up_to_min_order_size() {
+        // $0.01 would round to 0 base; bumped to the market min so it's placeable.
+        let size = resolve_size_base(10_000, 0, 1_000_000, 1_000_000, 150_000_000);
+        assert_eq!(size, 1_000_000);
+    }
 }

@@ -4113,7 +4113,7 @@ pub fn build_accounts<'a>(
     markets_readable: impl Iterator<Item = &'a MarketId>,
     markets_writable: impl Iterator<Item = &'a MarketId>,
 ) -> Vec<AccountMeta> {
-    // the order of accounts returned must be instruction, oracles, spot, perps see (https://github.com/drift-labs/protocol-v2/blob/master/programs/drift/src/instructions/optional_accounts.rs#L28)
+    // the order of accounts returned must be instruction, oracles, spot, perps see (https://github.com/velocity-exchange/velocity-v1/blob/master/programs/velocity/src/instructions/optional_accounts.rs#L28)
     let mut accounts = BTreeSet::<RemainingAccount>::new();
 
     // add accounts to the ordered list

@@ -139,7 +139,7 @@ const WRAPPED_SOL_MINT = new PublicKey(
 // Devnet hot-admin authorities. The native high-frequency cranks assert
 // signer == State.hot_<role> before doing work, so each role must hold the key
 // the corresponding bot/keeper signs with or the crank panics. Values are the
-// non-mainnet-beta keys from drift-labs/protocol-v2 ids.rs (the velocity bots
+// non-mainnet-beta keys from @velocity-exchange/sdk ids.rs (the velocity bots
 // reuse them). Roles with no dedicated wallet there default to admin_hot_wallet.
 const ADMIN_HOT_WALLET = '1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N';
 const MM_ORACLE_CRANK_WALLET = '8X35rQUK2u9hfn8rMPwwr6ZSEUhbmfDPEapp589XyoM1';

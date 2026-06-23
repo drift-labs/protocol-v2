@@ -5,8 +5,8 @@ Drift Protocol Jit Market Making, offer fee rebates for providing liquidity.
 1. create and fund an account on drift protocol
 
 - can experiment using devnet, for mainnet make sure you understand the risks
-- see [keeper-bots-v2 readme](https://github.com/drift-labs/keeper-bots-v2#initialize-user)
-- or see https://drift-labs.github.io/v2-teacher/#introduction
+- see [keeper-bots-v2 readme](https://github.com/velocity-exchange/keeper-bots-v2#initialize-user)
+- or see https://velocity-exchange.github.io/v2-teacher/#introduction
 
 2. get a private RPC endpoint
 

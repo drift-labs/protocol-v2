@@ -4,7 +4,7 @@ version = "0.1.1"
 edition = "2021"
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/drift-labs/protocol-v2-shadow"
+repository = "https://github.com/velocity-exchange/velocity-v1"
 description = "Solana Pubsub Client patched with proper connection handling"
 
 [dependencies]

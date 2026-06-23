@@ -4,7 +4,7 @@
   <h1 style="margin-top:20px;">Velocity Exchange</h1>
 
   <p>
-    <a href="https://drift-labs.github.io/v2-teacher/"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
+    <a href="https://velocity-exchange.github.io/v2-teacher/"><img alt="Docs" src="https://img.shields.io/badge/docs-tutorials-blueviolet" /></a>
     <a href="https://discord.com/channels/849494028176588802/878700556904980500"><img alt="Discord Chat" src="https://img.shields.io/discord/889577356681945098?color=blueviolet" /></a>
     <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/github/license/project-serum/anchor?color=blueviolet" /></a>
   </p>
@@ -22,7 +22,7 @@ SDK docs can be found [here](./sdk/README.md)
 
 # Example Bot Implementations
 
-Example bots (makers, liquidators, fillers, etc) can be found [here](https://github.com/drift-labs/keeper-bots-v2)
+Example bots (makers, liquidators, fillers, etc) can be found [here](https://github.com/velocity-exchange/keeper-bots-v2)
 
 # Building Locally
 

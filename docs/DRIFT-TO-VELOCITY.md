@@ -1,6 +1,6 @@
 # Migrating from Drift Protocol v2 to Velocity
 
-This repo is a fork of [`drift-labs/protocol-v2`](https://github.com/drift-labs/protocol-v2)
+This repo is a fork of [`velocity-exchange/protocol-v2`](https://github.com/velocity-exchange/protocol-v2)
 (fork point: `0ae3e3b1d`, SDK `v2.163.0-beta.0`, April 2026). The original Drift program is
 **paused**; Velocity is an **entirely new program deployment** with a new program ID, a
 reduced feature set, and a renamed SDK.
@@ -144,7 +144,7 @@ Gov-token stake fee discount removal (#80): `VelocityClient.updateUserGovTokenIn
 (the `constants/insuranceFund` module) were removed.
 
 Dead-export cleanup (#82): the following previously-exported symbols had no consumer
-inside the SDK, its tests, or any drift-labs org repository and were removed.
+inside the SDK, its tests, or any velocity-exchange org repository and were removed.
 The module `tx/forwardOnlyTxSender` was deleted (`ForwardOnlyTxSender` class) —
 **but later restored in #89** (see §4.6).
 Removed `math` functions: `builderCodesEnabled`, `builderReferralEnabled`,

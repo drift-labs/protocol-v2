@@ -50,7 +50,7 @@ solana-native-token = "3"
 solana-system-interface = "3"
 tokio = { version = "1.0", features = ["full"] }
 # fork with Ws compression enabled
-tokio-tungstenite = { git = "https://github.com/drift-labs/tokio-tungstenite", features = ["native-tls"] }
+tokio-tungstenite = { git = "https://github.com/velocity-exchange/tokio-tungstenite", features = ["native-tls"] }
 urlencoding = "2.1.0"
 uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
 tower-http = { version = "0.6.2", features= ["cors"] }

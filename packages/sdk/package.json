@@ -6,7 +6,7 @@
 	"module": "./lib/browser/index.js",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:drift-labs/protocol-v2-shadow.git"
+		"url": "git@github.com:velocity-exchange/velocity-v1.git"
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet --format unix",

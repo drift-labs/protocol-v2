@@ -5,7 +5,7 @@ edition = "2021"
 build = "build.rs"
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/drift-labs/protocol-v2-shadow"
+repository = "https://github.com/velocity-exchange/velocity-v1"
 homepage = "https://drift.trade"
 description = """
 Rust SDK for Velocity Protocol on the Solana blockchain.
@@ -39,7 +39,7 @@ env_logger = "0.11"
 futures-util = "0.3"
 fxhash = "0.2.1"
 hex = "0.4"
-jupiter-swap-api-client = { git = "https://github.com/drift-labs/jupiter-swap-api-client", rev = "424ad8", package = "jupiter-swap-api-client" }
+jupiter-swap-api-client = { git = "https://github.com/velocity-exchange/jupiter-swap-api-client", rev = "424ad8", package = "jupiter-swap-api-client" }
 log = "0.4"
 regex = "1.10"
 serde = { version = "1", features = ["derive"] }
@@ -61,7 +61,7 @@ solana-transaction = "3"
 solana-transaction-status = "3"
 spl-associated-token-account = { version = "8.0", default-features = false, features = ["no-entrypoint"] }
 thiserror = "1"
-titan-swap-api-client = { git = "https://github.com/drift-labs/titan-swap-api-client.git", optional = true }
+titan-swap-api-client = { git = "https://github.com/velocity-exchange/titan-swap-api-client.git", optional = true }
 tokio = { version = "1.48", features = ["full"] }
 tokio-stream = "0.1.17"
 tokio-tungstenite = { version = "0.28", features = ["native-tls"] }

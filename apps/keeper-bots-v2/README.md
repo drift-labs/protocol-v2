@@ -197,7 +197,7 @@ The jit maker bot supplies liquidity to the protocol by participating in jit acu
 
 Read the docs on jit auctions: https://docs.drift.trade/just-in-time-jit-auctions
 
-Read the docs on the jit proxy client: https://github.com/drift-labs/jit-proxy/blob/master/ts/sdk/Readme.md
+Read the docs on the jit proxy client: https://github.com/velocity-exchange/jit-proxy/blob/master/ts/sdk/Readme.md
 
 Be aware that running a jit maker means taking on positional risk, so be sure to manage your risk properly!
 

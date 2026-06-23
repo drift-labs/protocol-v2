@@ -4,7 +4,7 @@
 	"description": "TypeScript SDK for the Velocity vaults program.",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:drift-labs/protocol-v2-shadow.git",
+		"url": "git@github.com:velocity-exchange/velocity-v1.git",
 		"directory": "packages/vaults-sdk"
 	},
 	"license": "Apache-2.0",
