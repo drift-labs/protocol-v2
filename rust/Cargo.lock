@@ -2481,7 +2481,7 @@ dependencies = [
 [[package]]
 name = "jupiter-swap-api-client"
 version = "0.2.0"
-source = "git+https://github.com/drift-labs/jupiter-swap-api-client?rev=424ad8#424ad83959e306e3a3aff73c0a1ab1a2b4aa9509"
+source = "git+https://github.com/velocity-exchange/jupiter-swap-api-client?rev=424ad8#424ad83959e306e3a3aff73c0a1ab1a2b4aa9509"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6169,7 +6169,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "titan-swap-api-client"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/titan-swap-api-client.git#9ef7df6753c6378d5ed0f2cfdeb44b66d2669632"
+source = "git+https://github.com/velocity-exchange/titan-swap-api-client.git#9ef7df6753c6378d5ed0f2cfdeb44b66d2669632"
 dependencies = [
  "anyhow",
  "reqwest",
@@ -6258,7 +6258,7 @@ dependencies = [
 [[package]]
 name = "tokio-tungstenite"
 version = "0.24.0"
-source = "git+https://github.com/drift-labs/tokio-tungstenite#99c54fb345f6b1d4f3d6ffb50b50fad463cca660"
+source = "git+https://github.com/velocity-exchange/tokio-tungstenite#99c54fb345f6b1d4f3d6ffb50b50fad463cca660"
 dependencies = [
  "futures-util",
  "log",
@@ -6609,7 +6609,7 @@ dependencies = [
 [[package]]
 name = "tungstenite"
 version = "0.24.0"
-source = "git+https://github.com/drift-labs/tungstenite-rs?branch=drift%2Fpermessage-deflate#2a6e7a62b3651ad520131982e28dc085c4c1b0f8"
+source = "git+https://github.com/velocity-exchange/tungstenite-rs?branch=drift%2Fpermessage-deflate#2a6e7a62b3651ad520131982e28dc085c4c1b0f8"
 dependencies = [
  "byteorder",
  "bytes",

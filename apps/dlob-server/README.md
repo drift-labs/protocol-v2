@@ -88,7 +88,7 @@ Note: multiple Redis hosts can be provided by providing a comma separated string
 
 ## HTTP mode
 
-The HTTP server as documented [here](https://drift-labs.github.io/v2-teacher/?python#orderbook-trades-dlob-server) can be run with, and by default accessible on `http://127.0.0.1:6969`:
+The HTTP server as documented [here](https://velocity-exchange.github.io/v2-teacher/?python#orderbook-trades-dlob-server) can be run with, and by default accessible on `http://127.0.0.1:6969`:
 
 ```
 yarn run dev
@@ -133,7 +133,7 @@ bash redisCluster.sh stop
 
 # Run the example client
 
-Documentation for connecting to the dlob server are available [here](https://drift-labs.github.io/v2-teacher/?python#orderbook-trades-dlob-server)
+Documentation for connecting to the dlob server are available [here](https://velocity-exchange.github.io/v2-teacher/?python#orderbook-trades-dlob-server)
 
 TODO: complete client examples.
 

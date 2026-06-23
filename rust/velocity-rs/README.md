@@ -12,13 +12,13 @@
 
 # velocity-rs
 
-Experimental, high performance Rust SDK for building offchain clients for the [Velocity](https://github.com/drift-labs/protocol-v2-shadow) protocol.
+Experimental, high performance Rust SDK for building offchain clients for the [Velocity](https://github.com/velocity-exchange/protocol-v2-shadow) protocol.
 
-`velocity-rs` lives in the [protocol-v2-shadow](https://github.com/drift-labs/protocol-v2-shadow) monorepo, under `rust/velocity-rs`.
+`velocity-rs` lives in the [protocol-v2-shadow](https://github.com/velocity-exchange/protocol-v2-shadow) monorepo, under `rust/velocity-rs`.
 
 ## Install
 ```toml
-velocity-rs = { git = "https://github.com/drift-labs/protocol-v2-shadow" }
+velocity-rs = { git = "https://github.com/velocity-exchange/protocol-v2-shadow" }
 ```
 
 
@@ -103,7 +103,7 @@ rustup override set 1.85.0-x86_64-unknown-linux-gnu
 
 **clone the monorepo**
 ```bash
-git clone https://github.com/drift-labs/protocol-v2-shadow &&\
+git clone https://github.com/velocity-exchange/protocol-v2-shadow &&\
 cd protocol-v2-shadow/rust/velocity-rs
 ```
 

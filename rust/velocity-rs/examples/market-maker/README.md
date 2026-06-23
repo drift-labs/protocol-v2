@@ -22,4 +22,4 @@ GRPC_X_TOKEN="" \
 
 ## JIT Making
 Velocity MMs can also provide Just in Time (JIT) matching via swift and jit-proxy helper program.
-for examples see the `swift-maker` example and the jit-proxy example: https://github.com/drift-labs/jit-proxy/tree/master/rust
+for examples see the `swift-maker` example and the jit-proxy example: https://github.com/velocity-exchange/jit-proxy/tree/master/rust
