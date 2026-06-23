@@ -965,7 +965,12 @@ async function main() {
 			100, // curveUpdateIntensity — >0 enables the AMM's formulaic
 			// peg-toward-oracle repeg during refresh (capped at 100 internally).
 			// 0 would freeze the peg and re-block funding (6251). See Phase D2.
-			0, // ammJitIntensity
+			100, // ammJitIntensity — >0 lets the AMM JIT-make against takers
+			// (place_and_take fills the AMM via the JIT route once the AMM holds
+			// inventory; with 0 the AMM never makes and place_and_take returns 0
+			// base on a flat book). Program caps at 100 (admin.rs). Real Drift
+			// markets run this >0. The Phase D2 step below also pushes it onto a
+			// market that already exists.
 			'SOL-PERP',
 			0 // lpPoolId (not in a pool)
 		);
@@ -1106,6 +1111,30 @@ async function main() {
 			logStep(
 				'SOL-PERP oracleSlotDelayOverride already set; skip',
 				`${pm.oracleSlotDelayOverride}`
+			);
+		}
+
+		// Enable AMM JIT making. With ammJitIntensity == 0 the AMM never JIT-makes,
+		// so place_and_take returns 0 base against the AMM (the same-slot low-risk
+		// route is unreachable on devnet — the order can't be older than the
+		// multi-slot MM-oracle delay). Real Drift markets run this >0; the program
+		// caps it at 100 (admin.rs). Idempotent: only sends when the on-chain value
+		// differs, so a rerun fixes a market created before this was set.
+		const TARGET_AMM_JIT_INTENSITY = 100;
+		if (pm.amm.ammJitIntensity !== TARGET_AMM_JIT_INTENSITY) {
+			logStep(
+				'updateAmmJitIntensity SOL-PERP',
+				`${pm.amm.ammJitIntensity} -> ${TARGET_AMM_JIT_INTENSITY}`
+			);
+			const sig = await repegClient.updateAmmJitIntensity(
+				0,
+				TARGET_AMM_JIT_INTENSITY
+			);
+			console.log(`  tx: ${sig}`);
+		} else {
+			logStep(
+				'SOL-PERP ammJitIntensity already set; skip',
+				`${pm.amm.ammJitIntensity}`
 			);
 		}
 		await repegClient.unsubscribe();

@@ -16,6 +16,8 @@ use std::{
 };
 
 use solana_instruction::{AccountMeta, Instruction};
+use solana_message::VersionedMessage;
+use solana_signature::Signature;
 use velocity_rs::{
     event_subscriber::RpcClient,
     types::{accounts::User, Context, MarketId, PerpPosition, SpotMarketExt, SpotPosition},
@@ -113,37 +115,55 @@ impl TestCtx {
         );
     }
 
-    /// Ensure a subaccount exists (idempotent). Sub 0 also initializes user_stats,
-    /// so always provision it before any non-zero subaccount.
-    pub async fn ensure_subaccount(&self, sub_id: u16) {
-        if sub_id != 0 {
-            Box::pin(self.ensure_subaccount(0)).await;
+    /// sign_and_send returns before the tx is confirmed, so reads (and the bots'
+    /// view) can race ahead of it. Send, then wait for confirmation at the
+    /// client's commitment so the next step sees a consistent chain.
+    pub async fn send_confirmed(&self, tx: VersionedMessage) -> Signature {
+        let sig = self.client.sign_and_send(tx).await.expect("send tx");
+        for _ in 0..40 {
+            if self
+                .client
+                .rpc()
+                .confirm_transaction(&sig)
+                .await
+                .unwrap_or(false)
+            {
+                return sig;
+            }
+            tokio::time::sleep(Duration::from_millis(750)).await;
         }
+        panic!("tx {sig} not confirmed in time");
+    }
+
+    /// Create and return a fresh subaccount for the payer using the NEXT
+    /// sequential id. The program requires a new sub-account id to equal the
+    /// current count (`InvalidUserSubAccountId` otherwise), so read the live
+    /// `number_of_sub_accounts_created` rather than guessing ids. Creating sub 0
+    /// also initializes UserStats. Confirmed before returning. Serial use only.
+    /// Returns the sub-account id (use [`Self::sub`] for its pubkey).
+    pub async fn new_subaccount(&self) -> u16 {
+        let authority = self.authority();
+        let sub_id = match self.client.get_user_stats(&authority).await {
+            Ok(stats) => stats.number_of_sub_accounts_created,
+            Err(_) => 0, // UserStats not created yet
+        };
         let sub = self.sub(sub_id);
-        // NB: get_user_account() returns Ok (default) for a non-existent account,
-        // so it can't gate initialization — checking it skipped creating sub-0 +
-        // its UserStats, then InitializeUser for other subs failed with
-        // user_stats AccountOwnedByWrongProgram (3007). Probe the raw account
-        // instead (Err == missing).
         if self.client.rpc().get_account(&sub).await.is_ok() {
-            return;
+            return sub_id; // already created (idempotent re-run)
         }
         let mut user = User::default();
-        user.authority = self.authority();
+        user.authority = authority;
         user.sub_account_id = sub_id;
         let tx = TransactionBuilder::new(self.client.program_data(), sub, Cow::Owned(user), false)
             .initialize_user_account(sub_id, None, None)
             .build();
-        self.client
-            .sign_and_send(tx)
-            .await
-            .expect("initialize_user_account");
+        self.send_confirmed(tx).await;
+        sub_id
     }
 
     /// Mint `ui_amount` whole dUSDT to the payer ATA via the faucet and deposit it
-    /// into `sub_id` — all in one tx.
-    pub async fn fund_and_deposit_dusdt(&self, sub_id: u16, ui_amount: u64) {
-        self.ensure_subaccount(sub_id).await;
+    /// into `sub` — one confirmed tx.
+    pub async fn fund_and_deposit_dusdt(&self, sub: Pubkey, ui_amount: u64) {
         let amount = ui_amount * DUSDT_PRECISION;
         let spot0 = self
             .client
@@ -166,17 +186,14 @@ impl TestCtx {
 
         let tx = self
             .client
-            .init_tx(&self.sub(sub_id), false)
+            .init_tx(&sub, false)
             .await
             .expect("load subaccount")
             .add_ix(create_ata)
             .add_ix(faucet_ix)
             .deposit(amount, 0, None, None)
             .build();
-        self.client
-            .sign_and_send(tx)
-            .await
-            .expect("faucet mint + deposit dUSDT");
+        self.send_confirmed(tx).await;
     }
 
     fn faucet_mint_ix(
@@ -207,8 +224,8 @@ impl TestCtx {
 
     /// Best-effort: cancel any leftover orders on a subaccount. Call at start and
     /// end of each test so a crashed run doesn't poison the next.
-    pub async fn cleanup(&self, sub_id: u16) {
-        if let Ok(builder) = self.client.init_tx(&self.sub(sub_id), false).await {
+    pub async fn cleanup(&self, sub: Pubkey) {
+        if let Ok(builder) = self.client.init_tx(&sub, false).await {
             let tx = builder.cancel_all_orders().build();
             let _ = self.client.sign_and_send(tx).await;
         }
