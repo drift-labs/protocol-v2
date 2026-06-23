@@ -1,6 +1,6 @@
 [package]
 name = "keeprs"
-version = "0.1.4"
+version = "0.1.6"
 edition = "2021"
 description = "Rust keeper bots for Velocity protocol"
 license = "MIT"
