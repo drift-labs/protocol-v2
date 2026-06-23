@@ -7,8 +7,11 @@
 //! Hybrid intent: for actions a DEPLOYED bot owns (DLOB fills, JIT fills,
 //! liquidations, pnl settling, mark-twap crank) the test sets up one side and
 //! polls for the bot to act; pure user actions (deposit/withdraw/AMM-take) are
-//! driven directly. Each scenario allocates fresh sequential subaccount(s) of the
-//! one funded payer; run with `--test-threads=1`.
+//! driven directly. Each scenario owns a fixed, REUSED subaccount of the one
+//! funded payer (see the `SUB_*` ids + `TestCtx::acquire`, which resets the
+//! account to a clean slate each run) rather than allocating a fresh one — fresh
+//! allocation leaked rent and exhausted the monotonic u16 sub-account-id space.
+//! Run with `--test-threads=1`.
 //!
 //! Bot-timing-dependent scenarios (jit-maker incentive, liquidation via oracle
 //! drift, settler thresholds) RUN — their setup is deterministic and they treat
@@ -39,6 +42,25 @@ const ONE_SOL: i64 = BASE_PRECISION_I64; // 1e9, 9 decimals
 /// scaled-balance ↔ token-amount interest-index round-trip rounding. 100 native
 /// dUSDT units = 1e-4 dUSDT.
 const DUSDT_SLACK: u128 = 100;
+
+// Fixed, REUSED subaccount ids — one per test. The suite reuses these accounts
+// every run (via `TestCtx::acquire`, which resets them to a clean slate) instead
+// of allocating a fresh subaccount per run, which leaked rent and exhausted the
+// monotonic u16 `number_of_sub_accounts_created`. Ids are contiguous so the
+// sequential bootstrap in `acquire` never leaves gaps. (The one-shot
+// `fund_mm_taker_subaccounts` uses ids 1/2 on a DIFFERENT authority — the filler
+// key — so it does not collide with these.)
+const SUB_DEPOSIT: u16 = 1;
+const SUB_WITHDRAW: u16 = 2;
+const SUB_TAKER_AMM: u16 = 3;
+const SUB_TAKER_JIT: u16 = 4;
+const SUB_DLOB_MAKER: u16 = 5;
+const SUB_DLOB_TAKER: u16 = 6;
+const SUB_JIT_AUCTION: u16 = 7;
+const SUB_BAD_PERP: u16 = 8;
+const SUB_BAD_SPOT_BORROW: u16 = 9;
+const SUB_UNSETTLED_PNL: u16 = 10;
+const SUB_SWIFT: u16 = 11;
 
 /// A marketable 1-SOL limit order priced 5% through the oracle in the trade
 /// direction, so it crosses the AMM and the DEPLOYED filler fills it against the
@@ -95,16 +117,19 @@ async fn fund_mm_taker_subaccounts() {
 #[tokio::test]
 async fn deposit_into_spot_market() {
     let ctx = TestCtx::new().await;
-    let sub = ctx.sub(ctx.new_subaccount().await);
-    ctx.fund_and_deposit_dusdt(sub, 50).await;
+    let sub = ctx.acquire(SUB_DEPOSIT).await;
 
-    // Deposited exactly 50 dUSDT — assert the on-chain collateral is 50 dUSDT
-    // (50 * 1e6 native), not merely "> 0".
-    let amount = ctx.spot_token_amount(sub, 0).await;
+    // Assert the DELTA, not the absolute balance: the subaccount is reused across
+    // runs, so any residual from a prior run (reset drains best-effort) must not
+    // skew the result. Depositing exactly 50 dUSDT must raise collateral by 50.
+    let before = ctx.spot_token_amount(sub, 0).await;
+    ctx.fund_and_deposit_dusdt(sub, 50).await;
+    let after = ctx.spot_token_amount(sub, 0).await;
+    let deposited = after.saturating_sub(before);
     let expected = 50 * DUSDT_PRECISION as u128;
     assert!(
-        amount.abs_diff(expected) <= DUSDT_SLACK,
-        "deposited dUSDT collateral {amount} != {expected} (±{DUSDT_SLACK} native)"
+        deposited.abs_diff(expected) <= DUSDT_SLACK,
+        "deposit raised dUSDT collateral by {deposited} != {expected} (±{DUSDT_SLACK} native)"
     );
 }
 
@@ -112,7 +137,7 @@ async fn deposit_into_spot_market() {
 #[tokio::test]
 async fn withdraw_from_spot_market() {
     let ctx = TestCtx::new().await;
-    let sub = ctx.sub(ctx.new_subaccount().await);
+    let sub = ctx.acquire(SUB_WITHDRAW).await;
     ctx.fund_and_deposit_dusdt(sub, 50).await; // 50 dUSDT in
     let before = ctx.spot_token_amount(sub, 0).await;
 
@@ -125,18 +150,14 @@ async fn withdraw_from_spot_market() {
         .build();
     ctx.send_confirmed(tx).await;
 
-    // Withdrew exactly 10 dUSDT: balance drops by 10 and lands at 40.
+    // Assert the DELTA, not the absolute balance (the subaccount is reused, so a
+    // prior-run residual must not skew it): withdrawing 10 drops collateral by 10.
     let after = ctx.spot_token_amount(sub, 0).await;
-    let withdrawn = before.abs_diff(after);
+    let withdrawn = before.saturating_sub(after);
     let want_withdrawn = 10 * DUSDT_PRECISION as u128;
     assert!(
         withdrawn.abs_diff(want_withdrawn) <= DUSDT_SLACK,
-        "withdrew {withdrawn} != {want_withdrawn} (±{DUSDT_SLACK} native)"
-    );
-    let want_after = 40 * DUSDT_PRECISION as u128;
-    assert!(
-        after.abs_diff(want_after) <= DUSDT_SLACK,
-        "remaining dUSDT {after} != {want_after} (±{DUSDT_SLACK} native)"
+        "withdraw dropped dUSDT collateral by {withdrawn} != {want_withdrawn} (±{DUSDT_SLACK} native)"
     );
 }
 
@@ -174,8 +195,7 @@ async fn withdraw_from_spot_market() {
 #[tokio::test]
 async fn taker_fills_against_amm() {
     let ctx = TestCtx::new().await;
-    let sub = ctx.sub(ctx.new_subaccount().await);
-    ctx.cleanup(sub).await;
+    let sub = ctx.acquire(SUB_TAKER_AMM).await;
     ctx.fund_and_deposit_dusdt(sub, 100).await;
 
     let px = ctx.client.oracle_price(SOL_PERP).await.expect("oracle") as u64;
@@ -409,8 +429,7 @@ async fn taker_fills_against_amm_via_jit() {
         return;
     }
 
-    let sub = ctx.sub(ctx.new_subaccount().await);
-    ctx.cleanup(sub).await;
+    let sub = ctx.acquire(SUB_TAKER_JIT).await;
     ctx.fund_and_deposit_dusdt(sub, 100).await;
 
     // Market order, auction params left to the program to derive (direction-correct);
@@ -467,8 +486,8 @@ async fn taker_fills_against_amm_via_jit() {
 #[tokio::test]
 async fn dlob_maker_taker_filled_by_filler() {
     let ctx = TestCtx::new().await;
-    let maker = ctx.sub(ctx.new_subaccount().await);
-    let taker = ctx.sub(ctx.new_subaccount().await);
+    let maker = ctx.acquire(SUB_DLOB_MAKER).await;
+    let taker = ctx.acquire(SUB_DLOB_TAKER).await;
     ctx.fund_and_deposit_dusdt(maker, 100).await;
     ctx.fund_and_deposit_dusdt(taker, 100).await;
 
@@ -576,7 +595,7 @@ async fn mark_twap_crank_advances() {
 #[tokio::test]
 async fn jit_auction_filled_by_jit_maker() {
     let ctx = TestCtx::new().await;
-    let sub = ctx.sub(ctx.new_subaccount().await);
+    let sub = ctx.acquire(SUB_JIT_AUCTION).await;
     ctx.fund_and_deposit_dusdt(sub, 100).await;
 
     let px = ctx.client.oracle_price(SOL_PERP).await.expect("oracle");
@@ -625,8 +644,8 @@ async fn jit_auction_filled_by_jit_maker() {
 #[ignore = "LIVE_INFRA: swift HTTP /orders intermittently 502s on devnet (SWIFT_HTTP_ENDPOINT)"]
 async fn swift_taker_filled_by_deployed_maker() {
     let ctx = TestCtx::new().await;
-    let sub_id = ctx.new_subaccount().await;
-    let sub = ctx.sub(sub_id);
+    let sub_id = SUB_SWIFT;
+    let sub = ctx.acquire(sub_id).await;
     ctx.fund_and_deposit_dusdt(sub, 100).await;
 
     let px = ctx.client.oracle_price(SOL_PERP).await.expect("oracle");
@@ -698,7 +717,7 @@ async fn swift_taker_filled_by_deployed_maker() {
 #[tokio::test]
 async fn bad_perp_trade_gets_liquidated() {
     let ctx = TestCtx::new().await;
-    let sub = ctx.sub(ctx.new_subaccount().await);
+    let sub = ctx.acquire(SUB_BAD_PERP).await;
     // Small collateral + max-leverage position sits near the maintenance edge so
     // small adverse oracle drift tips it over for the deployed liquidator.
     ctx.fund_and_deposit_dusdt(sub, 20).await;
@@ -756,7 +775,7 @@ async fn bad_perp_trade_gets_liquidated() {
 #[ignore = "LIVE_INFRA: SOL spot-1 borrow capped by DailyWithdrawLimit (~0.0012 SOL) on devnet; needs admin to raise the withdraw guard"]
 async fn bad_spot_borrow_gets_liquidated() {
     let ctx = TestCtx::new().await;
-    let sub = ctx.sub(ctx.new_subaccount().await);
+    let sub = ctx.acquire(SUB_BAD_SPOT_BORROW).await;
     ctx.fund_and_deposit_dusdt(sub, 20).await;
 
     // Borrow SOL (spot 1) against the dUSDT collateral.
@@ -802,7 +821,7 @@ async fn bad_spot_borrow_gets_liquidated() {
 #[tokio::test]
 async fn unsettled_pnl_gets_settled() {
     let ctx = TestCtx::new().await;
-    let sub = ctx.sub(ctx.new_subaccount().await);
+    let sub = ctx.acquire(SUB_UNSETTLED_PNL).await;
     ctx.fund_and_deposit_dusdt(sub, 100).await;
 
     // Open then close a position (filler fills each vs the AMM) to bank realized
