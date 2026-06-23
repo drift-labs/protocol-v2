@@ -3,7 +3,7 @@ name = "velocity-idl-gen"
 version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/velocity-exchange/protocol-v2-shadow"
+repository = "https://github.com/velocity-exchange/velocity-v1"
 description = "Generates Velocity structs/types from anchor IDL"
 
 [lib]

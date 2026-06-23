@@ -5,7 +5,7 @@
 	"author": "velocity-exchange",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:velocity-exchange/protocol-v2-shadow.git",
+		"url": "git@github.com:velocity-exchange/velocity-v1.git",
 		"directory": "packages/cli-admin"
 	},
 	"license": "Apache-2.0",

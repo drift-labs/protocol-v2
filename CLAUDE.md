@@ -270,7 +270,7 @@ All modules have doc comments. When making feature or refactor changes, update a
 
 ### Migration doc ([docs/DRIFT-TO-VELOCITY.md](./docs/DRIFT-TO-VELOCITY.md))
 
-`docs/DRIFT-TO-VELOCITY.md` is the canonical record of what changed between upstream `drift-labs/protocol-v2` (fork point `0ae3e3b1d`) and Velocity, written for external integrators migrating off the old Drift SDK/program. **Whenever a change could affect a migrating integrator, update this doc in the same PR.** That includes:
+`docs/DRIFT-TO-VELOCITY.md` is the canonical record of what changed between upstream `velocity-exchange/protocol-v2` (fork point `0ae3e3b1d`) and Velocity, written for external integrators migrating off the old Drift SDK/program. **Whenever a change could affect a migrating integrator, update this doc in the same PR.** That includes:
 
 - Adding, removing, or changing the signature/accounts of a program instruction
 - Changing the layout, size, or fields of any on-chain account struct (User, PerpMarket, SpotMarket, State, …)

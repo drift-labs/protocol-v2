@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "protocol-v2-shadow",
+      "name": "velocity-v1",
       "dependencies": {
         "@ellipsis-labs/phoenix-sdk": "1.4.2",
         "anchor-bankrun": "0.5.0",

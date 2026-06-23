@@ -108,7 +108,7 @@ export class SwiftPlacer {
 		/**
 		Make sure that WS_DELEGATE_KEY referrs to a keypair for an empty wallet, and that it has been added to
 		ws_delegates for an authority. see here:
-		https://github.com/drift-labs/protocol-v2/blob/master/sdk/src/velocityClient.ts#L1160-L1194
+		https://github.com/velocity-exchange/velocity-v1/blob/master/sdk/src/velocityClient.ts#L1160-L1194
 	*/
 		const keypair = process.env.WS_DELEGATE_KEY
 			? getWallet(process.env.WS_DELEGATE_KEY)[0]

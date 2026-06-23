@@ -5,7 +5,7 @@ edition = "2021"
 build = "build.rs"
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/velocity-exchange/protocol-v2-shadow"
+repository = "https://github.com/velocity-exchange/velocity-v1"
 homepage = "https://drift.trade"
 description = """
 Rust SDK for Velocity Protocol on the Solana blockchain.

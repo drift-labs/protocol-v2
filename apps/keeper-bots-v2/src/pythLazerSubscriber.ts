@@ -26,7 +26,7 @@ export type PythLazerPriceFeedArray = {
 };
 /**
  * @deprecated
- * Deprecated - use PythLazerSubscriber from @drift-labs/sdk instead
+ * Deprecated - use PythLazerSubscriber from @velocity-exchange/sdk instead
  */
 export class PythLazerSubscriber {
 	private pythLazerClient?: PythLazerClient;

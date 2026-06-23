@@ -1,6 +1,6 @@
 //! Procedural macros for Velocity zero-copy account structs.
 //!
-//! Vendored and trimmed from `drift-labs/drift-macros` (Apache-2.0): only the
+//! Vendored and trimmed from `velocity-exchange/drift-macros` (Apache-2.0): only the
 //! `assert_no_slop` attribute is kept. The upstream `legacy_layout` macro is
 //! dropped, as it hardcodes a `crate::math::bn::compat` path that does not exist
 //! in this layout and is unused.

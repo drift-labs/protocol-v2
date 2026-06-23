@@ -1,5 +1,5 @@
 {
-	"name": "protocol-v2-shadow",
+	"name": "velocity-v1",
 	"private": true,
 	"directories": {
 		"test": "tests"

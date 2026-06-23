@@ -528,7 +528,7 @@ export class UncrossArbBot implements Bot {
 											}),
 											await this.jitProxyClient.getArbPerpIx({
 												marketIndex: perpIdx,
-												// jit-proxy is the external @drift-labs SDK; its MakerInfo type
+												// jit-proxy is the external @velocity-exchange SDK; its MakerInfo type
 												// differs from the velocity SDK's. Cast to bridge.
 												makerInfos: [bidMakerInfo, askMakerInfo] as any,
 												referrerInfo: this.velocityClient

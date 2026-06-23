@@ -2061,7 +2061,7 @@ security_txt! {
     name: "Velocity v2",
     project_url: "https://drift.trade",
     contacts: "link:https://docs.drift.trade/security/bug-bounty",
-    policy: "https://github.com/drift-labs/protocol-v2/blob/main/SECURITY.md",
+    policy: "https://github.com/velocity-exchange/velocity-v1/blob/master/SECURITY.md",
     preferred_languages: "en",
-    source_code: "https://github.com/drift-labs/protocol-v2"
+    source_code: "https://github.com/velocity-exchange/velocity-v1/programs/velocity"
 }
