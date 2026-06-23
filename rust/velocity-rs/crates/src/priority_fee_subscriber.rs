@@ -27,7 +27,7 @@ pub const DEFAULT_SLOT_WINDOW: Slot = 30;
 /// let subscriber = subscriber.subscribe();
 /// // ... later, after the background task has populated fees ...
 /// if subscriber.is_subscribed() {
-///     let fee = subscriber.priority_fee(); // may panic if not yet populated
+///     let fee = subscriber.priority_fee(); // 0 during warmup before fees are fetched
 ///     // use fee
 /// } else {
 ///     // handle unsubscribed or stopped state
@@ -178,11 +178,8 @@ impl PriorityFeeSubscriber {
         }
     }
 
-    /// Returns the median priority fee in micro-lamports over the look-back window.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called before the subscriber has populated any fees (i.e., if no data is available yet).
+    /// Returns the median priority fee in micro-lamports over the look-back
+    /// window, or 0 during warmup before any fees have been fetched.
     pub fn priority_fee(&self) -> u64 {
         self.priority_fee_nth(0.5)
     }
@@ -190,13 +187,13 @@ impl PriorityFeeSubscriber {
     /// Returns the n-th percentile priority fee in micro-lamports over the look-back window.
     /// `percentile` given as decimal 0.0 < n <= 1.0
     ///
-    /// # Panics
-    ///
-    /// Panics if called before the subscriber has populated any fees (i.e., if no data is available yet).
+    /// During the startup warmup (before the first poll lands) or if the poller
+    /// has no data yet, returns 0 (no extra priority fee) rather than panicking —
+    /// callers want a usable number and real fees flow in within one refresh cycle.
     pub fn priority_fee_nth(&self, percentile: f32) -> u64 {
         let lock = self.latest_fees.read().expect("acquired");
         if lock.is_empty() {
-            panic!("PriorityFeeSubscriber is not subscribed");
+            return 0;
         }
         let n = lock.len();
         if n == 1 {
