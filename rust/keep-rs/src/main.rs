@@ -6,6 +6,7 @@ mod http;
 mod liquidator;
 mod quoter;
 mod relayer;
+mod taker;
 mod util;
 
 use crate::{
@@ -16,6 +17,7 @@ use crate::{
     },
     liquidator::LiquidatorBot,
     quoter::QuoterBot,
+    taker::TakerBot,
 };
 use clap::Parser;
 
@@ -49,7 +51,15 @@ pub struct Config {
     /// Interval in seconds between quote refresh ticks
     #[clap(long, env = "QUOTE_REFRESH_SECS", default_value = "30")]
     pub quote_refresh_secs: u64,
-    /// Order size in BASE_PRECISION units (1e9 = 1 base unit; default 0.1)
+    /// Quote size as notional in QUOTE_PRECISION (USD * 1e6; e.g. 25000000 =
+    /// $25). When > 0 this takes precedence over `--quote-size-base` and is
+    /// converted to base per market via the oracle price, so a quote is the
+    /// same dollar size on every market (rounded to the market step size, with
+    /// a floor of the market min order size). 0 = use the fixed base size.
+    #[clap(long, env = "QUOTE_SIZE_NOTIONAL", default_value = "0")]
+    pub quote_size_notional: u64,
+    /// Fallback fixed order size in BASE_PRECISION units (1e9 = 1 base unit;
+    /// default 0.1). Used only when `--quote-size-notional` is 0.
     #[clap(long, env = "QUOTE_SIZE_BASE", default_value = "100000000")]
     pub quote_size_base: u64,
     /// Replace an existing order if its price drifts more than this (bps of oracle)
@@ -65,6 +75,20 @@ pub struct Config {
     /// C USD, set this to C*L*1_000_000. 0 disables this check.
     #[clap(long, env = "QUOTE_MAX_GROSS_NOTIONAL", default_value = "0")]
     pub quote_max_gross_notional: u64,
+    /// Run taker bot (sends randomized small market orders to simulate flow)
+    #[clap(long, default_value = "false")]
+    pub taker: bool,
+    /// Seconds between taker order ticks
+    #[clap(long, env = "TAKER_INTERVAL_SECS", default_value = "15")]
+    pub taker_interval_secs: u64,
+    /// Taker order size in BASE_PRECISION units (1e9 = 1 base unit; default 0.1)
+    #[clap(long, env = "TAKER_SIZE_BASE", default_value = "100000000")]
+    pub taker_size_base: u64,
+    /// Inventory bound in BASE_PRECISION (1e9): once |position| reaches this,
+    /// the taker forces the side that reduces it (mean-reverting). 0 disables
+    /// the bound (pure random flow).
+    #[clap(long, env = "TAKER_MAX_BASE_PER_MARKET", default_value = "1000000000")]
+    pub taker_max_base_per_market: u64,
     /// Run pyth lazer oracle relayer
     #[clap(long, default_value = "false")]
     pub relayer: bool,
@@ -213,10 +237,13 @@ async fn main() {
     } else if config.quoter {
         let bot = QuoterBot::new(config, velocity).await;
         bot.run().await;
+    } else if config.taker {
+        let bot = TakerBot::new(config, velocity).await;
+        bot.run().await;
     } else if config.filler {
         let bot = FillerBot::new(config, velocity, metrics).await;
         bot.run().await;
     } else {
-        log::warn!("provide --filler, --liquidator, --quoter, or --relayer mode");
+        log::warn!("provide --filler, --liquidator, --quoter, --taker, or --relayer mode");
     }
 }

@@ -2526,7 +2526,7 @@ checksum = "57d8d8ce877200136358e0bbff3a77965875db3af755a11e1fa6b1b3e2df13ea"
 
 [[package]]
 name = "keeprs"
-version = "0.1.4"
+version = "0.1.6"
 dependencies = [
  "anchor-lang",
  "axum 0.8.9",
@@ -2538,7 +2538,7 @@ dependencies = [
  "futures-util",
  "log",
  "mimalloc",
- "prometheus 0.14.0",
+ "prometheus",
  "pyth-lazer-client",
  "pyth-lazer-protocol",
  "serde",
@@ -3082,21 +3082,6 @@ dependencies = [
  "parking_lot",
  "protobuf 2.28.0",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "prometheus"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ca5326d8d0b950a9acd87e6a3f94745394f62e4dae1b1ee22b2bc0c394af43a"
-dependencies = [
- "cfg-if",
- "fnv",
- "lazy_static",
- "memchr",
- "parking_lot",
- "protobuf 3.7.2",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -5991,7 +5976,7 @@ dependencies = [
  "futures-util",
  "log",
  "nanoid",
- "prometheus 0.13.4",
+ "prometheus",
  "rand 0.8.6",
  "redis",
  "serde",
@@ -6609,7 +6594,7 @@ dependencies = [
 [[package]]
 name = "tungstenite"
 version = "0.24.0"
-source = "git+https://github.com/velocity-exchange/tungstenite-rs?branch=drift%2Fpermessage-deflate#2a6e7a62b3651ad520131982e28dc085c4c1b0f8"
+source = "git+https://github.com/drift-labs/tungstenite-rs?branch=drift%2Fpermessage-deflate#2a6e7a62b3651ad520131982e28dc085c4c1b0f8"
 dependencies = [
  "byteorder",
  "bytes",
