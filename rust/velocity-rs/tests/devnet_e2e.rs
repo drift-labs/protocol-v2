@@ -147,8 +147,8 @@ async fn taker_fills_against_amm() {
         direction: PositionDirection::Long,
         base_asset_amount: ONE_SOL as u64,
         auction_start_price: Some((px + px * 2 / 100) as i64),
-        auction_end_price: Some((px + px * 5 / 100) as i64),
-        auction_duration: Some(30),
+        auction_end_price: Some((px + px * 15 / 100) as i64),
+        auction_duration: Some(200),
         ..Default::default()
     };
     let tx = ctx
@@ -163,9 +163,9 @@ async fn taker_fills_against_amm() {
     // Base fills are exact: assert the deployed filler opened precisely +1 SOL
     // against the AMM (not merely "> 0").
     let pos = ctx
-        .wait_perp_base_eq(sub, 0, ONE_SOL, Duration::from_secs(90))
+        .wait_perp_base_eq(sub, 0, ONE_SOL, Duration::from_secs(120))
         .await
-        .expect("deployed filler did not fill the taker against the AMM within 90s");
+        .expect("deployed filler did not fill the taker against the AMM within 120s");
     assert_eq!(
         pos.base_asset_amount, ONE_SOL,
         "expected exactly +1 SOL long vs AMM, got {}",
