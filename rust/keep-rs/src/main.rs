@@ -51,7 +51,15 @@ pub struct Config {
     /// Interval in seconds between quote refresh ticks
     #[clap(long, env = "QUOTE_REFRESH_SECS", default_value = "30")]
     pub quote_refresh_secs: u64,
-    /// Order size in BASE_PRECISION units (1e9 = 1 base unit; default 0.1)
+    /// Quote size as notional in QUOTE_PRECISION (USD * 1e6; e.g. 25000000 =
+    /// $25). When > 0 this takes precedence over `--quote-size-base` and is
+    /// converted to base per market via the oracle price, so a quote is the
+    /// same dollar size on every market (rounded to the market step size, with
+    /// a floor of the market min order size). 0 = use the fixed base size.
+    #[clap(long, env = "QUOTE_SIZE_NOTIONAL", default_value = "0")]
+    pub quote_size_notional: u64,
+    /// Fallback fixed order size in BASE_PRECISION units (1e9 = 1 base unit;
+    /// default 0.1). Used only when `--quote-size-notional` is 0.
     #[clap(long, env = "QUOTE_SIZE_BASE", default_value = "100000000")]
     pub quote_size_base: u64,
     /// Replace an existing order if its price drifts more than this (bps of oracle)

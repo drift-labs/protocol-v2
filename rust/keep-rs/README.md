@@ -41,12 +41,14 @@ Both ship in the same `keeprs` binary / ECR image, selected by flag.
 **Market maker** — the `--quoter` bot posts resting post-only two-sided limits at
 `±--quote-spread-bps` (default **20** bps) around the oracle and refreshes them.
 For continuous "always quote ±20bps around oracle" behaviour, set
-`--quote-refresh-bps 0` so it re-centres whenever the oracle moves at all:
+`--quote-refresh-bps 0` so it re-centres whenever the oracle moves at all.
+Prefer `--quote-size-notional` (USD, QUOTE_PRECISION 1e6) over `--quote-size-base`
+so each quote is the same dollar size on every market (converted via the oracle):
 
 ```shell
 RUST_LOG=quoter=info \
     cargo run --release -- --quoter --market-ids 0 \
-    --quote-spread-bps 20 --quote-refresh-bps 0
+    --quote-spread-bps 20 --quote-refresh-bps 0 --quote-size-notional 25000000
 ```
 
 **Taker** — the `--taker` bot sends randomized small **market** orders that cross
