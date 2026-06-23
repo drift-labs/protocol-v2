@@ -16,9 +16,13 @@ use std::{
 };
 
 use solana_instruction::{AccountMeta, Instruction};
+use solana_message::VersionedMessage;
+use solana_signature::Signature;
 use velocity_rs::{
     event_subscriber::RpcClient,
-    types::{accounts::User, Context, MarketId, PerpPosition, SpotMarketExt, SpotPosition},
+    types::{
+        accounts::User, Context, MarketId, NewOrder, PerpPosition, SpotMarketExt, SpotPosition,
+    },
     utils::test_envs::{devnet_endpoint, test_keypair},
     Pubkey, TransactionBuilder, VelocityClient, Wallet,
 };
@@ -113,18 +117,61 @@ impl TestCtx {
         );
     }
 
-    /// Ensure a subaccount exists (idempotent). Sub 0 also initializes user_stats,
-    /// so always provision it before any non-zero subaccount.
+    /// sign_and_send returns before the tx is confirmed, so reads (and the bots'
+    /// view) can race ahead of it. Send, then wait for confirmation at the
+    /// client's commitment so the next step sees a consistent chain.
+    pub async fn send_confirmed(&self, tx: VersionedMessage) -> Signature {
+        let sig = self.client.sign_and_send(tx).await.expect("send tx");
+        for _ in 0..40 {
+            if self
+                .client
+                .rpc()
+                .confirm_transaction(&sig)
+                .await
+                .unwrap_or(false)
+            {
+                return sig;
+            }
+            tokio::time::sleep(Duration::from_millis(750)).await;
+        }
+        panic!("tx {sig} not confirmed in time");
+    }
+
+    /// Like [`Self::send_confirmed`] but never panics: returns `false` if the tx
+    /// fails to send or isn't confirmed in time. For best-effort teardown where a
+    /// reused account in a weird state must not abort the run.
+    pub async fn send_confirmed_ok(&self, tx: VersionedMessage) -> bool {
+        let Ok(sig) = self.client.sign_and_send(tx).await else {
+            return false;
+        };
+        for _ in 0..40 {
+            if self
+                .client
+                .rpc()
+                .confirm_transaction(&sig)
+                .await
+                .unwrap_or(false)
+            {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(750)).await;
+        }
+        false
+    }
+
+    /// Ensure a specific subaccount id exists (idempotent), provisioning sub 0 +
+    /// UserStats first. Used by the one-shot `fund_mm_taker_subaccounts` to
+    /// provision the deployed bots' subaccounts (MM=1, taker=2) under the filler
+    /// authority. Tests use [`Self::acquire`] instead, which also resets state.
+    ///
+    /// NB: this only works for the next-sequential id after the existing ones (the
+    /// program rejects a non-sequential id with `InvalidUserSubAccountId`); it does
+    /// not bridge gaps. [`Self::ensure_sub_exists`] handles arbitrary ids.
     pub async fn ensure_subaccount(&self, sub_id: u16) {
         if sub_id != 0 {
             Box::pin(self.ensure_subaccount(0)).await;
         }
         let sub = self.sub(sub_id);
-        // NB: get_user_account() returns Ok (default) for a non-existent account,
-        // so it can't gate initialization — checking it skipped creating sub-0 +
-        // its UserStats, then InitializeUser for other subs failed with
-        // user_stats AccountOwnedByWrongProgram (3007). Probe the raw account
-        // instead (Err == missing).
         if self.client.rpc().get_account(&sub).await.is_ok() {
             return;
         }
@@ -134,16 +181,147 @@ impl TestCtx {
         let tx = TransactionBuilder::new(self.client.program_data(), sub, Cow::Owned(user), false)
             .initialize_user_account(sub_id, None, None)
             .build();
-        self.client
-            .sign_and_send(tx)
+        self.send_confirmed(tx).await;
+    }
+
+    /// Acquire a REUSABLE fixed-id subaccount, returning its PDA.
+    ///
+    /// Each test owns a stable `sub_id` (see the `SUB_*` constants in the suite)
+    /// and reuses the SAME on-chain account every run instead of allocating a
+    /// fresh one. Allocating fresh each run leaked ~10 `User` PDAs/run (~0.32 SOL
+    /// rent locked) and marched `number_of_sub_accounts_created` (a monotonic u16)
+    /// toward its 65_535 ceiling. Reuse bounds both.
+    ///
+    /// `acquire` (a) bootstraps the account — creating ids `0..=sub_id` in order
+    /// if missing, since the program requires a new sub id to equal the live
+    /// `number_of_sub_accounts_created` — and (b) resets it to a clean, empty,
+    /// flat slate so the caller sees the same starting condition a brand-new
+    /// account would give. Serial use only.
+    pub async fn acquire(&self, sub_id: u16) -> Pubkey {
+        self.ensure_sub_exists(sub_id).await;
+        let sub = self.sub(sub_id);
+        self.reset(sub).await;
+        sub
+    }
+
+    /// Bootstrap subaccount `sub_id`, creating every missing id from the live
+    /// `number_of_sub_accounts_created` up to `sub_id` in sequence (the program
+    /// rejects a non-sequential id with `InvalidUserSubAccountId`). Creating sub 0
+    /// also initializes UserStats. Idempotent: a no-op once the id exists.
+    async fn ensure_sub_exists(&self, sub_id: u16) {
+        if self
+            .client
+            .rpc()
+            .get_account(&self.sub(sub_id))
             .await
-            .expect("initialize_user_account");
+            .is_ok()
+        {
+            return;
+        }
+        let mut next = match self.client.get_user_stats(&self.authority()).await {
+            Ok(stats) => stats.number_of_sub_accounts_created,
+            Err(_) => 0, // UserStats not created yet
+        };
+        while next <= sub_id {
+            let id = next;
+            if self.client.rpc().get_account(&self.sub(id)).await.is_err() {
+                let mut user = User::default();
+                user.authority = self.authority();
+                user.sub_account_id = id;
+                let tx = TransactionBuilder::new(
+                    self.client.program_data(),
+                    self.sub(id),
+                    Cow::Owned(user),
+                    false,
+                )
+                .initialize_user_account(id, None, None)
+                .build();
+                self.send_confirmed(tx).await;
+            }
+            next += 1;
+        }
+    }
+
+    /// Reset a reused subaccount to empty & flat so the next test starts clean:
+    /// cancel resting orders, close any perp position against the AMM (via the
+    /// deployed filler), then withdraw all spot collateral. Best-effort — a flatten
+    /// that can't complete is logged, not fatal (collateral asserts re-deposit from
+    /// zero, and the per-test fill pollers re-establish the position they need).
+    pub async fn reset(&self, sub: Pubkey) {
+        // 1. cancel any resting orders.
+        self.cleanup(sub).await;
+
+        // 2. flatten a perp position on market 0: rest a reduce-only marketable
+        //    order of the exact opposite size; the deployed filler closes it vs
+        //    the AMM. Bounded wait, best-effort.
+        if let Ok(Some(p)) = self.client.perp_position(&sub, 0).await {
+            let base = p.base_asset_amount;
+            if base != 0 {
+                let px = self.client.oracle_price(SOL_PERP).await.unwrap_or(0) as u64;
+                if px > 0 {
+                    // buy (positive amount) to cover a short, sell (negative) to
+                    // close a long; price 5% through the oracle so it's marketable.
+                    let (amount, price) = if base < 0 {
+                        (base.unsigned_abs() as i64, px + px * 5 / 100)
+                    } else {
+                        (-base, px.saturating_sub(px * 5 / 100))
+                    };
+                    if let Ok(builder) = self.client.init_tx(&sub, false).await {
+                        let tx = builder
+                            .place_orders(vec![NewOrder::limit(SOL_PERP)
+                                .amount(amount)
+                                .price(price)
+                                .reduce_only(true)
+                                .build()])
+                            .build();
+                        // Best-effort: submit the close (the deployed filler fills
+                        // it vs the AMM) and poll until flat. Never panic — a reused
+                        // account in a weird leftover state must not abort the run.
+                        match self.client.sign_and_send(tx).await {
+                            Ok(_) => {
+                                if self
+                                    .wait_perp_base_eq(sub, 0, 0, Duration::from_secs(60))
+                                    .await
+                                    .is_none()
+                                {
+                                    log::warn!(
+                                        "reset: filler did not flatten {sub} (base was {base}) in 60s"
+                                    );
+                                }
+                            }
+                            Err(e) => log::warn!(
+                                "reset: could not submit flatten order on {sub} (base {base}): {e:?}"
+                            ),
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. drain spot collateral (dUSDT spot 0, SOL spot 1) as hygiene so a
+        //    reused account doesn't accumulate balances run over run. reduce_only
+        //    clamps to the available deposit, so it never opens a borrow.
+        //    Best-effort — collateral asserts are delta-based, so a small residual
+        //    (scaled-balance rounding) is harmless; never panic.
+        for market_index in [0u16, 1u16] {
+            let amount = self.spot_token_amount(sub, market_index).await;
+            if amount > 0 {
+                if let Ok(builder) = self.client.init_tx(&sub, false).await {
+                    let tx = builder
+                        .withdraw(amount as u64, market_index, Some(true), None)
+                        .build();
+                    // Confirm before returning so the caller's pre-op balance read
+                    // sees the settled (drained) state — an unconfirmed drain would
+                    // land mid-measurement and skew a delta assert.
+                    self.send_confirmed_ok(tx).await;
+                }
+            }
+        }
     }
 
     /// Mint `ui_amount` whole dUSDT to the payer ATA via the faucet and deposit it
-    /// into `sub_id` — all in one tx.
-    pub async fn fund_and_deposit_dusdt(&self, sub_id: u16, ui_amount: u64) {
-        self.ensure_subaccount(sub_id).await;
+    /// into `sub` — one confirmed tx.
+    pub async fn fund_and_deposit_dusdt(&self, sub: Pubkey, ui_amount: u64) {
         let amount = ui_amount * DUSDT_PRECISION;
         let spot0 = self
             .client
@@ -166,17 +344,14 @@ impl TestCtx {
 
         let tx = self
             .client
-            .init_tx(&self.sub(sub_id), false)
+            .init_tx(&sub, false)
             .await
             .expect("load subaccount")
             .add_ix(create_ata)
             .add_ix(faucet_ix)
             .deposit(amount, 0, None, None)
             .build();
-        self.client
-            .sign_and_send(tx)
-            .await
-            .expect("faucet mint + deposit dUSDT");
+        self.send_confirmed(tx).await;
     }
 
     fn faucet_mint_ix(
@@ -207,8 +382,8 @@ impl TestCtx {
 
     /// Best-effort: cancel any leftover orders on a subaccount. Call at start and
     /// end of each test so a crashed run doesn't poison the next.
-    pub async fn cleanup(&self, sub_id: u16) {
-        if let Ok(builder) = self.client.init_tx(&self.sub(sub_id), false).await {
+    pub async fn cleanup(&self, sub: Pubkey) {
+        if let Ok(builder) = self.client.init_tx(&sub, false).await {
             let tx = builder.cancel_all_orders().build();
             let _ = self.client.sign_and_send(tx).await;
         }
