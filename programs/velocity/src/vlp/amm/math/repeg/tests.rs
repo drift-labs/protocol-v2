@@ -408,6 +408,7 @@ fn project_post_refresh_matches_dispatch_amm_refresh() {
         &mm_oracle_price_data,
         Some(validity),
         1337,
+        1_700_000_000,
     )
     .unwrap();
     let cost_via_dispatch = outcome;
