@@ -146,7 +146,7 @@ const MM_ORACLE_CRANK_WALLET = '8X35rQUK2u9hfn8rMPwwr6ZSEUhbmfDPEapp589XyoM1';
 const LP_POOL_SWAP_WALLET = '25qbsE2oWri76c9a86ubn17NKKdo6Am4HXD2Jm8vT8K4';
 const LP_POOL_HOT_WALLET = 'GP9qHLX8rx4BgRULGPV1poWQPdGuzbxGbvTB12DfmwFk';
 const TARGET_CURVE_UPDATE_INTENSITY = 100;
-const TAREGT_AMM_JIT_INTENSITY = 100;
+const TARGET_AMM_JIT_INTENSITY = 100;
 
 
 // HotRole -> (decoded-State field, authority). Each pubkey overridable via env.
@@ -968,7 +968,7 @@ async function main() {
 			TARGET_CURVE_UPDATE_INTENSITY, // curveUpdateIntensity — >0 enables the AMM's formulaic
 			// peg-toward-oracle repeg during refresh (capped at 100 internally).
 			// 0 would freeze the peg and re-block funding (6251). See Phase D2.
-			TAREGT_AMM_JIT_INTENSITY, // ammJitIntensity — >0 lets the AMM JIT-make against takers
+			TARGET_AMM_JIT_INTENSITY, // ammJitIntensity — >0 lets the AMM JIT-make against takers
 			// (place_and_take fills the AMM via the JIT route once the AMM holds
 			// inventory; with 0 the AMM never makes and place_and_take returns 0
 			// base on a flat book). Program caps at 100 (admin.rs). Real Drift
@@ -1072,14 +1072,14 @@ async function main() {
 		// during refresh (the cranks trigger it). Without this the peg freezes and
 		// funding re-blocks (6251) as the oracle moves. Idempotent: only sends when
 		// the on-chain value differs. Fixes markets created before this was set.
-		if (pm.amm.curveUpdateIntensity !== TAREGT_AMM_JIT_INTENSITY) {
+		if (pm.amm.curveUpdateIntensity !== TARGET_AMM_JIT_INTENSITY) {
 			logStep(
 				'updatePerpMarketCurveUpdateIntensity SOL-PERP',
-				`${pm.amm.curveUpdateIntensity} -> ${TAREGT_AMM_JIT_INTENSITY}`
+				`${pm.amm.curveUpdateIntensity} -> ${TARGET_AMM_JIT_INTENSITY}`
 			);
 			const sig = await repegClient.updatePerpMarketCurveUpdateIntensity(
 				0,
-				TAREGT_AMM_JIT_INTENSITY
+				TARGET_AMM_JIT_INTENSITY
 			);
 			console.log(`  tx: ${sig}`);
 		} else {
@@ -1122,7 +1122,6 @@ async function main() {
 		// multi-slot MM-oracle delay). Real Drift markets run this >0; the program
 		// caps it at 100 (admin.rs). Idempotent: only sends when the on-chain value
 		// differs, so a rerun fixes a market created before this was set.
-		const TARGET_AMM_JIT_INTENSITY = 100;
 		if (pm.amm.ammJitIntensity !== TARGET_AMM_JIT_INTENSITY) {
 			logStep(
 				'updateAmmJitIntensity SOL-PERP',
