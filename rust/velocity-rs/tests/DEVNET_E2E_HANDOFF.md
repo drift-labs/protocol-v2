@@ -133,14 +133,24 @@ can't set. "Orchestrate" = what it would take to make the outcome deterministic.
   Either needs an admin/oracle authority + a running liquidator.
 
 ### 5. `bad_spot_borrow_gets_liquidated` — deployed liquidator (spot) — `#[ignore]`
-- **Depends on:** SOL (spot 1) **borrows being enabled and liquid**, then a
-  maintenance breach (same oracle-drift problem as #4).
-- **Why uncontrollable:** SOL borrow is currently **unavailable on devnet** — the
-  withdraw-as-borrow fails, so the test can't even set up (hence `#[ignore]`).
-- **To orchestrate:** admin-enable spot-1 borrows + seed borrow liquidity, then
-  oracle control / maintenance-margin bump as in #4. Also needs a **repay** step in
-  cleanup (the borrowed SOL can't be returned without acquiring SOL; `cleanup` only
-  cancels orders).
+- **Depends on:** a meaningful SOL (spot 1) borrow being **allowed by the daily
+  withdraw guard**, then a maintenance breach (same oracle-drift problem as #4).
+- **Why uncontrollable:** NOT liquidity. Verified live by seeding the vault from a
+  lender (the deposit lands — vault held 4 SOL) and then borrowing: the borrow
+  fails with **`DailyWithdrawLimit` (err 6128)** — `max_borrow_token ≈ 1_195_748`
+  (**~0.0012 SOL**) vs a 1 SOL attempt. The cap is derived from the deposit TWAP,
+  which is tiny on a market with no deposit history; a single fresh deposit doesn't
+  lift it (same TWAP-lag shape as #1). The **same guard caps withdraws**, so seeded
+  SOL can't even be pulled back — seeding liquidity is the wrong lever and just
+  locks SOL.
+- **To orchestrate:** **admin must raise the SOL spot-1 withdraw guard / borrow
+  limit** (or build up deposit-TWAP history over time). Then borrow against dUSDT
+  collateral and warn-skip the oracle-drift liquidation as in #4. A repay step is
+  also needed in cleanup (the borrowed SOL can't be returned without acquiring SOL;
+  `cleanup` only cancels orders).
+- **Note:** the experiment left ~4 SOL of the test authority's own SOL deposited in
+  spot-1 (locked behind the same withdraw guard; recoverable only once the guard is
+  raised).
 
 ### 6. `unsettled_pnl_gets_settled` — deployed userPnlSettler
 - **Depends on:** the deployed **userPnlSettler being up** and the banked pnl
@@ -180,4 +190,5 @@ environment, the warn-skip contract above is the correct design.
 - If devnet state is wiped/reset, re-run keep-rs `--init-user` so the filler's User
   subaccount exists.
 - Infra asks blocking the last two `#[ignore]`s: (a) stabilize the swift HTTP
-  backend, (b) enable + seed SOL (spot-1) borrows on devnet.
+  backend, (b) raise the SOL spot-1 daily withdraw guard / borrow limit (currently
+  caps borrows to ~0.0012 SOL — liquidity is fine, the guard is the blocker).

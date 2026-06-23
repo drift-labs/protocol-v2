@@ -636,18 +636,23 @@ async fn bad_perp_trade_gets_liquidated() {
 }
 
 // ---- Scenario 6: bad spot borrow → DEPLOYED liquidator ---------------------
+// Kept ignored: the blocker is NOT liquidity (a lender deposit lands fine — the
+// vault holds SOL) but the program's daily withdraw guard. A SOL (spot 1) borrow
+// fails with DailyWithdrawLimit (err 6128): on devnet `max_borrow_token` is
+// ~1_195_748 (≈0.0012 SOL) because the deposit TWAP is tiny on a market with no
+// deposit history, and a single fresh deposit doesn't lift it. The same guard caps
+// WITHDRAWS, so seeded SOL can't even be pulled back. To un-ignore, an admin must
+// raise the SOL spot-1 withdraw guard / borrow limit (or build up deposit-TWAP
+// history); then the test can borrow against dUSDT and warn-skip the oracle-drift
+// liquidation like bad_perp_trade.
 #[tokio::test]
-// Kept ignored: SOL borrow (spot market 1) is not available on devnet — the
-// withdraw-as-borrow fails, so the test returns early before it can set anything
-// up (verified live). Un-ignore once spot-1 borrows are enabled/liquid; note the
-// borrow would then need a repay step (cleanup only cancels orders).
-#[ignore = "LIVE_INFRA: SOL borrow (spot 1) unavailable on devnet; setup can't run"]
+#[ignore = "LIVE_INFRA: SOL spot-1 borrow capped by DailyWithdrawLimit (~0.0012 SOL) on devnet; needs admin to raise the withdraw guard"]
 async fn bad_spot_borrow_gets_liquidated() {
     let ctx = TestCtx::new().await;
     let sub = ctx.sub(ctx.new_subaccount().await);
     ctx.fund_and_deposit_dusdt(sub, 20).await;
 
-    // Borrow SOL (spot 1) against the dUSDT collateral, close to the limit.
+    // Borrow SOL (spot 1) against the dUSDT collateral.
     let borrow = (BASE_PRECISION_I64 as u64) / 4; // 0.25 SOL
     let tx = ctx
         .client
@@ -656,8 +661,12 @@ async fn bad_spot_borrow_gets_liquidated() {
         .unwrap()
         .withdraw(borrow, 1, None, None)
         .build();
-    if ctx.client.sign_and_send(tx).await.is_err() {
-        log::warn!("INCONCLUSIVE: SOL borrow not available on devnet spot market");
+    if let Err(e) = ctx.client.sign_and_send(tx).await {
+        // Expected on devnet: DailyWithdrawLimit (err 6128). See the note above.
+        log::warn!(
+            "INCONCLUSIVE: SOL borrow rejected (expected DailyWithdrawLimit on devnet): {e:?}"
+        );
+        ctx.cleanup(sub).await;
         return;
     }
     // Borrowed exactly 0.25 SOL (SOL spot is 9-dp); assert the liability size.
@@ -676,6 +685,7 @@ async fn bad_spot_borrow_gets_liquidated() {
     {
         log::warn!("INCONCLUSIVE: borrow did not breach maintenance / no liquidation in 120s");
     }
+    ctx.cleanup(sub).await;
 }
 
 // ---- Scenario A: userPnlSettler settles unsettled pnl ----------------------
