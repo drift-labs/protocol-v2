@@ -50,54 +50,54 @@
  *   RECEIPT_PATH        default deploy-scripts/out/devnet-deployment.json
  */
 
+import { AnchorProvider, BN, Idl, Program } from '@coral-xyz/anchor';
+import {
+  createAssociatedTokenAccountInstruction,
+  createMint,
+  createMintToInstruction,
+  createTransferInstruction,
+  getAssociatedTokenAddress,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
+  Transaction,
+} from '@solana/web3.js';
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 import {
-	Connection,
-	Keypair,
-	PublicKey,
-	SystemProgram,
-	SYSVAR_RENT_PUBKEY,
-	Transaction,
-} from '@solana/web3.js';
-import { BN, AnchorProvider, Program, Idl } from '@coral-xyz/anchor';
-import {
-	TOKEN_PROGRAM_ID,
-	createMint,
-	getAssociatedTokenAddress,
-	createAssociatedTokenAccountInstruction,
-	createMintToInstruction,
-	createTransferInstruction,
-} from '@solana/spl-token';
-import tokenFaucetIdl from '../packages/sdk/src/idl/token_faucet.json';
-import {
-	AdminClient,
-	AMM_RESERVE_PRECISION,
-	AssetTier,
-	BASE_PRECISION,
-	ContractTier,
-	HotRole,
-	VELOCITY_DEVNET_PROGRAM_ID,
-	OracleSource,
-	PEG_PRECISION,
-	PERCENTAGE_PRECISION,
-	PRICE_PRECISION,
-	PythLazerSubscriber,
-	QUOTE_PRECISION,
-	SPOT_MARKET_RATE_PRECISION,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	Wallet,
-	ZERO,
-	getAmmCachePublicKey,
-	getConstituentPublicKey,
-	getVelocityStateAccountPublicKey,
-	getLpPoolPublicKey,
-	getPerpMarketPublicKey,
-	getPythLazerOraclePublicKey,
-	getSpotMarketPublicKey,
-	loadKeypair,
+  AdminClient,
+  AMM_RESERVE_PRECISION,
+  AssetTier,
+  BASE_PRECISION,
+  ContractTier,
+  getAmmCachePublicKey,
+  getConstituentPublicKey,
+  getLpPoolPublicKey,
+  getPerpMarketPublicKey,
+  getPythLazerOraclePublicKey,
+  getSpotMarketPublicKey,
+  getVelocityStateAccountPublicKey,
+  HotRole,
+  loadKeypair,
+  OracleSource,
+  PEG_PRECISION,
+  PERCENTAGE_PRECISION,
+  PRICE_PRECISION,
+  PythLazerSubscriber,
+  QUOTE_PRECISION,
+  SPOT_MARKET_RATE_PRECISION,
+  SPOT_MARKET_WEIGHT_PRECISION,
+  VELOCITY_DEVNET_PROGRAM_ID,
+  Wallet,
+  ZERO,
 } from '../packages/sdk/src';
+import tokenFaucetIdl from '../packages/sdk/src/idl/token_faucet.json';
 import type { InitializeConstituentParams } from '../packages/sdk/src/types';
 
 type Receipt = {
@@ -145,6 +145,9 @@ const ADMIN_HOT_WALLET = '1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N';
 const MM_ORACLE_CRANK_WALLET = '8X35rQUK2u9hfn8rMPwwr6ZSEUhbmfDPEapp589XyoM1';
 const LP_POOL_SWAP_WALLET = '25qbsE2oWri76c9a86ubn17NKKdo6Am4HXD2Jm8vT8K4';
 const LP_POOL_HOT_WALLET = 'GP9qHLX8rx4BgRULGPV1poWQPdGuzbxGbvTB12DfmwFk';
+const TARGET_CURVE_UPDATE_INTENSITY = 100;
+const TAREGT_AMM_JIT_INTENSITY = 100;
+
 
 // HotRole -> (decoded-State field, authority). Each pubkey overridable via env.
 const HOT_ROLE_CONFIG: Array<{
@@ -962,10 +965,10 @@ async function main() {
 			PRICE_PRECISION.divn(100000),
 			BASE_PRECISION.divn(10000),
 			undefined, // concentrationCoefScale -> default ONE
-			100, // curveUpdateIntensity — >0 enables the AMM's formulaic
+			TARGET_CURVE_UPDATE_INTENSITY, // curveUpdateIntensity — >0 enables the AMM's formulaic
 			// peg-toward-oracle repeg during refresh (capped at 100 internally).
 			// 0 would freeze the peg and re-block funding (6251). See Phase D2.
-			100, // ammJitIntensity — >0 lets the AMM JIT-make against takers
+			TAREGT_AMM_JIT_INTENSITY, // ammJitIntensity — >0 lets the AMM JIT-make against takers
 			// (place_and_take fills the AMM via the JIT route once the AMM holds
 			// inventory; with 0 the AMM never makes and place_and_take returns 0
 			// base on a flat book). Program caps at 100 (admin.rs). Real Drift
@@ -1069,15 +1072,14 @@ async function main() {
 		// during refresh (the cranks trigger it). Without this the peg freezes and
 		// funding re-blocks (6251) as the oracle moves. Idempotent: only sends when
 		// the on-chain value differs. Fixes markets created before this was set.
-		const TARGET_CURVE_UPDATE_INTENSITY = 100;
-		if (pm.amm.curveUpdateIntensity !== TARGET_CURVE_UPDATE_INTENSITY) {
+		if (pm.amm.curveUpdateIntensity !== TAREGT_AMM_JIT_INTENSITY) {
 			logStep(
 				'updatePerpMarketCurveUpdateIntensity SOL-PERP',
-				`${pm.amm.curveUpdateIntensity} -> ${TARGET_CURVE_UPDATE_INTENSITY}`
+				`${pm.amm.curveUpdateIntensity} -> ${TAREGT_AMM_JIT_INTENSITY}`
 			);
 			const sig = await repegClient.updatePerpMarketCurveUpdateIntensity(
 				0,
-				TARGET_CURVE_UPDATE_INTENSITY
+				TAREGT_AMM_JIT_INTENSITY
 			);
 			console.log(`  tx: ${sig}`);
 		} else {
