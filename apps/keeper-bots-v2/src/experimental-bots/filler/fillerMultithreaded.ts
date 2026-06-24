@@ -105,6 +105,10 @@ import {
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 import { ChildProcess } from 'child_process';
 import { PythLazerSubscriber } from '../../pythLazerSubscriber';
+import {
+	RedisClient,
+	RedisClientPrefix,
+} from '@velocity-exchange/common/clients';
 import path from 'path';
 
 const logPrefix = '[Filler]';
@@ -395,6 +399,13 @@ export class FillerMultithreaded {
 		if (pythLazerIds.length > 0) {
 			const chunkSize = config.pythLazerChunkSize || 2;
 			const pythLazerIdsChunks = chunks(pythLazerIds, chunkSize);
+			// When pythLazerUseRelayRedis is set, read prices from the
+			// pyth-lazer-relayer's Redis instead of opening our own Lazer WS
+			// connections — eliminates this bot's contribution to the per-token
+			// connection fan-out that rate-limits the shared Lazer token.
+			const lazerRedisClient = this.globalConfig.pythLazerUseRelayRedis
+				? new RedisClient({ prefix: RedisClientPrefix.DLOB })
+				: undefined;
 			this.pythLazerSubscriber = new PythLazerSubscriber(
 				this.globalConfig.lazerEndpoints,
 				this.globalConfig.lazerToken,
@@ -404,7 +415,8 @@ export class FillerMultithreaded {
 						channel: 'fixed_rate@200ms',
 					};
 				}),
-				this.globalConfig.velocityEnv
+				this.globalConfig.velocityEnv,
+				lazerRedisClient
 			);
 		} else {
 			logger.info(

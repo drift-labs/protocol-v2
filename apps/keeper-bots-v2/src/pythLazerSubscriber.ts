@@ -43,6 +43,11 @@ export class PythLazerSubscriber {
 	marketIndextoPriceFeedIdChunk: Map<number, number[]> = new Map();
 	marketIndextoPriceFeedId: Map<number, number> = new Map();
 	useHttpRequests: boolean = false;
+	// When a redisClient is supplied (and we're not in the http-fallback mode),
+	// read price messages published by pyth-lazer-relayer from Redis instead of
+	// opening our own Lazer WS connections. This collapses the per-bot connection
+	// fan-out (N bots × M sockets on one token/IP) down to the single relayer.
+	readFromRedis: boolean = false;
 
 	constructor(
 		private endpoints: string[],
@@ -68,6 +73,11 @@ export class PythLazerSubscriber {
 			this.useHttpRequests = true;
 		}
 
+		// Pure-Redis mode: a redisClient with no http fallback configured. The
+		// relayer publishes `pythLazerData:<feedId>` ({ data, ts }); we read those
+		// and never dial Lazer ourselves.
+		this.readFromRedis = redisClient !== undefined && !this.useHttpRequests;
+
 		for (const priceFeedIds of priceFeedArrays) {
 			const filteredMarkets = markets.filter((market) =>
 				priceFeedIds.priceFeedIds.includes(market.pythLazerId!)
@@ -86,6 +96,14 @@ export class PythLazerSubscriber {
 	}
 
 	async subscribe() {
+		// Read from the relayer's Redis instead of opening our own Lazer sockets.
+		if (this.readFromRedis) {
+			if (this.redisClient && !this.redisClient.connected) {
+				await this.redisClient.connect();
+			}
+			return;
+		}
+
 		// Will use http requests if chunk size is 1 and there are more than 3 ids
 		if (this.useHttpRequests) {
 			return;
@@ -204,6 +222,17 @@ export class PythLazerSubscriber {
 	}
 
 	async getLatestPriceMessage(feedIds: number[]): Promise<string | undefined> {
+		if (this.readFromRedis && this.redisClient) {
+			const priceMessage = (await this.redisClient.get(
+				`pythLazerData:${feedIds[0]}`
+			)) as { data: string; ts: number } | undefined;
+			// Same 5s freshness guard the on-chain post relies on — a stale blob
+			// carries a stale feedUpdateTimestamp and would be skipped by the program.
+			if (priceMessage?.data && Date.now() - priceMessage.ts < 5000) {
+				return priceMessage.data;
+			}
+			return undefined;
+		}
 		if (this.useHttpRequests) {
 			if (feedIds.length === 1 && this.redisClient) {
 				const priceMessage = (await this.redisClient.get(

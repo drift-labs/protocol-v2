@@ -170,6 +170,10 @@ export interface GlobalConfig {
 	lazerHttpEndpoints?: string[];
 	lazerEndpoints?: string[];
 	lazerToken?: string;
+	/// Read Lazer price messages from the pyth-lazer-relayer's Redis
+	/// (`pythLazerData:<feedId>`) instead of each bot opening its own Lazer WS
+	/// connections. Requires ELASTICACHE_HOST/PORT and a running relayer.
+	pythLazerUseRelayRedis?: boolean;
 
 	// Optional to specify markets loaded by velocity client
 	perpMarketsToLoad?: Array<number>;
