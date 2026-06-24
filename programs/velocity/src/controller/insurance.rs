@@ -699,6 +699,17 @@ pub fn resolve_perp_pnl_deficit(
         excess_user_pnl_imbalance
     )?;
 
+    // A new revenue-settle period may have opened (e.g. the caller just ran
+    // attempt_settle_revenue_to_insurance_fund) without a fee sweep in between.
+    // Refresh the per-period counter here so the cap reflects the current
+    // period rather than the prior one's exhausted value.
+    market
+        .insurance_claim
+        .reset_revenue_withdraw_for_new_period(
+            spot_market.insurance_fund.last_revenue_settle_ts,
+            now,
+        )?;
+
     let max_revenue_withdraw_per_period = market
         .insurance_claim
         .max_revenue_withdraw_per_period
