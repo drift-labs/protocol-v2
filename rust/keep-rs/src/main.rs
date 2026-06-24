@@ -100,7 +100,8 @@ pub struct Config {
     /// constants (e.g. quote oracle = USDT/USD on a fork).
     #[clap(long, env = "RELAYER_EXTRA_FEEDS", default_value = "")]
     pub relayer_extra_feeds: String,
-    /// Initialize the bot's user subaccount (one-shot) and exit
+    /// Preflight: ensure the bot's user subaccount (for --sub-account-id) exists
+    /// before starting the selected bot mode. Idempotent; safe on every restart.
     #[clap(long, default_value = "false")]
     pub init_user: bool,
     /// fill for all markets (overrides '--market-ids')
@@ -226,10 +227,16 @@ async fn main() {
         }
     });
 
+    // `--init-user` is a preflight step, not a standalone mode: when set, ensure
+    // the bot's subaccount (User PDA for `--sub-account-id`) exists before the
+    // selected bot starts. Idempotent — `init_user` early-returns when the PDA
+    // already exists — so it's a harmless no-op on every restart. This stops the
+    // bot's first `get_user_account` read from failing with `AccountNotFound`.
     if config.init_user {
-        relayer::init_user(config, velocity).await;
-        return;
-    } else if config.relayer {
+        relayer::init_user(config.clone(), velocity.clone()).await;
+    }
+
+    if config.relayer {
         relayer::run(config, velocity).await;
     } else if config.liquidator {
         let bot = LiquidatorBot::new(config, velocity, metrics, dashboard_state).await;

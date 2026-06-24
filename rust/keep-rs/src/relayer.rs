@@ -203,7 +203,9 @@ pub async fn run(config: Config, velocity: VelocityClient) {
     log::warn!(target: TARGET, "pyth feed channel closed; exiting relayer");
 }
 
-/// One-shot: initialize the bot's velocity sub-account, then exit.
+/// Preflight: ensure the bot's velocity sub-account exists, creating it if
+/// missing. Idempotent — returns early when the subaccount is already
+/// initialized — so callers can run it on every startup before the bot loop.
 pub async fn init_user(config: Config, velocity: VelocityClient) {
     let subaccount = velocity.wallet.sub_account(config.sub_account_id);
     if velocity.get_user_account(&subaccount).await.is_ok() {
