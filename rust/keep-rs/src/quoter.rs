@@ -7,16 +7,21 @@
 //! Order size is preferably set as a constant **notional** (`quote_size_notional`,
 //! QUOTE_PRECISION USD) which is converted to base per market via the oracle, so
 //! a quote is the same dollar size across markets regardless of price. If that is
-//! 0 it falls back to a fixed base size (`quote_size_base`). Two safety caps
-//! prevent runaway inventory:
+//! 0 it falls back to a fixed base size (`quote_size_base`). Each quote's size
+//! is clamped to the per-market base cap so a single fill can never exceed it —
+//! this keeps a flat quoter posting two-sided even when `notional / price`
+//! would otherwise be larger than the cap.
 //!
-//! - **Per-market base cap** (`quote_max_base_per_market`): after a
-//!   hypothetical fill on a given side, |position| must stay within the cap.
-//!   Set to `0` to disable.
+//! Two safety caps bound inventory. They only block sides that *grow* exposure;
+//! a side whose fill moves |position| toward zero is always allowed, so the
+//! quoter can always unwind and never stalls:
+//!
+//! - **Per-market base cap** (`quote_max_base_per_market`): a side that would
+//!   push |position| past the cap is skipped. Set to `0` to disable.
 //! - **Global gross-notional cap** (`quote_max_gross_notional`, in
-//!   QUOTE_PRECISION): Σ |base_i × oracle_i| across all markets after a
-//!   hypothetical fill must stay within the cap. To enforce a leverage limit,
-//!   set this to `collateral_usd * max_leverage`. Set to `0` to disable.
+//!   QUOTE_PRECISION): a side that would push Σ |base_i × oracle_i| across all
+//!   markets past the cap is skipped. To enforce a leverage limit, set this to
+//!   `collateral_usd * max_leverage`. Set to `0` to disable.
 
 use std::time::Duration;
 
@@ -275,6 +280,7 @@ impl QuoterBot {
             self.config.quote_size_base,
             perp_market.order_step_size,
             perp_market.market_stats.min_order_size,
+            self.config.quote_max_base_per_market,
             oracle_price,
         );
         Ok(MarketSnapshot {
@@ -443,9 +449,16 @@ impl QuoterBot {
         }
     }
 
-    /// Returns true if a hypothetical position of `hypothetical_base` in this
-    /// market would keep both the per-market base cap and the global gross
-    /// notional cap satisfied. Updates `projected_gross` when allowed.
+    /// Returns true if quoting a side whose fill would move the position to
+    /// `hypothetical_base` is allowed under the per-market base cap and the
+    /// global gross-notional cap. Updates `projected_gross` when allowed.
+    ///
+    /// The caps only ever block *growing* exposure. A side whose fill moves
+    /// |position| toward zero (or leaves it unchanged) is **always allowed**,
+    /// even when already over a cap — refusing the reducing side would strand
+    /// inventory above the cap with no way to quote out of it, stalling the
+    /// quoter. So if the bot is ever long past the cap it keeps posting the ask
+    /// to unwind, and vice versa.
     fn side_within_caps(
         &self,
         snap: &MarketSnapshot,
@@ -453,8 +466,10 @@ impl QuoterBot {
         projected_gross: &mut u128,
         max_gross: u128,
     ) -> bool {
+        let reduces = hypothetical_base.unsigned_abs() <= snap.base_position.unsigned_abs();
+
         let base_cap = self.config.quote_max_base_per_market;
-        if base_cap > 0 && hypothetical_base.unsigned_abs() > base_cap {
+        if !reduces && base_cap > 0 && hypothetical_base.unsigned_abs() > base_cap {
             return false;
         }
         if max_gross > 0 {
@@ -465,7 +480,9 @@ impl QuoterBot {
             let new_projected = projected_gross
                 .saturating_sub(current)
                 .saturating_add(hypothetical);
-            if new_projected > max_gross {
+            // A reducing side lowers gross, so let it through and book the lower
+            // projection; only a growing side that breaches the cap is blocked.
+            if !reduces && new_projected > max_gross {
                 return false;
             }
             *projected_gross = new_projected;
@@ -478,24 +495,43 @@ impl QuoterBot {
 ///
 /// When `quote_size_notional` (QUOTE_PRECISION, USD*1e6) is > 0 it wins: the
 /// dollar size is converted to base via the oracle price so a quote is the same
-/// notional on every market — `base = notional * BASE_PRECISION / oracle`. The
-/// result is floored to the market `step_size` and floored-up to `min_order_size`
-/// so the order is always placeable. Falls back to the fixed `quote_size_base`
-/// when notional is 0.
+/// notional on every market — `base = notional * BASE_PRECISION / oracle`. Falls
+/// back to the fixed `quote_size_base` when notional is 0.
+///
+/// The result is then **clamped to `max_base_per_market`** (the per-market base
+/// cap, `0` = no clamp), floored to the market `step_size`, and floored-up to
+/// `min_order_size` so the order is always placeable. The clamp is essential for
+/// continual quoting: without it, whenever `notional / price > cap` the risk
+/// gate would skip *both* sides from a flat position (one quote alone breaches
+/// the cap), so the quoter would post nothing. Clamping makes each quote at most
+/// one cap's worth of base, so a flat quoter always posts two-sided.
 fn resolve_size_base(
     quote_size_notional: u64,
     quote_size_base: u64,
     step_size: u64,
     min_order_size: u64,
+    max_base_per_market: u64,
     oracle_price: u64,
 ) -> u64 {
+    let clamp_to_cap = |base: u64| -> u64 {
+        if max_base_per_market > 0 {
+            base.min(max_base_per_market)
+        } else {
+            base
+        }
+    };
     if quote_size_notional == 0 {
-        return quote_size_base;
+        // Operator-supplied fixed base size: assumed already step-aligned; only
+        // clamp it to the cap.
+        return clamp_to_cap(quote_size_base);
     }
     let raw = (quote_size_notional as u128).saturating_mul(BASE_PRECISION_U64 as u128)
         / oracle_price.max(1) as u128;
+    // Clamp to the per-market base cap before step-flooring so a single quote can
+    // never exceed the cap.
+    let capped = clamp_to_cap(raw.min(u64::MAX as u128) as u64) as u128;
     let step = step_size.max(1) as u128;
-    let rounded = (raw / step) * step; // floor to a whole number of steps
+    let rounded = (capped / step) * step; // floor to a whole number of steps
     (rounded as u64).max(min_order_size)
 }
 
@@ -571,17 +607,17 @@ mod tests {
 
     #[test]
     fn notional_converts_to_base_via_oracle() {
-        // $25 notional, SOL @ $150, step 0.001 SOL, min 0.001 SOL.
+        // $25 notional, SOL @ $150, step 0.001 SOL, min 0.001 SOL, no cap.
         // 25/150 = 0.16666… SOL = 166_666_666 base, floored to the step => 166_000_000.
-        let size = resolve_size_base(25_000_000, 999, 1_000_000, 1_000_000, 150_000_000);
+        let size = resolve_size_base(25_000_000, 999, 1_000_000, 1_000_000, 0, 150_000_000);
         assert_eq!(size, 166_000_000);
     }
 
     #[test]
     fn same_notional_different_price_scales_base() {
         // Same $25 on a $25k market => 0.001 base; on a $150 market => ~0.166 base.
-        let cheap = resolve_size_base(25_000_000, 0, 1_000_000, 1_000_000, 150_000_000);
-        let pricey = resolve_size_base(25_000_000, 0, 1_000_000, 1_000_000, 25_000_000_000);
+        let cheap = resolve_size_base(25_000_000, 0, 1_000_000, 1_000_000, 0, 150_000_000);
+        let pricey = resolve_size_base(25_000_000, 0, 1_000_000, 1_000_000, 0, 25_000_000_000);
         assert!(cheap > pricey, "{cheap} !> {pricey}");
         assert_eq!(pricey, 1_000_000); // 25/25000 = 0.001 base
     }
@@ -589,7 +625,7 @@ mod tests {
     #[test]
     fn notional_zero_falls_back_to_base() {
         assert_eq!(
-            resolve_size_base(0, 555, 1_000_000, 1_000_000, 150_000_000),
+            resolve_size_base(0, 555, 1_000_000, 1_000_000, 0, 150_000_000),
             555
         );
     }
@@ -597,7 +633,37 @@ mod tests {
     #[test]
     fn floors_up_to_min_order_size() {
         // $0.01 would round to 0 base; bumped to the market min so it's placeable.
-        let size = resolve_size_base(10_000, 0, 1_000_000, 1_000_000, 150_000_000);
+        let size = resolve_size_base(10_000, 0, 1_000_000, 1_000_000, 0, 150_000_000);
         assert_eq!(size, 1_000_000);
+    }
+
+    #[test]
+    fn clamps_to_per_market_base_cap() {
+        // The production case: $100 notional on a ~$68 market would be ~1.47 base,
+        // but the 1.0-base cap (1e9) clamps it to exactly the cap (step-aligned),
+        // so a flat quoter still posts both sides instead of skipping (cap breached).
+        let size = resolve_size_base(
+            100_000_000,
+            0,
+            1_000_000,
+            1_000_000,
+            1_000_000_000,
+            68_000_000,
+        );
+        assert_eq!(size, 1_000_000_000);
+    }
+
+    #[test]
+    fn cap_clamps_fixed_base_fallback() {
+        // Fixed base size larger than the cap is clamped down to the cap.
+        let size = resolve_size_base(
+            0,
+            5_000_000_000,
+            1_000_000,
+            1_000_000,
+            1_000_000_000,
+            150_000_000,
+        );
+        assert_eq!(size, 1_000_000_000);
     }
 }
