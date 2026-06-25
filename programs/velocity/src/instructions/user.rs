@@ -417,18 +417,6 @@ pub fn handle_initialize_revenue_share_escrow<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_migrate_referrer<'c: 'info, 'info>(
-    ctx: Context<'info, MigrateReferrer<'info>>,
-) -> Result<()> {
-    let escrow = &mut ctx.accounts.escrow;
-    let mut user_stats = ctx.accounts.user_stats.load_mut()?;
-    escrow.referrer = user_stats.referrer;
-    user_stats.update_builder_referral_status();
-
-    escrow.validate()?;
-    Ok(())
-}
-
 pub fn handle_resize_revenue_share_escrow_orders<'c: 'info, 'info>(
     ctx: Context<'info, ResizeRevenueShareEscrowOrders<'info>>,
     num_orders: u16,
@@ -5085,25 +5073,6 @@ pub struct InitializeRevenueShareEscrow<'info> {
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct MigrateReferrer<'info> {
-    #[account(
-        mut,
-        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_bytes(), authority.key().as_ref()],
-        bump,
-    )]
-    pub escrow: Box<Account<'info, RevenueShareEscrow>>,
-    /// CHECK: The auth owning this account, payer of builder/ref fees
-    pub authority: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub state: AccountLoader<'info, State>,
-    pub payer: Signer<'info>,
 }
 
 #[derive(Accounts)]

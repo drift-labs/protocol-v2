@@ -1726,12 +1726,6 @@ pub mod velocity {
         handle_initialize_revenue_share_escrow(ctx, num_orders)
     }
 
-    // pub fn migrate_referrer<'c: 'info, 'info>(
-    //     ctx: Context<'info, MigrateReferrer<'info>>,
-    // ) -> Result<()> {
-    //     handle_migrate_referrer(ctx)
-    // }
-
     pub fn resize_revenue_share_escrow_orders<'c: 'info, 'info>(
         ctx: Context<'info, ResizeRevenueShareEscrowOrders<'info>>,
         num_orders: u16,

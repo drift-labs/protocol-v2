@@ -163,6 +163,14 @@ was renamed to the correctly-spelled `PYTH_LAZER_PROGRAM_ID`.
 
 (`calculateMaxRemainingDeposit` was in this removal batch but was restored in #89 — see §4.6.)
 
+Legacy referrer migration removal (#149): `VelocityClient.migrateReferrer` /
+`getMigrateReferrerIx` were removed. These wrapped the `migrate_referrer` program
+instruction, which backfilled `RevenueShareEscrow.referrer` from `UserStats.referrer`
+for escrows created before that copy was folded into escrow initialization. The
+instruction's entrypoint had already been removed with the legacy referral model, so it
+was absent from the IDL and the SDK methods threw at runtime; escrow initialization now
+copies the referrer unconditionally, making the migration redundant.
+
 ### 4.4 Type-level breaking changes
 
 - **`oraclePriceOffset` is now `BN`** (was `number`) on `Order` and `OrderParams` —
@@ -391,7 +399,8 @@ accounts/events with the previous TS shapes should note:
 | #94       | Continuous funding dead zone: per-market `funding_clamp_threshold` + `funding_ramp_slope` (recycle `_padding_funding_twap`) replace #12's global hard cutoff; `update_perp_market_funding_dead_zone` ix; `AdminClient.updatePerpMarketFundingDeadZone`; `PerpMarketAccount.fundingClampThreshold`/`fundingRampSlope` replace `paddingFundingTwap`                              |
 | #97       | Re-export `PriceUpdateAccount` from the `@velocity-exchange/sdk` package root; migrate dlob-server + keeper-bots-v2 to the workspace SDK                                                                                                                                                                                                                                       |
 | #127 | Reconcile hand-written `sdk/src/types.ts` mirrors with the generated IDL: add previously-missing account/event fields, correct `BN`↔`number` field types, drop phantom (never-on-chain) `*Mint` record fields, export new param/record types (§4.7). No on-chain layout change                                                                                |
-| #149 | Uniform `UserAccountSubscriber` "not subscribed" contract: gRPC-multi and WebSocket-program subscribers' `getUserAccountAndSlot()` now throw `NotSubscribedError` before `subscribe()` (matching WebSocket/polling), so `User.getUserAccount()` throws when not subscribed and returns `undefined` only when not found; `getUserAccount(AndSlot)OrThrow` message `User account not loaded` → `User account not found` (§4.4)                                                            |
+| #149      | Remove the dead `migrate_referrer` program instruction (handler + accounts struct; entrypoint already removed with the legacy referral model, so no IDL/ABI change) and its non-functional SDK wrappers `VelocityClient.migrateReferrer` / `getMigrateReferrerIx` (§4.3)                                                                                       |
+| #155 | Uniform `UserAccountSubscriber` "not subscribed" contract: gRPC-multi and WebSocket-program subscribers' `getUserAccountAndSlot()` now throw `NotSubscribedError` before `subscribe()` (matching WebSocket/polling), so `User.getUserAccount()` throws when not subscribed and returns `undefined` only when not found; `getUserAccount(AndSlot)OrThrow` message `User account not loaded` → `User account not found` (§4.4)                                                            |
 
 ---
 
