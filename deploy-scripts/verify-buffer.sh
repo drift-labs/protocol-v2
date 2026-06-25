@@ -86,12 +86,16 @@ if [ -z "$buffer" ]; then
 		log="$(gh run view "$run_id" --log)"
 	fi
 
-	# buffer-deploy logs `Program buffer: <addr>`; the program (BPF) buffer, not
-	# the IDL buffer. Take the last match.
-	buffer="$(printf '%s' "$log" | grep -oE 'Program buffer: [1-9A-HJ-NP-Za-km-z]{32,44}' | tail -1 | awk '{print $3}')"
-	[ -n "$buffer" ] || die "could not find a 'Program buffer:' address in the run log"
-	# And the hash CI logged, for an extra cross-check (sha256 hex).
-	logged_hash="$(printf '%s' "$log" | grep -oE 'Buffer hash: +[0-9a-f]{64}' | tail -1 | awk '{print $NF}')"
+	# buffer-deploy logs the program (BPF) buffer address as `program buffer: <addr>`.
+	# Match case-insensitively with flexible spacing so it works across log formats
+	# ("Program buffer:" from the old collect step and "program buffer:" from the
+	# newer consolidated summary). The trailing ":" right after "buffer" keeps this
+	# from matching the "program buffer hash:" line. Take the last match.
+	buffer="$(printf '%s' "$log" | grep -oiE 'program buffer:[[:space:]]+[1-9A-HJ-NP-Za-km-z]{32,44}' | tail -1 | awk '{print $NF}')"
+	[ -n "$buffer" ] || die "could not find a 'program buffer:' address in the run log"
+	# And the hash CI logged, for an extra cross-check (sha256 hex). Matches both
+	# the old "Buffer hash:" and the new "program buffer hash:" lines.
+	logged_hash="$(printf '%s' "$log" | grep -oiE 'buffer hash:[[:space:]]+[0-9a-f]{64}' | tail -1 | awk '{print $NF}')"
 fi
 echo ">> on-chain buffer: $buffer" >&2
 
