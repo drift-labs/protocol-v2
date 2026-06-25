@@ -1,6 +1,6 @@
 {
 	"name": "@velocity-exchange/dlob-server",
-	"version": "0.1.9",
+	"version": "0.1.10",
 	"author": "wphan",
 	"main": "lib/index.js",
 	"license": "Apache-2.0",

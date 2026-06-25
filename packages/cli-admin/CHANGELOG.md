@@ -1,5 +1,19 @@
 # @velocity-exchange/admin-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- [`ec502c6`](https://github.com/velocity-exchange/velocity-v1/commit/ec502c6535e3ce2105f3df5b94bb005b7364c555) Thanks [@ChewingGlass](https://github.com/ChewingGlass)! - Add `perp-market set-oracle-slot-delay <market> <slots>` command to set a perp
+  market's `oracle_slot_delay_override`. Lets operators raise the "stale for amm
+  immediate" tolerance above the default `-1` (which clamps to a 0-slot threshold
+  and makes a healthy multi-slot oracle crank read as perpetually stale).
+
+### Patch Changes
+
+- Updated dependencies [[`15073bc`](https://github.com/velocity-exchange/velocity-v1/commit/15073bc0b740b2d1cad471126a00368e72655bd5)]:
+  - @velocity-exchange/sdk@0.2.5
+
 ## 0.1.5
 
 ### Patch Changes
