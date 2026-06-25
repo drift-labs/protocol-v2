@@ -112,6 +112,10 @@ runs:
       # Non-fatal: a hashing hiccup must not fail an otherwise-good buffer upload.
       run: |
         set -uo pipefail
+        # solana-verify loads the Solana CLI config file even when --url is passed;
+        # on a fresh runner it doesn't exist ("Failed to load config file"), so
+        # create it first.
+        solana config set --url "$RPC_URL" >/dev/null 2>&1 || true
         SO="target/deploy/${PROGRAM}.so"
         LOCAL_HASH="(unavailable — .so not present)"
         if [ -f "$SO" ]; then

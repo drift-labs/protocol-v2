@@ -49,6 +49,26 @@ git push origin program-velocity-2.163.0
 
 The `mainnet-beta` branch tracks what is (or is about to be) live on mainnet; `master` is active development. The tag itself is the deploy trigger — branch state doesn't gate the workflow.
 
+### Verifying a buffer before signing the Squads proposal
+
+Before approving an upgrade in the Squads UI, confirm the staged buffer is
+actually what the source compiles to — don't trust the hash CI printed. The CI
+`buffer-deploy` step logs the program buffer address and its hash;
+`verify-buffer.sh` reproduces the hash from source and compares:
+
+```bash
+# Build velocity (devnet flavor) and check it against the buffer the run logged:
+deploy-scripts/verify-buffer.sh velocity \
+  https://github.com/velocity-exchange/velocity-v1/actions/runs/<id>/job/<id> \
+  --devnet --rpc "$SOLANA_RPC"
+
+# Or check a known buffer directly, reusing an already-built .so:
+deploy-scripts/verify-buffer.sh velocity --buffer <bufferPubkey> --rpc "$SOLANA_RPC" --skip-build
+```
+
+It exits non-zero on a mismatch. Needs `solana-verify`, `gh` (authenticated),
+and the solana CLI on `PATH`. Drop `--devnet` for a mainnet build.
+
 ---
 
 ## Runbook
