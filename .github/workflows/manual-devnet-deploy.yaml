@@ -70,7 +70,7 @@ jobs:
           buffer-authority: ${{ secrets.DEVNET_MULTISIG_VAULT }}
 
       - name: Propose Squads upgrade
-        uses: velocity-exchange/squads-program-upgrade@0ea1cdd9bee7273b5ae6f7bf56b1ab258a8c841a
+        uses: velocity-exchange/squads-program-upgrade@57421a79a18bceaf57b2e916af7c68eac25f01d3
         with:
           network-url: ${{ secrets.DEVNET_RPC_ENDPOINT }}
           program-multisig: ${{ secrets.DEVNET_MULTISIG }}
