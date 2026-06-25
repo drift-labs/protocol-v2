@@ -50,6 +50,9 @@ runs:
         DEVNET: ${{ inputs.devnet }}
       run: |
         set -euo pipefail
+        # `anchor idl build -o` writes via File::create and does NOT create parent
+        # dirs; a full `anchor build` used to create target/idl as a side effect.
+        mkdir -p target/idl
         if [ "$PROGRAM" = "velocity" ] && [ "$DEVNET" = "true" ]; then
           anchor idl build --skip-lint -p velocity -o target/idl/velocity.json -- --no-default-features --features no-entrypoint
         else
