@@ -42,12 +42,14 @@ buffer=""
 image="$DEFAULT_IMAGE"
 skip_build=0
 
+need_value() { [ $# -ge 2 ] || die "$1 requires a value (got none — is the variable you passed set?)"; }
+
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--devnet) devnet=1; shift ;;
-		--rpc) rpc="${2:-}"; shift 2 ;;
-		--buffer) buffer="${2:-}"; shift 2 ;;
-		--image) image="${2:-}"; shift 2 ;;
+		--rpc) need_value "$@"; rpc="$2"; shift 2 ;;
+		--buffer) need_value "$@"; buffer="$2"; shift 2 ;;
+		--image) need_value "$@"; image="$2"; shift 2 ;;
 		--skip-build) skip_build=1; shift ;;
 		-h|--help) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 		-*) die "unknown option: $1" ;;
