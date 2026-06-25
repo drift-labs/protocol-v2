@@ -1,8 +1,9 @@
 name: "Build Program (verified + IDL)"
 description: >
-  Runs `anchor build` (for the IDL JSON) and `solana-verify build` (for the
-  deployable .so) for one program. Devnet variant strips the `mainnet-beta`
-  cargo feature so velocity's cfg-gated declare_id! resolves to the devnet pubkey.
+  Runs `anchor idl build` (for the IDL JSON only — no SBF compile) and
+  `solana-verify build` (for the deployable .so) for one program. Devnet variant
+  strips the `mainnet-beta` cargo feature so velocity's cfg-gated declare_id!
+  resolves to the devnet pubkey.
 inputs:
   program:
     description: "Program crate name (velocity | token_faucet)"
@@ -42,7 +43,7 @@ runs:
         sudo apt update -y && sudo apt install -y libudev-dev
         cargo install solana-verify --version 0.4.11 --locked
 
-    - name: Anchor build (produces IDL)
+    - name: Anchor IDL build (produces IDL only — no SBF compile)
       shell: bash
       env:
         PROGRAM: ${{ inputs.program }}
@@ -50,11 +51,11 @@ runs:
       run: |
         set -euo pipefail
         if [ "$PROGRAM" = "velocity" ] && [ "$DEVNET" = "true" ]; then
-          anchor build --ignore-keys -p velocity -- --no-default-features --features no-entrypoint
+          anchor idl build --skip-lint -p velocity -o target/idl/velocity.json -- --no-default-features --features no-entrypoint
         else
-          anchor build -p "$PROGRAM"
+          anchor idl build --skip-lint -p "$PROGRAM" -o "target/idl/$PROGRAM.json"
         fi
-        ls -l target/idl/ target/deploy/
+        ls -l target/idl/
 
     - name: Verifiable build (produces deployable .so)
       shell: bash
