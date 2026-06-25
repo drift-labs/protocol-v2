@@ -93,23 +93,23 @@ runs:
           echo "--- idl-buffer.out ---" >&2; cat idl-buffer.out >&2
           exit 1
         fi
-        echo "Program buffer: $BUFFER"
-        echo "IDL buffer:     $IDL_BUFFER"
+        # Addresses are surfaced together in the "Deploy summary" step below.
         echo "buffer=$BUFFER" >> "$GITHUB_OUTPUT"
         echo "idl-buffer=$IDL_BUFFER" >> "$GITHUB_OUTPUT"
 
-    - name: Log verifiable buffer hash for multisig review
+    - name: Deploy summary + verifiable hashes
       shell: bash
       env:
         PROGRAM: ${{ inputs.program }}
         RPC_URL: ${{ inputs.rpc-url }}
         BUFFER: ${{ steps.collect.outputs.buffer }}
-      # The on-chain buffer hash lets a multisig signer independently confirm the
-      # staged program matches the verifiable build before approving the Squads
-      # proposal: re-run `solana-verify get-buffer-hash <buffer>`, or compare to
-      # `solana-verify verify-from-repo`. We also print the local verifiable .so
-      # hash (the build-program step's output) so the match is visible in-log.
-      # Non-fatal: a hashing hiccup must not fail an otherwise-good buffer upload.
+        IDL_BUFFER: ${{ steps.collect.outputs.idl-buffer }}
+      # One consolidated block: both buffer addresses and the program buffer's
+      # verifiable hash next to the local build's hash, so a multisig signer can
+      # confirm the staged program matches the source in one place before
+      # approving the Squads proposal (or re-run `solana-verify get-buffer-hash`
+      # / `verify-from-repo` themselves). Non-fatal: a hashing hiccup must not
+      # fail an otherwise-good buffer upload.
       run: |
         set -uo pipefail
         # solana-verify loads the Solana CLI config file even when --url is passed;
@@ -122,18 +122,27 @@ runs:
           LOCAL_HASH="$(solana-verify get-executable-hash "$SO" 2>/dev/null || echo '(hash failed)')"
         fi
         BUFFER_HASH="$(solana-verify get-buffer-hash --url "$RPC_URL" "$BUFFER" 2>/dev/null || echo '(hash failed)')"
-        echo "Program:        $PROGRAM"
-        echo "Program buffer: $BUFFER"
-        echo "Buffer hash:    $BUFFER_HASH"
-        echo "Local .so hash: $LOCAL_HASH"
+        if [ "$BUFFER_HASH" = "$LOCAL_HASH" ]; then VERDICT="✅ buffer hash matches local verifiable build"; else VERDICT="❌ MISMATCH — do not approve"; fi
         {
-          echo "### ${PROGRAM} buffer — verify before approving the Squads proposal"
+          echo "==================== deploy summary ===================="
+          echo "program:                 $PROGRAM"
+          echo "program buffer:          $BUFFER"
+          echo "IDL buffer:              $IDL_BUFFER"
+          echo "program buffer hash:     $BUFFER_HASH"
+          echo "local verifiable .so:    $LOCAL_HASH"
+          echo "verification:            $VERDICT"
+          echo "========================================================"
+        }
+        {
+          echo "### ${PROGRAM} deploy — verify before approving the Squads proposal"
           echo ""
           echo "| field | value |"
           echo "| --- | --- |"
           echo "| program buffer | \`${BUFFER}\` |"
-          echo "| on-chain buffer hash | \`${BUFFER_HASH}\` |"
+          echo "| IDL buffer | \`${IDL_BUFFER}\` |"
+          echo "| program buffer hash | \`${BUFFER_HASH}\` |"
           echo "| local verifiable .so hash | \`${LOCAL_HASH}\` |"
+          echo "| verification | ${VERDICT} |"
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Transfer program buffer authority to vault
