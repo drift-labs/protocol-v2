@@ -15,11 +15,11 @@ Program upgrades to **mainnet** and **devnet** are gated through a Squads multis
 
 Both workflows do the same thing on different multisigs:
 
-1. Build the program — `anchor build` for the IDL, `solana-verify build` for a reproducible `.so` (Docker image pinned in workflow env). Devnet velocity strips `mainnet-beta` so the cfg-gated `declare_id!` resolves to the devnet pubkey.
+1. Build the program — `anchor idl build` for the IDL JSON (no SBF compile), `solana-verify build` for a reproducible `.so` (Docker image pinned in workflow env). Devnet velocity strips `mainnet-beta` so the cfg-gated `declare_id!` resolves to the devnet pubkey. The buffer-deploy step logs the program buffer address and its `solana-verify` hash (to the run summary) for multisig-side verification — reproduce it with [`verify-buffer.sh`](#verifying-a-buffer-before-signing-the-squads-proposal).
 2. Upload the `.so` to a BPF Upgradeable Loader buffer (via `solana program write-buffer`).
 3. Upload the IDL JSON to a program-metadata buffer (via `npx @solana-program/program-metadata create-buffer` — Anchor 1.0 stopped baking the legacy IDL instructions into programs).
 4. Transfer both buffer authorities to the multisig vault PDA.
-5. Call [`helium/squads-program-upgrade`](https://github.com/helium/squads-program-upgrade), which proposes a single Squads transaction containing: program-metadata `Initialize` (only if the canonical IDL metadata account doesn't exist yet) + `SetData` (apply IDL buffer) + `Close` (refund buffer rent) + BPF Loader `Upgrade` (apply program buffer). The proposal is **not** auto-executed — multisig signers approve + execute through the Squads UI.
+5. Call [`velocity-exchange/squads-program-upgrade`](https://github.com/velocity-exchange/squads-program-upgrade), which proposes a single Squads transaction containing: the program-metadata instructions that apply the staged IDL buffer to the canonical metadata account (when it doesn't exist yet: fund rent → `Allocate` → `Extend` → `Write` from buffer → `Initialize`; when it exists: grow if needed → `SetData`) + `Close` (refund the IDL buffer rent) + BPF Loader `Upgrade` (apply the program buffer). The proposal is **not** auto-executed — multisig signers approve + execute through the Squads UI.
 
 ### Required GitHub secrets
 
@@ -31,7 +31,7 @@ Both workflows do the same thing on different multisigs:
 | `MAINNET_MULTISIG` / `DEVNET_MULTISIG` | Squads multisig PDA. |
 | `MAINNET_MULTISIG_VAULT` / `DEVNET_MULTISIG_VAULT` | The vault PDA owned by the multisig (Squads "vault index 0"). This is the on-chain program upgrade authority and the IDL metadata authority. |
 
-The first-ever mainnet deploy with this flow will also **initialize the canonical IDL metadata account** for `vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P` — the action detects an absent metadata PDA and includes the `Initialize` instruction in the same Squads proposal. For velocity mainnet, that account does not exist today.
+The first-ever deploy with this flow on a given cluster also **creates the canonical IDL metadata account** for the program — the action detects an absent metadata PDA and includes the full create sequence (fund → `Allocate` → `Extend` → `Write` → `Initialize`) in the same Squads proposal. The metadata account's rent is **paid by the multisig vault** (the `fund` transfer above), so the vault must hold enough SOL — roughly 0.37 SOL for velocity's ~53 KB IDL. For velocity mainnet, that account does not exist today.
 
 ### Cutting a mainnet release
 
