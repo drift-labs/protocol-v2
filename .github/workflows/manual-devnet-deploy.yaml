@@ -65,19 +65,21 @@ jobs:
         uses: ./.github/actions/buffer-deploy/
         with:
           program: ${{ inputs.program }}
+          program-id: ${{ steps.pid.outputs.program-id }}
           rpc-url: ${{ secrets.DEVNET_RPC_ENDPOINT }}
           keypair: ${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}
           buffer-authority: ${{ secrets.DEVNET_MULTISIG_VAULT }}
 
+      # The canonical IDL metadata account is created once at initial deploy (see
+      # deploy-scripts/README.md), so every release is a single-tx SetData +
+      # Upgrade proposal via the official Solana Foundation action.
       - name: Propose Squads upgrade
-        uses: velocity-exchange/squads-program-upgrade@9dfd1c5086d9bedb246c239ac7abe210b2a396a2
+        uses: solana-foundation/squads-program-action@839c079c881344c2da0365ad6a6bb07892e08e2f # v0.4.3
         with:
-          network-url: ${{ secrets.DEVNET_RPC_ENDPOINT }}
-          program-multisig: ${{ secrets.DEVNET_MULTISIG }}
-          program-id: ${{ steps.pid.outputs.program-id }}
+          rpc: ${{ secrets.DEVNET_RPC_ENDPOINT }}
+          program: ${{ steps.pid.outputs.program-id }}
+          multisig: ${{ secrets.DEVNET_MULTISIG }}
+          vault-index: "0"
           buffer: ${{ steps.buffer-deploy.outputs.buffer }}
-          idl-buffer: ${{ steps.buffer-deploy.outputs.idl-buffer }}
-          spill-address: ${{ secrets.DEVNET_DEPLOYER_ADDRESS }}
-          authority: ${{ secrets.DEVNET_MULTISIG_VAULT }}
-          name: "Deploy ${{ inputs.program }} (devnet, ${{ inputs.branch }})"
+          metadata-buffer: ${{ steps.buffer-deploy.outputs.metadata-buffer }}
           keypair: ${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}

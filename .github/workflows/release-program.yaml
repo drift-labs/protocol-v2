@@ -10,7 +10,7 @@ on:
       - "program-velocity-*"
 
 permissions:
-  contents: write   # needed to attach the IDL JSON to the GitHub release
+  contents: read
 
 env:
   RUST_TOOLCHAIN: 1.91.1
@@ -48,31 +48,35 @@ jobs:
           program: velocity
           devnet: "false"
 
-      - name: Attach IDL to GitHub release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        with:
-          files: target/idl/velocity.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The IDL is published on-chain as a program-metadata buffer by the
+      # buffer-deploy action below (and applied by the Squads proposal), so there
+      # is no need to also attach it to a GitHub release.
 
       - name: Buffer deploy (mainnet)
         id: buffer-deploy
         uses: ./.github/actions/buffer-deploy/
         with:
           program: velocity
+          program-id: ${{ env.VELOCITY_MAINNET_PROGRAM_ID }}
           rpc-url: ${{ secrets.MAINNET_RPC_ENDPOINT }}
           keypair: ${{ secrets.MAINNET_DEPLOYER_KEYPAIR }}
           buffer-authority: ${{ secrets.MAINNET_MULTISIG_VAULT }}
+          # Record an on-chain solana-verify PDA (source proof) in the proposal.
+          export-verify-pda: "true"
+          repo-url: ${{ github.server_url }}/${{ github.repository }}
+          commit-hash: ${{ github.sha }}
 
+      # The canonical IDL metadata account is created once at initial deploy (see
+      # deploy-scripts/README.md), so every release is a single-tx SetData +
+      # Upgrade (+ verify PDA) proposal via the official Solana Foundation action.
       - name: Propose Squads upgrade
-        uses: velocity-exchange/squads-program-upgrade@9dfd1c5086d9bedb246c239ac7abe210b2a396a2
+        uses: solana-foundation/squads-program-action@839c079c881344c2da0365ad6a6bb07892e08e2f # v0.4.3
         with:
-          network-url: ${{ secrets.MAINNET_RPC_ENDPOINT }}
-          program-multisig: ${{ secrets.MAINNET_MULTISIG }}
-          program-id: ${{ env.VELOCITY_MAINNET_PROGRAM_ID }}
+          rpc: ${{ secrets.MAINNET_RPC_ENDPOINT }}
+          program: ${{ env.VELOCITY_MAINNET_PROGRAM_ID }}
+          multisig: ${{ secrets.MAINNET_MULTISIG }}
+          vault-index: "0"
           buffer: ${{ steps.buffer-deploy.outputs.buffer }}
-          idl-buffer: ${{ steps.buffer-deploy.outputs.idl-buffer }}
-          spill-address: ${{ secrets.MAINNET_DEPLOYER_ADDRESS }}
-          authority: ${{ secrets.MAINNET_MULTISIG_VAULT }}
-          name: "Deploy velocity ${{ steps.tag.outputs.version }}"
+          metadata-buffer: ${{ steps.buffer-deploy.outputs.metadata-buffer }}
+          pda-tx: ${{ steps.buffer-deploy.outputs.pda-tx }}
           keypair: ${{ secrets.MAINNET_DEPLOYER_KEYPAIR }}

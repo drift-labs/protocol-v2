@@ -1,12 +1,20 @@
 name: "Buffer Deploy"
 description: >
-  Stages `target/deploy/<program>.so` as a BPF Upgradeable Loader buffer, and
-  `target/idl/<program>.json` as a program-metadata buffer (Anchor 1.0 flow),
-  then transfers both buffer authorities to the multisig vault so the Squads
-  proposal can apply them.
+  Stages a Squads-controlled program upgrade using the Solana Foundation
+  `prepare-squads-release` action: it writes `target/deploy/<program>.so` to a
+  BPF Upgradeable Loader buffer (resumable — re-writes only missing chunks on
+  retry), `target/idl/<program>.json` to a program-metadata buffer, optionally
+  exports a solana-verify PDA transaction, and transfers both buffer authorities
+  to the multisig vault. It then re-emits the verify-before-approving summary
+  (program buffer + on-chain buffer hash vs the local verifiable .so hash) that a
+  multisig signer uses to confirm the staged program before approving the Squads
+  proposal.
 inputs:
   program:
     description: "Program crate name (velocity | token_faucet)"
+    required: true
+  program-id:
+    description: "On-chain program ID being upgraded (for the resize check)"
     required: true
   rpc-url:
     description: "Solana RPC URL"
@@ -17,93 +25,100 @@ inputs:
   buffer-authority:
     description: "Address that should own both buffers after upload (the multisig vault PDA)"
     required: true
+  priority-fee:
+    description: "Priority fee in microlamports for buffer-write transactions"
+    required: false
+    default: "100000"
+  export-verify-pda:
+    description: "Export a solana-verify PDA transaction for the Squads proposal (mainnet only)"
+    required: false
+    default: "false"
+  repo-url:
+    description: "GitHub repository URL (required when export-verify-pda is true)"
+    required: false
+    default: ""
+  commit-hash:
+    description: "Git commit to verify against (required when export-verify-pda is true)"
+    required: false
+    default: ""
 
 outputs:
   buffer:
     description: "BPF buffer address"
-    value: ${{ steps.collect.outputs.buffer }}
-  idl-buffer:
+    value: ${{ steps.prepare.outputs.buffer }}
+  metadata-buffer:
     description: "Program-metadata IDL buffer address"
-    value: ${{ steps.collect.outputs.idl-buffer }}
+    value: ${{ steps.prepare.outputs.metadata-buffer }}
+  pda-tx:
+    description: "Base64-encoded solana-verify PDA transaction (empty unless export-verify-pda)"
+    value: ${{ steps.prepare.outputs.pda-tx }}
 
 runs:
   using: "composite"
   steps:
-    - uses: ./.github/actions/setup-solana/
-
     - name: Setup node
       uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
       with:
         node-version: ${{ env.NODE_VERSION }}
 
-    - name: Write deployer keypair
+    - name: Require canonical IDL metadata account
+      id: idl-meta
       shell: bash
+      # CI only ever *updates* the IDL (single-tx SetData via the official squads
+      # action). It never creates the canonical metadata account: creating it
+      # requires the program's upgrade authority (the multisig vault) and, for a
+      # large IDL, a batched proposal. Per deploy-scripts/README.md the account is
+      # created once at initial program deploy — while the deployer still holds
+      # upgrade authority — so a missing account here means that step was skipped.
       env:
-        DEPLOYER_KEYPAIR: ${{ inputs.keypair }}
+        PROGRAM_ID: ${{ inputs.program-id }}
+        RPC_URL: ${{ inputs.rpc-url }}
       run: |
-        printf '%s' "$DEPLOYER_KEYPAIR" > ./deploy-keypair.json
-        chmod 600 ./deploy-keypair.json
-        solana-keygen pubkey ./deploy-keypair.json
-
-    - name: Upload program buffer
-      id: program-buffer
-      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
-      with:
-        timeout_minutes: 30
-        max_attempts: 5
-        shell: bash
-        # write-buffer prints "Buffer: <pubkey>" on success.
-        command: |
-          set -euo pipefail
-          solana program write-buffer \
-            --max-sign-attempts 50 \
-            --with-compute-unit-price 100000 \
-            --use-rpc \
-            -u "${{ inputs.rpc-url }}" \
-            -k ./deploy-keypair.json \
-            ./target/deploy/${{ inputs.program }}.so > buffer.out
-          cat buffer.out
-
-    - name: Create IDL buffer (program-metadata)
-      id: idl-buffer
-      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
-      with:
-        timeout_minutes: 15
-        max_attempts: 5
-        shell: bash
-        command: |
-          set -euo pipefail
-          npx -y @solana-program/program-metadata@0.5.1 create-buffer \
-            ./target/idl/${{ inputs.program }}.json \
-            --rpc "${{ inputs.rpc-url }}" \
-            --keypair ./deploy-keypair.json 2>&1 | tee idl-buffer.out
-
-    - name: Collect buffer addresses
-      id: collect
-      shell: bash
-      run: |
-        set -euo pipefail
-        BUFFER=$(grep -oE 'Buffer: [1-9A-HJ-NP-Za-km-z]{32,44}' buffer.out | tail -1 | awk '{print $2}')
-        # program-metadata CLI prints colored ANSI; strip then grep for "buffer: <addr>"
-        IDL_BUFFER=$(sed 's/\x1b\[[0-9;]*m//g' idl-buffer.out \
-          | grep -oE 'buffer: [1-9A-HJ-NP-Za-km-z]{32,44}' | tail -1 | awk '{print $2}')
-        if [ -z "$BUFFER" ] || [ -z "$IDL_BUFFER" ]; then
-          echo "Failed to extract buffer addresses." >&2
-          echo "--- buffer.out ---" >&2; cat buffer.out >&2
-          echo "--- idl-buffer.out ---" >&2; cat idl-buffer.out >&2
+        set -uo pipefail
+        OUT=$(NO_COLOR=1 npx -y @solana-program/program-metadata@0.5.1 \
+          fetch idl "$PROGRAM_ID" --rpc "$RPC_URL" 2>&1 || true)
+        if echo "$OUT" | grep -q '"metadata"'; then
+          echo "Canonical IDL metadata account exists → proceeding with SetData update."
+        elif echo "$OUT" | grep -qiE "not found|does not exist"; then
+          echo "::error::Canonical IDL metadata account for $PROGRAM_ID does not exist." >&2
+          echo "CI does not bootstrap it. Create it at initial program deploy (while the" >&2
+          echo "deployer still holds upgrade authority), then transfer authority to the" >&2
+          echo "multisig — see deploy-scripts/README.md, 'Initial deploy: create the IDL'." >&2
+          exit 1
+        else
+          echo "Could not determine IDL metadata account state from output:" >&2
+          echo "$OUT" >&2
           exit 1
         fi
-        # Addresses are surfaced together in the "Deploy summary" step below.
-        echo "buffer=$BUFFER" >> "$GITHUB_OUTPUT"
-        echo "idl-buffer=$IDL_BUFFER" >> "$GITHUB_OUTPUT"
+
+    - name: Prepare Squads release (program + metadata buffers)
+      id: prepare
+      uses: solana-foundation/github-actions/prepare-squads-release@f0ddc2234ac4ac19c5c17f520b60bc2d7308744f # v0.2.11
+      with:
+        program-id: ${{ inputs.program-id }}
+        program: ${{ inputs.program }}
+        rpc-url: ${{ inputs.rpc-url }}
+        keypair: ${{ inputs.keypair }}
+        squads-vault: ${{ inputs.buffer-authority }}
+        metadata-path: ./target/idl/${{ inputs.program }}.json
+        priority-fee: ${{ inputs.priority-fee }}
+        # velocity.so is ~5 MB; force RPC transport + retries so a partial
+        # buffer resumes (re-sending only the missing chunks) instead of failing.
+        program-buffer-use-rpc: "true"
+        program-buffer-retry-attempts: "5"
+        program-buffer-max-sign-attempts: "50"
+        export-verify-pda: ${{ inputs.export-verify-pda }}
+        repo-url: ${{ inputs.repo-url }}
+        commit-hash: ${{ inputs.commit-hash }}
 
     - name: Deploy summary + verifiable hashes
       shell: bash
       env:
         PROGRAM: ${{ inputs.program }}
         RPC_URL: ${{ inputs.rpc-url }}
-        BUFFER: ${{ steps.collect.outputs.buffer }}
-        IDL_BUFFER: ${{ steps.collect.outputs.idl-buffer }}
+        BUFFER: ${{ steps.prepare.outputs.buffer }}
+        METADATA_BUFFER: ${{ steps.prepare.outputs.metadata-buffer }}
+        EXPORT_VERIFY_PDA: ${{ inputs.export-verify-pda }}
       # One consolidated block: both buffer addresses and the program buffer's
       # verifiable hash next to the local build's hash, so a multisig signer can
       # confirm the staged program matches the source in one place before
@@ -127,50 +142,22 @@ runs:
           echo "==================== deploy summary ===================="
           echo "program:                 $PROGRAM"
           echo "program buffer:          $BUFFER"
-          echo "IDL buffer:              $IDL_BUFFER"
+          echo "metadata (IDL) buffer:   $METADATA_BUFFER"
+          echo "verify PDA exported:     $EXPORT_VERIFY_PDA"
           echo "program buffer hash:     $BUFFER_HASH"
           echo "local verifiable .so:    $LOCAL_HASH"
           echo "verification:            $VERDICT"
           echo "========================================================"
         }
         {
-          echo "### ${PROGRAM} deploy — verify before approving the Squads proposal"
+          echo "### ${PROGRAM} buffer — verify before approving the Squads proposal"
           echo ""
           echo "| field | value |"
           echo "| --- | --- |"
           echo "| program buffer | \`${BUFFER}\` |"
-          echo "| IDL buffer | \`${IDL_BUFFER}\` |"
-          echo "| program buffer hash | \`${BUFFER_HASH}\` |"
+          echo "| metadata (IDL) buffer | \`${METADATA_BUFFER}\` |"
+          echo "| on-chain buffer hash | \`${BUFFER_HASH}\` |"
           echo "| local verifiable .so hash | \`${LOCAL_HASH}\` |"
+          echo "| verify PDA exported | \`${EXPORT_VERIFY_PDA}\` |"
           echo "| verification | ${VERDICT} |"
         } >> "$GITHUB_STEP_SUMMARY"
-
-    - name: Transfer program buffer authority to vault
-      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
-      with:
-        timeout_minutes: 10
-        max_attempts: 5
-        shell: bash
-        command: |
-          solana program set-buffer-authority "${{ steps.collect.outputs.buffer }}" \
-            -k ./deploy-keypair.json \
-            --new-buffer-authority "${{ inputs.buffer-authority }}" \
-            -u "${{ inputs.rpc-url }}"
-
-    - name: Transfer IDL buffer authority to vault
-      uses: nick-invision/retry@14672906e672a08bd6eeb15720e9ed3ce869cdd4 # v2
-      with:
-        timeout_minutes: 10
-        max_attempts: 5
-        shell: bash
-        command: |
-          npx -y @solana-program/program-metadata@0.5.1 set-buffer-authority \
-            "${{ steps.collect.outputs.idl-buffer }}" \
-            --new-authority "${{ inputs.buffer-authority }}" \
-            --rpc "${{ inputs.rpc-url }}" \
-            --keypair ./deploy-keypair.json
-
-    - name: Clean up keypair
-      if: always()
-      shell: bash
-      run: rm -f ./deploy-keypair.json

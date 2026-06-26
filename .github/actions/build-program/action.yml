@@ -34,14 +34,18 @@ runs:
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.cargo/bin/solana-verify
-        key: ${{ runner.os }}-solana-verify-0.4.11
+        key: ${{ runner.os }}-solana-verify-0.5.0
 
     - name: Install solana-verify
       if: steps.cache-solana-verify.outputs.cache-hit != 'true'
       shell: bash
+      # 0.5.0 (matches solana-foundation/github-actions) for `export-pda-tx`,
+      # used by the mainnet verify-PDA flow. The verifiable build still runs
+      # inside the pinned VERIFIABLE_BUILD_IMAGE, so the CLI version does not
+      # affect the build hash.
       run: |
         sudo apt update -y && sudo apt install -y libudev-dev
-        cargo install solana-verify --version 0.4.11 --locked
+        cargo install solana-verify --version 0.5.0 --locked
 
     - name: Anchor IDL build (produces IDL only — no SBF compile)
       shell: bash
