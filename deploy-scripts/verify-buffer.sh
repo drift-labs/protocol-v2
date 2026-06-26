@@ -23,9 +23,14 @@
 #   --devnet                  strip the mainnet-beta feature (velocity devnet build)
 #   --rpc <url>               RPC used to read the on-chain buffer (else solana config / public)
 #   --buffer <pubkey>         use this buffer address instead of parsing the run log
+#   --program-id <pubkey>     program id to fall back to if the buffer is already
+#                             applied (else resolved from Anchor.toml for devnet)
 #   --image <docker-image>    verifiable-build image (default below)
 #   --skip-build              reuse an existing target/deploy/<program>.so
 #   -h, --help                show this help
+#
+# If the buffer no longer exists (the upgrade was already executed, which
+# consumes it), the deployed program's hash is compared instead.
 #
 # Requires: solana-verify, gh (authenticated), solana CLI on PATH.
 set -euo pipefail
@@ -39,6 +44,7 @@ run_url=""
 devnet=0
 rpc=""
 buffer=""
+program_id=""
 image="$DEFAULT_IMAGE"
 skip_build=0
 
@@ -49,6 +55,7 @@ while [ $# -gt 0 ]; do
 		--devnet) devnet=1; shift ;;
 		--rpc) need_value "$@"; rpc="$2"; shift 2 ;;
 		--buffer) need_value "$@"; buffer="$2"; shift 2 ;;
+		--program-id) need_value "$@"; program_id="$2"; shift 2 ;;
 		--image) need_value "$@"; image="$2"; shift 2 ;;
 		--skip-build) skip_build=1; shift ;;
 		-h|--help) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -117,34 +124,61 @@ else
 fi
 [ -f "$so_path" ] || die "built artifact not found: $so_path"
 
-local_hash="$(solana-verify get-executable-hash "$so_path")"
+local_hash="$(solana-verify get-executable-hash "$so_path" 2>/dev/null | grep -oE '[0-9a-f]{64}' | tail -1 || true)"
+[ -n "$local_hash" ] || die "could not hash the local build at $so_path"
 
-# --- 3. on-chain buffer hash + compare -----------------------------------------
+# --- 3. on-chain hash + compare ------------------------------------------------
 
 # solana-verify reads the CLI config file; make sure one exists.
-if [ -n "$rpc" ]; then
-	solana config set --url "$rpc" >/dev/null 2>&1 || true
-	onchain_hash="$(solana-verify get-buffer-hash --url "$rpc" "$buffer")"
-else
-	onchain_hash="$(solana-verify get-buffer-hash "$buffer")"
+[ -n "$rpc" ] && { solana config set --url "$rpc" >/dev/null 2>&1 || true; }
+
+# Hash an on-chain account; prints a 64-hex hash or nothing on failure.
+on_chain_hash() {
+	# $1 = subcommand (get-buffer-hash | get-program-hash), $2 = pubkey
+	if [ -n "$rpc" ]; then
+		solana-verify "$1" --url "$rpc" "$2" 2>/dev/null || true
+	else
+		solana-verify "$1" "$2" 2>/dev/null || true
+	fi | grep -oE '[0-9a-f]{64}' | tail -1 || true
+}
+
+target="buffer $buffer"
+onchain_hash="$(on_chain_hash get-buffer-hash "$buffer")"
+
+if [ -z "$onchain_hash" ]; then
+	# A buffer disappears once the upgrade is executed (the BPF loader consumes
+	# it). In that case verify the DEPLOYED PROGRAM instead — the more useful
+	# check post-execution: does what's live match this source?
+	echo ">> buffer $buffer not found on chain — it was likely already applied (the upgrade consumes it)." >&2
+	echo ">> falling back to the deployed program hash." >&2
+	if [ -z "$program_id" ]; then
+		# Resolve <program>'s id from Anchor.toml [programs.devnet].
+		program_id="$(awk -F'"' -v p="$program" '
+			/^\[programs\.devnet\]/ { s = 1; next }
+			/^\[/                   { s = 0 }
+			s && $1 ~ "^"p"[[:space:]]*=" { print $2; exit }
+		' "$repo_root/Anchor.toml")"
+	fi
+	[ -n "$program_id" ] ||
+		die "buffer is gone and the program id is unknown — pass --program-id <pubkey> to verify the deployed program"
+	target="deployed program $program_id"
+	onchain_hash="$(on_chain_hash get-program-hash "$program_id")"
+	[ -n "$onchain_hash" ] ||
+		die "could not hash the buffer ($buffer) or the deployed program ($program_id) at the given RPC"
 fi
 
 echo
 echo "program:            $program"
-echo "buffer:             $buffer"
+echo "compared against:   $target"
 echo "local build hash:   $local_hash"
-echo "on-chain buffer:    $onchain_hash"
+echo "on-chain hash:      $onchain_hash"
 [ -n "$logged_hash" ] && echo "hash logged by CI:  $logged_hash"
 echo
 
 if [ "$local_hash" = "$onchain_hash" ]; then
-	echo "✅ MATCH — the on-chain buffer is exactly this source's verifiable build."
-	if [ -n "$logged_hash" ] && [ "$logged_hash" != "$onchain_hash" ]; then
-		echo "⚠️  note: the hash CI logged ($logged_hash) differs from the live buffer hash;"
-		echo "    the buffer may have been replaced since the run — re-check the address."
-	fi
+	echo "✅ MATCH — $target is exactly this source's verifiable build."
 	exit 0
 else
-	echo "❌ MISMATCH — do NOT approve. The buffer does not match this source build."
+	echo "❌ MISMATCH — do NOT approve / investigate. $target does not match this source build."
 	exit 1
 fi
