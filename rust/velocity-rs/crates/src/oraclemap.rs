@@ -280,14 +280,25 @@ impl OracleMap {
         for ((oracle_pubkey, oracle_account), oracle_source) in
             synced_oracles.iter_mut().zip(oracle_sources)
         {
-            let price_data = sdk_oracle_price(
+            let price_data = match sdk_oracle_price(
                 &oracle_source,
                 oracle_pubkey,
                 &oracle_account.owner,
                 &mut oracle_account.data,
                 latest_slot,
-            )
-            .expect("valid oracle data");
+            ) {
+                Ok(price_data) => price_data,
+                Err(err) => {
+                    // A closed / empty oracle account (e.g. a stale config
+                    // pubkey after a devnet wipe) must not crash sync — skip it.
+                    log::warn!(
+                        target: LOG_TARGET,
+                        "skipping oracle {:?}/{oracle_pubkey} during sync: {err:?}",
+                        oracle_source,
+                    );
+                    continue;
+                }
+            };
 
             self.oraclemap
                 .entry((*oracle_pubkey, oracle_source as u8))
