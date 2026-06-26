@@ -103,9 +103,8 @@ impl FillerBot {
         let filler_subaccount = velocity.wallet.sub_account(config.sub_account_id);
 
         // SWIFT_WS_URL overrides the swift ws server base url (velocity-rs appends
-        // `/ws?pubkey=`). Velocity runs swift-ws-server-app in-cluster; without this
-        // override velocity-rs falls back to the dead drift host (master.swift.drift.trade)
-        // and connect_async panics on DNS lookup. None => SDK default.
+        // `/ws?pubkey=`). None => SDK default (SWIFT_DEVNET_WS_URL /
+        // SWIFT_MAINNET_WS_URL, the in-cluster velocity swift hosts).
         let swift_ws_url = std::env::var("SWIFT_WS_URL").ok();
         log::info!(target: TARGET, "subscribing swift orders (ws url override: {swift_ws_url:?})");
         let swift_order_stream = velocity

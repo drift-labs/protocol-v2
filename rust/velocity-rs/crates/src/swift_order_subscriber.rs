@@ -32,8 +32,8 @@ pub const SWIFT_MSG_PREFIX: [u8; 8] = [0xc8, 0xd5, 0xa6, 0x5e, 0x22, 0x34, 0xf5,
 /// sha256("global:/// sha256("global:SignedMsgOrderParamsDelegatedMessage")[..8]
 pub const SWIFT_DELEGATE_MSG_PREFIX: [u8; 8] = [0x42, 0x65, 0x66, 0x38, 0xc7, 0x25, 0x9e, 0x23];
 
-pub const SWIFT_DEVNET_WS_URL: &str = "wss://master.swift.drift.trade";
-pub const SWIFT_MAINNET_WS_URL: &str = "wss://swift.drift.trade";
+pub const SWIFT_DEVNET_WS_URL: &str = "wss://swift.master.velocity.exchange";
+pub const SWIFT_MAINNET_WS_URL: &str = "wss://swift.velocity.exchange";
 
 const LOG_TARGET: &str = "swift";
 
