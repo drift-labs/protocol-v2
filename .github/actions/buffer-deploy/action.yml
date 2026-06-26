@@ -61,40 +61,9 @@ runs:
       with:
         node-version: ${{ env.NODE_VERSION }}
 
-    - name: Require canonical IDL metadata account
-      id: idl-meta
-      shell: bash
-      # CI only ever *updates* the IDL (single-tx SetData via the official squads
-      # action). It never creates the canonical metadata account: creating it
-      # requires the program's upgrade authority (the multisig vault) and, for a
-      # large IDL, a batched proposal. Per deploy-scripts/README.md the account is
-      # created once at initial program deploy — while the deployer still holds
-      # upgrade authority — so a missing account here means that step was skipped.
-      env:
-        PROGRAM_ID: ${{ inputs.program-id }}
-        RPC_URL: ${{ inputs.rpc-url }}
-      run: |
-        set -uo pipefail
-        OUT=$(NO_COLOR=1 npx -y @solana-program/program-metadata@0.5.1 \
-          fetch idl "$PROGRAM_ID" --rpc "$RPC_URL" 2>&1 || true)
-        # Match against the variable with bash string ops, NOT `echo "$OUT" | grep`:
-        # the IDL JSON is large and `grep -q` closes the pipe on first match, so
-        # `echo` dies with SIGPIPE and `set -o pipefail` would misreport a match as
-        # a failure.
-        shopt -s nocasematch
-        if [[ "$OUT" == *"not found"* || "$OUT" == *"does not exist"* ]]; then
-          echo "::error::Canonical IDL metadata account for $PROGRAM_ID does not exist." >&2
-          echo "CI does not bootstrap it. Create it at initial program deploy (while the" >&2
-          echo "deployer still holds upgrade authority), then transfer authority to the" >&2
-          echo "multisig — see deploy-scripts/README.md, 'Initial deploy: create the IDL'." >&2
-          exit 1
-        elif [[ "$OUT" == *'"metadata"'* || "$OUT" == *'"instructions"'* ]]; then
-          echo "Canonical IDL metadata account exists → proceeding with SetData update."
-        else
-          echo "Could not determine IDL metadata account state from output:" >&2
-          printf '%s\n' "$OUT" >&2
-          exit 1
-        fi
+    # The canonical IDL metadata account is created once at initial program
+    # deploy (see deploy-scripts/README.md) — CI only ever updates it via the
+    # official squads action's single-tx SetData, so no pre-flight check here.
 
     - name: Prepare Squads release (program + metadata buffers)
       id: prepare
