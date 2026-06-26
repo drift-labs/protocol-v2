@@ -451,6 +451,13 @@ pub fn get_pyth_price(
         .try_borrow_data()
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
 
+    // A closed / uninitialized oracle account is delivered with zero-length
+    // data; bail before `cast`/`try_deserialize` so off-chain callers
+    // (velocity-rs oracle map) get an `Err` to skip rather than a panic.
+    if pyth_price_data.is_empty() {
+        return Err(crate::error::ErrorCode::UnableToLoadOracle);
+    }
+
     let oracle_price: i64;
     let oracle_conf: u64;
     let mut has_sufficient_number_of_data_points: bool = true;
@@ -484,7 +491,8 @@ pub fn get_pyth_price(
             | OracleSource::PythLazer1M
             | OracleSource::PythLazerStableCoin
     ) {
-        let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
+        let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data)
+            .map_err(|_| crate::error::ErrorCode::UnableToLoadOracle)?;
         oracle_price = price_data.price;
         oracle_conf = price_data.conf;
         oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());

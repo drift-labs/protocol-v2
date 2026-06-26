@@ -97,7 +97,10 @@ impl<'a> DLOBBuilder<'a> {
     ) -> impl Fn(&AccountUpdate) + Send + Sync + 'b {
         let notifier = self.notifier.clone();
         move |update| {
-            let new_user = crate::utils::deser_zero_copy::<User>(update.data);
+            // Skip closed / empty-data updates rather than panic on `&data[8..]`.
+            let Some(new_user) = crate::utils::try_deser_zero_copy::<User>(update.data) else {
+                return;
+            };
             let old_user = account_map
                 .account_data_and_slot::<User>(&update.pubkey)
                 .map(|x| x.data);

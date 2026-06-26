@@ -160,6 +160,19 @@ pub fn deser_zero_copy<T: Discriminator + Pod>(data: &[u8]) -> T {
     bytemuck::pod_read_unaligned::<T>(&data[8..])
 }
 
+/// Fallible variant of [`deser_zero_copy`] for data that may not be a well-formed
+/// `T` — returns `None` when `data` is too short to hold an 8-byte discriminator
+/// plus a `T`. Use this on the boundary that ingests live account-subscription
+/// updates: a closed / reallocating account can be delivered with zero-length
+/// `data`, which would otherwise panic the unchecked `&data[8..]` slice.
+#[inline]
+pub fn try_deser_zero_copy<T: Discriminator + Pod>(data: &[u8]) -> Option<T> {
+    if data.len() < 8 + std::mem::size_of::<T>() {
+        return None;
+    }
+    Some(bytemuck::pod_read_unaligned::<T>(&data[8..]))
+}
+
 /// Derive pyth lazer oracle pubkey for Velocity program
 pub fn derive_pyth_lazer_oracle_public_key(feed_id: u32) -> Pubkey {
     let seed_prefix = b"pyth_lazer";
@@ -424,5 +437,19 @@ mod tests {
         assert!(http_to_ws(https_url).unwrap() == "wss://dlob.drift.trade/ws");
         let http_url = "http://dlob.drift.trade";
         assert!(http_to_ws(http_url).unwrap() == "ws://dlob.drift.trade/ws")
+    }
+
+    #[test]
+    fn test_try_deser_zero_copy_guards_short_data() {
+        use crate::PerpMarket;
+        use bytemuck::Zeroable;
+
+        // empty (closed / uninitialized account) buffer -> None, never panics
+        assert!(try_deser_zero_copy::<PerpMarket>(&[]).is_none());
+        // buffer too short to hold an 8-byte discriminator + T -> None
+        assert!(try_deser_zero_copy::<PerpMarket>(&[0u8; 4]).is_none());
+        // well-formed (discriminator + zeroed body) buffer -> Some
+        let bytes = zero_account_to_bytes(PerpMarket::zeroed());
+        assert!(try_deser_zero_copy::<PerpMarket>(&bytes).is_some());
     }
 }

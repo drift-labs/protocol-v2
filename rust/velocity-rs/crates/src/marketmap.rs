@@ -111,7 +111,10 @@ where
     pub(crate) fn on_account_fn(&self) -> impl Fn(&AccountUpdate) {
         let marketmap = self.map();
         move |update: &AccountUpdate| {
-            let market = crate::utils::deser_zero_copy::<T>(update.data);
+            // Skip closed / empty-data updates rather than panic on `&data[8..]`.
+            let Some(market) = crate::utils::try_deser_zero_copy::<T>(update.data) else {
+                return;
+            };
             let idx = market.market_index();
             marketmap.insert(
                 idx,
@@ -179,13 +182,17 @@ where
                             if update.slot > latest_slot.load(Ordering::Relaxed) {
                                 latest_slot.store(update.slot, Ordering::Relaxed);
                             }
-                            marketmap.insert(
-                                idx,
-                                DataAndSlot {
-                                    slot: update.slot,
-                                    data: crate::utils::deser_zero_copy::<T>(&update.data),
-                                },
-                            );
+                            // Skip closed / empty-data updates rather than panic.
+                            if let Some(data) = crate::utils::try_deser_zero_copy::<T>(&update.data)
+                            {
+                                marketmap.insert(
+                                    idx,
+                                    DataAndSlot {
+                                        slot: update.slot,
+                                        data,
+                                    },
+                                );
+                            }
                             on_account(update);
                         }
                     })
