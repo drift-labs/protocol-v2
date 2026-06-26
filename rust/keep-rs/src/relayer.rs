@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use tokio::time::sleep;
 use velocity_rs::{
     types::{accounts::User, MarketId, RpcSendTransactionConfig},
     TransactionBuilder, VelocityClient,
@@ -203,22 +204,57 @@ pub async fn run(config: Config, velocity: VelocityClient) {
     log::warn!(target: TARGET, "pyth feed channel closed; exiting relayer");
 }
 
-/// Preflight: ensure the bot's velocity sub-account exists, creating it if
-/// missing. Idempotent — returns early when the subaccount is already
-/// initialized — so callers can run it on every startup before the bot loop.
+/// Preflight: ensure every velocity sub-account the bot will use exists,
+/// creating any that are missing. Covers both the filler's `--sub-account-id`
+/// and the liquidator's `--subaccounts` list (the liquidator picks its
+/// take-over account from that list, so a missing one makes liquidations fail
+/// with `AccountNotFound`). Idempotent — already-initialized subaccounts are
+/// skipped — so callers can run it on every startup before the bot loop.
 pub async fn init_user(config: Config, velocity: VelocityClient) {
-    let subaccount = velocity.wallet.sub_account(config.sub_account_id);
-    if velocity.get_user_account(&subaccount).await.is_ok() {
-        log::info!(target: TARGET, "subaccount {subaccount} already exists; nothing to do");
-        return;
+    let authority = *velocity.wallet.authority();
+
+    // Union of the single filler id and the liquidator subaccount list.
+    // Ascending order matters: sub-account 0 carries the one-time UserStats
+    // init, which every non-zero `InitializeUser` depends on.
+    let mut ids: Vec<u16> = std::iter::once(config.sub_account_id)
+        .chain(config.get_subaccounts())
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+
+    // A non-zero subaccount can only be created once UserStats exists, and
+    // UserStats is created alongside sub-account 0. If stats is missing, force
+    // sub-account 0 to be created first even if the operator didn't list it.
+    if velocity.get_user_stats(&authority).await.is_err() && !ids.contains(&0) {
+        log::info!(target: TARGET, "UserStats missing; will initialize sub-account 0 first");
+        ids.insert(0, 0);
     }
 
-    log::info!(
-        target: TARGET,
-        "initializing subaccount id={} pubkey={}",
-        config.sub_account_id,
-        subaccount,
-    );
+    for id in ids {
+        let subaccount = velocity.wallet.sub_account(id);
+        if velocity.get_user_account(&subaccount).await.is_ok() {
+            log::info!(target: TARGET, "subaccount id={id} ({subaccount}) already exists; skipping");
+            continue;
+        }
+        if let Err(e) = init_one_subaccount(&config, &velocity, id).await {
+            // Stop the preflight: later (non-zero) inits depend on this one
+            // having landed (UserStats / ordering), so don't push on blindly.
+            log::error!(target: TARGET, "failed to initialize subaccount id={id}: {e}");
+            return;
+        }
+    }
+}
+
+/// Create a single sub-account and wait until it is visible on-chain, so a
+/// dependent (non-zero) init later in the same preflight sees the UserStats /
+/// account it needs.
+async fn init_one_subaccount(
+    config: &Config,
+    velocity: &VelocityClient,
+    sub_account_id: u16,
+) -> Result<(), String> {
+    let subaccount = velocity.wallet.sub_account(sub_account_id);
+    log::info!(target: TARGET, "initializing subaccount id={sub_account_id} pubkey={subaccount}");
 
     // TransactionBuilder reads authority from the User; set it to our wallet
     // so signing matches.
@@ -233,24 +269,38 @@ pub async fn init_user(config: Config, velocity: VelocityClient) {
         false,
     )
     .with_priority_fee(config.priority_fee, Some(200_000))
-    .initialize_user_account(config.sub_account_id, None, None)
+    .initialize_user_account(sub_account_id, None, None)
     .build();
 
     let blockhash = velocity
         .get_latest_blockhash()
         .await
-        .expect("fetched blockhash");
-    let signed = velocity.wallet().sign_tx(tx, blockhash).expect("signed tx");
+        .map_err(|e| format!("fetch blockhash: {e}"))?;
+    let signed = velocity
+        .wallet()
+        .sign_tx(tx, blockhash)
+        .map_err(|e| format!("sign tx: {e}"))?;
     let cfg = RpcSendTransactionConfig {
         skip_preflight: false,
         ..Default::default()
     };
-    match velocity
+    let sig = velocity
         .rpc()
         .send_transaction_with_config(&signed, cfg)
         .await
-    {
-        Ok(sig) => log::info!(target: TARGET, "init user submitted: sig={sig}"),
-        Err(e) => log::error!(target: TARGET, "init user failed: {e}"),
+        .map_err(|e| format!("send tx: {e}"))?;
+    log::info!(target: TARGET, "init user id={sub_account_id} submitted: sig={sig}");
+
+    // Confirm the account is materialized before returning, so a dependent init
+    // in the same preflight doesn't race ahead of UserStats creation.
+    for _ in 0..30 {
+        sleep(Duration::from_millis(1_000)).await;
+        if velocity.get_user_account(&subaccount).await.is_ok() {
+            log::info!(target: TARGET, "subaccount id={sub_account_id} confirmed on-chain");
+            return Ok(());
+        }
     }
+    Err(format!(
+        "subaccount {subaccount} not visible on-chain within timeout after init"
+    ))
 }
