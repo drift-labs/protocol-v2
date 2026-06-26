@@ -436,6 +436,14 @@ impl User {
     }
 
     pub fn enter_cross_margin_bankruptcy(&mut self) {
+        // Economic bankruptcy can be entered directly, without a prior
+        // liquidation episode. Allocate a liquidation id in that case so the
+        // resolver's `next_liquidation_id - 1` references this event instead of
+        // underflowing (fresh user) or reusing a stale id. When an episode is
+        // already active, `enter_*_liquidation` allocated the id; reuse it.
+        if !self.is_being_liquidated() {
+            get_then_update_id!(self, next_liquidation_id);
+        }
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.add_user_status(UserStatus::Bankrupt);
     }
@@ -502,6 +510,13 @@ impl User {
     }
 
     pub fn enter_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> VelocityResult {
+        // Allocate a liquidation id when no episode is active (direct economic
+        // bankruptcy) so the resolver's `next_liquidation_id - 1` is valid;
+        // otherwise reuse the active episode's id. Mirrors
+        // `enter_isolated_margin_liquidation`.
+        if !self.is_being_liquidated() {
+            get_then_update_id!(self, next_liquidation_id);
+        }
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
         perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
         perp_position.position_flag |= PositionFlag::Bankrupt as u8;

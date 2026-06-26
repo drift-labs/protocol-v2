@@ -44,7 +44,7 @@ pub const DUSDT_PRECISION: u64 = 1_000_000; // 6 decimals
 /// may not be publicly reachable from CI; override with `SWIFT_HTTP_ENDPOINT`.
 pub fn swift_http_endpoint() -> String {
     std::env::var("SWIFT_HTTP_ENDPOINT")
-        .unwrap_or_else(|_| "https://master.swift.drift.trade".to_string())
+        .unwrap_or_else(|_| "https://swift.master.velocity.exchange".to_string())
 }
 
 /// Shared devnet client + funded payer.

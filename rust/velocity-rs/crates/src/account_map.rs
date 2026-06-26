@@ -68,10 +68,11 @@ impl AccountMap {
     ) {
         self.inner
             .iter()
-            .filter(|x| &x.raw[..8] == T::DISCRIMINATOR)
+            .filter(|x| x.raw.len() >= 8 && &x.raw[..8] == T::DISCRIMINATOR)
             .for_each(|x| {
-                let v = crate::utils::deser_zero_copy::<T>(&x.raw);
-                f(x.key(), &v, x.slot)
+                if let Some(v) = crate::utils::try_deser_zero_copy::<T>(&x.raw) {
+                    f(x.key(), &v, x.slot)
+                }
             })
     }
     /// Subscribe account with Ws
@@ -239,9 +240,9 @@ impl AccountMap {
         &self,
         account: &Pubkey,
     ) -> Option<DataAndSlot<T>> {
-        self.inner.get(account).map(|x| DataAndSlot {
-            slot: x.slot,
-            data: crate::utils::deser_zero_copy::<T>(&x.raw),
+        self.inner.get(account).and_then(|x| {
+            crate::utils::try_deser_zero_copy::<T>(&x.raw)
+                .map(|data| DataAndSlot { slot: x.slot, data })
         })
     }
 
