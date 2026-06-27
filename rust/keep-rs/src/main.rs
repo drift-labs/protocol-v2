@@ -100,8 +100,10 @@ pub struct Config {
     /// constants (e.g. quote oracle = USDT/USD on a fork).
     #[clap(long, env = "RELAYER_EXTRA_FEEDS", default_value = "")]
     pub relayer_extra_feeds: String,
-    /// Preflight: ensure the bot's user subaccount (for --sub-account-id) exists
-    /// before starting the selected bot mode. Idempotent; safe on every restart.
+    /// Preflight: ensure the bot's user subaccounts exist before starting the
+    /// selected bot mode. Covers `--sub-account-id` and every id in
+    /// `--subaccounts` (the liquidator's take-over accounts). Idempotent; safe
+    /// on every restart.
     #[clap(long, default_value = "false")]
     pub init_user: bool,
     /// fill for all markets (overrides '--market-ids')

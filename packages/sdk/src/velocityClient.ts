@@ -1297,37 +1297,6 @@ export class VelocityClient {
 		});
 	}
 
-	public async migrateReferrer(
-		authority: PublicKey,
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const ix = await this.getMigrateReferrerIx(authority);
-		const tx = await this.buildTransaction([ix], txParams);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
-	}
-
-	public async getMigrateReferrerIx(
-		authority: PublicKey
-	): Promise<TransactionInstruction> {
-		const escrow = getRevenueShareEscrowAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-		return (this.program.instruction as any).migrateReferrer({
-			accounts: {
-				escrow,
-				authority,
-				userStats: getUserStatsAccountPublicKey(
-					this.program.programId,
-					authority
-				),
-				state: await this.getStatePublicKey(),
-				payer: this.wallet.publicKey,
-			},
-		});
-	}
-
 	public async resizeRevenueShareEscrowOrders(
 		authority: PublicKey,
 		numOrders: number,

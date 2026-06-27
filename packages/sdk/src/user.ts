@@ -225,20 +225,35 @@ export class User {
 		this.isSubscribed = false;
 	}
 
+	/**
+	 * Returns the cached user account.
+	 *
+	 * - **Throws** `NotSubscribedError` if the subscriber has not been subscribed
+	 *   yet — reading the account before {@link subscribe} resolves is a
+	 *   programming error, not a missing-account condition.
+	 * - Returns `undefined` when subscribed but no account was found on chain.
+	 *   Because `subscribe()` awaits the initial fetch, an `undefined` here means
+	 *   the account does not exist (or has not yet been observed), not that data
+	 *   is "still loading".
+	 */
 	public getUserAccount(): UserAccount | undefined {
 		return this.accountSubscriber.getUserAccountAndSlot()?.data;
 	}
 
 	/**
-	 * Like {@link getUserAccount} but throws a named error instead of returning
-	 * `undefined` when the account has not been loaded yet. Use at call sites
-	 * that structurally require a loaded account.
+	 * Like {@link getUserAccount} but throws instead of returning `undefined`
+	 * when the account was not found. Use at call sites that structurally
+	 * require the account to exist. (Still propagates `NotSubscribedError` when
+	 * called before subscribing.)
+	 *
+	 * Delegates to {@link getUserAccount} (rather than the subscriber directly)
+	 * so callers that override `getUserAccount` see the override here too.
 	 */
 	public getUserAccountOrThrow(): UserAccount {
 		const userAccount = this.getUserAccount();
 		if (!userAccount) {
 			throw new Error(
-				`User account not loaded: ${this.getUserAccountPublicKey().toString()}`
+				`User account not found: ${this.getUserAccountPublicKey().toString()}`
 			);
 		}
 		return userAccount;
@@ -255,14 +270,15 @@ export class User {
 	}
 
 	/**
-	 * Like {@link getUserAccountAndSlot} but throws a named error instead of
-	 * returning `undefined` when the account has not been loaded yet. Use at
-	 * call sites that structurally require a loaded account.
+	 * Like {@link getUserAccountAndSlot} but throws instead of returning
+	 * `undefined` when the account was not found. Use at call sites that
+	 * structurally require the account to exist. (Still propagates
+	 * `NotSubscribedError` when called before subscribing.)
 	 */
 	public getUserAccountAndSlotOrThrow(): DataAndSlot<UserAccount> {
 		return assertDataAndSlot(
 			this.accountSubscriber.getUserAccountAndSlot(),
-			`User account not loaded: ${this.getUserAccountPublicKey().toString()}`
+			`User account not found: ${this.getUserAccountPublicKey().toString()}`
 		);
 	}
 

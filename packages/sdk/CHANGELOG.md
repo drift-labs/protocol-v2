@@ -1,5 +1,19 @@
 # @velocity-exchange/sdk
 
+## 0.2.5
+
+### Patch Changes
+
+- [#155](https://github.com/velocity-exchange/velocity-v1/pull/155) [`15073bc`](https://github.com/velocity-exchange/velocity-v1/commit/15073bc0b740b2d1cad471126a00368e72655bd5) Thanks [@ChesterSim](https://github.com/ChesterSim)! - Make the `UserAccountSubscriber` "not subscribed" contract consistent and fix a
+  misleading error message. `getUserAccountAndSlot()` now throws `NotSubscribedError`
+  when called before `subscribe()` on the gRPC-multi and WebSocket-program subscribers
+  too (the WebSocket and polling subscribers already did) — so `User.getUserAccount()`
+  uniformly throws when not subscribed and returns `undefined` only when subscribed but
+  the account was not found on chain. `getUserAccountOrThrow()` /
+  `getUserAccountAndSlotOrThrow()` now throw `User account not found: <pubkey>` (was
+  `User account not loaded`), since after `subscribe()` resolves a missing account means
+  "not found", not "still loading".
+
 ## 0.2.4
 
 ### Patch Changes

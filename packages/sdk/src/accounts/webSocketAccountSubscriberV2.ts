@@ -6,7 +6,6 @@ import {
 } from './types';
 import { AnchorProvider } from '../isomorphic/anchor';
 import { VelocityProgram } from '../config';
-import { capitalize } from './utils';
 import {
 	AccountInfoBase,
 	AccountInfoWithBase64EncodedData,
@@ -495,10 +494,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		if (this.decodeBufferFn) {
 			return this.decodeBufferFn(buffer);
 		} else {
-			return this.program.coder.accounts.decode(
-				capitalize(this.accountName),
-				buffer
-			);
+			return this.program.coder.accounts.decode(this.accountName, buffer);
 		}
 	}
 

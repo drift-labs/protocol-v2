@@ -47,6 +47,8 @@ velocity-admin fees sweep <market>                               # permissionles
 velocity-admin user set-special-status <user> <flags>
 velocity-admin user admin-deposit <market> <amount> --user <pk> --user-token-account <pk>
 
+velocity-admin multisig create --proposer <pubkey> [--name <name>]  # create a Squads V4 1/1 multisig
+
 velocity-admin call <ixName> <payloadFile>     # generic IDL escape hatch
 ```
 
@@ -61,6 +63,20 @@ the Squads UI.
 velocity-admin auth set-warm-admin <newWarmAdmin> \
   --multisig <multisigPda> \
   --keypair ~/cold-proposer.json
+```
+
+## Creating a Squads V4 multisig
+
+`multisig create` provisions a fresh Squads V4 multisig with the current wallet
+as a 1/1 signer (full Initiate/Vote/Execute permissions) plus a proposer member
+that can only Initiate transactions. The on-chain Squads program config supplies
+the treasury; an ephemeral create-key seeds the multisig PDA.
+
+```sh
+velocity-admin multisig create \
+  --proposer <proposerPubkey> \
+  --name "Velocity Devnet Multisig" \
+  --env devnet -u <devnetRpc>
 ```
 
 ## Generic dispatcher

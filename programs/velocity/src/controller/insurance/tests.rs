@@ -2,9 +2,11 @@ use anchor_lang::prelude::Pubkey;
 
 use crate::controller::insurance::*;
 use crate::math::constants::{
-    QUOTE_PRECISION, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+    SPOT_CUMULATIVE_INTEREST_PRECISION,
 };
-use crate::state::perp_market::PoolBalance;
+use crate::state::oracle::OracleSource;
+use crate::state::perp_market::{InsuranceClaim, PerpMarket, PoolBalance, AMM};
 use crate::state::spot_market::InsuranceFund;
 use crate::state::user::UserStats;
 #[test]
@@ -1354,4 +1356,109 @@ pub fn multiple_if_stakes_and_rebase() {
     assert_eq!(if_balance, 1);
     assert_eq!(spot_market.insurance_fund.user_shares, 0);
     assert_eq!(spot_market.insurance_fund.total_shares, 0);
+}
+
+#[test]
+fn reset_revenue_withdraw_for_new_period_logic() {
+    let exhausted = (100 * QUOTE_PRECISION) as i64;
+
+    // New period opened (spot settle ts past last withdraw ts): counter resets.
+    let mut claim = InsuranceClaim {
+        revenue_withdraw_since_last_settle: exhausted,
+        last_revenue_withdraw_ts: 100,
+        ..InsuranceClaim::default()
+    };
+    claim
+        .reset_revenue_withdraw_for_new_period(200, 200)
+        .unwrap();
+    assert_eq!(claim.revenue_withdraw_since_last_settle, 0);
+
+    // Same period (spot settle ts not past last withdraw ts): counter untouched.
+    let mut claim = InsuranceClaim {
+        revenue_withdraw_since_last_settle: exhausted,
+        last_revenue_withdraw_ts: 200,
+        ..InsuranceClaim::default()
+    };
+    claim
+        .reset_revenue_withdraw_for_new_period(200, 200)
+        .unwrap();
+    assert_eq!(claim.revenue_withdraw_since_last_settle, exhausted);
+
+    // New period but clock behind a recorded ts: rejected.
+    let mut claim = InsuranceClaim {
+        revenue_withdraw_since_last_settle: exhausted,
+        last_revenue_withdraw_ts: 100,
+        ..InsuranceClaim::default()
+    };
+    assert!(claim
+        .reset_revenue_withdraw_for_new_period(200, 150)
+        .is_err());
+}
+
+#[test]
+fn resolve_perp_pnl_deficit_refreshes_period_after_new_settle() {
+    // Prior period exhausted the withdraw cap, then a new revenue-settle period
+    // opened (spot last_revenue_settle_ts advanced past the perp's
+    // last_revenue_withdraw_ts) with no fee sweep in between, so the perp
+    // counter still holds the old exhausted value. The deficit path must
+    // refresh the counter itself and resolve instead of reverting with
+    // MaxRevenueWithdrawPerPeriodReached.
+    let now = 1000_i64;
+    let cap = (100 * QUOTE_PRECISION) as u64;
+
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        insurance_fund: InsuranceFund {
+            last_revenue_settle_ts: now, // new period opened at `now`
+            ..InsuranceFund::default()
+        },
+        ..SpotMarket::default()
+    };
+
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_amount_with_amm: 0,
+            total_fee_minus_distributions: -1, // underwater
+            ..AMM::default()
+        },
+        quote_asset_amount: 200 * QUOTE_PRECISION_I128, // users owed $200
+        unrealized_pnl_max_imbalance: (50 * QUOTE_PRECISION) as u64,
+        insurance_claim: InsuranceClaim {
+            max_revenue_withdraw_per_period: cap,
+            revenue_withdraw_since_last_settle: cap as i64, // exhausted last period
+            quote_max_insurance: (1000 * QUOTE_PRECISION) as u64,
+            quote_settled_insurance: 0,
+            last_revenue_withdraw_ts: 0, // last withdrew in the prior period
+        },
+        ..PerpMarket::default()
+    };
+    market
+        .market_stats
+        .historical_oracle_data
+        .last_oracle_price_twap_5min = PRICE_PRECISION_I64;
+    market.market_stats.historical_oracle_data.last_oracle_price = PRICE_PRECISION_I64;
+
+    let insurance_vault_amount = (1000 * QUOTE_PRECISION) as u64;
+    let spot_vault_amount = (1000 * QUOTE_PRECISION) as u64;
+
+    let withdraw = resolve_perp_pnl_deficit(
+        spot_vault_amount,
+        insurance_vault_amount,
+        &mut spot_market,
+        &mut market,
+        now,
+    )
+    .unwrap();
+
+    // counter reset to 0 then charged this withdraw; a full period's cap is free
+    assert_eq!(withdraw, cap);
+    assert_eq!(
+        market.insurance_claim.revenue_withdraw_since_last_settle,
+        cap as i64
+    );
+    assert_eq!(market.insurance_claim.quote_settled_insurance, cap);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
 }

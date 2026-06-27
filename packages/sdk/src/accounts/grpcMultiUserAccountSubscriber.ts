@@ -200,6 +200,11 @@ export class grpcMultiUserAccountSubscriber {
 			},
 
 			getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
+				if (!isSubscribed) {
+					throw new NotSubscribedError(
+						'You must call `subscribe` before using this function'
+					);
+				}
 				return parent.userData.get(key);
 			},
 		};

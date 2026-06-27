@@ -195,7 +195,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 							});
 
 							const accountDecoded = this.program.coder.accounts.decode(
-								this.capitalize(this.accountName),
+								this.accountName,
 								newBuffer
 							);
 							this.setAccountData(accountId, accountDecoded, currentSlot);
@@ -319,10 +319,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			) => {
 				const data = this.decodeBufferFn
 					? this.decodeBufferFn(buffer, accountPubkey, accountProps)
-					: this.program.coder.accounts.decode(
-							this.capitalize(this.accountName),
-							buffer
-					  );
+					: this.program.coder.accounts.decode(this.accountName, buffer);
 				const handler = this.onChangeMap.get(accountPubkey);
 				if (handler) {
 					handler(data, context, buffer, accountProps);
@@ -482,10 +479,5 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			},
 			this.resubOpts?.resubTimeoutMs
 		);
-	}
-
-	private capitalize(value: string): string {
-		if (!value) return value;
-		return value.charAt(0).toUpperCase() + value.slice(1);
 	}
 }

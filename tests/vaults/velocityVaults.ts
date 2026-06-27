@@ -190,6 +190,14 @@ async function bootstrapBankrun(): Promise<{
 	await adminClient.updatePerpAuctionDuration(new BN(0));
 	await adminClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
+	// adminClient.subscribe() ran before these spot/perp markets existed, so its
+	// oracle maps weren't built for them. They're only repopulated lazily by
+	// background polling, so a later adminClient.getOracleDataForPerpMarket(0)
+	// races that poll and intermittently throws "No oracle price data for perp
+	// market 0" in CI. Rebuild the maps now (awaited) to make setup deterministic.
+	await adminClient.accountSubscriber.setPerpOracleMap();
+	await adminClient.accountSubscriber.setSpotOracleMap();
+
 	await adminClient.fetchAccounts();
 
 	return {

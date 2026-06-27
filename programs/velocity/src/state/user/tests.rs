@@ -2496,3 +2496,62 @@ mod force_get_user_perp_position_mut {
         assert_eq!(user.perp_positions[0].max_margin_ratio, 0);
     }
 }
+
+mod bankruptcy_entry_liquidation_id {
+    use crate::state::user::{PerpPosition, User, UserStatus};
+    use crate::test_utils::get_positions;
+
+    #[test]
+    fn cross_margin_fresh_user_allocates_id() {
+        // No liquidation episode: next_liquidation_id is 0. Entry must allocate
+        // so `next_liquidation_id - 1` (the resolver's event id) is valid.
+        let mut user = User {
+            status: 0,
+            next_liquidation_id: 0,
+            ..User::default()
+        };
+
+        user.enter_cross_margin_bankruptcy();
+
+        assert_eq!(user.next_liquidation_id, 1);
+        assert_eq!(user.next_liquidation_id.checked_sub(1), Some(0));
+        assert!(user.is_cross_margin_bankrupt());
+    }
+
+    #[test]
+    fn cross_margin_active_episode_reuses_id() {
+        // A liquidation episode already allocated an id (next_liquidation_id is
+        // past 0 and BeingLiquidated is set). Entry must not allocate again.
+        let mut user = User {
+            status: UserStatus::BeingLiquidated as u8,
+            next_liquidation_id: 1,
+            ..User::default()
+        };
+
+        user.enter_cross_margin_bankruptcy();
+
+        assert_eq!(user.next_liquidation_id, 1);
+        assert!(user.is_cross_margin_bankrupt());
+        assert!(!user.is_cross_margin_being_liquidated() || user.is_cross_margin_bankrupt());
+    }
+
+    #[test]
+    fn isolated_fresh_user_allocates_id() {
+        let mut user = User {
+            status: 0,
+            next_liquidation_id: 0,
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        // mark the position isolated so the isolated bankruptcy path applies
+        user.perp_positions[0].position_flag |=
+            crate::state::user::PositionFlag::IsolatedPosition as u8;
+
+        user.enter_isolated_margin_bankruptcy(0).unwrap();
+
+        assert_eq!(user.next_liquidation_id, 1);
+    }
+}

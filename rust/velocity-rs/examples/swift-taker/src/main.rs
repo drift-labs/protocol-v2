@@ -1,13 +1,13 @@
 //! Example place swift taker order
 use argh::FromArgs;
 use base64::Engine;
+use nanoid::nanoid;
+use reqwest::header;
 use velocity_rs::{
     swift_order_subscriber::{SignedOrderInfo, SignedOrderType},
     types::{MarketType, OrderParams, OrderType, PositionDirection, SignedMsgOrderParamsMessage},
-    Context, VelocityClient, RpcClient, TransactionBuilder, Wallet,
+    Context, RpcClient, TransactionBuilder, VelocityClient, Wallet,
 };
-use nanoid::nanoid;
-use reqwest::header;
 
 /// Swift taker client example
 #[derive(FromArgs)]
@@ -81,8 +81,11 @@ async fn main() {
     dbg!(&swift_order_request.to_string());
 
     if args.deposit_trade {
-        let signed_order_info =
-            SignedOrderInfo::authority(*velocity.wallet.authority(), signed_order_params, signature);
+        let signed_order_info = SignedOrderInfo::authority(
+            *velocity.wallet.authority(),
+            signed_order_params,
+            signature,
+        );
         // SOL deposit, 0 = usdc, 1 = sol
         swift_deposit_trade(
             &velocity,
@@ -100,9 +103,9 @@ async fn main() {
 async fn swift_place_order(velocity: &VelocityClient, swift_order_request: serde_json::Value) {
     println!("sending swift order: {swift_order_request:?}");
     let swift_url = if velocity.context == Context::MainNet {
-        "https://swift.drift.trade/orders"
+        "https://swift.velocity.exchange/orders"
     } else {
-        "https://master.swift.drift.trade/orders"
+        "https://swift.master.velocity.exchange/orders"
     };
     let swift_cli = reqwest::Client::new();
     let req = swift_cli
@@ -176,9 +179,9 @@ async fn swift_deposit_trade(
     });
 
     let swift_url = if velocity.context == Context::MainNet {
-        "https://swift.drift.trade/depositTrade"
+        "https://swift.velocity.exchange/depositTrade"
     } else {
-        "https://master.swift.drift.trade/depositTrade"
+        "https://swift.master.velocity.exchange/depositTrade"
     };
     let swift_cli = reqwest::Client::new();
     let req = swift_cli

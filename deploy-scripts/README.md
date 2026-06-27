@@ -15,11 +15,11 @@ Program upgrades to **mainnet** and **devnet** are gated through a Squads multis
 
 Both workflows do the same thing on different multisigs:
 
-1. Build the program — `anchor build` for the IDL, `solana-verify build` for a reproducible `.so` (Docker image pinned in workflow env). Devnet velocity strips `mainnet-beta` so the cfg-gated `declare_id!` resolves to the devnet pubkey.
-2. Upload the `.so` to a BPF Upgradeable Loader buffer (via `solana program write-buffer`).
-3. Upload the IDL JSON to a program-metadata buffer (via `npx @solana-program/program-metadata create-buffer` — Anchor 1.0 stopped baking the legacy IDL instructions into programs).
-4. Transfer both buffer authorities to the multisig vault PDA.
-5. Call [`helium/squads-program-upgrade`](https://github.com/helium/squads-program-upgrade), which proposes a single Squads transaction containing: program-metadata `Initialize` (only if the canonical IDL metadata account doesn't exist yet) + `SetData` (apply IDL buffer) + `Close` (refund buffer rent) + BPF Loader `Upgrade` (apply program buffer). The proposal is **not** auto-executed — multisig signers approve + execute through the Squads UI.
+1. Build the program — `anchor idl build` for the IDL JSON (no SBF compile), `solana-verify build` for a reproducible `.so` (Docker image pinned in workflow env). Devnet velocity strips `mainnet-beta` so the devnet-only instructions are compiled in and production gates are off. (Done by the local [`build-program`](../.github/actions/build-program/) composite action — the Solana Foundation reusable build can't express `--skip-lint` or devnet's `--no-default-features`, so the build stays in-house.)
+2. Stage the upgrade with [`solana-foundation/github-actions/prepare-squads-release`](https://github.com/solana-foundation/github-actions/tree/main/prepare-squads-release) (pinned by commit SHA), wrapped by the local [`buffer-deploy`](../.github/actions/buffer-deploy/) action. It writes the `.so` to a BPF Upgradeable Loader buffer (resumable — re-sends only missing chunks on retry), writes the IDL JSON to a program-metadata buffer, transfers both buffer authorities to the multisig vault PDA, and (mainnet) exports a `solana-verify` PDA transaction. `buffer-deploy` first asserts the program's **canonical IDL metadata account already exists** (it never creates it — see [Initial deploy](#initial-deploy-create-the-idl-metadata-account) below) and fails fast with instructions if it doesn't. It then logs the program + metadata buffer addresses and the on-chain buffer hash next to the local verifiable `.so` hash (run summary) for multisig-side verification — reproduce it with [`verify-buffer.sh`](#verifying-a-buffer-before-signing-the-squads-proposal).
+3. Propose the Squads transaction with [`solana-foundation/squads-program-action`](https://github.com/solana-foundation/squads-program-action) (official, SHA-pinned). Because the IDL metadata account already exists, this is a single vault transaction: `SetData` from the IDL buffer (grow first only if the IDL changed by < 10 KiB) + BPF Loader `Upgrade` + the `solana-verify` PDA instruction (mainnet). One tx, no batch. The proposal is **not** auto-executed — multisig signers approve + execute through the Squads UI.
+
+   > CI only ever **updates** the IDL. The canonical metadata account can only be **created** by the program's upgrade authority, so it is created once at initial program deploy (while the deployer still holds upgrade authority), before authority is handed to the multisig — see [Initial deploy](#initial-deploy-create-the-idl-metadata-account). After that every release is a single-tx `SetData`.
 
 ### Required GitHub secrets
 
@@ -27,11 +27,46 @@ Both workflows do the same thing on different multisigs:
 | --- | --- |
 | `MAINNET_RPC_ENDPOINT` / `DEVNET_RPC_ENDPOINT` | Solana RPC URLs (private RPC strongly recommended for mainnet — write-buffer needs ~1200 chunked writes). |
 | `MAINNET_DEPLOYER_KEYPAIR` / `DEVNET_DEPLOYER_KEYPAIR` | Solana keypair as a raw `[..]` byte array. Pays buffer rent + signs the Squads proposal. Must be a multisig member with Voter permissions. |
-| `MAINNET_DEPLOYER_ADDRESS` / `DEVNET_DEPLOYER_ADDRESS` | Public key of the deployer; receives reclaimed buffer rent on upgrade. |
 | `MAINNET_MULTISIG` / `DEVNET_MULTISIG` | Squads multisig PDA. |
 | `MAINNET_MULTISIG_VAULT` / `DEVNET_MULTISIG_VAULT` | The vault PDA owned by the multisig (Squads "vault index 0"). This is the on-chain program upgrade authority and the IDL metadata authority. |
 
-The first-ever mainnet deploy with this flow will also **initialize the canonical IDL metadata account** for `vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P` — the action detects an absent metadata PDA and includes the `Initialize` instruction in the same Squads proposal. For velocity mainnet, that account does not exist today.
+### Initial deploy: create the IDL metadata account
+
+CI **only updates** the IDL — it never creates the canonical metadata account, because creating one requires the program's **upgrade authority** to sign (program-metadata: "canonical metadata accounts are created by the program upgrade authority"). After launch the upgrade authority is the multisig vault, and creating velocity's ~53 KB account through a vault CPI would need a batched proposal — so instead **the canonical IDL account is created once, by the deployer, at initial program deploy, while the deployer still holds the upgrade authority** (no multisig, no batch — the deployer just sends the chunked writes directly). The Anchor CLI does **not** do this: `anchor deploy` only deploys the program, and `anchor idl init` targets the legacy on-chain IDL account, not the program-metadata account velocity's clients resolve. Use the program-metadata CLI explicitly.
+
+Run this once per cluster (mainnet is not deployed yet; devnet's account already exists), against a **private RPC**, in order — **before** transferring the upgrade authority to the multisig:
+
+```bash
+PROGRAM_ID=vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P
+RPC=<private-rpc-url>
+DEPLOYER=<deployer-keypair.json>          # must be the current program upgrade authority
+VAULT=<MAINNET_MULTISIG_VAULT pubkey>
+
+# 1. Deploy the program (deployer is the upgrade authority at this point).
+solana program deploy target/deploy/velocity.so \
+  --program-id <program-keypair.json> \
+  --upgrade-authority "$DEPLOYER" -u "$RPC" --use-rpc
+
+# 2. Build the mainnet IDL JSON (no SBF compile; default features = mainnet, so
+#    devnet-only instructions are excluded — matches what CI's build-program emits).
+anchor idl build --skip-lint -p velocity -o target/idl/velocity.json
+
+# 3. Create the canonical IDL metadata account (deployer signs as upgrade authority).
+npx @solana-program/program-metadata@0.5.1 create idl "$PROGRAM_ID" \
+  target/idl/velocity.json --keypair "$DEPLOYER" --rpc "$RPC"
+
+# 4. Delegate the metadata account to the multisig vault so CI can update it.
+npx @solana-program/program-metadata@0.5.1 set-authority idl "$PROGRAM_ID" \
+  --new-authority "$VAULT" --keypair "$DEPLOYER" --rpc "$RPC"
+
+# 5. Hand the program upgrade authority to the multisig vault (LAST — after the
+#    account exists; the vault remains able to update the canonical account as the
+#    upgrade authority, and is also the delegated metadata authority from step 4).
+solana program set-upgrade-authority "$PROGRAM_ID" \
+  --new-upgrade-authority "$VAULT" -k "$DEPLOYER" -u "$RPC"
+```
+
+From then on, the tag-/dispatch-triggered workflows above handle every release as a single-tx `SetData` + `Upgrade`. If `buffer-deploy` ever fails with "Canonical IDL metadata account … does not exist", this step was skipped.
 
 ### Cutting a mainnet release
 
@@ -47,7 +82,27 @@ git push origin program-velocity-2.163.0
 # 5. Sign + execute in the Squads UI
 ```
 
-The `mainnet-beta` branch tracks what is (or is about to be) live on mainnet; `master` is active development. The tag itself is the deploy trigger — branch state doesn't gate the workflow.
+The `mainnet-beta` branch tracks what is (or is about to be) live on mainnet; `master` is active development. The tag itself is the deploy trigger — branch state doesn't gate the workflow. This assumes the program and its canonical IDL account already exist on mainnet — for the very first mainnet deploy, do [Initial deploy](#initial-deploy-create-the-idl-metadata-account) first.
+
+### Verifying a buffer before signing the Squads proposal
+
+Before approving an upgrade in the Squads UI, confirm the staged buffer is
+actually what the source compiles to — don't trust the hash CI printed. The CI
+`buffer-deploy` step logs the program buffer address and its hash;
+`verify-buffer.sh` reproduces the hash from source and compares:
+
+```bash
+# Build velocity (devnet flavor) and check it against the buffer the run logged:
+deploy-scripts/verify-buffer.sh velocity \
+  https://github.com/velocity-exchange/velocity-v1/actions/runs/<id>/job/<id> \
+  --devnet --rpc "$SOLANA_RPC"
+
+# Or check a known buffer directly, reusing an already-built .so:
+deploy-scripts/verify-buffer.sh velocity --buffer <bufferPubkey> --rpc "$SOLANA_RPC" --skip-build
+```
+
+It exits non-zero on a mismatch. Needs `solana-verify`, `gh` (authenticated),
+and the solana CLI on `PATH`. Drop `--devnet` for a mainnet build.
 
 ---
 

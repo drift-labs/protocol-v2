@@ -84,6 +84,11 @@ export class WebSocketProgramUserAccountSubscriber
 	}
 
 	getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
+		if (!this.isSubscribed) {
+			throw new NotSubscribedError(
+				'You must call `subscribe` before using this function'
+			);
+		}
 		return this.userAccountAndSlot;
 	}
 }

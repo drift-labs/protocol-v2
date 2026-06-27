@@ -26,7 +26,10 @@ jobs:
       - name: Create or update the Version Packages PR
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
         with:
-          version: bun run version-packages
+          # Wrapper retries the transient @changesets/changelog-github GitHub
+          # GraphQL fetch failure (ERR_STREAM_PREMATURE_CLOSE) that was failing
+          # this job on ~half of pushes. See the script for details.
+          version: bash .github/scripts/changeset-version.sh
           commit: "chore: version packages"
           title: "chore: version packages"
         env:
