@@ -37,9 +37,8 @@ use crate::{
         traits::{MarketIndexOffset, Size},
         user::{MarketType, Order},
     },
-    vlp::amm::math::amm::{
-        calculate_new_oracle_price_twap, sanitize_new_price, TwapPeriod, {self},
-    },
+    validate,
+    vlp::amm::math::amm::{self, calculate_new_oracle_price_twap, sanitize_new_price, TwapPeriod},
 };
 
 #[cfg(test)]
@@ -1217,6 +1216,31 @@ pub struct InsuranceClaim {
     pub quote_settled_insurance: u64,
     /// The last time revenue was settled in/out of market
     pub last_revenue_withdraw_ts: i64,
+}
+
+impl InsuranceClaim {
+    /// Reset the per-period revenue-withdraw counter when the quote spot market
+    /// has opened a new revenue-settle period since this market last withdrew.
+    /// Both the fee sweep and the pnl-deficit path call this so they share one
+    /// definition of "a new period has started" and never disagree on the cap.
+    pub fn reset_revenue_withdraw_for_new_period(
+        &mut self,
+        spot_last_revenue_settle_ts: i64,
+        now: i64,
+    ) -> VelocityResult {
+        if spot_last_revenue_settle_ts > self.last_revenue_withdraw_ts {
+            validate!(
+                now >= self.last_revenue_withdraw_ts && now >= spot_last_revenue_settle_ts,
+                ErrorCode::BlockchainClockInconsistency,
+                "issue with clock unix timestamp {} < market.insurance_claim.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
+                now,
+                self.last_revenue_withdraw_ts,
+                spot_last_revenue_settle_ts,
+            )?;
+            self.revenue_withdraw_since_last_settle = 0;
+        }
+        Ok(())
+    }
 }
 
 #[zero_copy(unsafe)]

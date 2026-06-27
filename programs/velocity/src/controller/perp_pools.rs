@@ -69,18 +69,12 @@ pub fn sweep_market_fees(
     force: bool,
 ) -> VelocityResult<(u128, u128, u128)> {
     // market can perform withdraw from revenue pool
-    if spot_market.insurance_fund.last_revenue_settle_ts
-        > market.insurance_claim.last_revenue_withdraw_ts
-    {
-        validate!(now >= market.insurance_claim.last_revenue_withdraw_ts && now >= spot_market.insurance_fund.last_revenue_settle_ts,
-            ErrorCode::BlockchainClockInconsistency,
-            "issue with clock unix timestamp {} < market.insurance_claim.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
-            now,
-            market.insurance_claim.last_revenue_withdraw_ts,
+    market
+        .insurance_claim
+        .reset_revenue_withdraw_for_new_period(
             spot_market.insurance_fund.last_revenue_settle_ts,
+            now,
         )?;
-        market.insurance_claim.revenue_withdraw_since_last_settle = 0;
-    }
 
     if (!force && market.is_operation_paused(PerpOperation::SettleRevPool))
         || (market.fee_ledger.pending_protocol_fee == 0
