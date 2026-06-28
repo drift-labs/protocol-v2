@@ -7577,6 +7577,7 @@ pub mod resolve_perp_bankruptcy {
         expected_market.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.total_social_loss = 100000000;
+        expected_market.net_unsettled_funding_pnl = -100 * QUOTE_PRECISION_I64;
         expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
 
@@ -8041,6 +8042,7 @@ pub mod resolve_perp_bankruptcy {
         expected_market.cumulative_funding_rate_long = 1004 * FUNDING_RATE_PRECISION_I128;
         expected_market.cumulative_funding_rate_short = -1004 * FUNDING_RATE_PRECISION_I128;
         expected_market.total_social_loss = 40000000;
+        expected_market.net_unsettled_funding_pnl = -40 * QUOTE_PRECISION_I64;
         expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
         expected_market.amm.fee_pool.scaled_balance = 0;
@@ -8283,6 +8285,7 @@ pub mod resolve_perp_bankruptcy {
         expected_market.cumulative_funding_rate_long = 1003 * FUNDING_RATE_PRECISION_I128;
         expected_market.cumulative_funding_rate_short = -1003 * FUNDING_RATE_PRECISION_I128;
         expected_market.total_social_loss = 30 * QUOTE_PRECISION_I64 as u128;
+        expected_market.net_unsettled_funding_pnl = -30 * QUOTE_PRECISION_I64;
         expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
         // tranche 1 + 3a are counter-only; tranche 2 (25) and 3b (7) move
@@ -8581,6 +8584,7 @@ pub mod resolve_perp_bankruptcy {
         expected_market.cumulative_funding_rate_long = 1008 * FUNDING_RATE_PRECISION_I128;
         expected_market.cumulative_funding_rate_short = -1008 * FUNDING_RATE_PRECISION_I128;
         expected_market.total_social_loss = 80 * QUOTE_PRECISION_I64 as u128;
+        expected_market.net_unsettled_funding_pnl = -80 * QUOTE_PRECISION_I64;
         expected_market.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users = 0;
         expected_market.fee_ledger.pending_amm_provision = 0;
