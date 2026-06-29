@@ -102,6 +102,20 @@ const logHttp = morgan(logFormat, {
 	skip: (_req, res) => res.statusCode <= 500,
 });
 
+// Matches https://<any-subdomain>.velocity.exchange
+const ALLOWED_ORIGIN_PATTERN = /^https:\/\/([^/]+\.)?velocity\.exchange(\/|$)/;
+
+function isAuthorizedRequest(req: express.Request): boolean {
+	const internalSecret = process.env.INTERNAL_SECRET;
+	const hasAuth =
+		typeof internalSecret === 'string' &&
+		internalSecret.length > 0 &&
+		req.get('Authorization') === internalSecret;
+	if (hasAuth) return true;
+	const origin = req.get('Origin') || req.get('Referer');
+	return !!origin && ALLOWED_ORIGIN_PATTERN.test(origin);
+}
+
 // init metrics
 const metricsV2 = new Metrics('dlob-publisher', undefined, metricsPort);
 const healthStatusGauge = metricsV2.addGauge(
@@ -810,22 +824,7 @@ const main = async (): Promise<void> => {
 
 	app.get('/pythLazer', async (req, res, next) => {
 		try {
-			// Check origin validation
-			const origin = req.get('Origin') || req.get('Referer');
-			const allowedOrigins = [
-				'https://app.drift.trade',
-				'https://beta.drift.trade',
-			];
-
-			const hasAuth =
-				(req.headers.Authorization || req.headers.authorization) ===
-				process.env.INTERNAL_SECRET;
-
-			if (
-				!hasAuth &&
-				(!origin ||
-					!allowedOrigins.some((allowed) => origin.startsWith(allowed)))
-			) {
+			if (!isAuthorizedRequest(req)) {
 				res.status(403).json({ error: 'Forbidden: Invalid origin' });
 				return;
 			}
@@ -875,22 +874,7 @@ const main = async (): Promise<void> => {
 
 	app.get('/pythPull', async (req, res, next) => {
 		try {
-			// Check origin validation
-			const origin = req.get('Origin') || req.get('Referer');
-			const allowedOrigins = [
-				'https://app.drift.trade',
-				'https://beta.drift.trade',
-			];
-
-			const hasAuth =
-				(req.headers.Authorization || req.headers.authorization) ===
-				process.env.INTERNAL_SECRET;
-
-			if (
-				!hasAuth &&
-				(!origin ||
-					!allowedOrigins.some((allowed) => origin.startsWith(allowed)))
-			) {
+			if (!isAuthorizedRequest(req)) {
 				res.status(403).json({ error: 'Forbidden: Invalid origin' });
 				return;
 			}
