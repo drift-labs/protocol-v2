@@ -556,6 +556,13 @@ pub fn handle_deposit<'c: 'info, 'info>(
         "Market is being initialized"
     )?;
 
+    validate!(
+        !spot_market.is_operation_paused(SpotOperation::Deposit),
+        ErrorCode::MarketActionPaused,
+        "spot market {} deposits paused",
+        market_index
+    )?;
+
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_price_data),

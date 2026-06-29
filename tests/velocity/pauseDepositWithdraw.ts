@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
@@ -16,10 +16,12 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
+	ExchangeStatus,
 } from '../../packages/sdk/src';
 
 import {
 	createUserWithUSDCAccount,
+	createUSDCAccountForUser,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -55,6 +57,7 @@ describe('spot deposit and withdraw 22', () => {
 
 	let firstUserVelocityClient: TestClient;
 	let firstUserVelocityClientUSDCAccount: PublicKey;
+	let firstUserKeyPair: Keypair;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -187,17 +190,20 @@ describe('spot deposit and withdraw 22', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserVelocityClient, firstUserVelocityClientUSDCAccount] =
-			await createUserWithUSDCAccount(
-				bankrunContextWrapper,
-				usdcMint,
-				chProgram,
-				usdcAmount,
-				marketIndexes,
-				spotMarketIndexes,
-				oracleInfos,
-				bulkAccountLoader
-			);
+		[
+			firstUserVelocityClient,
+			firstUserVelocityClientUSDCAccount,
+			firstUserKeyPair,
+		] = await createUserWithUSDCAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			usdcAmount,
+			marketIndexes,
+			spotMarketIndexes,
+			oracleInfos,
+			bulkAccountLoader
+		);
 
 		const marketIndex = 0;
 		await sleep(100);
@@ -235,6 +241,81 @@ describe('spot deposit and withdraw 22', () => {
 
 		assert(
 			firstUserVelocityClient.getUserAccount().totalDeposits.eq(usdcAmount)
+		);
+	});
+
+	it('Deposit rejected when per-market Deposit operation is paused', async () => {
+		const marketIndex = 0;
+
+		// Preconditions: global deposits are NOT paused and the market is Active.
+		assert(
+			(admin.getStateAccount().exchangeStatus &
+				ExchangeStatus.DEPOSIT_PAUSED) ===
+				0
+		);
+		const spotMarketBefore = await admin.getSpotMarketAccount(marketIndex);
+		assert(isVariant(spotMarketBefore.status, 'active'));
+
+		// Pause ONLY the per-market Deposit operation (withdraw stays open).
+		await admin.updateSpotMarketPausedOperations(
+			marketIndex,
+			SpotOperation.DEPOSIT
+		);
+		await admin.fetchAccounts();
+		assert(
+			(await admin.getSpotMarketAccount(marketIndex)).pausedOperations ===
+				SpotOperation.DEPOSIT
+		);
+
+		// Fund a fresh USDC account so a rejection can only be the pause, not lack of funds.
+		const freshUSDCAccount = await createUSDCAccountForUser(
+			bankrunContextWrapper,
+			firstUserKeyPair,
+			usdcMint,
+			usdcAmount
+		);
+
+		const depositBalanceBefore = (await admin.getSpotMarketAccount(marketIndex))
+			.depositBalance;
+
+		await firstUserVelocityClient.fetchAccounts();
+		let rejected = false;
+		try {
+			await firstUserVelocityClient.deposit(
+				usdcAmount,
+				marketIndex,
+				freshUSDCAccount
+			);
+		} catch (e) {
+			rejected = true;
+		}
+		assert(
+			rejected,
+			'deposit should be rejected while the market Deposit operation is paused'
+		);
+
+		// Market deposit balance is unchanged by the rejected deposit.
+		await admin.fetchAccounts();
+		assert(
+			(await admin.getSpotMarketAccount(marketIndex)).depositBalance.eq(
+				depositBalanceBefore
+			)
+		);
+
+		// Unpausing the Deposit operation lets the same deposit through.
+		await admin.updateSpotMarketPausedOperations(marketIndex, 0);
+		await firstUserVelocityClient.fetchAccounts();
+		await firstUserVelocityClient.deposit(
+			usdcAmount,
+			marketIndex,
+			freshUSDCAccount
+		);
+
+		await admin.fetchAccounts();
+		assert(
+			(await admin.getSpotMarketAccount(marketIndex)).depositBalance.gt(
+				depositBalanceBefore
+			)
 		);
 	});
 
