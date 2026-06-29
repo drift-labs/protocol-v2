@@ -2043,9 +2043,47 @@ mod next_liquidation_id {
         assert_eq!(liquidation_id, 2);
         assert_eq!(user.last_active_slot, 4);
 
+        // Cross margin joins the isolated episode: id shared, timer resets to entry slot.
         let liquidation_id = user.enter_cross_margin_liquidation(6).unwrap();
         assert_eq!(liquidation_id, 2);
-        assert_eq!(user.last_active_slot, 4);
+        assert_eq!(user.last_active_slot, 6);
+    }
+}
+
+mod cross_margin_liquidation_reentry_resets_pacing {
+    use crate::state::user::{PerpPosition, PositionFlag, User};
+
+    #[test]
+    fn test() {
+        let mut user = User {
+            next_liquidation_id: 1,
+            ..User::default()
+        };
+        user.perp_positions[0] = PerpPosition {
+            market_index: 1,
+            position_flag: PositionFlag::IsolatedPosition as u8,
+            base_asset_amount: 1,
+            ..PerpPosition::default()
+        };
+
+        // Isolated liquidation opens the episode at slot 100.
+        let id = user.enter_isolated_margin_liquidation(1, 100).unwrap();
+        assert_eq!(id, 1);
+        assert_eq!(user.last_active_slot, 100);
+
+        // Cross margin joins, frees some margin, then exits while isolated remains.
+        user.enter_cross_margin_liquidation(120).unwrap();
+        user.increment_margin_freed(500).unwrap();
+        assert_eq!(user.liquidation_margin_freed, 500);
+        user.exit_cross_margin_liquidation();
+        assert!(user.has_isolated_margin_being_liquidated());
+
+        // Cross margin re-enters much later: id shared, but timer and margin-freed
+        // reset so pacing doesn't inherit the slot-100 elapsed time.
+        let id = user.enter_cross_margin_liquidation(200).unwrap();
+        assert_eq!(id, 1);
+        assert_eq!(user.last_active_slot, 200);
+        assert_eq!(user.liquidation_margin_freed, 0);
     }
 }
 

@@ -417,12 +417,16 @@ impl User {
         }
 
         self.add_user_status(UserStatus::BeingLiquidated);
+
+        // Reset both pacing fields on entry. Isolated liquidations don't touch
+        // them, so reusing the isolated episode's slot would start cross margin
+        // pacing with a large elapsed time. Liquidation id is still shared.
         self.liquidation_margin_freed = 0;
+        self.last_active_slot = slot;
 
         let liquidation_id = if self.has_isolated_margin_being_liquidated() {
             self.next_liquidation_id.safe_sub(1)?
         } else {
-            self.last_active_slot = slot;
             get_then_update_id!(self, next_liquidation_id)
         };
 
