@@ -99,6 +99,8 @@ pub fn simulate_place_perp_order(
 
     let user_key = user.authority;
     let mut rev_share_order = None;
+    // The simulation only cares whether placement succeeds; the
+    // `PlaceOrderResult` (batch risk accounting) is irrelevant here.
     place_perp_order(
         &state,
         &mut user,
@@ -110,5 +112,6 @@ pub fn simulate_place_perp_order(
         order_params,
         PlaceOrderOptions::default(),
         &mut rev_share_order,
-    )
+    )?;
+    Ok(())
 }

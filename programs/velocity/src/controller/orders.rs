@@ -83,6 +83,25 @@ mod tests;
 #[cfg(test)]
 mod amm_jit_tests;
 
+/// Outcome of a single [`place_perp_order`] call.
+///
+/// Batch placement (`place_orders` / `place_scale_orders`) defers the margin
+/// check until after every order is placed, so it needs to know what risk each
+/// individual placement introduced. This struct carries that back: whether the
+/// order increased the user's risk, and — when it did against an isolated
+/// position — which isolated market scope must meet initial margin. A no-op
+/// placement (skipped order, `TryPostOnly` that couldn't post) returns the
+/// default (`risk_increasing == false`, `isolated_market_index == None`).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PlaceOrderResult {
+    /// Whether this order increased the user's risk in its market/position.
+    pub risk_increasing: bool,
+    /// `Some(market_index)` when a risk-increasing order's position is isolated,
+    /// identifying the isolated scope that must meet initial margin. `None` for
+    /// a cross-margin order or any non-risk-increasing / no-op placement.
+    pub isolated_market_index: Option<u16>,
+}
+
 pub fn place_perp_order(
     state: &State,
     user: &mut User,
@@ -94,7 +113,7 @@ pub fn place_perp_order(
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
     rev_share_order: &mut Option<&mut RevenueShareOrder>,
-) -> VelocityResult {
+) -> VelocityResult<PlaceOrderResult> {
     let now = clock.unix_timestamp;
     let slot: u64 = clock.slot;
 
@@ -256,7 +275,7 @@ pub fn place_perp_order(
 
     if max_ts != 0 && max_ts < now {
         msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
-        return Ok(());
+        return Ok(PlaceOrderResult::default());
     }
 
     validate!(
@@ -334,7 +353,7 @@ pub fn place_perp_order(
             if params.post_only == PostOnlyParam::TryPostOnly =>
         {
             // just want place to succeeds without error if TryPostOnly
-            return Ok(());
+            return Ok(PlaceOrderResult::default());
         }
         Err(err) => return Err(err),
     };
@@ -358,14 +377,20 @@ pub fn place_perp_order(
 
     options.update_risk_increasing(risk_increasing);
 
-    // when orders are placed in bulk, only need to check margin on last place
+    // if isolated position, the isolated market is the scope that must meet
+    // initial margin for a risk-increasing order
+    let isolated_market_index = if user.perp_positions[position_index].is_isolated() {
+        Some(market_index)
+    } else {
+        None
+    };
+
+    // Single-order placement checks margin here. Bulk placement passes
+    // `enforce_margin_check == false` and instead runs one accumulated check
+    // after the whole batch (see `place_orders`), so an early risk-increasing
+    // order can't be admitted under a weaker check by a later no-op/reducing
+    // order.
     if options.enforce_margin_check && !options.is_liquidation() {
-        // if isolated position, use the isolated margin calculation
-        let isolated_market_index = if user.perp_positions[position_index].is_isolated() {
-            Some(market_index)
-        } else {
-            None
-        };
         meets_place_order_margin_requirement(
             user,
             perp_market_map,
@@ -448,7 +473,14 @@ pub fn place_perp_order(
 
     user.update_last_active_slot(slot);
 
-    Ok(())
+    Ok(PlaceOrderResult {
+        risk_increasing,
+        isolated_market_index: if risk_increasing {
+            isolated_market_index
+        } else {
+            None
+        },
+    })
 }
 
 fn get_auction_params(
