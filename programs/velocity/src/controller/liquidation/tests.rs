@@ -9651,6 +9651,7 @@ pub mod liquidate_isolated_perp {
         MARGIN_PRECISION_U128, PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::liquidation::validate_user_not_being_liquidated;
     use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
     use crate::math::position::calculate_base_asset_value_with_oracle_price;
     use crate::state::margin_calculation::MarginContext;
@@ -10768,6 +10769,180 @@ pub mod liquidate_isolated_perp {
         assert_eq!(spot_position_one_before, spot_position_one_after);
         assert_eq!(spot_position_two_before, spot_position_two_after);
         assert_eq!(perp_position_one_before, perp_position_one_after);
+    }
+
+    #[test]
+    pub fn mixed_mode_isolated_liquidation_blocks_exit_after_cross_recovers() {
+        // Both cross-margin and isolated liquidation flags are active. Cross
+        // health has recovered (can exit) but the isolated position is still
+        // unhealthy. The validator must check both states independently: clear
+        // the cross flag, then still reject because the isolated liquidation
+        // remains. Returning Ok here would let order placement / fills / swaps
+        // bypass a live isolated liquidation.
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        create_anchor_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            PythLazerOracle,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            number_of_users_with_base: 1,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.price),
+                ..MarketStats::default()
+            },
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+
+        let mut market2 = market;
+        market2.market_index = 1;
+        create_anchor_account_info!(market2, PerpMarket, market2_account_info);
+
+        let market_account_infos = [market_account_info, market2_account_info];
+        let market_set = BTreeSet::default();
+        let perp_market_map =
+            PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            initial_liability_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let mut spot_market2 = spot_market;
+        spot_market2.market_index = 1;
+        create_anchor_account_info!(spot_market2, SpotMarket, spot_market2_account_info);
+
+        let spot_market_account_infos = [spot_market_account_info, spot_market2_account_info];
+        let mut spot_market_set = BTreeSet::default();
+        spot_market_set.insert(0);
+        spot_market_set.insert(1);
+        let spot_market_map = SpotMarketMap::load(
+            &spot_market_set,
+            &mut spot_market_account_infos.iter().peekable(),
+        )
+        .unwrap();
+
+        let mut user = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -150 * QUOTE_PRECISION_I64,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                position_flag: PositionFlag::IsolatedPosition as u8,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+
+            ..User::default()
+        };
+
+        user.spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Borrow,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+
+        user.perp_positions[1] = PerpPosition {
+            market_index: 1,
+            base_asset_amount: BASE_PRECISION_I64,
+            quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+            quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+            quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        // Cross health is fine, isolated market 0 is not.
+        let margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::liquidation(10),
+            )
+            .unwrap();
+        assert!(margin_calculation
+            .can_exit_cross_margin_liquidation()
+            .unwrap());
+        assert!(!margin_calculation
+            .can_exit_isolated_margin_liquidation(0)
+            .unwrap());
+
+        // Both liquidation states active at once.
+        user.status = crate::state::user::UserStatus::BeingLiquidated as u8;
+        user.perp_positions[0].position_flag |= PositionFlag::BeingLiquidated as u8;
+
+        let result = validate_user_not_being_liquidated(
+            &mut user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            10,
+        );
+
+        // Cross flag cleared, but the still-active isolated liquidation blocks exit.
+        assert_eq!(result, Err(ErrorCode::UserIsBeingLiquidated));
+        assert!(!user.is_cross_margin_being_liquidated());
+        assert!(user.perp_positions[0].is_being_liquidated());
     }
 }
 

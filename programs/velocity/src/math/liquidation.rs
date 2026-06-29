@@ -229,26 +229,30 @@ pub fn validate_user_not_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
+    // Cross-margin and isolated liquidation states are independent; a user can
+    // hold both at once. Check each separately and only return success when no
+    // liquidation state remains, otherwise clearing the cross flag would bypass
+    // a still-active isolated liquidation.
     if user.is_cross_margin_being_liquidated() {
         if margin_calculation.can_exit_cross_margin_liquidation()? {
             user.exit_cross_margin_liquidation();
         } else {
             return Err(ErrorCode::UserIsBeingLiquidated);
         }
-    } else {
-        let isolated_positions_being_liquidated = user
-            .perp_positions
-            .iter()
-            .filter(|position| position.is_isolated() && position.is_being_liquidated())
-            .map(|position| position.market_index)
-            .collect::<Vec<_>>();
+    }
 
-        for perp_market_index in isolated_positions_being_liquidated {
-            if margin_calculation.can_exit_isolated_margin_liquidation(perp_market_index)? {
-                user.exit_isolated_margin_liquidation(perp_market_index)?;
-            } else {
-                return Err(ErrorCode::UserIsBeingLiquidated);
-            }
+    let isolated_positions_being_liquidated = user
+        .perp_positions
+        .iter()
+        .filter(|position| position.is_isolated() && position.is_being_liquidated())
+        .map(|position| position.market_index)
+        .collect::<Vec<_>>();
+
+    for perp_market_index in isolated_positions_being_liquidated {
+        if margin_calculation.can_exit_isolated_margin_liquidation(perp_market_index)? {
+            user.exit_isolated_margin_liquidation(perp_market_index)?;
+        } else {
+            return Err(ErrorCode::UserIsBeingLiquidated);
         }
     }
 
