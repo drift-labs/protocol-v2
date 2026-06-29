@@ -124,6 +124,10 @@ pub struct Config {
     pub swift_cu_limit: u32,
     #[clap(long, default_value = "256000")]
     pub fill_cu_limit: u32,
+    /// CU limit for standalone trigger_order txs. Triggers are far cheaper than fills, and the
+    /// priority fee is billed on the *requested* limit, so keep this tight to avoid overpaying.
+    #[clap(long, default_value = "100000")]
+    pub trigger_cu_limit: u32,
     #[clap(long, env = "DRY_RUN", default_value = "false")]
     pub dry: bool,
     #[clap(long, default_value = "0")]

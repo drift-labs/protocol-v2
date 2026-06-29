@@ -96,12 +96,22 @@ pub enum TxIntent {
     #[default]
     None,
     AuctionFill {
+        market_index: u16,
         taker_order_id: u32,
         has_trigger: bool,
         maker_crosses: MakerCrosses,
     },
     SwiftFill {
+        uuid: [u8; 8],
+        market_index: u16,
         maker_crosses: MakerCrosses,
+    },
+    /// place-only swift order: order placed on-chain (no immediate fill) so the normal
+    /// per-slot fill path can pick it up while it remains live
+    SwiftPlace {
+        uuid: [u8; 8],
+        market_index: u16,
+        slot: u64,
     },
     VAMMTakerFill {
         slot: u64,
@@ -151,6 +161,12 @@ pub enum TxIntent {
         market_index: u16,
         subaccount: Pubkey,
     },
+    /// standalone trigger of a trigger order whose condition is met but that does not yet cross
+    Trigger {
+        market_index: u16,
+        order_id: u32,
+        slot: u64,
+    },
 }
 
 impl TxIntent {
@@ -171,6 +187,7 @@ impl TxIntent {
                     "swift_fill_vamm"
                 }
             }
+            TxIntent::SwiftPlace { .. } => "swift_place",
             TxIntent::LimitUncross { .. } => "limit_uncross",
             TxIntent::VAMMTakerFill { .. } => "vamm_taker",
             TxIntent::LiquidateWithFill { .. } => "liq_with_fill",
@@ -180,6 +197,7 @@ impl TxIntent {
             TxIntent::LiquidateSpot { .. } => "liq_spot",
             TxIntent::Derisk { .. } => "derisk",
             TxIntent::SettlePnl { .. } => "settle_pnl",
+            TxIntent::Trigger { .. } => "trigger",
         }
     }
 
@@ -192,6 +210,8 @@ impl TxIntent {
             TxIntent::SwiftFill { maker_crosses, .. } => {
                 maker_crosses.orders.len() + if maker_crosses.has_vamm_cross { 1 } else { 0 }
             }
+            // place-only: no fill expected in this tx (the fill happens later via the slot loop)
+            TxIntent::SwiftPlace { .. } => 0,
             TxIntent::VAMMTakerFill { .. } => 1,
             TxIntent::LimitUncross { .. } => 1,
             TxIntent::LiquidateWithFill { .. } => 1,
@@ -201,6 +221,7 @@ impl TxIntent {
             TxIntent::LiquidateSpot { .. } => 0,
             TxIntent::Derisk { .. } => 0,
             TxIntent::SettlePnl { .. } => 0,
+            TxIntent::Trigger { .. } => 0,
         }
     }
 
@@ -208,6 +229,7 @@ impl TxIntent {
     pub fn expected_trigger(&self) -> bool {
         match self {
             TxIntent::AuctionFill { has_trigger, .. } => *has_trigger,
+            TxIntent::Trigger { .. } => true,
             _ => false,
         }
     }
@@ -221,6 +243,7 @@ impl TxIntent {
             TxIntent::SwiftFill { maker_crosses, .. } => {
                 (maker_crosses.orders.to_vec(), maker_crosses.slot)
             }
+            TxIntent::SwiftPlace { slot, .. } => (vec![], *slot),
             Self::VAMMTakerFill { slot, .. } => (vec![], *slot),
             Self::LimitUncross { slot, .. } => (vec![], *slot),
             Self::LiquidateWithFill { slot, .. } => (vec![], *slot),
@@ -230,6 +253,7 @@ impl TxIntent {
             Self::LiquidateSpot { slot, .. } => (vec![], *slot),
             TxIntent::Derisk { .. } => (vec![], 0),
             TxIntent::SettlePnl { .. } => (vec![], 0),
+            TxIntent::Trigger { slot, .. } => (vec![], *slot),
         }
     }
 
@@ -241,7 +265,56 @@ impl TxIntent {
             | Self::LiquidatePerp { slot, .. }
             | Self::LiquidatePerpPnlForDeposit { slot, .. }
             | Self::LiquidateBorrowForPerpPnl { slot, .. }
-            | Self::LiquidateSpot { slot, .. } => Some(*slot),
+            | Self::LiquidateSpot { slot, .. }
+            | Self::SwiftPlace { slot, .. }
+            | Self::Trigger { slot, .. } => Some(*slot),
+            _ => None,
+        }
+    }
+
+    /// Market index this tx acts on, where the intent carries one. Used for wide-event logging.
+    pub fn market_index(&self) -> Option<u16> {
+        match self {
+            Self::AuctionFill { market_index, .. }
+            | Self::SwiftFill { market_index, .. }
+            | Self::SwiftPlace { market_index, .. }
+            | Self::VAMMTakerFill { market_index, .. }
+            | Self::LimitUncross { market_index, .. }
+            | Self::LiquidateWithFill { market_index, .. }
+            | Self::LiquidatePerp { market_index, .. }
+            | Self::Derisk { market_index, .. }
+            | Self::SettlePnl { market_index, .. }
+            | Self::Trigger { market_index, .. } => Some(*market_index),
+            Self::LiquidatePerpPnlForDeposit {
+                perp_market_index, ..
+            }
+            | Self::LiquidateBorrowForPerpPnl {
+                perp_market_index, ..
+            } => Some(*perp_market_index),
+            Self::LiquidateSpot {
+                liability_market_index,
+                ..
+            } => Some(*liability_market_index),
+            Self::None => None,
+        }
+    }
+
+    /// Taker/target order id, where the intent carries one. Used for wide-event logging.
+    pub fn order_id(&self) -> Option<u32> {
+        match self {
+            Self::AuctionFill { taker_order_id, .. }
+            | Self::LimitUncross { taker_order_id, .. } => Some(*taker_order_id),
+            Self::VAMMTakerFill { maker_order_id, .. } => Some(*maker_order_id),
+            Self::Trigger { order_id, .. } => Some(*order_id),
+            _ => None,
+        }
+    }
+
+    /// Swift order uuid (hex), where applicable. Used for wide-event logging so swift
+    /// placements/fills can be correlated and their gas cost attributed.
+    pub fn swift_uuid(&self) -> Option<[u8; 8]> {
+        match self {
+            Self::SwiftFill { uuid, .. } | Self::SwiftPlace { uuid, .. } => Some(*uuid),
             _ => None,
         }
     }
@@ -342,6 +415,47 @@ impl<const N: usize> PendingTxs<N> {
         }
         None
     }
+}
+
+/// Max age (in slots) of a swift signed message before the program refuses to place it.
+///
+/// Mirrors the `order_slot < clock.slot.saturating_sub(500)` gate in
+/// `place_signed_msg_taker_order` (programs/velocity/src/instructions/keeper.rs).
+pub const SWIFT_SIGNED_MSG_MAX_SLOT_AGE: u64 = 500;
+
+/// Returns true if a swift (signed-message) order can no longer be usefully *placed* on-chain,
+/// so the bot shouldn't spend a tx trying.
+///
+/// The two slot gates mirror `place_signed_msg_taker_order` exactly:
+/// - **signed-message staleness**: program rejects when `order_slot < current_slot - 500`
+/// - **placement deadline**: program silently no-ops once `max_slot < current_slot`, where
+///   `max_slot = order_slot + auction_duration` (identical formula for limit & market orders)
+///
+/// The `max_ts` check is an *additional* client-side guard (the program does not gate placement
+/// on `max_ts`): an order whose `max_ts` has passed is already dead, so placing it would waste a
+/// tx. Note `auction_duration` is a `u8` (≤ 255), so the placement deadline always binds before
+/// the 500-slot staleness window; both are checked for completeness/robustness.
+pub fn swift_placement_expired(
+    order_slot: u64,
+    auction_duration: u8,
+    max_ts: i64,
+    current_slot: u64,
+    now_ts: i64,
+) -> bool {
+    // signed message too old for the program to accept
+    if current_slot > order_slot.saturating_add(SWIFT_SIGNED_MSG_MAX_SLOT_AGE) {
+        return true;
+    }
+    // placement deadline: program no-ops once max_slot < current_slot
+    let max_slot = order_slot.saturating_add(auction_duration as u64);
+    if current_slot > max_slot {
+        return true;
+    }
+    // order-level timestamp expiry
+    if max_ts != 0 && now_ts > max_ts {
+        return true;
+    }
+    false
 }
 
 #[derive(Clone, Debug)]
@@ -610,4 +724,83 @@ pub fn subscribe_price_feeds(
     });
 
     price_rx
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{swift_placement_expired, OrderSlotLimiter, TxIntent};
+
+    #[test]
+    fn swift_expiry_placement_deadline_binds_before_staleness() {
+        // `auction_duration` is a u8 (<=255), so the placement deadline
+        // (order_slot + auction_duration) always binds before the 500-slot signed-message
+        // window. The order is unplaceable one slot past the deadline, well before slot 500.
+        assert!(!swift_placement_expired(0, 255, 0, 255, 0));
+        assert!(swift_placement_expired(0, 255, 0, 256, 0));
+    }
+
+    #[test]
+    fn swift_expiry_placement_deadline() {
+        // max_slot = order_slot + auction_duration = 130. Program rejects once max_slot < slot.
+        assert!(!swift_placement_expired(100, 30, 0, 130, 0)); // exactly at deadline: still placeable
+        assert!(swift_placement_expired(100, 30, 0, 131, 0)); // one past: gone
+                                                              // Zero auction duration (limit order default): only placeable in the signing slot.
+        assert!(!swift_placement_expired(100, 0, 0, 100, 0));
+        assert!(swift_placement_expired(100, 0, 0, 101, 0));
+    }
+
+    #[test]
+    fn swift_expiry_max_ts() {
+        // max_ts == 0 disables the ts check.
+        assert!(!swift_placement_expired(100, 200, 0, 100, i64::MAX));
+        // now == max_ts is still valid; now > max_ts expires.
+        assert!(!swift_placement_expired(100, 200, 5_000, 100, 5_000));
+        assert!(swift_placement_expired(100, 200, 5_000, 100, 5_001));
+    }
+
+    #[test]
+    fn trigger_intent_metadata() {
+        let intent = TxIntent::Trigger {
+            market_index: 3,
+            order_id: 42,
+            slot: 7,
+        };
+        assert_eq!(intent.label(), "trigger");
+        assert!(intent.expected_trigger());
+        assert_eq!(intent.expected_fill_count(), 0);
+        assert_eq!(intent.slot(), Some(7));
+        assert_eq!(intent.market_index(), Some(3));
+        assert_eq!(intent.order_id(), Some(42));
+        assert_eq!(intent.swift_uuid(), None);
+    }
+
+    #[test]
+    fn swift_place_intent_metadata() {
+        let intent = TxIntent::SwiftPlace {
+            uuid: *b"abcd1234",
+            market_index: 5,
+            slot: 9,
+        };
+        assert_eq!(intent.label(), "swift_place");
+        // place-only: no fill or trigger expected in this tx
+        assert!(!intent.expected_trigger());
+        assert_eq!(intent.expected_fill_count(), 0);
+        assert_eq!(intent.slot(), Some(9));
+        assert_eq!(intent.market_index(), Some(5));
+        assert_eq!(intent.order_id(), None);
+        assert_eq!(intent.swift_uuid(), Some(*b"abcd1234"));
+    }
+
+    #[test]
+    fn order_slot_limiter_rejects_repeat_within_window() {
+        let mut limiter: OrderSlotLimiter<40> = OrderSlotLimiter::new();
+        // First trigger attempt for an order id at slot 100 is allowed.
+        assert!(limiter.allow_event(100, 7));
+        // Same slot again is rejected (already present).
+        assert!(!limiter.allow_event(100, 7));
+        // A couple slots later it is throttled (seen in generations slot-2..=slot-4).
+        assert!(!limiter.allow_event(102, 7));
+        // After the window passes it is allowed again.
+        assert!(limiter.allow_event(110, 7));
+    }
 }

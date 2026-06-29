@@ -1479,6 +1479,82 @@ fn dlob_trigger_order_transitions() {
     }
 }
 
+#[test]
+fn dlob_find_triggerable_orders() {
+    use crate::types::OrderTriggerCondition;
+    let _ = env_logger::try_init();
+    let dlob = DLOB::default();
+    let user = Pubkey::new_unique();
+    let slot = 100;
+    let oracle_price = 1000;
+    let mut out = Vec::new();
+
+    dlob.markets.entry(MarketId::perp(0)).or_insert(Orderbook {
+        market: MarketId::perp(0),
+        market_tick_size: 10,
+        ..Default::default()
+    });
+
+    // Above trigger @ 1050 (take-profit on a long: fire when price rises past 1050) and
+    // Below trigger @ 950 (stop-loss on a long: fire when price falls past 950). Oracle 1000
+    // sits between the two, so neither is satisfied yet.
+    let mut above = create_test_order(1, OrderType::TriggerMarket, Direction::Long, 0, 10, slot);
+    above.trigger_price = 1050;
+    above.trigger_condition = OrderTriggerCondition::Above;
+    dlob.insert_order(&user, slot, above);
+
+    let mut below = create_test_order(2, OrderType::TriggerLimit, Direction::Short, 949, 5, slot);
+    below.trigger_price = 950;
+    below.trigger_condition = OrderTriggerCondition::Below;
+    dlob.insert_order(&user, slot, below);
+
+    let refresh = |dlob: &DLOB| {
+        if let Some(book) = dlob.markets.get(&MarketId::new(0, MarketType::Perp)) {
+            book.update_l3_view(oracle_price, &dlob.metadata, &Default::default());
+        }
+    };
+    refresh(&dlob);
+
+    // Price between the two thresholds: neither condition met (strict comparison).
+    dlob.find_triggerable_orders(0, MarketType::Perp, 1000, &mut out);
+    assert!(out.is_empty(), "no order should trigger at 1000: {out:?}");
+
+    // Exactly on each threshold: strict `>`/`<` means NOT triggered (mirrors on-chain
+    // `order_satisfies_trigger_condition`).
+    dlob.find_triggerable_orders(0, MarketType::Perp, 1050, &mut out);
+    assert!(out.is_empty(), "above must not trigger at its exact price");
+    dlob.find_triggerable_orders(0, MarketType::Perp, 950, &mut out);
+    assert!(out.is_empty(), "below must not trigger at its exact price");
+
+    // Above 1050: the take-profit triggers; the stop-loss does not.
+    dlob.find_triggerable_orders(0, MarketType::Perp, 1051, &mut out);
+    assert_eq!(out, vec![(user, 1)]);
+
+    // Below 950: the stop-loss triggers; the take-profit does not.
+    dlob.find_triggerable_orders(0, MarketType::Perp, 949, &mut out);
+    assert_eq!(out, vec![(user, 2)]);
+
+    // Extreme prices only satisfy the matching side.
+    dlob.find_triggerable_orders(0, MarketType::Perp, 2000, &mut out);
+    assert_eq!(out, vec![(user, 1)], "only above triggers at 2000");
+    dlob.find_triggerable_orders(0, MarketType::Perp, 1, &mut out);
+    assert_eq!(out, vec![(user, 2)], "only below triggers at 1");
+
+    // Once an order is triggered on-chain it leaves the trigger book and must no longer
+    // be reported as needing a standalone trigger.
+    let mut triggered = above;
+    triggered.trigger_condition = OrderTriggerCondition::TriggeredAbove;
+    triggered.bit_flags |= Order::ORACLE_TRIGGER_MARKET_FLAG;
+    dlob.remove_order(&user, slot, above);
+    dlob.insert_order(&user, slot, triggered);
+    refresh(&dlob);
+    dlob.find_triggerable_orders(0, MarketType::Perp, 1051, &mut out);
+    assert!(
+        out.iter().all(|(_, id)| *id != 1),
+        "already-triggered order must not be returned: {out:?}"
+    );
+}
+
 /// Verifies trigger limit routing: auction complete -> resting_limit_orders, auction not complete -> market_orders.
 #[test]
 fn dlob_trigger_limit_auction_resting_vs_market() {
