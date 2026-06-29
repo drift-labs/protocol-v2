@@ -1,6 +1,6 @@
 {
 	"name": "@velocity-exchange/sdk",
-	"version": "0.2.5",
+	"version": "0.2.6",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"module": "./lib/browser/index.js",

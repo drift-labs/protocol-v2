@@ -1,5 +1,14 @@
 # @velocity-exchange/sdk
 
+## 0.2.6
+
+### Patch Changes
+
+- [#156](https://github.com/velocity-exchange/velocity-v1/pull/156) [`d3b58ab`](https://github.com/velocity-exchange/velocity-v1/commit/d3b58ab7e3ad33f0e6634ff87e9b150915b3aa13) Thanks [@ChesterSim](https://github.com/ChesterSim)! - Fix account decoder to pass account names as-is instead of capitalizing them. The
+  Anchor v1 IDL program constructor already camelCases account names, so the extra
+  `capitalize()` call was incorrect and caused decoding failures in the gRPC and
+  WebSocket subscribers.
+
 ## 0.2.5
 
 ### Patch Changes

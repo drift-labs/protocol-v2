@@ -1,5 +1,14 @@
 # @velocity-exchange/dlob-server
 
+## 0.1.11
+
+### Patch Changes
+
+- [`a24c984`](https://github.com/velocity-exchange/velocity-v1/commit/a24c9848cc4574eb66baa16ca5cf6327df407204) Thanks [@ChesterSim](https://github.com/ChesterSim)! - update whitelisted origins for pyth oracle crank endpoints
+
+- Updated dependencies [[`d3b58ab`](https://github.com/velocity-exchange/velocity-v1/commit/d3b58ab7e3ad33f0e6634ff87e9b150915b3aa13)]:
+  - @velocity-exchange/sdk@0.2.6
+
 ## 0.1.10
 
 ### Patch Changes

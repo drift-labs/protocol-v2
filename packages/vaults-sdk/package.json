@@ -1,6 +1,6 @@
 {
 	"name": "@velocity-exchange/vaults-sdk",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"description": "TypeScript SDK for the Velocity vaults program.",
 	"repository": {
 		"type": "git",
