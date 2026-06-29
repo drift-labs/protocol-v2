@@ -3623,8 +3623,9 @@ pub fn resolve_perp_bankruptcy(
         user.increment_total_socialized_loss(quote_asset_amount.unsigned_abs())?;
     }
 
-    // exit bankruptcy
-    if !liquidation_mode.should_user_enter_bankruptcy(user)? {
+    // True if a bankrupting liability remains; clears status otherwise.
+    let still_bankrupt = liquidation_mode.should_user_enter_bankruptcy(user)?;
+    if !still_bankrupt {
         liquidation_mode.exit_bankruptcy(user)?;
     }
 
@@ -3640,7 +3641,7 @@ pub fn resolve_perp_bankruptcy(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: true,
+        bankrupt: still_bankrupt,
         perp_bankruptcy: PerpBankruptcyRecord {
             market_index,
             if_payment,
@@ -3789,8 +3790,9 @@ pub fn resolve_spot_bankruptcy(
             .safe_add(socialized_quote_loss.unsigned_abs().cast()?)?;
     }
 
-    // exit bankruptcy
-    if !is_cross_margin_bankrupt(user) {
+    // True if a bankrupting liability remains; clears status otherwise.
+    let still_bankrupt = is_cross_margin_bankrupt(user);
+    if !still_bankrupt {
         user.exit_cross_margin_bankruptcy();
     }
 
@@ -3804,7 +3806,7 @@ pub fn resolve_spot_bankruptcy(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: true,
+        bankrupt: still_bankrupt,
         spot_bankruptcy: SpotBankruptcyRecord {
             market_index,
             borrow_amount,
