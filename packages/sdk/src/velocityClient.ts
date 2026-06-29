@@ -2304,7 +2304,7 @@ export class VelocityClient {
 		subAccountId = subAccountId ?? this.activeSubAccountId;
 		authority = authority ?? this.authority;
 		if (subAccountId === undefined || authority === undefined) {
-			throw new Error('Subaccount ID and authority are required');
+			return false;
 		}
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
 

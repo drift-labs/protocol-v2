@@ -15,7 +15,7 @@ export function calculateInitUserFee(stateAccount: StateAccount): BN {
 	const accountSpaceUtilization = stateAccount.numberOfSubAccounts
 		.addn(1)
 		.mul(PERCENTAGE_PRECISION)
-		.div(getMaxNumberOfSubAccounts(stateAccount));
+		.div(BN.max(getMaxNumberOfSubAccounts(stateAccount), new BN(1)));
 
 	if (accountSpaceUtilization.gt(targetUtilization)) {
 		return maxInitFee

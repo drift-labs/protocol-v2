@@ -312,6 +312,9 @@ export function calculateOrderBaseAssetAmount(
  * Returns:
  * - BN size (>=0) if bounded
  * - null if impossible (target < liabilityWeight) OR imfFactor == 0 (unbounded)
+ *
+ * Note: a market.maxOpenInterest of 0 means "no configured cap" and is treated
+ * as unlimited rather than a hard cap of 0.
  */
 export function maxSizeForTargetLiabilityWeightBN(
 	target: BN,
@@ -364,9 +367,10 @@ export function maxSizeForTargetLiabilityWeightBN(
 		}
 	}
 
-	// cap at max OI
+	// cap at max OI. A maxOpenInterest of 0 means no configured cap (unlimited),
+	// matching the on-chain convention — do not treat it as a hard cap of 0.
 	const maxOpenInterest = market.maxOpenInterest;
-	if (lo.gt(maxOpenInterest)) {
+	if (!maxOpenInterest.isZero() && lo.gt(maxOpenInterest)) {
 		return maxOpenInterest;
 	}
 
