@@ -423,16 +423,17 @@ impl<const N: usize> PendingTxs<N> {
 /// `place_signed_msg_taker_order` (programs/velocity/src/instructions/keeper.rs).
 pub const SWIFT_SIGNED_MSG_MAX_SLOT_AGE: u64 = 500;
 
-/// Returns true if a swift (signed-message) order can no longer be *placed* on-chain and so
-/// should be evicted from the retry queue.
+/// Returns true if a swift (signed-message) order can no longer be usefully *placed* on-chain,
+/// so the bot shouldn't spend a tx trying.
 ///
-/// This mirrors exactly the placement gates in `place_signed_msg_taker_order`:
-/// - **signed-message staleness**: rejected when `order_slot < current_slot - 500`
-/// - **placement deadline**: silently dropped once `max_slot < current_slot`, where
+/// The two slot gates mirror `place_signed_msg_taker_order` exactly:
+/// - **signed-message staleness**: program rejects when `order_slot < current_slot - 500`
+/// - **placement deadline**: program silently no-ops once `max_slot < current_slot`, where
 ///   `max_slot = order_slot + auction_duration` (identical formula for limit & market orders)
-/// - **order timestamp expiry**: silently dropped once `max_ts != 0 && max_ts < now`
 ///
-/// Note `auction_duration` is a `u8` (≤ 255), so the placement deadline always binds before
+/// The `max_ts` check is an *additional* client-side guard (the program does not gate placement
+/// on `max_ts`): an order whose `max_ts` has passed is already dead, so placing it would waste a
+/// tx. Note `auction_duration` is a `u8` (≤ 255), so the placement deadline always binds before
 /// the 500-slot staleness window; both are checked for completeness/robustness.
 pub fn swift_placement_expired(
     order_slot: u64,

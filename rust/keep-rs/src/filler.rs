@@ -216,7 +216,7 @@ impl FillerBot {
 
                             // try an immediate fill against resting liquidity
                             match evaluate_swift_crosses(dlob, &signed_order, &perp_market, oracle_price_data.price, oracle_price_data.delay, slot, slots_before_stale_for_amm) {
-                                Some(crosses) => {
+                                SwiftEval::Fillable(crosses) => {
                                     log::info!(target: TARGET, "found resting cross. crosses={crosses:?}");
                                     let pf = priority_fee_subscriber.priority_fee_nth(0.6);
                                     try_swift_fill(
@@ -229,8 +229,8 @@ impl FillerBot {
                                         tx_worker_ref.clone(),
                                     ).await;
                                 }
-                                None => {
-                                    // Not immediately fillable. Rather than dropping the order,
+                                SwiftEval::NotFillable => {
+                                    // Well-formed but not marketable yet. Rather than dropping it,
                                     // place it on-chain (no fill) so it becomes a regular resting
                                     // order that the normal per-slot fill path will pick up while
                                     // it remains live. Skip if it can no longer be placed (the
@@ -256,6 +256,9 @@ impl FillerBot {
                                         ).await;
                                         metrics.swift_placed.inc();
                                     }
+                                }
+                                SwiftEval::Drop => {
+                                    // malformed / unsupported; already logged in evaluate_swift_crosses
                                 }
                             }
                         }
@@ -319,12 +322,15 @@ impl FillerBot {
 
                         // Trigger orders that already cross are triggered+filled atomically by
                         // the auction path below; capture their ids so the standalone trigger
-                        // pass doesn't double-trigger (and waste) them.
-                        let crossing_trigger_ids: HashSet<u32> = crosses_and_top_makers
+                        // pass doesn't double-trigger (and waste) them. Keyed on the full
+                        // (user, order_id) identity: order_id is a per-user counter, so a bare
+                        // order_id collides across users and would wrongly suppress another
+                        // user's trigger.
+                        let crossing_trigger_ids: HashSet<(Pubkey, u32)> = crosses_and_top_makers
                             .crosses
                             .iter()
                             .filter(|(o, _)| matches!(o.kind, OrderKind::TriggerMarket | OrderKind::TriggerLimit))
-                            .map(|(o, _)| o.order_id)
+                            .map(|(o, _)| (o.user, o.order_id))
                             .collect();
 
                         if !crosses_and_top_makers.crosses.is_empty() {
@@ -360,16 +366,19 @@ impl FillerBot {
                         }
                         for (taker_subaccount, order_id) in triggerable_buf.drain(..) {
                             // already handled atomically by the auction fill above
-                            if crossing_trigger_ids.contains(&order_id) {
+                            if crossing_trigger_ids.contains(&(taker_subaccount, order_id)) {
                                 continue;
                             }
-                            if !limiter.allow_event(slot, order_id) {
+                            // Rate-limit re-sends by the full (user, order_id) identity. The
+                            // limiter keys on u32, so fold the user pubkey in to avoid colliding
+                            // with another user's order_id (or an auction fill's bare order_id).
+                            if !limiter.allow_event(slot, order_dedup_key(&taker_subaccount, order_id)) {
                                 continue;
                             }
                             try_trigger_order(
                                 velocity,
                                 priority_fee,
-                                config.fill_cu_limit,
+                                config.trigger_cu_limit,
                                 market_index,
                                 filler_subaccount,
                                 taker_subaccount,
@@ -498,7 +507,7 @@ fn evaluate_swift_crosses(
     oracle_delay: i64,
     slot: u64,
     slots_before_stale_for_amm: i64,
-) -> Option<MakerCrosses> {
+) -> SwiftEval {
     let mut order_params = signed_order.order_params();
     let _ = order_params.update_perp_auction_params(perp_market, oracle_price, true);
 
@@ -506,7 +515,7 @@ fn evaluate_swift_crosses(
     {
         log::warn!(target: TARGET, "swift order limit post only: uuid={}", signed_order.order_uuid_str());
         // TODO: search for immediate fill
-        return None;
+        return SwiftEval::Drop;
     }
 
     let (start_price, end_price, duration) = (
@@ -567,8 +576,8 @@ fn evaluate_swift_crosses(
             ) {
                 Ok(p) => p,
                 Err(err) => {
-                    log::warn!(target: TARGET, "could not get auction price {err:?}, params: {order_params:?}, skipping...");
-                    return None;
+                    log::warn!(target: TARGET, "could not get auction price {err:?}, params: {order_params:?}, dropping...");
+                    return SwiftEval::Drop;
                 }
             }
         }
@@ -581,16 +590,16 @@ fn evaluate_swift_crosses(
             ) {
                 Ok(Some(p)) => p,
                 _ => {
-                    log::warn!(target: TARGET, "could not get limit price: {order_params:?}, skipping...");
-                    return None;
+                    log::warn!(target: TARGET, "could not get limit price: {order_params:?}, dropping...");
+                    return SwiftEval::Drop;
                 }
             }
         }
         // Swift orders should never be trigger/unknown types; previously this panicked via
-        // `unreachable!()`. Defensively skip instead so untrusted feed input can't crash the bot.
+        // `unreachable!()`. Defensively drop instead so untrusted feed input can't crash the bot.
         other => {
-            log::warn!(target: TARGET, "unsupported swift order type {other:?}, skipping. uuid={}", signed_order.order_uuid_str());
-            return None;
+            log::warn!(target: TARGET, "unsupported swift order type {other:?}, dropping. uuid={}", signed_order.order_uuid_str());
+            return SwiftEval::Drop;
         }
     };
 
@@ -602,18 +611,30 @@ fn evaluate_swift_crosses(
         Some(perp_market),
         None,
     );
+    // Well-formed but not (yet) fillable -> NotFillable, so the caller can place it on-chain.
     if crosses.is_empty() {
-        return None;
+        return SwiftEval::NotFillable;
     }
-    // skip vAMM-only swift fills when the oracle is stale for the AMM
+    // vAMM-only cross with a stale oracle: don't fill against the vAMM now, but the order is
+    // still well-formed, so let the caller place it (it may fill once the oracle refreshes).
     if crosses.orders.is_empty()
         && crosses.has_vamm_cross
         && oracle_delay > slots_before_stale_for_amm
     {
         log::info!(target: TARGET, "skip swift vAMM fill: oracle stale (delay={oracle_delay})");
-        return None;
+        return SwiftEval::NotFillable;
     }
-    Some(crosses)
+    SwiftEval::Fillable(crosses)
+}
+
+/// Outcome of evaluating a swift order against current liquidity.
+enum SwiftEval {
+    /// Crosses resting liquidity / vAMM right now: fill it immediately.
+    Fillable(MakerCrosses),
+    /// Well-formed but not marketable yet: place it on-chain so the slot loop can fill it later.
+    NotFillable,
+    /// Malformed / unsupported (bad price, post-only limit, non-market/limit type): drop it.
+    Drop,
 }
 
 /// Trigger a single trigger order whose condition is met but that does not yet cross.
@@ -897,11 +918,19 @@ async fn try_auction_fill(
             OrderKind::TriggerMarket | OrderKind::TriggerLimit
         );
         if taker_is_trigger {
-            let actual_order = taker_account_data
+            // The order may have been triggered/filled/cancelled between the DLOB snapshot and
+            // this fetch; skip rather than panic the run loop.
+            let actual_order = match taker_account_data
                 .orders
                 .iter()
                 .find(|o| o.order_id == taker_order.order_id)
-                .expect("trigger order exists");
+            {
+                Some(o) => o,
+                None => {
+                    log::debug!(target: TARGET, "trigger order {} gone before fill, skipping", taker_order.order_id);
+                    continue;
+                }
+            };
 
             let trigger_above = matches!(
                 actual_order.trigger_condition,
@@ -937,11 +966,9 @@ async fn try_auction_fill(
             .orders
             .iter()
             .filter(|m| m.0.user != taker_subaccount) // can't fill itself
-            .map(|(m, _fill_size)| {
-                velocity
-                    .try_get_account::<User>(&m.user)
-                    .expect("maker account syncd")
-            })
+            // drop makers not yet in cache rather than panicking; a missing maker just
+            // shrinks the cross (handled by the empty-cross check below)
+            .filter_map(|(m, _fill_size)| velocity.try_get_account::<User>(&m.user).ok())
             .collect();
 
         let effective_vamm_cross = crosses.has_vamm_cross && !oracle_stale_for_amm;
@@ -951,14 +978,16 @@ async fn try_auction_fill(
                 continue;
             }
 
-            if let Ok(pos) = taker_account_data.get_perp_position(market_index) {
+            if let (Ok(pos), Some(order)) = (
+                taker_account_data.get_perp_position(market_index),
+                taker_account_data
+                    .orders
+                    .iter()
+                    .find(|o| o.order_id == taker_order.order_id),
+            ) {
                 if let Ok((base_asset_amount, _limit_price)) =
                     velocity_rs::program::math::orders::calculate_base_asset_amount_for_amm_to_fulfill(
-                        taker_account_data
-                            .orders
-                            .iter()
-                            .find(|o| o.order_id == taker_order.order_id)
-                            .unwrap(),
+                        order,
                         &perp_market,
                         None,
                         None,
@@ -1166,6 +1195,14 @@ async fn try_uncross(
             )
             .await;
     }
+}
+
+/// Fold a `(user, order_id)` pair into a single u32 for the `OrderSlotLimiter` (which keys on
+/// u32). `order_id` is a per-user counter, so a bare order_id collides across users; mixing in
+/// the user pubkey prefix makes cross-user collisions negligible.
+fn order_dedup_key(user: &Pubkey, order_id: u32) -> u32 {
+    let b = user.to_bytes();
+    u32::from_le_bytes([b[0], b[1], b[2], b[3]]) ^ order_id
 }
 
 fn amm_wants_to_jit_make(
@@ -1631,7 +1668,32 @@ impl TxWorker {
                                     .with_label_values(&[intent_label])
                                     .observe(cus_spent as f64);
 
-                                let status = if actual_fills == 0 {
+                                // For placement/trigger intents, success is not measured by
+                                // fills, so don't mislabel them "no_fills". Detect the program's
+                                // silent no-ops (uuid dedup / past placement window for a swift
+                                // place; already-triggered for a trigger) so wasted gas is
+                                // distinguishable from a real placement/trigger in the events.
+                                let status = if expected_fill_count == 0 {
+                                    match &intent {
+                                        TxIntent::SwiftPlace { .. } => {
+                                            if logs.iter().any(|l| l.contains("already exists")) {
+                                                "place_noop_dup"
+                                            } else if logs.iter().any(|l| l.contains("max_slot")) {
+                                                "place_noop_expired"
+                                            } else {
+                                                "placed"
+                                            }
+                                        }
+                                        TxIntent::Trigger { .. } => {
+                                            if triggered {
+                                                "triggered"
+                                            } else {
+                                                "trigger_noop"
+                                            }
+                                        }
+                                        _ => "ok",
+                                    }
+                                } else if actual_fills == 0 {
                                     "no_fills"
                                 } else if actual_fills < expected_fill_count as u64 {
                                     "partial"
@@ -1900,5 +1962,23 @@ impl TxSender {
             .ok()?;
 
         Some(sig)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{order_dedup_key, Pubkey};
+
+    #[test]
+    fn order_dedup_key_distinguishes_users_with_same_order_id() {
+        let a = Pubkey::new_from_array([1u8; 32]);
+        let b = Pubkey::new_from_array([2u8; 32]);
+        // stable for the same (user, order_id)
+        assert_eq!(order_dedup_key(&a, 3), order_dedup_key(&a, 3));
+        // order_id is per-user: the same id under different users must NOT collide, otherwise
+        // one user's trigger would suppress another's (regression guard for the H1 bug).
+        assert_ne!(order_dedup_key(&a, 3), order_dedup_key(&b, 3));
+        // different order_id under the same user must differ too
+        assert_ne!(order_dedup_key(&a, 3), order_dedup_key(&a, 4));
     }
 }
