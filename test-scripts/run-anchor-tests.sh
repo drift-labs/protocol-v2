@@ -70,6 +70,7 @@ test_files=(
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
+  liquidateSpotWithSwap.ts
   # lpPool.ts # depends on PerpMarket layout shift — needs re-snapshot
   # lpPoolSwap.ts # depends on PerpMarket layout shift — needs re-snapshot
   marketOrder.ts

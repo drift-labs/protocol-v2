@@ -1405,48 +1405,51 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
             )?;
 
             validate!(
-                ctx.accounts.user.key() == ix.accounts[4].pubkey,
+                ctx.accounts.user.key() == ix.accounts[3].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the user passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.liability_spot_market_vault.key() == ix.accounts[6].pubkey,
+                ctx.accounts.liability_spot_market_vault.key() == ix.accounts[4].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the liability_spot_market_vault passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.asset_spot_market_vault.key() == ix.accounts[7].pubkey,
+                ctx.accounts.asset_spot_market_vault.key() == ix.accounts[5].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the asset_spot_market_vault passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.liability_token_account.key() == ix.accounts[8].pubkey,
+                ctx.accounts.liability_token_account.key() == ix.accounts[6].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the liability_token_account passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.asset_token_account.key() == ix.accounts[9].pubkey,
+                ctx.accounts.asset_token_account.key() == ix.accounts[7].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the asset_token_account passed to SwapBegin and End must match"
             )?;
 
+            // `LiquidateSpotWithSwap` has 11 fixed accounts (indexes 0..=10);
+            // remaining (swap) accounts start at index 11 and must match between
+            // begin and end.
             validate!(
-                ctx.remaining_accounts.len() == ix.accounts.len() - 13,
+                ctx.remaining_accounts.len() == ix.accounts.len() - 11,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "begin and end ix must have the same number of accounts"
             )?;
 
-            for i in 13..ix.accounts.len() {
+            for i in 11..ix.accounts.len() {
                 validate!(
-                    *ctx.remaining_accounts[i - 13].key == ix.accounts[i].pubkey,
+                    *ctx.remaining_accounts[i - 11].key == ix.accounts[i].pubkey,
                     ErrorCode::InvalidLiquidateSpotWithSwap,
                     "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
                     i,
-                    ctx.remaining_accounts[i - 13].key,
+                    ctx.remaining_accounts[i - 11].key,
                     ix.accounts[i].pubkey
                 )?;
             }
