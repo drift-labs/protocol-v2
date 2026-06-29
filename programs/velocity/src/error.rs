@@ -763,6 +763,10 @@ pub enum ErrorCode {
     InvalidProtocolFeeRecipient,
     #[msg("Insufficient protocol fees available to withdraw")]
     InsufficientProtocolFees,
+    #[msg("Native dispatch: supplied state account is not the canonical Velocity state PDA")]
+    InvalidNativeStateAccount,
+    #[msg("Native dispatch: supplied market account is not a Velocity perp market")]
+    InvalidNativePerpMarketAccount,
 }
 
 #[macro_export]

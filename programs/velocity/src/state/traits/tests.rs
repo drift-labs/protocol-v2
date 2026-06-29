@@ -63,33 +63,29 @@ mod size {
     }
 }
 
-/// Tests that the hardcoded byte offsets used by the two native (non-Anchor) instruction
-/// handlers in `instructions/admin.rs` still match the actual struct layout.
+/// Guards the hardcoded `State` byte offsets read by the two native (non-Anchor)
+/// instruction handlers (`handle_update_mm_oracle_native`,
+/// `handle_update_amm_spread_adjustment_native`).
 ///
-/// # Why this matters
+/// Those handlers run before Anchor and, after validating ownership +
+/// discriminator (`auth::require_native_account`), read the State auth fields by
+/// fixed offset rather than deserializing the whole account:
 ///
-/// `handle_update_mm_oracle_native` and `handle_update_amm_spread_adjustment_native` bypass
-/// Anchor's deserialization and write directly into account bytes at fixed offsets.  They must
-/// be kept in sync with any struct changes:
+/// * `feature_bit_flags` (byte 1374) — MM-oracle kill switch
+/// * `hot_mm_oracle_crank` (bytes 360..392) — MM-oracle signer
+/// * `hot_amm_spread_adjust` (bytes 392..424) — spread-adjust signer
 ///
-/// * **PerpMarket / AMM** – zero-copy (`#[account(zero_copy)]`), so the on-chain bytes are the
-///   raw `repr(C)` memory layout.  Use `std::mem::offset_of!(AMM, field) + 8` (discriminator).
-///
-/// * **State** – zero-copy (`#[account(zero_copy(unsafe))]` + `#[repr(C)]`), so the on-chain
-///   bytes are the raw `repr(C)` memory layout. Use `std::mem::offset_of!(State, field) + 8`
-///   (discriminator).
-///
-/// If either test fails after a struct change, update the corresponding literal in admin.rs AND
-/// the expected value here together.
+/// The `PerpMarket`/`AMM` offsets below are not read by raw index (the handlers
+/// `bytemuck`-cast the account and use typed field access) but are asserted here
+/// as layout invariants. `State` is `#[account(zero_copy(unsafe))]` + `repr(C)`;
+/// use `std::mem::offset_of!(_, field) + 8` (discriminator). If any test fails
+/// after a struct change, update the literal in the handler AND here together.
 mod native_instruction_offsets {
     use crate::state::perp_market::{MarketStats, PerpMarket, AMM};
     use crate::state::state::State;
 
     const DISC: usize = 8; // Anchor 8-byte account discriminator
 
-    /// Native handlers read/write PerpMarket bytes at fixed offsets — verify
-    /// these match the actual struct layout. `mm_oracle_*` lives in
-    /// `MarketStats`; `amm_spread_adjustment` lives in `AMM`.
     #[test]
     fn amm_zero_copy_offsets() {
         let amm_start = DISC + std::mem::offset_of!(PerpMarket, amm);
@@ -97,17 +93,17 @@ mod native_instruction_offsets {
         assert_eq!(
             stats_start + std::mem::offset_of!(MarketStats, mm_oracle_price),
             800,
-            "mm_oracle_price offset changed — update handle_update_mm_oracle_native"
+            "mm_oracle_price offset changed"
         );
         assert_eq!(
             stats_start + std::mem::offset_of!(MarketStats, mm_oracle_slot),
             808,
-            "mm_oracle_slot offset changed — update handle_update_mm_oracle_native"
+            "mm_oracle_slot offset changed"
         );
         assert_eq!(
             stats_start + std::mem::offset_of!(MarketStats, mm_oracle_sequence_id),
             816,
-            "mm_oracle_sequence_id offset changed — update handle_update_mm_oracle_native"
+            "mm_oracle_sequence_id offset changed"
         );
         assert_eq!(
             std::mem::offset_of!(PerpMarket, fee_ledger) % 16,
@@ -117,15 +113,11 @@ mod native_instruction_offsets {
         assert_eq!(
             amm_start + std::mem::offset_of!(AMM, amm_spread_adjustment),
             1282,
-            "amm_spread_adjustment offset changed — update handle_update_amm_spread_adjustment_native"
+            "amm_spread_adjustment offset changed"
         );
     }
 
-    /// State is zero-copy with `#[repr(C)]`; on-chain bytes match `mem::offset_of!`.
-    /// After folding the admin authority config into State (cold/warm/pause + 10 hot
-    /// pubkeys at the top, `hot_if_rebalance` removed with the if-rebalance purge) and
-    /// removing `lp_cooldown_time`, feature_bit_flags lives at byte 1374
-    /// (offset 1366 + 8 discriminator).
+    /// State.feature_bit_flags is read at byte 1374 by the MM-oracle kill switch.
     #[test]
     fn state_feature_bit_flags_offset() {
         assert_eq!(
@@ -135,8 +127,7 @@ mod native_instruction_offsets {
         );
     }
 
-    /// State.hot_mm_oracle_crank lives at byte 392..424 (after discriminator). The native
-    /// mm-oracle handler reads it via raw byte indexing.
+    /// State.hot_mm_oracle_crank is read at bytes 360..392 by the MM-oracle handler.
     #[test]
     fn state_hot_mm_oracle_crank_offset() {
         assert_eq!(
@@ -146,7 +137,7 @@ mod native_instruction_offsets {
         );
     }
 
-    /// State.hot_amm_spread_adjust lives at byte 392..424 (after discriminator).
+    /// State.hot_amm_spread_adjust is read at bytes 392..424 by the spread handler.
     #[test]
     fn state_hot_amm_spread_adjust_offset() {
         assert_eq!(

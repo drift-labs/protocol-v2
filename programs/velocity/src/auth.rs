@@ -18,6 +18,42 @@ use anchor_lang::prelude::*;
 use crate::error::ErrorCode;
 use crate::state::state::{HotRole, State};
 
+/// Structural authentication for the pre-Anchor native dispatch handlers
+/// (`lib.rs::program_entry`, discriminator `[0xFF; 4]`).
+///
+/// These handlers run *before* Anchor, so they receive a raw `&[AccountInfo]`
+/// with none of the ownership / discriminator guarantees that
+/// `#[derive(Accounts)]` would normally establish. A handler that authenticates
+/// against byte offsets of a caller-supplied "state" account, or that
+/// `bytemuck`-casts a caller-supplied "market" account, trusts attacker-chosen
+/// bytes: a forged state account whose hot-key offset holds the caller's own
+/// pubkey defeats the signer check, and any writable account can be reinterpreted
+/// as a `PerpMarket`. Every native handler MUST call this on each typed account
+/// before reading or writing its bytes.
+///
+/// Asserts the account is owned by this program and carries `discriminator` as
+/// its first 8 bytes — exactly the checks `AccountLoader` performs, but without
+/// cloning the `AccountInfo` or re-borrowing/re-validating on `load`, so the
+/// native fast path keeps its minimal CU budget. Owner + discriminator are
+/// sufficient: the program only ever writes a given account discriminator to its
+/// own PDAs, so no caller-controlled account can satisfy both (the `State`
+/// discriminator in particular only ever lands on the singleton
+/// `[b"velocity_state"]` PDA).
+pub fn require_native_account(
+    acc: &AccountInfo,
+    discriminator: &[u8],
+    err: ErrorCode,
+) -> Result<()> {
+    if acc.owner != &crate::ID {
+        return Err(err.into());
+    }
+    let data = acc.try_borrow_data()?;
+    if data.len() < discriminator.len() || &data[..discriminator.len()] != discriminator {
+        return Err(err.into());
+    }
+    Ok(())
+}
+
 /// Anchor `constraint = ...` helper. Returns `Ok(true)` iff the signer is the
 /// cold admin. Reserved for actions that can undermine other safety rails
 /// (e.g. swapping a market's oracle, which prices the withdraw guard

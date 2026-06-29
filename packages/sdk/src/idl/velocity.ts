@@ -15978,6 +15978,16 @@ export type Velocity = {
       "code": 6354,
       "name": "insufficientProtocolFees",
       "msg": "Insufficient protocol fees available to withdraw"
+    },
+    {
+      "code": 6355,
+      "name": "invalidNativeStateAccount",
+      "msg": "Native dispatch: supplied state account is not the canonical Velocity state PDA"
+    },
+    {
+      "code": 6356,
+      "name": "invalidNativePerpMarketAccount",
+      "msg": "Native dispatch: supplied market account is not a Velocity perp market"
     }
   ],
   "types": [

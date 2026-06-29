@@ -15972,6 +15972,16 @@
       "code": 6354,
       "name": "InsufficientProtocolFees",
       "msg": "Insufficient protocol fees available to withdraw"
+    },
+    {
+      "code": 6355,
+      "name": "InvalidNativeStateAccount",
+      "msg": "Native dispatch: supplied state account is not the canonical Velocity state PDA"
+    },
+    {
+      "code": 6356,
+      "name": "InvalidNativePerpMarketAccount",
+      "msg": "Native dispatch: supplied market account is not a Velocity perp market"
     }
   ],
   "types": [

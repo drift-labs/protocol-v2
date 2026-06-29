@@ -10329,7 +10329,11 @@ export class VelocityClient {
 		);
 
 		const tx = await this.buildTransaction(updateMmOracleIx, {
-			computeUnits: 1000,
+			// Headroom for the native handler's owner + discriminator validation
+			// of the state + perp-market accounts (was 1000 when it bytemuck-cast
+			// the market without any checks). Measured ~1.3k CU; 2000 leaves
+			// margin for the production-only signer check.
+			computeUnits: 2000,
 			computeUnitsPrice: 0,
 		});
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -10337,16 +10341,19 @@ export class VelocityClient {
 		return txSig;
 	}
 
-	public getUpdateAmmSpreadAdjustmentNativeIx(
+	public async getUpdateAmmSpreadAdjustmentNativeIx(
 		marketIndex: number,
 		ammSpreadAdjustment: number // i8
-	): TransactionInstruction {
+	): Promise<TransactionInstruction> {
 		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(1);
 		const data = Buffer.alloc(discriminatorBuffer.length + 4);
 		data.set(discriminatorBuffer, 0);
 		data.writeInt8(ammSpreadAdjustment, 5); // next byte
 
-		// Build the instruction manually
+		// Build the instruction manually. The native handler re-establishes the
+		// account guarantees Anchor would normally provide: it loads `state` as
+		// the program-owned State account and authenticates the signer against
+		// `state.hotAmmSpreadAdjust`, so the state account is required at index 2.
 		return new TransactionInstruction({
 			programId: this.program.programId,
 			keys: [
@@ -10359,6 +10366,11 @@ export class VelocityClient {
 					pubkey: this.wallet.publicKey,
 					isWritable: false,
 					isSigner: true,
+				},
+				{
+					pubkey: await this.getStatePublicKey(),
+					isWritable: false,
+					isSigner: false,
 				},
 			],
 			data,

@@ -447,6 +447,8 @@ pub mod instructions {
         pub amm_jit_intensity: u8,
         pub name: [u8; 32],
         pub lp_pool_id: u8,
+        pub funding_clamp_threshold: u32,
+        pub funding_ramp_slope: u32,
     }
     #[automatically_derived]
     impl anchor_lang::Discriminator for InitializePerpMarket {
@@ -1600,6 +1602,17 @@ pub mod instructions {
     }
     #[automatically_derived]
     impl anchor_lang::InstructionData for UpdatePerpMarketFundingBiasSensitivity {}
+    #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+    pub struct UpdatePerpMarketFundingDeadZone {
+        pub funding_clamp_threshold: u32,
+        pub funding_ramp_slope: u32,
+    }
+    #[automatically_derived]
+    impl anchor_lang::Discriminator for UpdatePerpMarketFundingDeadZone {
+        const DISCRIMINATOR: &[u8] = &[249, 58, 136, 96, 2, 116, 111, 127];
+    }
+    #[automatically_derived]
+    impl anchor_lang::InstructionData for UpdatePerpMarketFundingDeadZone {}
     #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
     pub struct UpdatePerpMarketFundingPeriod {
         pub funding_period: i64,
@@ -4161,8 +4174,8 @@ pub mod types {
         pub last_funding_rate_short: i64,
         pub last_funding_rate_ts: i64,
         pub net_unsettled_funding_pnl: i64,
-        #[serde(skip)]
-        pub _padding_funding_twap: Padding<8>,
+        pub funding_clamp_threshold: u32,
+        pub funding_ramp_slope: u32,
         pub order_step_size: u64,
         pub order_tick_size: u64,
         pub unrealized_pnl_max_imbalance: u64,
@@ -5704,8 +5717,8 @@ pub mod accounts {
         pub last_funding_rate_short: i64,
         pub last_funding_rate_ts: i64,
         pub net_unsettled_funding_pnl: i64,
-        #[serde(skip)]
-        pub _padding_funding_twap: Padding<8>,
+        pub funding_clamp_threshold: u32,
+        pub funding_ramp_slope: u32,
         pub order_step_size: u64,
         pub order_tick_size: u64,
         pub unrealized_pnl_max_imbalance: u64,
@@ -18749,6 +18762,76 @@ pub mod accounts {
     }
     #[repr(C)]
     #[derive(Copy, Clone, Default, AnchorSerialize, AnchorDeserialize, Serialize, Deserialize)]
+    pub struct UpdatePerpMarketFundingDeadZone {
+        pub admin: Pubkey,
+        pub state: Pubkey,
+        pub perp_market: Pubkey,
+    }
+    #[automatically_derived]
+    impl anchor_lang::Discriminator for UpdatePerpMarketFundingDeadZone {
+        const DISCRIMINATOR: &[u8] = &[255, 196, 152, 228, 79, 13, 71, 122];
+    }
+    #[automatically_derived]
+    unsafe impl anchor_lang::__private::bytemuck::Pod for UpdatePerpMarketFundingDeadZone {}
+    #[automatically_derived]
+    unsafe impl anchor_lang::__private::bytemuck::Zeroable for UpdatePerpMarketFundingDeadZone {}
+    #[automatically_derived]
+    impl anchor_lang::ZeroCopy for UpdatePerpMarketFundingDeadZone {}
+    #[automatically_derived]
+    impl anchor_lang::InstructionData for UpdatePerpMarketFundingDeadZone {}
+    #[automatically_derived]
+    impl ToAccountMetas for UpdatePerpMarketFundingDeadZone {
+        fn to_account_metas(&self) -> Vec<AccountMeta> {
+            vec![
+                AccountMeta {
+                    pubkey: self.admin,
+                    is_signer: true,
+                    is_writable: false,
+                },
+                AccountMeta {
+                    pubkey: self.state,
+                    is_signer: false,
+                    is_writable: false,
+                },
+                AccountMeta {
+                    pubkey: self.perp_market,
+                    is_signer: false,
+                    is_writable: true,
+                },
+            ]
+        }
+    }
+    #[automatically_derived]
+    impl anchor_lang::AccountSerialize for UpdatePerpMarketFundingDeadZone {
+        fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
+            if writer.write_all(Self::DISCRIMINATOR).is_err() {
+                return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
+            }
+            if AnchorSerialize::serialize(self, writer).is_err() {
+                return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
+            }
+            Ok(())
+        }
+    }
+    #[automatically_derived]
+    impl anchor_lang::AccountDeserialize for UpdatePerpMarketFundingDeadZone {
+        fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+            let given_disc = &buf[..8];
+            if Self::DISCRIMINATOR != given_disc {
+                return Err(anchor_lang::error!(
+                    anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
+                ));
+            }
+            Self::try_deserialize_unchecked(buf)
+        }
+        fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+            let mut data: &[u8] = &buf[8..];
+            AnchorDeserialize::deserialize(&mut data)
+                .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into())
+        }
+    }
+    #[repr(C)]
+    #[derive(Copy, Clone, Default, AnchorSerialize, AnchorDeserialize, Serialize, Deserialize)]
     pub struct UpdatePerpMarketFundingPeriod {
         pub admin: Pubkey,
         pub state: Pubkey,
@@ -25181,6 +25264,10 @@ pub mod errors {
         InvalidProtocolFeeRecipient,
         #[msg("Insufficient protocol fees available to withdraw")]
         InsufficientProtocolFees,
+        #[msg("Native dispatch: supplied state account is not the canonical Velocity state PDA")]
+        InvalidNativeStateAccount,
+        #[msg("Native dispatch: supplied market account is not a Velocity perp market")]
+        InvalidNativePerpMarketAccount,
     }
 }
 pub mod events {
