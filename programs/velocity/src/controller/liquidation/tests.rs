@@ -7676,6 +7676,170 @@ pub mod resolve_perp_bankruptcy {
     }
 
     #[test]
+    pub fn socialized_loss_rounding_residual_bounded() {
+        // Socialize a residual loss across uneven long/short positions, settle
+        // every affected user, and confirm net_unsettled_funding_pnl returns to
+        // ~0. The cum-rate delta uses ceil division and each user settles via
+        // truncating integer math, so the field lands a few quote units off
+        // zero rather than exactly zero; the residual must stay tightly bounded.
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        create_anchor_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            PythLazerOracle,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        // Total open base = 7.0, split 4.0 long / 3.0 short. With a $100 loss
+        // the delta is ceil(100e6 * 1e9 / 7e9) * 1e3, i.e. ceil rounds up.
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            number_of_users: 1,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            base_asset_amount_long: 4 * BASE_PRECISION_I128,
+            base_asset_amount_short: -3 * BASE_PRECISION_I128,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            cumulative_funding_rate_long: 1000 * FUNDING_RATE_PRECISION_I128,
+            cumulative_funding_rate_short: -1000 * FUNDING_RATE_PRECISION_I128,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        // Bankrupt user carries a $100 quote loss and no base.
+        let mut user = User {
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 0,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: [SpotPosition::default(); 8],
+            status: UserStatus::Bankrupt as u8,
+            next_liquidation_id: 2,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        // No insurance vault balance, so the full $100 is socialized.
+        resolve_perp_bankruptcy(
+            0,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            0,
+        )
+        .unwrap();
+
+        // The socialized loss is now recorded as an obligation.
+        assert_eq!(
+            market_map.get_ref(&0).unwrap().net_unsettled_funding_pnl,
+            -100 * QUOTE_PRECISION_I64
+        );
+
+        // Surviving positions: uneven sizes including fractional base, summing
+        // to the market's 4.0 long / 3.0 short open interest.
+        let affected_bases = [
+            3 * BASE_PRECISION_I64 / 2, // 1.5 long
+            5 * BASE_PRECISION_I64 / 2, // 2.5 long
+            -2 * BASE_PRECISION_I64,    // 2.0 short
+            -BASE_PRECISION_I64,        // 1.0 short
+        ];
+
+        for base in affected_bases {
+            let last_cumulative_funding_rate = if base > 0 {
+                1000 * FUNDING_RATE_PRECISION_I64
+            } else {
+                -1000 * FUNDING_RATE_PRECISION_I64
+            };
+            let mut affected_user = User {
+                perp_positions: get_positions(PerpPosition {
+                    market_index: 0,
+                    base_asset_amount: base,
+                    quote_asset_amount: 1000 * QUOTE_PRECISION_I64,
+                    quote_entry_amount: 1000 * QUOTE_PRECISION_I64,
+                    quote_break_even_amount: 1000 * QUOTE_PRECISION_I64,
+                    last_cumulative_funding_rate,
+                    ..PerpPosition::default()
+                }),
+                spot_positions: [SpotPosition::default(); 8],
+                ..User::default()
+            };
+
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(&mut affected_user, &Pubkey::default(), &mut market, now)
+                .unwrap();
+        }
+
+        // Every affected user settled. ceil overshoot (< total_base / 1 quote)
+        // plus per-position truncation (< 1 quote each) leaves +4 of dust here,
+        // never the full socialized loss. Bound generously to stay robust.
+        let residual = market_map.get_ref(&0).unwrap().net_unsettled_funding_pnl;
+        assert_eq!(residual, 4);
+        assert!(
+            residual.abs() <= 10,
+            "net_unsettled residual {} exceeds rounding bound",
+            residual
+        );
+    }
+
+    #[test]
     pub fn full_coverage_zero_open_interest_resolves() {
         // Loss is fully covered by the market's pending IF fees (Tranche 1),
         // so loss_to_socialize == 0. The market has zero open interest. The
