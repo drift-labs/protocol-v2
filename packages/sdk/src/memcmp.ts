@@ -12,10 +12,32 @@ export function getUserFilter(): MemcmpFilter {
 	};
 }
 
+/*
+ * Byte offsets of the trailing scalar flags in the `User` account.
+ *
+ * These MUST match the on-chain `User` layout decoded in `decode/user.ts`. The
+ * current Velocity layout is 4496 bytes, with the tail block laid out as
+ * consecutive single bytes:
+ *   status(4468) isMarginTradingEnabled(4469) idle(4470) openOrders(4471)
+ *   hasOpenOrder(4472) openAuctions(4473) hasOpenAuction(4474) poolId(4475)
+ *   specialUserStatus(4476)
+ *
+ * NOTE: these were previously hardcoded to the older (4376-byte) layout
+ * (idle@4350, hasOpenOrder@4352, ...). After Velocity added fields to
+ * `PerpPosition`, the account grew by 120 bytes and these flags shifted, but
+ * the filters were not updated — so `getUserWithOrderFilter()` matched zero
+ * accounts and the DLOB order book never populated. Keep these in sync with
+ * `decode/user.ts` if the `User` layout changes again.
+ */
+const USER_IDLE_OFFSET = 4470;
+const USER_HAS_OPEN_ORDER_OFFSET = 4472;
+const USER_HAS_OPEN_AUCTION_OFFSET = 4474;
+const USER_POOL_ID_OFFSET = 4475;
+
 export function getNonIdleUserFilter(): MemcmpFilter {
 	return {
 		memcmp: {
-			offset: 4350,
+			offset: USER_IDLE_OFFSET,
 			bytes: bs58.encode(Uint8Array.from([0])),
 		},
 	};
@@ -24,7 +46,7 @@ export function getNonIdleUserFilter(): MemcmpFilter {
 export function getUserWithOrderFilter(): MemcmpFilter {
 	return {
 		memcmp: {
-			offset: 4352,
+			offset: USER_HAS_OPEN_ORDER_OFFSET,
 			bytes: bs58.encode(Uint8Array.from([1])),
 		},
 	};
@@ -33,7 +55,7 @@ export function getUserWithOrderFilter(): MemcmpFilter {
 export function getUserWithoutOrderFilter(): MemcmpFilter {
 	return {
 		memcmp: {
-			offset: 4352,
+			offset: USER_HAS_OPEN_ORDER_OFFSET,
 			bytes: bs58.encode(Uint8Array.from([0])),
 		},
 	};
@@ -42,7 +64,7 @@ export function getUserWithoutOrderFilter(): MemcmpFilter {
 export function getUserWithAuctionFilter(): MemcmpFilter {
 	return {
 		memcmp: {
-			offset: 4354,
+			offset: USER_HAS_OPEN_AUCTION_OFFSET,
 			bytes: bs58.encode(Uint8Array.from([1])),
 		},
 	};
@@ -60,7 +82,7 @@ export function getUserWithName(name: string): MemcmpFilter {
 export function getUsersWithPoolId(poolId: number): MemcmpFilter {
 	return {
 		memcmp: {
-			offset: 4356,
+			offset: USER_POOL_ID_OFFSET,
 			bytes: bs58.encode(Uint8Array.from([poolId])),
 		},
 	};

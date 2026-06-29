@@ -19,6 +19,16 @@ import { grpcSubscription } from './grpcSubscription';
 import { calculateOrderBaseAssetAmount } from '../math/orders';
 import { ZERO } from '../constants/numericConstants';
 
+/*
+ * Byte offset of `lastActiveSlot` (u64) in the `User` account, used here to
+ * cheaply detect stale updates without fully decoding the buffer. Must match
+ * the on-chain `User` layout (see `decode/user.ts`). The previous value (4328)
+ * was for the older 4376-byte layout; the current Velocity layout is 4496
+ * bytes, shifting this field +120 bytes. With the wrong offset this read 8
+ * zero-padding bytes, so the staleness guard rejected every post-load update.
+ */
+const USER_LAST_ACTIVE_SLOT_OFFSET = 4448;
+
 export class OrderSubscriber {
 	velocityClient: VelocityClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
@@ -176,7 +186,10 @@ export class OrderSubscriber {
 				const buffer = Buffer.from(data[0], data[1]);
 
 				const newLastActiveSlot = new BN(
-					buffer.subarray(4328, 4328 + 8),
+					buffer.subarray(
+						USER_LAST_ACTIVE_SLOT_OFFSET,
+						USER_LAST_ACTIVE_SLOT_OFFSET + 8
+					),
 					undefined,
 					'le'
 				);
@@ -191,7 +204,10 @@ export class OrderSubscriber {
 			} else if (dataType === 'buffer') {
 				const buffer: Buffer = data as Buffer;
 				const newLastActiveSlot = new BN(
-					buffer.subarray(4328, 4328 + 8),
+					buffer.subarray(
+						USER_LAST_ACTIVE_SLOT_OFFSET,
+						USER_LAST_ACTIVE_SLOT_OFFSET + 8
+					),
 					undefined,
 					'le'
 				);
