@@ -1,5 +1,5 @@
-import * as anchor from './isomorphic/anchor29';
-import { AnchorProvider, Idl, Program } from './isomorphic/anchor29';
+import * as anchor from './isomorphic/anchor';
+import { AnchorProvider, Idl, Program } from './isomorphic/anchor';
 import {
 	TOKEN_PROGRAM_ID,
 	Account,
@@ -51,11 +51,14 @@ export class TokenFaucet {
 			this.opts
 		);
 		this.provider = provider;
-		this.program = new Program(
-			tokenFaucet as unknown as Idl,
-			programId,
-			provider
-		);
+		// Anchor (>= 0.30) reads the program id from `idl.address` rather than a
+		// constructor argument. Override it with the caller-provided `programId`
+		// so PDAs and instructions target the intended program.
+		const idl = {
+			...(tokenFaucet as unknown as Idl),
+			address: programId.toBase58(),
+		} as Idl;
+		this.program = new Program(idl, provider);
 		this.mint = mint;
 	}
 
