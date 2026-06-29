@@ -16,7 +16,10 @@ export const decodeLogs = async (program: Command, cmdOpts: OptionValues) => {
 		process.exit(1);
 	}
 
-	const { velocityVault, velocityClient } = await getCommandContext(program, false);
+	const { velocityVault, velocityClient } = await getCommandContext(
+		program,
+		false
+	);
 
 	const tx = await velocityClient.connection.getParsedTransaction(txId, {
 		commitment: 'confirmed',

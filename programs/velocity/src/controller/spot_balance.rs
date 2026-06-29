@@ -246,13 +246,13 @@ pub fn update_revenue_pool_balances(
 /// The pool is a protocol-owned Deposit-type claim inside the spot vault —
 /// counted in `deposit_balance` like `revenue_pool`, but owned by the protocol
 /// (not users) and never part of the insurance backstop.
-/// `is_leaving_drift` should be true when the Borrow direction corresponds to
+/// `is_leaving_velocity` should be true when the Borrow direction corresponds to
 /// tokens exiting the protocol (the recipient-wallet withdrawal).
 pub fn update_protocol_fee_pool_balances(
     token_amount: u128,
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,
-    is_leaving_drift: bool,
+    is_leaving_velocity: bool,
 ) -> VelocityResult {
     let mut spot_balance = spot_market.protocol_fee_pool;
     update_spot_balances(
@@ -260,7 +260,7 @@ pub fn update_protocol_fee_pool_balances(
         update_direction,
         spot_market,
         &mut spot_balance,
-        is_leaving_drift,
+        is_leaving_velocity,
     )?;
     spot_market.protocol_fee_pool = spot_balance;
 

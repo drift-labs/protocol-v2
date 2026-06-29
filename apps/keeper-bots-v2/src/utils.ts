@@ -1062,8 +1062,9 @@ export function getVelocityPriorityFeeEndpoint(
 ): string {
 	switch (velocityEnv) {
 		case 'devnet':
+			return 'https://dlob.master.velocity.exchange';
 		case 'mainnet-beta':
-			return 'https://dlob.drift.trade';
+			return 'https://dlob.velocity.exchange';
 	}
 }
 

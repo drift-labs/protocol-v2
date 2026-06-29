@@ -19,7 +19,7 @@ pub fn request_withdraw<'info>(
     let vault = &mut ctx.accounts.vault.load_mut()?;
     let mut vault_depositor = ctx.accounts.vault_depositor.load_mut()?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
 
     let mut vp = ctx.vault_protocol();
     vault.validate_vault_protocol(&vp)?;
@@ -68,11 +68,11 @@ pub struct RequestWithdraw<'info> {
     pub vault_depositor: AccountLoader<'info, VaultDepositor>,
     pub authority: Signer<'info>,
     #[account(
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    pub drift_user_stats: AccountLoader<'info, UserStats>,
+    pub velocity_user_stats: AccountLoader<'info, UserStats>,
     #[account(
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    pub drift_user: AccountLoader<'info, User>,
+    pub velocity_user: AccountLoader<'info, User>,
 }

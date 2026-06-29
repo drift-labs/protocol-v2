@@ -433,10 +433,10 @@ mod tests {
 
     #[test]
     fn test_https_to_ws() {
-        let https_url = "https://dlob.drift.trade";
-        assert!(http_to_ws(https_url).unwrap() == "wss://dlob.drift.trade/ws");
-        let http_url = "http://dlob.drift.trade";
-        assert!(http_to_ws(http_url).unwrap() == "ws://dlob.drift.trade/ws")
+        let https_url = "https://dlob.velocity.exchange";
+        assert!(http_to_ws(https_url).unwrap() == "wss://dlob.velocity.exchange/ws");
+        let http_url = "http://dlob.velocity.exchange";
+        assert!(http_to_ws(http_url).unwrap() == "ws://dlob.velocity.exchange/ws")
     }
 
     #[test]

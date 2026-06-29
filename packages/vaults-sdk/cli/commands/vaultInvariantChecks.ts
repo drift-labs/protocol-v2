@@ -26,7 +26,10 @@ export const vaultInvariantChecks = async (
 		process.exit(1);
 	}
 
-	const { velocityVault, velocityClient } = await getCommandContext(program, true);
+	const { velocityVault, velocityClient } = await getCommandContext(
+		program,
+		true
+	);
 
 	/*
     Invariants:
@@ -287,27 +290,32 @@ export const vaultInvariantChecks = async (
 			spotPrecision
 		)}`
 	);
-	const driftUserDeposits = user.getUserAccount().totalDeposits;
-	const driftUserWithdraws = user.getUserAccount().totalWithdraws;
-	const driftUserSocialLoss = user.getUserAccount().totalSocialLoss;
+	const velocityUserDeposits = user.getUserAccount().totalDeposits;
+	const velocityUserWithdraws = user.getUserAccount().totalWithdraws;
+	const velocityUserSocialLoss = user.getUserAccount().totalSocialLoss;
 	console.log(
-		`vd drift user net deposits:  ${convertToNumber(
-			driftUserDeposits.sub(driftUserWithdraws).sub(driftUserSocialLoss),
+		`vd velocity user net deposits:  ${convertToNumber(
+			velocityUserDeposits
+				.sub(velocityUserWithdraws)
+				.sub(velocityUserSocialLoss),
 			spotPrecision
 		)}`
 	);
 	console.log(
-		`  vd drift user deps: ${convertToNumber(driftUserDeposits, spotPrecision)}`
-	);
-	console.log(
-		`  vd drift user with: ${convertToNumber(
-			driftUserWithdraws,
+		`  vd velocity user deps: ${convertToNumber(
+			velocityUserDeposits,
 			spotPrecision
 		)}`
 	);
 	console.log(
-		`  vd drift user scls: ${convertToNumber(
-			driftUserSocialLoss,
+		`  vd velocity user with: ${convertToNumber(
+			velocityUserWithdraws,
+			spotPrecision
+		)}`
+	);
+	console.log(
+		`  vd velocity user scls: ${convertToNumber(
+			velocityUserSocialLoss,
 			spotPrecision
 		)}`
 	);

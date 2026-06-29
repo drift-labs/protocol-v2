@@ -45,7 +45,7 @@ async function getPublicKey(
 }
 
 /*
- * Returns a Drift compatible wallet backed by ledger hardware device
+ * Returns a Velocity compatible wallet backed by ledger hardware device
  * This only works in an nodejs environment, based on the transport used
  *
  * Key derivation path is set based on:
@@ -99,7 +99,7 @@ export async function getLedgerWallet(url = ''): Promise<Wallet> {
 	transport.on('disconnect', wallet['_disconnected']);
 	wallet.emit('connect', publicKey);
 
-	// Return a Drift compatible wallet
+	// Return a Velocity compatible wallet
 	return {
 		payer: undefined as unknown as Keypair, // Doesn't appear to break things
 		publicKey: publicKey,

@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::TokenAccount;
-use velocity::cpi::accounts::RequestRemoveInsuranceFundStake as DriftRequestRemoveInsuranceFundStake;
+use velocity::cpi::accounts::RequestRemoveInsuranceFundStake as VelocityRequestRemoveInsuranceFundStake;
 use velocity::program::Velocity;
 use velocity::state::insurance_fund_stake::InsuranceFundStake;
 use velocity::state::spot_market::SpotMarket;
 
 use crate::constraints::{is_if_stake_for_vault, is_manager_for_vault, is_user_stats_for_vault};
-use crate::drift_cpi::RequestRemoveInsuranceFundStakeCPI;
+use crate::velocity_cpi::RequestRemoveInsuranceFundStakeCPI;
 use crate::{declare_vault_seeds, Vault};
 
 pub fn request_remove_insurance_fund_stake<'info>(
@@ -14,7 +14,7 @@ pub fn request_remove_insurance_fund_stake<'info>(
     market_index: u16,
     amount: u64,
 ) -> Result<()> {
-    ctx.drift_request_remove_insurance_fund_stake(market_index, amount)?;
+    ctx.velocity_request_remove_insurance_fund_stake(market_index, amount)?;
     Ok(())
 }
 
@@ -31,14 +31,14 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
         mut,
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump,
-        seeds::program = drift_program.key(),
+        seeds::program = velocity_program.key(),
     )]
-    pub drift_spot_market: AccountLoader<'info, SpotMarket>,
+    pub velocity_spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
         mut,
         seeds = [b"insurance_fund_stake", vault.key().as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
-        seeds::program = drift_program.key(),
+        seeds::program = velocity_program.key(),
         constraint = is_if_stake_for_vault(&insurance_fund_stake, &vault)?,
     )]
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
@@ -46,38 +46,38 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
-        seeds::program = drift_program.key(),
+        seeds::program = velocity_program.key(),
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user_stats: AccountInfo<'info>,
-    pub drift_program: Program<'info, Velocity>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user_stats: AccountInfo<'info>,
+    pub velocity_program: Program<'info, Velocity>,
 }
 
 impl<'info> RequestRemoveInsuranceFundStakeCPI
     for Context<'info, RequestRemoveInsuranceFundStake<'info>>
 {
-    fn drift_request_remove_insurance_fund_stake(
+    fn velocity_request_remove_insurance_fund_stake(
         &self,
         market_index: u16,
         amount: u64,
     ) -> Result<()> {
         declare_vault_seeds!(self.accounts.vault, seeds);
 
-        let cpi_accounts = DriftRequestRemoveInsuranceFundStake {
-            spot_market: self.accounts.drift_spot_market.to_account_info().clone(),
+        let cpi_accounts = VelocityRequestRemoveInsuranceFundStake {
+            spot_market: self.accounts.velocity_spot_market.to_account_info().clone(),
             insurance_fund_stake: self.accounts.insurance_fund_stake.to_account_info().clone(),
-            user_stats: self.accounts.drift_user_stats.clone(),
+            user_stats: self.accounts.velocity_user_stats.clone(),
             authority: self.accounts.vault.to_account_info().clone(),
             insurance_fund_vault: self.accounts.insurance_fund_vault.to_account_info().clone(),
         };
 
-        let drift_program = self.accounts.drift_program.key();
-        let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
+        let velocity_program = self.accounts.velocity_program.key();
+        let cpi_context = CpiContext::new_with_signer(velocity_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
         velocity::cpi::request_remove_insurance_fund_stake(cpi_context, market_index, amount)?;
 

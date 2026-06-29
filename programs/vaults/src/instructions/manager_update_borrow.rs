@@ -36,7 +36,7 @@ pub fn manager_update_borrow<'info>(
         mut oracle_map,
     } = ctx.load_maps(clock.slot, None, vp.is_some(), has_fee_update)?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
 
     let vault_equity_before =
         vault.calculate_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
@@ -49,7 +49,7 @@ pub fn manager_update_borrow<'info>(
     drop(vp);
 
     let vault = ctx.accounts.vault.load()?;
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
 
     let vault_equity_after =
         vault.calculate_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
@@ -77,14 +77,14 @@ pub struct ManagerUpdateBorrow<'info> {
     pub manager: Signer<'info>,
     #[account(
         mut,
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
 }

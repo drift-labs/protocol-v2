@@ -1,6 +1,6 @@
 # @velocity-exchange/admin-cli
 
-CLI for Velocity v2 admin operations. Sign with the right key (or pass a Squads
+CLI for Velocity v1 admin operations. Sign with the right key (or pass a Squads
 V4 multisig); the on-chain program enforces which tier of authority is
 required for the action.
 

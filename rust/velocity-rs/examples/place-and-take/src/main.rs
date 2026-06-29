@@ -23,9 +23,9 @@ async fn get_top_makers(
     limit: Option<usize>,
 ) -> Result<Vec<(Pubkey, User)>, Box<dyn std::error::Error>> {
     let dlob_server_url = if context == Context::MainNet {
-        "https://dlob.drift.trade"
+        "https://dlob.velocity.exchange"
     } else {
-        "https://master.dlob.drift.trade"
+        "https://dlob.master.velocity.exchange"
     };
     // NOTE: This parameter controls the number of top makers that will be returned.
     // It is suggested not to use more than 4, in our current testing the size of the transaction will larger than the current limits if you pass more than 4 makers in.

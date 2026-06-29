@@ -14,7 +14,10 @@ import { dumpTransactionMessage, getCommandContext } from '../utils';
 import { VAULT_PROGRAM_ID } from '../../src/types/types';
 
 export const initVault = async (program: Command, cmdOpts: OptionValues) => {
-	const { velocityClient, velocityVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(
+		program,
+		true
+	);
 
 	const newVaultName = cmdOpts.name;
 	if (!newVaultName) {
@@ -149,7 +152,7 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 	}
 
 	const vaultAddress = getVaultAddressSync(VAULT_PROGRAM_ID, vaultNameBytes);
-	const vaultDriftUser = await getUserAccountPublicKey(
+	const vaultVelocityUser = await getUserAccountPublicKey(
 		velocityClient.program.programId,
 		vaultAddress,
 		0
@@ -171,7 +174,7 @@ export const initVault = async (program: Command, cmdOpts: OptionValues) => {
 		await velocityVault.getUpdateDelegateIx(
 			vaultAddress,
 			delegate,
-			vaultDriftUser,
+			vaultVelocityUser,
 			cmdOpts.manager
 		),
 	];

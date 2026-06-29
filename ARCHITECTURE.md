@@ -1,4 +1,4 @@
-# Velocity Protocol v2 — Architecture
+# Velocity Protocol v1 — Architecture
 
 Navigation map for `programs/velocity` and `sdk/`. Start here to find the right file for any query.
 

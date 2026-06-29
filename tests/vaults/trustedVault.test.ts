@@ -19,7 +19,7 @@ import {
 } from '@velocity-exchange/vaults-sdk';
 import {
 	BulkAccountLoader,
-	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID as VELOCITY_PROGRAM_ID,
 	VelocityClient,
 	OracleSource,
 	PEG_PRECISION,
@@ -114,7 +114,7 @@ describe('TestTrustedVault', () => {
 		adminVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: adminWallet,
-			programID: new PublicKey(DRIFT_PROGRAM_ID),
+			programID: new PublicKey(VELOCITY_PROGRAM_ID),
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -281,7 +281,7 @@ describe('TestTrustedVault', () => {
 		vaultAcct = await vaultProgram.account.vault.fetch(commonVaultKey);
 		expect(isTrustedVaultClass(vaultAcct.vaultClass)).to.deep.equal(true);
 
-		// user1 deposit sol into drift (for vault to borrow)
+		// user1 deposit sol into velocity (for vault to borrow)
 		await bankrunContextWrapper.fundKeypair(
 			user1Signer,
 			100 * LAMPORTS_PER_SOL
@@ -430,7 +430,7 @@ describe('TestTrustedVault', () => {
 		vaultAcct = await vaultProgram.account.vault.fetch(commonVaultKey);
 		expect(isTrustedVaultClass(vaultAcct.vaultClass)).to.deep.equal(true);
 
-		// user1 deposit sol into drift (for vault to borrow)
+		// user1 deposit sol into velocity (for vault to borrow)
 		await bankrunContextWrapper.fundKeypair(
 			user1Signer,
 			100 * LAMPORTS_PER_SOL

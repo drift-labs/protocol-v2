@@ -10,9 +10,9 @@
   </p>
 </div>
 
-# Velocity Protocol v2
+# Velocity Protocol v1
 
-This repository provides open source access to Velocity V2's Typescript SDK, Solana Programs, and more.
+This repository provides open source access to Velocity V1's Typescript SDK, Solana Programs, and more.
 
 Integrating Velocity? [Go here](./sdk/README.md)
 

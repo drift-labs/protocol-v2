@@ -18,7 +18,7 @@ pub fn apply_rebase_tokenized_depositor<'info>(
     vault.validate_vault_protocol(&vp)?;
     let mut vp = vp.as_mut().map(|vp| vp.load_mut()).transpose()?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
     let spot_market_index = vault.spot_market_index;
 
     let AccountMaps {
@@ -49,7 +49,7 @@ pub struct ApplyRebaseTokenizedDepositor<'info> {
     pub tokenized_vault_depositor: AccountLoader<'info, TokenizedVaultDepositor>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    pub drift_user: AccountLoader<'info, User>,
+    pub velocity_user: AccountLoader<'info, User>,
 }

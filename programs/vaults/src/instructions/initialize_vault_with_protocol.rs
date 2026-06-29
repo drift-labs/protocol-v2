@@ -7,8 +7,8 @@ use velocity::program::Velocity;
 use velocity::state::spot_market::SpotMarket;
 
 use crate::constants::ONE_DAY;
-use crate::drift_cpi::InitializeUserCPI;
 use crate::state::{Vault, VaultProtocol};
+use crate::velocity_cpi::InitializeUserCPI;
 use crate::{error::ErrorCode, validate, Size};
 
 pub fn initialize_vault_with_protocol<'info>(
@@ -21,8 +21,8 @@ pub fn initialize_vault_with_protocol<'info>(
     vault.name = params.name;
     vault.pubkey = *ctx.accounts.vault.to_account_info().key;
     vault.manager = *ctx.accounts.manager.key;
-    vault.user_stats = *ctx.accounts.drift_user_stats.key;
-    vault.user = *ctx.accounts.drift_user.key;
+    vault.user_stats = *ctx.accounts.velocity_user_stats.key;
+    vault.user = *ctx.accounts.velocity_user.key;
     vault.token_account = *ctx.accounts.token_account.to_account_info().key;
     vault.spot_market_index = params.spot_market_index;
     vault.init_ts = Clock::get()?.unix_timestamp;
@@ -83,8 +83,8 @@ pub fn initialize_vault_with_protocol<'info>(
     drop(vault);
     drop(vp);
 
-    ctx.drift_initialize_user_stats(params.name, bump)?;
-    ctx.drift_initialize_user(params.name, bump)?;
+    ctx.velocity_initialize_user_stats(params.name, bump)?;
+    ctx.velocity_initialize_user(params.name, bump)?;
 
     Ok(())
 }
@@ -136,46 +136,46 @@ pub struct InitializeVaultWithProtocol<'info> {
         seeds = [b"vault_token_account".as_ref(), vault.key().as_ref()],
         bump,
         payer = payer,
-        token::mint = drift_spot_market_mint,
+        token::mint = velocity_spot_market_mint,
         token::authority = vault
     )]
     pub token_account: Box<Account<'info, TokenAccount>>,
-    /// CHECK: checked in drift cpi
+    /// CHECK: checked in velocity cpi
     #[account(mut)]
-    pub drift_user_stats: AccountInfo<'info>,
-    /// CHECK: checked in drift cpi
+    pub velocity_user_stats: AccountInfo<'info>,
+    /// CHECK: checked in velocity cpi
     #[account(mut)]
-    pub drift_user: AccountInfo<'info>,
-    /// CHECK: checked in drift cpi
+    pub velocity_user: AccountInfo<'info>,
+    /// CHECK: checked in velocity cpi
     #[account(mut)]
-    pub drift_state: AccountInfo<'info>,
+    pub velocity_state: AccountInfo<'info>,
     #[account(
-        constraint = drift_spot_market.load()?.market_index == params.spot_market_index
+        constraint = velocity_spot_market.load()?.market_index == params.spot_market_index
     )]
-    pub drift_spot_market: AccountLoader<'info, SpotMarket>,
+    pub velocity_spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
-        constraint = drift_spot_market.load()?.mint.eq(&drift_spot_market_mint.key())
+        constraint = velocity_spot_market.load()?.mint.eq(&velocity_spot_market_mint.key())
     )]
-    pub drift_spot_market_mint: Box<Account<'info, Mint>>,
+    pub velocity_spot_market_mint: Box<Account<'info, Mint>>,
     pub manager: Signer<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    pub drift_program: Program<'info, Velocity>,
+    pub velocity_program: Program<'info, Velocity>,
     pub token_program: Program<'info, Token>,
 }
 
 impl<'info> InitializeUserCPI for Context<'info, InitializeVaultWithProtocol<'info>> {
-    fn drift_initialize_user(&self, name: [u8; 32], bump: u8) -> Result<()> {
+    fn velocity_initialize_user(&self, name: [u8; 32], bump: u8) -> Result<()> {
         let signature_seeds = Vault::get_vault_signer_seeds(&name, &bump);
         let signers = &[&signature_seeds[..]];
 
-        let cpi_program = self.accounts.drift_program.key();
+        let cpi_program = self.accounts.velocity_program.key();
         let cpi_accounts = InitializeUser {
-            user_stats: self.accounts.drift_user_stats.clone(),
-            user: self.accounts.drift_user.clone(),
-            state: self.accounts.drift_state.clone(),
+            user_stats: self.accounts.velocity_user_stats.clone(),
+            user: self.accounts.velocity_user.clone(),
+            state: self.accounts.velocity_state.clone(),
             authority: self.accounts.vault.to_account_info().clone(),
             payer: self.accounts.payer.to_account_info().clone(),
             rent: self.accounts.rent.to_account_info().clone(),
@@ -188,14 +188,14 @@ impl<'info> InitializeUserCPI for Context<'info, InitializeVaultWithProtocol<'in
         Ok(())
     }
 
-    fn drift_initialize_user_stats(&self, name: [u8; 32], bump: u8) -> Result<()> {
+    fn velocity_initialize_user_stats(&self, name: [u8; 32], bump: u8) -> Result<()> {
         let signature_seeds = Vault::get_vault_signer_seeds(&name, &bump);
         let signers = &[&signature_seeds[..]];
 
-        let cpi_program = self.accounts.drift_program.key();
+        let cpi_program = self.accounts.velocity_program.key();
         let cpi_accounts = InitializeUserStats {
-            user_stats: self.accounts.drift_user_stats.clone(),
-            state: self.accounts.drift_state.clone(),
+            user_stats: self.accounts.velocity_user_stats.clone(),
+            state: self.accounts.velocity_state.clone(),
             authority: self.accounts.vault.to_account_info().clone(),
             payer: self.accounts.payer.to_account_info().clone(),
             rent: self.accounts.rent.to_account_info().clone(),

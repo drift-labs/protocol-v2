@@ -17,7 +17,7 @@ program
 	.name('velocity-admin')
 	.description(
 		[
-			'Velocity v2 admin CLI.',
+			'Velocity v1 admin CLI.',
 			'',
 			'Each subcommand builds the appropriate instruction(s) and either signs them',
 			'with --keypair (default) or, with --multisig <pda>, wraps them in a Squads V4',

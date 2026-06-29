@@ -18,7 +18,7 @@ pub fn manager_cancel_withdraw_request<'info>(
     vault.validate_vault_protocol(&vp)?;
     let mut vp = vp.as_mut().map(|vp| vp.load_mut()).transpose()?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
 
     let AccountMaps {
         perp_market_map,
@@ -52,12 +52,12 @@ pub struct ManagerCancelWithdrawRequest<'info> {
     pub vault: AccountLoader<'info, Vault>,
     pub manager: Signer<'info>,
     #[account(
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
     /// CHECK: unused, for future proofing
-    pub drift_user_stats: AccountInfo<'info>,
+    pub velocity_user_stats: AccountInfo<'info>,
     #[account(
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    pub drift_user: AccountLoader<'info, User>,
+    pub velocity_user: AccountLoader<'info, User>,
 }

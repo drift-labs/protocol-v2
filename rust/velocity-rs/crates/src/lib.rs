@@ -985,10 +985,14 @@ impl VelocityClient {
         let perp_market = self.try_get_perp_market_account(market_index)?;
         let oracle_validity_guard_rails = self.state_account().unwrap().oracle_guard_rails.validity;
 
-        let drift_validity_guard_rails: program::state::state::ValidityGuardRails =
+        let velocity_validity_guard_rails: program::state::state::ValidityGuardRails =
             unsafe { std::mem::transmute_copy::<_, _>(&oracle_validity_guard_rails) };
         perp_market
-            .get_mm_oracle_price_data(oracle_data.data, current_slot, &drift_validity_guard_rails)
+            .get_mm_oracle_price_data(
+                oracle_data.data,
+                current_slot,
+                &velocity_validity_guard_rails,
+            )
             .map(|x| x.get_safe_oracle_price_data())
             .map_err(|e| SdkError::Anchor(Box::new(e.into())))
     }
@@ -2143,7 +2147,7 @@ impl<'a> TransactionBuilder<'a> {
                     &self.authority,
                     spot_market,
                 ),
-                velocity_signer: constants::derive_drift_signer(),
+                velocity_signer: constants::derive_velocity_signer(),
                 token_program: spot_market.token_program(),
             },
             [self.account_data.as_ref()].into_iter(),
@@ -3670,7 +3674,7 @@ impl<'a> TransactionBuilder<'a> {
                     asset_spot_market,
                 ),
                 token_program: liability_spot_market.token_program(),
-                velocity_signer: constants::derive_drift_signer(),
+                velocity_signer: constants::derive_velocity_signer(),
                 instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
             },
             [&self.account_data, user_account].into_iter(),
@@ -3745,7 +3749,7 @@ impl<'a> TransactionBuilder<'a> {
                     asset_spot_market,
                 ),
                 token_program: liability_spot_market.token_program(),
-                velocity_signer: constants::derive_drift_signer(),
+                velocity_signer: constants::derive_velocity_signer(),
                 instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
             },
             [&self.account_data, user_account].into_iter(),

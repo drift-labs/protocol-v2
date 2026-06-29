@@ -193,7 +193,7 @@ export interface GlobalConfig {
 	priorityFeeMethod?: string;
 	/// HTTP base URL of the cached priority-fee service (velocity dlob-server's
 	/// /batchPriorityFees). Set via PRIORITY_FEE_ENDPOINT; defaults per-env.
-	/// Point at the in-cluster dlob-server to avoid the public drift endpoint.
+	/// Point at the in-cluster dlob-server to avoid the public dlob endpoint.
 	priorityFeeEndpoint?: string;
 	maxPriorityFeeMicroLamports?: number;
 	resubTimeoutMs?: number;

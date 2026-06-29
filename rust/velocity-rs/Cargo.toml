@@ -6,7 +6,7 @@ build = "build.rs"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/velocity-exchange/velocity-v1"
-homepage = "https://drift.trade"
+homepage = "https://velocity.exchange"
 description = """
 Rust SDK for Velocity Protocol on the Solana blockchain.
 """

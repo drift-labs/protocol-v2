@@ -25,7 +25,7 @@ import {
 	OracleInfo,
 	PERCENTAGE_PRECISION,
 	TWO,
-	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID as VELOCITY_PROGRAM_ID,
 	WRAPPED_SOL_MINT,
 	convertToNumber,
 	OrderParamsBitFlag,
@@ -157,7 +157,7 @@ async function bootstrapBankrun(): Promise<{
 	const adminClient = new AdminClient({
 		connection,
 		wallet,
-		programID: new PublicKey(DRIFT_PROGRAM_ID),
+		programID: new PublicKey(VELOCITY_PROGRAM_ID),
 		opts: {
 			commitment: 'confirmed',
 		},
@@ -384,11 +384,11 @@ describe('velocityVaults', () => {
 				vault,
 				vaultDepositor,
 				vaultTokenAccount: vaultAccount.tokenAccount,
-				driftUser: vaultAccount.user,
-				driftUserStats: vaultAccount.userStats,
-				driftState: await adminClient.getStatePublicKey(),
-				driftSpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
-				driftProgram: adminClient.program.programId,
+				velocityUser: vaultAccount.user,
+				velocityUserStats: vaultAccount.userStats,
+				velocityState: await adminClient.getStatePublicKey(),
+				velocitySpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
+				velocityProgram: adminClient.program.programId,
 			})
 			.remainingAccounts(remainingAccounts)
 			.rpc();
@@ -427,8 +427,8 @@ describe('velocityVaults', () => {
 			.accounts({
 				vault,
 				vaultDepositor,
-				driftUser: vaultAccount.user,
-				driftUserStats: vaultAccount.userStats,
+				velocityUser: vaultAccount.user,
+				velocityUserStats: vaultAccount.userStats,
 			})
 			.remainingAccounts(remainingAccounts)
 			.rpc();
@@ -455,12 +455,12 @@ describe('velocityVaults', () => {
 					vault,
 					vaultDepositor,
 					vaultTokenAccount: vaultAccount.tokenAccount,
-					driftUser: vaultAccount.user,
-					driftUserStats: vaultAccount.userStats,
-					driftState: await adminClient.getStatePublicKey(),
-					driftSpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
-					driftSigner: adminClient.getStateAccount().signer,
-					driftProgram: adminClient.program.programId,
+					velocityUser: vaultAccount.user,
+					velocityUserStats: vaultAccount.userStats,
+					velocityState: await adminClient.getStatePublicKey(),
+					velocitySpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
+					velocitySigner: adminClient.getStateAccount().signer,
+					velocityProgram: adminClient.program.programId,
 				})
 				.remainingAccounts(remainingAccounts)
 				.rpc();
@@ -480,8 +480,8 @@ describe('velocityVaults', () => {
 			.updateDelegate(delegateKeyPair.publicKey)
 			.accounts({
 				vault,
-				driftUser: vaultAccount.user,
-				driftProgram: adminClient.program.programId,
+				velocityUser: vaultAccount.user,
+				velocityProgram: adminClient.program.programId,
 			})
 			.rpc();
 
@@ -719,8 +719,8 @@ describe('TestProtocolVaults', () => {
 			.updateDelegate(delegate.publicKey)
 			.accounts({
 				vault: protocolVault,
-				driftUser: vaultAccount.user,
-				driftProgram: adminClient.program.programId,
+				velocityUser: vaultAccount.user,
+				velocityProgram: adminClient.program.programId,
 			})
 			.rpc();
 		const user = (await adminClient.program.account.user.fetch(
@@ -778,12 +778,12 @@ describe('TestProtocolVaults', () => {
 				vault: protocolVault,
 				vaultDepositor,
 				vaultTokenAccount: vaultAccount.tokenAccount,
-				driftUserStats: vaultAccount.userStats,
-				driftUser: vaultAccount.user,
-				driftState: await adminClient.getStatePublicKey(),
+				velocityUserStats: vaultAccount.userStats,
+				velocityUser: vaultAccount.user,
+				velocityState: await adminClient.getStatePublicKey(),
 				userTokenAccount: vdUserUSDCAccount,
-				driftSpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
-				driftProgram: adminClient.program.programId,
+				velocitySpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
+				velocityProgram: adminClient.program.programId,
 			})
 			.remainingAccounts(remainingAccounts)
 			.rpc();
@@ -1213,7 +1213,7 @@ describe('TestProtocolVaults', () => {
 			});
 		}
 
-		// On bankrun the vault's drift user is subscribed over a websocket that
+		// On bankrun the vault's velocity user is subscribed over a websocket that
 		// never receives updates, so its cached equity is stale after the perp
 		// round trip. Force a one-time fetch of the known vault user before
 		// computing equity.
@@ -1233,7 +1233,7 @@ describe('TestProtocolVaults', () => {
 		);
 		// $1000 deposit + (~$10.04 in profit - 10% profit share = ~$9.04). The
 		// exact figure depends on velocity's fee/funding schedule, which differs
-		// slightly from upstream drift, so assert the magnitude with a tolerance
+		// slightly from upstream velocity, so assert the magnitude with a tolerance
 		// rather than the upstream-specific constant.
 		expect(
 			withdrawAmount.toNumber() / QUOTE_PRECISION.toNumber()
@@ -1246,8 +1246,8 @@ describe('TestProtocolVaults', () => {
 				.accounts({
 					vault: protocolVault,
 					vaultDepositor,
-					driftUserStats: vaultAccount.userStats,
-					driftUser: vaultAccount.user,
+					velocityUserStats: vaultAccount.userStats,
+					velocityUser: vaultAccount.user,
 				})
 				.remainingAccounts(remainingAccounts)
 				.rpc();
@@ -1286,12 +1286,12 @@ describe('TestProtocolVaults', () => {
 					vault: protocolVault,
 					vaultDepositor,
 					vaultTokenAccount: vaultAccount.tokenAccount,
-					driftUser: vaultAccount.user,
-					driftUserStats: vaultAccount.userStats,
-					driftState: await adminClient.getStatePublicKey(),
-					driftSpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
-					driftSigner: adminClient.getStateAccount().signer,
-					driftProgram: adminClient.program.programId,
+					velocityUser: vaultAccount.user,
+					velocityUserStats: vaultAccount.userStats,
+					velocityState: await adminClient.getStatePublicKey(),
+					velocitySpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
+					velocitySigner: adminClient.getStateAccount().signer,
+					velocityProgram: adminClient.program.programId,
 				})
 				.remainingAccounts(remainingAccounts)
 				.rpc();
@@ -1335,7 +1335,7 @@ describe('TestProtocolVaults', () => {
 			});
 		}
 
-		// Refresh the (websocket-subscribed) vault drift user so equity reflects
+		// Refresh the (websocket-subscribed) vault velocity user so equity reflects
 		// the perp profit; see the Withdraw test above for the rationale.
 		const protoVaultUser = await protocolClient.getSubscribedVaultUser(
 			vaultAccount.user
@@ -1350,7 +1350,7 @@ describe('TestProtocolVaults', () => {
 			withdrawAmount.toNumber() / QUOTE_PRECISION.toNumber()
 		);
 		// 10% of protocolVault depositor's ~$10.04 profit. Tolerance for
-		// velocity's slightly different fee/funding economics vs upstream drift.
+		// velocity's slightly different fee/funding economics vs upstream velocity.
 		expect(
 			withdrawAmount.toNumber() / QUOTE_PRECISION.toNumber()
 		).to.be.closeTo(1.004114, 0.001);
@@ -1369,8 +1369,8 @@ describe('TestProtocolVaults', () => {
 				.accounts({
 					vault: protocolVault,
 					vaultProtocol,
-					driftUser: vaultAccount.user,
-					driftUserStats: vaultAccount.userStats,
+					velocityUser: vaultAccount.user,
+					velocityUserStats: vaultAccount.userStats,
 				})
 				.remainingAccounts(remainingAccounts)
 				.rpc();
@@ -1403,12 +1403,12 @@ describe('TestProtocolVaults', () => {
 					vault: protocolVault,
 					vaultProtocol,
 					vaultTokenAccount: vaultAccount.tokenAccount,
-					driftUser: vaultAccount.user,
-					driftUserStats: vaultAccount.userStats,
-					driftState: await adminClient.getStatePublicKey(),
-					driftSpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
-					driftSigner: adminClient.getStateAccount().signer,
-					driftProgram: adminClient.program.programId,
+					velocityUser: vaultAccount.user,
+					velocityUserStats: vaultAccount.userStats,
+					velocityState: await adminClient.getStatePublicKey(),
+					velocitySpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
+					velocitySigner: adminClient.getStateAccount().signer,
+					velocityProgram: adminClient.program.programId,
 				})
 				.remainingAccounts(remainingAccounts)
 				.rpc();
@@ -2724,12 +2724,12 @@ describe('TestWithdrawFromVaults', () => {
 					vault: commonVaultKey,
 					vaultDepositor: vdKey,
 					vaultTokenAccount: vaultState0.tokenAccount,
-					driftUser: vaultState0.user,
-					driftUserStats: vaultState0.userStats,
-					driftState: await adminClient.getStatePublicKey(),
-					driftSpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
-					driftSigner: adminClient.getStateAccount().signer,
-					driftProgram: adminClient.program.programId,
+					velocityUser: vaultState0.user,
+					velocityUserStats: vaultState0.userStats,
+					velocityState: await adminClient.getStatePublicKey(),
+					velocitySpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
+					velocitySigner: adminClient.getStateAccount().signer,
+					velocityProgram: adminClient.program.programId,
 				})
 				.remainingAccounts(remainingAccounts)
 				.rpc();
@@ -2760,12 +2760,12 @@ describe('TestWithdrawFromVaults', () => {
 					manager: managerSigner.publicKey,
 					vault: commonVaultKey,
 					vaultTokenAccount: vaultState0.tokenAccount,
-					driftUser: vaultState0.user,
-					driftUserStats: vaultState0.userStats,
-					driftState: await adminClient.getStatePublicKey(),
-					driftSpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
-					driftSigner: adminClient.getStateAccount().signer,
-					driftProgram: adminClient.program.programId,
+					velocityUser: vaultState0.user,
+					velocityUserStats: vaultState0.userStats,
+					velocityState: await adminClient.getStatePublicKey(),
+					velocitySpotMarketVault: adminClient.getSpotMarketAccount(0).vault,
+					velocitySigner: adminClient.getStateAccount().signer,
+					velocityProgram: adminClient.program.programId,
 				})
 				.remainingAccounts(remainingAccounts)
 				.rpc();
@@ -2782,15 +2782,15 @@ describe('TestWithdrawFromVaults', () => {
 			vdKey
 		);
 
-		// calculateVaultEquity reads the vault's drift user through the
+		// calculateVaultEquity reads the vault's velocity user through the
 		// websocket-subscribed vaultUsers map, which never receives updates on
 		// bankrun. Force a one-time fetch of the known vault user so equity
 		// reflects the post-withdraw (drained) state.
 		await managerClient.velocityClient.fetchAccounts();
-		const vaultDriftUser = await managerClient.getSubscribedVaultUser(
+		const vaultVelocityUser = await managerClient.getSubscribedVaultUser(
 			vaultState1.user
 		);
-		await vaultDriftUser.fetchAccounts();
+		await vaultVelocityUser.fetchAccounts();
 		vaultEquity = await managerClient.calculateVaultEquity({
 			address: commonVaultKey,
 		});

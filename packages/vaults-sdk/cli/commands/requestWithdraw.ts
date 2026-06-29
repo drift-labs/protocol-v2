@@ -19,7 +19,10 @@ export const requestWithdraw = async (
 		}
 	}
 
-	const { velocityVault, velocityClient } = await getCommandContext(program, true);
+	const { velocityVault, velocityClient } = await getCommandContext(
+		program,
+		true
+	);
 
 	let vaultDepositorAddress: PublicKey;
 	if (cmdOpts.vaultDepositorAddress) {

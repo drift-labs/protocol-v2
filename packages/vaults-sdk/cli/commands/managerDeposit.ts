@@ -15,7 +15,10 @@ export const managerDeposit = async (
 		process.exit(1);
 	}
 
-	const { velocityClient, velocityVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(
+		program,
+		true
+	);
 
 	const vaultAccount = await velocityVault.program.account.vault.fetch(
 		vaultAddress
@@ -30,7 +33,10 @@ export const managerDeposit = async (
 	const depositBN = new BN(cmdOpts.amount * spotPrecision.toNumber());
 
 	if (cmdOpts.dumpTransactionMessage) {
-		const txs = await velocityVault.getManagerDepositIx(vaultAddress, depositBN);
+		const txs = await velocityVault.getManagerDepositIx(
+			vaultAddress,
+			depositBN
+		);
 		console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, txs));
 	} else {
 		const tx = await velocityVault.managerDeposit(vaultAddress, depositBN);

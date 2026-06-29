@@ -78,9 +78,9 @@ pub fn state_account() -> &'static Pubkey {
 /// Returns the program's HLM config address
 pub fn high_leverage_mode_account() -> &'static Pubkey {
     HIGH_LEVERAGE_MODE_ACCOUNT.get_or_init(|| {
-        let (account_drift_pda, _seed) =
+        let (account_velocity_pda, _seed) =
             Pubkey::find_program_address(&[&b"high_leverage_mode_config"[..]], &PROGRAM_ID);
-        account_drift_pda
+        account_velocity_pda
     })
 }
 
@@ -112,7 +112,7 @@ pub fn derive_spot_market_vault(market_index: u16) -> Pubkey {
 }
 
 /// calculate the PDA for the velocity signer
-pub fn derive_drift_signer() -> Pubkey {
+pub fn derive_velocity_signer() -> Pubkey {
     let (account, _seed) = Pubkey::find_program_address(&[&b"velocity_signer"[..]], &PROGRAM_ID);
     account
 }
@@ -268,7 +268,7 @@ pub fn oracle_source_to_owner(context: Context, source: OracleSource) -> Pubkey 
         OracleSource::PythPull
         | OracleSource::Pyth1KPull
         | OracleSource::Pyth1MPull
-        | OracleSource::PythStableCoinPull => ids::drift_oracle_receiver_program::ID,
+        | OracleSource::PythStableCoinPull => ids::velocity_oracle_receiver_program::ID,
         OracleSource::DeprecatedSwitchboard => ids::switchboard_program::ID,
         OracleSource::DeprecatedSwitchboardOnDemand => ids::switchboard_on_demand::ID,
         OracleSource::QuoteAsset => DEFAULT_PUBKEY,
@@ -296,7 +296,7 @@ pub mod ids {
             solana_pubkey::pubkey!("HDwcJBJXjL9FpJ7UBsYBtaDjsBUhuLCUYoz3zr8SWWaQ");
     }
 
-    pub mod drift_oracle_receiver_program {
+    pub mod velocity_oracle_receiver_program {
         use solana_pubkey::Pubkey;
 
         pub const ID: Pubkey =

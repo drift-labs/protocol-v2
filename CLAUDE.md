@@ -224,7 +224,7 @@ Each item below cost real time before being understood — read this before touc
 
 ## Architecture
 
-This is **Velocity Protocol v2** — a Solana perpetuals and spot trading protocol.
+This is **Velocity Protocol v1** — a Solana perpetuals and spot trading protocol.
 
 ### Programs (`programs/`)
 

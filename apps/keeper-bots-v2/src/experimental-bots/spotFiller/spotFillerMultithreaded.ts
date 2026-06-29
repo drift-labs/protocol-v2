@@ -288,7 +288,7 @@ export class SpotFillerMultithreaded {
 		}); // For rebalancing
 		this.priorityFeeSubscriber = new PriorityFeeSubscriberMap({
 			velocityMarkets: spotMarkets,
-			velocityPriorityFeeEndpoint: 'https://dlob.drift.trade',
+			velocityPriorityFeeEndpoint: 'https://dlob.velocity.exchange',
 		});
 
 		this.revertOnFailure = true;

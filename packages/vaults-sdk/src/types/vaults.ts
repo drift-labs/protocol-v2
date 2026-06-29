@@ -27,7 +27,7 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftSpotMarket';
+					name: 'velocitySpotMarket';
 					writable: true;
 					pda: {
 						seeds: [
@@ -42,12 +42,12 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 					pda: {
 						seeds: [
@@ -80,7 +80,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -125,7 +125,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -166,7 +166,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -215,17 +215,17 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -354,21 +354,21 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -387,7 +387,7 @@ export type Vaults = {
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 			];
@@ -406,7 +406,7 @@ export type Vaults = {
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 			];
@@ -425,7 +425,7 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftSpotMarket';
+					name: 'velocitySpotMarket';
 					writable: true;
 					pda: {
 						seeds: [
@@ -440,7 +440,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -485,7 +485,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -526,16 +526,16 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -595,10 +595,10 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 				},
 			];
 			args: [];
@@ -688,18 +688,18 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
@@ -707,7 +707,7 @@ export type Vaults = {
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -775,29 +775,29 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
 					name: 'userTokenAccount';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -829,7 +829,7 @@ export type Vaults = {
 					address: 'SysvarRent111111111111111111111111111111111';
 				},
 				{
-					name: 'driftSpotMarket';
+					name: 'velocitySpotMarket';
 					writable: true;
 					pda: {
 						seeds: [
@@ -844,12 +844,12 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
 				{
-					name: 'driftSpotMarketMint';
+					name: 'velocitySpotMarketMint';
 				},
 				{
 					name: 'vaultTokenAccount';
@@ -932,19 +932,19 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -1150,22 +1150,22 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 					writable: true;
 				},
 				{
-					name: 'driftSpotMarket';
+					name: 'velocitySpotMarket';
 				},
 				{
-					name: 'driftSpotMarketMint';
+					name: 'velocitySpotMarketMint';
 				},
 				{
 					name: 'manager';
@@ -1185,7 +1185,7 @@ export type Vaults = {
 					address: '11111111111111111111111111111111';
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -1354,22 +1354,22 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 					writable: true;
 				},
 				{
-					name: 'driftSpotMarket';
+					name: 'velocitySpotMarket';
 				},
 				{
-					name: 'driftSpotMarketMint';
+					name: 'velocitySpotMarketMint';
 				},
 				{
 					name: 'manager';
@@ -1389,7 +1389,7 @@ export type Vaults = {
 					address: '11111111111111111111111111111111';
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -1461,15 +1461,15 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -1492,29 +1492,29 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
 					name: 'userTokenAccount';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -1613,18 +1613,18 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
@@ -1632,7 +1632,7 @@ export type Vaults = {
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -1664,29 +1664,29 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
 					name: 'userTokenAccount';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -1724,10 +1724,10 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 				},
 			];
 			args: [
@@ -1758,11 +1758,11 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 			];
@@ -1862,29 +1862,29 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
 					name: 'userTokenAccount';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -1907,10 +1907,10 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 				},
 			];
 			args: [];
@@ -1932,10 +1932,10 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 				},
 			];
 			args: [];
@@ -1957,10 +1957,10 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 				},
 			];
 			args: [
@@ -2031,29 +2031,29 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
 					name: 'userTokenAccount';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -2128,7 +2128,7 @@ export type Vaults = {
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
@@ -2156,7 +2156,7 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftSpotMarket';
+					name: 'velocitySpotMarket';
 					writable: true;
 					pda: {
 						seeds: [
@@ -2171,7 +2171,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -2216,7 +2216,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -2257,7 +2257,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -2306,17 +2306,17 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -2344,7 +2344,7 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftSpotMarket';
+					name: 'velocitySpotMarket';
 					writable: true;
 					pda: {
 						seeds: [
@@ -2359,7 +2359,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -2404,7 +2404,7 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
@@ -2445,16 +2445,16 @@ export type Vaults = {
 						];
 						program: {
 							kind: 'account';
-							path: 'driftProgram';
+							path: 'velocityProgram';
 						};
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -2518,10 +2518,10 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 				},
 			];
 			args: [
@@ -2548,11 +2548,11 @@ export type Vaults = {
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -2634,7 +2634,7 @@ export type Vaults = {
 					name: 'userTokenAccount';
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
@@ -2710,7 +2710,7 @@ export type Vaults = {
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 				},
 			];
 			args: [
@@ -2741,11 +2741,11 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -2769,11 +2769,11 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -2797,11 +2797,11 @@ export type Vaults = {
 					signer: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 			];
@@ -2969,29 +2969,29 @@ export type Vaults = {
 					};
 				},
 				{
-					name: 'driftUserStats';
+					name: 'velocityUserStats';
 					writable: true;
 				},
 				{
-					name: 'driftUser';
+					name: 'velocityUser';
 					writable: true;
 				},
 				{
-					name: 'driftState';
+					name: 'velocityState';
 				},
 				{
-					name: 'driftSpotMarketVault';
+					name: 'velocitySpotMarketVault';
 					writable: true;
 				},
 				{
-					name: 'driftSigner';
+					name: 'velocitySigner';
 				},
 				{
 					name: 'userTokenAccount';
 					writable: true;
 				},
 				{
-					name: 'driftProgram';
+					name: 'velocityProgram';
 					address: 'vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P';
 				},
 				{
@@ -3131,8 +3131,8 @@ export type Vaults = {
 		},
 		{
 			code: 6014;
-			name: 'driftError';
-			msg: 'driftError';
+			name: 'velocityError';
+			msg: 'velocityError';
 		},
 		{
 			code: 6015;
@@ -5452,7 +5452,7 @@ export type Vaults = {
 					{
 						name: 'pubkey';
 						docs: [
-							"The vault's pubkey. It is a pda of name and also used as the authority for drift user",
+							"The vault's pubkey. It is a pda of name and also used as the authority for velocity user",
 						];
 						type: 'pubkey';
 					},
@@ -5472,18 +5472,18 @@ export type Vaults = {
 					},
 					{
 						name: 'userStats';
-						docs: ['The drift user stats account for the vault'];
+						docs: ['The velocity user stats account for the vault'];
 						type: 'pubkey';
 					},
 					{
 						name: 'user';
-						docs: ['The drift user account for the vault'];
+						docs: ['The velocity user account for the vault'];
 						type: 'pubkey';
 					},
 					{
 						name: 'delegate';
 						docs: [
-							'The vaults designated delegate for drift user account',
+							'The vaults designated delegate for velocity user account',
 							'can differ from actual user delegate if vault is in liquidation',
 						];
 						type: 'pubkey';

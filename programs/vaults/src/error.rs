@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use velocity::error::ErrorCode as DriftErrorCode;
+use velocity::error::ErrorCode as VelocityErrorCode;
 
 pub type VaultResult<T = ()> = std::result::Result<T, ErrorCode>;
 
@@ -35,8 +35,8 @@ pub enum ErrorCode {
     InvalidEquityValue,
     #[msg("VaultInLiquidation")]
     VaultInLiquidation,
-    #[msg("DriftError")]
-    DriftError,
+    #[msg("VelocityError")]
+    VelocityError,
     #[msg("InvalidVaultInitialization")]
     InvalidVaultInitialization,
     #[msg("InvalidVaultUpdate")]
@@ -67,8 +67,8 @@ pub enum ErrorCode {
     InvalidRepayAmount,
 }
 
-impl From<DriftErrorCode> for ErrorCode {
-    fn from(_: DriftErrorCode) -> Self {
-        ErrorCode::DriftError
+impl From<VelocityErrorCode> for ErrorCode {
+    fn from(_: VelocityErrorCode) -> Self {
+        ErrorCode::VelocityError
     }
 }

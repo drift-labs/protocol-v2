@@ -19,10 +19,10 @@ const VERSION = '&version=2';
 // @ts-ignore
 const TARGET_URL = `https://${
 	ENV === 'staging' ? 'staging.' : ''
-}dlob.drift.trade/auctionParams?assetType=base&marketType=perp&marketIndex=2&direction=long&maxLeverageSelected=false&maxLeverageOrderSize=18446744073709551615&amount=550000000&reduceOnly=false&auctionDuration=20&auctionStartPriceOffset=-0.1&auctionEndPriceOffset=0.1&auctionStartPriceOffsetFrom=mark&auctionEndPriceOffsetFrom=worst&slippageTolerance=dynamic&isOracleOrder=true&forceUpToSlippage=false${VERSION}`;
+}dlob.velocity.exchange/auctionParams?assetType=base&marketType=perp&marketIndex=2&direction=long&maxLeverageSelected=false&maxLeverageOrderSize=18446744073709551615&amount=550000000&reduceOnly=false&auctionDuration=20&auctionStartPriceOffset=-0.1&auctionEndPriceOffset=0.1&auctionStartPriceOffsetFrom=mark&auctionEndPriceOffsetFrom=worst&slippageTolerance=dynamic&isOracleOrder=true&forceUpToSlippage=false${VERSION}`;
 
 // staging
-// const TARGET_URL = 'https://staging.dlob.drift.trade/auctionParams?assetType=base&marketType=perp&marketIndex=0&direction=long&maxLeverageSelected=false&maxLeverageOrderSize=18446744073709551615&amount=2150000000&reduceOnly=false&auctionDuration=20&auctionStartPriceOffset=-0.1&auctionEndPriceOffset=0.1&auctionStartPriceOffsetFrom=mark&auctionEndPriceOffsetFrom=worst&slippageTolerance=dynamic&isOracleOrder=true&forceUpToSlippage=false';
+// const TARGET_URL = 'https://dlob.staging.velocity.exchange/auctionParams?assetType=base&marketType=perp&marketIndex=0&direction=long&maxLeverageSelected=false&maxLeverageOrderSize=18446744073709551615&amount=2150000000&reduceOnly=false&auctionDuration=20&auctionStartPriceOffset=-0.1&auctionEndPriceOffset=0.1&auctionStartPriceOffsetFrom=mark&auctionEndPriceOffsetFrom=worst&slippageTolerance=dynamic&isOracleOrder=true&forceUpToSlippage=false';
 
 const OUTPUT_CSV = process.env.OUTPUT_CSV || `auctionParams-${ENV}.csv`;
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 10_000);

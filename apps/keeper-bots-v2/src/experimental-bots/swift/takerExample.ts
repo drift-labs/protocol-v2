@@ -29,8 +29,8 @@ export class SwiftTaker {
 	) {
 		this.swiftUrl =
 			runtimeSpec.velocityEnv === 'mainnet-beta'
-				? 'https://swift.drift.trade'
-				: 'https://master.swift.drift.trade';
+				? 'https://swift.velocity.exchange'
+				: 'https://swift.master.velocity.exchange';
 	}
 
 	async init() {

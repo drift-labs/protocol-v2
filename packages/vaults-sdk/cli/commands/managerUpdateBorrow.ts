@@ -13,7 +13,10 @@ export async function managerUpdateBorrow(
 		dumpTransactionMessage: dumpTx,
 	} = cmdOpts;
 
-	const { velocityClient, velocityVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(
+		program,
+		true
+	);
 
 	if (!vaultAddress) {
 		throw new Error('Must provide vault address with --vault-address');
@@ -36,9 +39,14 @@ export async function managerUpdateBorrow(
 
 	try {
 		if (dumpTx) {
-			const ix = await velocityVault.getManagerUpdateBorrowIx(vault, borrowValue);
+			const ix = await velocityVault.getManagerUpdateBorrowIx(
+				vault,
+				borrowValue
+			);
 			console.log('Transaction Instruction:');
-			console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [ix]));
+			console.log(
+				dumpTransactionMessage(velocityClient.wallet.publicKey, [ix])
+			);
 			return;
 		}
 

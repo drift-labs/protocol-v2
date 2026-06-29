@@ -91,7 +91,10 @@ export const forceWithdrawAll = async (
 		const ixs: TransactionInstruction[] = [
 			new TransactionInstruction({
 				keys: [{ pubkey: wallet.publicKey, isSigner: true, isWritable: true }],
-				data: Buffer.from('Drift Vaults manager initiated withdrawal', 'utf-8'),
+				data: Buffer.from(
+					'Velocity Vaults manager initiated withdrawal',
+					'utf-8'
+				),
 				programId: new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
 			}),
 		];

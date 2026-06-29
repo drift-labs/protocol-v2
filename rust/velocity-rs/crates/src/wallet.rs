@@ -33,10 +33,10 @@ pub enum Mode {
 ///
 /// // construct wallet for delegated signing
 /// let delegated_keypair = solana_sdk::signature::Keypair::new();
-/// let delegated_wallet = Wallet::delegated(delegated_keypair, drift_account_key);
+/// let delegated_wallet = Wallet::delegated(delegated_keypair, velocity_account_key);
 ///
 /// // place holder wallet for readonly apps
-/// let ro_wallet = Wallet::read_only(drift_authority);
+/// let ro_wallet = Wallet::read_only(velocity_authority);
 /// ```
 #[derive(Clone, Debug)]
 pub struct Wallet {
@@ -130,7 +130,7 @@ impl Wallet {
     }
     /// Calculate the address of a velocity user account/sub-account
     pub fn derive_user_account(authority: &Pubkey, sub_account_id: u16) -> Pubkey {
-        let (account_drift_pda, _seed) = Pubkey::find_program_address(
+        let (account_velocity_pda, _seed) = Pubkey::find_program_address(
             &[
                 &b"user"[..],
                 authority.as_ref(),
@@ -138,25 +138,25 @@ impl Wallet {
             ],
             &constants::PROGRAM_ID,
         );
-        account_drift_pda
+        account_velocity_pda
     }
 
     /// Calculate the address of a velocity stats account
     pub fn derive_stats_account(account: &Pubkey) -> Pubkey {
-        let (account_drift_pda, _seed) = Pubkey::find_program_address(
+        let (account_velocity_pda, _seed) = Pubkey::find_program_address(
             &[&b"user_stats"[..], account.as_ref()],
             &constants::PROGRAM_ID,
         );
-        account_drift_pda
+        account_velocity_pda
     }
 
     /// Calculate the address of `authority`s swift (taker) order account
     pub fn derive_swift_order_account(authority: &Pubkey) -> Pubkey {
-        let (account_drift_pda, _seed) = Pubkey::find_program_address(
+        let (account_velocity_pda, _seed) = Pubkey::find_program_address(
             &[&b"SIGNED_MSG"[..], authority.as_ref()],
             &constants::PROGRAM_ID,
         );
-        account_drift_pda
+        account_velocity_pda
     }
 
     /// Calculate the wallet's ATA for velocity spot market

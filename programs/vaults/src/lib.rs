@@ -6,7 +6,6 @@ use instructions::*;
 use state::*;
 
 mod constants;
-mod drift_cpi;
 mod error;
 mod instructions;
 pub mod macros;
@@ -16,6 +15,7 @@ mod test_utils;
 #[cfg(test)]
 mod tests;
 mod token_cpi;
+mod velocity_cpi;
 
 declare_id!("vAuLTsyrvSfZRuRB3XgvkPwNGgYSs9YRYymVebLKoxR");
 

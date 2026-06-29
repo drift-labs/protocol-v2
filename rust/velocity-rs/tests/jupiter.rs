@@ -15,10 +15,10 @@ use velocity_rs::{
     TransactionBuilder, VelocityClient, Wallet,
 };
 
-const DRIFT_CLIENT: OnceCell<VelocityClient> = OnceCell::const_new();
+const VELOCITY_CLIENT: OnceCell<VelocityClient> = OnceCell::const_new();
 
-async fn drift_client() -> VelocityClient {
-    DRIFT_CLIENT
+async fn velocity_client() -> VelocityClient {
+    VELOCITY_CLIENT
         .get_or_init(|| async move {
             let wallet: Wallet = mainnet_test_keypair().into();
             VelocityClient::new(
@@ -37,7 +37,7 @@ async fn drift_client() -> VelocityClient {
 #[tokio::test]
 async fn jupiter_swap_exact_in_udsc_to_sol() {
     let _ = env_logger::try_init();
-    let client = drift_client().await;
+    let client = velocity_client().await;
     let wallet = client.wallet();
 
     let token_in = MarketId::QUOTE_SPOT;
@@ -111,7 +111,7 @@ async fn jupiter_swap_exact_in_udsc_to_sol() {
 #[tokio::test]
 async fn jupiter_swap_exact_out_udsc_to_sol() {
     let _ = env_logger::try_init();
-    let client = drift_client().await;
+    let client = velocity_client().await;
     let wallet = client.wallet();
 
     let token_in = MarketId::QUOTE_SPOT;
@@ -186,7 +186,7 @@ async fn jupiter_swap_exact_out_udsc_to_sol() {
 #[tokio::test]
 async fn jupiter_swap_exact_out_udsc_jto() {
     let _ = env_logger::try_init();
-    let client = drift_client().await;
+    let client = velocity_client().await;
     let wallet = client.wallet();
 
     let token_in = MarketId::QUOTE_SPOT;
@@ -261,7 +261,7 @@ async fn jupiter_swap_exact_out_udsc_jto() {
 #[tokio::test]
 async fn jupiter_swap_sol_unwrap() {
     let _ = env_logger::try_init();
-    let client = drift_client().await;
+    let client = velocity_client().await;
     let wallet = client.wallet();
 
     let token_in = client.market_lookup("SOL").unwrap();

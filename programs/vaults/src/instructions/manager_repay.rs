@@ -1,14 +1,14 @@
 use crate::constraints::{is_manager_for_vault, is_user_for_vault, is_user_stats_for_vault};
-use crate::drift_cpi::ManagerRepayCPI;
 use crate::state::events::{ManagerRepayRecord, ManagerUpdateBorrowRecord};
 use crate::state::{FeeUpdateProvider, FeeUpdateStatus, VaultProtocolProvider};
 use crate::token_cpi::TokenTransferCPI;
+use crate::velocity_cpi::ManagerRepayCPI;
 use crate::{declare_vault_seeds, AccountMapProvider};
 use crate::{error::ErrorCode, validate, Vault};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use anchor_spl::token::{Token, TokenAccount};
-use velocity::cpi::accounts::Deposit as DriftDeposit;
+use velocity::cpi::accounts::Deposit as VelocityDeposit;
 use velocity::instructions::optional_accounts::AccountMaps;
 use velocity::math::safe_math::SafeMath;
 use velocity::program::Velocity;
@@ -56,20 +56,20 @@ pub fn manager_repay<'info>(
         has_fee_update,
     )?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
 
-    // drift program will check validity
+    // velocity program will check validity
 
     let repay_spot_market = spot_market_map.get_ref(&repay_spot_market_index)?;
     let repay_spot_market_index = repay_spot_market.market_index;
     let deposit_spot_market = spot_market_map.get_ref(&vault.spot_market_index)?;
     let deposit_spot_market_index = deposit_spot_market.market_index;
 
-    let drift_spot_market_vault = &ctx.accounts.drift_spot_market_vault;
+    let velocity_spot_market_vault = &ctx.accounts.velocity_spot_market_vault;
     validate!(
-        drift_spot_market_vault.mint == repay_spot_market.mint,
+        velocity_spot_market_vault.mint == repay_spot_market.mint,
         ErrorCode::InvalidVaultWithdraw,
-        "drift_spot_market_vault needs to match repay_spot_market_index"
+        "velocity_spot_market_vault needs to match repay_spot_market_index"
     )?;
 
     let repay_oracle = *oracle_map.get_price_data(&repay_spot_market.oracle_id())?;
@@ -94,10 +94,10 @@ pub fn manager_repay<'info>(
     drop(vp);
 
     ctx.token_transfer(repay_amount)?;
-    ctx.drift_deposit(repay_spot_market_index, repay_amount)?;
+    ctx.velocity_deposit(repay_spot_market_index, repay_amount)?;
 
     let vault = ctx.accounts.vault.load_mut()?;
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
 
     let vault_equity_after =
         vault.calculate_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
@@ -141,48 +141,48 @@ pub struct ManagerRepay<'info> {
     pub manager: Signer<'info>,
     #[account(
         mut,
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
-    /// CHECK: checked in drift cpi
-    pub drift_state: AccountInfo<'info>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_state: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = vault_token_account.mint
     )]
-    pub drift_spot_market_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: checked in drift cpi
-    pub drift_signer: AccountInfo<'info>,
+    pub velocity_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_signer: AccountInfo<'info>,
     #[account(
         mut,
         token::authority = manager,
         token::mint = vault_token_account.mint
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub drift_program: Program<'info, Velocity>,
+    pub velocity_program: Program<'info, Velocity>,
     pub token_program: Program<'info, Token>,
 }
 
 impl<'info> ManagerRepayCPI for Context<'info, ManagerRepay<'info>> {
-    fn drift_deposit(&self, market_index: u16, amount: u64) -> Result<()> {
+    fn velocity_deposit(&self, market_index: u16, amount: u64) -> Result<()> {
         declare_vault_seeds!(self.accounts.vault, seeds);
 
-        let cpi_program = self.accounts.drift_program.key();
-        let cpi_accounts = DriftDeposit {
-            state: self.accounts.drift_state.clone(),
-            user: self.accounts.drift_user.to_account_info().clone(),
-            user_stats: self.accounts.drift_user_stats.to_account_info().clone(),
+        let cpi_program = self.accounts.velocity_program.key();
+        let cpi_accounts = VelocityDeposit {
+            state: self.accounts.velocity_state.clone(),
+            user: self.accounts.velocity_user.to_account_info().clone(),
+            user_stats: self.accounts.velocity_user_stats.to_account_info().clone(),
             authority: self.accounts.vault.to_account_info().clone(),
             spot_market_vault: self
                 .accounts
-                .drift_spot_market_vault
+                .velocity_spot_market_vault
                 .to_account_info()
                 .clone(),
             user_token_account: self.accounts.vault_token_account.to_account_info().clone(),

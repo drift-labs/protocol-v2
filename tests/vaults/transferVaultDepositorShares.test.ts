@@ -14,7 +14,7 @@ import {
 } from '@velocity-exchange/vaults-sdk';
 import {
 	BulkAccountLoader,
-	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID as VELOCITY_PROGRAM_ID,
 	VelocityClient,
 	OracleSource,
 	PEG_PRECISION,
@@ -110,7 +110,7 @@ describe('transferVaultDepositorShares', () => {
 		adminVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
-			programID: new PublicKey(DRIFT_PROGRAM_ID),
+			programID: new PublicKey(VELOCITY_PROGRAM_ID),
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -208,7 +208,7 @@ describe('transferVaultDepositorShares', () => {
 	// Per-test: a fresh uniquely-named vault, fresh USDC for each depositor, and
 	// fresh deposits. The chain, markets, and clients are shared from `before`. A
 	// vault deposit moves USDC from the depositor's token account into the vault's
-	// own drift account (it doesn't touch the depositor's drift user account), so
+	// own velocity account (it doesn't touch the depositor's velocity user account), so
 	// re-minting per test is all that's needed to keep tests isolated.
 	beforeEach(async () => {
 		vaultName = `transfer shares vault ${vaultCounter++}`;

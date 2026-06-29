@@ -46,7 +46,7 @@ pub fn tokenize_shares<'info>(
         .get_vault_shares()
         .safe_add(tokenized_vault_depositor.get_vault_shares())?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
     let spot_market_index = vault.spot_market_index;
     let AccountMaps {
         perp_market_map,
@@ -171,10 +171,10 @@ pub struct TokenizeShares<'info> {
     pub user_token_account: Account<'info, TokenAccount>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
     pub token_program: Program<'info, Token>,
 }
 

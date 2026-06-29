@@ -8,8 +8,8 @@ use crate::constants::admin;
 use crate::constraints::{
     is_admin, is_authority_key_for_vault_depositor, is_user_for_vault, is_user_stats_for_vault,
 };
-use crate::drift_cpi::{UpdateUserDelegateCPI, UpdateUserReduceOnlyCPI};
 use crate::state::{Vault, VaultDepositor};
+use crate::velocity_cpi::{UpdateUserDelegateCPI, UpdateUserReduceOnlyCPI};
 use crate::{declare_vault_seeds, implement_update_user_delegate_cpi};
 use crate::{implement_update_user_reduce_only_cpi, AccountMapProvider, VaultProtocolProvider};
 
@@ -17,7 +17,7 @@ pub fn liquidate<'info>(ctx: Context<'info, Liquidate<'info>>) -> Result<()> {
     let clock = &Clock::get()?;
     let now = Clock::get()?.unix_timestamp;
 
-    let mut user = ctx.accounts.drift_user.load_mut()?;
+    let mut user = ctx.accounts.velocity_user.load_mut()?;
     let mut vault = ctx.accounts.vault.load_mut()?;
     let vault_depositor = ctx.accounts.vault_depositor.load()?;
 
@@ -61,8 +61,8 @@ pub fn liquidate<'info>(ctx: Context<'info, Liquidate<'info>>) -> Result<()> {
     drop(vault);
     drop(vp);
 
-    ctx.drift_update_user_delegate(admin::ID)?;
-    ctx.drift_update_user_reduce_only(true)?;
+    ctx.velocity_update_user_delegate(admin::ID)?;
+    ctx.velocity_update_user_reduce_only(true)?;
 
     Ok(())
 }
@@ -89,28 +89,28 @@ pub struct Liquidate<'info> {
     pub admin: Signer<'info>,
     #[account(
         mut,
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user_stats: AccountInfo<'info>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user_stats: AccountInfo<'info>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
-    pub drift_program: Program<'info, Velocity>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
+    pub velocity_program: Program<'info, Velocity>,
 }
 
 impl<'info> UpdateUserDelegateCPI for Context<'info, Liquidate<'info>> {
-    fn drift_update_user_delegate(&self, delegate: Pubkey) -> Result<()> {
+    fn velocity_update_user_delegate(&self, delegate: Pubkey) -> Result<()> {
         implement_update_user_delegate_cpi!(self, delegate);
         Ok(())
     }
 }
 
 impl<'info> UpdateUserReduceOnlyCPI for Context<'info, Liquidate<'info>> {
-    fn drift_update_user_reduce_only(&self, reduce_only: bool) -> Result<()> {
+    fn velocity_update_user_reduce_only(&self, reduce_only: bool) -> Result<()> {
         implement_update_user_reduce_only_cpi!(self, reduce_only);
         Ok(())
     }

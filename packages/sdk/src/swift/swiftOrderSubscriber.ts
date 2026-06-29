@@ -161,8 +161,8 @@ export class SwiftOrderSubscriber {
 		const endpoint =
 			this.config.endpoint ??
 			(env === 'devnet'
-				? 'wss://master.swift.drift.trade/ws'
-				: 'wss://swift.drift.trade/ws');
+				? 'wss://swift.master.velocity.exchange/ws'
+				: 'wss://swift.velocity.exchange/ws');
 		const ws = new WebSocket(
 			endpoint + '?pubkey=' + this.config.keypair.publicKey.toBase58()
 		);

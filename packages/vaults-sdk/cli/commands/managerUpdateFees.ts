@@ -19,7 +19,10 @@ export const managerUpdateFees = async (
 		process.exit(1);
 	}
 
-	const { velocityVault, velocityClient } = await getCommandContext(program, true);
+	const { velocityVault, velocityClient } = await getCommandContext(
+		program,
+		true
+	);
 
 	const vault = await velocityVault.getVault(vaultAddress);
 
@@ -131,9 +134,14 @@ export const managerUpdateFees = async (
 					vaultAddress,
 					newParams
 				);
-				console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
+				console.log(
+					dumpTransactionMessage(velocityClient.wallet.publicKey, [tx])
+				);
 			} else {
-				const tx = await velocityVault.managerUpdateFees(vaultAddress, newParams);
+				const tx = await velocityVault.managerUpdateFees(
+					vaultAddress,
+					newParams
+				);
 				console.log(
 					`Updated vault fees as vault manager: https://solana.fm/tx/${tx}${
 						velocityClient.env === 'devnet' ? '?cluster=devnet-solana' : ''

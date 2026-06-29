@@ -31,10 +31,13 @@ export const applyProfitShare = async (
 
 	const vault = await velocityVault.getVault(vaultAddress);
 	const vdWithNoWithdrawRequests =
-		await velocityVault.getAllVaultDepositorsWithNoWithdrawRequest(vaultAddress);
-	const vaultEquitySpot = await velocityVault.calculateVaultEquityInDepositAsset({
-		vault,
-	});
+		await velocityVault.getAllVaultDepositorsWithNoWithdrawRequest(
+			vaultAddress
+		);
+	const vaultEquitySpot =
+		await velocityVault.calculateVaultEquityInDepositAsset({
+			vault,
+		});
 
 	const spotMarket = velocityClient.getSpotMarketAccount(vault.spotMarketIndex);
 	if (!spotMarket) {

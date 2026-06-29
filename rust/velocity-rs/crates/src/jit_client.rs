@@ -86,19 +86,19 @@ impl JitIxParams {
 
 #[derive(Clone)]
 pub struct JitProxyClient {
-    drift_client: VelocityClient,
+    velocity_client: VelocityClient,
     config: RpcSendTransactionConfig,
     cu_params: Option<ComputeBudgetParams>,
 }
 
 impl JitProxyClient {
     pub fn new(
-        drift_client: VelocityClient,
+        velocity_client: VelocityClient,
         config: Option<RpcSendTransactionConfig>,
         cu_params: Option<ComputeBudgetParams>,
     ) -> Self {
         Self {
-            drift_client,
+            velocity_client,
             config: config.unwrap_or_default(),
             cu_params,
         }
@@ -133,7 +133,7 @@ impl JitProxyClient {
             .ok_or(SdkError::JitOrderNotFound)?;
 
         let tx_builder = TransactionBuilder::new(
-            self.drift_client.program_data(),
+            self.velocity_client.program_data(),
             *maker_params.0,
             Cow::Borrowed(maker_params.1),
             false,
@@ -161,7 +161,7 @@ impl JitProxyClient {
                 taker: taker_params.taker_key,
                 taker_stats: taker_params.taker_stats_key,
                 authority: maker_authority,
-                drift_program: constants::PROGRAM_ID,
+                velocity_program: constants::PROGRAM_ID,
             },
             [&taker_params.taker, account_data].into_iter(),
             std::iter::empty(),
@@ -182,11 +182,11 @@ impl JitProxyClient {
 
         if order.market_type == MarketType::Spot {
             let spot_market_vault = self
-                .drift_client
+                .velocity_client
                 .try_get_spot_market_account(order.market_index)?
                 .vault;
             let quote_spot_market_vault = self
-                .drift_client
+                .velocity_client
                 .try_get_spot_market_account(MarketId::QUOTE_SPOT.index())?
                 .vault;
             accounts.push(AccountMeta::new_readonly(spot_market_vault, false));
@@ -248,7 +248,7 @@ impl JitProxyClient {
         maker_account_data: &User,
     ) -> SdkResult<VersionedMessage> {
         let maker_authority = maker_account_data.authority;
-        let program_data = self.drift_client.program_data();
+        let program_data = self.velocity_client.program_data();
         let signed_order_info_params = signed_order_info.order_params();
         let account_data = maker_account_data;
         let market_index = signed_order_info_params.market_index;
@@ -275,7 +275,7 @@ impl JitProxyClient {
                 taker_signed_msg_user_orders: Wallet::derive_swift_order_account(
                     &taker_params.taker.authority,
                 ),
-                drift_program: constants::PROGRAM_ID,
+                velocity_program: constants::PROGRAM_ID,
             },
             [&taker_params.taker, account_data].into_iter(),
             std::iter::empty(),
@@ -289,11 +289,11 @@ impl JitProxyClient {
 
         if market_type == MarketType::Spot {
             let spot_market_vault = self
-                .drift_client
+                .velocity_client
                 .try_get_spot_market_account(market_index)?
                 .vault;
             let quote_spot_market_vault = self
-                .drift_client
+                .velocity_client
                 .try_get_spot_market_account(MarketId::QUOTE_SPOT.index())?
                 .vault;
             accounts.push(AccountMeta::new_readonly(spot_market_vault, false));
@@ -317,7 +317,7 @@ impl JitProxyClient {
         };
 
         let message = TransactionBuilder::new(
-            self.drift_client.program_data(),
+            self.velocity_client.program_data(),
             *maker_pubkey,
             Cow::Borrowed(maker_account_data),
             false,
@@ -346,7 +346,7 @@ impl JitProxyClient {
     ) -> SdkResult<Signature> {
         let sub_account =
             Wallet::derive_user_account(maker_authority, sub_account_id.unwrap_or_default());
-        let sub_account_data = self.drift_client.get_user_account(&sub_account).await?;
+        let sub_account_data = self.velocity_client.get_user_account(&sub_account).await?;
         let tx = self
             .build_jit_tx(
                 taker_order_id,
@@ -355,7 +355,7 @@ impl JitProxyClient {
                 (&sub_account, &sub_account_data),
             )
             .await?;
-        self.drift_client
+        self.velocity_client
             .sign_and_send_with_config(tx, None, self.config)
             .await
     }
@@ -377,7 +377,7 @@ impl JitProxyClient {
     ) -> SdkResult<Signature> {
         let sub_account =
             Wallet::derive_user_account(maker_authority, sub_account_id.unwrap_or_default());
-        let sub_account_data = self.drift_client.get_user_account(&sub_account).await?;
+        let sub_account_data = self.velocity_client.get_user_account(&sub_account).await?;
         let tx = self
             .build_swift_ix(
                 signed_order_info,
@@ -387,7 +387,7 @@ impl JitProxyClient {
                 &sub_account_data,
             )
             .await?;
-        self.drift_client
+        self.velocity_client
             .sign_and_send_with_config(tx, None, self.config)
             .await
     }
@@ -522,7 +522,7 @@ pub mod accounts {
         pub taker: Pubkey,
         pub taker_stats: Pubkey,
         pub authority: Pubkey,
-        pub drift_program: Pubkey,
+        pub velocity_program: Pubkey,
     }
     impl anchor_lang::ToAccountMetas for Jit {
         fn to_account_metas(&self, _is_signer: Option<bool>) -> Vec<AccountMeta> {
@@ -533,7 +533,7 @@ pub mod accounts {
                 AccountMeta::new(self.taker, false),
                 AccountMeta::new(self.taker_stats, false),
                 AccountMeta::new_readonly(self.authority, true),
-                AccountMeta::new_readonly(self.drift_program, false),
+                AccountMeta::new_readonly(self.velocity_program, false),
             ]
         }
     }
@@ -546,7 +546,7 @@ pub mod accounts {
         pub taker_stats: Pubkey,
         pub taker_signed_msg_user_orders: Pubkey,
         pub authority: Pubkey,
-        pub drift_program: Pubkey,
+        pub velocity_program: Pubkey,
     }
     impl anchor_lang::ToAccountMetas for JitSignedMsg {
         fn to_account_metas(&self, _is_signer: Option<bool>) -> Vec<AccountMeta> {
@@ -558,7 +558,7 @@ pub mod accounts {
                 AccountMeta::new(self.taker_stats, false),
                 AccountMeta::new(self.taker_signed_msg_user_orders, false),
                 AccountMeta::new_readonly(self.authority, true),
-                AccountMeta::new_readonly(self.drift_program, false),
+                AccountMeta::new_readonly(self.velocity_program, false),
             ]
         }
     }

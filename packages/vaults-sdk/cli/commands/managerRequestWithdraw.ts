@@ -16,7 +16,10 @@ export const managerRequestWithdraw = async (
 		process.exit(1);
 	}
 
-	const { velocityClient, velocityVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(
+		program,
+		true
+	);
 
 	if (!cmdOpts.shares && !cmdOpts.amount) {
 		console.error('One of --shares or --amount must be provided.');
@@ -30,7 +33,9 @@ export const managerRequestWithdraw = async (
 				new BN(cmdOpts.shares),
 				WithdrawUnit.SHARES
 			);
-			console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
+			console.log(
+				dumpTransactionMessage(velocityClient.wallet.publicKey, [tx])
+			);
 		} else {
 			const tx = await velocityVault.managerRequestWithdraw(
 				vaultAddress,
@@ -47,7 +52,9 @@ export const managerRequestWithdraw = async (
 		}
 	} else if (cmdOpts.amount && !cmdOpts.shares) {
 		const vault = await velocityVault.getVault(vaultAddress);
-		const spotMarket = velocityClient.getSpotMarketAccount(vault.spotMarketIndex);
+		const spotMarket = velocityClient.getSpotMarketAccount(
+			vault.spotMarketIndex
+		);
 		if (!spotMarket) {
 			console.error('Error: Spot market not found');
 			process.exit(1);
@@ -62,7 +69,9 @@ export const managerRequestWithdraw = async (
 				amountBN,
 				WithdrawUnit.TOKEN
 			);
-			console.log(dumpTransactionMessage(velocityClient.wallet.publicKey, [tx]));
+			console.log(
+				dumpTransactionMessage(velocityClient.wallet.publicKey, [tx])
+			);
 		} else {
 			const tx = await velocityVault.managerRequestWithdraw(
 				vaultAddress,

@@ -71,13 +71,13 @@ export class SwiftPlacer {
 	) {
 		this.signedMsgUrl =
 			runtimeSpec.velocityEnv === 'mainnet-beta'
-				? 'wss://swift.drift.trade/ws'
-				: 'wss://master.swift.drift.trade/ws';
+				? 'wss://swift.velocity.exchange/ws'
+				: 'wss://swift.master.velocity.exchange/ws';
 
 		this.baseDlobUrl =
 			runtimeSpec.velocityEnv == 'mainnet-beta'
-				? 'https://dlob.drift.trade'
-				: 'https://master.dlob.drift.trade';
+				? 'https://dlob.velocity.exchange'
+				: 'https://dlob.master.velocity.exchange';
 
 		const perpMarketsToWatchForFees = [0, 1, 2, 3, 4, 5].map((x) => {
 			return { marketType: 'perp', marketIndex: x };

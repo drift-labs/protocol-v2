@@ -38,12 +38,12 @@ macro_rules! implement_update_user_delegate_cpi {
         declare_vault_seeds!($self.accounts.vault, seeds);
 
         let cpi_accounts = UpdateUser {
-            user: $self.accounts.drift_user.to_account_info().clone(),
+            user: $self.accounts.velocity_user.to_account_info().clone(),
             authority: $self.accounts.vault.to_account_info().clone(),
         };
 
-        let drift_program = $self.accounts.drift_program.key();
-        let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds);
+        let velocity_program = $self.accounts.velocity_program.key();
+        let cpi_context = CpiContext::new_with_signer(velocity_program, cpi_accounts, seeds);
         velocity::cpi::update_user_delegate(cpi_context, 0, $delegate)?;
     };
 }
@@ -54,12 +54,12 @@ macro_rules! implement_update_user_reduce_only_cpi {
         declare_vault_seeds!($self.accounts.vault, seeds);
 
         let cpi_accounts = UpdateUser {
-            user: $self.accounts.drift_user.to_account_info().clone(),
+            user: $self.accounts.velocity_user.to_account_info().clone(),
             authority: $self.accounts.vault.to_account_info().clone(),
         };
 
-        let drift_program = $self.accounts.drift_program.key();
-        let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds);
+        let velocity_program = $self.accounts.velocity_program.key();
+        let cpi_context = CpiContext::new_with_signer(velocity_program, cpi_accounts, seeds);
         velocity::cpi::update_user_reduce_only(cpi_context, 0, $reduce_only)?;
     };
 }
@@ -71,23 +71,23 @@ macro_rules! implement_withdraw {
 
         let spot_market_index = $self.accounts.vault.load()?.spot_market_index;
 
-        let cpi_accounts = DriftWithdraw {
-            state: $self.accounts.drift_state.to_account_info().clone(),
-            user: $self.accounts.drift_user.to_account_info().clone(),
-            user_stats: $self.accounts.drift_user_stats.to_account_info().clone(),
+        let cpi_accounts = VelocityWithdraw {
+            state: $self.accounts.velocity_state.to_account_info().clone(),
+            user: $self.accounts.velocity_user.to_account_info().clone(),
+            user_stats: $self.accounts.velocity_user_stats.to_account_info().clone(),
             authority: $self.accounts.vault.to_account_info().clone(),
             spot_market_vault: $self
                 .accounts
-                .drift_spot_market_vault
+                .velocity_spot_market_vault
                 .to_account_info()
                 .clone(),
-            velocity_signer: $self.accounts.drift_signer.to_account_info().clone(),
+            velocity_signer: $self.accounts.velocity_signer.to_account_info().clone(),
             user_token_account: $self.accounts.vault_token_account.to_account_info().clone(),
             token_program: $self.accounts.token_program.to_account_info().clone(),
         };
 
-        let drift_program = $self.accounts.drift_program.key();
-        let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
+        let velocity_program = $self.accounts.velocity_program.key();
+        let cpi_context = CpiContext::new_with_signer(velocity_program, cpi_accounts, seeds)
             .with_remaining_accounts($self.remaining_accounts.into());
         velocity::cpi::withdraw(cpi_context, spot_market_index, $amount, false)?;
     };
@@ -100,15 +100,15 @@ macro_rules! implement_deposit {
 
         let spot_market_index = $self.accounts.vault.load()?.spot_market_index;
 
-        let cpi_program = $self.accounts.drift_program.key();
-        let cpi_accounts = DriftDeposit {
-            state: $self.accounts.drift_state.clone(),
-            user: $self.accounts.drift_user.to_account_info().clone(),
-            user_stats: $self.accounts.drift_user_stats.to_account_info().clone(),
+        let cpi_program = $self.accounts.velocity_program.key();
+        let cpi_accounts = VelocityDeposit {
+            state: $self.accounts.velocity_state.clone(),
+            user: $self.accounts.velocity_user.to_account_info().clone(),
+            user_stats: $self.accounts.velocity_user_stats.to_account_info().clone(),
             authority: $self.accounts.vault.to_account_info().clone(),
             spot_market_vault: $self
                 .accounts
-                .drift_spot_market_vault
+                .velocity_spot_market_vault
                 .to_account_info()
                 .clone(),
             user_token_account: $self.accounts.vault_token_account.to_account_info().clone(),

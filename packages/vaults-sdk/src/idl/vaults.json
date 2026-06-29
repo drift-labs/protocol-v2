@@ -30,7 +30,7 @@
           "signer": true
         },
         {
-          "name": "drift_spot_market",
+          "name": "velocity_spot_market",
           "writable": true,
           "pda": {
             "seeds": [
@@ -57,12 +57,12 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true,
           "pda": {
             "seeds": [
@@ -95,7 +95,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -140,7 +140,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -181,7 +181,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -230,17 +230,17 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -427,21 +427,21 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -469,7 +469,7 @@
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         }
       ],
@@ -497,7 +497,7 @@
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         }
       ],
@@ -525,7 +525,7 @@
           "signer": true
         },
         {
-          "name": "drift_spot_market",
+          "name": "velocity_spot_market",
           "writable": true,
           "pda": {
             "seeds": [
@@ -552,7 +552,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -597,7 +597,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -638,16 +638,16 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -716,10 +716,10 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats"
+          "name": "velocity_user_stats"
         },
         {
-          "name": "drift_user"
+          "name": "velocity_user"
         }
       ],
       "args": []
@@ -818,18 +818,18 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
@@ -837,7 +837,7 @@
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -914,29 +914,29 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
           "name": "user_token_account",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -977,7 +977,7 @@
           "address": "SysvarRent111111111111111111111111111111111"
         },
         {
-          "name": "drift_spot_market",
+          "name": "velocity_spot_market",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1004,12 +1004,12 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
         {
-          "name": "drift_spot_market_mint"
+          "name": "velocity_spot_market_mint"
         },
         {
           "name": "vault_token_account",
@@ -1092,19 +1092,19 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -1348,22 +1348,22 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state",
+          "name": "velocity_state",
           "writable": true
         },
         {
-          "name": "drift_spot_market"
+          "name": "velocity_spot_market"
         },
         {
-          "name": "drift_spot_market_mint"
+          "name": "velocity_spot_market_mint"
         },
         {
           "name": "manager",
@@ -1383,7 +1383,7 @@
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -1576,22 +1576,22 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state",
+          "name": "velocity_state",
           "writable": true
         },
         {
-          "name": "drift_spot_market"
+          "name": "velocity_spot_market"
         },
         {
-          "name": "drift_spot_market_mint"
+          "name": "velocity_spot_market_mint"
         },
         {
           "name": "manager",
@@ -1611,7 +1611,7 @@
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -1692,15 +1692,15 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -1732,29 +1732,29 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
           "name": "user_token_account",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -1882,18 +1882,18 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
@@ -1901,7 +1901,7 @@
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -1942,29 +1942,29 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
           "name": "user_token_account",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -2011,10 +2011,10 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats"
+          "name": "velocity_user_stats"
         },
         {
-          "name": "drift_user"
+          "name": "velocity_user"
         }
       ],
       "args": [
@@ -2054,11 +2054,11 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         }
       ],
@@ -2187,29 +2187,29 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
           "name": "user_token_account",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -2241,10 +2241,10 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats"
+          "name": "velocity_user_stats"
         },
         {
-          "name": "drift_user"
+          "name": "velocity_user"
         }
       ],
       "args": []
@@ -2275,10 +2275,10 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats"
+          "name": "velocity_user_stats"
         },
         {
-          "name": "drift_user"
+          "name": "velocity_user"
         }
       ],
       "args": []
@@ -2309,10 +2309,10 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats"
+          "name": "velocity_user_stats"
         },
         {
-          "name": "drift_user"
+          "name": "velocity_user"
         }
       ],
       "args": [
@@ -2392,29 +2392,29 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
           "name": "user_token_account",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -2498,7 +2498,7 @@
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
@@ -2535,7 +2535,7 @@
           "signer": true
         },
         {
-          "name": "drift_spot_market",
+          "name": "velocity_spot_market",
           "writable": true,
           "pda": {
             "seeds": [
@@ -2562,7 +2562,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -2607,7 +2607,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -2648,7 +2648,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -2697,17 +2697,17 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -2744,7 +2744,7 @@
           "signer": true
         },
         {
-          "name": "drift_spot_market",
+          "name": "velocity_spot_market",
           "writable": true,
           "pda": {
             "seeds": [
@@ -2771,7 +2771,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -2816,7 +2816,7 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
@@ -2857,16 +2857,16 @@
             ],
             "program": {
               "kind": "account",
-              "path": "drift_program"
+              "path": "velocity_program"
             }
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -2939,10 +2939,10 @@
           "signer": true
         },
         {
-          "name": "drift_user_stats"
+          "name": "velocity_user_stats"
         },
         {
-          "name": "drift_user"
+          "name": "velocity_user"
         }
       ],
       "args": [
@@ -2978,11 +2978,11 @@
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -3078,7 +3078,7 @@
           "name": "user_token_account"
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
@@ -3163,7 +3163,7 @@
           "writable": true
         },
         {
-          "name": "drift_user"
+          "name": "velocity_user"
         }
       ],
       "args": [
@@ -3203,11 +3203,11 @@
           "signer": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -3240,11 +3240,11 @@
           "signer": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -3277,11 +3277,11 @@
           "signer": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         }
       ],
@@ -3485,29 +3485,29 @@
           }
         },
         {
-          "name": "drift_user_stats",
+          "name": "velocity_user_stats",
           "writable": true
         },
         {
-          "name": "drift_user",
+          "name": "velocity_user",
           "writable": true
         },
         {
-          "name": "drift_state"
+          "name": "velocity_state"
         },
         {
-          "name": "drift_spot_market_vault",
+          "name": "velocity_spot_market_vault",
           "writable": true
         },
         {
-          "name": "drift_signer"
+          "name": "velocity_signer"
         },
         {
           "name": "user_token_account",
           "writable": true
         },
         {
-          "name": "drift_program",
+          "name": "velocity_program",
           "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P"
         },
         {
@@ -3764,8 +3764,8 @@
     },
     {
       "code": 6014,
-      "name": "DriftError",
-      "msg": "DriftError"
+      "name": "VelocityError",
+      "msg": "VelocityError"
     },
     {
       "code": 6015,
@@ -6270,7 +6270,7 @@
           {
             "name": "pubkey",
             "docs": [
-              "The vault's pubkey. It is a pda of name and also used as the authority for drift user"
+              "The vault's pubkey. It is a pda of name and also used as the authority for velocity user"
             ],
             "type": "pubkey"
           },
@@ -6291,21 +6291,21 @@
           {
             "name": "user_stats",
             "docs": [
-              "The drift user stats account for the vault"
+              "The velocity user stats account for the vault"
             ],
             "type": "pubkey"
           },
           {
             "name": "user",
             "docs": [
-              "The drift user account for the vault"
+              "The velocity user account for the vault"
             ],
             "type": "pubkey"
           },
           {
             "name": "delegate",
             "docs": [
-              "The vaults designated delegate for drift user account",
+              "The vaults designated delegate for velocity user account",
               "can differ from actual user delegate if vault is in liquidation"
             ],
             "type": "pubkey"

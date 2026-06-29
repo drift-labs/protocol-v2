@@ -1,9 +1,9 @@
 // Vaults test helpers.
 //
-// The shared drift/velocity helpers (USDC mint, oracle, spot-market init, user
+// The shared velocity/velocity helpers (USDC mint, oracle, spot-market init, user
 // bootstrap) are re-exported from the velocity suite's testHelpers so the vaults
 // tests exercise the same velocity-adapted account layouts. Only the
-// vault-specific helpers are defined here, ported from drift-vaults'
+// vault-specific helpers are defined here, ported from velocity-vaults'
 // tests/common/testHelpers and adapted to the velocity SDK + vaults SDK.
 import * as anchor from '@coral-xyz/anchor';
 import { BN, Program, Wallet } from '@coral-xyz/anchor';
@@ -39,7 +39,7 @@ import {
 	QUOTE_PRECISION,
 	BASE_PRECISION,
 	TEN,
-	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID as VELOCITY_PROGRAM_ID,
 } from '@velocity-exchange/sdk';
 import {
 	VaultClient,
@@ -63,13 +63,13 @@ export {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 	mockUSDCMint,
-	// drift-vaults named the bankrun mint/ata helpers with a `Bankrun` suffix;
+	// velocity-vaults named the bankrun mint/ata helpers with a `Bankrun` suffix;
 	// the velocity helpers are already bankrun-only, so alias them.
 	mockUSDCMint as mockUSDCMintBankrun,
 	mockUserUSDCAccount as mockUserUSDCAccountBankrun,
 	mockOracle,
 	mockOracleNoProgram,
-	// drift-vaults' tests call `setFeedPrice`; on bankrun the price feed is a
+	// velocity-vaults' tests call `setFeedPrice`; on bankrun the price feed is a
 	// PythLazer account written directly, so map it onto the no-program variant.
 	setFeedPriceNoProgram as setFeedPrice,
 	setFeedPriceNoProgram,
@@ -81,7 +81,7 @@ export { createUserWithUSDCAndWSOLAccount };
 
 /**
  * Fetches a transaction's logs and returns the program's decoded Anchor events.
- * Ported from drift-vaults: the velocity testHelpers' printTxLogs returns raw
+ * Ported from velocity-vaults: the velocity testHelpers' printTxLogs returns raw
  * log strings, but the vaults tests expect parsed events (e.g. `.data.action`).
  */
 export async function printTxLogs(
@@ -118,7 +118,7 @@ export async function printTxLogs(
 /**
  * Funds `signer`, builds a velocity TestClient + a vaults VaultClient bound to
  * it, mints `usdcAmount` to a fresh USDC token account, subscribes, and (unless
- * delegated) initializes a user sub-account. Ported from drift-vaults; `usdcMint`
+ * delegated) initializes a user sub-account. Ported from velocity-vaults; `usdcMint`
  * is the velocity mint Keypair (velocity's mockUSDCMint returns a Keypair).
  */
 export async function bootstrapSignerClientAndUserBankrun(params: {
@@ -128,10 +128,10 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 	usdcAmount: BN;
 	programId: anchor.web3.PublicKey;
 	vaultClientCliMode?: boolean;
-	// If true, no drift user sub-account is initialized for the signer (e.g. for
+	// If true, no velocity user sub-account is initialized for the signer (e.g. for
 	// pure vault-depositors or delegates that never trade on their own account).
 	skipUser?: boolean;
-	// If true, the freshly minted USDC is deposited into the signer's drift user
+	// If true, the freshly minted USDC is deposited into the signer's velocity user
 	// spot position (idx 0). Only meaningful when a user is initialized.
 	depositCollateral?: boolean;
 	// If provided, a WSOL token account is funded with this many lamports.
@@ -232,9 +232,9 @@ export async function bootstrapSignerClientAndUserBankrun(params: {
 }
 
 /**
- * Initializes a SOL spot-market maker on bankrun: a drift user with USDC + WSOL
+ * Initializes a SOL spot-market maker on bankrun: a velocity user with USDC + WSOL
  * collateral that requotes a bid/ask around the SOL oracle. Ported from
- * drift-vaults, adapted to the velocity bankrun harness (takes the
+ * velocity-vaults, adapted to the velocity bankrun harness (takes the
  * BankrunContextWrapper + a TestBulkAccountLoader instead of an AnchorProvider).
  */
 export async function initializeSolSpotMarketMaker(
@@ -353,7 +353,7 @@ export async function initializeSolSpotMarketMaker(
 
 /**
  * Computes a vault depositor's value/equity, optionally including a tokenized
- * vault depositor's token-account holdings. Ported from drift-vaults.
+ * vault depositor's token-account holdings. Ported from velocity-vaults.
  */
 export async function getVaultDepositorValue(params: {
 	vaultClient: VaultClient;
@@ -514,7 +514,7 @@ export async function getVaultDepositorValue(params: {
 
 /**
  * Derives the set of PDAs/ATAs for a tokenized vault depositor. Ported from
- * drift-vaults.
+ * velocity-vaults.
  */
 export function calculateAllTokenizedVaultPdas(
 	vaultProgramId: PublicKey,
@@ -561,13 +561,13 @@ export function calculateAllTokenizedVaultPdas(
 
 /**
  * Validates that the total user shares (vaultDepositors + tokenizedVaultDepositors)
- * matches the vault's userShares. Ported from drift-vaults.
+ * matches the vault's userShares. Ported from velocity-vaults.
  */
 /**
  * Validates that the sum of all (regular + tokenized) vault-depositor shares
  * equals the vault's `userShares`.
  *
- * Upstream drift enumerated the depositors via `program.account.*.all()`
+ * Upstream velocity enumerated the depositors via `program.account.*.all()`
  * (getProgramAccounts), which the bankrun connection does not implement. On
  * bankrun every account address is derivable, so callers pass the explicit
  * depositor PDA lists they created; each is fetched individually (a single
@@ -611,7 +611,7 @@ export async function validateTotalUserShares(
 /**
  * Drives a trader (the vault's delegated user) to trade spot SOL against a
  * market maker until the vault's equity moves by `stopPnlDiffPct`. Ported from
- * drift-vaults.
+ * velocity-vaults.
  */
 export async function doWashTrading({
 	mmVelocityClient,
@@ -735,7 +735,7 @@ export async function doWashTrading({
 				{
 					maker: mmUser.getUserAccountPublicKey(),
 					makerStats: getUserStatsAccountPublicKey(
-						new PublicKey(DRIFT_PROGRAM_ID),
+						new PublicKey(VELOCITY_PROGRAM_ID),
 						mmVelocityClient.authority
 					),
 					makerUserAccount: mmUser.getUserAccount(),
@@ -759,7 +759,7 @@ export async function doWashTrading({
 					{
 						maker: mmUser.getUserAccountPublicKey(),
 						makerStats: getUserStatsAccountPublicKey(
-							new PublicKey(DRIFT_PROGRAM_ID),
+							new PublicKey(VELOCITY_PROGRAM_ID),
 							mmVelocityClient.authority
 						),
 						makerUserAccount: mmUser.getUserAccount(),

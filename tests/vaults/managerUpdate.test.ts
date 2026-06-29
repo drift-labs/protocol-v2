@@ -12,7 +12,7 @@ import {
 } from '@velocity-exchange/vaults-sdk';
 import {
 	BulkAccountLoader,
-	VELOCITY_PROGRAM_ID as DRIFT_PROGRAM_ID,
+	VELOCITY_PROGRAM_ID as VELOCITY_PROGRAM_ID,
 	VelocityClient,
 	OracleSource,
 	PEG_PRECISION,
@@ -81,7 +81,7 @@ describe('velocityVaults', () => {
 		adminVelocityClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
-			programID: new PublicKey(DRIFT_PROGRAM_ID),
+			programID: new PublicKey(VELOCITY_PROGRAM_ID),
 			opts: {
 				commitment: 'confirmed',
 			},

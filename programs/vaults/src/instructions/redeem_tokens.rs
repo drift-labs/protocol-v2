@@ -37,7 +37,7 @@ pub fn redeem_tokens<'info>(
         .safe_add(tokenized_vault_depositor.get_vault_shares())?
         .safe_add(manager_shares_before)?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
     let spot_market_index = vault.spot_market_index;
     let AccountMaps {
         perp_market_map,
@@ -172,9 +172,9 @@ pub struct RedeemTokens<'info> {
     pub vault_token_account: Account<'info, TokenAccount>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    pub drift_user: AccountLoader<'info, User>,
+    pub velocity_user: AccountLoader<'info, User>,
     pub token_program: Program<'info, Token>,
 }
 

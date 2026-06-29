@@ -32,17 +32,17 @@ use crate::{validate, Size, WithdrawUnit};
 pub struct Vault {
     /// The name of the vault. Vault pubkey is derived from this name.
     pub name: [u8; 32],
-    /// The vault's pubkey. It is a pda of name and also used as the authority for drift user
+    /// The vault's pubkey. It is a pda of name and also used as the authority for velocity user
     pub pubkey: Pubkey,
     /// The manager of the vault who has ability to update vault params
     pub manager: Pubkey,
     /// The vaults token account. Used to receive tokens between deposits and withdrawals
     pub token_account: Pubkey,
-    /// The drift user stats account for the vault
+    /// The velocity user stats account for the vault
     pub user_stats: Pubkey,
-    /// The drift user account for the vault
+    /// The velocity user account for the vault
     pub user: Pubkey,
-    /// The vaults designated delegate for drift user account
+    /// The vaults designated delegate for velocity user account
     /// can differ from actual user delegate if vault is in liquidation
     pub delegate: Pubkey,
     /// The delegate handling liquidation for depositor

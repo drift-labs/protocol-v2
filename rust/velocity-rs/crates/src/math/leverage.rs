@@ -254,28 +254,28 @@ mod rpc_tests {
     async fn test_get_spot_market_value() {
         let wallet: Wallet = test_keypair().into();
         let pubkey = *wallet.authority();
-        let drift_client =
+        let velocity_client =
             VelocityClient::new(Context::MainNet, RpcClient::new(mainnet_endpoint()), wallet)
                 .await
                 .expect("velocity client");
-        drift_client
+        velocity_client
             .subscribe_all_markets()
             .await
             .expect("subscribe markets");
-        drift_client
+        velocity_client
             .subscribe_all_oracles()
             .await
             .expect("subscribe oracles");
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-        let user_account = drift_client
+        let user_account = velocity_client
             .get_user_account(&Wallet::derive_user_account(&pubkey, 0))
             .await
             .expect("user account");
 
         let spot_asset_value =
-            get_spot_asset_value(&drift_client, &user_account).expect("spot asset value");
+            get_spot_asset_value(&velocity_client, &user_account).expect("spot asset value");
         println!("spot_asset_value: {}", spot_asset_value);
     }
 
@@ -284,27 +284,27 @@ mod rpc_tests {
     async fn test_leverage() {
         let wallet: Wallet = test_keypair().into();
         let pubkey = *wallet.authority();
-        let drift_client =
+        let velocity_client =
             VelocityClient::new(Context::MainNet, RpcClient::new(mainnet_endpoint()), wallet)
                 .await
                 .expect("velocity client");
-        drift_client
+        velocity_client
             .subscribe_all_markets()
             .await
             .expect("subscribe markets");
-        drift_client
+        velocity_client
             .subscribe_all_oracles()
             .await
             .expect("subscribe oracles");
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-        let user_account = drift_client
+        let user_account = velocity_client
             .get_user_account(&Wallet::derive_user_account(&pubkey, 0))
             .await
             .expect("user account");
 
-        let leverage = get_leverage(&drift_client, &user_account).expect("leverage");
+        let leverage = get_leverage(&velocity_client, &user_account).expect("leverage");
         println!("leverage: {}", leverage);
     }
 }

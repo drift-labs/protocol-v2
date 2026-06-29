@@ -26,7 +26,7 @@ _Start here if you're integrating with Velocity!_
   - Useful concepts and examples when integrating Velocity
   - Docs for Velocity's "Data API"
 - [Typescript API docs](https://velocity-exchange.github.io/protocol-v2/sdk/)
-  - JSDoc automated documentation for the Velocity v2 Typescript SDK
+  - JSDoc automated documentation for the Velocity v1 Typescript SDK
 - [Velocity docs](https://docs.drift.trade/)
   - Comprehensive universal docs for Velocity
 
@@ -210,7 +210,7 @@ const main = async () => {
 			provider.wallet.publicKey.toString()
 		);
 
-		//// Create a Velocity V2 account by Depositing some USDC ($10,000 in this case)
+		//// Create a Velocity V1 account by Depositing some USDC ($10,000 in this case)
 		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
 		await velocityClient.initializeUserAccountAndDepositCollateral(
 			depositAmount,
@@ -267,7 +267,7 @@ main();
 
 ## License
 
-Velocity Protocol v2 is licensed under [Apache 2.0](./LICENSE).
+Velocity Protocol v1 is licensed under [Apache 2.0](./LICENSE).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Velocity SDK by you, as defined in the Apache-2.0 license, shall be

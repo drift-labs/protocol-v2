@@ -139,7 +139,7 @@ enum BOT_STATE {
 }
 
 /**
- * LiquidatorBot implements a simple liquidation bot for the Velocity V2 Protocol. Liquidations work by taking over
+ * LiquidatorBot implements a simple liquidation bot for the Velocity V1 Protocol. Liquidations work by taking over
  * a portion of the endangered account's position, so collateral is required in order to run this bot. The bot
  * will spend at most maxPositionTakeoverPctOfCollateral of its free collateral on any endangered account.
  *

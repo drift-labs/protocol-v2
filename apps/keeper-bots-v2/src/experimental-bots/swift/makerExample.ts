@@ -45,8 +45,8 @@ export class SwiftMaker {
 	) {
 		this.isMainnet = runtimeSpec.velocityEnv === 'mainnet-beta';
 		this.signedMsgUrl = this.isMainnet
-			? 'wss://swift.drift.trade/ws'
-			: 'wss://master.swift.drift.trade/ws';
+			? 'wss://swift.velocity.exchange/ws'
+			: 'wss://swift.master.velocity.exchange/ws';
 
 		// Configure what percent into the auction to attempt the fill
 		const pctEnv = process.env.SWIFT_PCT_INTO_AUCTION;
@@ -59,7 +59,7 @@ export class SwiftMaker {
 
 		this.priorityFeeSubscriber = new PriorityFeeSubscriberMap({
 			velocityMarkets: perpMarketsToWatchForFees,
-			velocityPriorityFeeEndpoint: 'https://dlob.drift.trade',
+			velocityPriorityFeeEndpoint: 'https://dlob.velocity.exchange',
 		});
 	}
 

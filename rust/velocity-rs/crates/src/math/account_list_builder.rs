@@ -47,7 +47,7 @@ impl AccountsListBuilder {
         force_markets: &[MarketId],
     ) -> SdkResult<&mut VelocityAccounts> {
         let mut oracle_markets = HashMap::<Pubkey, MarketId>::with_capacity(16);
-        let drift_state_account = client.state_account()?;
+        let velocity_state_account = client.state_account()?;
 
         let force_spot_iter = force_markets
             .iter()
@@ -111,7 +111,7 @@ impl AccountsListBuilder {
         self.accounts.latest_slot = latest_oracle_slot;
         self.accounts.oracle_guard_rails = Some(unsafe {
             std::mem::transmute_copy::<_, program::state::state::OracleGuardRails>(
-                &drift_state_account.oracle_guard_rails,
+                &velocity_state_account.oracle_guard_rails,
             )
         });
 
@@ -126,7 +126,7 @@ impl AccountsListBuilder {
         force_markets: &[MarketId],
     ) -> SdkResult<&mut VelocityAccounts> {
         let mut oracle_markets = HashMap::<Pubkey, MarketId>::with_capacity(16);
-        let drift_state_account = client.state_account()?;
+        let velocity_state_account = client.state_account()?;
 
         let force_spot_iter = force_markets
             .iter()
@@ -187,7 +187,7 @@ impl AccountsListBuilder {
         self.accounts.latest_slot = latest_oracle_slot;
         self.accounts.oracle_guard_rails = Some(unsafe {
             std::mem::transmute_copy::<_, program::state::state::OracleGuardRails>(
-                &drift_state_account.oracle_guard_rails,
+                &velocity_state_account.oracle_guard_rails,
             )
         });
 

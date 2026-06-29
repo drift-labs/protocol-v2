@@ -25,7 +25,7 @@ pub fn apply_profit_share<'info>(ctx: Context<'info, ApplyProfitShare<'info>>) -
     vault.validate_vault_protocol(&vp)?;
     let mut vp = vp.as_mut().map(|vp| vp.load_mut()).transpose()?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
     let spot_market_index = vault.spot_market_index;
 
     let has_fee_update = FeeUpdateStatus::has_pending_fee_update(vault.fee_update_status);
@@ -84,19 +84,19 @@ pub struct ApplyProfitShare<'info> {
     pub manager: Signer<'info>,
     #[account(
         mut,
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
-    /// CHECK: checked in drift cpi
-    pub drift_state: AccountInfo<'info>,
-    /// CHECK: checked in drift cpi
-    pub drift_signer: AccountInfo<'info>,
-    pub drift_program: Program<'info, Velocity>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_state: AccountInfo<'info>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_signer: AccountInfo<'info>,
+    pub velocity_program: Program<'info, Velocity>,
 }

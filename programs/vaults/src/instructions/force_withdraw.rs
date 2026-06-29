@@ -1,15 +1,15 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use anchor_spl::token::{Token, TokenAccount};
-use velocity::cpi::accounts::Withdraw as DriftWithdraw;
+use velocity::cpi::accounts::Withdraw as VelocityWithdraw;
 use velocity::instructions::optional_accounts::AccountMaps;
 use velocity::program::Velocity;
 use velocity::state::user::{User, UserStats};
 
 use crate::constraints::*;
-use crate::drift_cpi::WithdrawCPI;
 use crate::state::{FeeUpdateProvider, FeeUpdateStatus, Vault, VaultDepositor};
 use crate::token_cpi::TokenTransferCPI;
+use crate::velocity_cpi::WithdrawCPI;
 use crate::VaultProtocolProvider;
 use crate::{declare_vault_seeds, AccountMapProvider};
 
@@ -23,7 +23,7 @@ pub fn force_withdraw<'info>(ctx: Context<'info, ForceWithdraw<'info>>) -> Resul
     vault.validate_vault_protocol(&vp)?;
     let mut vp = vp.as_mut().map(|vp| vp.load_mut()).transpose()?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
     let spot_market_index = vault.spot_market_index;
 
     let has_fee_update = FeeUpdateStatus::has_pending_fee_update(vault.fee_update_status);
@@ -63,7 +63,7 @@ pub fn force_withdraw<'info>(ctx: Context<'info, ForceWithdraw<'info>>) -> Resul
     drop(user);
     drop(vp);
 
-    ctx.drift_withdraw(withdraw_amount)?;
+    ctx.velocity_withdraw(withdraw_amount)?;
 
     ctx.token_transfer(withdraw_amount)?;
 
@@ -91,57 +91,57 @@ pub struct ForceWithdraw<'info> {
     pub vault_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
-    /// CHECK: checked in drift cpi
-    pub drift_state: AccountInfo<'info>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_state: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = vault_token_account.mint
     )]
-    pub drift_spot_market_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: checked in drift cpi
-    pub drift_signer: AccountInfo<'info>,
+    pub velocity_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_signer: AccountInfo<'info>,
     #[account(
         mut,
         token::authority = vault_depositor.load()?.authority,
         token::mint = vault_token_account.mint
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub drift_program: Program<'info, Velocity>,
+    pub velocity_program: Program<'info, Velocity>,
     pub token_program: Program<'info, Token>,
 }
 
 impl<'info> WithdrawCPI for Context<'info, ForceWithdraw<'info>> {
-    fn drift_withdraw(&self, amount: u64) -> Result<()> {
+    fn velocity_withdraw(&self, amount: u64) -> Result<()> {
         declare_vault_seeds!(self.accounts.vault, seeds);
         let spot_market_index = self.accounts.vault.load()?.spot_market_index;
 
-        let cpi_accounts = DriftWithdraw {
-            state: self.accounts.drift_state.to_account_info().clone(),
-            user: self.accounts.drift_user.to_account_info().clone(),
-            user_stats: self.accounts.drift_user_stats.to_account_info().clone(),
+        let cpi_accounts = VelocityWithdraw {
+            state: self.accounts.velocity_state.to_account_info().clone(),
+            user: self.accounts.velocity_user.to_account_info().clone(),
+            user_stats: self.accounts.velocity_user_stats.to_account_info().clone(),
             authority: self.accounts.vault.to_account_info().clone(),
             spot_market_vault: self
                 .accounts
-                .drift_spot_market_vault
+                .velocity_spot_market_vault
                 .to_account_info()
                 .clone(),
-            velocity_signer: self.accounts.drift_signer.to_account_info().clone(),
+            velocity_signer: self.accounts.velocity_signer.to_account_info().clone(),
             user_token_account: self.accounts.vault_token_account.to_account_info().clone(),
             token_program: self.accounts.token_program.to_account_info().clone(),
         };
 
-        let drift_program = self.accounts.drift_program.key();
-        let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
+        let velocity_program = self.accounts.velocity_program.key();
+        let cpi_context = CpiContext::new_with_signer(velocity_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
         velocity::cpi::withdraw(cpi_context, spot_market_index, amount, false)?;
 

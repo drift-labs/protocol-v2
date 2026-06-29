@@ -149,11 +149,11 @@ fn find_market_index_from_symbol(
 }
 
 pub fn derive_ws_auth_delegates_pubkey(authority: &Pubkey) -> Pubkey {
-    let (account_drift_pda, _seed) = Pubkey::find_program_address(
+    let (account_velocity_pda, _seed) = Pubkey::find_program_address(
         &[&b"SIGNED_MSG_WS"[..], authority.as_ref()],
         &velocity_rs::constants::PROGRAM_ID,
     );
-    account_drift_pda
+    account_velocity_pda
 }
 
 async fn determine_fast_ws(ws_delegate: &Pubkey, stake_pubkey: &Pubkey) -> Result<bool> {

@@ -1,4 +1,4 @@
-//! Velocity Protocol v2 — Solana perpetuals and spot trading.
+//! Velocity Protocol v1 — Solana perpetuals and spot trading.
 //! Two entrypoints: custom high-frequency dispatcher at discriminator `[0xFF, 0xFF, 0xFF, 0xFF, opcode]`
 //! (bypasses Anchor overhead for keeper cranks) and the standard Anchor `#[program]` entrypoint.
 //! Instruction handlers → `instructions/`. Core logic → `controller/`. Pure math → `math/`. Account structs → `state/`.
@@ -2052,8 +2052,8 @@ pub mod velocity {
 use solana_security_txt::security_txt;
 #[cfg(not(feature = "no-entrypoint"))]
 security_txt! {
-    name: "Velocity v2",
-    project_url: "https://drift.trade",
+    name: "Velocity v1",
+    project_url: "https://velocity.exchange",
     contacts: "link:https://docs.drift.trade/security/bug-bounty",
     policy: "https://github.com/velocity-exchange/velocity-v1/blob/master/SECURITY.md",
     preferred_languages: "en",

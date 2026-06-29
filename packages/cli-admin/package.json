@@ -1,7 +1,7 @@
 {
 	"name": "@velocity-exchange/admin-cli",
 	"version": "0.2.1",
-	"description": "Velocity v2 admin CLI: rotate authority keys, pause markets, and route operations through a Squads V4 multisig.",
+	"description": "Velocity v1 admin CLI: rotate authority keys, pause markets, and route operations through a Squads V4 multisig.",
 	"author": "velocity-exchange",
 	"repository": {
 		"type": "git",

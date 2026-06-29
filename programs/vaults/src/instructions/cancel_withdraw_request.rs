@@ -21,7 +21,7 @@ pub fn cancel_withdraw_request<'info>(
     vault.validate_vault_protocol(&vp)?;
     let mut vp = vp.as_mut().map(|vp| vp.load_mut()).transpose()?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
 
     let has_fee_update = FeeUpdateStatus::has_pending_fee_update(vault.fee_update_status);
     let mut fee_update = ctx.fee_update(vp.is_some(), has_fee_update);
@@ -64,11 +64,11 @@ pub struct CancelWithdrawRequest<'info> {
     pub vault_depositor: AccountLoader<'info, VaultDepositor>,
     pub authority: Signer<'info>,
     #[account(
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    pub drift_user_stats: AccountLoader<'info, UserStats>,
+    pub velocity_user_stats: AccountLoader<'info, UserStats>,
     #[account(
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    pub drift_user: AccountLoader<'info, User>,
+    pub velocity_user: AccountLoader<'info, User>,
 }

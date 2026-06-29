@@ -15,7 +15,10 @@ export const deposit = async (program: Command, cmdOpts: OptionValues) => {
 		}
 	}
 
-	const { velocityClient, velocityVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(
+		program,
+		true
+	);
 
 	let vaultDepositorAddress: PublicKey;
 	let vaultAddress: PublicKey | undefined;

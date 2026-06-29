@@ -2,7 +2,7 @@ import {
 	BASE_PRECISION,
 	BN,
 	VelocityClient,
-	DriftEnv,
+	VelocityEnv,
 	OraclePriceData,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
@@ -67,8 +67,8 @@ export async function printVault(
 	console.log(`pubkey:         ${vault.pubkey.toBase58()}`);
 	console.log(`manager:         ${vault.manager.toBase58()}`);
 	console.log(`tokenAccount:    ${vault.tokenAccount.toBase58()}`);
-	console.log(`driftUserStats:  ${vault.userStats.toBase58()}`);
-	console.log(`driftUser:       ${vault.user.toBase58()}`);
+	console.log(`velocityUserStats:  ${vault.userStats.toBase58()}`);
+	console.log(`velocityUser:       ${vault.user.toBase58()}`);
 	console.log(`delegate:        ${vault.delegate.toBase58()}`);
 	console.log(`liqDelegate:     ${vault.liquidationDelegate.toBase58()}`);
 	console.log(`userShares:      ${vault.userShares.toString()}`);
@@ -324,8 +324,8 @@ export async function getCommandContext(
 		}
 	}
 
-	const driftEnv = opts.env as DriftEnv;
-	console.log('driftEnv:', driftEnv);
+	const velocityEnv = opts.env as VelocityEnv;
+	console.log('velocityEnv:', velocityEnv);
 
 	if (loadedKeypair) {
 		console.log(`Loaded wallet address: ${wallet.publicKey.toBase58()}`);
@@ -338,7 +338,7 @@ export async function getCommandContext(
 	const velocityClient = new VelocityClient({
 		connection,
 		wallet,
-		env: driftEnv as DriftEnv,
+		env: velocityEnv as VelocityEnv,
 		opts: {
 			commitment: opts.commitment,
 			skipPreflight: false,

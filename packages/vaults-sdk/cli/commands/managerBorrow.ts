@@ -15,7 +15,10 @@ export async function managerBorrow(
 		dumpTransactionMessage: dumpTx,
 	} = cmdOpts;
 
-	const { velocityClient, velocityVault } = await getCommandContext(program, true);
+	const { velocityClient, velocityVault } = await getCommandContext(
+		program,
+		true
+	);
 
 	if (!vaultAddress) {
 		throw new Error('Must provide vault address with --vault-address');

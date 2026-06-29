@@ -457,7 +457,7 @@ class grpcCacheProgramAccountSubscriber extends WebsocketCacheProgramAccountSubs
 		const request: SubscribeRequest = {
 			slots: {},
 			accounts: {
-				drift: {
+				velocity: {
 					account: [],
 					owner: [this.program.programId.toBase58()],
 					filters,

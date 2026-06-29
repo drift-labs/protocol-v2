@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
-use velocity::cpi::accounts::Deposit as DriftDeposit;
+use velocity::cpi::accounts::Deposit as VelocityDeposit;
 use velocity::instructions::optional_accounts::AccountMaps;
 use velocity::program::Velocity;
 use velocity::state::user::{User, UserStats};
@@ -8,12 +8,12 @@ use velocity::state::user::{User, UserStats};
 use crate::constraints::{
     is_authority_for_vault_depositor, is_user_for_vault, is_user_stats_for_vault,
 };
-use crate::drift_cpi::DepositCPI;
 use crate::error::ErrorCode;
 use crate::state::{
     FeeUpdateProvider, FeeUpdateStatus, Vault, VaultDepositor, VaultProtocolProvider,
 };
 use crate::token_cpi::TokenTransferCPI;
+use crate::velocity_cpi::DepositCPI;
 use crate::{declare_vault_seeds, implement_deposit, validate, AccountMapProvider};
 
 pub fn deposit<'info>(ctx: Context<'info, Deposit<'info>>, amount: u64) -> Result<()> {
@@ -29,7 +29,7 @@ pub fn deposit<'info>(ctx: Context<'info, Deposit<'info>>, amount: u64) -> Resul
     vault.validate_vault_protocol(&vp)?;
     let mut vp = vp.as_mut().map(|vp| vp.load_mut()).transpose()?;
 
-    let user = ctx.accounts.drift_user.load()?;
+    let user = ctx.accounts.velocity_user.load()?;
     let spot_market_index = vault.spot_market_index;
 
     let has_fee_update = FeeUpdateStatus::has_pending_fee_update(vault.fee_update_status);
@@ -82,7 +82,7 @@ pub fn deposit<'info>(ctx: Context<'info, Deposit<'info>>, amount: u64) -> Resul
 
     ctx.token_transfer(deposit_amount)?;
 
-    ctx.drift_deposit(deposit_amount)?;
+    ctx.velocity_deposit(deposit_amount)?;
 
     Ok(())
 }
@@ -107,30 +107,30 @@ pub struct Deposit<'info> {
     pub vault_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = is_user_stats_for_vault(&vault, &drift_user_stats.key())?
+        constraint = is_user_stats_for_vault(&vault, &velocity_user_stats.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
-    /// CHECK: checked in drift cpi
-    pub drift_state: AccountInfo<'info>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_state: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = vault_token_account.mint
     )]
-    pub drift_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub velocity_spot_market_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         token::authority = authority,
         token::mint = vault_token_account.mint
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub drift_program: Program<'info, Velocity>,
+    pub velocity_program: Program<'info, Velocity>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -151,7 +151,7 @@ impl<'info> TokenTransferCPI for Context<'info, Deposit<'info>> {
 }
 
 impl<'info> DepositCPI for Context<'info, Deposit<'info>> {
-    fn drift_deposit(&self, amount: u64) -> Result<()> {
+    fn velocity_deposit(&self, amount: u64) -> Result<()> {
         implement_deposit!(self, amount);
         Ok(())
     }

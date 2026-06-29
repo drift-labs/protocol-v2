@@ -4,8 +4,8 @@ use velocity::program::Velocity;
 use velocity::state::user::User;
 
 use crate::constraints::{is_manager_for_vault, is_user_for_vault};
-use crate::drift_cpi::UpdateUserMarginTradingEnabledCPI;
 use crate::error::ErrorCode;
+use crate::velocity_cpi::UpdateUserMarginTradingEnabledCPI;
 use crate::Vault;
 use crate::{declare_vault_seeds, validate};
 
@@ -18,7 +18,7 @@ pub fn update_margin_trading_enabled<'info>(
         ErrorCode::OngoingLiquidation
     )?;
 
-    ctx.drift_update_user_margin_trading_enabled(enabled)?;
+    ctx.velocity_update_user_margin_trading_enabled(enabled)?;
 
     Ok(())
 }
@@ -33,26 +33,26 @@ pub struct UpdateMarginTradingEnabled<'info> {
     pub manager: Signer<'info>,
     #[account(
         mut,
-        constraint = is_user_for_vault(&vault, &drift_user.key())?
+        constraint = is_user_for_vault(&vault, &velocity_user.key())?
     )]
-    /// CHECK: checked in drift cpi
-    pub drift_user: AccountLoader<'info, User>,
-    pub drift_program: Program<'info, Velocity>,
+    /// CHECK: checked in velocity cpi
+    pub velocity_user: AccountLoader<'info, User>,
+    pub velocity_program: Program<'info, Velocity>,
 }
 
 impl<'info> UpdateUserMarginTradingEnabledCPI
     for Context<'info, UpdateMarginTradingEnabled<'info>>
 {
-    fn drift_update_user_margin_trading_enabled(&self, enabled: bool) -> Result<()> {
+    fn velocity_update_user_margin_trading_enabled(&self, enabled: bool) -> Result<()> {
         declare_vault_seeds!(self.accounts.vault, seeds);
 
         let cpi_accounts = UpdateUser {
-            user: self.accounts.drift_user.to_account_info().clone(),
+            user: self.accounts.velocity_user.to_account_info().clone(),
             authority: self.accounts.vault.to_account_info().clone(),
         };
 
-        let drift_program = self.accounts.drift_program.key();
-        let cpi_context = CpiContext::new_with_signer(drift_program, cpi_accounts, seeds)
+        let velocity_program = self.accounts.velocity_program.key();
+        let cpi_context = CpiContext::new_with_signer(velocity_program, cpi_accounts, seeds)
             .with_remaining_accounts(self.remaining_accounts.into());
         velocity::cpi::update_user_margin_trading_enabled(cpi_context, 0, enabled)?;
 

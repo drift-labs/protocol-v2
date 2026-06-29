@@ -3,7 +3,7 @@ use std::cell::RefMut;
 use anchor_lang::prelude::*;
 use static_assertions::const_assert_eq;
 use velocity::controller::spot_balance::update_spot_balances;
-use velocity::error::ErrorCode as DriftErrorCode;
+use velocity::error::ErrorCode as VelocityErrorCode;
 use velocity::math::casting::Cast;
 use velocity::math::constants::PERCENTAGE_PRECISION;
 use velocity::math::insurance::{
@@ -783,7 +783,7 @@ impl VaultDepositor {
         &self,
         vault: &Vault,
         vault_equity: u64,
-        drift_user: &mut User,
+        velocity_user: &mut User,
         perp_market_map: &PerpMarketMap,
         spot_market_map: &SpotMarketMap,
         oracle_map: &mut OracleMap,
@@ -800,36 +800,36 @@ impl VaultDepositor {
         // Save relevant data before updating balances
         let spot_market_deposit_balance_before = spot_market.deposit_balance;
         let spot_market_borrow_balance_before = spot_market.borrow_balance;
-        let user_spot_position_before = drift_user.spot_positions;
+        let user_spot_position_before = velocity_user.spot_positions;
 
         update_spot_balances(
             withdraw_amount.cast()?,
             &SpotBalanceType::Borrow,
             &mut spot_market,
-            drift_user.force_get_spot_position_mut(vault.spot_market_index)?,
+            velocity_user.force_get_spot_position_mut(vault.spot_market_index)?,
             true,
         )?;
 
         drop(spot_market);
 
         let sufficient_collateral = meets_initial_margin_requirement(
-            drift_user,
+            velocity_user,
             perp_market_map,
             spot_market_map,
             oracle_map,
         )?;
 
         let margin_trading_ok = match validate_spot_margin_trading(
-            drift_user,
+            velocity_user,
             perp_market_map,
             spot_market_map,
             oracle_map,
         ) {
             Ok(_) => true,
-            Err(DriftErrorCode::MarginTradingDisabled) => false,
+            Err(VelocityErrorCode::MarginTradingDisabled) => false,
             Err(e) => {
                 msg!("Error validating spot margin trading: {:?}", e);
-                return Err(ErrorCode::DriftError.into());
+                return Err(ErrorCode::VelocityError.into());
             }
         };
 
@@ -839,15 +839,15 @@ impl VaultDepositor {
                 sufficient_collateral,
                 margin_trading_ok
             );
-            return Err(ErrorCode::DriftError.into());
+            return Err(ErrorCode::VelocityError.into());
         }
 
-        // Must reset drift accounts afterward else ix will fail
+        // Must reset velocity accounts afterward else ix will fail
         let mut spot_market = spot_market_map.get_ref_mut(&vault.spot_market_index)?;
         spot_market.deposit_balance = spot_market_deposit_balance_before;
         spot_market.borrow_balance = spot_market_borrow_balance_before;
 
-        drift_user.spot_positions = user_spot_position_before;
+        velocity_user.spot_positions = user_spot_position_before;
 
         Ok(())
     }
