@@ -41,7 +41,10 @@ use velocity_rs::{
 
 use crate::{
     http::Metrics,
-    util::{OrderSlotLimiter, PendingTxMeta, PendingTxs, PythPriceUpdate, TxIntent},
+    util::{
+        swift_placement_expired, OrderSlotLimiter, PendingTxMeta, PendingTxs, PythPriceUpdate,
+        TxIntent,
+    },
     Config, UseMarkets,
 };
 
@@ -59,12 +62,20 @@ pub struct FillerBot {
     tx_worker_ref: TxSender,
     priority_fee_subscriber: Arc<PriorityFeeSubscriber>,
     pyth_price_feed: Option<tokio::sync::mpsc::Receiver<PythPriceUpdate>>,
+    metrics: Arc<Metrics>,
 }
 
 impl FillerBot {
     pub async fn new(config: Config, velocity: VelocityClient, metrics: Arc<Metrics>) -> Self {
         let dlob: &'static DLOB = Box::leak(Box::new(DLOB::default()));
-        let tx_worker = TxWorker::new(velocity.clone(), metrics, config.dry, None, None, None);
+        let tx_worker = TxWorker::new(
+            velocity.clone(),
+            metrics.clone(),
+            config.dry,
+            None,
+            None,
+            None,
+        );
         let rt = tokio::runtime::Handle::current();
         let tx_worker_ref = tx_worker.run(rt);
 
@@ -151,6 +162,7 @@ impl FillerBot {
             tx_worker_ref,
             priority_fee_subscriber,
             pyth_price_feed,
+            metrics,
         }
     }
 
@@ -165,6 +177,9 @@ impl FillerBot {
         let config = self.config.clone();
         let tx_worker_ref = self.tx_worker_ref.clone();
         let priority_fee_subscriber = Arc::clone(&self.priority_fee_subscriber);
+        let metrics = Arc::clone(&self.metrics);
+        // reused per-slot scratch buffer for triggerable order ids (avoids per-slot allocation)
+        let mut triggerable_buf: Vec<(Pubkey, u32)> = Vec::new();
         let mut slot = 0;
         let mut use_median_trigger_price = velocity
             .state_account()
@@ -192,113 +207,56 @@ impl FillerBot {
                             // reset
                             retries = 0;
 
-                            // try swift fill against resting liquidity
-                            let mut order_params = signed_order.order_params();
-                            log::info!(target: TARGET, "new swift order. uuid={}, market={}", signed_order.order_uuid_str(), order_params.market_index);
+                            let order_params = signed_order.order_params();
+                            let market_index = order_params.market_index;
+                            log::info!(target: TARGET, "new swift order. uuid={}, market={}", signed_order.order_uuid_str(), market_index);
                             log::debug!(target: TARGET, "details: {signed_order:?}");
-                            let perp_market = velocity.try_get_perp_market_account(order_params.market_index).unwrap();
-                            let oracle_price_data = velocity.try_get_mmoracle_for_perp_market(order_params.market_index, slot).expect("got oracle price");
-                            let oracle_price = oracle_price_data.price;
-                            log::trace!(target: TARGET, "oracle price: slot:{:?},market:{:?},price:{:?}", slot, order_params.market_index, oracle_price);
-                            order_params.update_perp_auction_params(
-                                &perp_market,
-                                oracle_price,
-                                true,
-                            );
-                            if order_params.order_type == OrderType::Limit && order_params.post_only != PostOnlyParam::None {
-                                log::warn!(target: TARGET, "swift order limit post only: {signed_order:?}");
-                                // TODO: search for immediate fill
-                                continue;
-                            }
-                            let (start_price, end_price, duration) = (order_params.auction_start_price.unwrap_or_default(), order_params.auction_end_price.unwrap_or_default(), order_params.auction_duration.unwrap_or_default());
-                            let order = Order {
-                                slot: slot + 1,
-                                price: order_params.price,
-                                base_asset_amount: order_params.base_asset_amount,
-                                trigger_price: order_params.trigger_price.unwrap_or_default(),
-                                auction_duration: duration,
-                                auction_start_price: start_price,
-                                auction_end_price: end_price,
-                                max_ts: order_params.max_ts.unwrap_or_default(),
-                                oracle_price_offset: order_params.oracle_price_offset.unwrap_or_default(),
-                                market_index: order_params.market_index,
-                                order_type: order_params.order_type,
-                                market_type: order_params.market_type,
-                                direction: order_params.direction,
-                                reduce_only: order_params.reduce_only,
-                                post_only: order_params.post_only != PostOnlyParam::None,
-                                immediate_or_cancel: order_params.immediate_or_cancel(),
-                                trigger_condition: order_params.trigger_condition,
-                                bit_flags: order_params.bit_flags,
-                                ..Default::default()
-                            };
+                            let perp_market = velocity.try_get_perp_market_account(market_index).unwrap();
+                            let oracle_price_data = velocity.try_get_mmoracle_for_perp_market(market_index, slot).expect("got oracle price");
 
-                            let reserve_price = perp_market.amm.reserve_price().unwrap_or(0);
-                            let vamm_price = if order_params.direction == PositionDirection::Long {
-                                perp_market
-                                    .amm
-                                    .ask_price(
-                                        reserve_price,
-                                        perp_market.amm.long_spread,
-                                        perp_market.amm.reference_price_offset,
-                                    )
-                                    .unwrap_or(0)
-                            } else {
-                                perp_market
-                                    .amm
-                                    .bid_price(
-                                        reserve_price,
-                                        perp_market.amm.short_spread,
-                                        perp_market.amm.reference_price_offset,
-                                    )
-                                    .unwrap_or(0)
-                            };
-
-                            let price = match order_params.order_type {
-                                OrderType::Market | OrderType::Oracle => {
-                                    match calculate_auction_price(&order, slot + 1, perp_market.price_tick(), Some(oracle_price)) {
-                                        Ok(p) => p,
-                                        Err(err) => {
-                                            log::warn!(target: TARGET, "could not get auction price {err:?}, params: {order_params:?}, skipping...");
-                                            continue;
-                                        }
+                            // try an immediate fill against resting liquidity
+                            match evaluate_swift_crosses(dlob, &signed_order, &perp_market, oracle_price_data.price, oracle_price_data.delay, slot, slots_before_stale_for_amm) {
+                                Some(crosses) => {
+                                    log::info!(target: TARGET, "found resting cross. crosses={crosses:?}");
+                                    let pf = priority_fee_subscriber.priority_fee_nth(0.6);
+                                    try_swift_fill(
+                                        velocity,
+                                        pf,
+                                        config.swift_cu_limit,
+                                        filler_subaccount,
+                                        signed_order,
+                                        crosses,
+                                        tx_worker_ref.clone(),
+                                    ).await;
+                                }
+                                None => {
+                                    // Not immediately fillable. Rather than dropping the order,
+                                    // place it on-chain (no fill) so it becomes a regular resting
+                                    // order that the normal per-slot fill path will pick up while
+                                    // it remains live. Skip if it can no longer be placed (the
+                                    // program would reject/no-op it) to avoid wasting gas.
+                                    let now_ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+                                    let order_slot = signed_order.slot();
+                                    let auction_duration = order_params.auction_duration.unwrap_or(0);
+                                    let max_ts = order_params.max_ts.unwrap_or(0);
+                                    if swift_placement_expired(order_slot, auction_duration, max_ts, slot, now_ts) {
+                                        log::debug!(target: TARGET, "swift order past placement window, not placing. uuid={}", signed_order.order_uuid_str());
+                                        metrics.swift_place_skipped.inc();
+                                    } else {
+                                        log::info!(target: TARGET, "swift order not fillable yet, placing on-chain. uuid={}", signed_order.order_uuid_str());
+                                        let pf = priority_fee_subscriber.priority_fee_nth(0.6);
+                                        try_swift_place(
+                                            velocity,
+                                            pf,
+                                            config.swift_cu_limit,
+                                            filler_subaccount,
+                                            signed_order,
+                                            slot,
+                                            tx_worker_ref.clone(),
+                                        ).await;
+                                        metrics.swift_placed.inc();
                                     }
                                 }
-                                OrderType::Limit => {
-                                    match order.get_limit_price(Some(oracle_price), Some(vamm_price), slot + 1, perp_market.price_tick()) {
-                                        Ok(Some(p)) => p,
-                                        _ => {
-                                            log::warn!(target: TARGET, "could not get limit price: {order_params:?}, skipping...");
-                                            continue;
-                                        },
-                                    }
-                                }
-                                _ => {
-                                    log::warn!(target: TARGET, "invalid swift order type");
-                                    unreachable!();
-                                }
-                            };
-                            let taker_order = TakerOrder::from_order_params(order_params, price);
-                            let crosses = dlob.find_crosses_for_taker_order(slot + 1, oracle_price as u64, taker_order, Some(&perp_market), None);
-                            if !crosses.is_empty() {
-                                // skip vAMM-only swift fills when oracle is stale
-                                if crosses.orders.is_empty() && crosses.has_vamm_cross {
-                                    if oracle_price_data.delay > slots_before_stale_for_amm {
-                                        log::info!(target: TARGET, "skip swift vAMM fill: oracle stale (delay={})", oracle_price_data.delay);
-                                        continue;
-                                    }
-                                }
-                                log::info!(target: TARGET, "found resting cross. crosses={crosses:?}");
-                                let pf = priority_fee_subscriber.priority_fee_nth(0.6);
-                                try_swift_fill(
-                                    velocity,
-                                    pf,
-                                    config.swift_cu_limit,
-                                    filler_subaccount,
-                                    signed_order,
-                                    crosses,
-                                    tx_worker_ref.clone(),
-                                ).await;
                             }
                         }
                         None => {
@@ -359,6 +317,16 @@ impl FillerBot {
                         let mut crosses_and_top_makers = dlob.find_crosses_for_auctions(market_index, MarketType::Perp, slot, oracle_price, Some(&perp_market), trigger_price, None);
                         crosses_and_top_makers.crosses.retain(|(o, _)| limiter.allow_event(slot, o.order_id));
 
+                        // Trigger orders that already cross are triggered+filled atomically by
+                        // the auction path below; capture their ids so the standalone trigger
+                        // pass doesn't double-trigger (and waste) them.
+                        let crossing_trigger_ids: HashSet<u32> = crosses_and_top_makers
+                            .crosses
+                            .iter()
+                            .filter(|(o, _)| matches!(o.kind, OrderKind::TriggerMarket | OrderKind::TriggerLimit))
+                            .map(|(o, _)| o.order_id)
+                            .collect();
+
                         if !crosses_and_top_makers.crosses.is_empty() {
                             log::info!(target: TARGET, "found auction crosses. market: {},{crosses_and_top_makers:?}", market.index());
                             try_auction_fill(
@@ -376,6 +344,38 @@ impl FillerBot {
                                 },
                                 perp_market,
                                 oracle_stale_for_amm,
+                            ).await;
+                        }
+
+                        // Trigger-only pass: trigger orders whose condition is met but that do
+                        // not (yet) cross any liquidity. `find_crosses_for_auctions` only
+                        // surfaces trigger orders whose post-trigger price immediately crosses,
+                        // so without this pass e.g. stop/take-profit *limit* orders that rest
+                        // after triggering would never be triggered. The send path simulates
+                        // first, so an order that isn't actually triggerable on-chain (oracle
+                        // view drift) is dropped at simulation rather than wasting a real tx.
+                        dlob.find_triggerable_orders(market_index, MarketType::Perp, trigger_price, &mut triggerable_buf);
+                        if !triggerable_buf.is_empty() {
+                            log::info!(target: TARGET, "found {} triggerable order(s) (market: {market_index})", triggerable_buf.len());
+                        }
+                        for (taker_subaccount, order_id) in triggerable_buf.drain(..) {
+                            // already handled atomically by the auction fill above
+                            if crossing_trigger_ids.contains(&order_id) {
+                                continue;
+                            }
+                            if !limiter.allow_event(slot, order_id) {
+                                continue;
+                            }
+                            try_trigger_order(
+                                velocity,
+                                priority_fee,
+                                config.fill_cu_limit,
+                                market_index,
+                                filler_subaccount,
+                                taker_subaccount,
+                                order_id,
+                                slot + 1,
+                                tx_worker_ref.clone(),
                             ).await;
                         }
 
@@ -482,6 +482,200 @@ fn on_account_update_fn(
     }
 }
 
+/// Evaluate whether a swift order crosses resting liquidity / the vAMM at the current slot.
+///
+/// Returns `Some(crosses)` when the order is fillable right now, or `None` when it isn't (so
+/// the caller can queue it for retry). This is the shared core used both on arrival and on
+/// each retry tick, so the fill decision stays identical across the two paths.
+///
+/// `oracle_price` is the chain mm-oracle price (i64) for the market; `oracle_delay` its age in
+/// slots, used to skip vAMM-only fills when the oracle is stale for the AMM.
+fn evaluate_swift_crosses(
+    dlob: &DLOB,
+    signed_order: &SignedOrderInfo,
+    perp_market: &PerpMarket,
+    oracle_price: i64,
+    oracle_delay: i64,
+    slot: u64,
+    slots_before_stale_for_amm: i64,
+) -> Option<MakerCrosses> {
+    let mut order_params = signed_order.order_params();
+    let _ = order_params.update_perp_auction_params(perp_market, oracle_price, true);
+
+    if order_params.order_type == OrderType::Limit && order_params.post_only != PostOnlyParam::None
+    {
+        log::warn!(target: TARGET, "swift order limit post only: uuid={}", signed_order.order_uuid_str());
+        // TODO: search for immediate fill
+        return None;
+    }
+
+    let (start_price, end_price, duration) = (
+        order_params.auction_start_price.unwrap_or_default(),
+        order_params.auction_end_price.unwrap_or_default(),
+        order_params.auction_duration.unwrap_or_default(),
+    );
+    let order = Order {
+        slot: slot + 1,
+        price: order_params.price,
+        base_asset_amount: order_params.base_asset_amount,
+        trigger_price: order_params.trigger_price.unwrap_or_default(),
+        auction_duration: duration,
+        auction_start_price: start_price,
+        auction_end_price: end_price,
+        max_ts: order_params.max_ts.unwrap_or_default(),
+        oracle_price_offset: order_params.oracle_price_offset.unwrap_or_default(),
+        market_index: order_params.market_index,
+        order_type: order_params.order_type,
+        market_type: order_params.market_type,
+        direction: order_params.direction,
+        reduce_only: order_params.reduce_only,
+        post_only: order_params.post_only != PostOnlyParam::None,
+        immediate_or_cancel: order_params.immediate_or_cancel(),
+        trigger_condition: order_params.trigger_condition,
+        bit_flags: order_params.bit_flags,
+        ..Default::default()
+    };
+
+    let reserve_price = perp_market.amm.reserve_price().unwrap_or(0);
+    let vamm_price = if order_params.direction == PositionDirection::Long {
+        perp_market
+            .amm
+            .ask_price(
+                reserve_price,
+                perp_market.amm.long_spread,
+                perp_market.amm.reference_price_offset,
+            )
+            .unwrap_or(0)
+    } else {
+        perp_market
+            .amm
+            .bid_price(
+                reserve_price,
+                perp_market.amm.short_spread,
+                perp_market.amm.reference_price_offset,
+            )
+            .unwrap_or(0)
+    };
+
+    let price = match order_params.order_type {
+        OrderType::Market | OrderType::Oracle => {
+            match calculate_auction_price(
+                &order,
+                slot + 1,
+                perp_market.price_tick(),
+                Some(oracle_price),
+            ) {
+                Ok(p) => p,
+                Err(err) => {
+                    log::warn!(target: TARGET, "could not get auction price {err:?}, params: {order_params:?}, skipping...");
+                    return None;
+                }
+            }
+        }
+        OrderType::Limit => {
+            match order.get_limit_price(
+                Some(oracle_price),
+                Some(vamm_price),
+                slot + 1,
+                perp_market.price_tick(),
+            ) {
+                Ok(Some(p)) => p,
+                _ => {
+                    log::warn!(target: TARGET, "could not get limit price: {order_params:?}, skipping...");
+                    return None;
+                }
+            }
+        }
+        // Swift orders should never be trigger/unknown types; previously this panicked via
+        // `unreachable!()`. Defensively skip instead so untrusted feed input can't crash the bot.
+        other => {
+            log::warn!(target: TARGET, "unsupported swift order type {other:?}, skipping. uuid={}", signed_order.order_uuid_str());
+            return None;
+        }
+    };
+
+    let taker_order = TakerOrder::from_order_params(order_params, price);
+    let crosses = dlob.find_crosses_for_taker_order(
+        slot + 1,
+        oracle_price as u64,
+        taker_order,
+        Some(perp_market),
+        None,
+    );
+    if crosses.is_empty() {
+        return None;
+    }
+    // skip vAMM-only swift fills when the oracle is stale for the AMM
+    if crosses.orders.is_empty()
+        && crosses.has_vamm_cross
+        && oracle_delay > slots_before_stale_for_amm
+    {
+        log::info!(target: TARGET, "skip swift vAMM fill: oracle stale (delay={oracle_delay})");
+        return None;
+    }
+    Some(crosses)
+}
+
+/// Trigger a single trigger order whose condition is met but that does not yet cross.
+///
+/// Sends a standalone `trigger_order` tx (no fill). The triggered order then becomes a regular
+/// on-chain order that the normal per-slot auction-fill path will pick up. Failures to load the
+/// accounts are logged and skipped rather than panicking.
+async fn try_trigger_order(
+    velocity: &'static VelocityClient,
+    priority_fee: u64,
+    cu_limit: u32,
+    market_index: u16,
+    filler_subaccount: Pubkey,
+    taker_subaccount: Pubkey,
+    order_id: u32,
+    slot: u64,
+    tx_worker_ref: TxSender,
+) {
+    let filler_account_data = match velocity.try_get_account::<User>(&filler_subaccount) {
+        Ok(a) => a,
+        Err(err) => {
+            log::warn!(target: TARGET, "trigger: failed to load filler account: {err:?}");
+            return;
+        }
+    };
+    let taker_account_data = match velocity.try_get_account::<User>(&taker_subaccount) {
+        Ok(a) => a,
+        Err(err) => {
+            log::warn!(target: TARGET, "trigger: failed to load taker account {taker_subaccount}: {err:?}");
+            return;
+        }
+    };
+
+    log::info!(target: TARGET, "attempting standalone trigger: order_id={order_id}, taker={taker_subaccount}");
+    let tx_builder = TransactionBuilder::new(
+        velocity.program_data(),
+        filler_subaccount,
+        std::borrow::Cow::Borrowed(&filler_account_data),
+        false,
+    )
+    .with_priority_fee(priority_fee, Some(cu_limit))
+    .trigger_order(
+        taker_subaccount,
+        &taker_account_data,
+        order_id,
+        (market_index, MarketType::Perp),
+    );
+    let tx = tx_builder.build();
+
+    tx_worker_ref
+        .send_tx(
+            tx,
+            TxIntent::Trigger {
+                market_index,
+                order_id,
+                slot,
+            },
+            cu_limit as u64,
+        )
+        .await;
+}
+
 /// Try to fill a swift order
 async fn try_swift_fill(
     velocity: &'static VelocityClient,
@@ -558,7 +752,65 @@ async fn try_swift_fill(
         .send_tx(
             tx,
             TxIntent::SwiftFill {
+                uuid: swift_order.order_uuid(),
+                market_index: taker_order.market_index,
                 maker_crosses: crosses,
+            },
+            cu_limit as u64,
+        )
+        .await;
+}
+
+/// Place a swift order on-chain without filling it.
+///
+/// Used when the order is not immediately fillable on arrival: placing it makes it a regular
+/// resting on-chain order that the normal per-slot fill path (and other keepers) can fill while
+/// it remains live, instead of dropping it. Emits a `swift_place` wide event at tx
+/// confirmation so the gas spent on placements can be measured against the fills they yield.
+async fn try_swift_place(
+    velocity: &'static VelocityClient,
+    priority_fee: u64,
+    cu_limit: u32,
+    filler_subaccount: Pubkey,
+    swift_order: SignedOrderInfo,
+    slot: u64,
+    tx_worker_ref: TxSender,
+) {
+    let market_index = swift_order.order_params().market_index;
+    let taker_subaccount = swift_order.taker_subaccount();
+
+    let filler_account_data = match velocity.try_get_account::<User>(&filler_subaccount) {
+        Ok(a) => a,
+        Err(err) => {
+            log::warn!(target: TARGET, "swift place: failed to load filler account: {err:?}");
+            return;
+        }
+    };
+    let taker_account_data = match velocity.get_account_value::<User>(&taker_subaccount).await {
+        Ok(a) => a,
+        Err(err) => {
+            log::warn!(target: TARGET, "swift place: failed to load taker account {taker_subaccount}: {err:?}");
+            return;
+        }
+    };
+
+    let tx = TransactionBuilder::new(
+        velocity.program_data(),
+        filler_subaccount,
+        std::borrow::Cow::Borrowed(&filler_account_data),
+        false,
+    )
+    .with_priority_fee(priority_fee, Some(cu_limit))
+    .place_swift_order(&swift_order, &taker_account_data)
+    .build();
+
+    tx_worker_ref
+        .send_tx(
+            tx,
+            TxIntent::SwiftPlace {
+                uuid: swift_order.order_uuid(),
+                market_index,
+                slot,
             },
             cu_limit as u64,
         )
@@ -664,7 +916,7 @@ async fn try_auction_fill(
                 false
             };
             if !can_trigger {
-                return;
+                continue;
             }
             log::info!(
                 target: TARGET,
@@ -696,7 +948,7 @@ async fn try_auction_fill(
         if effective_vamm_cross {
             if is_vamm_inactive(&crosses) {
                 log::debug!(target: TARGET, "skip inactive vamm cross: {crosses:?}");
-                return;
+                continue;
             }
 
             if let Ok(pos) = taker_account_data.get_perp_position(market_index) {
@@ -725,7 +977,7 @@ async fn try_auction_fill(
                     };
                     if base_asset_amount < amm_size_threshold {
                         log::info!(target: TARGET, "skip vamm cross too small: {crosses:?}");
-                        return;
+                        continue;
                     }
                 }
             }
@@ -736,7 +988,7 @@ async fn try_auction_fill(
             } else {
                 log::debug!(target: TARGET, "skip empty maker cross: {crosses:?}");
             }
-            return;
+            continue;
         }
 
         if maker_accounts.len() < 3 {
@@ -773,6 +1025,7 @@ async fn try_auction_fill(
             .send_tx(
                 tx,
                 TxIntent::AuctionFill {
+                    market_index,
                     taker_order_id: taker_order.order_id,
                     maker_crosses: crosses,
                     has_trigger: taker_is_trigger,
@@ -1193,6 +1446,20 @@ impl TxWorker {
                             .tx_failed
                             .with_label_values(&[intent_label, "sim_failed"])
                             .inc();
+                        emit_tx_event(
+                            &intent,
+                            None,
+                            "sim_failed",
+                            intent.crosses_and_slot().1,
+                            None,
+                            intent.expected_fill_count(),
+                            0,
+                            false,
+                            cu_limit,
+                            None,
+                            None,
+                            Some(&format!("{err:?}")),
+                        );
                         return;
                     }
                 }
@@ -1206,6 +1473,20 @@ impl TxWorker {
                         .tx_failed
                         .with_label_values(&[intent_label, "sim_rpc_error"])
                         .inc();
+                    emit_tx_event(
+                        &intent,
+                        None,
+                        "sim_rpc_error",
+                        intent.crosses_and_slot().1,
+                        None,
+                        intent.expected_fill_count(),
+                        0,
+                        false,
+                        cu_limit,
+                        None,
+                        None,
+                        Some(&format!("{err}")),
+                    );
                     return;
                 }
             }
@@ -1238,6 +1519,20 @@ impl TxWorker {
                         .tx_failed
                         .with_label_values(&[intent_label, "send_error"])
                         .inc();
+                    emit_tx_event(
+                        &intent,
+                        None,
+                        "send_error",
+                        intent.crosses_and_slot().1,
+                        None,
+                        intent.expected_fill_count(),
+                        0,
+                        false,
+                        cu_limit,
+                        None,
+                        None,
+                        Some(&format!("{err}")),
+                    );
                 }
             }
         });
@@ -1271,6 +1566,7 @@ impl TxWorker {
 
             let intent_label = intent.label();
             let expected_fill_count = intent.expected_fill_count();
+            let (_, sent_slot) = intent.crosses_and_slot();
             let _ = tokio::time::sleep(Duration::from_secs(1)).await;
             match velocity
                 .rpc()
@@ -1292,8 +1588,8 @@ impl TxWorker {
                                 let sig = tx.to_string();
                                 let logs = meta.log_messages.unwrap();
                                 let tx_confirmed_slot = tx_log.slot;
-                                let (_, sent_slot) = intent.crosses_and_slot();
                                 let mut actual_fills = 0;
+                                let mut triggered = false;
                                 for (tx_idx, log) in logs.iter().enumerate() {
                                     if let Some(event) = velocity_rs::event_subscriber::try_parse_log(
                                         log.as_str(),
@@ -1304,6 +1600,7 @@ impl TxWorker {
                                         {
                                             actual_fills += 1;
                                         } else if let VelocityEvent::OrderTrigger { .. } = event {
+                                            triggered = true;
                                             metrics.trigger_actual.inc();
                                         } else if log.as_str().contains("exceeded CUs meter") {
                                             metrics
@@ -1326,29 +1623,40 @@ impl TxWorker {
                                     .confirmation_slots
                                     .with_label_values(&[intent_label])
                                     .observe(confirmation_slots as f64);
-                                let cus_spent =
-                                    sent_cu_limit - meta.compute_units_consumed.unwrap();
+                                let cu_consumed: Option<u64> =
+                                    meta.compute_units_consumed.clone().into();
+                                let cus_spent = sent_cu_limit - cu_consumed.unwrap_or(0);
                                 metrics
                                     .cu_spent
                                     .with_label_values(&[intent_label])
                                     .observe(cus_spent as f64);
 
-                                if actual_fills == 0 {
-                                    metrics
-                                        .tx_confirmed
-                                        .with_label_values(&[intent_label, "no_fills"])
-                                        .inc();
+                                let status = if actual_fills == 0 {
+                                    "no_fills"
                                 } else if actual_fills < expected_fill_count as u64 {
-                                    metrics
-                                        .tx_confirmed
-                                        .with_label_values(&[intent_label, "partial"])
-                                        .inc();
+                                    "partial"
                                 } else {
-                                        metrics
-                                        .tx_confirmed
-                                        .with_label_values(&[intent_label, "ok"])
-                                        .inc();
-                                }
+                                    "ok"
+                                };
+                                metrics
+                                    .tx_confirmed
+                                    .with_label_values(&[intent_label, status])
+                                    .inc();
+
+                                emit_tx_event(
+                                    &intent,
+                                    Some(&sig),
+                                    status,
+                                    sent_slot,
+                                    Some(tx_confirmed_slot),
+                                    expected_fill_count,
+                                    actual_fills,
+                                    triggered,
+                                    sent_cu_limit,
+                                    cu_consumed,
+                                    Some(meta.fee),
+                                    None,
+                                );
 
                                 match intent {
                                     TxIntent::LiquidateWithFill { .. } => {
@@ -1372,6 +1680,20 @@ impl TxWorker {
                                         "insufficient_funds",
                                     ])
                                     .inc();
+                                emit_tx_event(
+                                    &intent,
+                                    Some(&tx.to_string()),
+                                    "insufficient_funds",
+                                    sent_slot,
+                                    Some(tx_log.slot),
+                                    expected_fill_count,
+                                    0,
+                                    false,
+                                    sent_cu_limit,
+                                    meta.compute_units_consumed.clone().into(),
+                                    Some(meta.fee),
+                                    None,
+                                );
                             }
                             Some(err) => {
                                 log::warn!(
@@ -1398,6 +1720,20 @@ impl TxWorker {
                                         &format!("{:?}", err),
                                     ])
                                     .inc();
+                                emit_tx_event(
+                                    &intent,
+                                    Some(&signature.to_string()),
+                                    "failed",
+                                    sent_slot,
+                                    Some(tx_log.slot),
+                                    expected_fill_count,
+                                    0,
+                                    false,
+                                    sent_cu_limit,
+                                    meta.compute_units_consumed.clone().into(),
+                                    Some(meta.fee),
+                                    Some(&format!("{err:?}")),
+                                );
                                 match intent {
                                     TxIntent::LiquidateWithFill { .. } => {
                                         metrics.liquidation_failed.with_label_values(&["perp"]).inc();
@@ -1430,6 +1766,20 @@ impl TxWorker {
                             .tx_failed
                             .with_label_values(&[intent_label, "metadata_missing"])
                             .inc();
+                        emit_tx_event(
+                            &intent,
+                            Some(&tx.to_string()),
+                            "metadata_missing",
+                            sent_slot,
+                            Some(tx_log.slot),
+                            expected_fill_count,
+                            0,
+                            false,
+                            sent_cu_limit,
+                            None,
+                            None,
+                            None,
+                        );
                     }
                 }
                 Err(err) => {
@@ -1438,10 +1788,74 @@ impl TxWorker {
                         .tx_failed
                         .with_label_values(&[intent_label, "confirmation_failed"])
                         .inc();
+                    emit_tx_event(
+                        &intent,
+                        Some(&tx.to_string()),
+                        "confirmation_failed",
+                        sent_slot,
+                        None,
+                        expected_fill_count,
+                        0,
+                        false,
+                        sent_cu_limit,
+                        None,
+                        None,
+                        Some(&format!("{err}")),
+                    );
                 }
             }
         });
     }
+}
+
+/// Emit a single wide structured event (one JSON line, log target `tx_event`) capturing the
+/// full outcome of a transaction.
+///
+/// This is the canonical per-tx event: every order placement, fill and trigger the bot sends
+/// produces exactly one terminal event here (at confirmation, or at sim/send failure), carrying
+/// enough dimensions — intent, market, order id / swift uuid, expected vs actual fills, trigger
+/// flag, CU limit/consumed, and the exact `fee_lamports` paid — to attribute gas spend. In
+/// particular it makes it possible to measure how much gas the `swift_place` (place-on-chain)
+/// path costs versus the fills those placements ultimately yield.
+#[allow(clippy::too_many_arguments)]
+fn emit_tx_event(
+    intent: &TxIntent,
+    sig: Option<&str>,
+    status: &str,
+    sent_slot: u64,
+    confirmed_slot: Option<u64>,
+    expected_fills: usize,
+    actual_fills: u64,
+    triggered: bool,
+    cu_limit: u64,
+    cu_consumed: Option<u64>,
+    fee_lamports: Option<u64>,
+    error: Option<&str>,
+) {
+    let latency_slots = confirmed_slot.map(|c| c.saturating_sub(sent_slot));
+    let uuid = intent
+        .swift_uuid()
+        .map(|u| String::from_utf8_lossy(&u).into_owned());
+    let event = serde_json::json!({
+        "event": "tx",
+        "intent": intent.label(),
+        "market": intent.market_index(),
+        "order_id": intent.order_id(),
+        "uuid": uuid,
+        "sig": sig,
+        "status": status,
+        "sent_slot": sent_slot,
+        "confirmed_slot": confirmed_slot,
+        "latency_slots": latency_slots,
+        "expected_fills": expected_fills,
+        "actual_fills": actual_fills,
+        "triggered": triggered,
+        "cu_limit": cu_limit,
+        "cu_consumed": cu_consumed,
+        "fee_lamports": fee_lamports,
+        "error": error,
+    });
+    log::info!(target: "tx_event", "{event}");
 }
 
 #[derive(Clone)]

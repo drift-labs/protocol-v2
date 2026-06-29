@@ -944,6 +944,43 @@ impl DLOB {
         }
     }
 
+    /// Collect all untriggered trigger orders whose trigger condition is satisfied at the
+    /// given `trigger_price`, regardless of whether they would cross any liquidity once
+    /// triggered.
+    ///
+    /// `find_crosses_for_auctions` only surfaces a trigger order when its post-trigger price
+    /// immediately crosses resting liquidity or the vAMM; an order that should be triggered
+    /// (so the keeper can call `trigger_order` and the auction clock can start) but that does
+    /// not yet cross is invisible to that path. This method exposes exactly those orders so the
+    /// keeper can trigger them independently of filling.
+    ///
+    /// The trigger-condition test mirrors the on-chain
+    /// `order_satisfies_trigger_condition` exactly (strict `>` for "above", strict `<` for
+    /// "below"), so `trigger_price` must be the same value the program would compute via
+    /// `PerpMarket::get_trigger_price`.
+    ///
+    /// Appends `(user_subaccount, order_id)` pairs to `out` (cleared first). Using an output
+    /// buffer avoids a per-slot allocation on the keeper hot path.
+    ///
+    /// ## Panics
+    ///
+    /// if `market_index, market_type` has not been initialized on this dlob instance
+    pub fn find_triggerable_orders(
+        &self,
+        market_index: u16,
+        market_type: MarketType,
+        trigger_price: u64,
+        out: &mut Vec<(Pubkey, u32)>,
+    ) {
+        out.clear();
+        let book = self.get_l3_snapshot(market_index, market_type);
+        out.extend(
+            book.trigger_bids(trigger_price)
+                .chain(book.trigger_asks(trigger_price))
+                .map(|o| (o.user, o.order_id)),
+        );
+    }
+
     /// At the current slot and oracle price return all orders crossing a given taker order
     ///
     /// # Parameters

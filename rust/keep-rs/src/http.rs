@@ -61,6 +61,8 @@ pub struct Metrics {
     pub tx_failed: IntCounterVec,
     pub trigger_expected: IntCounter,
     pub trigger_actual: IntCounter,
+    pub swift_placed: IntCounter,
+    pub swift_place_skipped: IntCounter,
     pub fill_expected: IntCounterVec,
     pub fill_actual: IntCounterVec,
     pub liquidation_attempts: IntCounterVec,
@@ -130,6 +132,22 @@ impl Metrics {
         )
         .unwrap();
         registry.register(Box::new(trigger_actual.clone())).unwrap();
+
+        let swift_placed = IntCounter::new(
+            "rfb_swift_placed_total",
+            "Swift orders placed on-chain (no immediate fill) so the slot loop can fill them later",
+        )
+        .unwrap();
+        registry.register(Box::new(swift_placed.clone())).unwrap();
+
+        let swift_place_skipped = IntCounter::new(
+            "rfb_swift_place_skipped_total",
+            "Swift orders not placed because they were already past their on-chain placement window",
+        )
+        .unwrap();
+        registry
+            .register(Box::new(swift_place_skipped.clone()))
+            .unwrap();
 
         let liquidation_attempts = IntCounterVec::new(
             prometheus::Opts::new(
@@ -253,6 +271,8 @@ impl Metrics {
             registry,
             trigger_expected,
             trigger_actual,
+            swift_placed,
+            swift_place_skipped,
         }
     }
 }
