@@ -1,6 +1,6 @@
 {
 	"name": "@velocity-exchange/usermap-server",
-	"version": "0.1.3",
+	"version": "0.1.4",
 	"author": "nouralharithi",
 	"main": "lib/publisher.js",
 	"license": "Apache-2.0",

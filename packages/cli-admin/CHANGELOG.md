@@ -1,5 +1,22 @@
 # @velocity-exchange/admin-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#172](https://github.com/velocity-exchange/velocity-v1/pull/172) [`b7d15b9`](https://github.com/velocity-exchange/velocity-v1/commit/b7d15b970a74d267aeaf20bb644d5344b9aadc61) Thanks [@0xahzam](https://github.com/0xahzam)! - Decouple solvency-repair from the withdraw pause. The `resolve_perp_pnl_deficit`,
+  `resolve_perp_bankruptcy`, and `resolve_spot_bankruptcy` instructions are now gated by a
+  new `State.solvencyStatus` bitfield instead of `WithdrawPaused`, so user withdrawals can
+  be halted while solvency repair keeps running (or repair can be frozen on its own). Adds
+  the `SolvencyStatus` enum, `StateAccount.solvencyStatus`, a `solvencyRepairPaused()`
+  helper, `AdminClient.updateSolvencyStatus`, and the `exchange set-solvency-status` admin
+  CLI command.
+
+### Patch Changes
+
+- Updated dependencies [[`b7d15b9`](https://github.com/velocity-exchange/velocity-v1/commit/b7d15b970a74d267aeaf20bb644d5344b9aadc61), [`2f6c64d`](https://github.com/velocity-exchange/velocity-v1/commit/2f6c64d54f1146d8e7f9ee4ab556929c6bf8b920), [`3f148f8`](https://github.com/velocity-exchange/velocity-v1/commit/3f148f8b477e4176e11e0660adb0e67dd5163d3b)]:
+  - @velocity-exchange/sdk@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes

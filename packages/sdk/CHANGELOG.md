@@ -1,5 +1,38 @@
 # @velocity-exchange/sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- [#172](https://github.com/velocity-exchange/velocity-v1/pull/172) [`b7d15b9`](https://github.com/velocity-exchange/velocity-v1/commit/b7d15b970a74d267aeaf20bb644d5344b9aadc61) Thanks [@0xahzam](https://github.com/0xahzam)! - Decouple solvency-repair from the withdraw pause. The `resolve_perp_pnl_deficit`,
+  `resolve_perp_bankruptcy`, and `resolve_spot_bankruptcy` instructions are now gated by a
+  new `State.solvencyStatus` bitfield instead of `WithdrawPaused`, so user withdrawals can
+  be halted while solvency repair keeps running (or repair can be frozen on its own). Adds
+  the `SolvencyStatus` enum, `StateAccount.solvencyStatus`, a `solvencyRepairPaused()`
+  helper, `AdminClient.updateSolvencyStatus`, and the `exchange set-solvency-status` admin
+  CLI command.
+
+- [#141](https://github.com/velocity-exchange/velocity-v1/pull/141) [`3f148f8`](https://github.com/velocity-exchange/velocity-v1/commit/3f148f8b477e4176e11e0660adb0e67dd5163d3b) Thanks [@ChewingGlass](https://github.com/ChewingGlass)! - Harden the native fast-path admin handlers. The
+  `update_amm_spread_adjustment_native` instruction now requires the program
+  `State` account: `getUpdateAmmSpreadAdjustmentNativeIx` is now **async** and
+  returns a `Promise<TransactionInstruction>` (it derives and appends the state
+  account), and its compute-unit budget was raised to cover the on-chain account
+  validation. Direct callers must `await` the builder. Two new program error
+  codes are surfaced in the IDL: `InvalidNativeStateAccount` (6355) and
+  `InvalidNativePerpMarketAccount` (6356).
+
+### Patch Changes
+
+- [#173](https://github.com/velocity-exchange/velocity-v1/pull/173) [`2f6c64d`](https://github.com/velocity-exchange/velocity-v1/commit/2f6c64d54f1146d8e7f9ee4ab556929c6bf8b920) Thanks [@ChesterSim](https://github.com/ChesterSim)! - Fix stale `User` account byte offsets in `memcmp` filters and `OrderSubscriber`.
+
+  The Velocity `User` account is 4496 bytes, but the memcmp filters and the
+  `OrderSubscriber` staleness check still used offsets from the older 4376-byte
+  layout. As a result `getUserWithOrderFilter()` matched zero accounts, so any
+  consumer that bulk-loads users-with-orders (e.g. the DLOB server's
+  `OrderSubscriber.fetch()`) loaded no orders and produced an empty order book
+  (vAMM-only L2, empty L3). Offsets for `idle`, `hasOpenOrder`, `hasOpenAuction`,
+  `poolId`, and `lastActiveSlot` are corrected to match the on-chain layout.
+
 ## 0.2.6
 
 ### Patch Changes
