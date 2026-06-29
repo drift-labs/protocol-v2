@@ -323,11 +323,15 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
         &SpotBalanceType::Deposit,
     )?;
 
+    // No depositors to haircut: nothing to socialize against.
+    if total_deposits == 0 {
+        return Ok(0);
+    }
+
     spot_market
         .cumulative_deposit_interest
         .safe_mul(borrow)?
         .safe_div_ceil(total_deposits)
-        .or(Ok(0))
 }
 
 pub fn validate_transfer_satisfies_limit_price(
