@@ -32,4 +32,30 @@ export function registerExchange(parent: Command): void {
 			await client.unsubscribe();
 		}
 	});
+
+	withGlobalOptions(
+		ex
+			.command('set-solvency-status <bitfield>')
+			.description(
+				'Set SolvencyStatus bitfield, gating internal solvency-repair ixs (resolve bankruptcy / pnl-deficit) independently of withdrawals. Cold admin only. 0=active. Bits: 1=solvencyRepairPaused.'
+			)
+	).action(async (bitfield: string, _flags, cmd: Command) => {
+		const opts = readGlobalOpts(cmd);
+		const provider = buildProvider(opts);
+		const client = await buildAdminClient(opts);
+		try {
+			const ix = await client.getUpdateSolvencyStatusIx(
+				Number.parseInt(bitfield, 10)
+			);
+			const result = await sendOrPropose(
+				provider,
+				[ix],
+				opts.multisig ? new PublicKey(opts.multisig) : undefined,
+				'velocity-admin exchange set-solvency-status'
+			);
+			reportDispatch(`solvency status = ${bitfield}`, result);
+		} finally {
+			await client.unsubscribe();
+		}
+	});
 }

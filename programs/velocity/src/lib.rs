@@ -1631,6 +1631,13 @@ pub mod velocity {
         handle_update_exchange_status(ctx, exchange_status)
     }
 
+    pub fn update_solvency_status(
+        ctx: Context<ColdAdminUpdateState>,
+        solvency_status: u8,
+    ) -> Result<()> {
+        handle_update_solvency_status(ctx, solvency_status)
+    }
+
     pub fn update_perp_auction_duration(
         ctx: Context<AdminUpdateState>,
         min_perp_auction_duration: u8,

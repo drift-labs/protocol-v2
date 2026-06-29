@@ -1825,7 +1825,7 @@ pub fn handle_set_user_status_to_being_liquidated<'c: 'info, 'info>(
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
+    solvency_repair_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
     ctx: Context<'info, ResolvePerpPnlDeficit<'info>>,
@@ -1970,7 +1970,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
+    solvency_repair_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
     ctx: Context<'info, ResolveBankruptcy<'info>>,
@@ -2103,7 +2103,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
+    solvency_repair_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
     ctx: Context<'info, ResolveBankruptcy<'info>>,

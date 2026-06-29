@@ -11075,6 +11075,35 @@ export type Velocity = {
       ]
     },
     {
+      "name": "updateSolvencyStatus",
+      "discriminator": [
+        81,
+        136,
+        15,
+        6,
+        24,
+        165,
+        44,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "state",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "solvencyStatus",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateSpecialUserStatus",
       "discriminator": [
         23,
@@ -23224,6 +23253,16 @@ export type Velocity = {
             "type": "u8"
           },
           {
+            "name": "solvencyStatus",
+            "docs": [
+              "Bitmask of `SolvencyStatus` flags. Gates internal solvency-repair flows",
+              "(bankruptcy / pnl-deficit resolution) independently of `WithdrawPaused`,",
+              "so user withdrawals can be halted while repair keeps running, or repair",
+              "can be frozen on its own when an oracle is suspect. `0` = repair allowed."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "protocolFeeRecipientPerp",
             "docs": [
               "Treasury that PERP protocol fees (quote-denominated) may be withdrawn",
@@ -23257,7 +23296,7 @@ export type Velocity = {
             "type": {
               "array": [
                 "u8",
-                272
+                271
               ]
             }
           }

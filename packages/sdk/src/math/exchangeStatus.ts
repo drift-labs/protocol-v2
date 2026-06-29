@@ -7,6 +7,7 @@ import {
 	ExchangeStatus,
 	PerpMarketAccount,
 	PerpOperation,
+	SolvencyStatus,
 	SpotMarketAccount,
 	SpotOperation,
 	StateAccount,
@@ -18,6 +19,15 @@ import { BN } from '../isomorphic/anchor';
 
 export function exchangePaused(state: StateAccount): boolean {
 	return state.exchangeStatus !== ExchangeStatus.ACTIVE;
+}
+
+// Mirror of the program's `State::solvency_repair_paused`. Gates the resolve
+// bankruptcy / pnl-deficit instructions, independent of WITHDRAW_PAUSED.
+export function solvencyRepairPaused(state: StateAccount): boolean {
+	return (
+		(state.solvencyStatus & SolvencyStatus.SOLVENCY_REPAIR_PAUSED) ===
+		SolvencyStatus.SOLVENCY_REPAIR_PAUSED
+	);
 }
 
 export function fillPaused(

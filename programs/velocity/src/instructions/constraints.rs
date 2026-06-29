@@ -137,6 +137,14 @@ pub fn withdraw_not_paused(state: &AccountLoader<State>) -> anchor_lang::Result<
     Ok(())
 }
 
+pub fn solvency_repair_not_paused(state: &AccountLoader<State>) -> anchor_lang::Result<()> {
+    let state = state.load()?;
+    if state.solvency_repair_paused()? {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
 pub fn settle_pnl_not_paused(state: &AccountLoader<State>) -> anchor_lang::Result<()> {
     let state = state.load()?;
     if state

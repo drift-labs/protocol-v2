@@ -68,7 +68,8 @@ use crate::{
         spot_market::{AssetTier, InsuranceFund, SpotBalanceType, SpotMarket, TokenProgramFlag},
         spot_market_map::get_writable_spot_market_set,
         state::{
-            ExchangeStatus, FeeStructure, HotRole, LpPoolFeatureBitFlags, OracleGuardRails, State,
+            ExchangeStatus, FeeStructure, HotRole, LpPoolFeatureBitFlags, OracleGuardRails,
+            SolvencyStatus, State,
         },
         traits::Size,
         user::{MarketType, SpecialUserStatus, User, UserStats},
@@ -147,7 +148,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         max_initialize_user_fee: 0,
         feature_bit_flags: 0,
         lp_pool_feature_bit_flags: 0,
-        padding: [0; 272],
+        solvency_status: SolvencyStatus::active(),
+        padding: [0; 271],
     };
 
     Ok(())
@@ -2939,6 +2941,20 @@ pub fn handle_update_exchange_status(
         exchange_status
     );
     state.exchange_status = exchange_status;
+    Ok(())
+}
+
+pub fn handle_update_solvency_status(
+    ctx: Context<ColdAdminUpdateState>,
+    solvency_status: u8,
+) -> Result<()> {
+    let mut state = ctx.accounts.state.load_mut()?;
+    msg!(
+        "solvency_status: {:?} -> {:?}",
+        state.solvency_status,
+        solvency_status
+    );
+    state.solvency_status = solvency_status;
     Ok(())
 }
 

@@ -37,6 +37,7 @@ velocity-admin spot-market set-guard-threshold <market> <threshold>
 velocity-admin spot-market set-fee-factors <market> <ifFeeFactor> <protocolFeeFactor>
 
 velocity-admin exchange set-status <bitfield>
+velocity-admin exchange set-solvency-status <bitfield>  # cold admin; gates solvency-repair ixs (1=solvencyRepairPaused)
 
 velocity-admin fees set-recipient <pubkey> <perp|spot>           # cold admin
 velocity-admin fees set-split <ammFeeNumerator> <ifFeeNumerator> # cold admin

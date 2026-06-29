@@ -560,6 +560,7 @@ export const mockStateAccount: StateAccount = {
 	protocolFeeRecipientSpot: PublicKey.default,
 	featureBitFlags: 0,
 	lpPoolFeatureBitFlags: 0,
+	solvencyStatus: 0,
 	defaultMarketOrderTimeInForce: 0,
 	defaultSpotAuctionDuration: 0,
 	discountMint: PublicKey.default,

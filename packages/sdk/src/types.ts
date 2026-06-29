@@ -39,6 +39,13 @@ export enum ExchangeStatus {
 	PAUSED = 255,
 }
 
+// Mirror of the Rust `SolvencyStatus` bitflag (State.solvencyStatus). Gates
+// internal solvency-repair flows independently of ExchangeStatus.WITHDRAW_PAUSED.
+export enum SolvencyStatus {
+	ACTIVE = 0,
+	SOLVENCY_REPAIR_PAUSED = 1,
+}
+
 export enum FeatureBitFlags {
 	MM_ORACLE_UPDATE = 1,
 	MEDIAN_TRIGGER_PRICE = 2,
@@ -771,6 +778,7 @@ export type StateAccount = {
 	maxInitializeUserFee: number;
 	featureBitFlags: number;
 	lpPoolFeatureBitFlags: number;
+	solvencyStatus: number;
 };
 
 export type PerpMarketAccount = {

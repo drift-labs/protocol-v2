@@ -22,6 +22,7 @@ import {
 	OracleGuardRails,
 	OracleSource,
 	ExchangeStatus,
+	SolvencyStatus,
 	MarketStatus,
 	ContractTier,
 	AssetTier,
@@ -3214,6 +3215,33 @@ export class AdminClient extends VelocityClient {
 		exchangeStatus: ExchangeStatus
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateExchangeStatus(exchangeStatus, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().coldAdmin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
+	public async updateSolvencyStatus(
+		solvencyStatus: SolvencyStatus
+	): Promise<TransactionSignature> {
+		const updateSolvencyStatusIx = await this.getUpdateSolvencyStatusIx(
+			solvencyStatus
+		);
+
+		const tx = await this.buildTransaction(updateSolvencyStatusIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSolvencyStatusIx(
+		solvencyStatus: SolvencyStatus
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateSolvencyStatus(solvencyStatus, {
 			accounts: {
 				admin: this.isSubscribed
 					? this.getStateAccount().coldAdmin

@@ -69,6 +69,11 @@ pub struct State {
     pub max_initialize_user_fee: u16,
     pub feature_bit_flags: u8,
     pub lp_pool_feature_bit_flags: u8,
+    /// Bitmask of `SolvencyStatus` flags. Gates internal solvency-repair flows
+    /// (bankruptcy / pnl-deficit resolution) independently of `WithdrawPaused`,
+    /// so user withdrawals can be halted while repair keeps running, or repair
+    /// can be frozen on its own when an oracle is suspect. `0` = repair allowed.
+    pub solvency_status: u8,
     /// Treasury that PERP protocol fees (quote-denominated) may be withdrawn
     /// to. Settable only by `cold_admin`. `withdraw_protocol_fees_perp` pays
     /// this key's associated token account (recipient-locked).
@@ -83,7 +88,7 @@ pub struct State {
     /// Hot key authorized for the `FeeWithdraw` role (triggers protocol-fee
     /// withdrawals to the configured recipients).
     pub hot_fee_withdraw: Pubkey,
-    pub padding: [u8; 272],
+    pub padding: [u8; 271],
 }
 
 /// Purpose-specific hot role keys held on `State`. Each variant maps to one of the
@@ -120,6 +125,22 @@ pub enum ExchangeStatus {
 impl ExchangeStatus {
     pub fn active() -> u8 {
         BitFlags::<ExchangeStatus>::empty().bits() as u8
+    }
+}
+
+/// Pause flags for internal solvency-repair flows, stored in `State::solvency_status`.
+/// Kept separate from `ExchangeStatus` (which is a full u8) so repair can be gated
+/// independently of user withdrawals.
+#[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
+pub enum SolvencyStatus {
+    // Active = 0b00000000
+    SolvencyRepairPaused = 0b00000001,
+    // Paused = 0b11111111
+}
+
+impl SolvencyStatus {
+    pub fn active() -> u8 {
+        BitFlags::<SolvencyStatus>::empty().bits() as u8
     }
 }
 
@@ -166,7 +187,8 @@ impl Default for State {
             max_initialize_user_fee: 0,
             feature_bit_flags: 0,
             lp_pool_feature_bit_flags: 0,
-            padding: [0; 272],
+            solvency_status: 0,
+            padding: [0; 271],
         }
     }
 }
@@ -192,6 +214,16 @@ impl State {
         Ok(self
             .get_exchange_status()?
             .contains(ExchangeStatus::FundingPaused))
+    }
+
+    pub fn get_solvency_status(&self) -> VelocityResult<BitFlags<SolvencyStatus>> {
+        BitFlags::<SolvencyStatus>::from_bits(usize::from(self.solvency_status)).safe_unwrap()
+    }
+
+    pub fn solvency_repair_paused(&self) -> VelocityResult<bool> {
+        Ok(self
+            .get_solvency_status()?
+            .contains(SolvencyStatus::SolvencyRepairPaused))
     }
 
     pub fn max_number_of_sub_accounts(&self) -> u64 {
@@ -355,10 +387,10 @@ pub enum LpPoolFeatureBitFlags {
 impl Size for State {
     // 8 (disc) + 13 Pubkey (cold + warm + pause + 10 hot, 416 B) + 7 Pubkey (mint/signer/srm
     // + protocol_fee_recipient_perp/_spot + hot_fee_withdraw, 224 B) + 2*FeeStructure
-    // + OracleGuardRails + scalars + padding[272] = 1752 B. hot_if_rebalance was removed
-    // with the if-rebalance machinery (its 32 B went into the padding);
-    // protocol_fee_recipient_spot later took 32 B back out. SIZE stays constant and
-    // (SIZE - 8) % 16 == 0 holds (1744).
+    // + OracleGuardRails + scalars + solvency_status[1] + padding[271] = 1752 B.
+    // hot_if_rebalance was removed with the if-rebalance machinery (its 32 B went into
+    // the padding); protocol_fee_recipient_spot later took 32 B back out; solvency_status
+    // took 1 B out of the padding. SIZE stays constant and (SIZE - 8) % 16 == 0 holds (1744).
     const SIZE: usize = 1752;
 }
 
