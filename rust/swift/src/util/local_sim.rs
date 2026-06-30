@@ -7,20 +7,14 @@
 //!
 //! Replaces the deleted `velocity_rs::ffi::simulate_place_perp_order`.
 
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anchor_lang::AccountDeserialize;
-use solana_account_info::AccountInfo;
 use solana_clock::Clock;
-use solana_pubkey::Pubkey;
 use velocity_rs::program::{
     controller::orders::place_perp_order,
     error::{ErrorCode, VelocityResult},
-    sdk::{OwnedAccount, VelocityAccounts},
+    sdk::{build_infos, VelocityAccounts},
     state::{
         oracle_map::OracleMap,
         order_params::{OrderParams, PlaceOrderOptions},
@@ -30,25 +24,6 @@ use velocity_rs::program::{
         user::User,
     },
 };
-
-#[allow(deprecated)]
-fn account_info_from<'a>(slot: &'a mut (Pubkey, OwnedAccount)) -> AccountInfo<'a> {
-    let (ref key, ref mut acc) = *slot;
-    AccountInfo {
-        key,
-        lamports: Rc::new(RefCell::new(&mut acc.lamports)),
-        data: Rc::new(RefCell::new(acc.data.as_mut_slice())),
-        owner: &acc.owner,
-        _unused: 0,
-        is_signer: false,
-        is_writable: true,
-        executable: acc.executable,
-    }
-}
-
-fn build_infos<'a>(entries: &'a mut [(Pubkey, OwnedAccount)]) -> Vec<AccountInfo<'a>> {
-    entries.iter_mut().map(account_info_from).collect()
-}
 
 /// Off-chain replay of `place_perp_order`.
 ///
