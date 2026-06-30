@@ -5,25 +5,29 @@ This example demonstrates how to subscribe to the VelocityClient with callbacks 
 ## Overview
 
 This example shows how to:
+
 - Subscribe to Velocity market updates using the callback system
-- Deserialize market account data 
+- Deserialize market account data
 - Access AMM fields like `base_asset_amount_with_amm`
 - Handle market updates efficiently
 
 ## Usage
 
 ### Quick Start (Mainnet)
+
 ```bash
 cd examples/velocity-client-callbacks
 cargo run
 ```
 
 ### With Custom RPC Endpoint
+
 ```bash
 RPC_URL=https://your-rpc-endpoint.com cargo run
 ```
 
 ### Configuration Options
+
 ```bash
 # Run for 60 seconds
 cargo run -- --duration 60
@@ -37,6 +41,7 @@ RUST_LOG=debug cargo run
 ## Callback Implementation
 
 ### Subscribing to Market Updates
+
 ```rust
 // Subscribe to perp markets with a callback
 client.subscribe_markets_with_callback(&markets, Some(|update| {
@@ -46,6 +51,7 @@ client.subscribe_markets_with_callback(&markets, Some(|update| {
 ```
 
 ### Processing Market Data
+
 ```rust
 // Callback to process market updates
 let callback = move |update: &AccountUpdate| {
@@ -54,7 +60,7 @@ let callback = move |update: &AccountUpdate| {
         Ok(market) => {
             println!(
                 "Market {}: base_asset_amount_with_amm = {}",
-                market.market_index, 
+                market.market_index,
                 market.amm.base_asset_amount_with_amm
             );
         }
@@ -68,20 +74,31 @@ let callback = move |update: &AccountUpdate| {
 ## Important Gotchas and Considerations
 
 ### 1. **Account Data Deserialization**
-- Market account data can be deserialized directly using `try_deserialize`
-- Handle deserialization errors gracefully - not all updates may be valid
+
+- Decode zero-copy accounts (`PerpMarket`, `SpotMarket`, `User`, …) with the
+  SDK's alignment-safe readers — `velocity_rs::utils::try_deser_zero_copy::<T>(data)`
+  (or `deser_zero_copy`), or `client.get_account::<T>(..)` / the account-map
+  getters. Do **not** use anchor's `T::try_deserialize` on raw account bytes:
+  for 16-byte-aligned accounts (those with `u128`/`i128` fields, e.g.
+  `PerpMarket`/`SpotMarket`) it casts by reference and panics on the
+  byte-aligned `Vec<u8>` an update carries
+  (`from_bytes` → `TargetAlignmentGreaterAndInputNotAligned`).
+- Handle deserialization errors gracefully — not all updates may be valid
 
 ### 2. **Callback Lifetime and State**
+
 - Callbacks capture state by value or reference
 - Use `Arc<Mutex<>>` for shared mutable state across callbacks
 - Callbacks run on the subscription thread - avoid blocking operations
 
 ### 3. **Subscription Management**
+
 - Always call `unsubscribe()` when done to clean up resources
 - Subscriptions auto-reconnect on network issues
 - Multiple callbacks can subscribe to the same market
 
 ### 4. **Performance Considerations**
+
 - Callbacks execute synchronously - keep them fast
 - Heavy computation should be offloaded to separate tasks
 - Consider batching updates if processing is expensive

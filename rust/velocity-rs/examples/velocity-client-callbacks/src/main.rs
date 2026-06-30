@@ -1,15 +1,14 @@
-use anchor_lang::AccountDeserialize;
 use clap::Parser;
 use dotenv;
-use velocity_rs::math::constants::BASE_PRECISION_I128;
-use velocity_rs::types::{accounts::PerpMarket, AccountUpdate, Context};
-use velocity_rs::{VelocityClient, RpcClient, Wallet};
 use env_logger;
 use futures_util::future::FutureExt;
 use rust_decimal::Decimal;
 use std::env;
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
+use velocity_rs::math::constants::BASE_PRECISION_I128;
+use velocity_rs::types::{accounts::PerpMarket, AccountUpdate, Context};
+use velocity_rs::{RpcClient, VelocityClient, Wallet};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -64,10 +63,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Deserialize PerpMarket from account data
+/// Deserialize PerpMarket from account data.
+///
+/// `PerpMarket` is a 16-byte-aligned zero-copy account (it has `u128`/`i128`
+/// fields). Anchor's `try_deserialize` casts the body by reference, which panics
+/// on the byte-aligned `Vec<u8>` an account update carries (`from_bytes` ->
+/// `TargetAlignmentGreaterAndInputNotAligned`). Use the SDK's alignment-safe
+/// reader, which copies into an owned, correctly-aligned `PerpMarket`.
 fn deserialize_perp_market(data: &[u8]) -> Result<PerpMarket, Box<dyn std::error::Error>> {
-    let market = PerpMarket::try_deserialize(&mut &data[..])?;
-    Ok(market)
+    velocity_rs::utils::try_deser_zero_copy::<PerpMarket>(data)
+        .ok_or_else(|| "failed to deserialize PerpMarket".into())
 }
 
 /// Monitor markets and print market_index and base_asset_amount_with_amm

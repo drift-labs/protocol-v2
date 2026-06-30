@@ -1635,8 +1635,12 @@ impl VelocityClientBackend {
             if account_data.is_empty() {
                 return Err(SdkError::NoAccountData(*account));
             }
-            T::try_deserialize(&mut account_data.as_slice())
-                .map_err(|err| SdkError::Anchor(Box::new(err)))
+            // Decode with the alignment-safe Pod reader (an unaligned copy into
+            // an owned `T`), the same path the cache hit above uses. Anchor's
+            // `T::try_deserialize` would `bytemuck::from_bytes` by reference into
+            // these byte-aligned RPC bytes and panic for 16-aligned zero-copy
+            // structs (PerpMarket/SpotMarket) off-chain.
+            crate::utils::try_deser_zero_copy::<T>(&account_data).ok_or(SdkError::InvalidAccount)
         }
     }
 
@@ -1651,8 +1655,10 @@ impl VelocityClientBackend {
             let (account, slot) = self.get_account_with_slot_raw(account).await?;
             Ok(DataAndSlot {
                 slot,
-                data: T::try_deserialize(&mut account.data.as_slice())
-                    .map_err(|err| SdkError::Anchor(Box::new(err)))?,
+                // Alignment-safe Pod reader (see `get_account`); avoids anchor's
+                // by-reference `from_bytes` panic on 16-aligned zero-copy structs.
+                data: crate::utils::try_deser_zero_copy::<T>(&account.data)
+                    .ok_or(SdkError::InvalidAccount)?,
             })
         }
     }
