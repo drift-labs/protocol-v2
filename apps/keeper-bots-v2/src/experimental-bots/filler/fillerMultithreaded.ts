@@ -8,6 +8,7 @@ import {
 	DLOBNode,
 	VelocityClient,
 	FeeTier,
+	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 	getUserWithoutOrderFilter,
 	isFillableByVAMM,
@@ -319,11 +320,8 @@ export class FillerMultithreaded {
 		});
 
 		this.subaccount = config.subaccount ?? 0;
-		if (!this.velocityClient.hasUser(this.subaccount)) {
-			throw new Error(
-				`User account not found for subaccount: ${this.subaccount}`
-			);
-		}
+		// The on-chain user account for this.subaccount may not exist yet on a
+		// fresh deployment; it is created (or added to client tracking) in init().
 
 		this.runtimeSpec = runtimeSpec;
 		this.initializeMetrics(config.metricsPort ?? this.globalConfig.metricsPort);
@@ -426,6 +424,8 @@ export class FillerMultithreaded {
 	}
 
 	async init() {
+		await this.ensureUserAccount();
+
 		await this.blockhashSubscriber.subscribe();
 		await this.priorityFeeSubscriber.subscribe();
 		await this.pythLazerSubscriber?.subscribe();
@@ -446,6 +446,67 @@ export class FillerMultithreaded {
 		);
 		assert(this.lookupTableAccounts, 'Lookup table account not found');
 		this.startProcesses();
+	}
+
+	/**
+	 * Ensure the on-chain user account for the configured subaccount exists and
+	 * is tracked by the client. On a fresh deployment the account won't exist
+	 * yet, so create it (and bootstrap sub-0 + UserStats first if needed, since
+	 * initializing any subaccount requires UserStats to exist). If it already
+	 * exists on chain but isn't tracked, just add it to the client.
+	 */
+	private async ensureUserAccount(): Promise<void> {
+		if (this.velocityClient.hasUser(this.subaccount)) {
+			return;
+		}
+
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.velocityClient.program.programId,
+			this.velocityClient.wallet.publicKey,
+			this.subaccount
+		);
+		const accountInfo = await this.velocityClient.connection.getAccountInfo(
+			userAccountPublicKey
+		);
+
+		if (!accountInfo) {
+			// InitializeUser for any subaccount requires UserStats to exist, but
+			// only initializeUserAccount(0) creates UserStats. A fresh wallet has
+			// neither, so bootstrap sub-0 + UserStats first, then the configured
+			// subaccount. (initializeUserAccount also adds the user to the client.)
+			const userStatsPublicKey = getUserStatsAccountPublicKey(
+				this.velocityClient.program.programId,
+				this.velocityClient.wallet.publicKey
+			);
+			const userStatsInfo = await this.velocityClient.connection.getAccountInfo(
+				userStatsPublicKey
+			);
+			if (!userStatsInfo) {
+				logger.info(
+					`${this.name}: UserStats does not exist; initializing sub-0 + UserStats`
+				);
+				await this.velocityClient.initializeUserAccount(0);
+			}
+			if (this.subaccount !== 0) {
+				logger.info(
+					`${this.name}: Subaccount ${
+						this.subaccount
+					} user account ${userAccountPublicKey.toBase58()} does not exist; initializing`
+				);
+				const [txSig] = await this.velocityClient.initializeUserAccount(
+					this.subaccount,
+					`filler-${this.subaccount}`
+				);
+				logger.info(
+					`${this.name}: Initialized subaccount ${this.subaccount} user account in tx: ${txSig}`
+				);
+			}
+		} else if (!this.velocityClient.hasUser(this.subaccount)) {
+			logger.info(
+				`${this.name}: Adding subaccount ${this.subaccount} to velocityClient`
+			);
+			await this.velocityClient.addUser(this.subaccount);
+		}
 	}
 
 	private startProcesses() {
