@@ -1,5 +1,11 @@
 # @velocity-exchange/keeper-bots-v2
 
+## 0.2.0
+
+### Minor Changes
+
+- [#178](https://github.com/velocity-exchange/velocity-v1/pull/178) [`e3bfa3d`](https://github.com/velocity-exchange/velocity-v1/commit/e3bfa3ddfc39dc12556c45da51516734b3697e83) Thanks [@jonthia-drift](https://github.com/jonthia-drift)! - Added auto account creation for filler multithreaded bot
+
 ## 0.1.10
 
 ### Patch Changes
