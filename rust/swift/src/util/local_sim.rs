@@ -14,7 +14,7 @@ use solana_clock::Clock;
 use velocity_rs::program::{
     controller::orders::place_perp_order,
     error::{ErrorCode, VelocityResult},
-    sdk::{build_infos, VelocityAccounts},
+    sdk::{build_infos, AlignedAccountData, VelocityAccounts},
     state::{
         oracle_map::OracleMap,
         order_params::{OrderParams, PlaceOrderOptions},
@@ -29,8 +29,17 @@ use velocity_rs::program::{
 ///
 /// `user` is cloned before the call so the caller's value is not mutated,
 /// matching the pre-FFI-removal behavior. `state_bytes` is the raw cached
-/// state-account bytes (including 8-byte discriminator) — velocity's native
-/// `State` is Borsh-only and not safely castable from the Pod IDL mirror.
+/// state-account bytes (including 8-byte discriminator).
+///
+/// `State` is a `#[account(zero_copy)]` struct (embeds `FeeStructure` /
+/// `OracleGuardRails`, which hold `u128`/`i128`), so off-chain on x86_64 it is
+/// 16-aligned and its `try_deserialize` casts the body **by reference**
+/// (`bytemuck::from_bytes(&data[8..])`). The raw `state_bytes` arrive in a plain
+/// allocation that's 16-aligned only at the *base*, so `&data[8..]` sits at
+/// `8 mod 16` and the cast panics (`TargetAlignmentGreaterAndInputNotAligned`).
+/// Copy once into an [`AlignedAccountData`] buffer (body at `base + 16`) so the
+/// cast lands on a 16-byte boundary — the same treatment the market/oracle
+/// accounts get in `AccountsListBuilder`.
 pub fn simulate_place_perp_order(
     user: &User,
     accounts: &mut VelocityAccounts,
@@ -38,7 +47,8 @@ pub fn simulate_place_perp_order(
     order_params: OrderParams,
     max_margin_ratio: Option<u16>,
 ) -> VelocityResult<()> {
-    let state = NativeState::try_deserialize(&mut &*state_bytes)
+    let state_aligned = AlignedAccountData::from_bytes(state_bytes);
+    let state = NativeState::try_deserialize(&mut state_aligned.as_slice())
         .map_err(|_| ErrorCode::UnableToLoadAccountLoader)?;
 
     let mut user = user.clone();

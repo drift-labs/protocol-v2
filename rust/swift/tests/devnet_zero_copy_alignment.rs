@@ -48,6 +48,7 @@ use velocity_rs::program::state::{
     perp_market_map::PerpMarketMap,
     spot_market::SpotMarket,
     spot_market_map::SpotMarketMap,
+    state::State,
     traits::{MarketIndexOffset, Size},
 };
 use velocity_rs::Pubkey;
@@ -139,6 +140,59 @@ fn spot_market_loads_through_program_account_loader() {
     let map = SpotMarketMap::load(&Default::default(), &mut infos.iter().peekable()).unwrap();
     let market = map.get_ref(&3).unwrap();
     assert_eq!(market.market_index, 3);
+}
+
+#[test]
+fn state_deserializes_through_aligned_buffer() {
+    // The gap that survived the first fix: `State` is also `#[account(zero_copy)]`
+    // (embeds `FeeStructure`/`OracleGuardRails`, which hold `u128`/`i128`), so
+    // off-chain it is 16-aligned and its `try_deserialize` casts by reference.
+    // `simulate_place_perp_order` deserializes it from raw cached bytes; without
+    // an `AlignedAccountData` buffer the cast panics, exactly the production
+    // failure that the market-only fix missed.
+    assert_eq!(align_of::<State>(), 16);
+
+    let mut raw = vec![0u8; 8 + size_of::<State>()];
+    raw[..8].copy_from_slice(State::DISCRIMINATOR);
+
+    // Aligned buffer (body at base + 16): deserializes without a panic.
+    let aligned = AlignedAccountData::from_bytes(&raw);
+    let result = capture_panic(|| {
+        let _ = State::try_deserialize(&mut aligned.as_slice())
+            .expect("State deserializes from an aligned buffer");
+    });
+    assert!(
+        result.is_ok(),
+        "State must deserialize from an AlignedAccountData buffer, got: {result:?}"
+    );
+}
+
+#[test]
+fn state_by_reference_cast_panics_on_misaligned_buffer() {
+    // The deterministic counterpart: a 16-aligned base sliced `[8..]` puts
+    // `State`'s body at `8 mod 16` and faults the by-reference cast — proving the
+    // alignment matters for `State`, not just the market structs.
+    let total = 8 + size_of::<State>();
+    let words = vec![0u128; total.div_ceil(16)]; // 16-aligned heap allocation
+                                                 // SAFETY: reinterpreting initialized `[u128]` as bytes; all bit patterns valid.
+    let bytes: &[u8] =
+        unsafe { std::slice::from_raw_parts(words.as_ptr() as *const u8, words.len() * 16) };
+    let mut buf = bytes[..total].to_vec();
+    assert_eq!(
+        buf.as_ptr() as usize % 16,
+        0,
+        "buffer base must be 16-aligned"
+    );
+    buf[..8].copy_from_slice(State::DISCRIMINATOR);
+
+    let result = capture_panic(|| {
+        let _ = State::try_deserialize(&mut buf.as_slice());
+    });
+    let msg = result.expect_err("anchor try_deserialize must panic on the misaligned buffer");
+    assert!(
+        msg.contains("TargetAlignmentGreaterAndInputNotAligned"),
+        "expected the production alignment panic, got: {msg:?}"
+    );
 }
 
 #[test]
