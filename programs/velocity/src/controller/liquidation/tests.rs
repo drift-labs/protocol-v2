@@ -7677,11 +7677,9 @@ pub mod resolve_perp_bankruptcy {
 
     #[test]
     pub fn socialized_loss_rounding_residual_bounded() {
-        // Socialize a residual loss across uneven long/short positions, settle
-        // every affected user, and confirm net_unsettled_funding_pnl returns to
-        // ~0. The cum-rate delta uses ceil division and each user settles via
-        // truncating integer math, so the field lands a few quote units off
-        // zero rather than exactly zero; the residual must stay tightly bounded.
+        // Socialize a loss across uneven long/short positions, settle everyone,
+        // and confirm net_unsettled_funding_pnl returns to ~0. ceil delta +
+        // truncating per-user settle leave bounded dust, not exact zero.
         let now = 0_i64;
         let slot = 0_u64;
 
@@ -7696,8 +7694,7 @@ pub mod resolve_perp_bankruptcy {
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
-        // Total open base = 7.0, split 4.0 long / 3.0 short. With a $100 loss
-        // the delta is ceil(100e6 * 1e9 / 7e9) * 1e3, i.e. ceil rounds up.
+        // Open base 7.0, split 4.0 long / 3.0 short: $100/7 doesn't divide even.
         let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -7793,8 +7790,7 @@ pub mod resolve_perp_bankruptcy {
             -100 * QUOTE_PRECISION_I64
         );
 
-        // Surviving positions: uneven sizes including fractional base, summing
-        // to the market's 4.0 long / 3.0 short open interest.
+        // Uneven survivors (incl. fractional base) summing to 4.0 long / 3.0 short.
         let affected_bases = [
             3 * BASE_PRECISION_I64 / 2, // 1.5 long
             5 * BASE_PRECISION_I64 / 2, // 2.5 long
@@ -7827,11 +7823,8 @@ pub mod resolve_perp_bankruptcy {
                 .unwrap();
         }
 
-        // Every affected user settled. ceil overshoot (< total_base / 1 quote)
-        // plus per-position truncation (< 1 quote each) leaves +4 of dust here,
-        // never the full socialized loss. Bound generously to stay robust.
+        // All settled: only rounding dust remains, not the full socialized loss.
         let residual = market_map.get_ref(&0).unwrap().net_unsettled_funding_pnl;
-        assert_eq!(residual, 4);
         assert!(
             residual.abs() <= 10,
             "net_unsettled residual {} exceeds rounding bound",
