@@ -3607,6 +3607,16 @@ pub fn resolve_perp_bankruptcy(
         market.cumulative_funding_rate_short = market
             .cumulative_funding_rate_short
             .safe_sub(cumulative_funding_rate_delta)?;
+
+        // The cum-rate bump makes surviving positions owe `loss_to_socialize`
+        // in aggregate funding. Record it the same way funding accrual does
+        // (net_unsettled_funding_pnl -= protocol funding revenue): without this
+        // the obligation is absent from net_unsettled until users settle, and
+        // calculate_net_user_pnl overstates aggregate user PnL by the socialized
+        // loss in the meantime.
+        market.net_unsettled_funding_pnl = market
+            .net_unsettled_funding_pnl
+            .safe_add(loss_to_socialize.cast()?)?;
     }
 
     // clear bad debt
