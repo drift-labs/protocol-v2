@@ -13,6 +13,17 @@ async fn main() {
     dotenv::dotenv().ok();
     env_logger::init();
 
+    // Build provenance — logged first so a stale-image / build-cache deploy is
+    // obvious from line one (see docker/rust-app.Dockerfile). `BUILD_*` are baked
+    // as ENV at image build; absent for a local `cargo run`.
+    log::info!(
+        target: "startup",
+        "swift-server starting: pkg_version={} build_version={} git_sha={}",
+        env!("CARGO_PKG_VERSION"),
+        std::env::var("BUILD_VERSION").as_deref().unwrap_or("dev"),
+        std::env::var("BUILD_GIT_SHA").as_deref().unwrap_or("unknown"),
+    );
+
     let matches = Command::new("Swift Server")
         .version("1.0")
         .arg(
