@@ -965,7 +965,41 @@ impl ServerParams {
             .disable_rpc_sim
             .load(std::sync::atomic::Ordering::Relaxed)
     }
+    /// Run the off-chain pre-trade simulation, returning `true` only on a clean
+    /// local success. A `false` (build error, sim error, or **panic**) makes the
+    /// caller fall back to RPC simulation — the local sim is best-effort and must
+    /// never take down the request. The native zero-copy loaders cast account
+    /// bytes by reference (`bytemuck::from_bytes`), which panics rather than
+    /// errors on an unexpected layout/alignment; we catch that here, log it, and
+    /// degrade to RPC rather than letting the panic drop the connection (-> 502).
     fn simulate_taker_order_local(
+        &self,
+        order_params: &OrderParams,
+        user: &velocity_rs::types::accounts::User,
+        max_margin_ratio: Option<u16>,
+        context: &RequestContext,
+    ) -> bool {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.simulate_taker_order_local_inner(order_params, user, max_margin_ratio, context)
+        })) {
+            Ok(ok) => ok,
+            Err(panic) => {
+                let msg = panic
+                    .downcast_ref::<String>()
+                    .map(String::as_str)
+                    .or_else(|| panic.downcast_ref::<&str>().copied())
+                    .unwrap_or("<non-string panic payload>");
+                log::error!(
+                    target: "sim",
+                    "{}: local sim panicked, falling back to rpc sim: {msg}",
+                    context.log_prefix
+                );
+                false
+            }
+        }
+    }
+
+    fn simulate_taker_order_local_inner(
         &self,
         order_params: &OrderParams,
         user: &velocity_rs::types::accounts::User,
