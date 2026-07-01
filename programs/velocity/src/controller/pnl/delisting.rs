@@ -2839,8 +2839,11 @@ pub mod delisting_test {
                 market.net_unsettled_funding_pnl,
             )
             .unwrap();
-            assert_eq!(net_pnl, 3449991000);
-            assert_eq!(market.net_unsettled_funding_pnl, 3449991000); //todo?
+            // market fully closed and settled: the socialized loss was
+            // recorded into net_unsettled at bankruptcy and drained back to
+            // zero as the long settled it, leaving no residual user claim.
+            assert_eq!(net_pnl, 0);
+            assert_eq!(market.net_unsettled_funding_pnl, 0);
 
             drop(market);
 

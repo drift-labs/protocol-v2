@@ -634,14 +634,15 @@ async fn jit_auction_filled_by_jit_maker() {
 }
 
 // ---- Scenario 1s / 2s: swift taker submitted to deployed swift server -------
+// Nightly-safe: warn-skips (never fails) if `POST /orders` is non-200 OR the
+// connection drops OR the deployed maker doesn't fill in time. The `POST /orders`
+// 502s that previously kept this `#[ignore]`d were NOT flaky ALB/cloudfront — they
+// were the swift-server panicking in `simulate_place_perp_order`: `State` is
+// `#[account(zero_copy)]` (16-aligned off-chain), so deserializing it from a
+// non-16-aligned buffer panicked with `TargetAlignmentGreaterAndInputNotAligned`
+// and dropped the connection (proxy → 502). Fixed in `swift/src/util/local_sim.rs`
+// (copy into `AlignedAccountData` first); see `swift/tests/devnet_zero_copy_alignment.rs`.
 #[tokio::test]
-// Kept ignored: the swift HTTP server is flaky on devnet. The host is
-// swift.master.velocity.exchange (the WS feed on it works fine for the filler;
-// the swapped `master.swift.…` does NOT resolve), but POST /orders intermittently
-// returns 502 from the ALB/cloudfront (occasionally 422 = up), so it can't be
-// relied on. Un-ignore once the swift HTTP API is stable at SWIFT_HTTP_ENDPOINT
-// (the test already warn-skips on a non-200, so it's safe to enable then).
-#[ignore = "LIVE_INFRA: swift HTTP /orders intermittently 502s on devnet (SWIFT_HTTP_ENDPOINT)"]
 async fn swift_taker_filled_by_deployed_maker() {
     let ctx = TestCtx::new().await;
     let sub_id = SUB_SWIFT;

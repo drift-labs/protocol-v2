@@ -121,6 +121,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ needs.route.outputs.app }}
           build-args: |
             APP_BIN=${{ needs.route.outputs.bin }}
+            GIT_SHA=${{ github.sha }}
+            BUILD_VERSION=${{ needs.route.outputs.version }}
       # Copy the just-pushed image into prod ECR (account 039438368040). See the
       # build-ts job for the rationale; set VELOCITY_PROD_ECR_PUBLISH_ROLE to enable.
       - name: Configure AWS credentials (prod)
