@@ -3644,7 +3644,28 @@ pub fn handle_update_special_user_status(
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(mut)]
+    // Only the designated `state_init_authority` may create the singleton
+    // `State` account, so the one-time init cannot be front-run. This lock is
+    // active *only* on a real mainnet build (`mainnet-beta` on, `anchor-test`
+    // off). Every other build leaves `initialize` open to any admin key:
+    //   - devnet/localnet (`mainnet-beta` off) — free setup, and
+    //   - the integration-test build, which keeps the default `mainnet-beta`
+    //     feature on but adds `anchor-test`, so each test's bankrun wallet can
+    //     still initialize.
+    // The two arms below are exact complements, so exactly one applies per
+    // build. This mirrors the three-way build split used by the keys in
+    // `ids.rs`.
+    //
+    // Anchor honors a single `#[account]` per field, so `mut` is repeated in
+    // both arms rather than shared.
+    #[cfg_attr(
+        any(not(feature = "mainnet-beta"), feature = "anchor-test"),
+        account(mut)
+    )]
+    #[cfg_attr(
+        all(feature = "mainnet-beta", not(feature = "anchor-test")),
+        account(mut, address = crate::ids::state_init_authority::id())
+    )]
     pub admin: Signer<'info>,
     #[account(
         init,

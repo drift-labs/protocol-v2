@@ -75,6 +75,15 @@ pub mod insurance_fund_withdrawal_recipient {
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
 
+/// Authority permitted to call `initialize` (create the singleton global `State`).
+/// On mainnet this is gated to a fixed key so the one-time state init cannot be
+/// front-run by an arbitrary signer; on test/devnet builds the constraint is
+/// dropped so local validators and devnet setup can initialize freely.
+pub mod state_init_authority {
+    use solana_program::declare_id;
+    declare_id!("prpHJmuXnqdaz92tBVdwsqmqyhqPLuq5Km35a5QWco3");
+}
+
 pub mod lighthouse {
     use solana_program::declare_id;
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");
