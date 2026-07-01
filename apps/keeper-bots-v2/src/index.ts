@@ -74,7 +74,7 @@ import { VelocityStateWatcher, StateChecks } from './velocityStateWatcher';
 import { webhookMessage } from './webhook';
 import { PythLazerCrankerBot } from './bots/pythLazerCranker';
 import { JitMaker } from './bots/jitMaker';
-import { JitProxyClient, JitterSniper } from '@drift-labs/jit-proxy/lib';
+import { JitProxyClient, JitterSniper } from '@velocity-exchange/jit-proxy';
 import { JetProxyTxSender } from './bots/common/jetTxSender';
 import { Agent, setGlobalDispatcher } from 'undici';
 import { timedCacheableLookup } from './bots/common/timedLookup';

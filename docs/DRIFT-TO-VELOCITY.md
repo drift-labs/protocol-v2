@@ -96,6 +96,12 @@ npm install @velocity-exchange/sdk
   camelCase: `'PerpMarket'` → `'perpMarket'`, `'SpotMarket'` → `'spotMarket'`, `'User'` →
   `'user'`, etc.
 - Repo tooling moved from yarn to bun (only matters if you build from source).
+- **jit-proxy**: `@drift-labs/jit-proxy` → `@velocity-exchange/jit-proxy`. The client is now
+  vendored in-repo, ported to Anchor 1.0, and built against `@velocity-exchange/sdk`. The
+  upstream package was built against `@drift-labs/sdk` and assumed Drift account layouts (e.g.
+  it read `perpMarketAccount.amm.minOrderSize`, which Velocity removed from perp markets),
+  which crashed the JIT maker on perp taker updates. Same `JitProxyClient` / `JitterSniper` /
+  `JitterShotgun` API; the `driftClient` constructor fields now take a `VelocityClient`.
 - Anchor imports inside the SDK go through an isomorphic layer (`sdk/src/isomorphic/anchor`)
   with separate node/browser builds.
 
@@ -405,6 +411,7 @@ accounts/events with the previous TS shapes should note:
 | #149      | Remove the dead `migrate_referrer` program instruction (handler + accounts struct; entrypoint already removed with the legacy referral model, so no IDL/ABI change) and its non-functional SDK wrappers `VelocityClient.migrateReferrer` / `getMigrateReferrerIx` (§4.3)                                                                                       |
 | #155 | Uniform `UserAccountSubscriber` "not subscribed" contract: gRPC-multi and WebSocket-program subscribers' `getUserAccountAndSlot()` now throw `NotSubscribedError` before `subscribe()` (matching WebSocket/polling), so `User.getUserAccount()` throws when not subscribed and returns `undefined` only when not found; `getUserAccount(AndSlot)OrThrow` message `User account not loaded` → `User account not found` (§4.4)                                                            |
 | #172 | Decouple solvency-repair from withdrawals: new `State.solvency_status` (1 B carved from padding, size unchanged) + `SolvencyStatus` bitflag; `resolve_perp_pnl_deficit`/`resolve_perp_bankruptcy`/`resolve_spot_bankruptcy` now gated by `solvency_repair_not_paused` instead of `WithdrawPaused`; new `update_solvency_status` instruction (cold-admin only); SDK `SolvencyStatus` enum, `StateAccount.solvencyStatus`, `solvencyRepairPaused()` helper, `AdminClient.updateSolvencyStatus` |
+| jit-proxy | Vendor the jit-proxy client into the monorepo as `@velocity-exchange/jit-proxy` (replacing `@drift-labs/jit-proxy`), ported to Anchor 1.0 and built against `@velocity-exchange/sdk`. Fixes a JIT-maker crash where the jitter read `perpMarketAccount.amm.minOrderSize` (removed on Velocity perps); the perp dust guard and synthetic `Order` (no `quoteAssetAmount`) now match Velocity's layout. Same `JitProxyClient`/`JitterSniper`/`JitterShotgun` API; constructor `driftClient` fields take a `VelocityClient` (§4.1) |
 
 ---
 

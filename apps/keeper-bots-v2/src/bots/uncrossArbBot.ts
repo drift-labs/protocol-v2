@@ -23,7 +23,7 @@ import {
 	getBestLimitAskExcludePubKey,
 	getBestLimitBidExcludePubKey,
 } from '../utils';
-import { JitProxyClient } from '@drift-labs/jit-proxy/lib';
+import { JitProxyClient } from '@velocity-exchange/jit-proxy';
 import dotenv = require('dotenv');
 
 dotenv.config();

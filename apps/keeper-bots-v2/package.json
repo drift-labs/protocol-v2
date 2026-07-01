@@ -6,7 +6,7 @@
 	"license": "Apache-2.0",
 	"dependencies": {
 		"@velocity-exchange/common": "0.0.1",
-		"@drift-labs/jit-proxy": "0.21.171",
+		"@velocity-exchange/jit-proxy": "workspace:*",
 		"@opentelemetry/api": "1.7.0",
 		"@opentelemetry/auto-instrumentations-node": "^0.62.1",
 		"@opentelemetry/exporter-prometheus": "0.31.0",

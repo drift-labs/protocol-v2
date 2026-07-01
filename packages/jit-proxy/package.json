@@ -1,0 +1,44 @@
+{
+	"name": "@velocity-exchange/jit-proxy",
+	"version": "0.1.0",
+	"description": "TypeScript SDK for the Velocity jit-proxy program (JIT maker auctions).",
+	"repository": {
+		"type": "git",
+		"url": "git@github.com:velocity-exchange/velocity-v1.git",
+		"directory": "packages/jit-proxy"
+	},
+	"license": "Apache-2.0",
+	"main": "lib/index.js",
+	"types": "lib/index.d.ts",
+	"files": [
+		"lib"
+	],
+	"engines": {
+		"node": ">=20"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"clean": "rm -rf lib",
+		"build": "bun run clean && tsc",
+		"lint": "eslint './src/**/*.ts' --quiet --format unix",
+		"prettify": "prettier --check './src/**/*.ts'",
+		"prettify:fix": "prettier --write './src/**/*.ts'",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@velocity-exchange/sdk": "workspace:*",
+		"tweetnacl-util": "0.15.1"
+	},
+	"peerDependencies": {
+		"@coral-xyz/anchor": "npm:@anchor-lang/core@1.0.1",
+		"@solana/web3.js": "1.98.0"
+	},
+	"devDependencies": {
+		"@coral-xyz/anchor": "npm:@anchor-lang/core@1.0.1",
+		"@types/bn.js": "5.1.6",
+		"@types/node": "^20",
+		"typescript": "5.4.5"
+	}
+}

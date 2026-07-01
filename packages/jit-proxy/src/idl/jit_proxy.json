@@ -1,0 +1,417 @@
+{
+  "address": "J1TnP8zvVxbtF5KFp5xRmWuvG9McnhzmBd9XGfCyuxFP",
+  "metadata": {
+    "name": "jit_proxy",
+    "version": "0.21.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "jit",
+      "discriminator": [
+        99,
+        42,
+        97,
+        140,
+        152,
+        62,
+        167,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "state"
+        },
+        {
+          "name": "user",
+          "writable": true
+        },
+        {
+          "name": "user_stats",
+          "writable": true
+        },
+        {
+          "name": "taker",
+          "writable": true
+        },
+        {
+          "name": "taker_stats",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "drift_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "JitParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "jit_signed_msg",
+      "discriminator": [
+        134,
+        130,
+        156,
+        72,
+        37,
+        120,
+        153,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "state"
+        },
+        {
+          "name": "user",
+          "writable": true
+        },
+        {
+          "name": "user_stats",
+          "writable": true
+        },
+        {
+          "name": "taker",
+          "writable": true
+        },
+        {
+          "name": "taker_stats",
+          "writable": true
+        },
+        {
+          "name": "taker_signed_msg_user_orders",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "drift_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "JitSignedMsgParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "check_order_constraints",
+      "discriminator": [
+        183,
+        174,
+        142,
+        245,
+        5,
+        29,
+        207,
+        2
+      ],
+      "accounts": [
+        {
+          "name": "user"
+        }
+      ],
+      "args": [
+        {
+          "name": "constraints",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "OrderConstraint"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "arb_perp",
+      "discriminator": [
+        116,
+        105,
+        138,
+        99,
+        28,
+        171,
+        39,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "state"
+        },
+        {
+          "name": "user",
+          "writable": true
+        },
+        {
+          "name": "user_stats",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "drift_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_index",
+          "type": "u16"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "BidNotCrossed",
+      "msg": "BidNotCrossed"
+    },
+    {
+      "code": 6001,
+      "name": "AskNotCrossed",
+      "msg": "AskNotCrossed"
+    },
+    {
+      "code": 6002,
+      "name": "TakerOrderNotFound",
+      "msg": "TakerOrderNotFound"
+    },
+    {
+      "code": 6003,
+      "name": "OrderSizeBreached",
+      "msg": "OrderSizeBreached"
+    },
+    {
+      "code": 6004,
+      "name": "NoBestBid",
+      "msg": "NoBestBid"
+    },
+    {
+      "code": 6005,
+      "name": "NoBestAsk",
+      "msg": "NoBestAsk"
+    },
+    {
+      "code": 6006,
+      "name": "NoArbOpportunity",
+      "msg": "NoArbOpportunity"
+    },
+    {
+      "code": 6007,
+      "name": "UnprofitableArb",
+      "msg": "UnprofitableArb"
+    },
+    {
+      "code": 6008,
+      "name": "PositionLimitBreached",
+      "msg": "PositionLimitBreached"
+    },
+    {
+      "code": 6009,
+      "name": "NoFill",
+      "msg": "NoFill"
+    },
+    {
+      "code": 6010,
+      "name": "SignedMsgOrderDoesNotExist",
+      "msg": "SignedMsgOrderDoesNotExist"
+    }
+  ],
+  "types": [
+    {
+      "name": "OrderConstraint",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "max_position",
+            "type": "i64"
+          },
+          {
+            "name": "min_position",
+            "type": "i64"
+          },
+          {
+            "name": "market_index",
+            "type": "u16"
+          },
+          {
+            "name": "market_type",
+            "type": {
+              "defined": {
+                "name": "MarketType"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "JitParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "taker_order_id",
+            "type": "u32"
+          },
+          {
+            "name": "max_position",
+            "type": "i64"
+          },
+          {
+            "name": "min_position",
+            "type": "i64"
+          },
+          {
+            "name": "bid",
+            "type": "i64"
+          },
+          {
+            "name": "ask",
+            "type": "i64"
+          },
+          {
+            "name": "price_type",
+            "type": {
+              "defined": {
+                "name": "PriceType"
+              }
+            }
+          },
+          {
+            "name": "post_only",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "PostOnlyParam"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "JitSignedMsgParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signed_msg_order_uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "max_position",
+            "type": "i64"
+          },
+          {
+            "name": "min_position",
+            "type": "i64"
+          },
+          {
+            "name": "bid",
+            "type": "i64"
+          },
+          {
+            "name": "ask",
+            "type": "i64"
+          },
+          {
+            "name": "price_type",
+            "type": {
+              "defined": {
+                "name": "PriceType"
+              }
+            }
+          },
+          {
+            "name": "post_only",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "PostOnlyParam"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PostOnlyParam",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "MustPostOnly"
+          },
+          {
+            "name": "TryPostOnly"
+          },
+          {
+            "name": "Slide"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Limit"
+          },
+          {
+            "name": "Oracle"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Perp"
+          },
+          {
+            "name": "Spot"
+          }
+        ]
+      }
+    }
+  ]
+}
