@@ -11088,12 +11088,12 @@ export type Velocity = {
       ],
       "accounts": [
         {
-          "name": "admin",
-          "signer": true
-        },
-        {
           "name": "state",
           "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true
         }
       ],
       "args": [

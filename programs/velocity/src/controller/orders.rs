@@ -1133,7 +1133,11 @@ pub fn fill_perp_order(
     let oracle_twap_5min: i64;
     let user_can_skip_duration: bool;
     let oracle_stale_for_margin: bool;
-    let mut amm_is_available: bool = !state.amm_paused()?;
+    let amm_not_globally_paused: bool = !state.amm_paused()?;
+    let mut amm_is_available: bool = amm_not_globally_paused;
+    // AMM JIT in a DLOB match: honors the hard gates but, unlike
+    // `amm_is_available`, not the auction-timing gates (JIT feeds the auction).
+    let amm_jit_allowed: bool;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         validation::perp_market::validate_perp_market(market)?;
@@ -1176,6 +1180,8 @@ pub fn fill_perp_order(
             user_can_skip_duration,
             &mm_oracle_price_data,
         )?;
+        amm_jit_allowed = amm_not_globally_paused
+            && market.amm_fill_gates_ok(safe_oracle_validity, &mm_oracle_price_data)?;
 
         oracle_stale_for_margin = mm_oracle_price_data.get_delay()
             > state
@@ -1343,6 +1349,7 @@ pub fn fill_perp_order(
         now,
         slot,
         amm_is_available,
+        amm_jit_allowed,
         fill_mode,
         oracle_stale_for_margin,
         rev_share_escrow,
@@ -1738,6 +1745,7 @@ fn fulfill_perp_order(
     now: i64,
     slot: u64,
     amm_is_available: bool,
+    amm_jit_allowed: bool,
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
@@ -1846,6 +1854,7 @@ fn fulfill_perp_order(
                     fee_structure,
                     oracle_map,
                     fill_mode.is_liquidation(),
+                    amm_jit_allowed,
                     rev_share_escrow,
                 )?;
                 (fill_base, fill_quote)
@@ -1885,6 +1894,7 @@ fn fulfill_perp_order(
                     fee_structure,
                     oracle_map,
                     fill_mode.is_liquidation(),
+                    amm_jit_allowed,
                     rev_share_escrow,
                 )?;
 
@@ -2848,6 +2858,9 @@ pub fn fulfill_perp_order_step(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
+    // False when a hard gate fires (pause/drawdown/volatility/oracle); blocks
+    // AMM JIT in the Match branch. Excludes auction-timing gates.
+    amm_jit_allowed: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> VelocityResult<(u64, u64, u64)> {
     // ---- 1. Capture taker order fields. ----
@@ -3074,30 +3087,46 @@ pub fn fulfill_perp_order_step(
             let maker_user = maker
                 .as_deref_mut()
                 .ok_or_else(print_error!(ErrorCode::DefaultError))?;
-            let maker_unfilled = maker_user.orders[m_idx].get_base_asset_amount_unfilled(Some(
-                maker_user
-                    .get_perp_position(market_index)?
-                    .base_asset_amount,
-            ))?;
-            let taker_has_limit_price = taker.orders[taker_order_index].has_limit_price(slot)?;
-            let mut amm_jit = crate::vlp::amm::AmmJitQuoter::from_match_context(
-                market,
-                maker_price,
-                taker_direction,
-                valid_oracle_price,
-                target_size,
-                maker_unfilled,
-                taker_has_limit_price,
-            )?;
-            let mut dlob = DlobOrderQuoter::new(&mut maker_user.orders[m_idx]);
-            let mut quoters: Vec<&mut dyn QuoterCommit> = vec![&mut amm_jit, &mut dlob];
-            crate::controller::matching::match_take(
-                &mut quoters,
-                &ctx,
-                taker_direction,
-                target_size,
-                taker_price_for_match,
-            )?
+            // Add the AMM as a JIT maker only when allowed; a hard gate
+            // (pause/drawdown) must keep it off the reserves. Else: DLOB only.
+            if amm_jit_allowed {
+                let maker_unfilled =
+                    maker_user.orders[m_idx].get_base_asset_amount_unfilled(Some(
+                        maker_user
+                            .get_perp_position(market_index)?
+                            .base_asset_amount,
+                    ))?;
+                let taker_has_limit_price =
+                    taker.orders[taker_order_index].has_limit_price(slot)?;
+                let mut amm_jit = crate::vlp::amm::AmmJitQuoter::from_match_context(
+                    market,
+                    maker_price,
+                    taker_direction,
+                    valid_oracle_price,
+                    target_size,
+                    maker_unfilled,
+                    taker_has_limit_price,
+                )?;
+                let mut dlob = DlobOrderQuoter::new(&mut maker_user.orders[m_idx]);
+                let mut quoters: Vec<&mut dyn QuoterCommit> = vec![&mut amm_jit, &mut dlob];
+                crate::controller::matching::match_take(
+                    &mut quoters,
+                    &ctx,
+                    taker_direction,
+                    target_size,
+                    taker_price_for_match,
+                )?
+            } else {
+                let mut dlob = DlobOrderQuoter::new(&mut maker_user.orders[m_idx]);
+                let mut quoters: Vec<&mut dyn QuoterCommit> = vec![&mut dlob];
+                crate::controller::matching::match_take(
+                    &mut quoters,
+                    &ctx,
+                    taker_direction,
+                    target_size,
+                    taker_price_for_match,
+                )?
+            }
         }
     };
 

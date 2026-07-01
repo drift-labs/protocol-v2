@@ -190,6 +190,8 @@ pub mod fulfill_order_with_maker_order {
             fee_structure,
             oracle_map,
             is_liquidation,
+            // Legacy match path always allowed AMM JIT participation.
+            true,
             rev_share_escrow,
         );
         // Restore caller's `maker_stats` so the test can keep using it after.
@@ -3138,6 +3140,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -3389,6 +3392,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -3592,6 +3596,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -3810,6 +3815,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -3992,6 +3998,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -4206,6 +4213,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -4406,6 +4414,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -4559,6 +4568,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -4742,6 +4752,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -5342,6 +5353,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -5602,6 +5614,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,
@@ -5638,6 +5651,208 @@ pub mod fulfill_order {
         assert_eq!(maker_stats.maker_volume_30d, 50_005_000);
         assert_eq!(maker_stats.filler_volume_30d, 50251257); // gets filler volume
         assert!(maker.orders[0].is_available());
+    }
+
+    // `fulfill_with_amm_when_maker_is_filler` with a hard gate firing: the AMM
+    // would JIT the residual, but must not. Only the DLOB maker's half fills;
+    // AMM reserves untouched.
+    #[test]
+    fn amm_jit_suppressed_in_match_when_amm_unavailable() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        create_anchor_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            PythLazerOracle,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                base_spread: 0,
+                amm_jit_intensity: 100,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            order_step_size: 1000,
+            order_tick_size: 1,
+            oracle: oracle_price_key,
+            oracle_source: crate::state::oracle::OracleSource::PythLazer,
+            market_stats: MarketStats {
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+                    ..HistoricalOracleData::default()
+                },
+                ..MarketStats::default()
+            },
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
+                auction_duration: 0,
+                price: 150 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let maker_key = Pubkey::new_unique();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let mut maker = User {
+            authority: maker_authority,
+            orders: get_orders(Order {
+                market_index: 0,
+                post_only: true,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
+                price: 100_010_000 * PRICE_PRECISION_U64 / 1_000_000, // .01 worse than amm
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64 / 2,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let fee_structure = get_fee_structure();
+        let (taker_key, _, filler_key) = get_user_keys();
+
+        let mut taker_stats = UserStats::default();
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+
+        let mut filler = User::default();
+        let mut filler_stats = UserStats::default();
+
+        let order_index = 0;
+
+        // Hard gate firing: both standalone AMM and JIT are off.
+        let amm_is_available = false;
+        let amm_jit_allowed = false;
+
+        let (base_asset_amount, _) = fulfill_perp_order(
+            &mut taker,
+            order_index,
+            &taker_key,
+            &mut taker_stats,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            &[(maker_key, 0, 100_010_000 * PRICE_PRECISION_U64 / 1_000_000)],
+            &mut Some(&mut filler),
+            &filler_key,
+            &mut Some(&mut filler_stats),
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &crate::state::state::ValidityGuardRails::default(),
+            &fee_structure,
+            100 * PRICE_PRECISION_U64,
+            Some(market.market_stats.historical_oracle_data.last_oracle_price),
+            now,
+            slot,
+            amm_is_available,
+            amm_jit_allowed,
+            FillMode::Fill,
+            false,
+            &mut None,
+        )
+        .unwrap();
+
+        // Only the DLOB maker's half fills; the AMM does not JIT the residual.
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2);
+        assert_eq!(
+            taker.perp_positions[0].base_asset_amount,
+            BASE_PRECISION_I64 / 2
+        );
+
+        let maker = makers_and_referrers.get_ref(&maker_key).unwrap();
+        assert_eq!(
+            maker.perp_positions[0].base_asset_amount,
+            -BASE_PRECISION_I64 / 2
+        );
+
+        // The AMM curve and net position are untouched — no JIT swap happened.
+        let market_after = market_map.get_ref(&0).unwrap();
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
+        assert_eq!(
+            market_after.amm.base_asset_reserve,
+            100 * AMM_RESERVE_PRECISION
+        );
+        assert_eq!(
+            market_after.amm.quote_asset_reserve,
+            100 * AMM_RESERVE_PRECISION
+        );
     }
 
     #[test]
@@ -5783,6 +5998,7 @@ pub mod fulfill_order {
             now,
             slot,
             is_amm_available,
+            true,
             FillMode::Fill,
             false,
             &mut None,

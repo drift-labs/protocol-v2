@@ -1044,14 +1044,13 @@ impl PerpMarket {
         )
     }
 
-    pub fn amm_can_fill_order(
+    /// Hard gates suppressing all AMM fills (standalone and JIT): `AmmFill`
+    /// pause, drawdown, MM-oracle volatility, oracle validity. Global
+    /// `amm_paused()` is the caller's. Excludes the auction-timing gates in
+    /// [`Self::amm_can_fill_order`], which JIT bypasses by design.
+    pub fn amm_fill_gates_ok(
         &self,
-        order: &Order,
-        clock_slot: u64,
-        fill_mode: FillMode,
-        state: &State,
         safe_oracle_validity: OracleValidity,
-        user_can_skip_auction_duration: bool,
         mm_oracle_price_data: &MMOraclePriceData,
     ) -> VelocityResult<bool> {
         if self.is_operation_paused(PerpOperation::AmmFill) {
@@ -1088,6 +1087,48 @@ impl PerpMarket {
             msg!("AMM cannot fill order: oracle not valid for low risk fills");
             return Ok(false);
         }
+
+        Ok(true)
+    }
+
+    pub fn amm_can_fill_order(
+        &self,
+        order: &Order,
+        clock_slot: u64,
+        fill_mode: FillMode,
+        state: &State,
+        safe_oracle_validity: OracleValidity,
+        user_can_skip_auction_duration: bool,
+        mm_oracle_price_data: &MMOraclePriceData,
+    ) -> VelocityResult<bool> {
+        Ok(
+            self.amm_fill_gates_ok(safe_oracle_validity, mm_oracle_price_data)?
+                && self.amm_fill_timing_ok(
+                    order,
+                    clock_slot,
+                    fill_mode,
+                    state,
+                    safe_oracle_validity,
+                    user_can_skip_auction_duration,
+                    mm_oracle_price_data,
+                )?,
+        )
+    }
+
+    /// Auction-timing / order-risk half of [`Self::amm_can_fill_order`], run
+    /// after [`Self::amm_fill_gates_ok`]. A low-risk order fills; otherwise the
+    /// AMM only fills immediately (JIT) when it wants to make, has room, and
+    /// can skip the auction. JIT inside a DLOB match bypasses this by design.
+    fn amm_fill_timing_ok(
+        &self,
+        order: &Order,
+        clock_slot: u64,
+        fill_mode: FillMode,
+        state: &State,
+        safe_oracle_validity: OracleValidity,
+        user_can_skip_auction_duration: bool,
+        mm_oracle_price_data: &MMOraclePriceData,
+    ) -> VelocityResult<bool> {
         let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
         let can_fill_low_risk = order.is_low_risk_for_amm(
             safe_oracle_price_data.delay,
@@ -1095,53 +1136,49 @@ impl PerpMarket {
             fill_mode.is_liquidation(),
             user_can_skip_auction_duration,
         )?;
+        if can_fill_low_risk {
+            return Ok(true);
+        }
 
-        // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately
-        let can_fill_order = if can_fill_low_risk {
-            true
-        } else {
-            if !user_can_skip_auction_duration {
-                msg!("AMM cannot fill order: user has paused operations");
-                return Ok(false);
-            }
+        // Higher-risk order: only fillable immediately (JIT).
+        if !user_can_skip_auction_duration {
+            msg!("AMM cannot fill order: user has paused operations");
+            return Ok(false);
+        }
 
-            let oracle_valid_for_can_fill_immediately = is_oracle_valid_for_action(
-                safe_oracle_validity,
-                Some(VelocityAction::FillOrderAmmImmediate),
-            )?;
-            if !oracle_valid_for_can_fill_immediately {
-                msg!("AMM cannot fill order: oracle not valid for immediate fills");
-                return Ok(false);
-            }
-            let amm_wants_to_jit_make = self
-                .amm
-                .amm_wants_to_jit_make(order.direction, self.order_step_size)?;
-            if !amm_wants_to_jit_make {
-                msg!("AMM cannot fill order: AMM does not want to JIT make");
-                return Ok(false);
-            }
+        let oracle_valid_for_can_fill_immediately = is_oracle_valid_for_action(
+            safe_oracle_validity,
+            Some(VelocityAction::FillOrderAmmImmediate),
+        )?;
+        if !oracle_valid_for_can_fill_immediately {
+            msg!("AMM cannot fill order: oracle not valid for immediate fills");
+            return Ok(false);
+        }
 
-            let amm_has_low_enough_inventory = self
-                .amm
-                .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
+        let amm_wants_to_jit_make = self
+            .amm
+            .amm_wants_to_jit_make(order.direction, self.order_step_size)?;
+        if !amm_wants_to_jit_make {
+            msg!("AMM cannot fill order: AMM does not want to JIT make");
+            return Ok(false);
+        }
 
-            if !amm_has_low_enough_inventory {
-                msg!("AMM cannot fill order: AMM has too much inventory");
-                return Ok(false);
-            }
+        let amm_has_low_enough_inventory = self
+            .amm
+            .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
+        if !amm_has_low_enough_inventory {
+            msg!("AMM cannot fill order: AMM has too much inventory");
+            return Ok(false);
+        }
 
-            let amm_can_skip_duration =
-                self.can_skip_auction_duration(state, amm_has_low_enough_inventory)?;
+        let amm_can_skip_duration =
+            self.can_skip_auction_duration(state, amm_has_low_enough_inventory)?;
+        if !amm_can_skip_duration {
+            msg!("AMM cannot fill order: AMM cannot skip duration");
+            return Ok(false);
+        }
 
-            if !amm_can_skip_duration {
-                msg!("AMM cannot fill order: AMM cannot skip duration");
-                return Ok(false);
-            }
-
-            true
-        };
-
-        Ok(can_fill_order)
+        Ok(true)
     }
 }
 
