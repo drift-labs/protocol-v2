@@ -226,18 +226,35 @@ async function main() {
 
 	// Hot-role authorities. The native high-frequency cranks assert
 	// signer == State.hot_<role> before doing work, so each role must hold the
-	// key the corresponding bot signs with. Default to the admin pubkey so a
-	// fresh State is at least operable; set the real keeper keys via env before
-	// the bots go live (or re-run this script, the phase is idempotent).
+	// key the corresponding bot signs with. Roles with a live mainnet keeper
+	// default to that bot's wallet (the infrastructure-v3 gitops/prod
+	// mainnet-beta bot wallets — the same set the gas-station bot tops up);
+	// roles nothing signs yet default to the admin pubkey so a fresh State is
+	// at least operable. Env vars override either way, and the phase is
+	// idempotent so keys can be rotated by re-running.
+	//
+	// mm-oracle-cranker-bot-1 (internal-keeper-bot --mm-oracle-cranker):
+	// signs the native mm-oracle crank.
+	const MM_ORACLE_CRANKER_BOT_WALLET =
+		'orc67EJyobz6pZuMUqgumoV6GgHkiWh42Wy5V9jpH8i';
+	// rust-vamm-cranker-bot (vamm-crank): signs the native amm_spread_adjust
+	// crank.
+	const VAMM_CRANKER_BOT_WALLET =
+		'RAmQrKiGsUhHeGubPmEC165fRKpL5J5jmbF85iCPk4w';
+	// dlp-taker-bot / dlp-watcher-bot shared wallet: on mainnet the taker
+	// signs LPTakerSwap / DepositProgramVault / LP Jupiter swaps with its own
+	// keeper key (the external "lucy" signer is devnet-only).
+	const DLP_TAKER_WATCHER_BOT_WALLET =
+		'DtaKtiYKPLjjYksnD9hHtnxKKTcibDzLz7vDW5zdyn6Z';
 	const hotDefault = keypair.publicKey;
 	const HOT_ROLE_CONFIG: Array<{
 		role: HotRole;
 		field: string;
 		pubkey: PublicKey;
 	}> = [
-		{ role: HotRole.MmOracleCrank, field: 'hotMmOracleCrank', pubkey: process.env.HOT_MM_ORACLE_CRANK ? new PublicKey(process.env.HOT_MM_ORACLE_CRANK) : hotDefault },
-		{ role: HotRole.AmmSpreadAdjust, field: 'hotAmmSpreadAdjust', pubkey: process.env.HOT_AMM_SPREAD_ADJUST ? new PublicKey(process.env.HOT_AMM_SPREAD_ADJUST) : hotDefault },
-		{ role: HotRole.LpSwap, field: 'hotLpSwap', pubkey: process.env.HOT_LP_SWAP ? new PublicKey(process.env.HOT_LP_SWAP) : hotDefault },
+		{ role: HotRole.MmOracleCrank, field: 'hotMmOracleCrank', pubkey: new PublicKey(process.env.HOT_MM_ORACLE_CRANK ?? MM_ORACLE_CRANKER_BOT_WALLET) },
+		{ role: HotRole.AmmSpreadAdjust, field: 'hotAmmSpreadAdjust', pubkey: new PublicKey(process.env.HOT_AMM_SPREAD_ADJUST ?? VAMM_CRANKER_BOT_WALLET) },
+		{ role: HotRole.LpSwap, field: 'hotLpSwap', pubkey: new PublicKey(process.env.HOT_LP_SWAP ?? DLP_TAKER_WATCHER_BOT_WALLET) },
 		{ role: HotRole.LpCache, field: 'hotLpCache', pubkey: process.env.HOT_LP_CACHE ? new PublicKey(process.env.HOT_LP_CACHE) : hotDefault },
 		{ role: HotRole.LpSettle, field: 'hotLpSettle', pubkey: process.env.HOT_LP_SETTLE ? new PublicKey(process.env.HOT_LP_SETTLE) : hotDefault },
 		{ role: HotRole.AmmCrank, field: 'hotAmmCrank', pubkey: process.env.HOT_AMM_CRANK ? new PublicKey(process.env.HOT_AMM_CRANK) : hotDefault },
