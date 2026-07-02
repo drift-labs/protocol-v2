@@ -62,7 +62,12 @@ jobs:
           keypair: ${{ secrets.MAINNET_DEPLOYER_KEYPAIR }}
           buffer-authority: ${{ secrets.MAINNET_MULTISIG_VAULT }}
           # Record an on-chain solana-verify PDA (source proof) in the proposal.
-          export-verify-pda: "true"
+          # DISABLED until this repo is public: `solana-verify export-pda-tx` does an
+          # anonymous `git clone` of repo-url on the runner, which fails for a private
+          # repo ("Failed to clone repository"). The verify PDA is only meaningful once
+          # third parties can clone the source to reproduce the build, so flip this back
+          # to "true" when the repo is open-sourced.
+          export-verify-pda: "false"
           repo-url: ${{ github.server_url }}/${{ github.repository }}
           commit-hash: ${{ github.sha }}
 
