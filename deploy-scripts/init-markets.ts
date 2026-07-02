@@ -18,9 +18,10 @@
  *   4)  per-market post-init:
  *        - repeg AMM to ~1% below live oracle (params peg is a dated reference;
  *          program blocks funding when mark diverges from oracle)
+ *        - set max_open_interest from oi_cap_usd at the live oracle price
+ *          (the init value was computed at a reference-price snapshot)
  *        - oracle_slot_delay_override / curve_update_intensity /
- *          amm_jit_intensity sync (max_open_interest is used exactly as given
- *          in the params file: base 1e9 units, final numbers from backtests)
+ *          amm_jit_intensity sync
  *   5)  global params from the params file `global` section (null = skip)
  *
  * Params-file contract:
@@ -48,6 +49,7 @@ import path from 'path';
 import readline from 'readline';
 import {
   AdminClient,
+  BASE_PRECISION,
   configs,
   ContractTier,
   getAmmCachePublicKey,
@@ -57,6 +59,7 @@ import {
   getVelocityStateAccountPublicKey,
   loadKeypair,
   OracleSource,
+  PRICE_PRECISION,
   PythLazerSubscriber,
   Wallet,
 } from '../packages/sdk/src';
@@ -70,6 +73,9 @@ type MarketParams = {
 	// informational only: feed id for the keeper-bot mm-oracle crank config.
 	// The mm oracle is posted by the native crank; no on-chain field at init.
 	mm_oracle_feed_id: number | null;
+	// USD cap intent; phase 4 derives max_open_interest from it at the live
+	// oracle price. null = keep the init value as-is.
+	oi_cap_usd: number | null;
 	amm_base_asset_reserve: string;
 	amm_quote_asset_reserve: string;
 	amm_peg_multiplier: string;
@@ -120,6 +126,7 @@ type Receipt = {
 			pubkey: string;
 			initTxSig?: string;
 			repegTxSig?: string;
+			maxOpenInterestTxSig?: string;
 		}
 	>;
 	startedAt: string;
@@ -570,6 +577,35 @@ async function main() {
 			await connection.confirmTransaction(sig, 'confirmed');
 			receipt.perpMarkets[idx].repegTxSig = sig;
 			console.log(`  tx: ${sig}`);
+		}
+
+		// --- set max_open_interest from the USD cap at the live oracle price.
+		// The init value was computed at a reference-price snapshot; this holds
+		// the USD intent. usd * 1e6 * 1e9 / price(1e6) = base 1e9. Skip when
+		// within 2% of the on-chain value, or when oi_cap_usd is null.
+		if (m.oi_cap_usd !== null) {
+			const derivedOi = new BN(m.oi_cap_usd)
+				.mul(PRICE_PRECISION)
+				.mul(BASE_PRECISION)
+				.div(oraclePrice);
+			const oiTolerance = derivedOi.divn(50); // 2%
+			if (pm.maxOpenInterest.sub(derivedOi).abs().lte(oiTolerance)) {
+				logStep(
+					`${m.name}: maxOpenInterest within 2% of USD cap; skip`,
+					`onchain=${pm.maxOpenInterest.toString()} derived=${derivedOi.toString()}`
+				);
+			} else {
+				logStep(
+					`updatePerpMarketMaxOpenInterest ${m.name}`,
+					`$${m.oi_cap_usd.toLocaleString()} @ oracle=${oraclePrice.toString()} -> ${derivedOi.toString()} (was ${pm.maxOpenInterest.toString()})`
+				);
+				const sig = await knobsClient.updatePerpMarketMaxOpenInterest(
+					idx,
+					derivedOi
+				);
+				receipt.perpMarkets[idx].maxOpenInterestTxSig = sig;
+				console.log(`  tx: ${sig}`);
+			}
 		}
 
 		// --- oracle slot delay override. Init default -1 clamps the
