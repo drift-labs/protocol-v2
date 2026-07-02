@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import {
+	Connection,
 	Keypair,
 	PublicKey,
 	SystemProgram,
@@ -7,7 +8,9 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	Transaction,
 	TransactionInstruction,
+	TransactionMessage,
 } from '@solana/web3.js';
+import { utils } from '@coral-xyz/anchor';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as multisig from '@sqds/multisig';
@@ -21,6 +24,16 @@ const BPF_LOADER_UPGRADEABLE_PROGRAM_ID = new PublicKey(
 );
 
 /**
+ * ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S — the on-chain program-metadata
+ * program (SIMD-0208). Our release pipeline publishes each program's IDL as a
+ * program-metadata *buffer* owned by this program, alongside the BPF program
+ * buffer; both need closing to reclaim rent.
+ */
+const PROGRAM_METADATA_PROGRAM_ID = new PublicKey(
+	'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'
+);
+
+/**
  * `UpgradeableLoaderState::Buffer` header: 4-byte enum tag + 1-byte `Option`
  * discriminant + 32-byte authority Pubkey = 37 bytes ahead of the bytecode.
  */
@@ -31,6 +44,36 @@ const IX_INITIALIZE_BUFFER = Buffer.from([0, 0, 0, 0]);
 const IX_WRITE = Buffer.from([1, 0, 0, 0]);
 const IX_UPGRADE = Buffer.from([3, 0, 0, 0]);
 const IX_SET_AUTHORITY = Buffer.from([4, 0, 0, 0]);
+const IX_CLOSE = Buffer.from([5, 0, 0, 0]);
+
+/** program-metadata `Close` instruction discriminator (single u8). */
+const IX_METADATA_CLOSE = Buffer.from([6]);
+
+/**
+ * `UpgradeableLoaderState::Buffer` account layout, for a `getProgramAccounts`
+ * memcmp: 4-byte enum tag `[1,0,0,0]` at offset 0, then `Option<Pubkey>`
+ * authority — a 1-byte `Some`/`None` discriminant at offset 4, the 32-byte
+ * authority Pubkey at offset 5.
+ */
+const BPF_BUFFER_TAG = Buffer.from([1, 0, 0, 0]);
+const BPF_BUFFER_AUTHORITY_OFFSET = 5;
+
+/**
+ * program-metadata `Buffer` account layout: 1-byte `AccountDiscriminator`
+ * (`Buffer` = 1) at offset 0, a 32-byte `Option<Address> program` (zeroes when
+ * `None`) at offset 1, then the 32-byte `Option<Address> authority` at offset
+ * 33.
+ */
+const METADATA_BUFFER_TAG = Buffer.from([1]);
+const METADATA_BUFFER_AUTHORITY_OFFSET = 33;
+
+/**
+ * Outer-transaction size budget for a single Squads `vaultTransactionCreate` +
+ * `proposalCreate`. The Solana packet limit is 1232 bytes; we pack close
+ * instructions greedily until the measured outer tx would exceed this, then cut
+ * a new proposal. Kept a touch under 1232 for signature/blockhash headroom.
+ */
+const OUTER_TX_SIZE_BUDGET = 1180;
 
 /**
  * deanmlittle/sbpf-asm-abort `deploy/sbpf-asm-abort.so` (352 bytes). Replaces
@@ -117,6 +160,103 @@ function buildUpgradeIx(args: {
 		],
 		data: IX_UPGRADE,
 	});
+}
+
+/**
+ * BPFLoaderUpgradeable `Close` for a *buffer* account (3 accounts, no program
+ * account). Sends the buffer's rent lamports to `recipient` and zeroes it.
+ * `authority` must be the buffer's current authority and signs.
+ */
+function buildCloseBufferIx(args: {
+	buffer: PublicKey;
+	recipient: PublicKey;
+	authority: PublicKey;
+}): TransactionInstruction {
+	return new TransactionInstruction({
+		programId: BPF_LOADER_UPGRADEABLE_PROGRAM_ID,
+		keys: [
+			{ pubkey: args.buffer, isSigner: false, isWritable: true },
+			{ pubkey: args.recipient, isSigner: false, isWritable: true },
+			{ pubkey: args.authority, isSigner: true, isWritable: false },
+		],
+		data: IX_CLOSE,
+	});
+}
+
+/**
+ * program-metadata `Close` for a standalone metadata *buffer*. The `program`
+ * and `programData` accounts are optional and only supplied when closing a
+ * canonical (program-associated) metadata PDA; for a loose buffer they are
+ * omitted, which the program-metadata client encodes as the program address
+ * itself in those two slots. `authority` signs.
+ */
+function buildCloseMetadataBufferIx(args: {
+	buffer: PublicKey;
+	recipient: PublicKey;
+	authority: PublicKey;
+}): TransactionInstruction {
+	return new TransactionInstruction({
+		programId: PROGRAM_METADATA_PROGRAM_ID,
+		keys: [
+			{ pubkey: args.buffer, isSigner: false, isWritable: true },
+			{ pubkey: args.authority, isSigner: true, isWritable: false },
+			// program / programData placeholders (None) — the program id itself.
+			{
+				pubkey: PROGRAM_METADATA_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{
+				pubkey: PROGRAM_METADATA_PROGRAM_ID,
+				isSigner: false,
+				isWritable: false,
+			},
+			{ pubkey: args.recipient, isSigner: false, isWritable: true },
+		],
+		data: IX_METADATA_CLOSE,
+	});
+}
+
+/** A single buffer discovered on-chain, with its type and reclaimable rent. */
+type DiscoveredBuffer = {
+	address: PublicKey;
+	kind: 'program' | 'metadata';
+	lamports: number;
+};
+
+/**
+ * Find every buffer of `kind` whose authority is `authority`, via a
+ * `getProgramAccounts` memcmp. `dataSlice` length 0 keeps us from downloading
+ * multi-MB bytecode — we only need each buffer's address and lamports.
+ */
+async function findBuffers(
+	connection: Connection,
+	kind: 'program' | 'metadata',
+	authority: PublicKey
+): Promise<DiscoveredBuffer[]> {
+	const programId =
+		kind === 'program'
+			? BPF_LOADER_UPGRADEABLE_PROGRAM_ID
+			: PROGRAM_METADATA_PROGRAM_ID;
+	const tag = kind === 'program' ? BPF_BUFFER_TAG : METADATA_BUFFER_TAG;
+	const authorityOffset =
+		kind === 'program'
+			? BPF_BUFFER_AUTHORITY_OFFSET
+			: METADATA_BUFFER_AUTHORITY_OFFSET;
+
+	const accounts = await connection.getProgramAccounts(programId, {
+		dataSlice: { offset: 0, length: 0 },
+		filters: [
+			{ memcmp: { offset: 0, bytes: utils.bytes.bs58.encode(tag) } },
+			{ memcmp: { offset: authorityOffset, bytes: authority.toBase58() } },
+		],
+	});
+
+	return accounts.map(({ pubkey, account }) => ({
+		address: pubkey,
+		kind,
+		lamports: account.lamports,
+	}));
 }
 
 export function registerProgram(parent: Command): void {
@@ -301,6 +441,191 @@ export function registerProgram(parent: Command): void {
 			);
 		} finally {
 			await client.unsubscribe();
+		}
+	});
+
+	withGlobalOptions(
+		prog
+			.command('close-buffers')
+			.description(
+				[
+					'Close orphaned program + IDL (program-metadata) buffers and reclaim',
+					'their rent. A failed/partial release leaves a ~5 MB BPF program buffer',
+					'(~36 SOL) and its metadata buffer stranded under the multisig vault',
+					'authority; this discovers every buffer owned by that authority and',
+					'batches BPFLoaderUpgradeable::Close + program-metadata::Close into as',
+					'few Squads proposals as fit the tx size limit.',
+					'',
+					'Authority defaults to the multisig vault (with --multisig) or the wallet',
+					'(without). Rent goes to --recipient (default: the authority itself).',
+					'',
+					'WARNING: this also matches the buffers of any *pending, not-yet-executed*',
+					'upgrade proposal (they too are owned by the vault). Review the listed',
+					'buffers — or use --dry-run first — before approving the close proposal.',
+				].join('\n')
+			)
+			.option(
+				'--authority <pubkey>',
+				'buffer authority to search for (defaults to the multisig vault, or the wallet when --multisig is absent)'
+			)
+			.option(
+				'--recipient <pubkey>',
+				'rent recipient (defaults to the authority)'
+			)
+			.option('--program-only', 'only close BPF program buffers')
+			.option('--metadata-only', 'only close program-metadata (IDL) buffers')
+			.option(
+				'--dry-run',
+				'list the buffers that would be closed and exit without proposing'
+			)
+	).action(async (_flags, cmd: Command) => {
+		const opts = readGlobalOpts(cmd);
+		const local = cmd.opts() as {
+			authority?: string;
+			recipient?: string;
+			programOnly?: boolean;
+			metadataOnly?: boolean;
+			dryRun?: boolean;
+		};
+		if (local.programOnly && local.metadataOnly) {
+			throw new Error(
+				'--program-only and --metadata-only are mutually exclusive'
+			);
+		}
+		const provider = buildProvider(opts);
+		const connection = provider.connection;
+		const multisigPda = opts.multisig
+			? new PublicKey(opts.multisig)
+			: undefined;
+
+		// Authority currently owning the buffers (vault under --multisig, else wallet).
+		let authority: PublicKey;
+		if (local.authority) {
+			authority = new PublicKey(local.authority);
+		} else if (multisigPda) {
+			[authority] = multisig.getVaultPda({ multisigPda, index: 0 });
+		} else {
+			authority = provider.wallet.publicKey;
+		}
+		const recipient = local.recipient
+			? new PublicKey(local.recipient)
+			: authority;
+
+		const kinds: ('program' | 'metadata')[] = local.programOnly
+			? ['program']
+			: local.metadataOnly
+			? ['metadata']
+			: ['program', 'metadata'];
+
+		const discovered = (
+			await Promise.all(kinds.map((k) => findBuffers(connection, k, authority)))
+		).flat();
+
+		if (discovered.length === 0) {
+			console.log(`no buffers found with authority ${authority.toBase58()}`);
+			return;
+		}
+
+		const totalLamports = discovered.reduce((s, b) => s + b.lamports, 0);
+		console.log(
+			`found ${
+				discovered.length
+			} buffer(s) with authority ${authority.toBase58()} — reclaimable ${(
+				totalLamports / 1e9
+			).toFixed(6)} SOL:`
+		);
+		for (const b of discovered) {
+			console.log(
+				`  [${
+					b.kind === 'program' ? 'program ' : 'metadata'
+				}] ${b.address.toBase58()}  ${(b.lamports / 1e9).toFixed(6)} SOL`
+			);
+		}
+		console.log(`  rent recipient: ${recipient.toBase58()}`);
+
+		if (local.dryRun) {
+			console.log('--dry-run: not proposing.');
+			return;
+		}
+
+		const closeIxs = discovered.map((b) =>
+			b.kind === 'program'
+				? buildCloseBufferIx({ buffer: b.address, recipient, authority })
+				: buildCloseMetadataBufferIx({
+						buffer: b.address,
+						recipient,
+						authority,
+				  })
+		);
+
+		// Greedily pack closes into batches that stay under the tx size limit.
+		// Measure the actual outer transaction sendOrPropose would submit (a
+		// Squads vaultTransactionCreate + proposalCreate, or a plain tx when
+		// sending directly) so every proposal is guaranteed to fit.
+		const { blockhash } = await connection.getLatestBlockhash();
+		const outerTxSize = (ixs: TransactionInstruction[]): number => {
+			let tx: Transaction;
+			if (multisigPda) {
+				const [vaultPda] = multisig.getVaultPda({ multisigPda, index: 0 });
+				const transactionMessage = new TransactionMessage({
+					payerKey: vaultPda,
+					recentBlockhash: blockhash,
+					instructions: ixs,
+				});
+				const createIx = multisig.instructions.vaultTransactionCreate({
+					multisigPda,
+					transactionIndex: BigInt(1),
+					creator: provider.wallet.publicKey,
+					vaultIndex: 0,
+					ephemeralSigners: 0,
+					transactionMessage,
+					memo: 'velocity-admin close-buffers',
+				});
+				const proposeIx = multisig.instructions.proposalCreate({
+					multisigPda,
+					transactionIndex: BigInt(1),
+					creator: provider.wallet.publicKey,
+				});
+				tx = new Transaction().add(createIx, proposeIx);
+			} else {
+				tx = new Transaction().add(...ixs);
+			}
+			tx.recentBlockhash = blockhash;
+			tx.feePayer = provider.wallet.publicKey;
+			return tx.serialize({
+				requireAllSignatures: false,
+				verifySignatures: false,
+			}).length;
+		};
+
+		const batches: TransactionInstruction[][] = [];
+		let current: TransactionInstruction[] = [];
+		for (const ix of closeIxs) {
+			const trial = [...current, ix];
+			if (current.length > 0 && outerTxSize(trial) > OUTER_TX_SIZE_BUDGET) {
+				batches.push(current);
+				current = [ix];
+			} else {
+				current = trial;
+			}
+		}
+		if (current.length > 0) {
+			batches.push(current);
+		}
+
+		for (let i = 0; i < batches.length; i++) {
+			const result = await sendOrPropose(
+				provider,
+				batches[i],
+				multisigPda,
+				`velocity-admin close-buffers (${i + 1}/${batches.length})`
+			);
+			reportDispatch(
+				`close-buffers batch ${i + 1}/${batches.length} — ${
+					batches[i].length
+				} buffer(s)`,
+				result
+			);
 		}
 	});
 }
