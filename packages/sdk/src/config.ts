@@ -89,7 +89,9 @@ export const configs: { [key in VelocityEnv]: VelocityConfig } = {
 		PYTH_ORACLE_MAPPING_ADDRESS: 'AHtgzX45WTKfkPG53L6WYhGEXwQkN1BVknET3sVsLL8J',
 		VELOCITY_PROGRAM_ID,
 		JIT_PROXY_PROGRAM_ID: 'J1TnP8zvVxbtF5KFp5xRmWuvG9McnhzmBd9XGfCyuxFP',
-		QUOTE_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+		// Relaunch quote market (spot 0) is USDT — see
+		// deploy-scripts/params/relaunch-spot-markets.json.
+		QUOTE_MINT_ADDRESS: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
 		V2_ALPHA_TICKET_MINT_ADDRESS:
 			'Cmvhycb6LQvvzaShGw4iDHRLzeSSryioAsU98DSSkMNa',
 		PERP_MARKETS: MainnetPerpMarkets,
