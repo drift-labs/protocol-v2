@@ -1,46 +1,5 @@
 {
-	"_meta": {
-		"_source": "WS3 Step1/2 risk work: drift_risk_engine_review.md, params.json (2026-05-26), if_caps.json, analysis/cascade.py",
-		"_ix": "programs/velocity/src/instructions/admin.rs :: handle_initialize_perp_market",
-		"_generated": "2026-07-01",
-		"_status": "MAINNET RELAUNCH params, consumed by deploy-scripts/init-markets.ts. Risk fields encoded from our work; OI caps set to day-1 launch floors from the cascade zero-socialization analysis (see _oi_caps). [deploy] fields set at init.",
-		"_encoding": "All u64/u128 fields are JSON strings. Values above 2^53 (e.g. HYPE reserves) lose precision through JSON.parse as numbers. init-markets.ts converts via BN(string).",
-		"_precisions": {
-			"margin_ratio": "1e4",
-			"liquidator_fee/if_liquidation_fee": "1e6",
-			"imf_factor": "1e6",
-			"max_open_interest/reserves": "base 1e9",
-			"quote_max_insurance/max_revenue_withdraw": "USD 1e6",
-			"peg_multiplier": "1e6"
-		},
-		"_legend": {
-			"deploy": "set by team at init (oracle/AMM seed/tick/sizes)",
-			"confirm": "verify value/variant"
-		},
-		"_fields_null_set_at_deploy": [
-			"oracle_slot_delay_override (still null; init default -1 makes the oracle always stale-for-amm-immediate under a multi-slot crank cadence; devnet runs 5)"
-		],
-		"_deploy_fields_filled": "2026-07-02: lazer_feed_id, order_tick_size, min_order_size, curve_update_intensity, amm_jit_intensity. curve_update_intensity > 100 enables reference-price-offset intensity; init rejects > 100 so init-markets.ts inits clamped to 100 and raises via update_perp_market_curve_update_intensity post-init. HYPE market_index kept at 3 (not 59): init requires market_index == state.number_of_markets, no gaps on a fresh relaunch. mm_oracle_feed_id is informational for keeper-bot config; the mm oracle is posted by the native crank, there is no on-chain per-market feed-id field.",
-		"_oi_caps": {
-			"basis": "day-1 zero-socialization cap from analysis/cascade.py (binding 40pct instant crash; IF seeded to per-market cap; fee pool empty). LAUNCH FLOORS, not steady-state limits.",
-			"usd_intent": {
-				"BTC-PERP": 20000000,
-				"ETH-PERP": 20000000,
-				"SOL-PERP": 20000000,
-				"HYPE-PERP": 5000000
-			},
-			"note": "usd_intent is the modeled target (documentation only); max_open_interest (base 1e9) is the FINAL number, derived in backtests at latest pricing and used by init-markets.ts exactly as written. BTC/SOL derived directly (day-1 zero-soc ~18.0M/17.3M). ETH pegged to BTC: its config.yaml depth is distorted by pre-relaunch oracle latency (one realized liquidation exceeds its modeled band); fixed at relaunch. HYPE set low: no reliable depth data yet. Raise on review cadence as depth + fee-pool backing build (major zero-soc ceiling exceeds 30M once fees accrue)."
-		},
-		"_mainnet_checklist": [
-			"OI caps: final base-unit numbers from backtests at latest pricing; raise on review cadence as depth/fees build. ETH/HYPE config.yaml depth still distorted - ETH pegged to BTC, HYPE set conservative; revisit when real depth exists.",
-			"HYPE quote_max_insurance 10k: confirm intended; raise via tier path if HYPE OI is to grow.",
-			"Global pacing: set global.initial_pct_to_liquidate + global.liquidation_duration (currently null = skipped, on-chain 0 = disabled).",
-			"dUSDT collateral (spot ix): initial/maintenance asset weight + scale_initial_asset_weight_start.",
-			"contract_tier per market: confirm B/B/B/C.",
-			"oracle_source variant, lp_pool_id, funding_clamp_threshold/ramp_slope: confirm relaunch values.",
-			"AMM peg+reserves: init-markets.ts repegs to live oracle post-init (values shown are 2026-05-26 reference)."
-		]
-	},
+	"_encoding": "u64/u128 fields are JSON strings; numbers above 2^53 lose precision through JSON.parse. init-markets.ts converts via BN(string).",
 	"global": {
 		"initial_pct_to_liquidate": null,
 		"liquidation_duration": null
@@ -53,8 +12,8 @@
 			"contract_tier": "B",
 			"lazer_feed_id": 6,
 			"mm_oracle_feed_id": null,
-			"amm_base_asset_reserve": "41529114499576144",
-			"amm_quote_asset_reserve": "41529114499576144",
+			"amm_base_asset_reserve": "77729541176341",
+			"amm_quote_asset_reserve": "77729541176341",
 			"amm_peg_multiplier": "84030620",
 			"amm_periodicity": 3600,
 			"margin_ratio_initial": 500,
@@ -62,8 +21,8 @@
 			"imf_factor": 50,
 			"liquidator_fee": 7500,
 			"if_liquidation_fee": 7500,
-			"max_open_interest": "238250584343705",
-			"quote_max_insurance": "1000000000000",
+			"max_open_interest": "1310378213890",
+			"quote_max_insurance": "20000000000",
 			"max_revenue_withdraw_per_period": "100000000",
 			"base_spread": 200,
 			"max_spread": 20000,
@@ -86,8 +45,8 @@
 			"contract_tier": "B",
 			"lazer_feed_id": 1,
 			"mm_oracle_feed_id": null,
-			"amm_base_asset_reserve": "241028819490904",
-			"amm_quote_asset_reserve": "241028819490904",
+			"amm_base_asset_reserve": "449357412798",
+			"amm_quote_asset_reserve": "449357412798",
 			"amm_peg_multiplier": "68125110358",
 			"amm_periodicity": 3600,
 			"margin_ratio_initial": 500,
@@ -95,8 +54,8 @@
 			"imf_factor": 1900,
 			"liquidator_fee": 5000,
 			"if_liquidation_fee": 7500,
-			"max_open_interest": "293605441623",
-			"quote_max_insurance": "1000000000000",
+			"max_open_interest": "1614829929",
+			"quote_max_insurance": "20000000000",
 			"max_revenue_withdraw_per_period": "100000000",
 			"base_spread": 175,
 			"max_spread": 10000,
@@ -119,8 +78,8 @@
 			"contract_tier": "B",
 			"lazer_feed_id": 2,
 			"mm_oracle_feed_id": 3114,
-			"amm_base_asset_reserve": "118046717309280",
-			"amm_quote_asset_reserve": "118046717309280",
+			"amm_base_asset_reserve": "7366825215542",
+			"amm_quote_asset_reserve": "7366825215542",
 			"amm_peg_multiplier": "2136317398",
 			"amm_periodicity": 3600,
 			"margin_ratio_initial": 500,
@@ -128,8 +87,8 @@
 			"imf_factor": 250,
 			"liquidator_fee": 5000,
 			"if_liquidation_fee": 7500,
-			"max_open_interest": "9372188587951",
-			"quote_max_insurance": "1000000000000",
+			"max_open_interest": "51547037234",
+			"quote_max_insurance": "20000000000",
 			"max_revenue_withdraw_per_period": "100000000",
 			"base_spread": 175,
 			"max_spread": 10000,
@@ -152,8 +111,8 @@
 			"contract_tier": "C",
 			"lazer_feed_id": 110,
 			"mm_oracle_feed_id": null,
-			"amm_base_asset_reserve": "112448635615534960",
-			"amm_quote_asset_reserve": "112448635615534960",
+			"amm_base_asset_reserve": "76495670486758",
+			"amm_quote_asset_reserve": "76495670486758",
 			"amm_peg_multiplier": "36309331",
 			"amm_periodicity": 3600,
 			"margin_ratio_initial": 1000,
@@ -161,7 +120,7 @@
 			"imf_factor": 100,
 			"liquidator_fee": 10000,
 			"if_liquidation_fee": 50000,
-			"max_open_interest": "137617794401345",
+			"max_open_interest": "1376177944013",
 			"quote_max_insurance": "10000000000",
 			"max_revenue_withdraw_per_period": "100000000",
 			"base_spread": 1000,
