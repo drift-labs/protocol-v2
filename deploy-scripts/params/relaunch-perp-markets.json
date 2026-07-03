@@ -29,7 +29,7 @@
 			"max_spread": 20000,
 			"order_step_size": "10000000",
 			"concentration_coef_scale": "1004142",
-			"order_tick_size": "100",
+			"order_tick_size": "1000",
 			"min_order_size": "10000000",
 			"curve_update_intensity": 104,
 			"amm_jit_intensity": 100,

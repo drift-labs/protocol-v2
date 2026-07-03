@@ -45,6 +45,12 @@
  *   PYTH_LAZER_WAIT_MS    ms to wait for first price message (default 30000)
  *   RECEIPT_PATH          default deploy-scripts/out/mainnet-deployment.json
  *   NON_INTERACTIVE=1     skip confirmation prompts
+ *   DRY_RUN=1 (or --dry-run)  no transactions sent; performs every read
+ *                         (pre-flight, mint checks, Lazer relay fetch) and
+ *                         prints each ix as "[DRY RUN] would ...". When State
+ *                         does not exist yet the dependent diffs (hot roles,
+ *                         oracle switch) cannot be read and are logged
+ *                         generically. Receipt untouched.
  */
 
 import { BN } from '@coral-xyz/anchor';
@@ -110,6 +116,13 @@ function logStep(title: string, note?: string) {
 
 const NON_INTERACTIVE =
 	process.env.NON_INTERACTIVE === '1' || process.env.YES === '1';
+
+const DRY_RUN =
+	process.env.DRY_RUN === '1' || process.argv.includes('--dry-run');
+
+function dryStep(action: string, note?: string) {
+	logStep(`[DRY RUN] would ${action}`, note);
+}
 
 async function confirm(prompt: string, details?: string[]): Promise<void> {
 	if (details && details.length > 0) {
@@ -293,6 +306,7 @@ async function main() {
 		h.pubkey.equals(hotDefault)
 	).map((h) => h.role);
 	await confirm('Proceed with this MAINNET configuration?', [
+		...(DRY_RUN ? ['*** DRY RUN: no transactions will be sent ***', ''] : []),
 		`cluster:      ${rpcUrl}`,
 		`program:      ${programId.toBase58()} (executable ✓)`,
 		`admin:        ${keypair.publicKey.toBase58()} (${adminSol.toFixed(4)} SOL)`,
@@ -320,8 +334,10 @@ async function main() {
 		pythLazerOracles: {},
 		startedAt: new Date().toISOString(),
 	};
-	const writeReceipt = () =>
+	const writeReceipt = () => {
+		if (DRY_RUN) return;
 		fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+	};
 
 	const client = new AdminClient({
 		connection,
@@ -342,31 +358,52 @@ async function main() {
 	if (stateExists) {
 		logStep('State already initialized', statePk.toBase58());
 		receipt.state = { pubkey: statePk.toBase58() };
+	} else if (DRY_RUN) {
+		dryStep('initialize (global state)', statePk.toBase58());
 	} else {
 		logStep('initialize (global state)');
 		const [txSig] = await client.initialize(quoteMint, false);
 		receipt.state = { pubkey: statePk.toBase58(), txSig };
 	}
-	await client.subscribe();
+	// in a dry run with no State the client cannot subscribe (nothing on chain)
+	const clientSubscribed = stateExists || !DRY_RUN;
+	if (clientSubscribed) {
+		await client.subscribe();
+	}
 	writeReceipt();
 
 	// Phase A.1b: native-crank authorities + feature flags
 	// Freshly-initialized State is all zero, which makes every native crank
 	// panic. Idempotent: only sends a tx when the on-chain value differs.
-	{
+	if (!clientSubscribed) {
+		// dry run against a fresh cluster: State is all zero after init, so
+		// every value would be pushed
+		dryStep('updateFeatureBitFlagsMMOracle(enable=true)');
+		for (const { role, pubkey } of HOT_ROLE_CONFIG) {
+			dryStep(`updateHotAdmin(${role})`, pubkey.toBase58());
+		}
+	} else {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const stateAcc = client.getStateAccount() as unknown as Record<string, any>;
 		if ((Number(stateAcc.featureBitFlags) & 1) === 0) {
-			logStep('updateFeatureBitFlagsMMOracle(enable=true)');
-			await client.updateFeatureBitFlagsMMOracle(true);
+			if (DRY_RUN) {
+				dryStep('updateFeatureBitFlagsMMOracle(enable=true)');
+			} else {
+				logStep('updateFeatureBitFlagsMMOracle(enable=true)');
+				await client.updateFeatureBitFlagsMMOracle(true);
+			}
 		} else {
 			logStep('mm-oracle feature bit already enabled');
 		}
 		for (const { role, field, pubkey } of HOT_ROLE_CONFIG) {
 			const current = stateAcc[field] as PublicKey | undefined;
 			if (!current || !current.equals(pubkey)) {
-				logStep(`updateHotAdmin(${role})`, pubkey.toBase58());
-				await client.updateHotAdmin(role, pubkey);
+				if (DRY_RUN) {
+					dryStep(`updateHotAdmin(${role})`, pubkey.toBase58());
+				} else {
+					logStep(`updateHotAdmin(${role})`, pubkey.toBase58());
+					await client.updateHotAdmin(role, pubkey);
+				}
 			} else {
 				logStep(`hot ${role} already set`, pubkey.toBase58());
 			}
@@ -378,6 +415,8 @@ async function main() {
 	if (await pdaExists(connection, ammCachePk)) {
 		logStep('AmmCache already initialized', ammCachePk.toBase58());
 		receipt.ammCache = { pubkey: ammCachePk.toBase58() };
+	} else if (DRY_RUN) {
+		dryStep('initializeAmmCache', ammCachePk.toBase58());
 	} else {
 		logStep('initializeAmmCache');
 		const txSig = await client.initializeAmmCache();
@@ -396,9 +435,15 @@ async function main() {
 		'Creates spot_market_vault and insurance_fund_vault owned by velocity_signer.',
 	]);
 	const spot0Pk = await getSpotMarketPublicKey(programId, 0);
-	if (await pdaExists(connection, spot0Pk)) {
+	const spot0Exists = await pdaExists(connection, spot0Pk);
+	if (spot0Exists) {
 		logStep(`Spot market 0 (${quoteSymbol}) already initialized`, spot0Pk.toBase58());
 		receipt.spotMarkets[0] = { pubkey: spot0Pk.toBase58() };
+	} else if (DRY_RUN) {
+		dryStep(
+			`initializeSpotMarket ${quoteSymbol} @ index 0`,
+			`mint=${quoteMint.toBase58()} oracleSource=QUOTE_ASSET tier=COLLATERAL`
+		);
 	} else {
 		logStep(`initializeSpotMarket ${quoteSymbol} @ index 0`);
 		const txSig = await client.initializeSpotMarket(
@@ -443,6 +488,11 @@ async function main() {
 		receipt.pythLazerOracles[quoteLazerFeedId] = {
 			pubkey: quoteLazerPk.toBase58(),
 		};
+	} else if (DRY_RUN) {
+		dryStep(
+			`initializePythLazerOracle feed=${quoteLazerFeedId}`,
+			quoteLazerPk.toBase58()
+		);
 	} else {
 		logStep(`initializePythLazerOracle feed=${quoteLazerFeedId}`);
 		const txSig = await client.initializePythLazerOracle(quoteLazerFeedId);
@@ -452,21 +502,29 @@ async function main() {
 		};
 	}
 	{
+		// fetch even in dry run: validates the relay token and feed id
 		const messageHex = await fetchLazerMessageHex(
 			pythLazerEndpoints,
 			pythLazerToken,
 			[quoteLazerFeedId],
 			pythLazerWaitMs
 		);
-		logStep(
-			`postPythLazerOracleUpdate feed=${quoteLazerFeedId}`,
-			`message length = ${messageHex.length / 2}b`
-		);
-		const sig = await client.postPythLazerOracleUpdate(
-			[quoteLazerFeedId],
-			messageHex
-		);
-		console.log(`  tx: ${sig}`);
+		if (DRY_RUN) {
+			dryStep(
+				`postPythLazerOracleUpdate feed=${quoteLazerFeedId}`,
+				`message length = ${messageHex.length / 2}b`
+			);
+		} else {
+			logStep(
+				`postPythLazerOracleUpdate feed=${quoteLazerFeedId}`,
+				`message length = ${messageHex.length / 2}b`
+			);
+			const sig = await client.postPythLazerOracleUpdate(
+				[quoteLazerFeedId],
+				messageHex
+			);
+			console.log(`  tx: ${sig}`);
+		}
 	}
 	writeReceipt();
 
@@ -478,10 +536,18 @@ async function main() {
 			'Required because the program forces QuoteAsset at init for spot[0].',
 		]
 	);
-	{
+	if (DRY_RUN && !spot0Exists) {
+		// spot 0 would only be created by a real run; nothing to read
+		dryStep(
+			'updateSpotMarketOracle spot=0 -> PythLazerStableCoin',
+			quoteLazerPk.toBase58()
+		);
+	} else {
 		// the base client was constructed with spotMarketIndexes=[], so spin up a
 		// one-shot client subscribed to spot[0] to read oracleSource/oracle.
-		await client.unsubscribe();
+		if (clientSubscribed) {
+			await client.unsubscribe();
+		}
 		const phaseEClient = new AdminClient({
 			connection,
 			wallet,
@@ -507,6 +573,11 @@ async function main() {
 				`${quoteSymbol} oracle already PythLazerStableCoin`,
 				spot0.oracle.toBase58()
 			);
+		} else if (DRY_RUN) {
+			dryStep(
+				'updateSpotMarketOracle spot=0 -> PythLazerStableCoin',
+				quoteLazerPk.toBase58()
+			);
 		} else {
 			logStep(
 				'updateSpotMarketOracle spot=0 -> PythLazerStableCoin',
@@ -524,7 +595,11 @@ async function main() {
 
 	receipt.finishedAt = new Date().toISOString();
 	writeReceipt();
-	console.log(`\nreceipt written: ${receiptPath}`);
+	if (DRY_RUN) {
+		console.log('\n[DRY RUN] complete; no transactions were sent.');
+	} else {
+		console.log(`\nreceipt written: ${receiptPath}`);
+	}
 	console.log(
 		'\nNext: initialize perp markets: sh deploy-scripts/init-markets.sh'
 	);

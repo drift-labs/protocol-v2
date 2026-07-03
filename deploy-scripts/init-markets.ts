@@ -40,6 +40,12 @@
  *   PYTH_LAZER_ENDPOINTS  comma-separated WSS endpoints
  *   PYTH_LAZER_WAIT_MS    ms to wait for first price message (default 30000)
  *   NON_INTERACTIVE=1     skip confirmation prompts
+ *   DRY_RUN=1 (or --dry-run)  no transactions sent; performs every read
+ *                         (pre-flight, on-chain diffs, Lazer relay fetch) and
+ *                         prints each ix as "[DRY RUN] would ...". Markets that
+ *                         do not exist yet get their init logged and Phase 4
+ *                         skipped for them (nothing on chain to diff). Receipt
+ *                         untouched.
  */
 
 import { BN } from '@coral-xyz/anchor';
@@ -182,6 +188,13 @@ function logStep(title: string, note?: string) {
 
 const NON_INTERACTIVE =
 	process.env.NON_INTERACTIVE === '1' || process.env.YES === '1';
+
+const DRY_RUN =
+	process.env.DRY_RUN === '1' || process.argv.includes('--dry-run');
+
+function dryStep(action: string, note?: string) {
+	logStep(`[DRY RUN] would ${action}`, note);
+}
 
 async function confirm(prompt: string, details?: string[]): Promise<void> {
 	if (details && details.length > 0) {
@@ -337,7 +350,6 @@ async function main() {
 	const feedIds = [
 		...new Set(params.markets.map((m) => m.lazer_feed_id as number)),
 	];
-	const marketIndexes = params.markets.map((m) => m.market_index);
 
 	// Phase 0: pre-flight
 	logStep('pre-flight checks');
@@ -365,6 +377,7 @@ async function main() {
 		(await connection.getBalance(keypair.publicKey, 'confirmed')) / 1e9;
 
 	await confirm('Proceed with this MAINNET configuration?', [
+		...(DRY_RUN ? ['*** DRY RUN: no transactions will be sent ***', ''] : []),
 		`cluster:   ${rpcUrl}`,
 		`program:   ${programId.toBase58()} (executable ✓)`,
 		`admin:     ${keypair.publicKey.toBase58()} (${adminSol.toFixed(4)} SOL)`,
@@ -389,8 +402,10 @@ async function main() {
 		perpMarkets: {},
 		startedAt: new Date().toISOString(),
 	};
-	const writeReceipt = () =>
+	const writeReceipt = () => {
+		if (DRY_RUN) return;
 		fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+	};
 
 	const client = new AdminClient({
 		connection,
@@ -412,6 +427,8 @@ async function main() {
 		if (await pdaExists(connection, pk)) {
 			logStep(`lazer oracle feed=${feedId} already initialized`, pk.toBase58());
 			receipt.pythLazerOracles[feedId] = { pubkey: pk.toBase58() };
+		} else if (DRY_RUN) {
+			dryStep(`initializePythLazerOracle feed=${feedId}`, pk.toBase58());
 		} else {
 			logStep(`initializePythLazerOracle feed=${feedId}`);
 			const txSig = await client.initializePythLazerOracle(feedId);
@@ -425,22 +442,33 @@ async function main() {
 	// oracle needs a published price before Phase 3.
 	await confirm(`Begin Phase 2: post initial Lazer prices for [${feedIds.join(', ')}]?`);
 	{
+		// fetch even in dry run: validates the relay token and feed ids
 		const messageHex = await fetchLazerMessageHex(
 			pythLazerEndpoints,
 			pythLazerToken,
 			feedIds,
 			pythLazerWaitMs
 		);
-		logStep(
-			`postPythLazerOracleUpdate feeds=[${feedIds.join(',')}]`,
-			`message length = ${messageHex.length / 2}b`
-		);
-		const sig = await client.postPythLazerOracleUpdate(feedIds, messageHex);
-		console.log(`  tx: ${sig}`);
+		if (DRY_RUN) {
+			dryStep(
+				`postPythLazerOracleUpdate feeds=[${feedIds.join(',')}]`,
+				`message length = ${messageHex.length / 2}b`
+			);
+		} else {
+			logStep(
+				`postPythLazerOracleUpdate feeds=[${feedIds.join(',')}]`,
+				`message length = ${messageHex.length / 2}b`
+			);
+			const sig = await client.postPythLazerOracleUpdate(feedIds, messageHex);
+			console.log(`  tx: ${sig}`);
+		}
 	}
 
 	// Phase 3: initialize perp markets
 	await confirm(`Begin Phase 3: initialize ${params.markets.length} perp market(s)?`);
+	// dry-run only: markets whose init was skipped, so Phase 4 has nothing to
+	// read on chain for them
+	const wouldInit = new Set<number>();
 	for (const m of params.markets) {
 		const perpPk = await getPerpMarketPublicKey(programId, m.market_index);
 		if (await pdaExists(connection, perpPk)) {
@@ -452,6 +480,15 @@ async function main() {
 				name: m.name,
 				pubkey: perpPk.toBase58(),
 			};
+			continue;
+		}
+		if (DRY_RUN) {
+			dryStep(
+				`initializePerpMarket ${m.name} @ index ${m.market_index}`,
+				`tier=${m.contract_tier} margin=${m.margin_ratio_initial}/${m.margin_ratio_maintenance} ` +
+					`peg=${m.amm_peg_multiplier} maxOI=${m.max_open_interest} feed=${m.lazer_feed_id}`
+			);
+			wouldInit.add(m.market_index);
 			continue;
 		}
 		const oraclePk = getPythLazerOraclePublicKey(
@@ -504,15 +541,34 @@ async function main() {
 	// Phase 4: per-market post-init (repeg + knob sync)
 	await confirm('Begin Phase 4: repeg to live oracle + sync market knobs?');
 	await client.unsubscribe();
+
+	// in a dry run, would-init markets do not exist on chain; nothing to
+	// subscribe to or diff against, so Phase 4 covers existing markets only.
+	const knobsMarkets = params.markets.filter((m) => !wouldInit.has(m.market_index));
+	for (const m of params.markets) {
+		if (wouldInit.has(m.market_index)) {
+			dryStep(
+				`run Phase 4 for ${m.name} after init`,
+				'market does not exist yet; a real run repegs + syncs knobs right after init'
+			);
+		}
+	}
+	if (knobsMarkets.length === 0) {
+		console.log('\n[DRY RUN] complete; no transactions were sent.');
+		return;
+	}
+	const knobsFeedIds = [
+		...new Set(knobsMarkets.map((m) => m.lazer_feed_id as number)),
+	];
 	const knobsClient = new AdminClient({
 		connection,
 		wallet,
 		programID: programId,
 		env: 'mainnet-beta',
 		accountSubscription: { type: 'websocket', commitment: 'confirmed' },
-		perpMarketIndexes: marketIndexes,
+		perpMarketIndexes: knobsMarkets.map((m) => m.market_index),
 		spotMarketIndexes: [],
-		oracleInfos: feedIds.map((feedId) => ({
+		oracleInfos: knobsFeedIds.map((feedId) => ({
 			publicKey: getPythLazerOraclePublicKey(programId, feedId),
 			source: OracleSource.PYTH_LAZER,
 		})),
@@ -520,7 +576,7 @@ async function main() {
 	});
 	await knobsClient.subscribe();
 
-	for (const m of params.markets) {
+	for (const m of knobsMarkets) {
 		const idx = m.market_index;
 		const pm = knobsClient.getPerpMarketAccount(idx);
 		if (!pm) throw new Error(`perp market ${idx} not found after subscribe`);
@@ -543,6 +599,15 @@ async function main() {
 			logStep(
 				`${m.name}: mark within 2% of oracle; skip repeg`,
 				`mark=${markPrice.toString()} oracle=${oraclePrice.toString()}`
+			);
+		} else if (DRY_RUN) {
+			const targetPrice = oraclePrice.sub(oraclePrice.divn(100)); // 1% below
+			const newPeg = targetPrice
+				.mul(pm.amm.baseAssetReserve)
+				.div(pm.amm.quoteAssetReserve);
+			dryStep(
+				`repegAmmCurve ${m.name} -> ~1% below oracle`,
+				`newPeg=${newPeg.toString()} oracle=${oraclePrice.toString()} mark=${markPrice.toString()}`
 			);
 		} else {
 			const targetPrice = oraclePrice.sub(oraclePrice.divn(100)); // 1% below
@@ -594,6 +659,11 @@ async function main() {
 					`${m.name}: maxOpenInterest within 2% of USD cap; skip`,
 					`onchain=${pm.maxOpenInterest.toString()} derived=${derivedOi.toString()}`
 				);
+			} else if (DRY_RUN) {
+				dryStep(
+					`updatePerpMarketMaxOpenInterest ${m.name}`,
+					`$${m.oi_cap_usd.toLocaleString()} @ oracle=${oraclePrice.toString()} -> ${derivedOi.toString()} (was ${pm.maxOpenInterest.toString()})`
+				);
 			} else {
 				logStep(
 					`updatePerpMarketMaxOpenInterest ${m.name}`,
@@ -615,15 +685,22 @@ async function main() {
 			m.oracle_slot_delay_override !== null &&
 			pm.oracleSlotDelayOverride !== m.oracle_slot_delay_override
 		) {
-			logStep(
-				`updatePerpMarketOracleSlotDelayOverride ${m.name}`,
-				`${pm.oracleSlotDelayOverride} -> ${m.oracle_slot_delay_override}`
-			);
-			const sig = await knobsClient.updatePerpMarketOracleSlotDelayOverride(
-				idx,
-				m.oracle_slot_delay_override
-			);
-			console.log(`  tx: ${sig}`);
+			if (DRY_RUN) {
+				dryStep(
+					`updatePerpMarketOracleSlotDelayOverride ${m.name}`,
+					`${pm.oracleSlotDelayOverride} -> ${m.oracle_slot_delay_override}`
+				);
+			} else {
+				logStep(
+					`updatePerpMarketOracleSlotDelayOverride ${m.name}`,
+					`${pm.oracleSlotDelayOverride} -> ${m.oracle_slot_delay_override}`
+				);
+				const sig = await knobsClient.updatePerpMarketOracleSlotDelayOverride(
+					idx,
+					m.oracle_slot_delay_override
+				);
+				console.log(`  tx: ${sig}`);
+			}
 		}
 
 		// --- intensity sync. Init clamps curve_update_intensity to 100, so for
@@ -631,26 +708,40 @@ async function main() {
 		// the intended path, not just rerun repair. Also fixes a market that
 		// already existed with different values.
 		if (pm.amm.curveUpdateIntensity !== m.curve_update_intensity) {
-			logStep(
-				`updatePerpMarketCurveUpdateIntensity ${m.name}`,
-				`${pm.amm.curveUpdateIntensity} -> ${m.curve_update_intensity}`
-			);
-			const sig = await knobsClient.updatePerpMarketCurveUpdateIntensity(
-				idx,
-				m.curve_update_intensity as number
-			);
-			console.log(`  tx: ${sig}`);
+			if (DRY_RUN) {
+				dryStep(
+					`updatePerpMarketCurveUpdateIntensity ${m.name}`,
+					`${pm.amm.curveUpdateIntensity} -> ${m.curve_update_intensity}`
+				);
+			} else {
+				logStep(
+					`updatePerpMarketCurveUpdateIntensity ${m.name}`,
+					`${pm.amm.curveUpdateIntensity} -> ${m.curve_update_intensity}`
+				);
+				const sig = await knobsClient.updatePerpMarketCurveUpdateIntensity(
+					idx,
+					m.curve_update_intensity as number
+				);
+				console.log(`  tx: ${sig}`);
+			}
 		}
 		if (pm.amm.ammJitIntensity !== m.amm_jit_intensity) {
-			logStep(
-				`updateAmmJitIntensity ${m.name}`,
-				`${pm.amm.ammJitIntensity} -> ${m.amm_jit_intensity}`
-			);
-			const sig = await knobsClient.updateAmmJitIntensity(
-				idx,
-				m.amm_jit_intensity as number
-			);
-			console.log(`  tx: ${sig}`);
+			if (DRY_RUN) {
+				dryStep(
+					`updateAmmJitIntensity ${m.name}`,
+					`${pm.amm.ammJitIntensity} -> ${m.amm_jit_intensity}`
+				);
+			} else {
+				logStep(
+					`updateAmmJitIntensity ${m.name}`,
+					`${pm.amm.ammJitIntensity} -> ${m.amm_jit_intensity}`
+				);
+				const sig = await knobsClient.updateAmmJitIntensity(
+					idx,
+					m.amm_jit_intensity as number
+				);
+				console.log(`  tx: ${sig}`);
+			}
 		}
 		writeReceipt();
 	}
@@ -667,18 +758,30 @@ async function main() {
 			`liquidation_duration:     ${g.liquidation_duration ?? 'null (skip)'}`,
 		]);
 		if (g.initial_pct_to_liquidate !== null) {
-			logStep(`updateInitialPctToLiquidate -> ${g.initial_pct_to_liquidate}`);
-			await knobsClient.updateInitialPctToLiquidate(g.initial_pct_to_liquidate);
+			if (DRY_RUN) {
+				dryStep(`updateInitialPctToLiquidate -> ${g.initial_pct_to_liquidate}`);
+			} else {
+				logStep(`updateInitialPctToLiquidate -> ${g.initial_pct_to_liquidate}`);
+				await knobsClient.updateInitialPctToLiquidate(g.initial_pct_to_liquidate);
+			}
 		}
 		if (g.liquidation_duration !== null) {
-			logStep(`updateLiquidationDuration -> ${g.liquidation_duration}`);
-			await knobsClient.updateLiquidationDuration(g.liquidation_duration);
+			if (DRY_RUN) {
+				dryStep(`updateLiquidationDuration -> ${g.liquidation_duration}`);
+			} else {
+				logStep(`updateLiquidationDuration -> ${g.liquidation_duration}`);
+				await knobsClient.updateLiquidationDuration(g.liquidation_duration);
+			}
 		}
 	}
 
 	receipt.finishedAt = new Date().toISOString();
 	writeReceipt();
-	console.log(`\nreceipt written: ${receiptPath}`);
+	if (DRY_RUN) {
+		console.log('\n[DRY RUN] complete; no transactions were sent.');
+	} else {
+		console.log(`\nreceipt written: ${receiptPath}`);
+	}
 
 	await knobsClient.unsubscribe();
 }

@@ -18,6 +18,7 @@
 #   PYTH_LAZER_WAIT_MS     ms to wait for first price message (default 30000)
 #   RECEIPT_PATH           default deploy-scripts/out/mainnet-deployment.json
 #   NON_INTERACTIVE=1      skip confirmation prompts
+#   DRY_RUN=1 or --dry-run no transactions; log every ix as "[DRY RUN] would ..."
 
 set -eu
 
@@ -30,4 +31,4 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 
 cd "$repo_root"
-exec bun run "$script_dir/init-mainnet.ts"
+exec bun run "$script_dir/init-mainnet.ts" "$@"

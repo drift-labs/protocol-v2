@@ -5,13 +5,18 @@
  * (deploy-scripts/params/relaunch-spot-markets.json). Two cases per market:
  *
  *   - market does not exist: initialize_spot_market with the full param set,
- *     then apply the post-init-only caps (max_token_deposits,
- *     max_token_borrows_fraction)
+ *     then apply the post-init-only fields (max_token_deposits,
+ *     max_token_borrows_fraction, min_borrow_rate)
  *   - market exists (USDT spot 0, created by init-mainnet with placeholder
  *     lending params): sync every updatable group via update ixs
  *     (borrow rate curve, margin weights, withdraw guard, scale start,
  *     if factor, deposit/borrow caps). order_tick_size/order_step_size are
  *     init-only here and NOT synced on existing markets.
+ *
+ * deposit_cap_usd / withdraw_guard_usd (nullable) express the cap in USD:
+ * when set, the token-native value is re-derived at the live oracle price
+ * during sync (2% tolerance), same pattern as the perp OI cap in
+ * init-markets.ts. Leave null for stables (token-native is already 1:1).
  *
  * Run AFTER init-mainnet.sh. Markets initialize in ascending market_index
  * (the program requires market_index == state.number_of_spot_markets).
@@ -31,6 +36,11 @@
  *   PYTH_LAZER_ENDPOINTS  comma-separated WSS endpoints
  *   PYTH_LAZER_WAIT_MS    ms to wait for first price message (default 30000)
  *   NON_INTERACTIVE=1     skip confirmation prompts
+ *   DRY_RUN=1 (or --dry-run)  no transactions sent; performs every read
+ *                         (pre-flight, on-chain diffs, Lazer relay fetch) and
+ *                         prints each ix as "[DRY RUN] would ...". Markets that
+ *                         do not exist yet get their init logged and their sync
+ *                         skipped (nothing on chain to diff). Receipt untouched.
  */
 
 import { BN } from '@coral-xyz/anchor';
@@ -47,6 +57,7 @@ import {
   getVelocityStateAccountPublicKey,
   loadKeypair,
   OracleSource,
+  PRICE_PRECISION,
   PythLazerSubscriber,
   Wallet,
 } from '../packages/sdk/src';
@@ -78,6 +89,10 @@ type SpotMarketParams = {
 	if_total_factor: number | null;
 	max_token_deposits: string | null;
 	max_token_borrows_fraction: number | null;
+	// USD intents: when non-null, the token-native value is re-derived at the
+	// live oracle price during sync (2% tolerance, same as the perp OI cap)
+	deposit_cap_usd: number | null;
+	withdraw_guard_usd: number | null;
 };
 
 type ParamsFile = { markets: SpotMarketParams[] };
@@ -154,6 +169,13 @@ function logStep(title: string, note?: string) {
 
 const NON_INTERACTIVE =
 	process.env.NON_INTERACTIVE === '1' || process.env.YES === '1';
+
+const DRY_RUN =
+	process.env.DRY_RUN === '1' || process.argv.includes('--dry-run');
+
+function dryStep(action: string, note?: string) {
+	logStep(`[DRY RUN] would ${action}`, note);
+}
 
 async function confirm(prompt: string, details?: string[]): Promise<void> {
 	if (details && details.length > 0) {
@@ -304,6 +326,7 @@ async function main() {
 		(await connection.getBalance(keypair.publicKey, 'confirmed')) / 1e9;
 
 	await confirm('Proceed with this MAINNET spot-market configuration?', [
+		...(DRY_RUN ? ['*** DRY RUN: no transactions will be sent ***', ''] : []),
 		`cluster:   ${rpcUrl}`,
 		`program:   ${programId.toBase58()} (executable ✓)`,
 		`admin:     ${keypair.publicKey.toBase58()} (${adminSol.toFixed(4)} SOL)`,
@@ -326,10 +349,11 @@ async function main() {
 		spotMarkets: {},
 		startedAt: new Date().toISOString(),
 	};
-	const writeReceipt = () =>
+	const writeReceipt = () => {
+		if (DRY_RUN) return;
 		fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
+	};
 
-	const marketIndexes = params.markets.map((m) => m.market_index);
 	const client = new AdminClient({
 		connection,
 		wallet,
@@ -365,15 +389,35 @@ async function main() {
 			m.lazer_feed_id as number
 		);
 		if (!(await pdaExists(connection, oraclePk))) {
-			logStep(`initializePythLazerOracle feed=${m.lazer_feed_id}`);
-			await client.initializePythLazerOracle(m.lazer_feed_id as number);
+			if (DRY_RUN) {
+				dryStep(`initializePythLazerOracle feed=${m.lazer_feed_id}`);
+			} else {
+				logStep(`initializePythLazerOracle feed=${m.lazer_feed_id}`);
+				await client.initializePythLazerOracle(m.lazer_feed_id as number);
+			}
 		}
+		// fetch even in dry run: validates the relay token and feed id
 		const messageHex = await fetchLazerMessageHex(
 			pythLazerEndpoints,
 			pythLazerToken,
 			[m.lazer_feed_id as number],
 			pythLazerWaitMs
 		);
+		if (DRY_RUN) {
+			dryStep(
+				`postPythLazerOracleUpdate feed=${m.lazer_feed_id}`,
+				`message length = ${messageHex.length / 2}b`
+			);
+			dryStep(
+				`initializeSpotMarket ${m.name} @ index ${m.market_index}`,
+				`weights=${m.initial_asset_weight}/${m.maintenance_asset_weight}/` +
+					`${m.initial_liability_weight}/${m.maintenance_liability_weight} ` +
+					`curve=${m.optimal_utilization}/${m.optimal_borrow_rate}/${m.max_borrow_rate} ` +
+					`tick=${m.order_tick_size} step=${m.order_step_size}`
+			);
+			freshlyInitialized.add(m.market_index);
+			continue;
+		}
 		logStep(`postPythLazerOracleUpdate feed=${m.lazer_feed_id}`);
 		await client.postPythLazerOracleUpdate(
 			[m.lazer_feed_id as number],
@@ -422,6 +466,26 @@ async function main() {
 	// against chain and pushed when it differs.
 	await confirm('Begin Phase 2: sync lending params against chain?');
 	await client.unsubscribe();
+
+	// in a dry run, freshly "initialized" markets do not actually exist on
+	// chain; there is nothing to subscribe to or diff against, so skip them.
+	const syncMarkets = params.markets.filter(
+		(m) => !(DRY_RUN && freshlyInitialized.has(m.market_index))
+	);
+	for (const m of params.markets) {
+		if (!syncMarkets.includes(m)) {
+			dryStep(
+				`sync ${m.name} after init`,
+				'market does not exist yet; a real run applies caps/min-rate right after init'
+			);
+		}
+	}
+	if (syncMarkets.length === 0) {
+		logStep('Phase 2: nothing to sync (all markets pending init)');
+		console.log('\n[DRY RUN] complete; no transactions were sent.');
+		return;
+	}
+
 	const syncClient = new AdminClient({
 		connection,
 		wallet,
@@ -429,42 +493,62 @@ async function main() {
 		env: 'mainnet-beta',
 		accountSubscription: { type: 'websocket', commitment: 'confirmed' },
 		perpMarketIndexes: [],
-		spotMarketIndexes: marketIndexes,
-		oracleInfos: [],
+		spotMarketIndexes: syncMarkets.map((m) => m.market_index),
+		oracleInfos: syncMarkets.map((m) => ({
+			publicKey: getPythLazerOraclePublicKey(
+				programId,
+				m.lazer_feed_id as number
+			),
+			source: ORACLE_SOURCES[m.oracle_source],
+		})),
 		skipLoadUsers: true,
 	});
 	await syncClient.subscribe();
 
-	for (const m of params.markets) {
+	for (const m of syncMarkets) {
 		const idx = m.market_index;
 		const sm = syncClient.getSpotMarketAccount(idx);
 		if (!sm) throw new Error(`spot market ${idx} not found after subscribe`);
 		const sigs: string[] = [];
 		const fresh = freshlyInitialized.has(idx);
+		// logs the diff and sends, or only logs it in a dry run
+		const apply = async (
+			desc: string,
+			note: string,
+			send: () => Promise<string>
+		) => {
+			if (DRY_RUN) {
+				dryStep(desc, note);
+			} else {
+				logStep(desc, note);
+				sigs.push(await send());
+			}
+		};
 
-		if (!fresh) {
-			// borrow rate curve
-			if (
-				sm.optimalUtilization !== m.optimal_utilization ||
-				sm.optimalBorrowRate !== m.optimal_borrow_rate ||
-				sm.maxBorrowRate !== m.max_borrow_rate ||
-				(m.min_borrow_rate !== null && sm.minBorrowRate !== m.min_borrow_rate)
-			) {
-				logStep(
-					`updateSpotMarketBorrowRate ${m.name}`,
-					`${sm.optimalUtilization}/${sm.optimalBorrowRate}/${sm.maxBorrowRate} -> ${m.optimal_utilization}/${m.optimal_borrow_rate}/${m.max_borrow_rate}`
-				);
-				sigs.push(
-					await syncClient.updateSpotMarketBorrowRate(
+		// borrow rate curve. Runs for fresh markets too: initialize_spot_market
+		// cannot set min_borrow_rate, so a fresh market needs this update ix
+		// whenever min_borrow_rate differs from the program default.
+		if (
+			sm.optimalUtilization !== m.optimal_utilization ||
+			sm.optimalBorrowRate !== m.optimal_borrow_rate ||
+			sm.maxBorrowRate !== m.max_borrow_rate ||
+			(m.min_borrow_rate !== null && sm.minBorrowRate !== m.min_borrow_rate)
+		) {
+			await apply(
+				`updateSpotMarketBorrowRate ${m.name}`,
+				`${sm.optimalUtilization}/${sm.optimalBorrowRate}/${sm.maxBorrowRate}/${sm.minBorrowRate} -> ${m.optimal_utilization}/${m.optimal_borrow_rate}/${m.max_borrow_rate}/${m.min_borrow_rate}`,
+				() =>
+					syncClient.updateSpotMarketBorrowRate(
 						idx,
 						m.optimal_utilization as number,
 						m.optimal_borrow_rate as number,
 						m.max_borrow_rate as number,
 						m.min_borrow_rate ?? undefined
 					)
-				);
-			}
+			);
+		}
 
+		if (!fresh) {
 			// margin weights
 			if (
 				sm.initialAssetWeight !== m.initial_asset_weight ||
@@ -473,33 +557,18 @@ async function main() {
 				sm.maintenanceLiabilityWeight !== m.maintenance_liability_weight ||
 				sm.imfFactor !== m.imf_factor
 			) {
-				logStep(
+				await apply(
 					`updateSpotMarketMarginWeights ${m.name}`,
-					`-> ${m.initial_asset_weight}/${m.maintenance_asset_weight}/${m.initial_liability_weight}/${m.maintenance_liability_weight} imf=${m.imf_factor}`
-				);
-				sigs.push(
-					await syncClient.updateSpotMarketMarginWeights(
-						idx,
-						m.initial_asset_weight as number,
-						m.maintenance_asset_weight as number,
-						m.initial_liability_weight as number,
-						m.maintenance_liability_weight as number,
-						m.imf_factor as number
-					)
-				);
-			}
-
-			// withdraw guard threshold
-			if (!sm.withdrawGuardThreshold.eq(bn(m.withdraw_guard_threshold as string))) {
-				logStep(
-					`updateWithdrawGuardThreshold ${m.name}`,
-					`${sm.withdrawGuardThreshold.toString()} -> ${m.withdraw_guard_threshold}`
-				);
-				sigs.push(
-					await syncClient.updateWithdrawGuardThreshold(
-						idx,
-						bn(m.withdraw_guard_threshold as string)
-					)
+					`-> ${m.initial_asset_weight}/${m.maintenance_asset_weight}/${m.initial_liability_weight}/${m.maintenance_liability_weight} imf=${m.imf_factor}`,
+					() =>
+						syncClient.updateSpotMarketMarginWeights(
+							idx,
+							m.initial_asset_weight as number,
+							m.maintenance_asset_weight as number,
+							m.initial_liability_weight as number,
+							m.maintenance_liability_weight as number,
+							m.imf_factor as number
+						)
 				);
 			}
 
@@ -509,46 +578,83 @@ async function main() {
 					bn(m.scale_initial_asset_weight_start as string)
 				)
 			) {
-				logStep(
+				await apply(
 					`updateSpotMarketScaleInitialAssetWeightStart ${m.name}`,
-					`${sm.scaleInitialAssetWeightStart.toString()} -> ${m.scale_initial_asset_weight_start}`
-				);
-				sigs.push(
-					await syncClient.updateSpotMarketScaleInitialAssetWeightStart(
-						idx,
-						bn(m.scale_initial_asset_weight_start as string)
-					)
+					`${sm.scaleInitialAssetWeightStart.toString()} -> ${m.scale_initial_asset_weight_start}`,
+					() =>
+						syncClient.updateSpotMarketScaleInitialAssetWeightStart(
+							idx,
+							bn(m.scale_initial_asset_weight_start as string)
+						)
 				);
 			}
 		}
 
-		// deposit/borrow caps: init cannot set these, always sync
-		if (!sm.maxTokenDeposits.eq(bn(m.max_token_deposits as string))) {
-			logStep(
-				`updateSpotMarketMaxTokenDeposits ${m.name}`,
-				`${sm.maxTokenDeposits.toString()} -> ${m.max_token_deposits}`
-			);
-			sigs.push(
-				await syncClient.updateSpotMarketMaxTokenDeposits(
-					idx,
-					bn(m.max_token_deposits as string)
-				)
-			);
-		}
-		if (sm.maxTokenBorrowsFraction !== m.max_token_borrows_fraction) {
-			logStep(
-				`updateSpotMarketMaxTokenBorrows ${m.name}`,
-				`${sm.maxTokenBorrowsFraction} -> ${m.max_token_borrows_fraction}`
-			);
-			sigs.push(
-				await syncClient.updateSpotMarketMaxTokenBorrows(
-					idx,
-					m.max_token_borrows_fraction as number
-				)
+		// withdraw guard + deposit cap: init cannot set the cap, and both carry
+		// an optional USD intent (*_usd) overriding the token-native value at
+		// the live oracle price (2% tolerance, same pattern as the perp OI
+		// cap). Runs for fresh markets too so the USD intent holds at init-day
+		// prices, not the reference-price snapshot baked into the params file.
+		const tokenPrecision = new BN(10).pow(new BN(m.decimals));
+		const deriveTokens = (usd: number): BN => {
+			const oraclePrice = syncClient.getOracleDataForSpotMarket(idx).price;
+			if (oraclePrice.lten(0)) {
+				throw new Error(
+					`${m.name}: oracle price ${oraclePrice.toString()} unusable for USD derivation; post a Pyth Lazer update first`
+				);
+			}
+			return new BN(usd)
+				.mul(PRICE_PRECISION)
+				.mul(tokenPrecision)
+				.div(oraclePrice);
+		};
+
+		const targetGuard =
+			m.withdraw_guard_usd !== null
+				? deriveTokens(m.withdraw_guard_usd)
+				: bn(m.withdraw_guard_threshold as string);
+		const guardTolerance =
+			m.withdraw_guard_usd !== null ? targetGuard.divn(50) : new BN(0);
+		if (sm.withdrawGuardThreshold.sub(targetGuard).abs().gt(guardTolerance)) {
+			await apply(
+				`updateWithdrawGuardThreshold ${m.name}`,
+				`${sm.withdrawGuardThreshold.toString()} -> ${targetGuard.toString()}` +
+					(m.withdraw_guard_usd !== null
+						? ` ($${m.withdraw_guard_usd.toLocaleString()} at live oracle)`
+						: ''),
+				() => syncClient.updateWithdrawGuardThreshold(idx, targetGuard)
 			);
 		}
 
-		if (sigs.length === 0) {
+		const targetDeposits =
+			m.deposit_cap_usd !== null
+				? deriveTokens(m.deposit_cap_usd)
+				: bn(m.max_token_deposits as string);
+		const depositsTolerance =
+			m.deposit_cap_usd !== null ? targetDeposits.divn(50) : new BN(0);
+		if (sm.maxTokenDeposits.sub(targetDeposits).abs().gt(depositsTolerance)) {
+			await apply(
+				`updateSpotMarketMaxTokenDeposits ${m.name}`,
+				`${sm.maxTokenDeposits.toString()} -> ${targetDeposits.toString()}` +
+					(m.deposit_cap_usd !== null
+						? ` ($${m.deposit_cap_usd.toLocaleString()} at live oracle)`
+						: ''),
+				() => syncClient.updateSpotMarketMaxTokenDeposits(idx, targetDeposits)
+			);
+		}
+		if (sm.maxTokenBorrowsFraction !== m.max_token_borrows_fraction) {
+			await apply(
+				`updateSpotMarketMaxTokenBorrows ${m.name}`,
+				`${sm.maxTokenBorrowsFraction} -> ${m.max_token_borrows_fraction}`,
+				() =>
+					syncClient.updateSpotMarketMaxTokenBorrows(
+						idx,
+						m.max_token_borrows_fraction as number
+					)
+			);
+		}
+
+		if (!DRY_RUN && sigs.length === 0) {
 			logStep(`${m.name}: lending params already in sync`);
 		}
 		receipt.spotMarkets[idx].syncTxSigs = sigs;
@@ -557,7 +663,11 @@ async function main() {
 
 	receipt.finishedAt = new Date().toISOString();
 	writeReceipt();
-	console.log(`\nreceipt written: ${receiptPath}`);
+	if (DRY_RUN) {
+		console.log('\n[DRY RUN] complete; no transactions were sent.');
+	} else {
+		console.log(`\nreceipt written: ${receiptPath}`);
+	}
 	await syncClient.unsubscribe();
 }
 
