@@ -30,16 +30,6 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 6,
 	},
-	{
-		fullName: 'FettyRIP',
-		category: ['Test'],
-		symbol: 'FettyRIP',
-		baseAssetSymbol: 'FETTYRIP',
-		marketIndex: 2,
-		oracle: new PublicKey('5BpSEM2PAKyDMbeEiFmAjjHW48zGpxtrpnp5oTPNcBoY'),
-		launchTs: 1751328000000,
-		oracleSource: OracleSource.Prelaunch,
-	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
