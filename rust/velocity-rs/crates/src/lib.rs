@@ -3373,7 +3373,11 @@ impl<'a> TransactionBuilder<'a> {
             ]);
         }
 
-        let add_revenue_share_escrow = if let Some(has) = has_builder {
+        // The on-chain FillPerpOrder (programs/velocity/src/controller/orders.rs)
+        // requires the taker's RevenueShareEscrow in two independent cases: the
+        // order carries a builder code, OR the taker is referred (their escrow was
+        // initialized with a referrer, i.e. the `BuilderReferral` status bit).
+        let order_has_builder = if let Some(has) = has_builder {
             has
         } else if let Some(order_id) = taker_order_id {
             taker_account
@@ -3385,7 +3389,7 @@ impl<'a> TransactionBuilder<'a> {
             // no taker_order_id, should be a swift order, include the revenue share escrow optimistically
             true
         };
-        if add_revenue_share_escrow {
+        if order_has_builder || taker_stats.has_builder_referral() {
             accounts.push(AccountMeta::new(
                 derive_revenue_share_escrow(&taker_account.authority),
                 false,
@@ -4389,5 +4393,68 @@ mod tests {
 
         let high_leverage_account = *high_leverage_mode_account();
         assert!(tx.static_account_keys().contains(&high_leverage_account));
+    }
+
+    /// Regression: a fill of a *referred* taker's order (their RevenueShareEscrow
+    /// was initialized with a referrer -> `BuilderReferral` status bit) must attach
+    /// the escrow account even when the order itself carries no builder code, or the
+    /// on-chain `FillPerpOrder` reverts with `UnableToLoadRevenueShareAccount`.
+    #[test]
+    fn fill_perp_order_attaches_escrow_for_referred_taker() {
+        let program_data = ProgramData::new(
+            vec![SpotMarket::default()],
+            vec![PerpMarket::default()],
+            vec![],
+            State::default(),
+        );
+        let filler = Pubkey::new_unique();
+        let taker = Pubkey::new_unique();
+
+        // Taker holds a plain order (id 1) that carries no builder code.
+        let mut taker_account = User::default();
+        taker_account.orders[0].order_id = 1;
+        assert!(!taker_account.orders[0].has_builder());
+        let makers: Vec<User> = vec![];
+        let escrow = derive_revenue_share_escrow(&taker_account.authority);
+
+        // Referred taker (BuilderReferral bit set): escrow MUST be attached even
+        // though the order has no builder. This is the regressed case.
+        let mut referred_stats = UserStats::default();
+        referred_stats.referrer_status = 0b0000_0100;
+        assert!(referred_stats.has_builder_referral());
+        let tx = TransactionBuilder::new(&program_data, filler, Cow::Owned(User::default()), false)
+            .fill_perp_order(
+                0,
+                taker,
+                &taker_account,
+                &referred_stats,
+                Some(1),
+                &makers,
+                None,
+            )
+            .build();
+        assert!(
+            tx.static_account_keys().contains(&escrow),
+            "referred taker's fill must include the RevenueShareEscrow account"
+        );
+
+        // Control: not referred and order has no builder -> escrow omitted.
+        let plain_stats = UserStats::default();
+        assert!(!plain_stats.has_builder_referral());
+        let tx = TransactionBuilder::new(&program_data, filler, Cow::Owned(User::default()), false)
+            .fill_perp_order(
+                0,
+                taker,
+                &taker_account,
+                &plain_stats,
+                Some(1),
+                &makers,
+                None,
+            )
+            .build();
+        assert!(
+            !tx.static_account_keys().contains(&escrow),
+            "non-referred, non-builder fill must not include the RevenueShareEscrow account"
+        );
     }
 }

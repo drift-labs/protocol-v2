@@ -766,6 +766,11 @@ pub struct ProtectedMakerParams {
 pub trait UserStatsExt {
     fn is_referrer(&self) -> bool;
     fn is_referred(&self) -> bool;
+    /// True when the user's `RevenueShareEscrow` was initialized with a referrer
+    /// (the `BuilderReferral` bit). Fills of such a taker's orders must include
+    /// the escrow account or the program rejects them with
+    /// `UnableToLoadRevenueShareAccount`.
+    fn has_builder_referral(&self) -> bool;
 }
 impl UserStatsExt for UserStats {
     fn is_referrer(&self) -> bool {
@@ -773,6 +778,9 @@ impl UserStatsExt for UserStats {
     }
     fn is_referred(&self) -> bool {
         self.referrer_status & 0b0000_0010 != 0
+    }
+    fn has_builder_referral(&self) -> bool {
+        self.referrer_status & 0b0000_0100 != 0
     }
 }
 

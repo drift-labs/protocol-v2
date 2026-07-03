@@ -11,6 +11,8 @@ import {
 	NodeToFill,
 	UserMap,
 	UserStatsMap,
+	RevenueShareEscrowMap,
+	RevenueShareEscrowAccount,
 	MarketType,
 	isOrderExpired,
 	BulkAccountLoader,
@@ -112,6 +114,10 @@ const MAX_ACCOUNTS_PER_TX = 64; // solana limit, track https://github.com/solana
 const MAX_POSITIONS_PER_USER = 8;
 export const SETTLE_POSITIVE_PNL_COOLDOWN_MS = 60_000;
 export const CONFIRM_TX_INTERVAL_MS = 5_000;
+// RevenueShareEscrowMap is loaded once via getProgramAccounts and has no live
+// subscription, so re-sync periodically to pick up escrows created after start
+// (a referred taker whose escrow we miss makes the fill revert).
+export const REVENUE_SHARE_ESCROW_SYNC_INTERVAL_MS = 60_000;
 const SIM_CU_ESTIMATE_MULTIPLIER = 1.15;
 const SLOTS_UNTIL_JITO_LEADER_TO_SEND = 4;
 export const TX_CONFIRMATION_BATCH_SIZE = 100;
@@ -187,6 +193,7 @@ export class FillerBot extends TxThreaded implements Bot {
 
 	private userMap?: UserMap;
 	protected userStatsMap?: UserStatsMap;
+	protected revenueShareEscrowMap?: RevenueShareEscrowMap;
 
 	protected periodicTaskMutex = new Mutex();
 
@@ -539,6 +546,12 @@ export class FillerBot extends TxThreaded implements Bot {
 			} ms`
 		);
 
+		this.revenueShareEscrowMap = new RevenueShareEscrowMap(
+			this.velocityClient,
+			true
+		);
+		await this.revenueShareEscrowMap.subscribe();
+
 		await this.clockSubscriber.subscribe();
 		await this.pythLazerSubscriber?.subscribe();
 
@@ -591,6 +604,13 @@ export class FillerBot extends TxThreaded implements Bot {
 				this.settlePnls.bind(this),
 				SETTLE_POSITIVE_PNL_COOLDOWN_MS / 2
 			)
+		);
+		this.intervalIds.push(
+			setInterval(() => {
+				this.revenueShareEscrowMap?.sync().catch((e) => {
+					logger.error(`Failed to sync revenueShareEscrowMap: ${e}`);
+				});
+			}, REVENUE_SHARE_ESCROW_SYNC_INTERVAL_MS)
 		);
 		if (this.bundleSender) {
 			this.intervalIds.push(
@@ -1011,6 +1031,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		takerUser: UserAccount;
 		takerUserSlot: number;
 		referrerInfo: ReferrerInfo | undefined;
+		takerEscrow: RevenueShareEscrowAccount | undefined;
 		marketType: MarketType;
 	}> {
 		const makerInfos: Array<DataAndSlot<MakerInfo>> = [];
@@ -1069,12 +1090,21 @@ export class FillerBot extends TxThreaded implements Bot {
 			await this.userStatsMap!.mustGet(takerUserAcct.data.authority.toString())
 		).getReferrerInfo();
 
+		// The program rejects a fill that omits the taker's RevenueShareEscrow when
+		// the taker is referred (escrow initialized with a referrer). The map is
+		// preloaded and periodically synced so this is a cheap synchronous lookup;
+		// builder-code orders self-attach the escrow inside getFillPerpOrderIx.
+		const takerEscrow = this.revenueShareEscrowMap?.get(
+			takerUserAcct.data.authority.toString()
+		);
+
 		return Promise.resolve({
 			makerInfos,
 			takerUserPubKey,
 			takerUser: takerUserAcct.data,
 			takerUserSlot: takerUserAcct.slot,
 			referrerInfo,
+			takerEscrow,
 			marketType: nodeToFill.node.order!.marketType,
 		});
 	}
@@ -1461,6 +1491,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				takerUser,
 				takerUserPubKey,
 				takerUserSlot,
+				takerEscrow,
 				marketType,
 			} = await this.getNodeFillInfo(nodeToFill);
 
@@ -1517,7 +1548,11 @@ export class FillerBot extends TxThreaded implements Bot {
 						makers.map((m) => m.data),
 						// referrer concept removed in velocity SDK; 5th arg is now
 						// fillerSubAccountId (number) — leave default.
-						undefined
+						undefined, // fillerSubAccountId
+						undefined, // isSignedMsg
+						undefined, // fillerAuthority
+						undefined, // hasBuilderFee (derived from order bitflags)
+						takerEscrow
 					)
 				);
 
@@ -1709,6 +1744,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				takerUserPubKey,
 				takerUserSlot,
 				referrerInfo,
+				takerEscrow,
 				marketType,
 			} = await this.getNodeFillInfo(nodeToFill);
 
@@ -1750,7 +1786,11 @@ export class FillerBot extends TxThreaded implements Bot {
 				makerInfos.map((m) => m.data),
 				// referrer concept removed in velocity SDK; 5th arg is now
 				// fillerSubAccountId (number) — leave default.
-				undefined
+				undefined, // fillerSubAccountId
+				undefined, // isSignedMsg
+				undefined, // fillerAuthority
+				undefined, // hasBuilderFee (derived from order bitflags)
+				takerEscrow
 			);
 
 			if (!ix) {
@@ -2020,6 +2060,12 @@ export class FillerBot extends TxThreaded implements Bot {
 				referrerInfo = undefined;
 			}
 
+			// The taker of a triggered order can also be referred; attach their
+			// RevenueShareEscrow or the fill leg reverts (see getNodeFillInfo).
+			const takerEscrow = this.revenueShareEscrowMap?.get(
+				user.data.authority.toString()
+			);
+
 			const velocityUser = this.velocityClient.getUser();
 
 			const getSimResult = async (makerInfos: MakerInfo[]) => {
@@ -2030,7 +2076,11 @@ export class FillerBot extends TxThreaded implements Bot {
 					makerInfos,
 					// referrer concept removed in velocity SDK; 5th arg is now
 					// fillerSubAccountId (number) — leave default.
-					undefined
+					undefined, // fillerSubAccountId
+					undefined, // isSignedMsg
+					undefined, // fillerAuthority
+					undefined, // hasBuilderFee (derived from order bitflags)
+					takerEscrow
 				);
 				ixs.push(fillIx);
 
