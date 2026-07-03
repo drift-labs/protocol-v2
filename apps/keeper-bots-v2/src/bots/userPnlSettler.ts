@@ -30,6 +30,7 @@ import {
 	isBuilderOrderCompleted,
 	getUserAccountPublicKeySync,
 	SettlePnlMode,
+	OraclePriceData,
 } from '@velocity-exchange/sdk';
 import { Mutex } from 'async-mutex';
 
@@ -131,6 +132,8 @@ export class UserPnlSettlerBot implements Bot {
 	private timeoutIds: Array<NodeJS.Timeout> = [];
 	private watchdogTimerMutex = new Mutex();
 	private watchdogTimerLastPatTime = Date.now();
+	// Markets whose oracle has no price data, already logged once to avoid spam.
+	private missingOracleWarned: Set<number> = new Set();
 
 	// =============================================================================
 	// CONSTRUCTOR & LIFECYCLE
@@ -895,6 +898,28 @@ export class UserPnlSettlerBot implements Bot {
 		return usersToSettleMap;
 	}
 
+	/**
+	 * Oracle price data can be unavailable for a market whose oracle isn't
+	 * publishing (e.g. a stale/removed devnet test market). Return undefined and
+	 * warn once instead of letting one dead oracle throw and abort the entire
+	 * settlement pass for every market.
+	 */
+	private getOracleDataForPerpMarketSafe(
+		marketIndex: number
+	): OraclePriceData | undefined {
+		try {
+			return this.velocityClient.getOracleDataForPerpMarket(marketIndex);
+		} catch (err) {
+			if (!this.missingOracleWarned.has(marketIndex)) {
+				this.missingOracleWarned.add(marketIndex);
+				logger.warn(
+					`No oracle price data for perp market ${marketIndex}; skipping its positions for settlement`
+				);
+			}
+			return undefined;
+		}
+	}
+
 	private async findLargestNegativePnlUsersToSettle(
 		nowTs: number
 	): Promise<Map<number, UserToSettle[]>> {
@@ -933,7 +958,10 @@ export class UserPnlSettlerBot implements Bot {
 					continue;
 				}
 				const oraclePriceData =
-					this.velocityClient.getOracleDataForPerpMarket(perpMarketIdx);
+					this.getOracleDataForPerpMarketSafe(perpMarketIdx);
+				if (!oraclePriceData) {
+					continue;
+				}
 
 				const userUnsettledPnl = calculateClaimablePnl(
 					perpMarket,
@@ -1048,8 +1076,10 @@ export class UserPnlSettlerBot implements Bot {
 			);
 			return { shouldSettle: false };
 		}
-		const oraclePriceData =
-			this.velocityClient.getOracleDataForPerpMarket(perpMarketIdx);
+		const oraclePriceData = this.getOracleDataForPerpMarketSafe(perpMarketIdx);
+		if (!oraclePriceData) {
+			return { shouldSettle: false };
+		}
 
 		const userUnsettledPnl = calculateClaimablePnl(
 			perpMarket,
@@ -1104,8 +1134,10 @@ export class UserPnlSettlerBot implements Bot {
 		spotMarketIdx: number
 	): Promise<boolean> {
 		const perpMarket = this.velocityClient.getPerpMarketAccount(perpMarketIdx)!;
-		const oraclePriceData =
-			this.velocityClient.getOracleDataForPerpMarket(perpMarketIdx);
+		const oraclePriceData = this.getOracleDataForPerpMarketSafe(perpMarketIdx);
+		if (!oraclePriceData) {
+			return false;
+		}
 
 		const pnlPool = perpMarket.pnlPool;
 		const pnlPoolSpotMarket = this.velocityClient.getSpotMarketAccount(
