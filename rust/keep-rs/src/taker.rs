@@ -11,15 +11,21 @@
 //! Behaviour per tick, per configured market:
 //!   - read the subaccount's current perp position,
 //!   - pick a direction: random coin-flip, **unless** `|position|` has reached
-//!     `taker_max_base_per_market`, in which case the side that *reduces*
-//!     inventory is forced. This makes the flow mean-reverting and keeps the
-//!     position bounded instead of drifting to one side and getting stuck,
+//!     the rebalance threshold (see below), in which case the side that
+//!     *reduces* inventory is forced and the order is sent `reduce_only` so it
+//!     can only shrink the position, never flip it. This makes the flow
+//!     mean-reverting and keeps the position bounded instead of drifting to one
+//!     side and getting stuck,
+//!   - when a market is stuck one-sided (`|position|` ≥ threshold) it is logged
+//!     at INFO so an operator can see the bot is actively unwinding it,
 //!   - place one market order of `taker_size_base` with auction params left to
 //!     the program to derive (so it routes through the normal
 //!     fill/auction path and a filler — local or deployed — matches it).
 //!
-//! Set `taker_max_base_per_market = 0` to disable the inventory bound (pure
-//! random flow). `--dry-run` logs the intended order without sending.
+//! The **rebalance threshold** is `rebalance_base_per_market` when set,
+//! otherwise `taker_max_base_per_market`. Set both to 0 to disable the
+//! inventory bound entirely (pure random flow). `--dry-run` logs the intended
+//! order without sending.
 //!
 //! Randomness is a dependency-free splitmix64 seeded from the wall clock mixed
 //! with the market index — good enough for direction coin-flips; the
@@ -127,17 +133,30 @@ impl TakerBot {
             .map(|p| p.base_asset_amount)
             .unwrap_or(0);
 
+        let threshold = self.rebalance_threshold();
+        let stuck = threshold > 0 && base_position.unsigned_abs() >= threshold;
+        if stuck {
+            log::info!(
+                target: TARGET,
+                "market {market_index}: stuck one-sided, position={base_position} \
+                 (threshold={threshold}); forcing reduce-only order to rebalance",
+            );
+        }
+
         let direction = self.choose_direction(market_index, base_position);
 
         // Market order, auction params left to the program to derive
         // (direction-correct sanitization). A filler — local or the deployed
-        // devnet one — matches it against resting quotes or the AMM.
+        // devnet one — matches it against resting quotes or the AMM. When stuck
+        // one-sided the forced order is `reduce_only` so a chunk larger than the
+        // remaining position can't overshoot flat and re-open the other side.
         let order = OrderParams {
             order_type: OrderType::Market,
             market_type: MarketType::Perp,
             market_index,
             direction,
             base_asset_amount: size,
+            reduce_only: stuck,
             ..Default::default()
         };
 
@@ -173,20 +192,33 @@ impl TakerBot {
         }
     }
 
-    /// Coin-flip direction, overridden to the inventory-reducing side when the
-    /// position has reached the per-market base cap (0 = no cap → always random).
+    /// Coin-flip direction, overridden to the inventory-reducing side once
+    /// `|position|` reaches the rebalance threshold (0 = no bound → always
+    /// random). This is what mean-reverts the position toward flat.
     fn choose_direction(&self, market_index: u16, base_position: i64) -> PositionDirection {
-        let cap = self.config.taker_max_base_per_market as i64;
-        if cap > 0 && base_position >= cap {
+        let threshold = self.rebalance_threshold() as i64;
+        if threshold > 0 && base_position >= threshold {
             return PositionDirection::Short;
         }
-        if cap > 0 && base_position <= -cap {
+        if threshold > 0 && base_position <= -threshold {
             return PositionDirection::Long;
         }
         if rand_bit(market_index) {
             PositionDirection::Long
         } else {
             PositionDirection::Short
+        }
+    }
+
+    /// Inventory level (BASE_PRECISION) past which a position counts as stuck
+    /// one-sided and the taker forces the reducing side. Prefers the dedicated
+    /// `rebalance_base_per_market`, falling back to the `taker_max_base_per_market`
+    /// cap so existing single-knob configs keep their current behaviour.
+    fn rebalance_threshold(&self) -> u64 {
+        if self.config.rebalance_base_per_market > 0 {
+            self.config.rebalance_base_per_market
+        } else {
+            self.config.taker_max_base_per_market
         }
     }
 }
