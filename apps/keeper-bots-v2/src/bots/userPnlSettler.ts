@@ -1076,8 +1076,7 @@ export class UserPnlSettlerBot implements Bot {
 			);
 			return { shouldSettle: false };
 		}
-		const oraclePriceData =
-			this.getOracleDataForPerpMarketSafe(perpMarketIdx);
+		const oraclePriceData = this.getOracleDataForPerpMarketSafe(perpMarketIdx);
 		if (!oraclePriceData) {
 			return { shouldSettle: false };
 		}
@@ -1135,8 +1134,7 @@ export class UserPnlSettlerBot implements Bot {
 		spotMarketIdx: number
 	): Promise<boolean> {
 		const perpMarket = this.velocityClient.getPerpMarketAccount(perpMarketIdx)!;
-		const oraclePriceData =
-			this.getOracleDataForPerpMarketSafe(perpMarketIdx);
+		const oraclePriceData = this.getOracleDataForPerpMarketSafe(perpMarketIdx);
 		if (!oraclePriceData) {
 			return false;
 		}
