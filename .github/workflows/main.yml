@@ -361,8 +361,8 @@ jobs:
       # only ran a non-blocking `cargo fmt`); covers the whole rust workspace.
       - name: cargo fmt rust workspace
         run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
-      # The velocity-rs build.rs regenerates crates/src/drift_idl.rs from res/velocity.json;
-      # the velocity (`drift`) program crate is compiled as a host lib path-dep.
+      # The velocity-rs build.rs regenerates crates/src/velocity_idl.rs from the canonical
+      # packages/sdk/src/idl/velocity.json; the velocity program crate is compiled as a host lib path-dep.
       - name: cargo check rust workspace
         run: cargo check --manifest-path rust/Cargo.toml --locked --all-targets
       # Gating: offline-deterministic tests only (rpc_tests feature OFF, so all
