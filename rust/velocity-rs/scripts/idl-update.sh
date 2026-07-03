@@ -1,1 +1,0 @@
- curl -H 'Accept: application/vnd.github.v3.raw' 'https://api.github.com/repos/velocity-exchange/velocity-v1/contents/packages/sdk/src/idl/velocity.json' > res/velocity.json
