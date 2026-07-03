@@ -18,6 +18,11 @@ export type PerpMarketConfig = {
 
 // Reflects what is actually deployed on devnet (per on-chain enumeration of
 // State.numberOfMarkets). Update when devnet adds/changes a perp market.
+// BTC (1) + ETH (2) are (re)created by deploy-scripts/add-perp-market-devnet.ts.
+// Oracles are the velocity program's pyth_lazer PDAs:
+// findProgramAddress(["pyth_lazer", u32le(pythLazerId)], VELOCITY_DEVNET_PROGRAM_ID).
+// ETH-PERP uses lazer feed 2 (the real ETH price feed; feed 3114 is the
+// mm-oracle feed, not the price feed).
 export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Solana',
@@ -29,6 +34,28 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1655751353000,
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 6,
+	},
+	{
+		fullName: 'Bitcoin',
+		category: ['L1', 'Payment'],
+		symbol: 'BTC-PERP',
+		baseAssetSymbol: 'BTC',
+		marketIndex: 1,
+		oracle: new PublicKey('J7Fp8iTKuKdCM7PnzqHXTdTo5Jr7ykAmiDyvpz58GJGZ'),
+		launchTs: 1782950400000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 1,
+	},
+	{
+		fullName: 'Ethereum',
+		category: ['L1', 'Infra'],
+		symbol: 'ETH-PERP',
+		baseAssetSymbol: 'ETH',
+		marketIndex: 2,
+		oracle: new PublicKey('6wQ5RiQ7usJ3TqYZSiuAPZHrVCeSWNrvace84khDKEmH'),
+		launchTs: 1782950400000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 2,
 	},
 ];
 
