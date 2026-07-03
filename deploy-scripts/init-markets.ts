@@ -588,9 +588,11 @@ async function main() {
 
 		// --- repeg mark toward live oracle. Params peg is a dated reference;
 		// funding blocks (6251) when mark diverges too far from the oracle.
-		// A single repeg can only reach the bottom of the oracle confidence band
-		// (calculate_repeg_validity), so target ~1% below and let the formulaic
-		// curve-update close the residual. Skip when already within 2%.
+		// A single repeg can only move so far (calculate_repeg_validity), so target
+		// ~1% short of the oracle on whichever side mark is on -- never crossing it,
+		// since RepegAmmCurve rejects overshooting past the oracle
+		// (InvalidRepegDirection). The formulaic curve-update closes the residual.
+		// Skip when already within 2%.
 		const markPrice = pm.amm.quoteAssetReserve
 			.mul(pm.amm.pegMultiplier)
 			.div(pm.amm.baseAssetReserve);
@@ -601,21 +603,25 @@ async function main() {
 				`mark=${markPrice.toString()} oracle=${oraclePrice.toString()}`
 			);
 		} else if (DRY_RUN) {
-			const targetPrice = oraclePrice.sub(oraclePrice.divn(100)); // 1% below
+			const targetPrice = markPrice.gt(oraclePrice)
+				? oraclePrice.add(oraclePrice.divn(100)) // mark above oracle -> approach from above
+				: oraclePrice.sub(oraclePrice.divn(100)); // mark below oracle -> approach from below
 			const newPeg = targetPrice
 				.mul(pm.amm.baseAssetReserve)
 				.div(pm.amm.quoteAssetReserve);
 			dryStep(
-				`repegAmmCurve ${m.name} -> ~1% below oracle`,
+				`repegAmmCurve ${m.name} -> ~1% short of oracle (mark's side)`,
 				`newPeg=${newPeg.toString()} oracle=${oraclePrice.toString()} mark=${markPrice.toString()}`
 			);
 		} else {
-			const targetPrice = oraclePrice.sub(oraclePrice.divn(100)); // 1% below
+			const targetPrice = markPrice.gt(oraclePrice)
+				? oraclePrice.add(oraclePrice.divn(100)) // mark above oracle -> approach from above
+				: oraclePrice.sub(oraclePrice.divn(100)); // mark below oracle -> approach from below
 			const newPeg = targetPrice
 				.mul(pm.amm.baseAssetReserve)
 				.div(pm.amm.quoteAssetReserve);
 			logStep(
-				`repegAmmCurve ${m.name} -> ~1% below oracle`,
+				`repegAmmCurve ${m.name} -> ~1% short of oracle (mark's side)`,
 				`newPeg=${newPeg.toString()} oracle=${oraclePrice.toString()} mark=${markPrice.toString()}`
 			);
 			// RepegAmmCurve rejects a stale oracle, so bundle a fresh price post in
@@ -652,7 +658,11 @@ async function main() {
 			const derivedOi = new BN(m.oi_cap_usd)
 				.mul(PRICE_PRECISION)
 				.mul(BASE_PRECISION)
-				.div(oraclePrice);
+				.div(oraclePrice)
+				// floor to a multiple of order_step_size: updatePerpMarketMaxOpenInterest
+				// rejects a non-multiple (is_multiple_of_step_size, admin.rs).
+				.div(bn(m.order_step_size))
+				.mul(bn(m.order_step_size));
 			const oiTolerance = derivedOi.divn(50); // 2%
 			if (pm.maxOpenInterest.sub(derivedOi).abs().lte(oiTolerance)) {
 				logStep(

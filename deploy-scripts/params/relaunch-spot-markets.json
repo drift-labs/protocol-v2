@@ -44,7 +44,7 @@
 			"liquidator_fee": 0,
 			"if_liquidation_fee": 5000,
 			"scale_initial_asset_weight_start": "500000000000",
-			"withdraw_guard_threshold": "500000000000",
+			"withdraw_guard_threshold": "9500000000",
 			"order_tick_size": "0",
 			"order_step_size": "0",
 			"if_total_factor": 100000,
@@ -74,14 +74,14 @@
 			"liquidator_fee": 7500,
 			"if_liquidation_fee": 22500,
 			"scale_initial_asset_weight_start": "200000000000",
-			"withdraw_guard_threshold": "4765011686874",
+			"withdraw_guard_threshold": "117000000000",
 			"order_tick_size": "1000",
 			"order_step_size": "100000",
 			"if_total_factor": 200000,
 			"max_token_deposits": "4765011686874",
 			"max_token_borrows_fraction": 0,
 			"deposit_cap_usd": 400000,
-			"withdraw_guard_usd": 400000
+			"withdraw_guard_usd": 9500
 		}
 	]
 }
