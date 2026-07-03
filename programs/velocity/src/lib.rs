@@ -955,7 +955,6 @@ pub mod velocity {
         handle_update_perp_market_expiry(ctx, expiry_ts)
     }
 
-    #[cfg(feature = "vlp-hedge")]
     pub fn update_perp_market_lp_pool_paused_operations(
         ctx: Context<PauseAdminUpdatePerpMarket>,
         lp_paused_operations: u8,
@@ -1089,7 +1088,6 @@ pub mod velocity {
         )
     }
 
-    #[cfg(feature = "vlp-hedge")]
     pub fn update_perp_market_lp_pool_id(
         ctx: Context<AdminUpdatePerpMarket>,
         lp_pool_id: u8,
@@ -1775,7 +1773,6 @@ pub mod velocity {
         )
     }
 
-    #[cfg(feature = "vlp-hedge")]
     pub fn update_feature_bit_flags_settle_lp_pool(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,
@@ -1783,7 +1780,6 @@ pub mod velocity {
         handle_update_feature_bit_flags_settle_lp_pool(ctx, enable)
     }
 
-    #[cfg(feature = "vlp-hedge")]
     pub fn update_feature_bit_flags_swap_lp_pool(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,
@@ -1791,7 +1787,6 @@ pub mod velocity {
         handle_update_feature_bit_flags_swap_lp_pool(ctx, enable)
     }
 
-    #[cfg(feature = "vlp-hedge")]
     pub fn update_feature_bit_flags_mint_redeem_lp_pool(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,

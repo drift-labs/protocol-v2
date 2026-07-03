@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 
-#[cfg(feature = "vlp-hedge")]
 use crate::state::state::LpPoolFeatureBitFlags;
 
 use anchor_lang::prelude::*;
@@ -1648,7 +1647,6 @@ pub fn handle_update_perp_liquidation_fee(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-#[cfg(feature = "vlp-hedge")]
 pub fn handle_update_perp_lp_pool_id(
     ctx: Context<AdminUpdatePerpMarket>,
     lp_pool_id: u8,
@@ -2804,7 +2802,6 @@ pub fn handle_update_perp_market_number_of_users(
     Ok(())
 }
 
-#[cfg(feature = "vlp-hedge")]
 pub fn handle_update_perp_market_lp_pool_paused_operations(
     ctx: Context<PauseAdminUpdatePerpMarket>,
     lp_paused_operations: u8,
@@ -3508,7 +3505,6 @@ pub fn handle_update_feature_bit_flags_builder_codes(
     Ok(())
 }
 
-#[cfg(feature = "vlp-hedge")]
 pub fn handle_update_feature_bit_flags_settle_lp_pool(
     ctx: Context<HotAdminUpdateState>,
     enable: bool,
@@ -3530,7 +3526,6 @@ pub fn handle_update_feature_bit_flags_settle_lp_pool(
     Ok(())
 }
 
-#[cfg(feature = "vlp-hedge")]
 pub fn handle_update_feature_bit_flags_swap_lp_pool(
     ctx: Context<HotAdminUpdateState>,
     enable: bool,
@@ -3552,7 +3547,6 @@ pub fn handle_update_feature_bit_flags_swap_lp_pool(
     Ok(())
 }
 
-#[cfg(feature = "vlp-hedge")]
 pub fn handle_update_feature_bit_flags_mint_redeem_lp_pool(
     ctx: Context<HotAdminUpdateState>,
     enable: bool,
