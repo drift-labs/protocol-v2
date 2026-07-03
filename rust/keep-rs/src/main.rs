@@ -79,7 +79,7 @@ pub struct Config {
     #[clap(long, default_value = "false")]
     pub taker: bool,
     /// Seconds between taker order ticks
-    #[clap(long, env = "TAKER_INTERVAL_SECS", default_value = "15")]
+    #[clap(long, env = "TAKER_INTERVAL_SECS", default_value = "300")]
     pub taker_interval_secs: u64,
     /// Taker order size in BASE_PRECISION units (1e9 = 1 base unit; default 0.1)
     #[clap(long, env = "TAKER_SIZE_BASE", default_value = "100000000")]
