@@ -8,8 +8,8 @@
  *   - Health factor and liquidation threshold checks.
  *   - Subscribes to and caches the latest `User` account state from chain.
  *
- * To send instructions (deposit, place order, etc.) use {@link VelocityClient}.
- * For referral/volume stats see {@link UserStats} (userStats.ts).
+ * To send instructions (deposit, place order, etc.) use `VelocityClient`.
+ * For referral/volume stats see `UserStats` (userStats.ts).
  */
 import { PublicKey } from '@solana/web3.js';
 import { EventEmitter } from 'events';
@@ -21,6 +21,7 @@ import {
 	isVariant,
 	MarginCategory,
 	Order,
+	OrderParams,
 	PerpMarketAccount,
 	PerpPosition,
 	ReferrerStatus,
@@ -42,6 +43,8 @@ import {
 	DUST_POSITION_SIZE,
 	FIVE_MINUTE,
 	MARGIN_PRECISION,
+	MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN,
+	ONE,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
@@ -88,6 +91,7 @@ import {
 	SpotMarketAccount,
 } from './types';
 import { standardizeBaseAssetAmount } from './math/orders';
+import { calculateBuilderFee, hasBuilderParams } from './math/builder';
 import { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 import {
 	calculateAssetWeight,
@@ -128,6 +132,29 @@ import {
 
 export type MarginType = 'Cross' | 'Isolated';
 
+/**
+ * Ports `get_proportion_u128` (math/helpers.rs) for the referee fee discount
+ * calculation. The Rust version routes large operands through a wider U192
+ * type purely to avoid u128 overflow; BN has no such ceiling, so that branch
+ * is elided here since it produces the same numeric result.
+ */
+function getProportion128(value: BN, numerator: BN, denominator: BN): BN {
+	if (numerator.eq(denominator)) {
+		return value;
+	}
+
+	if (numerator.gt(denominator.div(TWO)) && denominator.gt(numerator)) {
+		// ceiling division, mirroring standardize_value_with_remainder_i128
+		const scaled = value.mul(denominator.sub(numerator));
+		const remainder = scaled.mod(denominator);
+		const floorDiv = scaled.div(denominator);
+		const ceilDiv = remainder.isZero() ? floorDiv : floorDiv.add(ONE);
+		return value.sub(ceilDiv);
+	}
+
+	return value.mul(numerator).div(denominator);
+}
+
 export class User {
 	velocityClient: VelocityClient;
 	userAccountPublicKey: PublicKey;
@@ -135,6 +162,7 @@ export class User {
 	_isSubscribed = false;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 
+	/** True only when both `subscribe()` has completed and the underlying `accountSubscriber` itself reports subscribed. */
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
 	}
@@ -143,6 +171,7 @@ export class User {
 		this._isSubscribed = val;
 	}
 
+	/** Constructs a `User` for the account at `config.userAccountPublicKey`, wiring up the account subscriber selected by `config.accountSubscription` (`'websocket'`/`'polling'`/`'grpc'`/`'custom'`). Does not fetch or subscribe — call `subscribe()` next. */
 	public constructor(config: UserConfig) {
 		// Type-system guarantees at least one of the two is supplied.
 		const velocityClient = config.velocityClient!;
@@ -204,21 +233,24 @@ export class User {
 	}
 
 	/**
-	 * Subscribe to User state accounts
-	 * @returns SusbcriptionSuccess result
+	 * Subscribes to this `User` account (websocket/polling/gRPC/custom per
+	 * `UserConfig.accountSubscription`) and awaits the initial account fetch.
+	 * Must resolve before any `get*`/margin/PnL accessor is called — those
+	 * throw `NotSubscribedError` until this has completed.
+	 * @param userAccount Optional pre-fetched account to seed the subscriber with, skipping the initial RPC fetch.
+	 * @returns True once the underlying subscriber reports subscribed.
 	 */
 	public async subscribe(userAccount?: UserAccount): Promise<boolean> {
 		this.isSubscribed = await this.accountSubscriber.subscribe(userAccount);
 		return this.isSubscribed;
 	}
 
-	/**
-	 *	Forces the accountSubscriber to fetch account updates from rpc
-	 */
+	/** Forces the account subscriber to re-fetch the `User` account from RPC (bypassing any push/poll cadence). */
 	public async fetchAccounts(): Promise<void> {
 		await this.accountSubscriber.fetch();
 	}
 
+	/** Removes all event listeners and tears down the account subscription. */
 	public async unsubscribe(): Promise<void> {
 		this.eventEmitter.removeAllListeners();
 		await this.accountSubscriber.unsubscribe();
@@ -229,7 +261,7 @@ export class User {
 	 * Returns the cached user account.
 	 *
 	 * - **Throws** `NotSubscribedError` if the subscriber has not been subscribed
-	 *   yet — reading the account before {@link subscribe} resolves is a
+	 *   yet — reading the account before `subscribe()` resolves is a
 	 *   programming error, not a missing-account condition.
 	 * - Returns `undefined` when subscribed but no account was found on chain.
 	 *   Because `subscribe()` awaits the initial fetch, an `undefined` here means
@@ -241,13 +273,14 @@ export class User {
 	}
 
 	/**
-	 * Like {@link getUserAccount} but throws instead of returning `undefined`
+	 * Like `getUserAccount` but throws instead of returning `undefined`
 	 * when the account was not found. Use at call sites that structurally
 	 * require the account to exist. (Still propagates `NotSubscribedError` when
 	 * called before subscribing.)
 	 *
-	 * Delegates to {@link getUserAccount} (rather than the subscriber directly)
+	 * Delegates to `getUserAccount` (rather than the subscriber directly)
 	 * so callers that override `getUserAccount` see the override here too.
+	 * @returns The current `UserAccount`.
 	 */
 	public getUserAccountOrThrow(): UserAccount {
 		const userAccount = this.getUserAccount();
@@ -259,18 +292,29 @@ export class User {
 		return userAccount;
 	}
 
+	/**
+	 * Bypasses the cached subscriber state and force-fetches the `User` account
+	 * directly from the RPC (via `fetchAccounts`), then returns the freshly
+	 * cached value. Useful right after sending a transaction, when the
+	 * websocket/polling subscriber may not yet have observed the update.
+	 * @returns The freshly fetched `UserAccount`, or `undefined` if the account does not exist on chain.
+	 */
 	public async forceGetUserAccount(): Promise<UserAccount | undefined> {
 		await this.fetchAccounts();
 		const account = this.accountSubscriber.getUserAccountAndSlot();
 		return account?.data;
 	}
 
+	/**
+	 * Returns the cached user account together with the slot at which it was
+	 * last observed. Same `undefined`/`NotSubscribedError` contract as `getUserAccount`.
+	 */
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
 		return this.accountSubscriber.getUserAccountAndSlot();
 	}
 
 	/**
-	 * Like {@link getUserAccountAndSlot} but throws instead of returning
+	 * Like `getUserAccountAndSlot` but throws instead of returning
 	 * `undefined` when the account was not found. Use at call sites that
 	 * structurally require the account to exist. (Still propagates
 	 * `NotSubscribedError` when called before subscribing.)
@@ -282,6 +326,16 @@ export class User {
 		);
 	}
 
+	/**
+	 * Finds the perp position for `marketIndex` on an explicit `userAccount`
+	 * snapshot rather than the cached account. Only matches "active" positions
+	 * (see `getActivePerpPositionsForUserAccount`) — a market the user has never
+	 * touched (or has fully closed and settled) returns `undefined` even though
+	 * the on-chain array always has a fixed-size slot for every market.
+	 * @param userAccount Account snapshot to search (does not have to be the subscribed account).
+	 * @param marketIndex Perp market index to look up.
+	 * @returns The matching `PerpPosition`, or `undefined` if the user has no active position in that market.
+	 */
 	public getPerpPositionForUserAccount(
 		userAccount: UserAccount,
 		marketIndex: number
@@ -301,6 +355,12 @@ export class User {
 		return this.getPerpPositionForUserAccount(userAccount, marketIndex);
 	}
 
+	/**
+	 * Like `getPerpPosition`, but returns a zeroed-out placeholder position
+	 * (see `getEmptyPosition`) instead of `undefined` when the user has no
+	 * active position in `marketIndex`. Convenient for math helpers that need a
+	 * `PerpPosition` shape unconditionally (e.g. buying-power/leverage calcs).
+	 */
 	public getPerpPositionOrEmpty(marketIndex: number): PerpPosition {
 		const userAccount = this.getUserAccountOrThrow();
 		return (
@@ -309,6 +369,10 @@ export class User {
 		);
 	}
 
+	/**
+	 * Like `getPerpPosition`, but throws instead of returning `undefined` when
+	 * the user has no active position in `marketIndex`.
+	 */
 	public getPerpPositionOrThrow(marketIndex: number): PerpPosition {
 		const position = this.getPerpPosition(marketIndex);
 		if (!position) {
@@ -317,6 +381,10 @@ export class User {
 		return position;
 	}
 
+	/**
+	 * Like `getPerpPosition`, but also returns the slot at which the underlying
+	 * `UserAccount` was observed.
+	 */
 	public getPerpPositionAndSlot(
 		marketIndex: number
 	): DataAndSlot<PerpPosition | undefined> {
@@ -331,6 +399,14 @@ export class User {
 		};
 	}
 
+	/**
+	 * Finds the spot position for `marketIndex` on an explicit `userAccount`
+	 * snapshot. Unlike `getPerpPositionForUserAccount`, this does not filter to
+	 * "active" positions first — it returns whatever fixed-size slot entry
+	 * exists for that market index, even if the position is empty/available.
+	 * @param userAccount Account snapshot to search (does not have to be the subscribed account).
+	 * @param marketIndex Spot market index to look up.
+	 */
 	public getSpotPositionForUserAccount(
 		userAccount: UserAccount,
 		marketIndex: number
@@ -350,6 +426,10 @@ export class User {
 		return this.getSpotPositionForUserAccount(userAccount, marketIndex);
 	}
 
+	/**
+	 * Like `getSpotPosition`, but also returns the slot at which the underlying
+	 * `UserAccount` was observed.
+	 */
 	public getSpotPositionAndSlot(
 		marketIndex: number
 	): DataAndSlot<SpotPosition | undefined> {
@@ -364,6 +444,7 @@ export class User {
 		};
 	}
 
+	/** Returns a zeroed-out (no deposit/borrow) placeholder `SpotPosition` for `marketIndex`. */
 	getEmptySpotPosition(marketIndex: number): SpotPosition {
 		return {
 			marketIndex,
@@ -381,6 +462,7 @@ export class User {
 	 * Positive if it is a deposit, negative if it is a borrow.
 	 *
 	 * @param marketIndex
+	 * @returns Signed token amount, in the spot market's own token decimals (not QUOTE_PRECISION). `ZERO` if the user has no position in the market.
 	 */
 	public getTokenAmount(marketIndex: number): BN {
 		const spotPosition = this.getSpotPosition(marketIndex);
@@ -399,6 +481,7 @@ export class User {
 		);
 	}
 
+	/** Returns a zeroed-out placeholder `PerpPosition` for `marketIndex` (no size, no orders, cross margin). */
 	public getEmptyPosition(marketIndex: number): PerpPosition {
 		return {
 			baseAssetAmount: ZERO,
@@ -418,10 +501,19 @@ export class User {
 		};
 	}
 
+	/** Returns true if `position` has no size and no open orders (a market slot that can be treated as unused). */
 	public isPositionEmpty(position: PerpPosition): boolean {
 		return position.baseAssetAmount.eq(ZERO) && position.openOrders === 0;
 	}
 
+	/**
+	 * Returns the isolated-margin quote deposit backing a given perp position,
+	 * i.e. `PerpPosition.isolatedPositionScaledBalance` converted to a token
+	 * amount. This is the collateral segregated to that single isolated
+	 * position, separate from the user's cross-margin free collateral.
+	 * @param perpMarketIndex
+	 * @returns Quote token amount (the quote spot market's own decimals). `ZERO` if the user has no position or no isolated deposit in the market.
+	 */
 	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
 		const perpPosition = this.getPerpPosition(perpMarketIndex);
 		if (!perpPosition) return ZERO;
@@ -442,6 +534,7 @@ export class User {
 
 	/**
 	 * Returns the total USD value of deposits across all isolated perp positions.
+	 * @returns Precision QUOTE_PRECISION (1e6).
 	 */
 	public getTotalIsolatedPositionDeposits(): BN {
 		return this.getActivePerpPositions().reduce((total, perpPosition) => {
@@ -475,11 +568,13 @@ export class User {
 		}, ZERO);
 	}
 
+	/** Returns a shallow copy of `position`. Mutating the clone does not affect the cached account. */
 	public getClonedPosition(position: PerpPosition): PerpPosition {
 		const clonedPosition = Object.assign({}, position);
 		return clonedPosition;
 	}
 
+	/** Finds an order by its program-assigned `orderId` on an explicit `userAccount` snapshot. */
 	public getOrderForUserAccount(
 		userAccount: UserAccount,
 		orderId: number
@@ -488,14 +583,16 @@ export class User {
 	}
 
 	/**
+	 * Finds an order in the cached `UserAccount` by its program-assigned `orderId`.
 	 * @param orderId
-	 * @returns Order
+	 * @returns The matching `Order`, or `undefined` if no order with that id exists.
 	 */
 	public getOrder(orderId: number): Order | undefined {
 		const userAccount = this.getUserAccountOrThrow();
 		return this.getOrderForUserAccount(userAccount, orderId);
 	}
 
+	/** Like `getOrder`, but also returns the slot at which the underlying `UserAccount` was observed. */
 	public getOrderAndSlot(orderId: number): DataAndSlot<Order | undefined> {
 		const userAccount = this.getUserAccountAndSlotOrThrow();
 		const order = this.getOrderForUserAccount(userAccount.data, orderId);
@@ -505,6 +602,11 @@ export class User {
 		};
 	}
 
+	/**
+	 * Finds an order by its caller-assigned `userOrderId` (a client-chosen tag,
+	 * distinct from the program-assigned `orderId`) on an explicit `userAccount`
+	 * snapshot.
+	 */
 	public getOrderByUserIdForUserAccount(
 		userAccount: UserAccount,
 		userOrderId: number
@@ -515,14 +617,17 @@ export class User {
 	}
 
 	/**
+	 * Finds an order in the cached `UserAccount` by its caller-assigned
+	 * `userOrderId` (a client-chosen tag, distinct from the program-assigned `orderId`).
 	 * @param userOrderId
-	 * @returns Order
+	 * @returns The matching `Order`, or `undefined` if no order with that tag exists.
 	 */
 	public getOrderByUserOrderId(userOrderId: number): Order | undefined {
 		const userAccount = this.getUserAccountOrThrow();
 		return this.getOrderByUserIdForUserAccount(userAccount, userOrderId);
 	}
 
+	/** Like `getOrderByUserOrderId`, but also returns the slot at which the underlying `UserAccount` was observed. */
 	public getOrderByUserOrderIdAndSlot(
 		userOrderId: number
 	): DataAndSlot<Order | undefined> {
@@ -537,6 +642,11 @@ export class User {
 		};
 	}
 
+	/**
+	 * Filters an explicit `userAccount` snapshot's orders down to those with
+	 * `OrderStatus.Open`.
+	 * @returns `undefined` if `userAccount` is `undefined` (i.e. no account loaded), otherwise the array of open orders (possibly empty).
+	 */
 	public getOpenOrdersForUserAccount(
 		userAccount?: UserAccount
 	): Order[] | undefined {
@@ -545,11 +655,13 @@ export class User {
 		);
 	}
 
+	/** Returns all of the user's orders with `OrderStatus.Open`. Empty array (not `undefined`) if there are none or no account is loaded. */
 	public getOpenOrders(): Order[] {
 		const userAccount = this.getUserAccount();
 		return this.getOpenOrdersForUserAccount(userAccount) ?? [];
 	}
 
+	/** Like `getOpenOrders`, but also returns the slot at which the underlying `UserAccount` was observed. */
 	public getOpenOrdersAndSlot(): DataAndSlot<Order[]> {
 		const userAccount = this.getUserAccountAndSlotOrThrow();
 		const openOrders = this.getOpenOrdersForUserAccount(userAccount.data) ?? [];
@@ -559,10 +671,12 @@ export class User {
 		};
 	}
 
+	/** Returns this `User`'s account address (does not require the account to be subscribed or to exist on chain). */
 	public getUserAccountPublicKey(): PublicKey {
 		return this.userAccountPublicKey;
 	}
 
+	/** Checks directly via RPC (bypassing the subscriber cache) whether the `User` account exists on chain. */
 	public async exists(): Promise<boolean> {
 		const userAccountRPCResponse =
 			await this.velocityClient.connection.getParsedAccountInfo(
@@ -572,9 +686,9 @@ export class User {
 	}
 
 	/**
-	 * calculates the total open bids/asks in a perp market (including lps)
-	 * @returns : open bids
-	 * @returns : open asks
+	 * Returns the position's total resting open-order bid/ask size in a perp market.
+	 * @param marketIndex
+	 * @returns Tuple of `[openBids, openAsks]`, both `BASE_PRECISION` (1e9). Throws (via `getPerpPositionOrThrow`) if the user has no active position in `marketIndex`.
 	 */
 	public getPerpBidAsks(marketIndex: number): [BN, BN] {
 		const position = this.getPerpPositionOrThrow(marketIndex);
@@ -587,7 +701,17 @@ export class User {
 
 	/**
 	 * calculates Buying Power = free collateral / initial margin ratio
-	 * @returns : Precision QUOTE_PRECISION
+	 *
+	 * For `positionType: 'isolated'`, the buying power is capped by the
+	 * lesser of (a) the user's cross free collateral and (b) the free quote
+	 * asset value in the perp's quote spot market — mirroring that an isolated
+	 * position can only draw down as much quote collateral as is actually
+	 * available to isolate into it.
+	 * @param marketIndex Perp market to size buying power for.
+	 * @param collateralBuffer Amount (QUOTE_PRECISION) subtracted from free collateral before sizing, e.g. to reserve for fees. Defaults to zero.
+	 * @param maxMarginRatio Optional override for the max margin ratio component (see `resolveMaxMarginRatio`); defaults to the position's/user's configured ratio.
+	 * @param positionType Whether to size for a cross or isolated-margin position. Defaults to `'cross'`.
+	 * @returns Precision QUOTE_PRECISION (1e6).
 	 */
 	public getPerpBuyingPower(
 		marketIndex: number,
@@ -657,6 +781,17 @@ export class User {
 		);
 	}
 
+	/**
+	 * Converts a free-collateral amount directly into buying power for a perp
+	 * market, given the (hypothetical) resulting base position size — used
+	 * internally so the margin ratio (which can vary with position size via the
+	 * IMF factor) reflects the post-trade size rather than the current size.
+	 * @param marketIndex
+	 * @param freeCollateral QUOTE_PRECISION (1e6).
+	 * @param baseAssetAmount Base size, BASE_PRECISION (1e9), used only to select the applicable margin ratio.
+	 * @param perpMarketMaxMarginRatio Optional max-margin-ratio override, see `resolveMaxMarginRatio`.
+	 * @returns Precision QUOTE_PRECISION (1e6).
+	 */
 	getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 		marketIndex: number,
 		freeCollateral: BN,
@@ -676,7 +811,15 @@ export class User {
 
 	/**
 	 * calculates Free Collateral = Total collateral - margin requirement
-	 * @returns : Precision QUOTE_PRECISION
+	 *
+	 * When `perpMarketIndex` is provided, returns the free collateral scoped to
+	 * that market's isolated margin bucket (the isolated quote deposit plus its
+	 * unrealized PnL, minus its own margin requirement) rather than the user's
+	 * cross-margin free collateral. If the user has no isolated position open in
+	 * that market, returns `ZERO` rather than throwing.
+	 * @param marginCategory `'Initial'` or `'Maintenance'`. Defaults to `'Initial'`; `'Initial'` also enables strict (TWAP-bounded) oracle pricing.
+	 * @param perpMarketIndex Optional isolated perp market to scope the calculation to; omit for cross margin.
+	 * @returns Precision QUOTE_PRECISION (1e6). Can be negative (deficit).
 	 */
 	public getFreeCollateral(
 		marginCategory: MarginCategory = 'Initial',
@@ -711,13 +854,22 @@ export class User {
 	/**
 	 * Calculates the margin requirement based on the specified parameters.
 	 *
-	 * @param marginCategory - The category of margin to calculate ('Initial' or 'Maintenance').
-	 * @param liquidationBuffer - Optional buffer amount to consider during liquidation scenarios.
-	 * @param strict - Optional flag to enforce strict margin calculations.
-	 * @param includeOpenOrders - Optional flag to include open orders in the margin calculation.
-	 * @param perpMarketIndex - Optional index of the perpetual market. Required if marginType is 'Isolated'.
+	 * When `perpMarketIndex` is passed, returns the isolated margin requirement
+	 * for that market's isolated position only (`ZERO` if none exists) rather
+	 * than the cross-margin requirement. `liquidationBuffer`, when non-zero,
+	 * selects the buffered variant (`marginRequirementPlusBuffer` /
+	 * `MarginContext.liquidation`), which pads the requirement to build in the
+	 * state account's `liquidationMarginBufferRatio` — the same buffer keepers
+	 * apply so a position doesn't get flagged for liquidation and immediately
+	 * clear again.
 	 *
-	 * @returns The calculated margin requirement as a BN (BigNumber).
+	 * @param marginCategory - The category of margin to calculate ('Initial' or 'Maintenance').
+	 * @param liquidationBuffer - Optional buffer amount (MARGIN_PRECISION, 1e4, added to the margin ratio) to consider during liquidation scenarios.
+	 * @param strict - Optional flag to enforce strict (TWAP-bounded) oracle pricing.
+	 * @param includeOpenOrders - Optional flag to include open orders' worst-case margin impact.
+	 * @param perpMarketIndex - Optional index of the perpetual market. Scopes the result to that market's isolated position.
+	 *
+	 * @returns The calculated margin requirement, QUOTE_PRECISION (1e6).
 	 */
 	public getMarginRequirement(
 		marginCategory: MarginCategory,
@@ -769,7 +921,12 @@ export class User {
 	}
 
 	/**
-	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION
+	 * Initial margin requirement — the collateral needed to open/maintain a
+	 * position at initial (as opposed to maintenance) margin ratios, using
+	 * strict (TWAP-bounded) oracle pricing. This is what gates new orders and
+	 * increases in leverage.
+	 * @param perpMarketIndex Optional isolated perp market to scope to; omit for the cross-margin requirement.
+	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION (1e6)
 	 */
 	public getInitialMarginRequirement(perpMarketIndex?: number): BN {
 		return this.getMarginRequirement(
@@ -782,7 +939,12 @@ export class User {
 	}
 
 	/**
-	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
+	 * Maintenance margin requirement — the minimum collateral below which the
+	 * position becomes eligible for liquidation. Uses non-strict oracle pricing
+	 * and includes open orders' worst-case impact by default.
+	 * @param liquidationBuffer Optional buffer (MARGIN_PRECISION, 1e4) added to the margin ratio, mirroring the state account's `liquidationMarginBufferRatio`.
+	 * @param perpMarketIndex Optional isolated perp market to scope to; omit for the cross-margin requirement.
+	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION (1e6)
 	 */
 	public getMaintenanceMarginRequirement(
 		liquidationBuffer?: BN,
@@ -797,6 +959,12 @@ export class User {
 		);
 	}
 
+	/**
+	 * Filters an explicit `userAccount` snapshot's fixed-size perp position
+	 * array down to slots that are actually "active": nonzero base or quote
+	 * amount, an outstanding open order count, or a nonzero isolated-margin
+	 * quote deposit (a position can be flat but still isolated-funded).
+	 */
 	public getActivePerpPositionsForUserAccount(
 		userAccount: UserAccount
 	): PerpPosition[] {
@@ -809,10 +977,12 @@ export class User {
 		);
 	}
 
+	/** Returns the cached account's active perp positions. See `getActivePerpPositionsForUserAccount` for the activity criteria. */
 	public getActivePerpPositions(): PerpPosition[] {
 		const userAccount = this.getUserAccountOrThrow();
 		return this.getActivePerpPositionsForUserAccount(userAccount);
 	}
+	/** Like `getActivePerpPositions`, but also returns the slot at which the underlying `UserAccount` was observed. */
 	public getActivePerpPositionsAndSlot(): DataAndSlot<PerpPosition[]> {
 		const userAccount = this.getUserAccountAndSlotOrThrow();
 		const positions = this.getActivePerpPositionsForUserAccount(
@@ -824,6 +994,7 @@ export class User {
 		};
 	}
 
+	/** Filters an explicit `userAccount` snapshot's spot positions to those that are not `isSpotPositionAvailable` (i.e. have a nonzero balance, orders, or cumulative deposits). */
 	public getActiveSpotPositionsForUserAccount(
 		userAccount: UserAccount
 	): SpotPosition[] {
@@ -832,10 +1003,12 @@ export class User {
 		);
 	}
 
+	/** Returns the cached account's active spot positions. See `getActiveSpotPositionsForUserAccount` for the activity criteria. */
 	public getActiveSpotPositions(): SpotPosition[] {
 		const userAccount = this.getUserAccountOrThrow();
 		return this.getActiveSpotPositionsForUserAccount(userAccount);
 	}
+	/** Like `getActiveSpotPositions`, but also returns the slot at which the underlying `UserAccount` was observed. */
 	public getActiveSpotPositionsAndSlot(): DataAndSlot<SpotPosition[]> {
 		const userAccount = this.getUserAccountAndSlotOrThrow();
 		const positions = this.getActiveSpotPositionsForUserAccount(
@@ -848,8 +1021,25 @@ export class User {
 	}
 
 	/**
-	 * calculates unrealized position price pnl
-	 * @returns : Precision QUOTE_PRECISION
+	 * Calculates unrealized position price PnL, summed across all active perp
+	 * positions (or a single one if `marketIndex` is given).
+	 *
+	 * When `withWeightMarginCategory` is supplied, the PnL is asset-weighted
+	 * for margin purposes: profitable positions are scaled down by
+	 * `calculateUnrealizedAssetWeight` (an unrealized gain is a less-trusted
+	 * asset than settled collateral), and — for `'Initial'` margin specifically
+	 * — the *per-position* weighted gain is additionally capped at
+	 * `MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN` (**$100**, QUOTE_PRECISION), a
+	 * safety guard against a single dangerously-configured or manipulated
+	 * market inflating buying power. Losses are never capped, and a
+	 * `liquidationBuffer` (if provided) further inflates negative PnL to
+	 * mirror the on-chain liquidation-buffer treatment.
+	 * @param withFunding If true, includes unsettled funding in each position's PnL.
+	 * @param marketIndex Optional single perp market to scope to; omit to sum across all active positions.
+	 * @param withWeightMarginCategory Optional `'Initial'` or `'Maintenance'` — applies the asset-weighting (and, for `'Initial'`, the $100-per-position cap) described above. Omit for raw, unweighted PnL.
+	 * @param strict Use the worse of live oracle price vs 5-minute TWAP per position (gains use the lower price, losses use the higher price). Defaults to false.
+	 * @param liquidationBuffer Optional buffer (MARGIN_PRECISION, 1e4) that further penalizes negative PnL; only applied when `withWeightMarginCategory` is set.
+	 * @returns : Precision QUOTE_PRECISION (1e6)
 	 */
 	public getUnrealizedPNL(
 		withFunding?: boolean,
@@ -918,6 +1108,14 @@ export class User {
 							.div(new BN(SPOT_MARKET_WEIGHT_PRECISION));
 					}
 
+					if (withWeightMarginCategory === 'Initial') {
+						// safety guard for dangerously configured perp market
+						positionUnrealizedPnl = BN.min(
+							positionUnrealizedPnl,
+							MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN
+						);
+					}
+
 					if (liquidationBuffer && positionUnrealizedPnl.lt(ZERO)) {
 						positionUnrealizedPnl = positionUnrealizedPnl.add(
 							positionUnrealizedPnl.mul(liquidationBuffer).div(MARGIN_PRECISION)
@@ -930,8 +1128,11 @@ export class User {
 	}
 
 	/**
-	 * calculates unrealized funding payment pnl
-	 * @returns : Precision QUOTE_PRECISION
+	 * Calculates unrealized funding payment PnL — the funding accrued since
+	 * each position's `lastCumulativeFundingRate` was last settled, not yet
+	 * reflected in `quoteAssetAmount`.
+	 * @param marketIndex Optional single perp market to scope to; omit to sum across all positions.
+	 * @returns : Precision QUOTE_PRECISION (1e6)
 	 */
 	public getUnrealizedFundingPNL(marketIndex?: number): BN {
 		return this.getUserAccountOrThrow()
@@ -946,6 +1147,20 @@ export class User {
 			}, ZERO);
 	}
 
+	/**
+	 * Computes the combined weighted asset value and weighted liability value
+	 * across the user's spot positions (worst-case, including open-order
+	 * exposure by default), plus the net quote balance. This is the core spot
+	 * side of the margin system that `getTotalCollateral`/`getMarginRequirement`
+	 * build on.
+	 * @param marketIndex Optional single spot market to scope to; omit to sum across all spot markets.
+	 * @param marginCategory `'Initial'` or `'Maintenance'` asset/liability weights; omit for unweighted (100%) values.
+	 * @param liquidationBuffer Optional buffer (MARGIN_PRECISION, 1e4) added to the liability weight side.
+	 * @param includeOpenOrders If false, ignores open bids/asks and only counts the current balance (faster, less conservative).
+	 * @param strict Use the worse of live oracle price vs 5-minute TWAP. Defaults to false.
+	 * @param now Unix timestamp (seconds) used for TWAP staleness when `strict` is set; defaults to current time.
+	 * @returns `{ totalAssetValue, totalLiabilityValue }`, both QUOTE_PRECISION (1e6) and non-negative.
+	 */
 	public getSpotMarketAssetAndLiabilityValue(
 		marketIndex?: number,
 		marginCategory?: MarginCategory,
@@ -1142,6 +1357,7 @@ export class User {
 		return { totalAssetValue, totalLiabilityValue };
 	}
 
+	/** Convenience wrapper around `getSpotMarketAssetAndLiabilityValue` returning only `totalLiabilityValue`. See that method for parameter semantics. Returns QUOTE_PRECISION (1e6). */
 	public getSpotMarketLiabilityValue(
 		marketIndex?: number,
 		marginCategory?: MarginCategory,
@@ -1161,6 +1377,7 @@ export class User {
 		return totalLiabilityValue;
 	}
 
+	/** Thin wrapper around the `math/spotBalance` `getSpotLiabilityValue` helper that supplies the user's `maxMarginRatio`. Returns QUOTE_PRECISION (1e6), negative. */
 	getSpotLiabilityValue(
 		tokenAmount: BN,
 		strictOraclePrice: StrictOraclePrice,
@@ -1178,6 +1395,7 @@ export class User {
 		);
 	}
 
+	/** Convenience wrapper around `getSpotMarketAssetAndLiabilityValue` returning only `totalAssetValue`. See that method for parameter semantics. Returns QUOTE_PRECISION (1e6), non-negative. */
 	public getSpotMarketAssetValue(
 		marketIndex?: number,
 		marginCategory?: MarginCategory,
@@ -1196,6 +1414,7 @@ export class User {
 		return totalAssetValue;
 	}
 
+	/** Thin wrapper around the `math/spotBalance` `getSpotAssetValue` helper that supplies the user's `maxMarginRatio`. Returns QUOTE_PRECISION (1e6), non-negative. */
 	getSpotAssetValue(
 		tokenAmount: BN,
 		strictOraclePrice: StrictOraclePrice,
@@ -1211,6 +1430,7 @@ export class User {
 		);
 	}
 
+	/** Net spot value (`totalAssetValue - totalLiabilityValue`) for a single spot market. See `getSpotMarketAssetAndLiabilityValue` for parameter semantics. Returns QUOTE_PRECISION (1e6), can be negative. */
 	public getSpotPositionValue(
 		marketIndex: number,
 		marginCategory?: MarginCategory,
@@ -1231,6 +1451,12 @@ export class User {
 		return totalAssetValue.sub(totalLiabilityValue);
 	}
 
+	/**
+	 * Net spot value (`totalAssetValue - totalLiabilityValue`) across all spot
+	 * markets combined.
+	 * @param withWeightMarginCategory Optional `'Initial'`/`'Maintenance'` weighting; omit for unweighted values.
+	 * @returns Precision QUOTE_PRECISION (1e6), can be negative.
+	 */
 	public getNetSpotMarketValue(withWeightMarginCategory?: MarginCategory): BN {
 		const { totalAssetValue, totalLiabilityValue } =
 			this.getSpotMarketAssetAndLiabilityValue(
@@ -1244,6 +1470,24 @@ export class User {
 	/**
 	 * calculates TotalCollateral: collateral + unrealized pnl
 	 * @returns : Precision QUOTE_PRECISION
+	 */
+	/**
+	 * Calculates Total Collateral: net spot collateral value plus weighted
+	 * unrealized perp PnL (see `getUnrealizedPNL`'s `$100`-per-position cap
+	 * under `'Initial'` margin). This is the numerator side of the margin
+	 * system; `getFreeCollateral`/`getMarginRequirement` are derived from it.
+	 *
+	 * When `perpMarketIndex` is provided, returns the isolated total collateral
+	 * for that market's isolated position bucket instead of the cross-margin
+	 * total — and **throws** if the user has no isolated margin calculation for
+	 * that market (unlike `getFreeCollateral`, which swallows the same case and
+	 * returns `ZERO`).
+	 * @param marginCategory `'Initial'` or `'Maintenance'`. Defaults to `'Initial'`.
+	 * @param strict Use TWAP-bounded oracle pricing. Defaults to false.
+	 * @param includeOpenOrders Include open orders' worst-case impact. Defaults to true.
+	 * @param liquidationBuffer Optional buffer (MARGIN_PRECISION, 1e4); selects the buffered collateral variant when non-zero.
+	 * @param perpMarketIndex Optional isolated perp market to scope to.
+	 * @returns Precision QUOTE_PRECISION (1e6).
 	 */
 	public getTotalCollateral(
 		marginCategory: MarginCategory = 'Initial',
@@ -1288,6 +1532,15 @@ export class User {
 		return marginCalc.totalCollateral;
 	}
 
+	/**
+	 * Builds the liquidation-buffer map to pass into margin calculations while
+	 * a liquidation is in progress: `'cross'` is set to the state account's
+	 * `liquidationMarginBufferRatio` if cross margin is being liquidated, and
+	 * each isolated perp position currently flagged `BeingLiquidated` or
+	 * `Bankruptcy` gets the same buffer under its market index. Positions not
+	 * currently being liquidated are omitted (no buffer applied).
+	 * @returns Map from `'cross'` or a perp market index to the buffer amount (MARGIN_PRECISION, 1e4).
+	 */
 	public getLiquidationBuffer(): Map<number | 'cross', BN> {
 		const liquidationBufferMap = new Map<number | 'cross', BN>();
 		if (this.isBeingLiquidated()) {
@@ -1315,8 +1568,19 @@ export class User {
 	}
 
 	/**
-	 * calculates User Health by comparing total collateral and maint. margin requirement
-	 * @returns : number (value from [0, 100])
+	 * Calculates a user's health score by comparing total collateral against
+	 * the maintenance margin requirement: `100 * (1 - maintenanceMarginReq / totalCollateral)`,
+	 * clamped to `[0, 100]` and rounded to the nearest integer. `100` means no
+	 * maintenance requirement (or a requirement of zero with non-negative
+	 * collateral); `0` means at or past the maintenance threshold (liquidatable)
+	 * or that collateral is non-positive.
+	 *
+	 * Short-circuits to `0` if the relevant scope is already flagged as being
+	 * liquidated: cross margin via `isCrossMarginBeingLiquidated` (when
+	 * `perpMarketIndex` is omitted), or the specific isolated position via
+	 * `isIsolatedPositionBeingLiquidated` (when `perpMarketIndex` is given).
+	 * @param perpMarketIndex Optional isolated perp market to scope health to; omit for the cross-margin account's health.
+	 * @returns Health, an integer in `[0, 100]`.
 	 */
 	public getHealth(perpMarketIndex?: number): number {
 		if (this.isCrossMarginBeingLiquidated() && !perpMarketIndex) {
@@ -1368,6 +1632,15 @@ export class User {
 		return health;
 	}
 
+	/**
+	 * Computes a single perp position's margin-weighted liability value: worst-case
+	 * (or current, if `includeOpenOrders` is false) base amount, valued at the
+	 * oracle price (or `expiryPrice` if the market is in settlement, which also
+	 * zeroes the margin ratio), scaled by the applicable margin ratio for
+	 * `marginCategory`. Underlies `getPerpMarketLiabilityValue`,
+	 * `getTotalPerpPositionLiability`, and the leverage/liquidation-price math.
+	 * @returns Precision QUOTE_PRECISION (1e6); unweighted (raw notional, no margin ratio applied) if `marginCategory` is omitted.
+	 */
 	calculateWeightedPerpPositionLiability(
 		perpPosition: PerpPosition,
 		marginCategory?: MarginCategory,
@@ -1461,8 +1734,15 @@ export class User {
 	}
 
 	/**
-	 * calculates position value of a single perp market in margin system
-	 * @returns : Precision QUOTE_PRECISION
+	 * Margin-weighted liability value of a single perp position. Thin wrapper
+	 * around `calculateWeightedPerpPositionLiability` for the position in
+	 * `marketIndex`; see that method for the worst-case/margin-ratio semantics.
+	 * @param marketIndex
+	 * @param marginCategory `'Initial'`/`'Maintenance'` margin ratio to apply; omit for the raw unweighted notional.
+	 * @param liquidationBuffer Optional buffer (MARGIN_PRECISION, 1e4) added to the margin ratio.
+	 * @param includeOpenOrders If true (recommended for margin checks), uses the worst-case base amount including open bids/asks.
+	 * @param strict Use TWAP-bounded quote pricing. Defaults to false.
+	 * @returns Precision QUOTE_PRECISION (1e6). Throws (via `getPerpPositionOrThrow`) if the user has no active position in `marketIndex`.
 	 */
 	public getPerpMarketLiabilityValue(
 		marketIndex: number,
@@ -1482,8 +1762,13 @@ export class User {
 	}
 
 	/**
-	 * calculates sum of position value across all positions in margin system
-	 * @returns : Precision QUOTE_PRECISION
+	 * Sums `calculateWeightedPerpPositionLiability` across every active perp
+	 * position — the perp side of the margin requirement (see `getMarginRequirement`).
+	 * @param marginCategory `'Initial'`/`'Maintenance'` margin ratio to apply; omit for the raw unweighted notional.
+	 * @param liquidationBuffer Optional buffer (MARGIN_PRECISION, 1e4) added to the margin ratio.
+	 * @param includeOpenOrders If true, uses each position's worst-case base amount including open bids/asks.
+	 * @param strict Use TWAP-bounded quote pricing. Defaults to false.
+	 * @returns Precision QUOTE_PRECISION (1e6).
 	 */
 	getTotalPerpPositionLiability(
 		marginCategory?: MarginCategory,
@@ -1507,8 +1792,14 @@ export class User {
 	}
 
 	/**
-	 * calculates position value based on oracle
-	 * @returns : Precision QUOTE_PRECISION
+	 * Values a perp position's base-asset notional at a caller-supplied oracle
+	 * price rather than looking one up internally — useful for pricing against
+	 * a simulated/custom price. Returns `ZERO` (via `getPerpPositionOrEmpty`) if
+	 * the user has no position in `marketIndex`.
+	 * @param marketIndex
+	 * @param oraclePriceData Price to value the position at, PRICE_PRECISION (1e6). Caller-supplied so callers can pass a custom/simulated price.
+	 * @param includeOpenOrders If true, uses the worst-case base amount (including open bids/asks) instead of the current position size. Defaults to false.
+	 * @returns Precision QUOTE_PRECISION (1e6).
 	 */
 	public getPerpPositionValue(
 		marketIndex: number,
@@ -1528,8 +1819,13 @@ export class User {
 	}
 
 	/**
-	 * calculates position liabiltiy value in margin system
-	 * @returns : Precision QUOTE_PRECISION
+	 * Unweighted (no margin ratio applied) perp liability notional at a
+	 * caller-supplied oracle price. Returns `ZERO` (via `getPerpPositionOrEmpty`)
+	 * if the user has no position in `marketIndex`.
+	 * @param marketIndex
+	 * @param oraclePriceData Price to value the position at, PRICE_PRECISION (1e6).
+	 * @param includeOpenOrders If true, uses the worst-case (including open bids/asks) liability value; otherwise just the current position. Defaults to false.
+	 * @returns Precision QUOTE_PRECISION (1e6).
 	 */
 	public getPerpLiabilityValue(
 		marketIndex: number,
@@ -1555,6 +1851,7 @@ export class User {
 		}
 	}
 
+	/** Returns `PositionDirection.LONG`/`SHORT` from the sign of `baseAssetAmount`, or `undefined` if the position is flat. */
 	public getPositionSide(
 		currentPosition: Pick<PerpPosition, 'baseAssetAmount'>
 	): PositionDirection | undefined {
@@ -1569,7 +1866,10 @@ export class User {
 
 	/**
 	 * calculates average exit price (optionally for closing up to 100% of position)
-	 * @returns : Precision PRICE_PRECISION
+	 * @param position Position to estimate the close for.
+	 * @param amountToClose Optional base amount (BASE_PRECISION, 1e9) to simulate closing; if omitted, closes the full position. Passing `ZERO` returns the current reserve price with zero PnL.
+	 * @param useAMMClose If true, values the close against the AMM's own reserves (`calculateBaseAssetValue`) instead of the oracle-referenced value (`calculateBaseAssetValueWithOracle`). Defaults to false.
+	 * @returns Tuple of `[exitPrice, pnl]` — exitPrice is PRICE_PRECISION (1e6), pnl is QUOTE_PRECISION (1e6).
 	 */
 	public getPositionEstimatedExitPriceAndPnl(
 		position: PerpPosition,
@@ -1633,7 +1933,9 @@ export class User {
 
 	/**
 	 * calculates current user leverage which is (total liability size) / (net asset value)
-	 * @returns : Precision TEN_THOUSAND
+	 * @param includeOpenOrders If true, sizes the perp liability using worst-case open-order exposure. Defaults to true.
+	 * @param perpMarketIndex Optional single isolated perp market to scope leverage to (uses that position's own isolated deposit + PnL as its asset value); omit for account-wide leverage.
+	 * @returns : Precision TEN_THOUSAND (1e4, i.e. `10000` = 1x leverage). `ZERO` if net asset value is zero.
 	 */
 	public getLeverage(includeOpenOrders = true, perpMarketIndex?: number): BN {
 		return this.calculateLeverageFromComponents(
@@ -1641,6 +1943,7 @@ export class User {
 		);
 	}
 
+	/** Combines the components from `getLeverageComponents` into a single leverage ratio: `(perpLiability + spotLiability) / (spotAsset + perpPnl - spotLiability)`. Returns TEN_THOUSAND (1e4) precision; `ZERO` if net asset value is zero. */
 	calculateLeverageFromComponents({
 		perpLiabilityValue,
 		perpPnl,
@@ -1663,6 +1966,18 @@ export class User {
 		return totalLiabilityValue.mul(TEN_THOUSAND).div(netAssetValue);
 	}
 
+	/**
+	 * Gathers the four raw components (`perpLiabilityValue`, `perpPnl`,
+	 * `spotAssetValue`, `spotLiabilityValue`, all QUOTE_PRECISION/1e6) that
+	 * `calculateLeverageFromComponents` combines into a leverage ratio.
+	 *
+	 * When `perpMarketIndex` is given, scopes to a single isolated position:
+	 * `spotAssetValue` becomes that position's isolated quote deposit and
+	 * `spotLiabilityValue` is `ZERO` (isolated positions carry no spot
+	 * liability of their own). Otherwise sums across the whole account, and
+	 * folds in `getTotalIsolatedPositionDeposits` as additional spot asset
+	 * value when `marginCategory` is unweighted.
+	 */
 	getLeverageComponents(
 		includeOpenOrders = true,
 		marginCategory: MarginCategory | undefined = undefined,
@@ -1756,6 +2071,13 @@ export class User {
 		};
 	}
 
+	/**
+	 * Returns true if the user's deposit position in `spotMarketAccount` is
+	 * non-empty but worth less than `DUST_POSITION_SIZE` (QUOTE_PRECISION) —
+	 * i.e. too small to be economically worth withdrawing/settling. Only
+	 * evaluates deposits (returns false for borrows or an empty position).
+	 * @throws If the user has no spot position slot for the market (should not happen for a valid `SpotMarketAccount`).
+	 */
 	isDustDepositPosition(spotMarketAccount: SpotMarketAccount): boolean {
 		const marketIndex = spotMarketAccount.marketIndex;
 
@@ -1797,6 +2119,7 @@ export class User {
 		return false;
 	}
 
+	/** Returns every spot market where the user holds a dust-sized deposit; see `isDustDepositPosition`. */
 	getSpotMarketAccountsWithDustPosition() {
 		const spotMarketAccounts = this.velocityClient.getSpotMarketAccounts();
 
@@ -1812,6 +2135,12 @@ export class User {
 		return dustPositionAccounts;
 	}
 
+	/**
+	 * Sum of the user's total perp position liability (worst-case, open orders
+	 * included) and total spot liability value (worst-case, open orders included).
+	 * @param marginCategory Optional `'Initial'`/`'Maintenance'` weighting; omit for unweighted values.
+	 * @returns Precision QUOTE_PRECISION (1e6), non-negative.
+	 */
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
 		return this.getTotalPerpPositionLiability(
 			marginCategory,
@@ -1827,6 +2156,13 @@ export class User {
 		);
 	}
 
+	/**
+	 * Sum of the user's total spot asset value and total unrealized perp PnL
+	 * (with funding). When `marginCategory` is omitted (unweighted), also
+	 * includes `getTotalIsolatedPositionDeposits`.
+	 * @param marginCategory Optional `'Initial'`/`'Maintenance'` weighting; omit for unweighted values.
+	 * @returns Precision QUOTE_PRECISION (1e6), non-negative.
+	 */
 	getTotalAssetValue(marginCategory?: MarginCategory): BN {
 		const value = this.getSpotMarketAssetValue(
 			undefined,
@@ -1839,6 +2175,11 @@ export class User {
 		return value;
 	}
 
+	/**
+	 * Unweighted net USD value of the account: net spot market value, plus
+	 * unrealized (funding-inclusive) perp PnL, plus isolated position deposits.
+	 * @returns Precision QUOTE_PRECISION (1e6), can be negative.
+	 */
 	getNetUsdValue(): BN {
 		const netSpotValue = this.getNetSpotMarketValue();
 		const unrealizedPnl = this.getUnrealizedPNL(true, undefined, undefined);
@@ -1847,9 +2188,11 @@ export class User {
 	}
 
 	/**
-	 * Calculates the all time P&L of the user.
-	 *
-	 * Net withdraws + Net spot market value + Net unrealized P&L -
+	 * Calculates the all-time P&L of the user: current net USD value
+	 * (`getNetUsdValue`), plus lifetime total withdraws, minus lifetime total
+	 * deposits. Equivalent to "everything the account is worth now, plus
+	 * everything ever taken out, minus everything ever put in".
+	 * @returns Precision QUOTE_PRECISION (1e6), can be negative.
 	 */
 	getTotalAllTimePnl(): BN {
 		const netUsdValue = this.getNetUsdValue();
@@ -1864,8 +2207,8 @@ export class User {
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
 	 * for large sizes where imf factor activates, result is a lower bound
-	 * @param marginCategory {Initial, Maintenance}
-	 * @returns : Precision TEN_THOUSAND
+	 * @param marginCategory {Initial, Maintenance} — currently unused; the calculation always uses the max-tradeable-size ('Initial') buying power.
+	 * @returns : Precision TEN_THOUSAND (1e4, i.e. `10000` = 1x)
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
@@ -1906,8 +2249,8 @@ export class User {
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
 	 * @param spotMarketIndex
-	 * @param direction
-	 * @returns : Precision TEN_THOUSAND
+	 * @param direction Whether to simulate a long (deposit-increasing) or short (borrow-increasing) trade.
+	 * @returns : Precision TEN_THOUSAND (1e4, i.e. `10000` = 1x)
 	 */
 	public getMaxLeverageForSpot(
 		spotMarketIndex: number,
@@ -1997,7 +2340,7 @@ export class User {
 
 	/**
 	 * calculates margin ratio: 1 / leverage
-	 * @returns : Precision TEN_THOUSAND
+	 * @returns : Precision TEN_THOUSAND (1e4, i.e. `10000` = 100% margin ratio / 1x leverage). Returns `BN_MAX` if the account has no liabilities.
 	 */
 	public getMarginRatio(): BN {
 		const { perpLiabilityValue, perpPnl, spotAssetValue, spotLiabilityValue } =
@@ -2015,6 +2358,10 @@ export class User {
 		return netAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
 
+	/**
+	 * @deprecated Use `getLiquidationStatuses` for the full cross + per-isolated-market breakdown. This method returns only the cross-margin status (plus the same isolated map, for convenience) for backward compatibility.
+	 * @returns The cross-margin `AccountLiquidatableStatus`, plus `isolatedPositions` mapping each isolated perp market index to its own status.
+	 */
 	public canBeLiquidated(): AccountLiquidatableStatus & {
 		isolatedPositions: Map<number, AccountLiquidatableStatus>;
 	} {
@@ -2044,6 +2391,14 @@ export class User {
 	 * Map keys:
 	 *  - 'cross' for cross margin
 	 *  - marketIndex (number) for each isolated perp position
+	 *
+	 * Each `canBeLiquidated` compares maintenance total collateral against the
+	 * maintenance margin requirement for that scope. If `marginCalc` is not
+	 * supplied, one is computed under `'Maintenance'` with the account's
+	 * current `getLiquidationBuffer()` applied — i.e. this defaults to the same
+	 * buffered check the on-chain liquidation instructions use, not a bare
+	 * maintenance-margin comparison.
+	 * @param marginCalc Optional pre-computed `MarginCalculation` to reuse (avoids recomputing margin across repeated calls).
 	 */
 	public getLiquidationStatuses(
 		marginCalc?: MarginCalculation
@@ -2084,6 +2439,7 @@ export class User {
 		return result;
 	}
 
+	/** Returns true if cross margin or any isolated perp position is currently flagged as being liquidated or bankrupt. */
 	public isBeingLiquidated(): boolean {
 		return (
 			this.isCrossMarginBeingLiquidated() ||
@@ -2091,6 +2447,7 @@ export class User {
 		);
 	}
 
+	/** Returns true if the account-level `UserStatus` has `BEING_LIQUIDATED` or `BANKRUPT` set (cross margin, not per-isolated-position). */
 	public isCrossMarginBeingLiquidated(): boolean {
 		return (
 			(this.getUserAccountOrThrow().status &
@@ -2105,6 +2462,7 @@ export class User {
 		return calc.totalCollateral.lt(calc.marginRequirement);
 	}
 
+	/** Returns true if any active perp position has `PositionFlag.BeingLiquidated` or `PositionFlag.Bankruptcy` set. */
 	public hasIsolatedPositionBeingLiquidated(): boolean {
 		return this.getActivePerpPositions().some(
 			(position) =>
@@ -2114,6 +2472,7 @@ export class User {
 		);
 	}
 
+	/** Returns true if the specific perp position in `perpMarketIndex` has `PositionFlag.BeingLiquidated` or `PositionFlag.Bankruptcy` set. False (not throw) if the user has no position there. */
 	public isIsolatedPositionBeingLiquidated(perpMarketIndex: number): boolean {
 		const position = this.getActivePerpPositions().find(
 			(position) => position.marketIndex === perpMarketIndex
@@ -2140,6 +2499,7 @@ export class User {
 		return liquidatableIsolatedPositions;
 	}
 
+	/** Returns true if `isolatedMarginCalculation`'s collateral is below its margin requirement (no buffer). */
 	public canIsolatedPositionMarginBeLiquidated(
 		isolatedMarginCalculation: IsolatedMarginCalculation
 	): boolean {
@@ -2148,17 +2508,19 @@ export class User {
 		);
 	}
 
+	/** Returns true if the account's `UserStatus` bitmask has `status` set. */
 	public hasStatus(status: UserStatus): boolean {
 		return (this.getUserAccountOrThrow().status & status) > 0;
 	}
 
+	/** Returns true if the account's `UserStatus` has `BANKRUPT` set (equity insufficient to cover liabilities; awaiting bankruptcy resolution). */
 	public isBankrupt(): boolean {
 		return (this.getUserAccountOrThrow().status & UserStatus.BANKRUPT) > 0;
 	}
 
 	/**
 	 * Checks if any user position cumulative funding differs from respective market cumulative funding
-	 * @returns
+	 * @returns True if at least one non-flat perp position has stale `lastCumulativeFundingRate` relative to the market's current long/short cumulative funding rate.
 	 */
 	public needsToSettleFundingPayment(): boolean {
 		for (const userPosition of this.getUserAccountOrThrow().perpPositions) {
@@ -2186,9 +2548,16 @@ export class User {
 	}
 
 	/**
-	 * Calculate the liquidation price of a spot position
-	 * @param marketIndex
-	 * @returns Precision : PRICE_PRECISION
+	 * Calculate the liquidation price of a spot position — the oracle price at
+	 * which maintenance free collateral would hit zero, extrapolating linearly
+	 * from the current free collateral and the position's per-unit-price
+	 * sensitivity (`calculateFreeCollateralDeltaForSpot`). If a perp market
+	 * shares the same oracle as this spot market, that perp position's
+	 * sensitivity is folded in too (scaled for any oracle-source unit
+	 * difference), since a single price move affects both simultaneously.
+	 * @param marketIndex Spot market to compute the liquidation price for.
+	 * @param positionBaseSizeChange Optional simulated change to the position size, in the spot market's own token decimals. Defaults to no change.
+	 * @returns Precision PRICE_PRECISION (1e6). Returns `new BN(-1)` as a sentinel when there is no position, the position (after `positionBaseSizeChange`) is flat, the price sensitivity is zero, or the computed liquidation price would be negative (position cannot be liquidated by a price move alone).
 	 */
 	public spotLiquidationPrice(
 		marketIndex: number,
@@ -2280,14 +2649,23 @@ export class User {
 	}
 
 	/**
-	 * Calculate the liquidation price of a perp position, with optional parameter to calculate the liquidation price after a trade
+	 * Calculate the liquidation price of a perp position, with optional parameter to calculate the liquidation price after a trade.
+	 *
+	 * Like `spotLiquidationPrice`, this extrapolates linearly from current free
+	 * collateral (`totalCollateral - marginRequirement`, plus `offsetCollateral`)
+	 * and the position's price sensitivity; if a spot market shares the same
+	 * oracle, its sensitivity is folded in too. When `marginType === 'Isolated'`,
+	 * free collateral and the margin requirement are scoped to that market's
+	 * isolated bucket instead of the cross-margin account (and the spot-oracle
+	 * cross-contribution above is skipped).
 	 * @param marketIndex
-	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^9
-	 * @param estimatedEntryPrice
-	 * @param marginCategory // allow Initial to be passed in if we are trying to calculate price for DLP de-risking
-	 * @param includeOpenOrders
-	 * @param offsetCollateral // allows calculating the liquidation price after this offset collateral is added to the user's account (e.g. : what will the liquidation price be for this position AFTER I deposit $x worth of collateral)
-	 * @returns Precision : PRICE_PRECISION
+	 * @param positionBaseSizeChange Change in position size to calculate the liquidation price for, standardized to the market's order step size. Precision BASE_PRECISION (1e9).
+	 * @param estimatedEntryPrice Entry price for `positionBaseSizeChange`, PRICE_PRECISION (1e6); only affects the result under `marginCategory: 'Maintenance'` (it adjusts free collateral for the estimated realized PnL and taker fee of entering at this price rather than at the oracle price).
+	 * @param marginCategory Allow `'Initial'` to be passed in if we are trying to calculate price for DLP de-risking. Defaults to `'Maintenance'` (the actual liquidation threshold).
+	 * @param includeOpenOrders Include open orders' worst-case exposure when sizing the position. Defaults to false.
+	 * @param offsetCollateral Allows calculating the liquidation price after this offset collateral (QUOTE_PRECISION, 1e6) is added to the user's account (e.g. : what will the liquidation price be for this position AFTER I deposit $x worth of collateral). Defaults to zero.
+	 * @param marginType `'Isolated'` to scope the calculation to `marketIndex`'s isolated margin bucket; omit/`'Cross'` for the cross-margin account.
+	 * @returns Precision : PRICE_PRECISION (1e6). Returns `new BN(-1)` as a sentinel when there is no isolated margin calculation for the market (isolated mode), the price sensitivity is zero, or the computed price would be negative (position cannot be liquidated by a price move alone).
 	 */
 	public liquidationPrice(
 		marketIndex: number,
@@ -2452,6 +2830,16 @@ export class User {
 		return liqPrice;
 	}
 
+	/**
+	 * Helper for `liquidationPrice`: estimates the net change to free collateral
+	 * from simultaneously (a) realizing PnL on `positionBaseSizeChange` entered
+	 * at `estimatedEntryPrice` (assuming the worst/taker fee tier) versus the
+	 * oracle price, and (b) the resulting change in margin requirement from the
+	 * new position size. Only component (a) applies under `'Maintenance'`
+	 * (matching `liquidationPrice`'s default); under other margin categories
+	 * only the margin-requirement delta is applied.
+	 * @returns Precision QUOTE_PRECISION (1e6); can be negative.
+	 */
 	calculateEntriesEffectOnFreeCollateral(
 		market: PerpMarketAccount,
 		oraclePrice: BN,
@@ -2481,12 +2869,13 @@ export class User {
 				freeCollateralChange = newPositionValue.sub(costBasis);
 			}
 
-			// assume worst fee tier
+			// assume worst fee tier; ceil-divide to match calculate_taker_fee's safe_div_ceil
 			const takerFeeTier =
 				this.velocityClient.getStateAccount().perpFeeStructure.feeTiers[0];
-			const takerFee = newPositionValue
-				.muln(takerFeeTier.feeNumerator)
-				.divn(takerFeeTier.feeDenominator);
+			const takerFee = divCeil(
+				newPositionValue.muln(takerFeeTier.feeNumerator),
+				new BN(takerFeeTier.feeDenominator)
+			);
 			freeCollateralChange = freeCollateralChange.sub(takerFee);
 		}
 
@@ -2540,6 +2929,14 @@ export class User {
 		);
 	}
 
+	/**
+	 * Helper for `liquidationPrice`: the derivative of free collateral with
+	 * respect to the perp market's oracle price, for the proposed post-trade
+	 * position (`positionBaseSizeChange` applied to the current, or worst-case
+	 * if `includeOpenOrders`, base amount). Used as the linear-extrapolation
+	 * slope to solve for the price at which free collateral hits zero.
+	 * @returns Precision QUOTE_PRECISION (1e6) per unit of PRICE_PRECISION move, or `undefined` if the proposed position is flat (no defined liquidation price).
+	 */
 	calculateFreeCollateralDeltaForPerp(
 		market: PerpMarketAccount,
 		perpPosition: PerpPosition,
@@ -2603,6 +3000,12 @@ export class User {
 		return freeCollateralDelta;
 	}
 
+	/**
+	 * Helper for `spotLiquidationPrice`/`liquidationPrice`: the derivative of
+	 * free collateral with respect to the spot market's oracle price, for a
+	 * position of `signedTokenAmount` (positive = deposit, negative = borrow).
+	 * @returns Precision QUOTE_PRECISION (1e6) per unit of PRICE_PRECISION move.
+	 */
 	calculateFreeCollateralDeltaForSpot(
 		market: SpotMarketAccount,
 		signedTokenAmount: BN,
@@ -2641,8 +3044,9 @@ export class User {
 	/**
 	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
 	 * @param positionMarketIndex
-	 * @param closeQuoteAmount
-	 * @returns : Precision PRICE_PRECISION
+	 * @param closeQuoteAmount Quote-denominated amount of the position to close, QUOTE_PRECISION (1e6). Converted proportionally to a base-size reduction via the position's current cost basis.
+	 * @param estimatedEntryPrice Forwarded to `liquidationPrice` as the entry price for the (negative, i.e. closing) size change. PRICE_PRECISION (1e6). Defaults to zero.
+	 * @returns : Precision PRICE_PRECISION (1e6). See `liquidationPrice` for the `-1` sentinel cases.
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: number,
@@ -2668,6 +3072,13 @@ export class User {
 		);
 	}
 
+	/**
+	 * Calculates the margin required to open a trade of `baseSize` in `targetMarketIndex`, scalar only — does not account for trade direction or existing positions/whether the trade is actually risk-increasing.
+	 * @param baseSize BASE_PRECISION (1e9).
+	 * @param estEntryPrice Optional entry price to value the trade at, PRICE_PRECISION (1e6); defaults to the oracle price.
+	 * @param perpMarketMaxMarginRatio Optional max-margin-ratio override, see `resolveMaxMarginRatio`.
+	 * @returns Precision QUOTE_PRECISION (1e6).
+	 */
 	public getMarginUSDCRequiredForTrade(
 		targetMarketIndex: number,
 		baseSize: BN,
@@ -2684,6 +3095,16 @@ export class User {
 		);
 	}
 
+	/**
+	 * Converts `getMarginUSDCRequiredForTrade`'s USDC margin requirement into
+	 * how much of `collateralIndex`'s token a user would need to deposit to
+	 * cover it, accounting for that collateral's scaled initial asset weight
+	 * (a lower-weighted asset requires proportionally more deposited).
+	 * @param baseSize BASE_PRECISION (1e9).
+	 * @param collateralIndex Spot market to size the deposit in.
+	 * @param perpMarketMaxMarginRatio Optional max-margin-ratio override, see `resolveMaxMarginRatio`.
+	 * @returns Token amount in `collateralIndex`'s own decimals.
+	 */
 	public getCollateralDepositRequiredForTrade(
 		targetMarketIndex: number,
 		baseSize: BN,
@@ -2706,7 +3127,9 @@ export class User {
 	 * - oppositeSideTradeSize: the trade size for closing the opposite direction
 	 * @param targetMarketIndex
 	 * @param tradeSide
-	 * @returns { tradeSize: BN, oppositeSideTradeSize: BN} : Precision QUOTE_PRECISION
+	 * @param maxMarginRatio Optional max-margin-ratio override, see `resolveMaxMarginRatio`.
+	 * @param positionType Whether to size for a cross or isolated-margin position (forwarded to `getPerpBuyingPower`). Defaults to `'cross'`.
+	 * @returns { tradeSize: BN, oppositeSideTradeSize: BN} : Precision QUOTE_PRECISION (1e6)
 	 */
 	public getMaxTradeSizeUSDCForPerp(
 		targetMarketIndex: number,
@@ -2847,10 +3270,10 @@ export class User {
 	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
 	 *
 	 * @param targetMarketIndex
-	 * @param direction
-	 * @param currentQuoteAssetValue
-	 * @param currentSpotMarketNetValue
-	 * @returns tradeSizeAllowed : Precision QUOTE_PRECISION
+	 * @param direction Long (increase deposit / reduce borrow) or short (increase borrow / reduce deposit).
+	 * @param currentQuoteAssetValue Ignored — always recomputed internally from `getSpotMarketAssetValue(QUOTE_SPOT_MARKET_INDEX)`.
+	 * @param currentSpotMarketNetValue Optional pre-computed net value for `targetMarketIndex` (QUOTE_PRECISION, 1e6); if omitted, computed via `getSpotPositionValue`.
+	 * @returns tradeSizeAllowed : Precision QUOTE_PRECISION (1e6)
 	 */
 	public getMaxTradeSizeUSDCForSpot(
 		targetMarketIndex: number,
@@ -2937,8 +3360,9 @@ export class User {
 	 *
 	 * @param inMarketIndex
 	 * @param outMarketIndex
-	 * @param calculateSwap function to similate in to out swa
-	 * @param iterationLimit how long to run appromixation before erroring out
+	 * @param calculateSwap Optional function to simulate the in-to-out conversion (e.g. to model swap fees/slippage); defaults to a 1:1 oracle-price conversion.
+	 * @param iterationLimit How many binary-search iterations to run before erroring out. Defaults to 1000.
+	 * @returns `inAmount`/`outAmount` in each market's own token decimals, and the resulting `leverage` (TEN_THOUSAND, 1e4 precision) after the swap.
 	 */
 	public getMaxSwapAmount({
 		inMarketIndex,
@@ -3154,6 +3578,13 @@ export class User {
 		return { inAmount: inSwap, outAmount: outSwap, leverage };
 	}
 
+	/**
+	 * Returns a cloned `SpotPosition` with `tokenAmount` (signed, positive =
+	 * deposit / negative = borrow) applied on top of the existing balance —
+	 * used to simulate the post-trade/post-swap position without mutating the
+	 * cached account.
+	 * @param tokenAmount Signed delta in `market`'s own token decimals.
+	 */
 	public cloneAndUpdateSpotPosition(
 		position: SpotPosition,
 		tokenAmount: BN,
@@ -3204,6 +3635,7 @@ export class User {
 		return clonedPosition;
 	}
 
+	/** Worst-case free-collateral contribution (under `'Initial'` margin) of a single spot position. Returns QUOTE_PRECISION (1e6). */
 	calculateSpotPositionFreeCollateralContribution(
 		spotPosition: SpotPosition,
 		strictOraclePrice: StrictOraclePrice
@@ -3224,6 +3656,7 @@ export class User {
 		return freeCollateralContribution;
 	}
 
+	/** Worst-case (under `'Initial'` margin) asset/liability value split of a single spot position, for use in leverage calculations. Both fields QUOTE_PRECISION (1e6), non-negative. */
 	calculateSpotPositionLeverageContribution(
 		spotPosition: SpotPosition,
 		strictOraclePrice: StrictOraclePrice
@@ -3265,10 +3698,11 @@ export class User {
 
 	/**
 	 * Estimates what the user leverage will be after swap
-	 * @param inMarketIndex
-	 * @param outMarketIndex
-	 * @param inAmount
-	 * @param outAmount
+	 * @param inMarketIndex Market being sold/paid from.
+	 * @param outMarketIndex Market being bought/received.
+	 * @param inAmount Amount removed from `inMarketIndex`, that market's own token decimals.
+	 * @param outAmount Amount added to `outMarketIndex`, that market's own token decimals.
+	 * @returns Precision TEN_THOUSAND (1e4, i.e. `10000` = 1x).
 	 */
 	public accountLeverageAfterSwap({
 		inMarketIndex,
@@ -3372,11 +3806,11 @@ export class User {
 	/**
 	 * Returns the leverage ratio for the account after adding (or subtracting) the given quote size to the given position
 	 * @param targetMarketIndex
-	 * @param: targetMarketType
-	 * @param tradeQuoteAmount
-	 * @param tradeSide
-	 * @param includeOpenOrders
-	 * @returns leverageRatio : Precision TEN_THOUSAND
+	 * @param targetMarketType Whether the trade is on a perp or spot market — the two use different valuation paths.
+	 * @param tradeQuoteAmount Quote size of the simulated trade, QUOTE_PRECISION (1e6).
+	 * @param tradeSide Direction of the simulated trade.
+	 * @param includeOpenOrders Include existing open orders' worst-case impact in both the before/after values. Defaults to true.
+	 * @returns leverageRatio : Precision TEN_THOUSAND (1e4, i.e. `10000` = 1x)
 	 */
 	public accountLeverageRatioAfterTrade(
 		targetMarketIndex: number,
@@ -3554,6 +3988,19 @@ export class User {
 		return newLeverage;
 	}
 
+	/**
+	 * Looks up the user's fee tier from the state account's fee structure.
+	 *
+	 * For perp markets, the tier is selected by the user's rolling 30-day
+	 * volume (`getUser30dRollingVolumeEstimate`, QUOTE_PRECISION) against fixed
+	 * breakpoints — $2M, $10M, $20M, $80M, $200M — picking the lowest-index
+	 * tier whose breakpoint the user's volume is still under (tier 5, the
+	 * lowest fees, if volume meets or exceeds the top breakpoint). Spot markets
+	 * always use tier 0 (no volume-based discount).
+	 * @param marketType `MarketType.PERP` or `MarketType.SPOT`.
+	 * @param now Optional unix timestamp (seconds) to evaluate the rolling volume window as of; defaults to current time.
+	 * @returns The matching `FeeTier` (numerator/denominator fee fractions and referee-discount fractions).
+	 */
 	public getUserFeeTier(marketType: MarketType, now?: BN) {
 		const state = this.velocityClient.getStateAccount();
 
@@ -3590,16 +4037,36 @@ export class User {
 	}
 
 	/**
-	 * Calculates how much perp fee will be taken for a given sized trade
-	 * @param quoteAmount
-	 * @returns feeForQuote : Precision QUOTE_PRECISION
+	 * Calculates how much perp fee will be taken for a given sized trade.
+	 *
+	 * When `marketIndex` is provided, delegates to `VelocityClient.getMarketFees`
+	 * for that specific market's taker-fee multiplier (which itself applies the
+	 * market's `feeAdjustment`, the referee discount, and — when `builderInfo` is
+	 * passed — the builder fee). Otherwise uses the volume-based fee tier from
+	 * `getUserFeeTier(MarketType.PERP)`; if the user is a referee (determined
+	 * from `UserStats.referrerStatus`'s `IsReferred` flag unless `isReferee` is
+	 * explicitly passed), the tier's `refereeFeeNumerator`/`refereeFeeDenominator`
+	 * proportion is subtracted from the fee as a discount, and — when `builderInfo`
+	 * carries a builder code — the builder fee (`quoteAmount * builderFeeTenthBps /
+	 * 100_000`) is added on top, mirroring the program's `builder_fee` (`math/fees.rs`).
+	 * @param quoteAmount Trade size, QUOTE_PRECISION (1e6).
+	 * @param marketIndex Optional perp market to use `VelocityClient.getMarketFees` for instead of the volume-tier fee structure.
+	 * @param isReferee Optional override for whether the referee discount applies; defaults to the user's actual `UserStats` referred status. Ignored on the `marketIndex` path (which reads referee status inside `getMarketFees`).
+	 * @param builderInfo Optional builder code; when it carries `builderIdx` + `builderFeeTenthBps`, the builder fee is added on top of the tiered fee.
+	 * @returns feeForQuote : Precision QUOTE_PRECISION (1e6)
 	 */
-	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
+	public calculatePerpTakerFee(
+		quoteAmount: BN,
+		marketIndex?: number,
+		isReferee?: boolean,
+		builderInfo?: Pick<OrderParams, 'builderIdx' | 'builderFeeTenthBps'>
+	): BN {
 		if (marketIndex !== undefined) {
 			const takerFeeMultiplier = this.velocityClient.getMarketFees(
 				MarketType.PERP,
 				marketIndex,
-				this
+				this,
+				builderInfo
 			).takerFee;
 			const feeAmountNum =
 				BigNum.from(quoteAmount, QUOTE_PRECISION_EXP).toNum() *
@@ -3607,16 +4074,53 @@ export class User {
 			return BigNum.fromPrint(feeAmountNum.toString(), QUOTE_PRECISION_EXP).val;
 		} else {
 			const feeTier = this.getUserFeeTier(MarketType.PERP);
-			return quoteAmount
-				.mul(new BN(feeTier.feeNumerator))
-				.div(new BN(feeTier.feeDenominator));
+			let fee = divCeil(
+				quoteAmount.mul(new BN(feeTier.feeNumerator)),
+				new BN(feeTier.feeDenominator)
+			);
+
+			const isUserReferee =
+				isReferee ??
+				(this.velocityClient.getUserStatsOrThrow().getAccountOrThrow()
+					.referrerStatus &
+					ReferrerStatus.IsReferred) >
+					0;
+
+			if (isUserReferee) {
+				const refereeDiscount = getProportion128(
+					fee,
+					new BN(feeTier.refereeFeeNumerator),
+					new BN(feeTier.refereeFeeDenominator)
+				);
+				fee = fee.sub(refereeDiscount);
+			}
+
+			// Builder fee (M12): charged on top of the tiered fee, on the raw quote
+			// (independent of the referee discount), mirroring `builder_fee` in `math/fees.rs`.
+			if (builderInfo && hasBuilderParams(builderInfo)) {
+				fee = fee.add(
+					calculateBuilderFee(quoteAmount, builderInfo.builderFeeTenthBps!)
+				);
+			}
+
+			return fee;
 		}
 	}
 
 	/**
 	 * Calculates a user's max withdrawal amounts for a spot market. If reduceOnly is true,
-	 * it will return the max withdrawal amount without opening a liability for the user
+	 * it will return the max withdrawal amount without opening a liability for the user.
+	 *
+	 * Combines three caps: the market-wide withdraw/borrow guard
+	 * (`calculateWithdrawLimit`, a rolling-window rate limit on the spot
+	 * market), the user's own deposit balance, and how much their free
+	 * collateral supports withdrawing/borrowing. If `canBypassWithdrawLimits`
+	 * returns `canBypass: true` (see that method), the market-wide withdraw
+	 * limit floor is raised to the user's full deposit amount — letting a
+	 * small, healthy, always-net-positive depositor withdraw in full even if
+	 * the market-wide guard would otherwise throttle them.
 	 * @param marketIndex
+	 * @param reduceOnly If true, caps the result so the withdrawal cannot open a borrow (never exceeds the user's current deposit). If false/omitted, may return an amount larger than the deposit, up to the user's max allowed new liability.
 	 * @returns withdrawalLimit : Precision is the token precision for the chosen SpotMarket
 	 */
 	public getWithdrawalLimit(marketIndex: number, reduceOnly?: boolean): BN {
@@ -3708,6 +4212,24 @@ export class User {
 		}
 	}
 
+	/**
+	 * Determines whether the user can bypass the spot market's rolling
+	 * withdraw-guard limit for `marketIndex`. `canBypass` is true only when
+	 * **all** of the following hold:
+	 *   - The user currently holds a deposit (not a borrow) in the market.
+	 *   - Their lifetime net deposits (`totalDeposits - totalWithdraws`) are
+	 *     non-negative — they have never net-withdrawn more than they net-deposited.
+	 *   - Their `cumulativeDeposits` for the position has never gone negative
+	 *     (no history of having borrowed and repaid in this market).
+	 *   - Their current deposit amount is below `maxDepositAmount`, i.e. 10% of
+	 *     the spot market's `withdrawGuardThreshold`.
+	 *
+	 * This lets a small, well-behaved depositor withdraw their own funds in
+	 * full even while the market-wide withdraw guard is actively throttling
+	 * larger movements. Used by `getWithdrawalLimit`.
+	 * @param marketIndex
+	 * @returns `canBypass`; `netDeposits` (lifetime `totalDeposits - totalWithdraws`, QUOTE_PRECISION, 1e6); `depositAmount` and `maxDepositAmount`, both in the spot market's own token decimals.
+	 */
 	public canBypassWithdrawLimits(marketIndex: number): {
 		canBypass: boolean;
 		netDeposits: BN;
@@ -3756,6 +4278,15 @@ export class User {
 			};
 		}
 
+		if (position.cumulativeDeposits.lt(ZERO)) {
+			return {
+				canBypass: false,
+				maxDepositAmount,
+				depositAmount,
+				netDeposits,
+			};
+		}
+
 		return {
 			canBypass: depositAmount.lt(maxDepositAmount),
 			maxDepositAmount,
@@ -3764,6 +4295,15 @@ export class User {
 		};
 	}
 
+	/**
+	 * Determines whether the user can be marked idle (excluded from userMap
+	 * subscriptions by default, and skipped by most keeper crank passes) as of
+	 * `slot`. Requires: not already idle; inactive for the required window
+	 * since `lastActiveSlot` (1 hour / 9,000 slots if equity is under $1,000,
+	 * otherwise 1 week / 1,512,000 slots); not currently being liquidated; and
+	 * no open perp positions, borrows, spot open orders, or open orders of any kind.
+	 * @param slot Current slot to evaluate inactivity against.
+	 */
 	public canMakeIdle(slot: BN): boolean {
 		const userAccount = this.getUserAccountOrThrow();
 		if (userAccount.idle) {
@@ -3819,6 +4359,20 @@ export class User {
 		return true;
 	}
 
+	/**
+	 * Determines whether this `User` (sub)account can be deleted (checked
+	 * before sending a delete-user instruction, to give a friendlier error than
+	 * an on-chain revert). Returns `canDelete: false` with a `reason` string if
+	 * any of the following hold: it's a referrer's sub-account 0 (referrers
+	 * cannot delete their primary account); the account is bankrupt or being
+	 * liquidated; it has any non-empty perp/spot position or open order; or
+	 * (when the state account charges an initialize-user fee) the account is a
+	 * "fresh" account — younger than `ACCOUNT_AGE_DELETION_CUTOFF_SECONDS`,
+	 * measured from its earliest recorded filler/maker/taker volume timestamp —
+	 * that is not currently idle.
+	 * @param userStatsAccount Optional pre-fetched `UserStatsAccount`; defaults to `VelocityClient.getUserStatsOrThrow().getAccount()`.
+	 * @param now Optional unix timestamp (seconds) to evaluate account age against; defaults to current time.
+	 */
 	public canBeDeleted(
 		userStatsAccount?: UserStatsAccount,
 		now?: BN
@@ -3890,6 +4444,17 @@ export class User {
 		return { canDelete: true };
 	}
 
+	/**
+	 * Returns the numerically-lowest (i.e. safest) contract/asset tier across
+	 * the user's active positions — perp tiers from active perp positions,
+	 * spot tiers only from spot **borrows** (deposits are skipped, since asset
+	 * tier only restricts borrowing exposure). Defaults to `4` (the
+	 * second-riskiest tier index) when the user has no positions of that kind —
+	 * this is a permissive default intended for callers doing tier-safety
+	 * comparisons (see `perpTierIsAsSafeAs` in `math/tiers`), not a claim that
+	 * "no position" is itself a risky tier.
+	 * @returns Lower `perpTier`/`spotTier` numbers indicate a safer tier; see `math/tiers` (`getPerpMarketTierNumber`/`getSpotMarketTierNumber`) for the numbering.
+	 */
 	public getSafestTiers(): { perpTier: number; spotTier: number } {
 		let safestPerpTier = 4;
 		let safestSpotTier = 4;
@@ -3926,6 +4491,21 @@ export class User {
 		};
 	}
 
+	/**
+	 * Breaks down a single perp position's contribution to the margin system
+	 * as a `HealthComponent`: worst-case base size, its unweighted liability
+	 * value, the applicable margin ratio (`weight`), and the resulting
+	 * weighted margin requirement (`weightedValue`, which includes the
+	 * position's open-order margin add-on). Used to build up
+	 * `getHealthComponents`' `perpPositions` array (e.g. for UI breakdowns of
+	 * "what's consuming my margin").
+	 * @param marginCategory `'Initial'` or `'Maintenance'`.
+	 * @param perpPosition Position to evaluate.
+	 * @param oraclePriceData Optional oracle price override for the perp market; defaults to the live oracle price.
+	 * @param quoteOraclePriceData Optional oracle price override for the quote spot market; defaults to the live oracle price.
+	 * @param includeOpenOrders Include worst-case open-order exposure. Defaults to true.
+	 * @returns `size` is BASE_PRECISION (1e9); `value`/`weightedValue` are QUOTE_PRECISION (1e6); `weight` is MARGIN_PRECISION (1e4).
+	 */
 	public getPerpPositionHealth({
 		marginCategory,
 		perpPosition,
@@ -4001,6 +4581,18 @@ export class User {
 		};
 	}
 
+	/**
+	 * Builds a full breakdown of every component feeding into the user's
+	 * margin calculation, for UI/diagnostic display: `deposits` and `borrows`
+	 * (one `HealthComponent` per non-quote spot market with a nonzero
+	 * worst-case position, plus a synthetic entry for the net quote balance),
+	 * `perpPositions` (via `getPerpPositionHealth`, one per active perp
+	 * position), and `perpPnl` (each position's weighted unrealized PnL — see
+	 * `getUnrealizedPNL` for the `'Initial'`-margin $100 cap that also applies
+	 * here).
+	 * @param marginCategory `'Initial'` or `'Maintenance'` — determines which asset/liability weights are applied.
+	 * @returns `HealthComponents` with `size`/`value`/`weightedValue` in each entry using the same precisions as `getPerpPositionHealth`.
+	 */
 	public getHealthComponents({
 		marginCategory,
 	}: {
@@ -4228,6 +4820,7 @@ export class User {
 
 	/**
 	 * Get the active perp and spot positions of the user.
+	 * @returns Market indices only (not full position objects); see `getActivePerpPositions`/`getActiveSpotPositions` for the "active" criteria.
 	 */
 	public getActivePositions(): {
 		activePerpPositions: number[];
@@ -4251,6 +4844,25 @@ export class User {
 	 * Compute the full margin calculation for the user's account.
 	 * Prioritize using this function instead of calling getMarginRequirement or getTotalCollateral multiple times.
 	 * Consumers can use this to avoid duplicating work across separate calls.
+	 *
+	 * Mirrors the on-chain margin accumulation in `math/margin.rs`, splitting
+	 * contributions into cross-margin and per-market isolated buckets
+	 * (`MarginCalculation.isolatedMarginCalculations`, keyed by perp market
+	 * index — see `isPerpPositionIsolated`) and tracking whether the account
+	 * holds any isolated-tier liability (`withPerpIsolatedLiability` /
+	 * `withSpotIsolatedLiability`, consumed by
+	 * `validateAnyIsolatedTierRequirements`). A perp position's isolated
+	 * quote-deposit collateral only counts toward that position's own isolated
+	 * bucket, never the cross-margin total.
+	 *
+	 * Also enforces pool-id consistency: every spot/perp position's market must
+	 * match the user's `poolId`, **except** a pool-1 user is allowed to hold a
+	 * quote-asset deposit (not borrow) even though the quote spot market itself
+	 * belongs to pool 0 — throws `InvalidPoolId: ...` otherwise.
+	 * @param marginCategory `'Initial'` or `'Maintenance'`. Defaults to `'Initial'`.
+	 * @param opts.strict Apply TWAP-bounded (`StrictOraclePrice`) oracle pricing, mirroring the on-chain strict-price gating. Defaults to false.
+	 * @param opts.includeOpenOrders Include open orders' worst-case impact. Defaults to true.
+	 * @param opts.liquidationBufferMap Per-scope buffer (MARGIN_PRECISION, 1e4) to pad margin requirements with — `'cross'` for the cross-margin bucket, or a perp market index for that market's isolated bucket. See `getLiquidationBuffer`.
 	 */
 	public getMarginCalculation(
 		marginCategory: MarginCategory = 'Initial',
@@ -4286,15 +4898,36 @@ export class User {
 			.setIsolatedMarginBuffers(isolatedMarginBuffers);
 		const calc = new MarginCalculation(ctx);
 
+		const userPoolId = this.getUserAccountOrThrow().poolId;
+
 		// SPOT POSITIONS
 		for (const spotPosition of this.getUserAccountOrThrow().spotPositions) {
 			if (isSpotPositionAvailable(spotPosition)) continue;
 
 			const isQuote = spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX;
+			const isBorrow = isVariant(spotPosition.balanceType, 'borrow');
 
 			const spotMarket = this.velocityClient.getSpotMarketAccountOrThrow(
 				spotPosition.marketIndex
 			);
+
+			// the pool-1/quote-deposit carve-out lets a pool-1 user *hold* a quote
+			// deposit without matching the quote market's own pool id (no
+			// InvalidPoolId throw); every other combination requires an exact pool
+			// match. Note the deposit still contributes ZERO collateral in this case
+			// (skipTokenValue below) — this faithfully mirrors margin.rs:319-321,
+			// which sets token_value = 0 before add_cross_margin_total_collateral.
+			let skipTokenValue = false;
+			if (!(userPoolId === 1 && isQuote && !isBorrow)) {
+				if (userPoolId !== spotMarket.poolId) {
+					throw new Error(
+						`InvalidPoolId: user pool id (${userPoolId}) does not match spot market pool id (${spotMarket.poolId}) for market index ${spotMarket.marketIndex}`
+					);
+				}
+			} else {
+				skipTokenValue = true;
+			}
+
 			const oraclePriceData = this.getOracleDataForSpotMarket(
 				spotPosition.marketIndex
 			);
@@ -4317,25 +4950,25 @@ export class User {
 					),
 					spotPosition.balanceType
 				);
+				// mirrors margin.rs's `market_index == 0` block: the quote market uses the
+				// raw strict token value on both sides — no asset/liability weight, and the
+				// cross-margin buffer is applied inside addCrossMarginRequirement (from
+				// context.crossMarginBuffer), not folded into the value here
+				const tokenValue = getStrictTokenValue(
+					tokenAmount,
+					spotMarket.decimals,
+					strictOracle
+				);
 				if (isVariant(spotPosition.balanceType, 'deposit')) {
 					// add deposit value to total collateral
-					const weightedTokenValue = this.getSpotAssetValue(
-						tokenAmount,
-						strictOracle,
-						spotMarket,
-						marginCategory
+					calc.addCrossMarginTotalCollateral(
+						skipTokenValue ? ZERO : tokenValue
 					);
-					calc.addCrossMarginTotalCollateral(weightedTokenValue);
 				} else {
 					// borrow on quote contributes to margin requirement
-					const tokenValueAbs = this.getSpotLiabilityValue(
-						tokenAmount,
-						strictOracle,
-						spotMarket,
-						marginCategory,
-						liquidationBufferMap.get('cross') ?? new BN(0)
-					).abs();
+					const tokenValueAbs = tokenValue.abs();
 					calc.addCrossMarginRequirement(tokenValueAbs, tokenValueAbs);
+					calc.addSpotLiability();
 				}
 				continue;
 			}
@@ -4362,6 +4995,8 @@ export class User {
 				);
 			}
 
+			const isIsolatedSpotTier = isVariant(spotMarket.assetTier, 'isolated');
+
 			if (worstCaseTokenAmount.gt(ZERO)) {
 				const baseAssetValue = this.getSpotAssetValue(
 					worstCaseTokenAmount,
@@ -4385,6 +5020,15 @@ export class User {
 					getSpotLiabilityValue.abs(),
 					getSpotLiabilityValue.abs()
 				);
+				calc.addSpotLiability();
+				calc.updateWithSpotIsolatedLiability(isIsolatedSpotTier);
+			} else if (
+				spotPosition.openOrders !== 0 ||
+				!spotPosition.openBids.isZero() ||
+				!spotPosition.openAsks.isZero()
+			) {
+				calc.addSpotLiability();
+				calc.updateWithSpotIsolatedLiability(isIsolatedSpotTier);
 			}
 
 			// orders value contributes to collateral or requirement
@@ -4401,6 +5045,13 @@ export class User {
 			const market = this.velocityClient.getPerpMarketAccountOrThrow(
 				marketPosition.marketIndex
 			);
+
+			if (userPoolId !== market.poolId) {
+				throw new Error(
+					`InvalidPoolId: user pool id (${userPoolId}) does not match perp market pool id (${market.poolId}) for market index ${market.marketIndex}`
+				);
+			}
+
 			const quoteSpotMarket = this.velocityClient.getSpotMarketAccountOrThrow(
 				market.quoteSpotMarketIndex
 			);
@@ -4441,16 +5092,18 @@ export class User {
 				marginRatio = ZERO;
 			}
 
-			// convert liability to quote value and apply margin ratio
+			// convert liability to quote value and apply margin ratio; since this is
+			// a liability, use the larger of the twap and current quote price
 			const quotePrice = strict
 				? BN.max(
 						quoteOraclePriceData.price,
 						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
 				  )
 				: quoteOraclePriceData.price;
-			let perpMarginRequirement = worstCaseLiabilityValue
+			const worstCaseLiabilityValueQuote = worstCaseLiabilityValue
 				.mul(quotePrice)
-				.div(PRICE_PRECISION)
+				.div(PRICE_PRECISION);
+			let perpMarginRequirement = worstCaseLiabilityValueQuote
 				.mul(marginRatio)
 				.div(MARGIN_PRECISION);
 			// add open orders IM
@@ -4501,6 +5154,27 @@ export class User {
 				}
 			}
 
+			if (marginCategory === 'Initial') {
+				// safety guard for dangerously configured perp market
+				positionUnrealizedPnl = BN.min(
+					positionUnrealizedPnl,
+					MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN
+				);
+			}
+
+			const hasPerpLiability =
+				!marketPosition.baseAssetAmount.isZero() ||
+				marketPosition.quoteAssetAmount.isNeg() ||
+				marketPosition.openOrders !== 0 ||
+				!marketPosition.openBids.isZero() ||
+				!marketPosition.openAsks.isZero();
+			if (hasPerpLiability) {
+				calc.addPerpLiability();
+				calc.updateWithPerpIsolatedLiability(
+					isVariant(market.contractTier, 'isolated')
+				);
+			}
+
 			// Add perp contribution: isolated vs cross
 			const isIsolated = this.isPerpPositionIsolated(marketPosition);
 			if (isIsolated) {
@@ -4535,23 +5209,108 @@ export class User {
 					market.marketIndex,
 					depositValue,
 					positionUnrealizedPnl,
-					worstCaseLiabilityValue,
+					worstCaseLiabilityValueQuote,
 					perpMarginRequirement
 				);
-				calc.addPerpLiabilityValue(worstCaseLiabilityValue);
 			} else {
 				// cross: add to global requirement and collateral
 				calc.addCrossMarginRequirement(
 					perpMarginRequirement,
-					worstCaseLiabilityValue
+					worstCaseLiabilityValueQuote
 				);
 				calc.addCrossMarginTotalCollateral(positionUnrealizedPnl);
 			}
+
+			// mirrors margin.rs:616-617 — perp liability value accumulates for every
+			// position regardless of the isolated/cross split, so it must run outside
+			// the branch above (previously only the isolated branch accumulated it,
+			// underreporting totalPerpLiabilityValue for cross positions)
+			calc.addPerpLiabilityValue(worstCaseLiabilityValueQuote);
 		}
 		return calc;
 	}
 
+	/**
+	 * Returns true if `perpPosition` was opened/is held under isolated margin
+	 * (`PositionFlag.IsolatedPosition` set) — segregated to its own margin
+	 * bucket (see `getMarginCalculation`) rather than sharing cross-margin
+	 * collateral with the rest of the account.
+	 */
 	public isPerpPositionIsolated(perpPosition: PerpPosition): boolean {
 		return (perpPosition.positionFlag & PositionFlag.IsolatedPosition) !== 0;
+	}
+
+	/**
+	 * Pre-flight check for `IsolatedAssetTierViolation`: mirrors
+	 * `validate_any_isolated_tier_requirements` in `math/margin.rs`. A user
+	 * holding an isolated-tier perp or spot liability may not simultaneously
+	 * carry other liabilities (besides a single usdc borrow, for a perp
+	 * isolated liability), unless they are reduce-only.
+	 *
+	 * Specifically, if `calculation.withPerpIsolatedLiability` is set (an
+	 * isolated-*contract-tier* perp liability exists) and the user is not
+	 * `UserStatus.REDUCE_ONLY`: more than one perp liability is invalid; margin
+	 * trading enabled is invalid; and any spot liability other than a single
+	 * USDC borrow is invalid. If `calculation.withSpotIsolatedLiability` is set
+	 * (an isolated-*asset-tier* spot liability exists) and not reduce-only: any
+	 * perp liability, or more than the one isolated-tier spot liability, is invalid.
+	 * @param calculation A `MarginCalculation` from `getMarginCalculation` (any margin category — only the isolated-liability flags and liability counts are read).
+	 * @returns `{ valid: true }` if the account satisfies isolated-tier requirements, else `{ valid: false, reason }` with a human-readable reason.
+	 */
+	public validateAnyIsolatedTierRequirements(calculation: MarginCalculation): {
+		valid: boolean;
+		reason?: string;
+	} {
+		const userAccount = this.getUserAccountOrThrow();
+		const isReduceOnly = this.hasStatus(UserStatus.REDUCE_ONLY);
+
+		if (calculation.withPerpIsolatedLiability && !isReduceOnly) {
+			if (calculation.numPerpLiabilities > 1) {
+				return {
+					valid: false,
+					reason:
+						'User attempting to increase perp liabilities above 1 with a isolated tier liability',
+				};
+			}
+
+			if (userAccount.isMarginTradingEnabled) {
+				return {
+					valid: false,
+					reason:
+						'User attempting isolated tier liability with margin trading enabled',
+				};
+			}
+
+			if (calculation.numSpotLiabilities > 0) {
+				const quoteSpotPosition = this.getSpotPosition(QUOTE_SPOT_MARKET_INDEX);
+				const quoteIsBorrow =
+					!!quoteSpotPosition &&
+					isVariant(quoteSpotPosition.balanceType, 'borrow');
+				if (!(calculation.numSpotLiabilities === 1 && quoteIsBorrow)) {
+					return {
+						valid: false,
+						reason:
+							'User attempting to increase spot liabilities beyond usdc with a isolated tier liability',
+					};
+				}
+			}
+		}
+
+		if (calculation.withSpotIsolatedLiability && !isReduceOnly) {
+			if (
+				!(
+					calculation.numPerpLiabilities === 0 &&
+					calculation.numSpotLiabilities === 1
+				)
+			) {
+				return {
+					valid: false,
+					reason:
+						'User attempting to increase perp liabilities above 0 with a isolated tier liability',
+				};
+			}
+		}
+
+		return { valid: true };
 	}
 }

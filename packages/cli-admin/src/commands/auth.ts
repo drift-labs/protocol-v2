@@ -73,6 +73,32 @@ export function registerAuth(parent: Command): void {
 
 	withGlobalOptions(
 		auth
+			.command('set-pause-admin <newPauseAdmin>')
+			.description(
+				'Rotate state.pause_admin (the no-timelock emergency-pause key). On-chain check requires cold to sign.'
+			)
+	).action(async (newPauseAdmin: string, _flags, cmd: Command) => {
+		const opts = readGlobalOpts(cmd);
+		const provider = buildProvider(opts);
+		const client = await buildAdminClient(opts);
+		try {
+			const ix = await client.getUpdatePauseAdminIx(
+				new PublicKey(newPauseAdmin)
+			);
+			const result = await sendOrPropose(
+				provider,
+				[ix],
+				opts.multisig ? new PublicKey(opts.multisig) : undefined,
+				'velocity-admin auth set-pause-admin'
+			);
+			reportDispatch(`set-pause-admin → ${newPauseAdmin}`, result);
+		} finally {
+			await client.unsubscribe();
+		}
+	});
+
+	withGlobalOptions(
+		auth
 			.command('set-hot-admin <role> <pubkey>')
 			.description(
 				`Rotate a hot-role pubkey. Roles: ${HOT_ROLES.join(

@@ -13,11 +13,18 @@ import {
 } from '../constants/numericConstants';
 import { AMM } from '../types';
 /**
- * Helper function calculating adjust k cost
- * @param amm
- * @param numerator
- * @param denomenator
- * @returns cost : Precision QUOTE_ASSET_PRECISION
+ * Closed-form estimate of the quote-denominated cost of scaling the AMM's `sqrtK`
+ * (liquidity depth) by `numerator / denomenator` while holding `pegMultiplier` fixed.
+ * Used by `calculateNewAmm` as the cheap-to-compute stand-in for the program's K-shrink
+ * step (`adjust_k_cost_and_update` in `vlp/amm/quoter.rs`, which shrinks `sqrtK` by 0.1%
+ * — i.e. `numerator`/`denomenator` = 999/1000 — when a straight repeg to the oracle price
+ * would exceed the AMM's affordability budget). A positive result is a cost the AMM must
+ * fund from `totalFeeMinusDistributions`; shrinking K (denomenator > numerator) typically
+ * yields a negative cost (a rebate) since it reduces the AMM's net unrealized exposure.
+ * @param amm AMM state (uses `baseAssetReserve`, `quoteAssetReserve`, `baseAssetAmountWithAmm`, `pegMultiplier`).
+ * @param numerator Numerator of the K scale factor (e.g. 999).
+ * @param denomenator Denominator of the K scale factor (e.g. 1000).
+ * @returns Cost of the K adjustment, QUOTE_PRECISION (1e6).
  */
 export function calculateAdjustKCost(
 	amm: AMM,
@@ -82,11 +89,16 @@ export function calculateAdjustKCost(
 // }
 
 /**
- * Helper function calculating adjust pegMultiplier (repeg) cost
- *
- * @param amm
- * @param newPeg
- * @returns cost : Precision QUOTE_ASSET_PRECISION
+ * Calculates the quote-denominated cost of moving the AMM's `pegMultiplier` to `newPeg`,
+ * mirroring `calculate_repeg_cost` in `vlp/amm/math/repeg.rs`: `(quoteAssetReserve -
+ * terminalQuoteAssetReserve) * (newPeg - pegMultiplier) / AMM_TO_QUOTE_PRECISION_RATIO`.
+ * The sign follows the AMM's inventory skew (`quoteAssetReserve - terminalQuoteAssetReserve`)
+ * — repegging in the direction that favors the AMM's current net position is free or a
+ * rebate; repegging against it costs `totalFeeMinusDistributions`. Zero when the AMM carries
+ * no net inventory (`quoteAssetReserve == terminalQuoteAssetReserve`).
+ * @param amm AMM state (uses `quoteAssetReserve`, `terminalQuoteAssetReserve`, `pegMultiplier`).
+ * @param newPeg Candidate peg multiplier, PEG_PRECISION (1e6).
+ * @returns Signed cost of the repeg, QUOTE_PRECISION (1e6).
  */
 export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
 	const dqar = amm.quoteAssetReserve.sub(amm.terminalQuoteAssetReserve);
@@ -97,6 +109,21 @@ export function calculateRepegCost(amm: AMM, newPeg: BN): BN {
 	return cost;
 }
 
+/**
+ * Solves for a `sqrtK` scale factor `numerator / denominator` such that repegging the AMM
+ * to price-neutral (holding the terminal/reserve price relationship implied by the current
+ * inventory) costs exactly `budget`. Used as the closed-form companion to
+ * `calculateAdjustKCost` (same K-shrink mechanism as the program's `adjust_k_cost_and_update`)
+ * when solving for "how much must K move to spend exactly this much." Falls back to a fixed
+ * `[10000, 1]` (10000x factor) if the budget is negative (protocol spending to increase K) and the
+ * solution would be numerically unstable.
+ * @param x AMM `baseAssetReserve`, AMM_RESERVE_PRECISION (1e9).
+ * @param y AMM `quoteAssetReserve`, AMM_RESERVE_PRECISION (1e9).
+ * @param budget Quote budget available to spend on the K adjustment, QUOTE_PRECISION (1e6).
+ * @param Q AMM `pegMultiplier`, PEG_PRECISION (1e6).
+ * @param d AMM `baseAssetAmountWithAmm` (net AMM inventory), AMM_RESERVE_PRECISION (1e9).
+ * @returns `[numerator, denominator]` scale factor to apply to `sqrtK`/`baseAssetReserve`.
+ */
 export function calculateBudgetedKBN(
 	x: BN,
 	y: BN,
@@ -148,6 +175,17 @@ export function calculateBudgetedKBN(
 	return [numerator, denominator];
 }
 
+/**
+ * Calculates the largest peg move affordable within `budget`, capped so it never overshoots
+ * `targetPrice`'s implied peg. Mirrors the "use full budget peg" branch of `adjust_amm` in
+ * `vlp/amm/math/repeg.rs`: computes a per-peg-unit cost from the AMM's inventory skew, then
+ * returns `targetPeg` directly whenever moving toward it is free or revenue-generating
+ * (`useTargetPeg`), otherwise walks the peg by `budget / perPegCost` and floors it at 1.
+ * @param amm AMM state (uses `quoteAssetReserve`, `terminalQuoteAssetReserve`, `baseAssetReserve`, `pegMultiplier`).
+ * @param budget Quote budget available to spend on the repeg, QUOTE_PRECISION (1e6).
+ * @param targetPrice Oracle-implied target price driving the optimal peg, PRICE_PRECISION (1e6).
+ * @returns New peg multiplier, PEG_PRECISION (1e6), never below 1.
+ */
 export function calculateBudgetedPeg(
 	amm: AMM,
 	budget: BN,

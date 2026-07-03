@@ -12,11 +12,19 @@ type SlothashSubscriberConfig = {
 	commitment?: Commitment;
 }; // for future customization
 
+/** A slot and its corresponding blockhash, decoded from the `SysvarS1otHashes111111111111111111111111111` account. */
 export type Slothash = {
 	slot: number;
+	/** Base58-encoded blockhash for that slot. */
 	hash: string;
 };
 
+/**
+ * SlothashSubscriber — tracks the most recent entry of the `SlotHashes`
+ * sysvar via `connection.onAccountChange`, with an optional stall-detection
+ * resubscribe. Updates whose slot is not strictly greater than the currently
+ * tracked one are ignored.
+ */
 export class SlothashSubscriber {
 	private _currentSlothash?: Slothash;
 	private get currentSlothash(): Slothash {
@@ -36,6 +44,11 @@ export class SlothashSubscriber {
 	isUnsubscribing = false;
 	receivingData = false;
 
+	/**
+	 * @param connection RPC connection to subscribe on.
+	 * @param config.commitment Commitment for both the initial fetch and the account-change subscription; defaults to `'processed'`.
+	 * @param config.resubTimeoutMs If set to a positive value, resubscribe when no update arrives for this many ms; `0` (or unset) disables the resubscribe watchdog. Positive values below 1000ms log a warning but are still honored.
+	 */
 	public constructor(
 		private connection: Connection,
 		config?: SlothashSubscriberConfig
@@ -49,6 +62,11 @@ export class SlothashSubscriber {
 		}
 	}
 
+	/**
+	 * Fetches the `SlotHashes` sysvar once via RPC, then subscribes to
+	 * `onAccountChange` for live updates. Idempotent while already subscribed.
+	 * @throws If the sysvar account can't be fetched on the initial load.
+	 */
 	public async subscribe(): Promise<void> {
 		if (this.subscriptionId != null) {
 			return;
@@ -105,10 +123,18 @@ export class SlothashSubscriber {
 		}, this.resubTimeoutMs);
 	}
 
+	/**
+	 * @returns The most recently observed `Slothash`.
+	 * @throws If called before `subscribe()` has completed its initial fetch.
+	 */
 	public getSlothash(): Slothash {
 		return this.currentSlothash;
 	}
 
+	/**
+	 * Removes the `onAccountChange` listener and cancels the resub timeout.
+	 * @param onResub Internal flag used when unsubscribing as part of an automatic resubscribe cycle; when `false`, also permanently disables future auto-resubscribe by clearing `resubTimeoutMs`.
+	 */
 	public async unsubscribe(onResub = false): Promise<void> {
 		if (!onResub) {
 			this.resubTimeoutMs = undefined;
@@ -118,7 +144,7 @@ export class SlothashSubscriber {
 		this.timeoutId = undefined;
 
 		if (this.subscriptionId != null) {
-			await this.connection.removeSlotChangeListener(this.subscriptionId);
+			await this.connection.removeAccountChangeListener(this.subscriptionId);
 			this.subscriptionId = undefined;
 			this.isUnsubscribing = false;
 		} else {

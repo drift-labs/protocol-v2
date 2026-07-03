@@ -5,6 +5,14 @@ import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 
+/**
+ * `OrderSubscriber` transport backed by a websocket `WebSocketProgramAccountSubscriber`
+ * filtered to non-idle `User` accounts. On subscribe, optionally performs an
+ * initial full `fetch()` snapshot (unless `skipInitialLoad`), then applies
+ * live updates as they arrive; if `resyncIntervalMs` is set, also runs a
+ * periodic full `fetch()` resync alongside the subscription to self-heal any
+ * missed program-account notifications.
+ */
 export class WebsocketSubscription {
 	private orderSubscriber: OrderSubscriber;
 	private commitment: Commitment;
@@ -17,6 +25,14 @@ export class WebsocketSubscription {
 
 	private decoded?: boolean;
 
+	/**
+	 * @param orderSubscriber The `OrderSubscriber` to feed with updates.
+	 * @param commitment Commitment level for the program-account subscription.
+	 * @param skipInitialLoad Skip the initial full `fetch()` snapshot after subscribing; defaults to `false`.
+	 * @param resubOpts Reconnect behavior for the underlying `WebSocketProgramAccountSubscriber`.
+	 * @param resyncIntervalMs If set, runs a periodic full `fetch()` resync at this interval.
+	 * @param decoded Whether updates are delivered already Anchor-decoded (`true`, default) or as raw buffers for `OrderSubscriber` to decode itself.
+	 */
 	constructor({
 		orderSubscriber,
 		commitment,
@@ -40,6 +56,7 @@ export class WebsocketSubscription {
 		this.decoded = decoded;
 	}
 
+	/** Establishes the websocket program-account subscription (idempotent — no-op if already subscribed), optionally backfills with `fetch()`, and starts the resync timer if configured. */
 	public async subscribe(): Promise<void> {
 		if (this.subscriber) {
 			return;
@@ -107,6 +124,7 @@ export class WebsocketSubscription {
 		}
 	}
 
+	/** Tears down the program-account subscription and cancels the resync timer, if any. No-op if not subscribed. */
 	public async unsubscribe(): Promise<void> {
 		if (!this.subscriber) return;
 		await this.subscriber.unsubscribe();

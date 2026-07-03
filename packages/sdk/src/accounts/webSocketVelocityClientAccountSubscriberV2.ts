@@ -50,6 +50,15 @@ const ORACLE_DEFAULT_ID = getOracleId(
 	OracleSource.QUOTE_ASSET
 );
 
+/**
+ * `VelocityClientAccountSubscriber` variant that, unlike `WebSocketVelocityClientAccountSubscriber`
+ * (one `WebSocketAccountSubscriber` per market), multiplexes all perp markets onto a single
+ * `WebSocketProgramAccountsSubscriberV2` program-account stream and all spot markets onto a
+ * second — two WebSocket subscriptions total instead of one per market. `State` and each oracle
+ * still get their own `WebSocketAccountSubscriberV2`. Lower connection overhead at scale;
+ * `addPerpMarket`/`addSpotMarket` are no-ops here since new markets simply arrive automatically
+ * over the existing program-account stream rather than needing an explicit new subscription.
+ */
 export class WebSocketVelocityClientAccountSubscriberV2
 	implements VelocityClientAccountSubscriber
 {
@@ -122,6 +131,17 @@ export class WebSocketVelocityClientAccountSubscriberV2
 	private rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi> &
 		string;
 
+	/**
+	 * @param program Anchor program used to derive PDAs, decode accounts, and resolve oracle clients.
+	 * @param perpMarketIndexes Perp market indexes to track, if `shouldFindAllMarketsAndOracles` is false. Only used to derive the initial pubkeys handed to the perp program-account subscriber; new markets arrive automatically thereafter.
+	 * @param spotMarketIndexes Spot market indexes to track, if `shouldFindAllMarketsAndOracles` is false. Same caveat as `perpMarketIndexes`.
+	 * @param oracleInfos Oracles to track up front, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param shouldFindAllMarketsAndOracles If true, `subscribe()` first discovers every market/oracle from on-chain state, ignoring the index/info args above.
+	 * @param delistedMarketSetting Behavior applied to delisted perp markets/oracles after subscribing; see `DelistedMarketSetting`.
+	 * @param resubOpts Resubscription watchdog options passed to the underlying program-account and per-oracle subscribers.
+	 * @param commitment Commitment for every subscription; defaults to the provider's configured commitment.
+	 * @param skipInitialData Currently unused by `subscribe()`/`setInitialData()` (the field is set but never read); defaults to `false`.
+	 */
 	public constructor(
 		program: VelocityProgram,
 		perpMarketIndexes: number[],
@@ -152,6 +172,15 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
+	/**
+	 * Derives all tracked perp/spot market pubkeys (or discovers them via `findAllMarketAndOracles`
+	 * if `shouldFindAllMarketsAndOracles` is set), then in parallel: opens the perp and spot
+	 * `WebSocketProgramAccountsSubscriberV2` streams, subscribes the `State` account, and seeds +
+	 * subscribes every oracle. Applies `delistedMarketSetting` afterward. Idempotent: a no-op if
+	 * already subscribed, and concurrent calls while a subscribe is in flight share the same
+	 * result via `subscriptionPromise` rather than issuing duplicate subscriptions.
+	 * @returns `true` on success; `false` if any step throws (subscription state is left partially applied in that case, and `isSubscribed` remains `false`).
+	 */
 	public async subscribe(): Promise<boolean> {
 		try {
 			const startTime = performance.now();
@@ -381,6 +410,20 @@ export class WebSocketVelocityClientAccountSubscriberV2
 			return true;
 		} catch (error) {
 			console.error('Subscription failed:', error);
+			// Tear down any child subscribers that were created before the failure so a
+			// subsequent subscribe() attempt doesn't leak live connections; isSubscribed is
+			// still false at this point, so unsubscribe() alone would otherwise skip this.
+			await Promise.all([
+				this.stateAccountSubscriber?.unsubscribe(),
+				this.unsubscribeFromMarketAccounts(),
+				this.unsubscribeFromSpotMarketAccounts(),
+				this.unsubscribeFromOracles(),
+			]).catch((teardownError) => {
+				console.error(
+					'Error tearing down partial subscription:',
+					teardownError
+				);
+			});
 			this.isSubscribing = false;
 			this.subscriptionPromiseResolver(false);
 			return false;
@@ -395,6 +438,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		return result;
 	};
 
+	/** Re-runs `setInitialData()`, re-fetching and re-emitting oracle price data. Does not re-fetch perp/spot market or `State` accounts — those are kept current via their live WebSocket streams. */
 	public async fetch(): Promise<void> {
 		await this.setInitialData();
 	}
@@ -424,6 +468,14 @@ export class WebSocketVelocityClientAccountSubscriberV2
 	}
 
 	// TODO: need more options to skip loading perp market and spot market data. Because of how we fetch within the program account subscribers, I am commenting this all out
+	/**
+	 * Batch-fetches every tracked oracle account via chunked `getMultipleAccountsInfo` calls (100
+	 * pubkeys per chunk), decodes each with the source-appropriate `OracleClient`, stashes the
+	 * results in `initialOraclePriceData`, and immediately emits `oraclePriceUpdate`/`update` for
+	 * each. Unlike the v1 subscriber's `setInitialData`, does not seed perp/spot market data —
+	 * those markets are seeded directly by the program-account subscribers' own initial-account
+	 * list instead.
+	 */
 	async setInitialData(): Promise<void> {
 		const connection = this.program.provider.connection;
 		// Profile oracle initial data setup
@@ -495,12 +547,14 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		this.eventEmitter.emit('update');
 	}
 
+	/** Clears the seed data stashed by `setInitialData()`/`findAllMarketAndOracles` once consumed, freeing the memory. */
 	removeInitialData() {
 		this.initialPerpMarketAccountData = new Map();
 		this.initialSpotMarketAccountData = new Map();
 		this.initialOraclePriceData = new Map();
 	}
 
+	/** Subscribes a `WebSocketAccountSubscriberV2` for every tracked oracle not already subscribed, in parallel, skipping duplicates already present in `oracleSubscribers`. */
 	async subscribeToOracles(): Promise<boolean> {
 		const startTime = performance.now();
 
@@ -526,6 +580,13 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		return true;
 	}
 
+	/**
+	 * Creates and subscribes a `WebSocketAccountSubscriberV2` for one oracle, decoding buffers
+	 * with the source-appropriate `OracleClient`. Seeds from `initialOraclePriceData` if available
+	 * before subscribing.
+	 * @param oracleInfo Oracle pubkey and source to subscribe.
+	 * @returns `false` if no `OracleClient` is registered for `oracleInfo.source` or the subscribe call throws; otherwise `true`.
+	 */
 	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		try {
 			const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
@@ -577,14 +638,17 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		}
 	}
 
+	/** Unsubscribes the single multiplexed perp-market program-account stream. */
 	async unsubscribeFromMarketAccounts(): Promise<void> {
 		await this.perpMarketAllAccountsSubscriber.unsubscribe();
 	}
 
+	/** Unsubscribes the single multiplexed spot-market program-account stream. */
 	async unsubscribeFromSpotMarketAccounts(): Promise<void> {
 		await this.spotMarketAllAccountsSubscriber.unsubscribe();
 	}
 
+	/** Unsubscribes every per-oracle `WebSocketAccountSubscriberV2`, in parallel. */
 	async unsubscribeFromOracles(): Promise<void> {
 		await Promise.all(
 			Array.from(this.oracleSubscribers.values()).map((accountSubscriber) =>
@@ -593,6 +657,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		);
 	}
 
+	/** Tears down the `State` subscriber, both market program-account streams, and every oracle subscriber. A no-op if not subscribed. */
 	public async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -613,6 +678,12 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		this.subscriptionPromiseResolver = () => {};
 	}
 
+	/**
+	 * Adds an oracle to be tracked, subscribing a new `WebSocketAccountSubscriberV2` for it. A
+	 * no-op that resolves `true` immediately for the `PublicKey.default` sentinel (quote-asset "no
+	 * oracle") or an oracle already tracked.
+	 * @param oracleInfo Oracle pubkey and source to start tracking.
+	 */
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
 		if (this.oracleSubscribers.has(oracleId)) {
@@ -626,6 +697,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		return this.subscribeToOracle(oracleInfo);
 	}
 
+	/** Rebuilds `perpOracleMap`/`perpOracleStringMap` from currently cached perp markets, calling `addOracle` for any oracle not yet tracked. */
 	async setPerpOracleMap() {
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		const addOraclePromises = [];
@@ -651,6 +723,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		await Promise.all(addOraclePromises);
 	}
 
+	/** Rebuilds `spotOracleMap`/`spotOracleStringMap` from currently cached spot markets, calling `addOracle` for any oracle not yet tracked. */
 	async setSpotOracleMap() {
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		const addOraclePromises = [];
@@ -676,6 +749,16 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		await Promise.all(addOraclePromises);
 	}
 
+	/**
+	 * Applies `delistedMarketSetting` to any oracle backing a currently `status: delisted` perp
+	 * market (and not still used by a live spot market, per `findDelistedPerpMarketsAndOracles`):
+	 * unsubscribes the oracle's subscriber, and additionally drops it from `oracleSubscribers` if
+	 * the setting is `Discard`. A no-op if the setting is `Subscribe`. Note this only manages
+	 * oracle subscriptions — delisted market accounts themselves cannot be selectively unsubscribed
+	 * from the shared perp/spot program-account stream; instead the `subscribe()` update callback
+	 * drops any incoming update for a `status: delisted` market unless `delistedMarketSetting` is
+	 * `Subscribe`, freezing that market's cached data at its last pre-delisting state.
+	 */
 	async handleDelistedMarketOracles(): Promise<void> {
 		if (this.delistedMarketSetting === DelistedMarketSetting.Subscribe) {
 			return;
@@ -698,6 +781,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		}
 	}
 
+	/** Throws `NotSubscribedError` if `subscribe()` has not been called. */
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -706,6 +790,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		}
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed, or a generic `Error` (via `assertDataAndSlot`) if subscribed but the `State` account hasn't loaded yet. */
 	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
 		return assertDataAndSlot(
@@ -714,6 +799,7 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		);
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. Returns undefined if `marketIndex` hasn't been observed yet on the perp program-account stream. */
 	public getMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined {
@@ -721,10 +807,12 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		return this.perpMarketAccountLatestData.get(marketIndex);
 	}
 
+	/** Returns every currently cached (loaded) perp market. Does not throw `NotSubscribedError`. */
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
 		return Array.from(this.perpMarketAccountLatestData.values());
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. Returns undefined if `marketIndex` hasn't been observed yet on the spot program-account stream. */
 	public getSpotMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined {
@@ -732,10 +820,18 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		return this.spotMarketAccountLatestData.get(marketIndex);
 	}
 
+	/** Returns every currently cached (loaded) spot market. Does not throw `NotSubscribedError`. */
 	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {
 		return Array.from(this.spotMarketAccountLatestData.values());
 	}
 
+	/**
+	 * Looks up cached oracle price data by oracle id (see `getOracleId`). Special-cases the
+	 * quote-asset default oracle id, returning the constant `QUOTE_ORACLE_PRICE_DATA` at slot 0
+	 * rather than a subscriber lookup, since that oracle is never actually subscribed to.
+	 * @param oracleId Oracle id string from `getOracleId(publicKey, source)`.
+	 * @returns Cached price data/slot, or undefined if not tracked. Throws `NotSubscribedError` if not subscribed.
+	 */
 	public getOraclePriceDataAndSlot(
 		oracleId: string
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -749,6 +845,13 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		return this.oracleSubscribers.get(oracleId)?.dataAndSlot;
 	}
 
+	/**
+	 * Convenience lookup: resolves the oracle price data currently mapped to a perp market's
+	 * oracle. If the cached market's oracle pubkey has drifted from (or isn't yet in)
+	 * `perpOracleMap`, triggers a background `setPerpOracleMap()` refresh and still returns the
+	 * (possibly stale) mapping for this call.
+	 * @param marketIndex Perp market index whose oracle price to look up.
+	 */
 	public getOraclePriceDataAndSlotForPerpMarket(
 		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -767,6 +870,13 @@ export class WebSocketVelocityClientAccountSubscriberV2
 		return this.getOraclePriceDataAndSlot(oracleId);
 	}
 
+	/**
+	 * Convenience lookup: resolves the oracle price data currently mapped to a spot market's
+	 * oracle. If the cached market's oracle pubkey has drifted from (or isn't yet in)
+	 * `spotOracleMap`, triggers a background `setSpotOracleMap()` refresh and still returns the
+	 * (possibly stale) mapping for this call.
+	 * @param marketIndex Spot market index whose oracle price to look up.
+	 */
 	public getOraclePriceDataAndSlotForSpotMarket(
 		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined {

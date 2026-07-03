@@ -18,6 +18,14 @@ import {
 type LaserCommitment =
 	(typeof LaserCommitmentLevel)[keyof typeof LaserCommitmentLevel];
 
+/**
+ * `ProgramAccountSubscriber` that streams every account owned by the program (optionally filtered
+ * by `memcmp`) via Helius LaserStream instead of `connection.onProgramAccountChange`. Extends
+ * `WebSocketProgramAccountSubscriber` to reuse its per-account buffering/decode/resub-timer logic
+ * (`handleRpcResponse`, `bufferAndSlotMap`) — only the transport (`subscribe`/`unsubscribe`) is
+ * replaced. Construct via the static `create` factory, not the constructor directly, since it
+ * dynamically loads the optional `helius-laserstream` peer dependency and its enums.
+ */
 export class LaserstreamProgramAccountSubscriber<
 	T,
 > extends WebSocketProgramAccountSubscriber<T> {
@@ -59,6 +67,19 @@ export class LaserstreamProgramAccountSubscriber<
 		this.commitmentLevel = this.toLaserCommitment(commitmentLevel);
 	}
 
+	/**
+	 * Loads the optional `helius-laserstream` module, builds its `LaserstreamConfig` (forcing zstd
+	 * compression and a 1GB max receive message size), and constructs a
+	 * `LaserstreamProgramAccountSubscriber`. Does not itself start streaming — call
+	 * `subscribe(onChange)` on the result.
+	 * @param grpcConfigs LaserStream endpoint/token/commitment config; `enableReconnect` maps to up to 10 reconnect attempts (0 if unset).
+	 * @param subscriptionName Human-readable name for logging.
+	 * @param accountDiscriminator Anchor account type name passed to `decodeBufferFn` for each update.
+	 * @param program Anchor program whose accounts to stream (filtered to `program.programId` as owner).
+	 * @param decodeBufferFn Decode function for each account's raw buffer.
+	 * @param options `filters` (memcmp) narrowing which program accounts are streamed; empty streams every account owned by the program.
+	 * @param resubOpts Resubscription watchdog options; omit to disable the inactivity timer.
+	 */
 	public static async create<U>(
 		grpcConfigs: LaserGrpcConfigs,
 		subscriptionName: string,
@@ -102,6 +123,14 @@ export class LaserstreamProgramAccountSubscriber<
 		);
 	}
 
+	/**
+	 * Opens a LaserStream `accounts` subscription filtered to `program.programId` as owner
+	 * (further narrowed by the `filters` passed to `create`). Idempotent: a no-op if already
+	 * subscribed or mid-unsubscribe. Does not perform an initial fetch — the caller must fetch any
+	 * pre-existing matching accounts separately if needed. Throws if the LaserStream client fails
+	 * to start.
+	 * @param onChange Invoked once per changed account with its pubkey, decoded data, the notification's `Context` (slot only), and the raw buffer.
+	 */
 	async subscribe(
 		onChange: (
 			accountId: PublicKey,
@@ -198,6 +227,10 @@ export class LaserstreamProgramAccountSubscriber<
 		}
 	}
 
+	/**
+	 * Cancels the LaserStream and clears any pending resub timeout.
+	 * @param onResub Internal flag set to `true` when called as part of an automatic resubscribe cycle, which preserves `resubOpts.resubTimeoutMs` instead of clearing it. Callers should omit this.
+	 */
 	public async unsubscribe(onResub = false): Promise<void> {
 		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;
@@ -218,6 +251,7 @@ export class LaserstreamProgramAccountSubscriber<
 		}
 	}
 
+	/** Coerces a commitment level (string name, numeric enum value, or undefined) into a LaserStream `LaserCommitmentLevel`, defaulting to `CONFIRMED`. */
 	public toLaserCommitment(
 		level: string | number | undefined
 	): LaserCommitment {

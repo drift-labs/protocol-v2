@@ -7,6 +7,12 @@ import { UserAccount } from '../types';
 import { getUserFilter, getNonIdleUserFilter } from '../memcmp';
 import { LaserstreamProgramAccountSubscriber } from '../accounts/laserProgramAccountSubscriber';
 
+/**
+ * `OrderSubscriber` transport backed by a gRPC Geyser stream — either the
+ * standard `grpcProgramAccountSubscriber` or, when `grpcConfigs.client ===
+ * 'laser'`, `LaserstreamProgramAccountSubscriber` — filtered to non-idle
+ * `User` accounts. Same initial-load/resync semantics as `WebsocketSubscription`.
+ */
 export class grpcSubscription {
 	private orderSubscriber: OrderSubscriber;
 	private skipInitialLoad: boolean;
@@ -22,6 +28,14 @@ export class grpcSubscription {
 
 	private grpcConfigs: GrpcConfigs;
 
+	/**
+	 * @param grpcConfigs gRPC/Geyser endpoint config; `client: 'laser'` selects the Laserstream implementation, otherwise the standard gRPC subscriber is used.
+	 * @param orderSubscriber The `OrderSubscriber` to feed with updates.
+	 * @param skipInitialLoad Skip the initial full `fetch()` snapshot after subscribing; defaults to `false`.
+	 * @param resubOpts Reconnect behavior for the underlying gRPC subscriber.
+	 * @param resyncIntervalMs If set, runs a periodic full `fetch()` resync at this interval.
+	 * @param decoded Whether updates are delivered already Anchor-decoded (`true`, default) or as raw buffers for `OrderSubscriber` to decode itself.
+	 */
 	constructor({
 		grpcConfigs,
 		orderSubscriber,
@@ -45,6 +59,7 @@ export class grpcSubscription {
 		this.grpcConfigs = grpcConfigs;
 	}
 
+	/** Establishes the gRPC/Laserstream program-account subscription (idempotent), optionally backfills with `fetch()`, and starts the resync timer if configured. */
 	public async subscribe(): Promise<void> {
 		if (this.subscriber) {
 			return;
@@ -127,6 +142,7 @@ export class grpcSubscription {
 		}
 	}
 
+	/** Tears down the gRPC subscription and cancels the resync timer, if any. No-op if not subscribed. */
 	public async unsubscribe(): Promise<void> {
 		if (!this.subscriber) return;
 		await this.subscriber.unsubscribe();

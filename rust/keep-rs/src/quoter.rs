@@ -22,6 +22,14 @@
 //!   QUOTE_PRECISION): a side that would push Σ |base_i × oracle_i| across all
 //!   markets past the cap is skipped. To enforce a leverage limit, set this to
 //!   `collateral_usd * max_leverage`. Set to `0` to disable.
+//!
+//! Because the quotes are passive (`TryPostOnly`), the inventory-reducing quote
+//! can rest unfilled while the position stays one-sided. So on top of the
+//! passive quoting, whenever `|position|` on a market reaches the **rebalance
+//! threshold** (`rebalance_base_per_market`, falling back to
+//! `quote_max_base_per_market`) the quoter logs it at INFO as *stuck one-sided*
+//! and adds a `reduce_only` **market** order on the reducing side to actively
+//! cross and walk the position back toward flat — one quote-size chunk per tick.
 
 use std::time::Duration;
 
@@ -39,6 +47,7 @@ use crate::{Config, UseMarkets};
 const TARGET: &str = "quoter";
 const USER_ORDER_ID_BID: u8 = 201;
 const USER_ORDER_ID_ASK: u8 = 202;
+const USER_ORDER_ID_REBALANCE: u8 = 203;
 
 pub struct QuoterBot {
     velocity: VelocityClient,
@@ -120,9 +129,14 @@ impl QuoterBot {
         }
     }
 
-    pub async fn run(self) {
+    pub async fn run(&self) {
         if let Err(e) = self.log_deposits().await {
             log::warn!(target: TARGET, "could not check deposits at startup: {e}");
+        }
+        // Start from a clean book: drop any quotes left resting from a prior run
+        // before we begin placing fresh ones.
+        if let Err(e) = self.cancel_all_quotes().await {
+            log::warn!(target: TARGET, "startup cancel failed: {e}");
         }
         let mut ticker = tokio::time::interval(Duration::from_secs(self.config.quote_refresh_secs));
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -131,6 +145,59 @@ impl QuoterBot {
             if let Err(err) = self.tick().await {
                 log::warn!(target: TARGET, "tick failed: {err}");
             }
+        }
+    }
+
+    /// Cancel every resting quote this bot holds across all managed perp
+    /// markets. Sent on startup (clean slate) and on shutdown (leave no stale
+    /// quotes on the book). A single tx with one `CancelOrders` ix per market;
+    /// markets with no open orders are a harmless no-op.
+    pub async fn cancel_all_quotes(&self) -> Result<(), String> {
+        if self.markets.is_empty() {
+            return Ok(());
+        }
+        let user = self
+            .velocity
+            .get_user_account(&self.subaccount)
+            .await
+            .map_err(|e| format!("user: {e:?}"))?;
+
+        let mut tx = TransactionBuilder::new(
+            self.velocity.program_data(),
+            self.subaccount,
+            std::borrow::Cow::Owned(user),
+            false,
+        )
+        .with_priority_fee(self.config.priority_fee, Some(self.config.fill_cu_limit));
+
+        // Force-include every quoted market so each cancel ix can resolve its
+        // perp market account (mirrors the per-tick path in `quote_market`,
+        // which hits PerpMarketNotFound otherwise).
+        let include: Vec<MarketId> = self.markets.iter().map(|&i| MarketId::perp(i)).collect();
+        tx.force_include_markets(&include, &[]);
+        for &idx in &self.markets {
+            tx = tx.cancel_orders((idx, MarketType::Perp), None);
+        }
+
+        if self.config.dry {
+            log::info!(
+                target: TARGET,
+                "[dry] cancel all quotes on perp markets {:?}",
+                self.markets
+            );
+            return Ok(());
+        }
+        let msg = tx.build();
+        match self.velocity.sign_and_send(msg).await {
+            Ok(sig) => {
+                log::info!(
+                    target: TARGET,
+                    "cancelled all quotes on perp markets {:?} sig={sig}",
+                    self.markets
+                );
+                Ok(())
+            }
+            Err(e) => Err(format!("send: {e:?}")),
         }
     }
 
@@ -338,7 +405,35 @@ impl QuoterBot {
                 max_gross,
             );
 
-        if !bid_needed && !ask_needed {
+        // Stuck-one-sided detection: passive quotes may never fill the reducing
+        // side, so when |position| reaches the rebalance threshold we actively
+        // unwind with a reduce-only market order (one quote-size chunk / tick).
+        let threshold = self.rebalance_threshold();
+        let stuck = threshold > 0 && snap.base_position.unsigned_abs() >= threshold;
+        let rebalance_order = if stuck {
+            let (reduce_dir, reduce_id) = if snap.base_position > 0 {
+                (PositionDirection::Short, USER_ORDER_ID_REBALANCE)
+            } else {
+                (PositionDirection::Long, USER_ORDER_ID_REBALANCE)
+            };
+            let unwind = (snap.base_position.unsigned_abs()).min(size);
+            log::info!(
+                target: TARGET,
+                "market {}: stuck one-sided, position={} (threshold={threshold}); \
+                 sending reduce-only market order size={unwind} to rebalance",
+                snap.market_index, snap.base_position,
+            );
+            Some(make_reduce_market(
+                snap.market_index,
+                reduce_dir,
+                unwind,
+                reduce_id,
+            ))
+        } else {
+            None
+        };
+
+        if !bid_needed && !ask_needed && !stuck {
             return Ok(());
         }
 
@@ -398,6 +493,10 @@ impl QuoterBot {
                 "market {}: skip ask (cap breached)",
                 snap.market_index
             );
+        }
+
+        if let Some(o) = rebalance_order {
+            orders.push(o);
         }
 
         if orders.is_empty() && replace_ids.is_empty() {
@@ -488,6 +587,18 @@ impl QuoterBot {
             *projected_gross = new_projected;
         }
         true
+    }
+
+    /// Inventory level (BASE_PRECISION) past which a position counts as stuck
+    /// one-sided and the quoter fires a reduce-only market order to unwind it.
+    /// Prefers the dedicated `rebalance_base_per_market`, falling back to the
+    /// `quote_max_base_per_market` cap so existing configs keep working.
+    fn rebalance_threshold(&self) -> u64 {
+        if self.config.rebalance_base_per_market > 0 {
+            self.config.rebalance_base_per_market
+        } else {
+            self.config.quote_max_base_per_market
+        }
     }
 }
 
@@ -591,6 +702,27 @@ fn make_limit(
         base_asset_amount,
         price,
         post_only: PostOnlyParam::TryPostOnly,
+        user_order_id,
+        ..Default::default()
+    }
+}
+
+/// Reduce-only market order used to actively unwind a stuck one-sided position.
+/// `reduce_only` guarantees it can only shrink the position, never flip it past
+/// flat, even if `base_asset_amount` exceeds what remains.
+fn make_reduce_market(
+    market_index: u16,
+    direction: PositionDirection,
+    base_asset_amount: u64,
+    user_order_id: u8,
+) -> OrderParams {
+    OrderParams {
+        order_type: OrderType::Market,
+        market_type: MarketType::Perp,
+        direction,
+        market_index,
+        base_asset_amount,
+        reduce_only: true,
         user_order_id,
         ..Default::default()
     }

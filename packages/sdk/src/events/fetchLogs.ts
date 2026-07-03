@@ -7,9 +7,26 @@ import {
 	TransactionSignature,
 	VersionedTransactionResponse,
 } from '@solana/web3.js';
-import { WrappedEvents } from './types';
+import {
+	DefaultEventSubscriptionOptions,
+	EventType,
+	WrappedEvents,
+} from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
 import { parseLogs } from './parse';
+
+/**
+ * Case-insensitive lookup from decoded (camelCase) IDL event names to
+ * PascalCase `EventType` keys, mirroring `EventSubscriber`'s
+ * `eventTypeByLowercaseName` — `@coral-xyz/anchor` 0.32+ decodes event names
+ * in camelCase, but the rest of the SDK keys off the PascalCase `EventType`.
+ */
+const eventTypeByLowercaseName = new Map<string, EventType>(
+	(DefaultEventSubscriptionOptions.eventTypes ?? []).map((eventType) => [
+		eventType.toLowerCase(),
+		eventType,
+	])
+);
 
 type Log = { txSig: TransactionSignature; slot: number; logs: string[] };
 type FetchLogsResponse = {
@@ -31,6 +48,21 @@ function mapTransactionResponseToLog(
 	};
 }
 
+/**
+ * Fetches raw transaction logs for `address`, newest-first from
+ * `getSignaturesForAddress` then batch-fetched via `getTransaction`. Used by
+ * both `PollingLogProvider` (incremental polling) and
+ * `EventSubscriber.fetchPreviousTx` (historical backfill). Failed
+ * transactions (with an `err`) are filtered out before fetching logs.
+ * @param connection RPC connection.
+ * @param address Account/program address to fetch signatures for.
+ * @param finality Commitment for both the signature list and the transaction fetches.
+ * @param beforeTx Only return signatures older than this one (pagination cursor).
+ * @param untilTx Stop at (exclusive of) this signature.
+ * @param limit Max signatures to request from `getSignaturesForAddress`; RPC default applies if omitted.
+ * @param batchSize Number of `getTransaction` calls batched per RPC round-trip; defaults to 25.
+ * @returns `undefined` if no non-failed signatures were found in range; otherwise the transaction logs plus the earliest/most-recent signature, slot, and block time observed, for use as the next `beforeTx`/`mostRecentSeenTx` cursor.
+ */
 export async function fetchLogs(
 	connection: Connection,
 	address: PublicKey,
@@ -89,6 +121,15 @@ export async function fetchLogs(
 	};
 }
 
+/**
+ * Fetches `getTransaction` for a batch of signatures in a single RPC batch
+ * request, with a 10-second overall timeout.
+ * @param connection RPC connection.
+ * @param signatures Signatures to fetch (fetched as `maxSupportedTransactionVersion: 0`).
+ * @param finality Commitment to fetch each transaction at.
+ * @returns One `Log` per signature that returned a result (signatures the RPC couldn't resolve are silently dropped, not padded with placeholders).
+ * @throws (rejects) if the batch RPC call doesn't complete within 10 seconds.
+ */
 export async function fetchTransactionLogs(
 	connection: Connection,
 	signatures: TransactionSignature[],
@@ -134,6 +175,11 @@ function chunk<T>(array: readonly T[], size: number): T[][] {
 		.map((begin) => array.slice(begin, begin + size));
 }
 
+/**
+ * Standalone helper to decode events out of an already-fetched transaction or
+ * log object, without going through `EventSubscriber`. Useful for one-off
+ * decoding (e.g. re-parsing a transaction fetched elsewhere).
+ */
 export class LogParser {
 	private program: Program;
 
@@ -141,6 +187,7 @@ export class LogParser {
 		this.program = program;
 	}
 
+	/** Decodes the events emitted in a fetched `TransactionResponse`. Assigns `txSigIndex` by decode order (0-based), not by any provider-supplied index. */
 	public parseEventsFromTransaction(
 		transaction: TransactionResponse
 	): WrappedEvents {
@@ -149,6 +196,7 @@ export class LogParser {
 		return this.parseEventsFromLogs(transactionLogObject);
 	}
 
+	/** Decodes the events in a `{ txSig, slot, logs }` log object. Returns an empty array if `logs` is falsy. Assigns `txSigIndex` by decode order (0-based). */
 	public parseEventsFromLogs(event: Log): WrappedEvents {
 		const records: WrappedEvents = [];
 
@@ -158,7 +206,9 @@ export class LogParser {
 		for (const eventLog of parseLogs(this.program, event.logs)) {
 			eventLog.data.txSig = event.txSig;
 			eventLog.data.slot = event.slot;
-			eventLog.data.eventType = eventLog.name;
+			eventLog.data.eventType =
+				eventTypeByLowercaseName.get(eventLog.name.toLowerCase()) ??
+				eventLog.name;
 			eventLog.data.txSigIndex = runningEventIndex;
 			// @ts-ignore
 			records.push(eventLog.data);

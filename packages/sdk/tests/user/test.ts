@@ -557,11 +557,14 @@ describe('User Tests', () => {
 
 		assert(mockUser.getFreeCollateral().gt(ZERO));
 
+		// quote-market asset weights are ignored in cross-margin calc (margin.rs
+		// values market 0 at its raw strict token value), so $10k quote collateral
+		// at marginRatioInitial 2000 (20%) allows exactly 5x
 		let iLev = mockUser.getMaxLeverageForPerp(0, 'Initial').toNumber();
 		let mLev = mockUser.getMaxLeverageForPerp(0, 'Maintenance').toNumber();
 		console.log(iLev, mLev);
-		assert(iLev == 5000);
-		assert(mLev == 5000);
+		assert(iLev == 50000);
+		assert(mLev == 50000);
 
 		myMockUserAccount.maxMarginRatio = MARGIN_PRECISION.div(
 			new BN(2)
@@ -578,8 +581,9 @@ describe('User Tests', () => {
 		mLev = mockUser2.getMaxLeverageForPerp(0, 'Maintenance').toNumber();
 		console.log(iLev, mLev);
 
-		assert(iLev == 2000);
-		assert(mLev == 2000);
+		// maxMarginRatio 50% caps leverage at 2x
+		assert(iLev == 20000);
+		assert(mLev == 20000);
 	});
 
 	it('getTotalIsolatedPositionDeposits sums isolated USDC deposits', async () => {

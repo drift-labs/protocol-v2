@@ -6,6 +6,13 @@ import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
 
+/**
+ * `UserMap`'s `'grpc'` subscription strategy: mirrors `WebsocketSubscription`
+ * but subscribes via a Geyser gRPC stream (`grpcProgramAccountSubscriber`)
+ * using the same memcmp filter set, feeding updates into
+ * `userMap.updateUserAccount`. Internal to `UserMap` — not part of the SDK's
+ * public exports.
+ */
 export class grpcSubscription {
 	private grpcConfigs: GrpcConfigs;
 	private userMap: UserMap;
@@ -43,6 +50,7 @@ export class grpcSubscription {
 		this.additionalFilters = additionalFilters;
 	}
 
+	/** Starts the gRPC program-account subscription, then (unless `skipInitialLoad`) runs an initial full `userMap.sync()`. */
 	public async subscribe(): Promise<void> {
 		if (!this.subscriber) {
 			const filters = [getUserFilter()];

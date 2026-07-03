@@ -209,20 +209,15 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		}
 	}
 
+	/**
+	 * Seeds `dataAndSlot` with an initial `fetch()` (if not already set via `setData`), then opens
+	 * the `gill` `accountNotifications` WebSocket subscription and, if `resubOpts.resubTimeoutMs`
+	 * is set, arms the inactivity watchdog (`setTimeout`). Idempotent: a no-op if already
+	 * subscribed or mid-unsubscribe.
+	 * @param onChange Invoked with the newly decoded account data on each accepted update.
+	 * @throws Error if `accountPublicKey` is not a valid address per `gill`'s `isAddress`.
+	 */
 	async subscribe(onChange: (data: T) => void): Promise<void> {
-		/**
-		 * Start the WebSocket subscription and (optionally) setup inactivity
-		 * fallback.
-		 *
-		 * Flow
-		 * - If we do not have initial state, perform a one-time `fetch()` to seed
-		 *   internal buffers and emit current data.
-		 * - Subscribe to account notifications via WS.
-		 * - If `resubOpts.resubTimeoutMs` is set, schedule an inactivity timeout.
-		 *   When it fires:
-		 *   - if `usePollingInsteadOfResub` is true, start polling loop;
-		 *   - otherwise, resubscribe to WS immediately.
-		 */
 		if (this.listenerId != null || this.isUnsubscribing) {
 			if (this.resubOpts.logResubMessages) {
 				console.log(
@@ -267,6 +262,12 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		}
 	}
 
+	/**
+	 * Seeds or overwrites `dataAndSlot` directly, bypassing RPC. A no-op if the currently cached
+	 * slot is already newer than `slot`.
+	 * @param data Decoded account data to store.
+	 * @param slot Slot the data was observed at; defaults to 0 (the seeded sentinel) if omitted.
+	 */
 	setData(data: T, slot?: number): void {
 		const newSlot = slot || 0;
 		if (this.dataAndSlot && this.dataAndSlot.slot > newSlot) {
@@ -279,12 +280,13 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		};
 	}
 
+	/**
+	 * Arms the inactivity watchdog: if no WS notification resets this timeout within
+	 * `resubOpts.resubTimeoutMs`, either starts the polling fallback (`usePollingInsteadOfResub`)
+	 * or tears down and recreates the WS subscription. Throws if `onChange` was never set (i.e.
+	 * called outside `subscribe()`'s flow).
+	 */
 	protected setTimeout(): void {
-		/**
-		 * Schedule inactivity handling. If WS is quiet for
-		 * `resubOpts.resubTimeoutMs` and `receivingData` is true, trigger either
-		 * a polling loop or a resubscribe depending on options.
-		 */
 		if (!this._onChange) {
 			throw new Error('onChange callback function must be set');
 		}
@@ -428,6 +430,11 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		);
 	}
 
+	/**
+	 * Applies a raw `gill` RPC/WS response: decodes (base58 or base64) and stores it (updating
+	 * `bufferAndSlot`/`dataAndSlot` and invoking `onChange`) only if the slot is not older than
+	 * the cached one and the buffer's bytes actually changed (or this is the first observation).
+	 */
 	handleRpcResponse(
 		context: { slot: bigint },
 		accountInfo?: AccountInfoBase &
@@ -490,6 +497,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		}
 	}
 
+	/** Decodes a raw account buffer using the constructor-supplied `decodeBufferFn`, or the program's Anchor coder for `accountName` if none was supplied. */
 	decodeBuffer(buffer: Buffer): T {
 		if (this.decodeBufferFn) {
 			return this.decodeBufferFn(buffer);
@@ -498,12 +506,12 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		}
 	}
 
+	/**
+	 * Tears down the WebSocket subscription (via `abortController`) and cancels any pending resub
+	 * timeout and in-progress polling.
+	 * @param onResub Internal flag set to `true` when called as part of an automatic resubscribe cycle, which preserves `resubOpts.resubTimeoutMs` instead of clearing it. Callers should omit this.
+	 */
 	unsubscribe(onResub = false): Promise<void> {
-		/**
-		 * Stop timers, polling, and WS subscription.
-		 * - When called during a resubscribe (`onResub=true`), we preserve
-		 *   `resubOpts.resubTimeoutMs` for the restarted subscription.
-		 */
 		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;
 		}

@@ -8,6 +8,13 @@ import { ConfirmOptions, Context, PublicKey } from '@solana/web3.js';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { ResubOpts } from '../accounts/types';
 
+/**
+ * AuctionSubscriber — websocket program-account subscription scoped to
+ * `User` accounts that currently have at least one order in its auction
+ * window (`getUserWithAuctionFilter`). Used by keepers/fillers to react to
+ * auction-eligible orders (JIT-fillable or approaching the end of a Dutch
+ * auction) without scanning every user account.
+ */
 export class AuctionSubscriber {
 	private velocityClient: VelocityClient;
 	private opts: ConfirmOptions;
@@ -16,6 +23,12 @@ export class AuctionSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, AuctionSubscriberEvents>;
 	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 
+	/**
+	 * @param velocityClient Client whose `program`/`connection` back the subscription; also supplies default `opts` if `opts` is omitted.
+	 * @param opts Confirm options (commitment) for the subscription; defaults to `velocityClient.opts`.
+	 * @param resubTimeoutMs Max time with no update before resubscribing.
+	 * @param logResubMessages Whether to log resubscribe attempts.
+	 */
 	constructor({
 		velocityClient,
 		opts,
@@ -29,6 +42,7 @@ export class AuctionSubscriber {
 		this.resubOpts = { resubTimeoutMs, logResubMessages };
 	}
 
+	/** Establishes the filtered program-account subscription (idempotent — reuses the existing subscriber if already created) and emits `onAccountUpdate` for each matching account update. */
 	public async subscribe() {
 		let subscriber = this.subscriber;
 		if (!subscriber) {
@@ -62,6 +76,7 @@ export class AuctionSubscriber {
 		);
 	}
 
+	/** Tears down the subscription. No-op if never subscribed. */
 	public async unsubscribe() {
 		if (!this.subscriber) {
 			return;

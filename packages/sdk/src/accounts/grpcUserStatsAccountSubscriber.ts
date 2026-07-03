@@ -5,9 +5,19 @@ import { WebSocketUserStatsAccountSubscriber } from './webSocketUserStatsAccount
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { VelocityProgram } from '../config';
 
+/**
+ * `UserStatsAccountSubscriber` variant of `WebSocketUserStatsAccountSubscriber` that tracks the
+ * `UserStatsAccount` via a `grpcAccountSubscriber` (gRPC Geyser stream) instead of `connection.onAccountChange`.
+ */
 export class grpcUserStatsAccountSubscriber extends WebSocketUserStatsAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
+	/**
+	 * @param grpcConfigs gRPC Geyser endpoint/token/commitment config (Yellowstone or LaserStream).
+	 * @param program Anchor program providing the connection and coder.
+	 * @param userStatsAccountPublicKey Address of the `UserStatsAccount` to track.
+	 * @param resubOpts Resubscription watchdog options passed to the underlying `grpcAccountSubscriber`.
+	 */
 	public constructor(
 		grpcConfigs: GrpcConfigs,
 		program: VelocityProgram,
@@ -18,6 +28,11 @@ export class grpcUserStatsAccountSubscriber extends WebSocketUserStatsAccountSub
 		this.grpcConfigs = grpcConfigs;
 	}
 
+	/**
+	 * Creates the underlying `grpcAccountSubscriber` and subscribes it. Idempotent: a no-op
+	 * (returns `true`) if already subscribed.
+	 * @param userStatsAccount Optional pre-fetched account data to seed the subscriber with, skipping the initial RPC fetch.
+	 */
 	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;

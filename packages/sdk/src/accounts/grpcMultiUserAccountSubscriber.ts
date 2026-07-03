@@ -13,6 +13,13 @@ import { UserAccount } from '../types';
 import { VelocityProgram } from '../config';
 import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
 
+/**
+ * Multiplexes many `UserAccount` subscriptions onto a single `grpcMultiAccountSubscriber`,
+ * exposing a per-user `UserAccountSubscriber` facade via `forUser()` so callers (e.g. `User`
+ * instances) can interact with it as if each had its own subscription. New `forUser()` keys
+ * registered while already subscribed are debounced (`debounceMs`, 20ms) and flushed in a single
+ * batched `addAccounts` call rather than one gRPC round trip per user.
+ */
 export class grpcMultiUserAccountSubscriber {
 	private program: VelocityProgram;
 	private _multiSubscriber?: grpcMultiAccountSubscriber<UserAccount>;
@@ -34,6 +41,8 @@ export class grpcMultiUserAccountSubscriber {
 	private pendingAddKeys = new Set<string>();
 	private debounceTimer?: ReturnType<typeof setTimeout>;
 	private debounceMs = 20;
+	/** Maximum time to wait in `subscribe()` for every registered user key to appear in the multi-subscriber's data map before giving up. */
+	private static readonly SUBSCRIBE_DATA_TIMEOUT_MS = 30_000;
 	private isMultiSubscribed = false;
 	private userAccountSubscribers = new Map<string, UserAccountSubscriber>();
 	private grpcConfigs: GrpcConfigs;
@@ -57,6 +66,12 @@ export class grpcMultiUserAccountSubscriber {
 		}
 	};
 
+	/**
+	 * @param program Anchor program used for the per-user `fetch()` fallback.
+	 * @param grpcConfigs gRPC Geyser endpoint/token/commitment config (Yellowstone or LaserStream).
+	 * @param resubOpts Resubscription watchdog options passed to the underlying `grpcMultiAccountSubscriber`.
+	 * @param multiSubscriber Optional pre-constructed `grpcMultiAccountSubscriber` to reuse instead of creating a new one in `subscribe()`.
+	 */
 	public constructor(
 		program: VelocityProgram,
 		grpcConfigs: GrpcConfigs,
@@ -71,6 +86,14 @@ export class grpcMultiUserAccountSubscriber {
 		this.resubOpts = resubOpts;
 	}
 
+	/**
+	 * Creates the shared `grpcMultiAccountSubscriber` (if not injected at construction),
+	 * subscribes every per-user facade already registered via `forUser()`, flushes any pending
+	 * user keys into the underlying gRPC stream, and blocks until the multi-subscriber's account
+	 * data map contains an entry for every registered user key (polling at `debounceMs` intervals),
+	 * up to `SUBSCRIBE_DATA_TIMEOUT_MS`.
+	 * @throws if any registered user key is still missing from the data map once the timeout elapses.
+	 */
 	public async subscribe(): Promise<void> {
 		if (!this._multiSubscriber) {
 			this._multiSubscriber =
@@ -96,23 +119,38 @@ export class grpcMultiUserAccountSubscriber {
 		// Wait until the underlying multi-subscriber has data for every registered user key
 		const targetKeys = Array.from(this.listeners.keys());
 		if (targetKeys.length === 0) return;
-		// Poll until all keys are present in dataMap
+		// Poll until all keys are present in dataMap, bounded by a deadline so a key that never
+		// arrives (e.g. dropped subscription) fails loudly instead of hanging forever.
 		// Use debounceMs as the polling cadence to avoid introducing new magic numbers
-		// eslint-disable-next-line no-constant-condition
-		while (true) {
-			const map = this.multiSubscriber.getAccountDataMap();
-			let allPresent = true;
-			for (const k of targetKeys) {
-				if (!map.has(k)) {
-					allPresent = false;
-					break;
-				}
+		const deadline =
+			Date.now() + grpcMultiUserAccountSubscriber.SUBSCRIBE_DATA_TIMEOUT_MS;
+		let missingKeys = targetKeys.filter(
+			(k) => !this.multiSubscriber.getAccountDataMap().has(k)
+		);
+		while (missingKeys.length > 0) {
+			if (Date.now() >= deadline) {
+				throw new Error(
+					`grpcMultiUserAccountSubscriber: timed out after ${
+						grpcMultiUserAccountSubscriber.SUBSCRIBE_DATA_TIMEOUT_MS
+					}ms waiting for account data for keys: ${missingKeys.join(', ')}`
+				);
 			}
-			if (allPresent) break;
 			await new Promise((resolve) => setTimeout(resolve, this.debounceMs));
+			missingKeys = targetKeys.filter(
+				(k) => !this.multiSubscriber.getAccountDataMap().has(k)
+			);
 		}
 	}
 
+	/**
+	 * Returns a `UserAccountSubscriber` facade for `userAccountPublicKey`, creating one on first
+	 * call (subsequent calls for the same pubkey return the same instance). The facade's
+	 * `subscribe()`/`unsubscribe()` register/deregister interest in this shared multi-subscriber
+	 * rather than opening their own gRPC stream; the underlying account is only actually removed
+	 * from the shared stream once every facade sharing that key has unsubscribed. Its `fetch()`
+	 * bypasses the shared stream and issues a direct one-off `program.account.user.fetch` call.
+	 * @param userAccountPublicKey Address of the `UserAccount` to get (or create) a facade for.
+	 */
 	public forUser(userAccountPublicKey: PublicKey): UserAccountSubscriber {
 		if (this.userAccountSubscribers.has(userAccountPublicKey.toBase58())) {
 			return this.userAccountSubscribers.get(userAccountPublicKey.toBase58())!;

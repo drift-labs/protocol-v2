@@ -35,6 +35,15 @@ const ORACLE_DEFAULT_ID = getOracleId(
 	OracleSource.QUOTE_ASSET
 );
 
+/**
+ * `VelocityClientAccountSubscriber` that batches the `State`, every tracked `PerpMarket`/
+ * `SpotMarket`, and every tracked oracle behind a single `BulkAccountLoader` instead of one
+ * WebSocket subscription per account. Cheaper on connection count at the cost of update latency
+ * bounded by the loader's poll interval. `subscribe()` retries the initial load up to 5 times
+ * before giving up (returning `false`) if the `State` account never appears — `didSubscriptionSucceed`
+ * checks only for `state`, since market/oracle data can be added incrementally afterward via
+ * `addPerpMarket`/`addSpotMarket`/`addOracle`.
+ */
 export class PollingVelocityClientAccountSubscriber
 	implements VelocityClientAccountSubscriber
 {
@@ -71,6 +80,15 @@ export class PollingVelocityClientAccountSubscriber
 		this.subscriptionPromiseResolver = res;
 	});
 
+	/**
+	 * @param program Anchor program used to derive PDAs, decode accounts, and resolve oracle clients.
+	 * @param accountLoader Shared `BulkAccountLoader` all state/market/oracle accounts are registered with.
+	 * @param perpMarketIndexes Perp market indexes to track, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param spotMarketIndexes Spot market indexes to track, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param oracleInfos Oracles to track up front, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param shouldFindAllMarketsAndOracles If true, `subscribe()` first discovers every market/oracle from on-chain state, ignoring the index/info args above.
+	 * @param delistedMarketSetting Behavior applied to delisted perp markets/oracles after subscribing; see `DelistedMarketSetting`.
+	 */
 	public constructor(
 		program: VelocityProgram,
 		accountLoader: BulkAccountLoader,
@@ -91,6 +109,13 @@ export class PollingVelocityClientAccountSubscriber
 		this.delistedMarketSetting = delistedMarketSetting;
 	}
 
+	/**
+	 * Registers state/market/oracle accounts with the `BulkAccountLoader` and retries the initial
+	 * load up to 5 times until the `State` account has appeared. Idempotent: a no-op if already
+	 * subscribed, and concurrent calls while a subscribe is in flight share the same result via
+	 * `subscriptionPromise` rather than issuing duplicate loads.
+	 * @returns `true` if `State` account data loaded within the retry budget, `false` otherwise.
+	 */
 	public async subscribe(): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
@@ -341,6 +366,7 @@ export class PollingVelocityClientAccountSubscriber
 		);
 	}
 
+	/** Forces the shared `BulkAccountLoader` to load, then re-decodes every tracked state/market/oracle account from the loader's cached buffers into this subscriber's maps. */
 	public async fetch(): Promise<void> {
 		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
@@ -396,12 +422,14 @@ export class PollingVelocityClientAccountSubscriber
 		}
 	}
 
+	/** True once the `State` account has loaded, independent of `isSubscribed`. Market/oracle data is not required. */
 	didSubscriptionSucceed(): boolean {
 		if (this.state) return true;
 
 		return false;
 	}
 
+	/** Removes every tracked state/market/oracle account and the error callback from the `BulkAccountLoader`, then clears internal maps. */
 	public async unsubscribe(): Promise<void> {
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			this.accountLoader.removeAccount(
@@ -425,6 +453,11 @@ export class PollingVelocityClientAccountSubscriber
 		this.isSubscribed = false;
 	}
 
+	/**
+	 * Adds a spot market (and its oracle, via `setSpotOracleMap`) to be tracked, registering it
+	 * with the `BulkAccountLoader`. Idempotent: returns `true` immediately if already tracked.
+	 * @param marketIndex Spot market index to start tracking.
+	 */
 	async addSpotMarket(marketIndex: number): Promise<boolean> {
 		const marketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
@@ -443,10 +476,15 @@ export class PollingVelocityClientAccountSubscriber
 		}
 
 		await this.addAccountToAccountLoader(accountToPoll);
-		this.setSpotOracleMap();
+		await this.setSpotOracleMap();
 		return true;
 	}
 
+	/**
+	 * Adds a perp market (and its oracle, via `setPerpOracleMap`) to be tracked, registering it
+	 * with the `BulkAccountLoader`. Idempotent: returns `true` immediately if already tracked.
+	 * @param marketIndex Perp market index to start tracking.
+	 */
 	async addPerpMarket(marketIndex: number): Promise<boolean> {
 		const marketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -467,6 +505,13 @@ export class PollingVelocityClientAccountSubscriber
 		return true;
 	}
 
+	/**
+	 * Adds an oracle to be tracked, registering it with the `BulkAccountLoader` and waiting
+	 * (polling up to 3 times at `accountLoader.pollingFrequency` intervals) for it to appear in
+	 * the loader's buffer map before resolving. A no-op that resolves `true` immediately for the
+	 * `PublicKey.default` sentinel (quote-asset "no oracle") or an oracle already tracked.
+	 * @param oracleInfo Oracle pubkey and source to start tracking.
+	 */
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
 		if (
@@ -508,6 +553,7 @@ export class PollingVelocityClientAccountSubscriber
 		console.log(`Pausing to find oracle ${oracle} failed`);
 	}
 
+	/** Rebuilds `perpOracleMap`/`perpOracleStringMap` from currently cached perp markets, calling `addOracle` for any oracle not yet tracked. */
 	async setPerpOracleMap() {
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		const oraclePromises = [];
@@ -530,6 +576,7 @@ export class PollingVelocityClientAccountSubscriber
 		await Promise.all(oraclePromises);
 	}
 
+	/** Rebuilds `spotOracleMap`/`spotOracleStringMap` from currently cached spot markets, calling `addOracle` for any oracle not yet tracked. */
 	async setSpotOracleMap() {
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		const oraclePromises = [];
@@ -552,6 +599,14 @@ export class PollingVelocityClientAccountSubscriber
 		await Promise.all(oraclePromises);
 	}
 
+	/**
+	 * Applies `delistedMarketSetting` to any perp market currently `status: delisted` (and its
+	 * oracle, if not shared with a live spot market): removes the `BulkAccountLoader` registration,
+	 * and additionally drops the market/oracle from internal maps if the setting is `Discard`. A
+	 * no-op if the setting is `Subscribe`. Throws if internal bookkeeping is inconsistent (e.g. a
+	 * delisted market missing from `accountsToPoll`), which would indicate a bug rather than an
+	 * expected runtime condition.
+	 */
 	handleDelistedMarkets(): void {
 		if (this.delistedMarketSetting === DelistedMarketSetting.Subscribe) {
 			return;
@@ -601,6 +656,7 @@ export class PollingVelocityClientAccountSubscriber
 		}
 	}
 
+	/** Throws `NotSubscribedError` if `subscribe()` has not been called. */
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -609,31 +665,43 @@ export class PollingVelocityClientAccountSubscriber
 		}
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. */
 	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
 		return this.state!;
 	}
 
+	/** Returns the cached perp market, or undefined if `marketIndex` isn't tracked (or hasn't loaded yet). Does not throw `NotSubscribedError`. */
 	public getMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined {
 		return this.perpMarket.get(marketIndex);
 	}
 
+	/** Returns every currently cached perp market. Does not throw `NotSubscribedError`. */
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
 		return Array.from(this.perpMarket.values());
 	}
 
+	/** Returns the cached spot market, or undefined if `marketIndex` isn't tracked (or hasn't loaded yet). Does not throw `NotSubscribedError`. */
 	public getSpotMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined {
 		return this.spotMarket.get(marketIndex);
 	}
 
+	/** Returns every currently cached spot market. Does not throw `NotSubscribedError`. */
 	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {
 		return Array.from(this.spotMarket.values());
 	}
 
+	/**
+	 * Looks up cached oracle price data by oracle id (see `getOracleId`). Special-cases the
+	 * quote-asset default oracle id, returning the constant `QUOTE_ORACLE_PRICE_DATA` at slot 0
+	 * rather than a map lookup, since that oracle is never actually subscribed to.
+	 * @param oracleId Oracle id string from `getOracleId(publicKey, source)`.
+	 * @returns Cached price data/slot, or undefined if not tracked. Throws `NotSubscribedError` if not subscribed.
+	 */
 	public getOraclePriceDataAndSlot(
 		oracleId: string
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -648,6 +716,13 @@ export class PollingVelocityClientAccountSubscriber
 		return this.oracles.get(oracleId);
 	}
 
+	/**
+	 * Convenience lookup: resolves the oracle price data currently mapped to a perp market's
+	 * oracle. If the cached market's oracle pubkey has drifted from `perpOracleMap` (e.g. an admin
+	 * changed it on-chain), triggers a background `setPerpOracleMap()` refresh and still returns
+	 * the (possibly stale) mapping for this call.
+	 * @param marketIndex Perp market index whose oracle price to look up.
+	 */
 	public getOraclePriceDataAndSlotForPerpMarket(
 		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -667,6 +742,13 @@ export class PollingVelocityClientAccountSubscriber
 		return this.getOraclePriceDataAndSlot(oracleId);
 	}
 
+	/**
+	 * Convenience lookup: resolves the oracle price data currently mapped to a spot market's
+	 * oracle. If the cached market's oracle pubkey has drifted from `spotOracleMap`, triggers a
+	 * background `setSpotOracleMap()` refresh and still returns the (possibly stale) mapping for
+	 * this call.
+	 * @param marketIndex Spot market index whose oracle price to look up.
+	 */
 	public getOraclePriceDataAndSlotForSpotMarket(
 		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -685,6 +767,7 @@ export class PollingVelocityClientAccountSubscriber
 		return this.getOraclePriceDataAndSlot(oracleId);
 	}
 
+	/** Retunes the shared `BulkAccountLoader`'s poll interval (ms) for every account it batches (affects other subscribers sharing the same loader too). */
 	public updateAccountLoaderPollingFrequency(pollingFrequency: number): void {
 		this.accountLoader.updatePollingFrequency(pollingFrequency);
 	}

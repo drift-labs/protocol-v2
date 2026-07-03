@@ -4,6 +4,7 @@ import { RevenueShareEscrowAccount } from '../types';
 import { getRevenueShareEscrowAccountPublicKey } from '../addresses/pda';
 import { getRevenueShareEscrowFilter } from '../memcmp';
 
+/** In-memory cache mapping each authority to their `RevenueShareEscrow` account (builder/referral fee accrual escrow). */
 export class RevenueShareEscrowMap {
 	/**
 	 * map from authority pubkey to RevenueShareEscrow account data.
@@ -27,7 +28,9 @@ export class RevenueShareEscrowMap {
 	}
 
 	/**
-	 * Subscribe to all RevenueShareEscrow accounts.
+	 * Populates the map via a one-time `sync()` (no-op if already populated).
+	 * There is no live/push subscription here — call `sync()`/`slowSync()`
+	 * again later to pick up new or updated escrow accounts.
 	 */
 	public async subscribe() {
 		if (this.size() > 0) {
@@ -38,10 +41,12 @@ export class RevenueShareEscrowMap {
 		await this.sync();
 	}
 
+	/** Returns true if `authorityPublicKey` has a `RevenueShareEscrow` account cached in the map. */
 	public has(authorityPublicKey: string): boolean {
 		return this.authorityEscrowMap.has(authorityPublicKey);
 	}
 
+	/** Returns the cached `RevenueShareEscrowAccount` for `authorityPublicKey`, or `undefined` if not (yet) in the map. */
 	public get(
 		authorityPublicKey: string
 	): RevenueShareEscrowAccount | undefined {
@@ -63,6 +68,12 @@ export class RevenueShareEscrowMap {
 		return this.get(authorityPublicKey);
 	}
 
+	/**
+	 * Fetches and decodes `authority`'s `RevenueShareEscrow` account directly
+	 * via RPC and caches it. If the account does not exist (a normal condition
+	 * — not every authority has an escrow), logs a debug message and leaves the
+	 * map entry absent rather than throwing.
+	 */
 	public async addRevenueShareEscrow(authority: string) {
 		const escrowAccountPublicKey = getRevenueShareEscrowAccountPublicKey(
 			this.velocityClient.program.programId,
@@ -93,10 +104,12 @@ export class RevenueShareEscrowMap {
 		}
 	}
 
+	/** Number of `RevenueShareEscrow` accounts currently cached in the map. */
 	public size(): number {
 		return this.authorityEscrowMap.size;
 	}
 
+	/** Fully (re)populates the map via `syncAll` (a `getProgramAccounts` scan). Concurrent calls share the same in-flight promise. */
 	public async sync(): Promise<void> {
 		if (this.fetchPromise) {
 			return this.fetchPromise;
@@ -145,6 +158,14 @@ export class RevenueShareEscrowMap {
 		}
 	}
 
+	/**
+	 * Fetches and decodes every `RevenueShareEscrow` program account (via
+	 * `getRevenueShareEscrowFilter`), in batches of 100 with a 10ms delay
+	 * between batches to avoid overwhelming the RPC, and caches them keyed by
+	 * `escrow.authority`. Batch decoding runs in parallel unless constructed
+	 * with `parallelSync: false`. A decode failure for one account is logged
+	 * and skipped rather than aborting the whole sync.
+	 */
 	public async syncAll(): Promise<void> {
 		const rpcRequestArgs = [
 			this.velocityClient.program.programId.toBase58(),
@@ -237,22 +258,20 @@ export class RevenueShareEscrowMap {
 		}
 	}
 
-	/**
-	 * Get all RevenueShareEscrow accounts
-	 */
+	/** Returns a shallow copy of the full authority-to-escrow map (mutating the returned map does not affect the cache). */
 	public getAll(): Map<string, RevenueShareEscrowAccount> {
 		return new Map(this.authorityEscrowMap);
 	}
 
-	/**
-	 * Get all authorities that have RevenueShareEscrow accounts
-	 */
+	/** Returns the base58 authority pubkeys of every `RevenueShareEscrow` account currently cached. */
 	public getAuthorities(): string[] {
 		return Array.from(this.authorityEscrowMap.keys());
 	}
 
 	/**
-	 * Get RevenueShareEscrow accounts that have approved referrers
+	 * Get `RevenueShareEscrow` accounts that have at least one entry in
+	 * `approvedBuilders` — builders this user has approved to charge an order
+	 * fee (not "referrers": `referrer` is a separate field on the account).
 	 */
 	public getEscrowsWithApprovedReferrers(): Map<
 		string,
@@ -268,7 +287,9 @@ export class RevenueShareEscrowMap {
 	}
 
 	/**
-	 * Get RevenueShareEscrow accounts that have active orders
+	 * Get `RevenueShareEscrow` accounts with at least one entry in `orders` —
+	 * the ring buffer of in-flight builder/referral fee accruals not yet
+	 * settled via settle-PnL.
 	 */
 	public getEscrowsWithOrders(): Map<string, RevenueShareEscrowAccount> {
 		const result = new Map<string, RevenueShareEscrowAccount>();
@@ -281,7 +302,10 @@ export class RevenueShareEscrowMap {
 	}
 
 	/**
-	 * Get RevenueShareEscrow account by referrer
+	 * Returns the first cached `RevenueShareEscrow` account whose `referrer`
+	 * field equals `referrerPublicKey`. There is no reverse index, so this is
+	 * an O(n) scan over every cached escrow; prefer `getAllByReferrer` if more
+	 * than one escrow may share the same referrer.
 	 */
 	public getByReferrer(
 		referrerPublicKey: string
@@ -295,7 +319,9 @@ export class RevenueShareEscrowMap {
 	}
 
 	/**
-	 * Get all RevenueShareEscrow accounts for a specific referrer
+	 * Returns every cached `RevenueShareEscrow` account whose `referrer` field
+	 * equals `referrerPublicKey`. O(n) scan over every cached escrow (no
+	 * reverse index).
 	 */
 	public getAllByReferrer(
 		referrerPublicKey: string
@@ -309,6 +335,7 @@ export class RevenueShareEscrowMap {
 		return result;
 	}
 
+	/** Clears the in-memory map. Does not tear down any RPC subscriptions (this class has none — `subscribe` only triggers a one-time sync). */
 	public async unsubscribe() {
 		this.authorityEscrowMap.clear();
 	}

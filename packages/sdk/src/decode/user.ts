@@ -29,6 +29,28 @@ function readSignedBigInt64LE(buffer: Buffer, offset: number): BN {
 	}
 }
 
+/**
+ * Hand-rolled, offset-based decoder for the `User` account, used as a fast path instead of
+ * Anchor's generic Borsh decoder in hot paths (e.g. bulk DLOB/account-map refreshes). Byte offsets
+ * here are hardcoded to the current on-chain `User` layout and must be kept in sync with any
+ * change to `programs/velocity/src/state/user.rs` — see the offset notes in `../memcmp.ts`
+ * (`USER_IDLE_OFFSET` etc.), which mirror this same layout and will silently return zero matches
+ * if this decoder and those offsets drift apart.
+ *
+ * Empty slots are skipped without full-field decoding: a spot position is treated as unused when
+ * `scaledBalance == 0 && openOrders == 0`; a perp position when `baseAssetAmount`,
+ * `quoteAssetAmount`, and `isolatedPositionScaledBalance` are all 0, `openOrders == 0`, and
+ * neither `BeingLiquidated` nor `Bankruptcy` position flags are set; an order slot when its
+ * `status` byte isn't `1` (`OrderStatus.OPEN`) — in all three cases the skipped slot is omitted
+ * from the returned array entirely (only active entries are pushed), so the array length may be
+ * less than the on-chain fixed slot count.
+ * @param buffer - Raw `User` account data, including its 8-byte Anchor discriminator (skipped internally).
+ * @returns The decoded `UserAccount`. Amount/price fields retain on-chain precision (e.g.
+ * `baseAssetAmount`/`openBids`/`openAsks` in BASE_PRECISION 1e9, `quoteAssetAmount` and other
+ * quote-denominated fields in QUOTE_PRECISION 1e6, order `price`/`triggerPrice`/auction prices in
+ * PRICE_PRECISION 1e6) — this function only re-parses bytes, it does not rescale anything.
+ * @throws Error if an order's encoded `status`, `orderType`, or `triggerCondition` byte doesn't match a known enum value.
+ */
 export function decodeUser(buffer: Buffer): UserAccount {
 	let offset = 8;
 	const authority = new PublicKey(buffer.slice(offset, offset + 32));

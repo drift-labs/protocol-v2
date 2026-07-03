@@ -30,6 +30,15 @@ import {
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { findDelistedPerpMarketsAndOracles } from './utils';
 
+/**
+ * `VelocityClientAccountSubscriber` variant that, unlike `grpcVelocityClientAccountSubscriber`
+ * (one gRPC stream per account), multiplexes all perp markets onto one `grpcMultiAccountSubscriber`,
+ * all spot markets onto a second, and all oracles onto a third — three gRPC streams total instead
+ * of one per account. Lower connection/stream overhead at scale; `getOraclePriceDataAndSlot`
+ * relies on this class's own `oracleIdToOracleDataMap` rather than the multi-subscriber's account
+ * map, since a single oracle pubkey can back multiple `(pubkey, source)` oracle ids (e.g. a market
+ * pair sharing an underlying price feed).
+ */
 export class grpcVelocityClientAccountSubscriberV2
 	implements VelocityClientAccountSubscriber
 {
@@ -73,6 +82,16 @@ export class grpcVelocityClientAccountSubscriberV2
 	private subscriptionPromiseResolver: (val: boolean) => void = () => {};
 	private subscriptionPromise: Promise<boolean> = Promise.resolve(false);
 
+	/**
+	 * @param grpcConfigs gRPC Geyser endpoint/token/commitment config (Yellowstone or LaserStream).
+	 * @param program Anchor program used to derive PDAs, decode accounts, and resolve oracle clients.
+	 * @param perpMarketIndexes Perp market indexes to track, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param spotMarketIndexes Spot market indexes to track, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param oracleInfos Oracles to track up front, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param shouldFindAllMarketsAndOracles If true, `subscribe()` first discovers every market/oracle from on-chain state.
+	 * @param delistedMarketSetting Behavior applied to delisted perp markets/oracles after subscribing.
+	 * @param resubOpts Resubscription watchdog options passed to the underlying multi-account subscribers.
+	 */
 	constructor(
 		grpcConfigs: GrpcConfigs,
 		program: VelocityProgram,
@@ -110,6 +129,14 @@ export class grpcVelocityClientAccountSubscriberV2
 			.map((begin) => array.slice(begin, begin + size));
 	};
 
+	/**
+	 * Batch-fetches every tracked perp market, spot market, and oracle account via chunked
+	 * `getMultipleAccountsInfo` calls (75 pubkeys per chunk) and stashes the decoded results in
+	 * `initialPerpMarketAccountData`/`initialSpotMarketAccountData`/`initialOraclePriceData`, which
+	 * the multi-account subscribers seed from before their gRPC streams deliver live data. Skips
+	 * data already populated (e.g. by `findAllMarketAndOracles` when `shouldFindAllMarketsAndOracles`
+	 * is set).
+	 */
 	async setInitialData(): Promise<void> {
 		const connection = this.program.provider.connection;
 
@@ -213,6 +240,12 @@ export class grpcVelocityClientAccountSubscriberV2
 		);
 	}
 
+	/**
+	 * Records `_marketIndex` in `perpMarketIndexes` for bookkeeping. Note this does **not**
+	 * actually add the account to the live `perpMarketsSubscriber` gRPC stream — unlike the
+	 * WebSocket/per-account subscribers' `addPerpMarket`, no new subscription is created here.
+	 * @param _marketIndex Perp market index to record.
+	 */
 	async addPerpMarket(_marketIndex: number): Promise<boolean> {
 		if (!this.perpMarketIndexes.includes(_marketIndex)) {
 			this.perpMarketIndexes = this.perpMarketIndexes.concat(_marketIndex);
@@ -220,10 +253,18 @@ export class grpcVelocityClientAccountSubscriberV2
 		return true;
 	}
 
+	/** No-op; unlike `addPerpMarket`, does not even record the index. Always resolves `true`. */
 	async addSpotMarket(_marketIndex: number): Promise<boolean> {
 		return true;
 	}
 
+	/**
+	 * Adds an oracle to `oracleInfos` and, if the oracle multi-subscriber's gRPC stream is already
+	 * active, calls `oracleMultiSubscriber.addAccounts` to extend it. A no-op that resolves `true`
+	 * immediately for the `PublicKey.default` sentinel (quote-asset "no oracle") or an oracle
+	 * already tracked.
+	 * @param oracleInfo Oracle pubkey and source to start tracking.
+	 */
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
 			console.log('[grpcVelocityClientAccountSubscriberV2] addOracle');
@@ -242,11 +283,32 @@ export class grpcVelocityClientAccountSubscriberV2
 		}
 
 		this.oracleInfos = this.oracleInfos.concat(oracleInfo);
-		this.oracleMultiSubscriber?.addAccounts([oracleInfo.publicKey]);
+
+		// extend the multi-subscriber's accountPropsMap alongside the pubkey filter, so the
+		// oracle decode path has the OracleInfo(s) it needs for the newly added feed (all infos
+		// sharing this pubkey, mirroring the fan-out map built in subscribeToOracles)
+		const pubkey = oracleInfo.publicKey.toBase58();
+		const infosForPubkey = this.oracleInfos.filter(
+			(o) => o.publicKey.toBase58() === pubkey
+		);
+		const accountProps = new Map<string, OracleInfo | OracleInfo[]>([
+			[pubkey, infosForPubkey],
+		]);
+		this.oracleMultiSubscriber?.addAccounts(
+			[oracleInfo.publicKey],
+			accountProps
+		);
 
 		return true;
 	}
 
+	/**
+	 * Subscribes the `State` account (single-account gRPC subscriber), batch-seeds all market/
+	 * oracle accounts via `setInitialData()`, then opens the three multiplexed
+	 * `grpcMultiAccountSubscriber` streams (perp markets, spot markets, oracles). Applies
+	 * `delistedMarketSetting` afterward. Idempotent: a no-op if already subscribed, and concurrent
+	 * calls while a subscribe is in flight share the same result via `subscriptionPromise`.
+	 */
 	public async subscribe(): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
@@ -262,6 +324,36 @@ export class grpcVelocityClientAccountSubscriberV2
 			this.subscriptionPromiseResolver = res;
 		});
 
+		try {
+			return await this.subscribeInner();
+		} catch (err) {
+			// tear down any partially-created subscribers so a retry starts clean and doesn't
+			// stack duplicate gRPC streams / leak callbacks — unsubscribe() bails while
+			// isSubscribed is still false, so it can't recover these on its own
+			try {
+				await this.stateAccountSubscriber?.unsubscribe();
+				await this.oracleMultiSubscriber?.unsubscribe();
+				await this.perpMarketsSubscriber?.unsubscribe();
+				await this.spotMarketsSubscriber?.unsubscribe();
+			} catch (teardownErr) {
+				console.error(
+					'[grpcVelocityClientAccountSubscriberV2] cleanup after failed subscribe threw',
+					teardownErr
+				);
+			}
+			this.stateAccountSubscriber = undefined;
+			this.oracleMultiSubscriber = undefined;
+			this.perpMarketsSubscriber = undefined;
+			this.spotMarketsSubscriber = undefined;
+
+			// settle the shared promise so concurrent subscribe() callers don't hang forever
+			this.isSubscribing = false;
+			this.subscriptionPromiseResolver(false);
+			throw err;
+		}
+	}
+
+	private async subscribeInner(): Promise<boolean> {
 		if (this.shouldFindAllMarketsAndOracles) {
 			const {
 				perpMarketIndexes,
@@ -328,6 +420,7 @@ export class grpcVelocityClientAccountSubscriberV2
 		return true;
 	}
 
+	/** Fetches the `State` account and all three multiplexed subscribers (perp markets, spot markets, oracles) in sequence. */
 	public async fetch(): Promise<void> {
 		await this.stateAccountSubscriber?.fetch();
 		await this.perpMarketsSubscriber?.fetch();
@@ -335,6 +428,7 @@ export class grpcVelocityClientAccountSubscriberV2
 		await this.oracleMultiSubscriber?.fetch();
 	}
 
+	/** Throws `NotSubscribedError` if `subscribe()` has not been called. */
 	private assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -343,21 +437,25 @@ export class grpcVelocityClientAccountSubscriberV2
 		}
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. */
 	public getStateAccountAndSlot(): DataAndSlot<StateAccount> {
 		this.assertIsSubscribed();
 		return this.stateAccountSubscriber!.dataAndSlot!;
 	}
 
+	/** Returns every currently cached (loaded) perp market from the multiplexed subscriber. Does not throw `NotSubscribedError`. */
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
 		const map = this.perpMarketsSubscriber?.getAccountDataMap();
 		return Array.from(map?.values() ?? []);
 	}
 
+	/** Returns every currently cached (loaded) spot market from the multiplexed subscriber. Does not throw `NotSubscribedError`. */
 	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {
 		const map = this.spotMarketsSubscriber?.getAccountDataMap();
 		return Array.from(map?.values() ?? []);
 	}
 
+	/** Returns the cached perp market, or undefined if `marketIndex` isn't tracked (or hasn't loaded yet). Does not throw `NotSubscribedError`. */
 	getMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined {
@@ -369,6 +467,7 @@ export class grpcVelocityClientAccountSubscriberV2
 		return this.perpMarketsSubscriber?.getAccountData(accountPubkey);
 	}
 
+	/** Returns the cached spot market, or undefined if `marketIndex` isn't tracked (or hasn't loaded yet). Does not throw `NotSubscribedError`. */
 	getSpotMarketAccountAndSlot(
 		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined {
@@ -380,6 +479,14 @@ export class grpcVelocityClientAccountSubscriberV2
 		return this.spotMarketsSubscriber?.getAccountData(accountPubkey);
 	}
 
+	/**
+	 * Looks up cached oracle price data by oracle id (see `getOracleId`), from this class's own
+	 * `oracleIdToOracleDataMap` rather than `oracleMultiSubscriber.getAccountData` — a single
+	 * oracle pubkey backing multiple oracle ids (e.g. shared price feeds) means the multi-subscriber's
+	 * own account map cannot be trusted to disambiguate them correctly.
+	 * @param oracleId Oracle id string from `getOracleId(publicKey, source)`.
+	 * @returns Cached price data/slot, or undefined if not tracked. Throws `NotSubscribedError` if not subscribed.
+	 */
 	public getOraclePriceDataAndSlot(
 		oracleId: string
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -389,6 +496,13 @@ export class grpcVelocityClientAccountSubscriberV2
 		return this.oracleIdToOracleDataMap.get(oracleId);
 	}
 
+	/**
+	 * Convenience lookup: resolves the oracle price data currently mapped to a perp market's
+	 * oracle. If the cached market's oracle pubkey has drifted from (or isn't yet in)
+	 * `perpOracleMap`, triggers a background `setPerpOracleMap()` refresh and still returns the
+	 * (possibly stale) mapping for this call.
+	 * @param marketIndex Perp market index whose oracle price to look up.
+	 */
 	public getOraclePriceDataAndSlotForPerpMarket(
 		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -407,6 +521,13 @@ export class grpcVelocityClientAccountSubscriberV2
 		return this.getOraclePriceDataAndSlot(oracleId);
 	}
 
+	/**
+	 * Convenience lookup: resolves the oracle price data currently mapped to a spot market's
+	 * oracle. If the cached market's oracle pubkey has drifted from (or isn't yet in)
+	 * `spotOracleMap`, triggers a background `setSpotOracleMap()` refresh and still returns the
+	 * (possibly stale) mapping for this call.
+	 * @param marketIndex Spot market index whose oracle price to look up.
+	 */
 	public getOraclePriceDataAndSlotForSpotMarket(
 		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined {
@@ -425,6 +546,7 @@ export class grpcVelocityClientAccountSubscriberV2
 		return this.getOraclePriceDataAndSlot(oracleId);
 	}
 
+	/** Rebuilds `perpOracleMap`/`perpOracleStringMap` from currently cached perp markets, calling `addOracle` for any oracle not yet tracked by `oracleMultiSubscriber`. */
 	async setPerpOracleMap() {
 		const perpMarketsMap = this.perpMarketsSubscriber?.getAccountDataMap();
 		const perpMarkets = Array.from(perpMarketsMap?.values() ?? []);
@@ -451,6 +573,7 @@ export class grpcVelocityClientAccountSubscriberV2
 		await Promise.all(addOraclePromises);
 	}
 
+	/** Rebuilds `spotOracleMap`/`spotOracleStringMap` from currently cached spot markets, calling `addOracle` for any oracle not yet tracked by `oracleMultiSubscriber`. */
 	async setSpotOracleMap() {
 		const spotMarketsMap = this.spotMarketsSubscriber?.getAccountDataMap();
 		const spotMarkets = Array.from(spotMarketsMap?.values() ?? []);
@@ -477,6 +600,12 @@ export class grpcVelocityClientAccountSubscriberV2
 		await Promise.all(addOraclePromises);
 	}
 
+	/**
+	 * Creates `perpMarketsSubscriber` (a `grpcMultiAccountSubscriber<PerpMarketAccount>`), seeds
+	 * it with `initialPerpMarketAccountData`, and subscribes it to every tracked perp market
+	 * pubkey in one gRPC stream. Registers an `onUnsubscribe` handler that automatically
+	 * re-invokes this method to resubscribe if the underlying stream drops.
+	 */
 	async subscribeToPerpMarketAccounts(): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
 			console.log(
@@ -544,6 +673,12 @@ export class grpcVelocityClientAccountSubscriberV2
 		return true;
 	}
 
+	/**
+	 * Creates `spotMarketsSubscriber` (a `grpcMultiAccountSubscriber<SpotMarketAccount>`), seeds
+	 * it with `initialSpotMarketAccountData`, and subscribes it to every tracked spot market
+	 * pubkey in one gRPC stream. Registers an `onUnsubscribe` handler that automatically
+	 * re-invokes this method to resubscribe if the underlying stream drops.
+	 */
 	async subscribeToSpotMarketAccounts(): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
 			console.log(
@@ -611,6 +746,15 @@ export class grpcVelocityClientAccountSubscriberV2
 		return true;
 	}
 
+	/**
+	 * Creates `oracleMultiSubscriber` (a `grpcMultiAccountSubscriber<OraclePriceData, OracleInfo>`)
+	 * and subscribes it to every distinct oracle pubkey in one gRPC stream, decoding buffers with
+	 * the source-appropriate `OracleClient`. Because multiple `(pubkey, source)` oracle ids can
+	 * share one pubkey, `oraclePubkeyToInfosMap` fans a single decode out to every matching
+	 * `OracleInfo`, and results are additionally indexed into `oracleIdToOracleDataMap` (by oracle
+	 * id, not pubkey) for `getOraclePriceDataAndSlot` to read. Registers an `onUnsubscribe` handler
+	 * that automatically re-invokes this method to resubscribe if the underlying stream drops.
+	 */
 	async subscribeToOracles(): Promise<boolean> {
 		if (this.resubOpts?.logResubMessages) {
 			console.log('grpcVelocityClientAccountSubscriberV2 subscribeToOracles');
@@ -706,6 +850,14 @@ export class grpcVelocityClientAccountSubscriberV2
 		return true;
 	}
 
+	/**
+	 * Applies `delistedMarketSetting` to any perp market currently `status: delisted` (and its
+	 * oracle, if not shared with a live spot market) by removing its pubkey from the relevant
+	 * `grpcMultiAccountSubscriber` via `removeAccounts`. A no-op if the setting is `Subscribe`.
+	 * Unlike the WebSocket/polling variants, this does not distinguish `Unsubscribe` from
+	 * `Discard` — both remove the account from the multiplexed stream (there is no per-account
+	 * "keep last known data, stop streaming" state to preserve at this granularity).
+	 */
 	async handleDelistedMarkets(): Promise<void> {
 		if (this.delistedMarketSetting === DelistedMarketSetting.Subscribe) {
 			return;
@@ -743,12 +895,14 @@ export class grpcVelocityClientAccountSubscriberV2
 		}
 	}
 
+	/** Clears the seed data stashed by `setInitialData()` once the multi-account subscribers have consumed it, freeing the memory. */
 	removeInitialData() {
 		this.initialPerpMarketAccountData = new Map();
 		this.initialSpotMarketAccountData = new Map();
 		this.initialOraclePriceData = new Map();
 	}
 
+	/** Tears down `oracleMultiSubscriber`'s gRPC stream, if active, and clears the reference. */
 	async unsubscribeFromOracles(): Promise<void> {
 		if (this.oracleMultiSubscriber) {
 			await this.oracleMultiSubscriber.unsubscribe();
@@ -757,6 +911,11 @@ export class grpcVelocityClientAccountSubscriberV2
 		}
 	}
 
+	/**
+	 * Tears down the `State` subscriber and all three multiplexed subscribers (perp markets, spot
+	 * markets, oracles), then clears every internal map to avoid holding stale references. A no-op
+	 * if not subscribed.
+	 */
 	async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;

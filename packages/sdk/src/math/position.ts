@@ -26,12 +26,17 @@ import { calculateBaseAssetValueWithOracle } from './margin';
 import { calculateNetUserPnlImbalance } from './market';
 
 /**
- * calculateBaseAssetValue
- * = market value of closing entire position
- * @param market
- * @param userPosition
- * @param oraclePriceData
- * @returns Base Asset Value. : Precision QUOTE_PRECISION
+ * Simulates fully closing `userPosition` against the AMM (optionally through its bid/ask
+ * spread reserves) and returns the resulting quote value — i.e. the market value of closing
+ * the entire position right now, distinct from `calculateBaseAssetValueWithOracle`'s
+ * mark-to-oracle valuation used for margin.
+ * @param market Perp market whose AMM is used to price the close.
+ * @param userPosition Position to value; returns zero if flat (`baseAssetAmount == 0`).
+ * @param mmOraclePriceData MM oracle price data used to re-peg/update the AMM before pricing (unless `skipUpdate`).
+ * @param useSpread If true (default) and the market has a nonzero base spread, price through the bid/ask spread reserves on the closing side rather than the raw AMM reserves.
+ * @param skipUpdate If true, price against `market.amm` as-is without applying `calculateUpdatedAMM`/spread-reserve updates first (default false).
+ * @param latestSlot Current slot, forwarded to the spread-reserve update for reference-price-offset smoothing.
+ * @returns Value of fully closing the position, QUOTE_PRECISION (1e6).
  */
 export function calculateBaseAssetValue(
 	market: PerpMarketAccount,
@@ -98,13 +103,14 @@ export function calculateBaseAssetValue(
 }
 
 /**
- * calculatePositionPNL
- * = BaseAssetAmount * (Avg Exit Price - Avg Entry Price)
- * @param market
- * @param PerpPosition
- * @param withFunding (adds unrealized funding payment pnl to result)
- * @param oraclePriceData
- * @returns BaseAssetAmount : Precision QUOTE_PRECISION
+ * Calculates a position's unrealized pnl, marked to the oracle price (via
+ * `calculateBaseAssetValueWithOracle`) rather than the AMM close price. For a flat position
+ * this is simply `quoteAssetAmount` (any residual realized/settled pnl still on the position).
+ * @param market Perp market the position belongs to.
+ * @param perpPosition Position to value.
+ * @param withFunding If true, adds unsettled funding pnl (`calculateUnsettledFundingPnl`) to the result (default false).
+ * @param oraclePriceData Must provide `price`, PRICE_PRECISION (1e6); used unless the market is in `settlement` status (which uses `market.expiryPrice` internally).
+ * @returns Unrealized pnl, QUOTE_PRECISION (1e6, signed).
  */
 export function calculatePositionPNL(
 	market: PerpMarketAccount,
@@ -137,6 +143,22 @@ export function calculatePositionPNL(
 	return pnl;
 }
 
+/**
+ * Caps a position's unrealized pnl (incl. funding) to the amount actually settleable via
+ * `settle_pnl`, mirroring `PerpPosition::get_claimable_pnl` in
+ * `programs/velocity/src/state/user.rs`. Positive pnl can only be settled up to whichever is
+ * larger: pnl already realized by reducing the position (`quoteAssetAmount -
+ * quoteEntryAmount`, floored at zero) plus any pnl-pool surplus over the market's net user
+ * pnl (`calculateNetUserPnlImbalance`, negated and floored at zero). Negative pnl passes
+ * through uncapped — this function does not itself gate on margin requirements (the program
+ * separately blocks settling negative pnl for a user who wouldn't meet maintenance margin
+ * afterward).
+ * @param market Perp market the position belongs to.
+ * @param spotMarket Quote spot market, used to size the pnl pool via `calculateNetUserPnlImbalance`.
+ * @param perpPosition Position to evaluate.
+ * @param oraclePriceData Must provide `price`, PRICE_PRECISION (1e6).
+ * @returns Settleable pnl, QUOTE_PRECISION (1e6, signed) — equal to unrealized pnl if negative or uncapped, otherwise capped.
+ */
 export function calculateClaimablePnl(
 	market: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
@@ -170,12 +192,14 @@ export function calculateClaimablePnl(
 }
 
 /**
- * Returns total fees and funding pnl for a position
- *
- * @param market
- * @param PerpPosition
- * @param includeUnsettled include unsettled funding in return value (default: true)
- * @returns — // QUOTE_PRECISION
+ * Returns the cumulative fees-plus-funding component of a position's pnl (i.e. the part of
+ * pnl not explained by price movement): settled funding/fees so far
+ * (`quoteBreakEvenAmount - quoteEntryAmount`) plus, optionally, unsettled funding accrued
+ * since the last funding settlement.
+ * @param market Perp market the position belongs to.
+ * @param perpPosition Position to evaluate.
+ * @param includeUnsettled If true (default), adds `calculateUnsettledFundingPnl` to the result.
+ * @returns Fees + funding pnl, QUOTE_PRECISION (1e6, signed).
  */
 export function calculateFeesAndFundingPnl(
 	market: PerpMarketAccount,
@@ -199,13 +223,16 @@ export function calculateFeesAndFundingPnl(
 }
 
 /**
- * Returns unsettled funding pnl for the position
+ * Returns unsettled funding pnl accrued on the position since its last funding settlement:
+ * the delta between the market's current cumulative funding rate (long or short side,
+ * selected by position direction) and the position's `lastCumulativeFundingRate`, applied to
+ * `baseAssetAmount`. Zero for a flat position.
  *
- * To calculate all fees and funding pnl including settled, use calculateFeesAndFundingPnl
+ * To calculate all fees and funding pnl including settled, use `calculateFeesAndFundingPnl`.
  *
- * @param market
- * @param PerpPosition
- * @returns // QUOTE_PRECISION
+ * @param market Perp market the position belongs to; uses `cumulativeFundingRateLong`/`cumulativeFundingRateShort`.
+ * @param perpPosition Position to evaluate.
+ * @returns Unsettled funding pnl, QUOTE_PRECISION (1e6, signed).
  */
 export function calculateUnsettledFundingPnl(
 	market: PerpMarketAccount,
@@ -232,6 +259,16 @@ export function calculateUnsettledFundingPnl(
 	return perPositionFundingRate;
 }
 
+/**
+ * True if a `PerpPosition` slot is free to be reused for a different market, mirroring
+ * `PerpPosition::is_available` in `programs/velocity/src/state/user.rs`: no open base
+ * position, no open orders, no unsettled quote pnl, no isolated-margin collateral parked in
+ * it (`isolatedPositionScaledBalance == 0`), and not currently mid-liquidation/bankruptcy.
+ * An isolated position with collateral still deposited is never "available" even if flat,
+ * since that collateral must be withdrawn first.
+ * @param position Position slot to check.
+ * @returns `true` if the slot can be assigned to a new market.
+ */
 export function positionIsAvailable(position: PerpPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&
@@ -242,6 +279,7 @@ export function positionIsAvailable(position: PerpPosition): boolean {
 	);
 }
 
+/** True if `position.positionFlag` has the `BeingLiquidated` or `Bankruptcy` bit set. */
 export function positionIsBeingLiquidated(position: PerpPosition): boolean {
 	return (
 		(position.positionFlag &
@@ -251,9 +289,10 @@ export function positionIsBeingLiquidated(position: PerpPosition): boolean {
 }
 
 /**
- *
- * @param userPosition
- * @returns Precision: PRICE_PRECISION (10^6)
+ * Price at which closing the position realizes zero further pnl, i.e. entry price adjusted
+ * for fees and funding paid/received so far (`quoteBreakEvenAmount / baseAssetAmount`).
+ * @param userPosition Position to evaluate.
+ * @returns Break-even price (always non-negative), PRICE_PRECISION (1e6). Zero if flat.
  */
 export function calculateBreakEvenPrice(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -268,9 +307,9 @@ export function calculateBreakEvenPrice(userPosition: PerpPosition): BN {
 }
 
 /**
- *
- * @param userPosition
- * @returns Precision: PRICE_PRECISION (10^6)
+ * Average entry price of the position, before fees/funding (`quoteEntryAmount / baseAssetAmount`).
+ * @param userPosition Position to evaluate.
+ * @returns Average entry price (always non-negative), PRICE_PRECISION (1e6). Zero if flat.
  */
 export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -285,9 +324,13 @@ export function calculateEntryPrice(userPosition: PerpPosition): BN {
 }
 
 /**
- *
- * @param userPosition
- * @returns Precision: PRICE_PRECISION (10^10)
+ * Cost basis of the position (`quoteAssetAmount / baseAssetAmount`, optionally including
+ * realized settled pnl), i.e. the current quote value backing the position expressed per
+ * unit of base — this differs from `calculateEntryPrice` whenever the position has
+ * accumulated settled pnl or fees since it was opened.
+ * @param userPosition Position to evaluate.
+ * @param includeSettledPnl If true, folds `userPosition.settledPnl` into the quote amount before dividing (default false).
+ * @returns Cost basis (always non-negative), PRICE_PRECISION (1e6). Zero if flat.
  */
 export function calculateCostBasis(
 	userPosition: PerpPosition,
@@ -305,6 +348,7 @@ export function calculateCostBasis(
 		.abs();
 }
 
+/** Direction of the trade that would fully close `userPosition`: `SHORT` for a long position (base > 0), `LONG` otherwise (including flat). */
 export function findDirectionToClose(
 	userPosition: PerpPosition
 ): PositionDirection {
@@ -313,6 +357,7 @@ export function findDirectionToClose(
 		: PositionDirection.LONG;
 }
 
+/** The position's own directional exposure: `LONG` if `baseAssetAmount >= 0` (including flat), `SHORT` if negative. */
 export function positionCurrentDirection(
 	userPosition: PerpPosition
 ): PositionDirection {
@@ -321,10 +366,12 @@ export function positionCurrentDirection(
 		: PositionDirection.SHORT;
 }
 
+/** True if the position has no open base exposure and no open orders (a coarser check than `positionIsAvailable` — does not check quote pnl, isolated collateral, or liquidation flags). */
 export function isEmptyPosition(userPosition: PerpPosition): boolean {
 	return userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders === 0;
 }
 
+/** True if the position has any open orders, resting bids, or resting asks, mirroring `PerpPosition::has_open_order` in `programs/velocity/src/state/user.rs`. */
 export function hasOpenOrders(position: PerpPosition): boolean {
 	return (
 		position.openOrders != 0 ||

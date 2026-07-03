@@ -13,6 +13,13 @@ import {
 	SubscribeUpdate,
 } from '../isomorphic/grpc';
 
+/**
+ * `AccountSubscriber` for a single account, streamed via a gRPC Geyser plugin (Yellowstone or
+ * LaserStream, per `GrpcConfigs`) instead of the standard `connection.onAccountChange` WebSocket.
+ * Extends `WebSocketAccountSubscriber` to reuse its buffering/decode/resub-timer logic — only the
+ * transport (`subscribe`/`unsubscribe`) is replaced. Construct via the static `create` factory,
+ * not the constructor directly, since establishing the gRPC client is asynchronous.
+ */
 export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	private client: Client;
 	private _stream?: ClientDuplexStream;
@@ -41,6 +48,18 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		this.commitmentLevel = commitmentLevel;
 	}
 
+	/**
+	 * Creates a gRPC client (or reuses `clientProp`, letting multiple subscribers share one
+	 * connection) and constructs a `grpcAccountSubscriber`. Does not itself start streaming — call
+	 * `subscribe()` on the result.
+	 * @param grpcConfigs gRPC Geyser endpoint/token/commitment config (Yellowstone or LaserStream).
+	 * @param accountName Anchor account type name (used for logging and, absent `decodeBuffer`, for decoding via the program coder).
+	 * @param program Anchor program providing the connection and coder.
+	 * @param accountPublicKey Address of the account to track.
+	 * @param decodeBuffer Optional custom decode function; defaults to `program.coder.accounts.decode(accountName, buffer)`.
+	 * @param resubOpts Resubscription watchdog options; omit to disable the inactivity timer.
+	 * @param clientProp Optional existing gRPC client to reuse instead of creating a new connection.
+	 */
 	public static async create<U>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
@@ -72,6 +91,12 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		);
 	}
 
+	/**
+	 * Seeds `dataAndSlot` with an initial `fetch()` (if not already set), opens a gRPC subscribe
+	 * stream filtered to this single account, and writes the subscribe request. Idempotent: a
+	 * no-op if already subscribed or mid-unsubscribe.
+	 * @param onChange Invoked with the newly decoded account data on each accepted update.
+	 */
 	override async subscribe(onChange: (data: T) => void): Promise<void> {
 		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
@@ -154,6 +179,11 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		});
 	}
 
+	/**
+	 * Writes an empty subscribe request to clear the stream's account filter and cancels any
+	 * pending resub timeout.
+	 * @param onResub Internal flag set to `true` when called as part of an automatic resubscribe cycle, which preserves `resubOpts.resubTimeoutMs` instead of clearing it. Callers should omit this.
+	 */
 	override async unsubscribe(onResub = false): Promise<void> {
 		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;

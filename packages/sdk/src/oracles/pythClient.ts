@@ -10,11 +10,27 @@ import {
 } from '../constants/numericConstants';
 import { getOracleAccountDataOrThrow } from './utils';
 
+/**
+ * `OracleClient` for legacy (push-model) Pyth price accounts, decoded via `@pythnetwork/client`'s
+ * `parsePriceData`. Backs the `pyth`, `pyth1K`, `pyth1M`, and `pythStableCoin` `OracleSource`
+ * variants — the `pythPull`/`pyth1KPull`/`pyth1MPull`/`pythStableCoinPull` (Pyth pull-oracle)
+ * variants have been removed from the SDK and throw in `getOracleClient`.
+ */
 export class PythClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
 	private stableCoin: boolean;
 
+	/**
+	 * @param connection - RPC connection used to fetch oracle account data.
+	 * @param multiple - Divisor applied to the raw Pyth precision before rescaling to
+	 * PRICE_PRECISION; pass `1000`/`1000000` for the `pyth1K`/`pyth1M` source variants (feeds
+	 * quoted per 1,000 / 1,000,000 units of the underlying), or the default `ONE` (1) for a
+	 * standard per-unit feed.
+	 * @param stableCoin - When `true` (the `pythStableCoin` variant), snaps the decoded price to
+	 * exactly `QUOTE_PRECISION` (1.0) whenever it is within 5bps (or within `confidence` if
+	 * tighter) of peg — see `getStableCoinPrice`.
+	 */
 	public constructor(
 		connection: Connection,
 		multiple = ONE,
@@ -25,6 +41,12 @@ export class PythClient implements OracleClient {
 		this.stableCoin = stableCoin;
 	}
 
+	/**
+	 * Fetches and decodes a Pyth price account's current price data.
+	 * @param pricePublicKey - The Pyth price account's address.
+	 * @returns The decoded, normalized price data.
+	 * @throws Error if the account does not exist.
+	 */
 	public async getOraclePriceData(
 		pricePublicKey: PublicKey
 	): Promise<OraclePriceData> {
@@ -36,6 +58,15 @@ export class PythClient implements OracleClient {
 		return this.getOraclePriceDataFromBuffer(data);
 	}
 
+	/**
+	 * Decodes raw Pyth price account bytes into normalized `OraclePriceData`, rescaling from
+	 * Pyth's native exponent to PRICE_PRECISION (1e6) via `convertPythPrice`. `confidence` defaults
+	 * to 0 if the account has no confidence field (e.g. uninitialized), and `hasSufficientNumberOfDataPoints`
+	 * is `true` only when the number of active quoters is at least `min(numComponentPrices, 3)`.
+	 * @param buffer - Raw Pyth price account data.
+	 * @returns `price`, `confidence`, `twap`, `twapConfidence` (all PRICE_PRECISION 1e6), `slot`
+	 * (the price account's last update slot), and `hasSufficientNumberOfDataPoints`.
+	 */
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
 		const priceData = parsePriceData(buffer);
 		// `confidence` is absent on uninitialized/invalid price accounts. Base passed it
@@ -86,7 +117,7 @@ function convertPythPrice(price: number, exponent: number, multiple: BN): BN {
 
 const fiveBPS = new BN(500);
 function getStableCoinPrice(price: BN, confidence: BN): BN {
-	if (price.sub(QUOTE_PRECISION).abs().lt(BN.min(confidence, fiveBPS))) {
+	if (price.sub(QUOTE_PRECISION).abs().lte(BN.min(confidence, fiveBPS))) {
 		return QUOTE_PRECISION;
 	} else {
 		return price;

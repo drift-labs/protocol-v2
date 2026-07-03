@@ -47,8 +47,8 @@ export function getOracleClient(
 	}
 
 	if (
-		isVariant(oracleSource, 'switchboard') ||
-		isVariant(oracleSource, 'switchboardOnDemand')
+		isVariant(oracleSource, 'deprecatedSwitchboard') ||
+		isVariant(oracleSource, 'deprecatedSwitchboardOnDemand')
 	) {
 		throw new Error('Switchboard oracle support has been removed from the SDK');
 	}

@@ -79,7 +79,7 @@ pub struct Config {
     #[clap(long, default_value = "false")]
     pub taker: bool,
     /// Seconds between taker order ticks
-    #[clap(long, env = "TAKER_INTERVAL_SECS", default_value = "15")]
+    #[clap(long, env = "TAKER_INTERVAL_SECS", default_value = "300")]
     pub taker_interval_secs: u64,
     /// Taker order size in BASE_PRECISION units (1e9 = 1 base unit; default 0.1)
     #[clap(long, env = "TAKER_SIZE_BASE", default_value = "100000000")]
@@ -89,6 +89,14 @@ pub struct Config {
     /// the bound (pure random flow).
     #[clap(long, env = "TAKER_MAX_BASE_PER_MARKET", default_value = "1000000000")]
     pub taker_max_base_per_market: u64,
+    /// When |base position| on a market reaches this many BASE_PRECISION units
+    /// (1e9), the quoter and taker treat it as *stuck one-sided*: they log it at
+    /// INFO and actively unwind — the quoter sends a reduce-only market order on
+    /// the inventory-reducing side, the taker forces its next order to that side.
+    /// 0 = fall back to the bot's own `*_max_base_per_market` cap as the
+    /// threshold (so a bot whose cap is disabled also disables rebalancing).
+    #[clap(long, env = "REBALANCE_BASE_PER_MARKET", default_value = "0")]
+    pub rebalance_base_per_market: u64,
     /// Run pyth lazer oracle relayer
     #[clap(long, default_value = "false")]
     pub relayer: bool,
@@ -234,15 +242,21 @@ async fn main() {
         .await
         .expect("initialized client");
 
-    tokio::spawn({
-        let velocity = velocity.clone();
-        async move {
-            let _ = tokio::signal::ctrl_c().await;
-            log::warn!("ctrl+c received, bot shutting down...");
-            velocity.grpc_unsubscribe();
-            std::process::exit(0);
-        }
-    });
+    // Generic shutdown for bots that don't need to unwind on-chain state. The
+    // quoter installs its own ctrl+c handler below (it must cancel resting
+    // quotes first), so skip the generic one for it to avoid a double handler
+    // racing to `exit(0)`.
+    if !config.quoter {
+        tokio::spawn({
+            let velocity = velocity.clone();
+            async move {
+                let _ = tokio::signal::ctrl_c().await;
+                log::warn!("ctrl+c received, bot shutting down...");
+                velocity.grpc_unsubscribe();
+                std::process::exit(0);
+            }
+        });
+    }
 
     // `--init-user` is a preflight step, not a standalone mode: when set, ensure
     // the bot's subaccount (User PDA for `--sub-account-id`) exists before the
@@ -259,7 +273,22 @@ async fn main() {
         let bot = LiquidatorBot::new(config, velocity, metrics, dashboard_state).await;
         bot.run().await;
     } else if config.quoter {
-        let bot = QuoterBot::new(config, velocity).await;
+        let bot = std::sync::Arc::new(QuoterBot::new(config, velocity.clone()).await);
+        // Cancel resting quotes before exiting so ctrl+c / container stop never
+        // leaves stale orders on the book.
+        tokio::spawn({
+            let bot = bot.clone();
+            let velocity = velocity.clone();
+            async move {
+                let _ = tokio::signal::ctrl_c().await;
+                log::warn!(target: "quoter", "ctrl+c received, cancelling quotes before shutdown...");
+                if let Err(e) = bot.cancel_all_quotes().await {
+                    log::warn!(target: "quoter", "shutdown cancel failed: {e}");
+                }
+                velocity.grpc_unsubscribe();
+                std::process::exit(0);
+            }
+        });
         bot.run().await;
     } else if config.taker {
         let bot = TakerBot::new(config, velocity).await;

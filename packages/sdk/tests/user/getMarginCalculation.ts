@@ -5,11 +5,16 @@ import {
 	PublicKey,
 	BASE_PRECISION,
 	QUOTE_PRECISION,
+	PRICE_PRECISION,
+	MARGIN_PRECISION,
 	SPOT_MARKET_BALANCE_PRECISION,
 	SpotBalanceType,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	SPOT_MARKET_WEIGHT_PRECISION,
+	MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN,
 	PositionFlag,
+	ContractTier,
+	UserStatus,
 } from '../../src';
 import { mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
@@ -85,7 +90,9 @@ describe('getMarginCalculation snapshot', () => {
 		const calc = user.getMarginCalculation('Initial', {
 			liquidationBufferMap: new Map([['cross', tenPercent]]),
 		});
-		const liability = new BN(110).mul(QUOTE_PRECISION); // $110
+		// mirrors margin.rs: a quote borrow enters the requirement at its raw strict
+		// token value; the cross buffer only appears in marginRequirementPlusBuffer
+		const liability = new BN(100).mul(QUOTE_PRECISION); // $100
 		assert(calc.totalCollateral.eq(ZERO));
 		assert(
 			calc.marginRequirement.eq(liability),
@@ -356,6 +363,224 @@ describe('getMarginCalculation snapshot', () => {
 			`total collateral buffer plus total collateral does not equal -$9100: ${isoPositionBuf?.totalCollateralBuffer
 				.add(isoPositionBuf?.totalCollateral)
 				.toString()} != ${new BN('-900000000').toString()}`
+		);
+	});
+
+	it('positive unrealized pnl above $100 is capped under Initial but not Maintenance', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
+
+		// distinct oracle per market: all mock markets otherwise share the
+		// default pubkey, which would collapse their prices onto one entry
+		myMockPerpMarkets[0].oracle = new PublicKey(7);
+
+		// weight uPnL at 100% for both categories so only the Initial-margin
+		// $100 cap (not the market's asset-weight config) drives the difference
+		myMockPerpMarkets[0].unrealizedPnlInitialAssetWeight =
+			SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		myMockPerpMarkets[0].unrealizedPnlMaintenanceAssetWeight =
+			SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+
+		// 10 base long @ $100 oracle = $1000 notional, entered at $750 -> $250 uPnL
+		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(10).mul(
+			BASE_PRECISION
+		);
+		myMockUserAccount.perpPositions[0].quoteAssetAmount = new BN(750)
+			.neg()
+			.mul(QUOTE_PRECISION);
+
+		const user: User = await makeMockUser(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[100, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const initialCalc = user.getMarginCalculation('Initial');
+		assert(
+			initialCalc.totalCollateral.eq(MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN),
+			`initial total collateral not capped at $100: ${initialCalc.totalCollateral.toString()}`
+		);
+
+		const maintenanceCalc = user.getMarginCalculation('Maintenance');
+		assert(
+			maintenanceCalc.totalCollateral.eq(new BN(250).mul(QUOTE_PRECISION)),
+			`maintenance total collateral should be the full $250 uPnL: ${maintenanceCalc.totalCollateral.toString()}`
+		);
+	});
+
+	it('strict quote price (non-1.0) scales isolated worst-case liability buffer', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
+
+		// distinct oracle per market: all mock markets otherwise share the
+		// default pubkey, which would collapse their prices onto one entry
+		myMockPerpMarkets[0].oracle = new PublicKey(7);
+
+		// quote market trades at $1 currently but its 5min twap is $1.10; as a
+		// liability, worst-case value must use the larger of the two
+		myMockSpotMarkets[0].historicalOracleData.lastOraclePriceTwap5Min = new BN(
+			1.1 * PRICE_PRECISION.toNumber()
+		);
+
+		// isolated short of 10 base @ $100 oracle = $1000 worst-case liability,
+		// entered flat (zero uPnL) so only the liability-side conversion matters
+		myMockUserAccount.perpPositions[0].positionFlag =
+			PositionFlag.IsolatedPosition;
+		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(10)
+			.mul(BASE_PRECISION)
+			.neg();
+		myMockUserAccount.perpPositions[0].quoteAssetAmount = new BN(1000).mul(
+			QUOTE_PRECISION
+		);
+
+		const user: User = await makeMockUser(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[100, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const tenPct = new BN(1000);
+		const calc = user.getMarginCalculation('Initial', {
+			strict: true,
+			liquidationBufferMap: new Map<number | 'cross', BN>([[0, tenPct]]),
+		});
+		const isolatedCalc = calc.isolatedMarginCalculations.get(0);
+
+		// marginRequirement = $1000 * 1.10 (quote-converted liability) * 20% initial margin ratio = $220
+		const expectedMarginRequirement = new BN(220).mul(QUOTE_PRECISION);
+		assert(
+			isolatedCalc?.marginRequirement.eq(expectedMarginRequirement),
+			`isolated margin requirement mismatch: ${isolatedCalc?.marginRequirement.toString()} != ${expectedMarginRequirement.toString()}`
+		);
+
+		// marginRequirementPlusBuffer adds 10% of the quote-converted ($1100) liability, not the raw ($1000) one
+		const expectedBuffer = new BN(1100)
+			.mul(QUOTE_PRECISION)
+			.mul(tenPct)
+			.div(MARGIN_PRECISION);
+		const expectedMarginRequirementPlusBuffer =
+			expectedMarginRequirement.add(expectedBuffer);
+		assert(
+			isolatedCalc?.marginRequirementPlusBuffer.eq(
+				expectedMarginRequirementPlusBuffer
+			),
+			`isolated margin requirement plus buffer not quote-converted: ${isolatedCalc?.marginRequirementPlusBuffer.toString()} != ${expectedMarginRequirementPlusBuffer.toString()}`
+		);
+	});
+
+	it('pool-1 user skips quote deposit value carve-out without throwing', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
+
+		myMockUserAccount.poolId = 1;
+		myMockUserAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
+		myMockUserAccount.spotPositions[0].scaledBalance = new BN(5000).mul(
+			SPOT_MARKET_BALANCE_PRECISION
+		);
+
+		const user: User = await makeMockUser(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const calc = user.getMarginCalculation('Initial');
+		assert(
+			calc.totalCollateral.eq(ZERO),
+			`pool-1 quote deposit should be excluded from collateral: ${calc.totalCollateral.toString()}`
+		);
+	});
+
+	it('mismatched pool ids outside the pool-1 quote carve-out throw', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
+
+		myMockUserAccount.poolId = 1;
+		myMockUserAccount.spotPositions[1].marketIndex = 1;
+		myMockUserAccount.spotPositions[1].balanceType = SpotBalanceType.DEPOSIT;
+		myMockUserAccount.spotPositions[1].scaledBalance = new BN(100).mul(
+			SPOT_MARKET_BALANCE_PRECISION
+		);
+		// myMockSpotMarkets[1].poolId stays 0, mismatched with user pool id 1
+
+		const user: User = await makeMockUser(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		let threw = false;
+		try {
+			user.getMarginCalculation('Initial');
+		} catch (e) {
+			threw = true;
+		}
+		assert(threw, 'expected mismatched pool ids to throw InvalidPoolId');
+	});
+
+	it('validateAnyIsolatedTierRequirements rejects a second perp liability alongside an isolated-tier one', async () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
+
+		myMockPerpMarkets[0].oracle = new PublicKey(7);
+		myMockPerpMarkets[0].contractTier = ContractTier.ISOLATED;
+		myMockPerpMarkets[1].oracle = new PublicKey(9);
+
+		// market 0: isolated-tier liability
+		myMockUserAccount.perpPositions[0].positionFlag =
+			PositionFlag.IsolatedPosition;
+		myMockUserAccount.perpPositions[0].baseAssetAmount = BASE_PRECISION;
+		myMockUserAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(
+			10
+		).mul(SPOT_MARKET_BALANCE_PRECISION);
+
+		// market 1: a second, unrelated perp liability
+		myMockUserAccount.perpPositions[1].marketIndex = 1;
+		myMockUserAccount.perpPositions[1].baseAssetAmount = BASE_PRECISION;
+
+		const user: User = await makeMockUser(
+			myMockPerpMarkets,
+			myMockSpotMarkets,
+			myMockUserAccount,
+			[1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1]
+		);
+
+		const calc = user.getMarginCalculation('Initial');
+		assert(
+			calc.withPerpIsolatedLiability,
+			'expected withPerpIsolatedLiability to be set'
+		);
+		assert(
+			calc.numPerpLiabilities === 2,
+			`expected 2 perp liabilities, got ${calc.numPerpLiabilities}`
+		);
+
+		const result = user.validateAnyIsolatedTierRequirements(calc);
+		assert(
+			!result.valid,
+			'expected isolated tier violation for a second perp liability'
+		);
+
+		// reduce-only users are exempt from the isolated-tier restriction
+		user.getUserAccountOrThrow().status |= UserStatus.REDUCE_ONLY;
+		const reduceOnlyResult = user.validateAnyIsolatedTierRequirements(calc);
+		assert(
+			reduceOnlyResult.valid,
+			'expected reduce-only user to bypass the isolated tier violation'
 		);
 	});
 });

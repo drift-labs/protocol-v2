@@ -63,32 +63,48 @@ const BLOCKHASH_FETCH_RETRY_COUNT = 3;
 const BLOCKHASH_FETCH_RETRY_SLEEP = 200;
 const RECENT_BLOCKHASH_STALE_TIME_MS = 2_000; // Reuse blockhashes within this timeframe during bursts of tx contruction
 
+/** Inputs to `TxHandler.buildTransaction`/`buildBulkTransactions` describing what to build and how. */
 export type TxBuildingProps = {
 	instructions: TransactionInstruction | TransactionInstruction[];
+	/** `'legacy'` for a legacy `Transaction`, or `0` for a v0 `VersionedTransaction`. */
 	txVersion: TransactionVersion;
 	connection: Connection;
+	/** Commitment used when building/signing multiple legacy transactions via `getPreparedAndSignedLegacyTransactionMap`. */
 	preFlightCommitment?: Commitment;
+	/** Supplies the market address lookup tables to merge with `lookupTables` for a v0 transaction. */
 	fetchAllMarketLookupTableAccounts: () => Promise<AddressLookupTableAccount[]>;
+	/** Extra address lookup tables to compile the message against, in addition to the market ones from `fetchAllMarketLookupTableAccounts`. */
 	lookupTables?: AddressLookupTableAccount[];
+	/** If `true`, return a `VersionedTransaction` even when `txVersion === 'legacy'` (wraps the legacy message in a versioned envelope). */
 	forceVersionedTransaction?: boolean;
+	/** Compute-unit limit/price and simulation-based sizing options for this transaction. */
 	txParams?: TxParams;
+	/** Blockhash to use; if omitted, one is resolved via `TxHandler`'s `BlockhashFetcher`. */
 	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	wallet?: IWallet;
 	optionalIxs?: TransactionInstruction[]; // additional instructions to add to the front of ixs if there's enough room, such as oracle cranks
 	simulatedTx?: SimulatedTransactionResponse; // we could have pre-simulated the tx and we can use this later to get compute units
 };
 
+/** Configuration for `TxHandler`'s blockhash-fetching strategy. */
 export type TxHandlerConfig = {
+	/** If `true`, use a `CachedBlockhashFetcher` (reduces RPC calls during bursts of tx construction); otherwise fetch fresh every time via `BaseBlockhashFetcher`. */
 	blockhashCachingEnabled?: boolean;
+	/** Tuning for `CachedBlockhashFetcher` when `blockhashCachingEnabled` is `true`; each field defaults if omitted (see `BLOCKHASH_FETCH_RETRY_COUNT`/`BLOCKHASH_FETCH_RETRY_SLEEP`/`RECENT_BLOCKHASH_STALE_TIME_MS`). */
 	blockhashCachingConfig?: {
-		retryCount: number;
-		retrySleepTimeMs: number;
-		staleCacheTimeMs: number;
+		retryCount?: number;
+		retrySleepTimeMs?: number;
+		staleCacheTimeMs?: number;
 	};
 };
 
 /**
  * This class is responsible for creating and signing transactions.
+ *
+ * Owns blockhash resolution (via a `BlockhashFetcher`, optionally caching), compute-budget
+ * instruction injection, address-lookup-table compilation, and wallet signing for both legacy and
+ * v0 transactions, single or batched. `TxSender` implementations delegate to a `TxHandler`
+ * instance for all of this rather than duplicating it.
  */
 export class TxHandler {
 	private blockHashToLastValidBlockHeightLookup: Record<string, number> = {};
@@ -107,6 +123,16 @@ export class TxHandler {
 		DEFAULT_CONFIRMATION_OPTS.commitment ?? 'confirmed';
 	private blockHashFetcher: BlockhashFetcher;
 
+	/**
+	 * @param props.connection - RPC connection used for blockhash fetches and (indirectly) sends.
+	 * @param props.wallet - Default wallet used to sign transactions when a call doesn't pass its own.
+	 * @param props.confirmationOptions - Default confirm options; `preflightCommitment` (falling
+	 * back to `connection.commitment`, then `'confirmed'`) sets the commitment used for blockhash fetches.
+	 * @param props.opts.returnBlockHeightsWithSignedTxCallbackData - If `true`, `onSignedCb` receives each signed tx's `lastValidBlockHeight` alongside its signature/blockhash.
+	 * @param props.opts.onSignedCb - Callback invoked with signed-transaction metadata whenever this handler signs one or more transactions.
+	 * @param props.opts.preSignedCb - Callback invoked immediately before wallet signing occurs.
+	 * @param props.config - Blockhash-fetching strategy/tuning; see `TxHandlerConfig`.
+	 */
 	constructor(props: {
 		connection: Connection;
 		wallet: IWallet;
@@ -147,6 +173,7 @@ export class TxHandler {
 		this.preSignedCb = props.opts?.preSignedCb;
 	}
 
+	/** @returns The wallet this handler currently uses to sign transactions when a call doesn't pass its own. */
 	public getWallet() {
 		return this.wallet;
 	}
@@ -166,6 +193,10 @@ export class TxHandler {
 			ConfirmOptions,
 		];
 
+	/**
+	 * Swaps the default wallet used for subsequent signing calls that don't pass their own.
+	 * @param wallet - New default wallet.
+	 */
 	public updateWallet(wallet: IWallet) {
 		this.wallet = wallet;
 	}
@@ -175,7 +206,8 @@ export class TxHandler {
 	 *
 	 * https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#why-do-blockhash-errors-occur
 	 *
-	 * @returns
+	 * @returns The latest blockhash (via this handler's configured `BlockhashFetcher`) at the
+	 * commitment level resolved in the constructor, or `undefined` if unavailable.
 	 */
 	public async getLatestBlockhashForTransaction() {
 		return this.blockHashFetcher.getLatestBlockhash();
@@ -198,14 +230,18 @@ export class TxHandler {
 	}
 
 	/**
-	 * Applies recent blockhash and signs a given transaction
-	 * @param tx
-	 * @param additionalSigners
-	 * @param wallet
-	 * @param confirmationOpts
-	 * @param preSigned
-	 * @param recentBlockhash
-	 * @returns
+	 * Applies recent blockhash and signs a given transaction. Attaches an internal
+	 * `SIGNATURE_BLOCK_AND_EXPIRY` property (undocumented in the `Transaction` type, but read by
+	 * `WhileValidTxSender`) recording the blockhash/expiry used, so confirmation logic can know
+	 * when the transaction's blockhash has expired even for pre-built transactions.
+	 * @param tx - Transaction to prepare; mutated in place (feePayer, recentBlockhash, signature).
+	 * @param additionalSigners - Extra signers to co-sign alongside the wallet.
+	 * @param wallet - Wallet to sign with; defaults to this handler's configured wallet.
+	 * @param confirmationOpts - Unused directly here (present for interface symmetry with other overloads).
+	 * @param preSigned - If `true`, return `tx` unchanged without touching blockhash/feePayer/signatures.
+	 * @param recentBlockhash - Blockhash to use; if omitted, resolved via `getLatestBlockhashForTransaction`.
+	 * @returns The prepared (and signed, unless `preSigned`) transaction.
+	 * @throws Error if no blockhash could be resolved.
 	 */
 	public async prepareTx(
 		tx: Transaction,
@@ -310,6 +346,16 @@ export class TxHandler {
 		return signedTx;
 	}
 
+	/**
+	 * Signs a `VersionedTransaction`, optionally overwriting its blockhash first.
+	 * @param tx - Transaction to sign; mutated in place.
+	 * @param additionalSigners - Extra signers to co-sign alongside the wallet.
+	 * @param recentBlockhash - If provided, overwrites `tx.message.recentBlockhash` before signing
+	 * (and records it for `SIGNATURE_BLOCK_AND_EXPIRY` tracking); if omitted, the transaction's
+	 * existing blockhash is used as-is.
+	 * @param wallet - Wallet to sign with; defaults to this handler's configured wallet.
+	 * @returns The signed transaction.
+	 */
 	public async signVersionedTx(
 		tx: VersionedTransaction,
 		additionalSigners: Array<Signer>,
@@ -430,6 +476,15 @@ export class TxHandler {
 		return new VersionedTransaction(message);
 	}
 
+	/**
+	 * Builds an unsigned `VersionedTransaction` that wraps a *legacy* compiled message (no address
+	 * lookup tables) — used when `forceVersionedTransaction` is requested for a `'legacy'`
+	 * `txVersion`.
+	 * @param recentBlockhash - Blockhash to build the message with.
+	 * @param ixs - Instructions to include, in order.
+	 * @param wallet - Wallet whose pubkey becomes the fee payer; defaults to this handler's configured wallet.
+	 * @returns The unsigned `VersionedTransaction`.
+	 */
 	public generateLegacyVersionedTransaction(
 		recentBlockhash: BlockhashWithExpiryBlockHeight,
 		ixs: TransactionInstruction[],
@@ -451,6 +506,15 @@ export class TxHandler {
 		return tx;
 	}
 
+	/**
+	 * Builds an unsigned v0 `VersionedTransaction`, compiling its message against the given
+	 * address lookup tables.
+	 * @param recentBlockhash - Blockhash to build the message with.
+	 * @param ixs - Instructions to include, in order.
+	 * @param lookupTableAccounts - Address lookup tables to compile the message against.
+	 * @param wallet - Wallet whose pubkey becomes the fee payer; defaults to this handler's configured wallet.
+	 * @returns The unsigned `VersionedTransaction`.
+	 */
 	public generateVersionedTransaction(
 		recentBlockhash: BlockhashWithExpiryBlockHeight,
 		ixs: TransactionInstruction[],
@@ -473,6 +537,13 @@ export class TxHandler {
 		return tx;
 	}
 
+	/**
+	 * Builds an unsigned legacy `Transaction` from raw instructions. Unlike the other `generate*`
+	 * methods, this does not set a fee payer.
+	 * @param ixs - Instructions to include, in order.
+	 * @param recentBlockhash - If provided, sets `tx.recentBlockhash`; otherwise left unset.
+	 * @returns The unsigned `Transaction`.
+	 */
 	public generateLegacyTransaction(
 		ixs: TransactionInstruction[],
 		recentBlockhash?: BlockhashWithExpiryBlockHeight
@@ -486,8 +557,10 @@ export class TxHandler {
 
 	/**
 	 * Accepts multiple instructions and builds a transaction for each. Prevents needing to spam RPC with requests for the same blockhash.
-	 * @param props
-	 * @returns
+	 * @param props - Shared `TxBuildingProps` (minus `instructions`) plus one instruction/array
+	 * per output transaction; a falsy entry in `props.instructions` yields `undefined` at that
+	 * position rather than being built.
+	 * @returns One built transaction (or `undefined`) per entry in `props.instructions`, in the same order.
 	 */
 	public async buildBulkTransactions(
 		props: Omit<TxBuildingProps, 'instructions'> & {
@@ -511,13 +584,16 @@ export class TxHandler {
 	}
 
 	/**
-	 *
-	 * @param instructions
-	 * @param txParams
-	 * @param txVersion
-	 * @param lookupTables
-	 * @param forceVersionedTransaction Return a VersionedTransaction instance even if the version of the transaction is Legacy
-	 * @returns
+	 * Builds a full transaction from raw instructions: merges caller-supplied `lookupTables` with
+	 * the market lookup tables from `fetchAllMarketLookupTableAccounts`, optionally appends as many
+	 * `optionalIxs` (e.g. oracle cranks) as fit under `MAX_TX_BYTE_SIZE` (dropped one-by-one and
+	 * re-simulated if the batch fails simulation), resolves compute-unit limit/price (via
+	 * simulation if `txParams.useSimulatedComputeUnits`), and prepends the resulting
+	 * `ComputeBudgetProgram` instructions unless the caller's instructions already include them.
+	 * @param props - See `TxBuildingProps`. `props.forceVersionedTransaction` returns a
+	 * `VersionedTransaction` instance even if `props.txVersion` is `'legacy'`.
+	 * @returns The built transaction — a `Transaction` for `txVersion === 'legacy'` unless
+	 * `forceVersionedTransaction` is set, otherwise a `VersionedTransaction`. Not yet signed.
 	 */
 	public async buildTransaction(
 		props: TxBuildingProps
@@ -648,6 +724,17 @@ export class TxHandler {
 		}
 	}
 
+	/**
+	 * Wraps a single instruction in a legacy `Transaction`, prepending compute-budget instructions
+	 * as needed. Does not set a blockhash or fee payer.
+	 * @param instruction - Instruction to wrap.
+	 * @param computeUnits - Compute unit limit; defaults to 600,000. A `setComputeUnitLimit`
+	 * instruction is added unless this value equals `COMPUTE_UNITS_DEFAULT` (200,000) exactly —
+	 * note the 600,000 default therefore *does* add one.
+	 * @param computeUnitsPrice - Compute unit price in micro-lamports; defaults to 0, in which case
+	 * no `setComputeUnitPrice` instruction is added.
+	 * @returns The unsigned `Transaction`.
+	 */
 	public wrapInTx(
 		instruction: TransactionInstruction,
 		computeUnits = 600_000,
@@ -681,11 +768,12 @@ export class TxHandler {
 
 	/**
 	 * Get a map of signed and prepared transactions from an array of legacy transactions
-	 * @param txsToSign
-	 * @param keys
-	 * @param wallet
-	 * @param commitment
-	 * @returns
+	 * @param txsMap - Map of key to legacy `Transaction` (or `undefined`, passed through unset); each is mutated with blockhash/feePayer before signing.
+	 * @param wallet - Wallet to sign with; defaults to this handler's configured wallet.
+	 * @param commitment - Unused directly here (accepted for interface symmetry with `TxSender.send`-style callers).
+	 * @param recentBlockhash - Blockhash to apply to every transaction in `txsMap`; if omitted, resolved via `getLatestBlockhashForTransaction`.
+	 * @returns `{ signedTxMap, signedTxData }` — see `getSignedTransactionMap`.
+	 * @throws Error if no blockhash could be resolved.
 	 */
 	public async getPreparedAndSignedLegacyTransactionMap<
 		T extends Record<string, Transaction | undefined>,
@@ -714,11 +802,16 @@ export class TxHandler {
 	}
 
 	/**
-	 * Get a map of signed transactions from an array of transactions to sign.
-	 * @param txsToSign
-	 * @param keys
-	 * @param wallet
-	 * @returns
+	 * Get a map of signed transactions from an array of transactions to sign. Signs all non-`undefined`
+	 * entries in a single `wallet.signAllTransactions` batch (one wallet approval for the whole map,
+	 * where the wallet supports it) rather than one signature request per transaction.
+	 * @param txsToSignMap - Map of key to `Transaction`/`VersionedTransaction` (or `undefined`,
+	 * passed through as `undefined` in the result rather than being signed).
+	 * @param wallet - Wallet to sign with; defaults to this handler's configured wallet.
+	 * @returns `signedTxMap` — same keys as the input, with each defined entry replaced by its
+	 * signed transaction; and `signedTxData` — the per-transaction signature/blockhash metadata
+	 * (with `lastValidBlockHeight` if this handler was configured with
+	 * `returnBlockHeightsWithSignedTxCallbackData`), also passed to `onSignedCb` if configured.
 	 */
 	public async getSignedTransactionMap<
 		T extends Record<string, Transaction | VersionedTransaction | undefined>,
@@ -788,8 +881,8 @@ export class TxHandler {
 
 	/**
 	 * Accepts multiple instructions and builds a transaction for each. Prevents needing to spam RPC with requests for the same blockhash.
-	 * @param props
-	 * @returns
+	 * @param props - Shared `TxBuildingProps` (minus `instructions`) plus a named map of instruction(s) per output transaction.
+	 * @returns A map with the same keys as `props.instructionsMap`, each value the corresponding built transaction.
 	 */
 	public async buildTransactionsMap<
 		T extends Record<string, TransactionInstruction | TransactionInstruction[]>,
@@ -814,8 +907,11 @@ export class TxHandler {
 
 	/**
 	 * Builds and signs transactions from a given array of instructions for multiple transactions.
-	 * @param props
-	 * @returns
+	 * Builds every transaction first (`buildTransactionsMap`), then signs them all in one batch —
+	 * via `getPreparedAndSignedLegacyTransactionMap` for `'legacy'` `txVersion`, otherwise
+	 * `getSignedTransactionMap`.
+	 * @param props - Shared `TxBuildingProps` (minus `instructions`) plus a named map of instruction(s) per output transaction.
+	 * @returns `{ signedTxMap, signedTxData }` keyed the same as `props.instructionsMap`; see `getSignedTransactionMap`.
 	 */
 	public async buildAndSignTransactionMap<
 		T extends Record<string, TransactionInstruction | TransactionInstruction[]>,
@@ -837,6 +933,21 @@ export class TxHandler {
 		return preppedTransactions;
 	}
 
+	/**
+	 * Greedily includes as many `optionalInstructions` (e.g. oracle-crank instructions) as fit
+	 * alongside `txBuildingProps.instructions` under `MAX_TX_BYTE_SIZE`, then simulates the result;
+	 * if simulation fails, falls back to simulating with only the base instructions (optional ones
+	 * dropped entirely) rather than trying to isolate which optional instruction caused the failure.
+	 * @param txBuildingProps - Build props whose `instructions` are the required (non-optional) instructions.
+	 * @param optionalInstructions - Extra instructions to include only if they fit; prepended
+	 * ahead of the base instructions and trimmed one-by-one from the front if the combined size
+	 * exceeds `MAX_TX_BYTE_SIZE`. Defaults to none, in which case this is a no-op passthrough.
+	 * @param versionedTransaction - Whether to size the candidate transaction as versioned (v0) or legacy; defaults to `true`.
+	 * @param addressLookupTables - Lookup tables credited toward the size calculation; defaults to none.
+	 * @returns A tuple of `[instructionsActuallyUsed, simulationResult]` — `instructionsActuallyUsed`
+	 * includes the optional instructions only if the combined simulation succeeded; `simulationResult`
+	 * is `undefined` only when `optionalInstructions` was empty (no simulation was needed).
+	 */
 	public async simulateAndCalculateInstructions(
 		txBuildingProps: TxBuildingProps,
 		optionalInstructions: TransactionInstruction[] = [],

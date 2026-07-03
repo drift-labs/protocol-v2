@@ -86,9 +86,11 @@ const getTransactionResultWithRetry = async (
  * THROWS if there is an error
  *
  * Should only be used for a txSig that is confirmed has an error. There is a race-condition where sometimes the transaction is not instantly available to fetch after the confirmation has already failed with an error, so this method has retry logic which we don't want to do wastefully. This method will throw a generic error if it can't get the transaction result after a retry period.
- * @param txSig
- * @param connection
- * @returns
+ * @param txSig - Signature of the transaction already known/confirmed to have failed.
+ * @param connection - RPC connection used to fetch the transaction (retried up to 3 times over ~3s).
+ * @param commitment - Commitment to fetch at; defaults to `connection.commitment`, then `DEFAULT_CONFIRMATION_OPTS.commitment`. Must resolve to `'confirmed'` or `'finalized'`.
+ * @returns Resolves with no value if no error could be extracted (should not normally happen for a known-failed signature).
+ * @throws SendTransactionError with the resolved on-chain error/logs — or a generic "Transaction Failed" error if the transaction result couldn't be fetched after retrying.
  */
 export const throwTransactionError = async (
 	txSig: string,
@@ -108,9 +110,12 @@ export const throwTransactionError = async (
  * RETURNS an error if there is one
  *
  * Should only be used for a txSig that is confirmed has an error. There is a race-condition where sometimes the transaction is not instantly available to fetch after the confirmation has already failed with an error, so this method has retry logic which we don't want to do wastefully. This method will throw a generic error if it can't get the transaction result after a retry period.
- * @param txSig
- * @param connection
- * @returns
+ * @param txSig - Signature of the transaction already known/confirmed to have failed.
+ * @param connection - RPC connection used to fetch the transaction (retried up to 3 times over ~3s).
+ * @param commitment - Commitment to fetch at; defaults to `connection.commitment`, then `DEFAULT_CONFIRMATION_OPTS.commitment`. Must resolve to `'confirmed'` or `'finalized'`.
+ * @returns The resolved `SendTransactionError` (with parsed logs/friendly message), a generic
+ * "Transaction Failed" `SendTransactionError` if the transaction couldn't be fetched after
+ * retrying, or `undefined` if the fetched transaction unexpectedly has no recorded error.
  */
 export const getTransactionErrorFromTxSig = async (
 	txSig: string,
@@ -140,6 +145,13 @@ export const getTransactionErrorFromTxSig = async (
 	return getTransactionError(transactionResult);
 };
 
+/**
+ * Builds a `SendTransactionError` from an already-fetched transaction response, extracting a
+ * "friendly" message from the last log line (matching `failed: <message>`) when present.
+ * @param transactionResult - A fetched `VersionedTransactionResponse`.
+ * @returns A `SendTransactionError` populated with the signature, logs, and (if parseable) a
+ * friendly failure message, or `undefined` if `transactionResult.meta.err` is not set.
+ */
 export const getTransactionError = (
 	transactionResult: VersionedTransactionResponse
 ): SendTransactionError | undefined => {

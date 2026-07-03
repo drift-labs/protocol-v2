@@ -13,6 +13,11 @@ import { Commitment, PublicKey } from '@solana/web3.js';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserAccount } from '../types';
 
+/**
+ * Default `UserAccountSubscriber` implementation: wraps a single `WebSocketAccountSubscriber`
+ * for the `UserAccount`. `userDataAccountSubscriber` throws if accessed before `subscribe()` has
+ * run (it is created there, not in the constructor).
+ */
 export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	resubOpts?: ResubOpts;
@@ -32,6 +37,12 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		this._userDataAccountSubscriber = subscriber;
 	}
 
+	/**
+	 * @param program Anchor program providing the connection and coder.
+	 * @param userAccountPublicKey Address of the `UserAccount` to track.
+	 * @param resubOpts Resubscription watchdog options passed through to the underlying `WebSocketAccountSubscriber`.
+	 * @param commitment Commitment for the underlying subscription; defaults to the provider's configured commitment.
+	 */
 	public constructor(
 		program: VelocityProgram,
 		userAccountPublicKey: PublicKey,
@@ -46,6 +57,11 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		this.commitment = commitment;
 	}
 
+	/**
+	 * Creates the underlying `WebSocketAccountSubscriber` and subscribes it. Idempotent: a no-op
+	 * (returns `true`) if already subscribed.
+	 * @param userAccount Optional pre-fetched account data to seed the subscriber with, skipping the initial RPC fetch.
+	 */
 	async subscribe(userAccount?: UserAccount): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
@@ -74,10 +90,12 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		return true;
 	}
 
+	/** Fetches the account once via the underlying `WebSocketAccountSubscriber`. */
 	async fetch(): Promise<void> {
 		await Promise.all([this.userDataAccountSubscriber.fetch()]);
 	}
 
+	/** Tears down the underlying WebSocket subscription. A no-op if not subscribed. */
 	async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -88,6 +106,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		this.isSubscribed = false;
 	}
 
+	/** Throws `NotSubscribedError` if `subscribe()` has not been called. */
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -96,11 +115,18 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 		}
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. Returns undefined only if subscribed but no data has loaded yet. */
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> | undefined {
 		this.assertIsSubscribed();
 		return this.userDataAccountSubscriber.dataAndSlot;
 	}
 
+	/**
+	 * Applies an externally-obtained account update if `slot` is not older than the currently
+	 * cached slot.
+	 * @param userAccount Decoded account data to apply.
+	 * @param slot Slot the data was observed at.
+	 */
 	public updateData(userAccount: UserAccount, slot: number) {
 		const currentDataSlot =
 			this.userDataAccountSubscriber.dataAndSlot?.slot || 0;

@@ -37,6 +37,11 @@ import { L2OrderBook } from '../dlob/orderBookLevels';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
+/**
+ * Enumerates the price-impact-related fields historically produced by trade-slippage helpers.
+ * Not currently consumed as a parameter/return type by any function in this file — kept for
+ * backward compatibility with callers that reference it as a key type.
+ */
 export type PriceImpactUnit =
 	| 'entryPrice'
 	| 'maxPrice'
@@ -51,24 +56,23 @@ export type PriceImpactUnit =
 	| 'all';
 
 /**
- * Calculates avg/max slippage (price impact) for candidate trade
+ * Calculates avg/max slippage (price impact) for a hypothetical AMM-only trade.
  *
- * @deprecated use calculateEstimatedPerpEntryPrice instead
+ * @deprecated Use `calculateEstimatedPerpEntryPrice` instead (this ignores DLOB liquidity and
+ *   only swaps against the vAMM).
  *
- * @param direction
- * @param amount
- * @param market
- * @param inputAssetType which asset is being traded
- * @param useSpread whether to consider spread with calculating slippage
- * @return [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice]
- *
- * 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : Precision PRICE_PRECISION
- *
- * 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : Precision PRICE_PRECISION
- *
- * 'entryPrice' => the average price of the trade : Precision PRICE_PRECISION
- *
- * 'newPrice' => the price of the asset after the trade : Precision PRICE_PRECISION
+ * @param {PositionDirection} direction - Taker's trade direction
+ * @param {BN} amount - Trade size in `inputAssetType` units (base: BASE_PRECISION (1e9); quote: QUOTE_PRECISION (1e6))
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {AssetType} [inputAssetType] - Whether `amount` denominates base or quote; defaults to `'quote'`
+ * @param {MMOraclePriceData} mmOraclePriceData - MM oracle price data used for spread reserve calc
+ * @param {boolean} [useSpread] - Whether to consider the bid/ask spread when computing slippage; defaults to `true`
+ * @param {BN} [latestSlot] - Slot used for spread-reserve staleness/decay calc when `useSpread` is true
+ * @return {[BN, BN, BN, BN]} `[pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice]`, all
+ *   PRICE_PRECISION (1e6): `pctAvgSlippage` is the percentage change from the pre-trade price to
+ *   `entryPrice` (average execution slippage); `pctMaxSlippage` is the percentage change from the
+ *   pre-trade price to `newPrice` (worst-case/marginal slippage); `entryPrice` is the trade's
+ *   average execution price; `newPrice` is the AMM's price after the trade
  */
 export function calculateTradeSlippage(
 	direction: PositionDirection,
@@ -155,15 +159,20 @@ export function calculateTradeSlippage(
 }
 
 /**
- * Calculates acquired amounts for trade executed
- * @param direction
- * @param amount
- * @param market
- * @param inputAssetType
- * @param useSpread
- * @return
- * 	| 'acquiredBase' =>  positive/negative change in user's base : BN AMM_RESERVE_PRECISION
- * 	| 'acquiredQuote' => positive/negative change in user's quote : BN TODO-PRECISION
+ * Calculates the AMM reserve deltas and resulting quote amount for a hypothetical constant-product
+ * swap against the vAMM, without executing anything on-chain.
+ *
+ * @param {PositionDirection} direction - Taker's trade direction
+ * @param {BN} amount - Trade size in `inputAssetType` units (base: BASE_PRECISION (1e9); quote: QUOTE_PRECISION (1e6))
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {AssetType} [inputAssetType] - Whether `amount` denominates base or quote; defaults to `'quote'`
+ * @param {MMOraclePriceData} mmOraclePriceData - MM oracle price data used for spread reserve calc
+ * @param {boolean} [useSpread] - Whether to swap against the spread-adjusted reserves (bid/ask)
+ *   rather than the raw reserves; defaults to `true`
+ * @param {BN} [latestSlot] - Slot used for spread-reserve staleness/decay calc when `useSpread` is true
+ * @return {[BN, BN, BN]} `[acquiredBase, acquiredQuote, acquiredQuoteAssetAmount]` — the change
+ *   in the AMM's base and quote reserves (signed, `AMM_RESERVE_PRECISION` (1e9)), and the
+ *   resulting user-facing quote amount swapped, `QUOTE_PRECISION` (1e6)
  */
 export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
@@ -215,24 +224,26 @@ export function calculateTradeAcquiredAmounts(
 }
 
 /**
- * calculateTargetPriceTrade
- * simple function for finding arbitraging trades
+ * Calculates the AMM-only trade (direction + size) required to push the market's reserve price
+ * to (or `pct` of the way to) `targetPrice` — a simple arbitrage-sizing helper.
  *
- * @deprecated
+ * @deprecated No longer actively maintained; ignores DLOB liquidity.
  *
- * @param market
- * @param targetPrice
- * @param pct optional default is 100% gap filling, can set smaller.
- * @param outputAssetType which asset to trade.
- * @param useSpread whether or not to consider the spread when calculating the trade size
- * @returns trade direction/size in order to push price to a targetPrice,
- *
- * [
- *   direction => direction of trade required, PositionDirection
- *   tradeSize => size of trade required, TODO-PRECISION
- *   entryPrice => the entry price for the trade, PRICE_PRECISION
- *   targetPrice => the target price PRICE_PRECISION
- * ]
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {BN} targetPrice - The price to arbitrage toward, PRICE_PRECISION (1e6)
+ * @param {BN} [pct] - Fraction of the full price gap to close, out of `MAXPCT` (1000 = 100%);
+ *   defaults to fully closing the gap
+ * @param {AssetType} [outputAssetType] - Whether the returned trade size is denominated in base
+ *   or quote; defaults to `'quote'`
+ * @param {MMOraclePriceData} [mmOraclePriceData] - MM oracle price data used for spread reserve calc
+ * @param {boolean} [useSpread] - Whether to consider the bid/ask spread when sizing the trade;
+ *   defaults to `true`. If `targetPrice` already sits within the current bid/ask spread, returns
+ *   a zero-size trade
+ * @param {BN} [latestSlot] - Slot used for spread-reserve staleness/decay calc when `useSpread` is true
+ * @return {[PositionDirection, BN, BN, BN]} `[direction, tradeSize, entryPrice, targetPrice]` —
+ *   `direction` required to move price toward `targetPrice`; `tradeSize` in `outputAssetType`
+ *   units (base: BASE_PRECISION (1e9); quote: QUOTE_PRECISION (1e6)); `entryPrice`/`targetPrice`
+ *   PRICE_PRECISION (1e6)
  */
 export function calculateTargetPriceTrade(
 	market: PerpMarketAccount,
@@ -389,17 +400,29 @@ export function calculateTargetPriceTrade(
 }
 
 /**
- * Calculates the estimated entry price and price impact of order, in base or quote
- * Price impact is based on the difference between the entry price and the best bid/ask price (whether it's dlob or vamm)
+ * Simulates walking the combined DLOB + vAMM liquidity to estimate the entry price and price
+ * impact of a hypothetical taker order, filling against resting limit orders and the AMM's
+ * spread-adjusted reserves in whichever is cheaper at each step. Price impact is the difference
+ * between the estimated entry price and the best available price (top of book/AMM) before any
+ * fill.
  *
- * @param assetType
- * @param amount
- * @param direction
- * @param market
- * @param oraclePriceData
- * @param dlob
- * @param slot
- * @param usersToSkip
+ * @param {AssetType} assetType - Whether `amount` denominates base or quote
+ * @param {BN} amount - Order size, `assetType === 'base'`: BASE_PRECISION (1e9); `'quote'`: QUOTE_PRECISION (1e6)
+ * @param {PositionDirection} direction - Taker's trade direction
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {MMOraclePriceData} mmOraclePriceData - MM oracle price data used to price both the DLOB
+ *   resting orders and the AMM's spread-adjusted reserves
+ * @param {DLOB} dlob - The order book to walk for resting limit orders
+ * @param {number} slot - Current slot, used to resolve oracle-pegged/auction limit order prices
+ * @param {Map<PublicKey, boolean>} [usersToSkip] - Maker user accounts to exclude from the fill
+ *   simulation (e.g. the taker's own resting orders); defaults to none
+ * @return {{ entryPrice: BN; priceImpact: BN; bestPrice: BN; worstPrice: BN; baseFilled: BN;
+ *   quoteFilled: BN }} `entryPrice`/`bestPrice`/`worstPrice` are PRICE_PRECISION (1e6);
+ *   `priceImpact` is `|entryPrice - bestPrice| / bestPrice`, also scaled by PRICE_PRECISION
+ *   (1e6) but represents a ratio, not a price (e.g. `1e4` = 1% impact); `baseFilled` is
+ *   BASE_PRECISION (1e9); `quoteFilled` is QUOTE_PRECISION (1e6). All-zero only if `amount` is
+ *   zero; if liquidity runs out before `amount` fully fills, the returned fields reflect the
+ *   partial fill
  */
 export function calculateEstimatedPerpEntryPrice(
 	assetType: AssetType,
@@ -432,7 +455,14 @@ export function calculateEstimatedPerpEntryPrice(
 	const takerIsLong = isVariant(direction, 'long');
 	const limitOrders = dlob[
 		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
-	](market.marketIndex, slot, MarketType.PERP, mmOraclePriceData);
+	](
+		market.marketIndex,
+		slot,
+		MarketType.PERP,
+		mmOraclePriceData,
+		undefined,
+		market.orderTickSize
+	);
 
 	const swapDirection = getSwapDirection(assetType, direction);
 
@@ -489,7 +519,11 @@ export function calculateEstimatedPerpEntryPrice(
 
 	let limitOrder = limitOrders.next().value;
 	if (limitOrder) {
-		const limitOrderPrice = limitOrder.getPriceOrThrow(mmOraclePriceData, slot);
+		const limitOrderPrice = limitOrder.getPriceOrThrow(
+			mmOraclePriceData,
+			slot,
+			market.orderTickSize
+		);
 		bestPrice = takerIsLong
 			? BN.min(limitOrderPrice, bestPrice)
 			: BN.max(limitOrderPrice, bestPrice);
@@ -502,7 +536,11 @@ export function calculateEstimatedPerpEntryPrice(
 			!cumulativeBaseFilled.eq(amount) &&
 			(ammLiquidity.gt(ZERO) || limitOrder)
 		) {
-			const limitOrderPrice = limitOrder?.getPrice(mmOraclePriceData, slot);
+			const limitOrderPrice = limitOrder?.getPrice(
+				mmOraclePriceData,
+				slot,
+				market.orderTickSize
+			);
 
 			let maxAmmFill: BN;
 			if (limitOrderPrice) {
@@ -586,7 +624,11 @@ export function calculateEstimatedPerpEntryPrice(
 			!cumulativeQuoteFilled.eq(amount) &&
 			(ammLiquidity.gt(ZERO) || limitOrder)
 		) {
-			const limitOrderPrice = limitOrder?.getPrice(mmOraclePriceData, slot);
+			const limitOrderPrice = limitOrder?.getPrice(
+				mmOraclePriceData,
+				slot,
+				market.orderTickSize
+			);
 
 			let maxAmmFill: BN;
 			if (limitOrderPrice) {
@@ -695,6 +737,23 @@ export function calculateEstimatedPerpEntryPrice(
 	};
 }
 
+/**
+ * Estimates entry price and price impact of a hypothetical taker order by walking a pre-built L2
+ * order book snapshot (asks for a long taker, bids for a short taker), rather than the live DLOB.
+ * Useful when an L2 snapshot is already available and a fresh DLOB walk isn't needed.
+ *
+ * @param {AssetType} assetType - Whether `amount` denominates base or quote
+ * @param {BN} amount - Order size, `basePrecision` for `'base'`; QUOTE_PRECISION (1e6) for `'quote'`
+ * @param {PositionDirection} direction - Taker's trade direction
+ * @param {BN} basePrecision - The base precision to use for size/price math (e.g. `BASE_PRECISION`)
+ * @param {L2OrderBook} l2 - Pre-computed L2 order book (bids/asks with price + size levels)
+ * @return {{ entryPrice: BN; priceImpact: BN; bestPrice: BN; worstPrice: BN; baseFilled: BN;
+ *   quoteFilled: BN }} `entryPrice`/`bestPrice`/`worstPrice` are PRICE_PRECISION (1e6);
+ *   `priceImpact` is `|entryPrice - bestPrice| / bestPrice` scaled by PRICE_PRECISION (1e6);
+ *   `baseFilled` is `basePrecision`-scaled; `quoteFilled` is QUOTE_PRECISION (1e6). If the book
+ *   is empty, `bestPrice`/`worstPrice` are `BN_MAX` (long) or `ZERO` (short) and `entryPrice`/
+ *   `priceImpact` are `ZERO`
+ */
 export function calculateEstimatedEntryPriceWithL2(
 	assetType: AssetType,
 	amount: BN,
@@ -782,6 +841,17 @@ export function calculateEstimatedEntryPriceWithL2(
 	};
 }
 
+/**
+ * Estimates a user's trailing-30-day taker + maker volume as of `now`, using the same
+ * time-weighted decay shape as the on-chain `update_taker_volume_30d` / `update_maker_volume_30d`
+ * (`calculate_rolling_sum`) but without requiring a new fill to trigger the on-chain update —
+ * useful for e.g. displaying live fee-tier progress between actual `UserStats` refreshes.
+ *
+ * @param {UserStatsAccount} userStatsAccount - The user's stats account (`takerVolume30D`,
+ *   `makerVolume30D`, and their respective last-update timestamps)
+ * @param {BN} [now] - Current unix timestamp (seconds); defaults to `Date.now() / 1000`
+ * @return {BN} Estimated combined 30-day taker + maker volume, QUOTE_PRECISION (1e6)
+ */
 export function getUser30dRollingVolumeEstimate(
 	userStatsAccount: UserStatsAccount,
 	now?: BN

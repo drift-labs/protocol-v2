@@ -50,6 +50,7 @@ import { EventEmitter } from 'events';
 // the end (RangeError: ERR_BUFFER_OUT_OF_BOUNDS). Must be >= the on-chain User size.
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4496;
 
+/** Public surface implemented by `UserMap`. */
 export interface UserMapInterface {
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	subscribe(): Promise<void>;
@@ -79,6 +80,25 @@ export interface UserMapInterface {
 	entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]>;
 }
 
+/**
+ * In-memory cache of every `User` account on the program, keyed by the
+ * `User` account's own public key.
+ *
+ * Sync/subscription filtering (see `getFilters`) is built from memcmp
+ * filters: the base `getUserFilter()` (matches the `User` account
+ * discriminator — required, or every account on chain would match) is always
+ * present; `getNonIdleUserFilter()` is added unless `includeIdle` is set (idle
+ * accounts are excluded by default to reduce subscription volume);
+ * `getUsersWithPoolId(filterByPoolId)` is added when `filterByPoolId` is set;
+ * and any `additionalFilters` from the config are appended last. The same
+ * filter set is used for the initial `getProgramAccounts` sync and for the
+ * live websocket/gRPC subscription, so what you sync is what you keep getting
+ * updates for.
+ *
+ * Automatically does a full `sync()` whenever the program's
+ * `StateAccount.numberOfSubAccounts` changes (new/deleted user accounts),
+ * unless `disableSyncOnTotalAccountsChange` is set.
+ */
 export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, DataAndSlot<User>>();
 	velocityClient: VelocityClient;
@@ -186,6 +206,13 @@ export class UserMap implements UserMapInterface {
 		this.eventEmitter = new EventEmitter();
 	}
 
+	/**
+	 * Populates the map with a full initial `sync()` (no-op if already
+	 * populated) and starts the configured live subscription
+	 * (`'websocket'`/`'polling'`/`'grpc'`), plus (unless
+	 * `disableSyncOnTotalAccountsChange`) a listener that triggers a full
+	 * re-sync whenever `StateAccount.numberOfSubAccounts` changes.
+	 */
 	public async subscribe() {
 		if (this.size() > 0) {
 			return;
@@ -204,6 +231,20 @@ export class UserMap implements UserMapInterface {
 		await this.subscription.subscribe();
 	}
 
+	/**
+	 * Adds `userAccountPublicKey` to the map, creating a `User` for it.
+	 *
+	 * By default (`accountSubscription` omitted), subscribes it with a
+	 * `OneShotUserAccountSubscriber` seeded from `userAccount`/`slot` rather
+	 * than a live per-account websocket subscription — the map already gets
+	 * live updates in bulk via its own subscription (`WebsocketSubscription`/
+	 * `PollingSubscription`/`grpcSubscription`), so per-`User` subscriptions
+	 * here would needlessly multiply RPC load.
+	 * @param userAccount Optional pre-fetched account data to seed with, skipping an RPC fetch.
+	 * @param slot Optional slot the data was observed at. Required (directly or via `userAccount`'s subscriber) — throws if no slot can be determined after subscribing.
+	 * @param accountSubscription Optional override for how the created `User` subscribes; defaults to the one-shot subscriber described above.
+	 * @throws If no slot is available after subscribing.
+	 */
 	public async addPubkey(
 		userAccountPublicKey: PublicKey,
 		userAccount?: UserAccount,
@@ -239,6 +280,7 @@ export class UserMap implements UserMapInterface {
 		this.eventEmitter.emit('userUpdate', user);
 	}
 
+	/** Returns true if a `User` account keyed by `key` (the `User` account pubkey, base58) is cached in the map. */
 	public has(key: string): boolean {
 		return this.userMap.has(key);
 	}
@@ -251,6 +293,7 @@ export class UserMap implements UserMapInterface {
 	public get(key: string): User | undefined {
 		return this.userMap.get(key)?.data;
 	}
+	/** Like `get`, but also returns the slot at which the `User` account was last observed. */
 	public getWithSlot(key: string): DataAndSlot<User> | undefined {
 		return this.userMap.get(key);
 	}
@@ -278,6 +321,7 @@ export class UserMap implements UserMapInterface {
 		}
 		return userWithSlot.data;
 	}
+	/** Like `mustGet`, but also returns the slot at which the `User` account was observed. */
 	public async mustGetWithSlot(
 		key: string,
 		accountSubscription?: UserSubscriptionConfig
@@ -297,6 +341,7 @@ export class UserMap implements UserMapInterface {
 		return userWithSlot;
 	}
 
+	/** Like `mustGet`, but returns the underlying `UserAccount` data directly (throws if the `User`'s account is not loaded). */
 	public async mustGetUserAccount(key: string): Promise<UserAccount> {
 		const user = await this.mustGet(key);
 		return user.getUserAccountOrThrow();
@@ -316,9 +361,9 @@ export class UserMap implements UserMapInterface {
 	}
 
 	/**
-	 * implements the {@link DLOBSource} interface
-	 * create a DLOB from all the subscribed users
-	 * @param slot
+	 * Implements the `DLOBSource` interface: builds a `DLOB` from every
+	 * subscribed user's open orders.
+	 * @param slot Slot to consider orders "current" as of (auction/trigger timing).
 	 */
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const dlob = new DLOB();
@@ -326,12 +371,19 @@ export class UserMap implements UserMapInterface {
 		return dlob;
 	}
 
+	/** Ensures an entry exists in the map for `record.user`, adding it via `addPubkey` if not already present. */
 	public async updateWithOrderRecord(record: OrderRecord) {
 		if (!this.has(record.user.toString())) {
 			await this.addPubkey(record.user);
 		}
 	}
 
+	/**
+	 * Incrementally updates the map in response to a single program event,
+	 * ensuring an entry exists for every `User` account the event references
+	 * (deposit/funding/liquidation/order/order-action/settle-pnl/new-user
+	 * records). Unrecognized event types are silently ignored.
+	 */
 	public async updateWithEventRecord(record: WrappedEvent<any>) {
 		if (record.eventType === 'DepositRecord') {
 			const depositRecord = record as DepositRecord;
@@ -365,24 +417,29 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
+	/** Iterates all cached `User` instances. */
 	public *values(): IterableIterator<User> {
 		for (const dataAndSlot of this.userMap.values()) {
 			yield dataAndSlot.data;
 		}
 	}
+	/** Like `values`, but paired with the slot each `User` was last observed at. */
 	public valuesWithSlot(): IterableIterator<DataAndSlot<User>> {
 		return this.userMap.values();
 	}
 
+	/** Iterates all `[userAccountPublicKey, User]` pairs in the map. */
 	public *entries(): IterableIterator<[string, User]> {
 		for (const [key, dataAndSlot] of this.userMap.entries()) {
 			yield [key, dataAndSlot.data];
 		}
 	}
+	/** Like `entries`, but paired with the slot each `User` was last observed at. */
 	public entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]> {
 		return this.userMap.entries();
 	}
 
+	/** Number of `User` accounts currently cached in the map. */
 	public size(): number {
 		return this.userMap.size;
 	}
@@ -413,6 +470,7 @@ export class UserMap implements UserMapInterface {
 		return userAuthKeys;
 	}
 
+	/** Runs a full sync using the strategy configured in `UserMapConfig.syncConfig` (`'default'` or `'paginated'` — see `SyncConfig`). */
 	public async sync() {
 		if (this.syncConfig.type === 'default') {
 			return this.defaultSync();
@@ -421,6 +479,12 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
+	/**
+	 * Builds the memcmp filter set for both the initial sync and the live
+	 * subscription: always the `User`-account discriminator filter; plus a
+	 * non-idle filter unless `includeIdle`; plus a pool-id filter if
+	 * `filterByPoolId` is set; plus any caller-supplied `additionalFilters`.
+	 */
 	private getFilters(): MemcmpFilter[] {
 		const filters = [getUserFilter()];
 		if (!this.includeIdle) {
@@ -655,6 +719,11 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
+	/**
+	 * Tears down the live subscription, unsubscribes and removes every cached
+	 * `User`, and (if registered) removes the `stateAccountUpdate` listener
+	 * that triggers auto-resync on `numberOfSubAccounts` changes.
+	 */
 	public async unsubscribe() {
 		await this.subscription.unsubscribe();
 
@@ -675,6 +744,13 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
+	/**
+	 * Applies a fresh `userAccount` observation for `key` at `slot`. If the
+	 * user is already cached, updates in place only if `slot` is at least as
+	 * new as the cached slot (stale/out-of-order updates are dropped) and
+	 * emits `'userUpdate'`. If not cached yet, adds it via `addPubkey`.
+	 * Also advances `getSlot()`'s tracked most-recent slot.
+	 */
 	public async updateUserAccount(
 		key: string,
 		userAccount: UserAccount,
@@ -692,14 +768,16 @@ export class UserMap implements UserMapInterface {
 				this.eventEmitter.emit('userUpdate', userWithSlot.data);
 			}
 		} else {
-			this.addPubkey(new PublicKey(key), userAccount, slot);
+			await this.addPubkey(new PublicKey(key), userAccount, slot);
 		}
 	}
 
+	/** Advances the map's tracked most-recent slot to `slot` if it's newer. */
 	updateLatestSlot(slot: number): void {
 		this.mostRecentSlot = Math.max(slot, this.mostRecentSlot);
 	}
 
+	/** Returns the most recent slot at which any account update has been observed. */
 	public getSlot(): number {
 		return this.mostRecentSlot;
 	}

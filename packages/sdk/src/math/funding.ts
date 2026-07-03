@@ -128,11 +128,29 @@ function shrinkStaleTwaps(
 }
 
 /**
- *
- * @param market
- * @param oraclePriceData
- * @param periodAdjustment
- * @returns Estimated funding rate. : Precision //TODO-PRECISION
+ * Client-side projection of the market's next funding rate, mirroring the pure-math portion
+ * of `update_funding_rate` in `programs/velocity/src/controller/funding.rs` (live mark/oracle
+ * TWAPs, the per-market dead-zone/ramp-slope premium, the baseline
+ * `FUNDING_RATE_OFFSET_DENOMINATOR` offset, and the contract-tier divergence cap) without
+ * requiring an on-chain funding update to have actually run. This is an estimate for display
+ * or pre-trade planning — it does not settle anything and can differ slightly from what the
+ * next on-chain `update_funding_rate` call computes if `now`/`oraclePriceData` have moved
+ * since.
+ * @param market Perp market to estimate funding for; must not be `uninitialized`.
+ * @param mmOraclePriceData Current MM oracle price data, used to compute the live mark TWAP if `markPrice` isn't supplied.
+ * @param oraclePriceData Current oracle price data — required unless the market is uninitialized.
+ * @param markPrice Optional mark price override; if omitted, derived from the current bid/ask midpoint.
+ * @param now Current unix timestamp (seconds); defaults to wall-clock time.
+ * @returns `[markTwap, oracleTwap, lowerboundEst, cappedAltEst, interpEst]`:
+ *   - `markTwap` / `oracleTwap`: live-projected TWAPs, PRICE_PRECISION (1e6).
+ *   - `lowerboundEst`, `cappedAltEst`, `interpEst`: funding-rate-per-period estimates
+ *     expressed as `(price spread / oracle price) * 1e8` — feed these into
+ *     `getFundingRatePct`/`calculateFormattedLiveFundingRate` (which multiply by
+ *     `FUNDING_RATE_BUFFER_PRECISION` and read the result at `FUNDING_RATE_PRECISION_EXP`,
+ *     1e9) to get a plain percentage. `cappedAltEst` is the smaller-open-interest side,
+ *     capped by how much the fee pool can top it up; `interpEst` is the uncapped
+ *     straight-line interpolation; `lowerboundEst` further scales the spread down by the
+ *     fraction of the current funding period that has elapsed since the last update.
  */
 export function calculateAllEstimatedFundingRate(
 	market: PerpMarketAccount,
@@ -285,9 +303,12 @@ export function calculateAllEstimatedFundingRate(
 }
 
 /**
- * To get funding rate as a percentage, you need to multiply by the funding rate buffer precision
- * @param rawFundingRate
- * @returns
+ * Converts a raw funding-rate estimate (as produced by `calculateAllEstimatedFundingRate`,
+ * scaled as `(price spread / oracle price) * 1e8`) into a plain human-readable percentage
+ * number (e.g. `0.05` means 0.05%), by rescaling into `FUNDING_RATE_PRECISION_EXP` (1e9)
+ * fixed-point via `FUNDING_RATE_BUFFER_PRECISION`.
+ * @param rawFundingRate Raw funding rate estimate to convert.
+ * @returns Plain percentage number (not a fraction — `1` means 1%, not 100%).
  */
 const getFundingRatePct = (rawFundingRate: BN) => {
 	return BigNum.from(
@@ -297,8 +318,15 @@ const getFundingRatePct = (rawFundingRate: BN) => {
 };
 
 /**
- * Calculate funding rates in human-readable form. Values will have some lost precision and shouldn't be used in strict accounting.
- * @param period : 'hour' | 'year' :: Use 'hour' for the hourly payment as a percentage, 'year' for the payment as an estimated APR.
+ * Calculates estimated funding rates in human-readable form (plain JS `number` percentages,
+ * not BN), including a plain-English summary sentence. Values pass through floating-point
+ * math and lose precision vs the underlying BN estimate — use `calculateAllEstimatedFundingRate`
+ * or `calculateLongShortFundingRate` directly for anything that needs exact precision.
+ * @param market Perp market to estimate funding for.
+ * @param mmOraclePriceData Current MM oracle price data.
+ * @param oraclePriceData Current oracle price data.
+ * @param period `'hour'` for the hourly payment as a percentage, `'year'` for the payment annualized (assuming 24 funding payments/day) as an estimated APR.
+ * @returns `longRate`/`shortRate`: signed percentage numbers from that side's own perspective — negative means that side pays funding, positive means that side receives it; `fundingRateUnit`: `'%'` or `'% APR'`; `formattedFundingRateSummary`: a human-readable sentence describing who pays whom.
  */
 export function calculateFormattedLiveFundingRate(
 	market: PerpMarketAccount,
@@ -380,11 +408,16 @@ function getMaxPriceDivergenceForFundingRate(
 }
 
 /**
- *
- * @param market
- * @param oraclePriceData
- * @param periodAdjustment
- * @returns Estimated funding rate. : Precision //TODO-PRECISION
+ * Convenience wrapper around `calculateAllEstimatedFundingRate` that assigns its capped
+ * (`cappedAltEst`) vs. uncapped (`interpEst`) estimate to the long/short side by comparing
+ * `market.baseAssetAmountLong` against `market.baseAssetAmountShort`. When both sides are
+ * equal, both get `interpEst`.
+ * @param market Perp market to estimate funding for.
+ * @param mmOraclePriceData Current MM oracle price data.
+ * @param oraclePriceData Current oracle price data.
+ * @param markPrice Optional mark price override.
+ * @param now Current unix timestamp (seconds); defaults to wall-clock time.
+ * @returns `[longFundingRateEst, shortFundingRateEst]`, same scale as `calculateAllEstimatedFundingRate`'s rate outputs.
  */
 export function calculateLongShortFundingRate(
 	market: PerpMarketAccount,
@@ -411,11 +444,15 @@ export function calculateLongShortFundingRate(
 }
 
 /**
- *
- * @param market
- * @param oraclePriceData
- * @param periodAdjustment
- * @returns Estimated funding rate. : Precision //TODO-PRECISION
+ * Same estimate assignment as `calculateLongShortFundingRate` (using
+ * `market.baseAssetAmountLong` vs `market.baseAssetAmountShort.abs()` this time) but also
+ * returns the live-projected mark/oracle TWAPs alongside the rate estimates.
+ * @param market Perp market to estimate funding for.
+ * @param mmOraclePriceData Current MM oracle price data.
+ * @param oraclePriceData Current oracle price data.
+ * @param markPrice Optional mark price override.
+ * @param now Current unix timestamp (seconds); defaults to wall-clock time.
+ * @returns `[markTwapLive, oracleTwapLive, longFundingRateEst, shortFundingRateEst]` — TWAPs in PRICE_PRECISION (1e6), rate estimates in the same scale as `calculateAllEstimatedFundingRate`.
  */
 export function calculateLongShortFundingRateAndLiveTwaps(
 	market: PerpMarketAccount,
@@ -443,9 +480,12 @@ export function calculateLongShortFundingRateAndLiveTwaps(
 }
 
 /**
- *
- * @param market
- * @returns Estimated fee pool size
+ * Estimated quote pool available to top up the smaller side's funding payment shortfall:
+ * one-third of the AMM's own retained equity (`totalFeeMinusDistributions`), floored at
+ * zero. Post-isolation there is no separate protocol floor to reserve — the AMM's own
+ * equity is the only buffer.
+ * @param market Perp market to evaluate.
+ * @returns Estimated fee pool size, QUOTE_PRECISION (1e6).
  */
 export function calculateFundingPool(market: PerpMarketAccount): BN {
 	// todo

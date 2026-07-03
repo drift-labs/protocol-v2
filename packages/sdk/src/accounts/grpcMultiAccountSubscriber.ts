@@ -36,6 +36,15 @@ function commitmentLevelToCommitment(
 	}
 }
 
+/**
+ * Multiplexes many accounts of the same Anchor type onto a single gRPC Geyser subscribe stream,
+ * rather than one `grpcAccountSubscriber` per account. Optional generic `U` ("account props")
+ * lets a caller attach metadata (e.g. `OracleInfo`) per pubkey — or per **array** of `U` values
+ * for a pubkey backing multiple logical entries (see `accountPropsMap`, used when several oracle
+ * ids share one underlying account). Construct via the static `create` factory, not the
+ * constructor directly, since establishing the gRPC client is asynchronous. Accounts can be added/
+ * removed from an already-open stream via `addAccounts`/`removeAccounts` without a full resubscribe.
+ */
 export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
 	private _stream?: ClientDuplexStream;
@@ -100,6 +109,18 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		}
 	}
 
+	/**
+	 * Creates a gRPC client (or reuses `clientProp`) and constructs a `grpcMultiAccountSubscriber`.
+	 * Does not itself start streaming — call `subscribe(accounts, onChange)` on the result.
+	 * @param grpcConfigs gRPC Geyser endpoint/token/commitment config (Yellowstone or LaserStream).
+	 * @param accountName Anchor account type name all multiplexed accounts share, used for decoding via the program coder absent `decodeBuffer`.
+	 * @param program Anchor program providing the connection (for `fetch()`) and coder.
+	 * @param decodeBuffer Optional custom decode function receiving the buffer, the account's base58 pubkey, and its `accountProps` entry (or one element of it, if an array); defaults to `program.coder.accounts.decode(accountName, buffer)`.
+	 * @param resubOpts Resubscription watchdog options; `resubTimeoutMs` triggers a full unsubscribe on inactivity (no automatic resubscribe here — see `onUnsubscribe`).
+	 * @param clientProp Optional existing gRPC client to reuse instead of creating a new connection.
+	 * @param onUnsubscribe Optional callback invoked after `unsubscribe()` completes (or the resub-timeout-driven unsubscribe fires), typically used by callers to drive their own resubscribe logic.
+	 * @param accountPropsMap Optional per-pubkey metadata (or array of metadata, for a shared pubkey) passed through to `decodeBuffer` and the `subscribe`/`addAccounts` change callback.
+	 */
 	public static async create<T, U = undefined>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
@@ -133,18 +154,34 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		);
 	}
 
+	/**
+	 * Seeds or overwrites the cached data for one account, bypassing gRPC/RPC. Used to inject
+	 * data the caller already has (e.g. from an initial batch fetch) before the stream delivers
+	 * live updates.
+	 * @param accountPubkey Base58 pubkey of the account.
+	 * @param data Decoded account data to store.
+	 * @param slot Slot the data was observed at; defaults to 0 (the seeded sentinel) if omitted.
+	 */
 	setAccountData(accountPubkey: string, data: T, slot?: number): void {
 		this.dataMap.set(accountPubkey, { data, slot: slot ?? 0 });
 	}
 
+	/** Returns the cached data/slot for one account, or undefined if not yet loaded. */
 	getAccountData(accountPubkey: string): DataAndSlot<T> | undefined {
 		return this.dataMap.get(accountPubkey);
 	}
 
+	/** Returns the full map of base58 pubkey to cached data/slot for every multiplexed account. */
 	getAccountDataMap(): Map<string, DataAndSlot<T>> {
 		return this.dataMap;
 	}
 
+	/**
+	 * Fetches every subscribed account once via chunked `getMultipleAccountsInfoAndContext` calls
+	 * (100 pubkeys per chunk, processed concurrently), updating `dataMap`/`bufferMap` for any
+	 * account whose buffer changed at a non-decreasing slot. Errors are logged (if
+	 * `resubOpts.logResubMessages`) and swallowed rather than thrown.
+	 */
 	async fetch(): Promise<void> {
 		try {
 			// Chunk account IDs into groups of 100 (getMultipleAccounts limit)
@@ -194,10 +231,21 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 								slot: currentSlot,
 							});
 
-							const accountDecoded = this.program.coder.accounts.decode(
-								this.accountName,
-								newBuffer
-							);
+							// decode via the injected decoder (with accountProps) so backfill
+							// matches the live-update decode path — the stock program coder
+							// can't decode custom-decoder accounts (e.g. oracle buffers). For a
+							// pubkey backing multiple props, seed from the first (dataMap is
+							// keyed by pubkey; see the accountPropsMap notes above).
+							const accountProps = this.accountPropsMap?.get(accountId);
+							const decodeProps = Array.isArray(accountProps)
+								? accountProps[0]
+								: accountProps;
+							const accountDecoded = this.decodeBufferFn
+								? this.decodeBufferFn(newBuffer, accountId, decodeProps)
+								: this.program.coder.accounts.decode(
+										this.accountName,
+										newBuffer
+								  );
 							this.setAccountData(accountId, accountDecoded, currentSlot);
 						}
 					}
@@ -213,6 +261,13 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		}
 	}
 
+	/**
+	 * Opens a single gRPC subscribe stream covering all of `accounts`. Each update is decoded and
+	 * cached (via `setAccountData`) before `onChange` is invoked. Idempotent: a no-op if already
+	 * subscribed or mid-unsubscribe.
+	 * @param accounts Pubkeys to include in the stream filter.
+	 * @param onChange Invoked once per changed account with its pubkey, decoded data, the notification's `Context` (including `slot`), the raw buffer, and any `accountProps` metadata registered for that pubkey.
+	 */
 	async subscribe(
 		accounts: PublicKey[],
 		onChange: (
@@ -353,9 +408,26 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		});
 	}
 
-	async addAccounts(accounts: PublicKey[]): Promise<void> {
+	/**
+	 * Extends the already-open stream's filter to include `accounts` (re-writing the full
+	 * accumulated filter set, since the gRPC protocol has no incremental "add" primitive), then
+	 * immediately calls `fetch()` to backfill their initial data.
+	 * @param accounts Additional pubkeys to start tracking.
+	 * @param accountProps Optional per-pubkey metadata to merge into `accountPropsMap` so the
+	 *   injected decoder can decode the newly added accounts (without it, a new `(pubkey, source)`
+	 *   oracle would decode with missing `accountProps` and throw).
+	 */
+	async addAccounts(
+		accounts: PublicKey[],
+		accountProps?: Map<string, U | Array<U>>
+	): Promise<void> {
 		for (const pk of accounts) {
 			this.subscribedAccounts.add(pk.toBase58());
+		}
+		if (accountProps) {
+			for (const [key, props] of accountProps.entries()) {
+				this.accountPropsMap.set(key, props);
+			}
 		}
 		const request: SubscribeRequest = {
 			slots: {},
@@ -387,6 +459,11 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		await this.fetch();
 	}
 
+	/**
+	 * Removes `accounts` from `subscribedAccounts`/`onChangeMap` and re-writes the stream's filter
+	 * to exclude them. Does not clear their cached data from `dataMap`/`bufferMap`.
+	 * @param accounts Pubkeys to stop tracking.
+	 */
 	async removeAccounts(accounts: PublicKey[]): Promise<void> {
 		for (const pk of accounts) {
 			const k = pk.toBase58();
@@ -422,47 +499,53 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		});
 	}
 
+	/** Writes an empty subscribe request to clear the stream's account filter, cancels any pending resub timeout, and invokes `onUnsubscribe` if one was registered at construction. */
 	async unsubscribe(): Promise<void> {
 		this.isUnsubscribing = true;
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.listenerId != null) {
-			const promise = new Promise<void>((resolve, reject) => {
-				const request: SubscribeRequest = {
-					slots: {},
-					accounts: {},
-					transactions: {},
-					blocks: {},
-					blocksMeta: {},
-					accountsDataSlice: [],
-					entry: {},
-					transactionsStatus: {},
-				};
-				this.stream.write(request, (err) => {
-					if (err === null || err === undefined) {
-						this.listenerId = undefined;
-						this.isUnsubscribing = false;
-						resolve();
-					} else {
-						reject(err);
-					}
+		try {
+			if (this.listenerId != null) {
+				await new Promise<void>((resolve, reject) => {
+					const request: SubscribeRequest = {
+						slots: {},
+						accounts: {},
+						transactions: {},
+						blocks: {},
+						blocksMeta: {},
+						accountsDataSlice: [],
+						entry: {},
+						transactionsStatus: {},
+					};
+					this.stream.write(request, (err) => {
+						if (err === null || err === undefined) {
+							this.listenerId = undefined;
+							resolve();
+						} else {
+							reject(err);
+						}
+					});
+				}).catch((reason) => {
+					console.error(reason);
+					throw reason;
 				});
-			}).catch((reason) => {
-				console.error(reason);
-				throw reason;
-			});
-			return promise;
-		} else {
-			this.isUnsubscribing = false;
-		}
-
-		if (this.onUnsubscribe) {
-			try {
-				await this.onUnsubscribe();
-			} catch (e) {
-				console.error(e);
 			}
+
+			// invoke onUnsubscribe on the normal path too (previously it only ran when
+			// listenerId was already null, so the resubscribe hook never fired on the
+			// standard unsubscribe path)
+			if (this.onUnsubscribe) {
+				try {
+					await this.onUnsubscribe();
+				} catch (e) {
+					console.error(e);
+				}
+			}
+		} finally {
+			// clear the flag on every exit path, including a failed stream.write, so
+			// the instance isn't wedged and can resubscribe
+			this.isUnsubscribing = false;
 		}
 	}
 

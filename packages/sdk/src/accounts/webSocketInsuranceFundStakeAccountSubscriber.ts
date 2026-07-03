@@ -12,6 +12,12 @@ import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { InsuranceFundStake } from '../types';
 import { VelocityProgram } from '../config';
 
+/**
+ * Default `InsuranceFundStakeAccountSubscriber` implementation: wraps a single
+ * `WebSocketAccountSubscriber` for the `InsuranceFundStake` account, mirroring
+ * `WebSocketUserAccountSubscriber`. `insuranceFundStakeDataAccountSubscriber` throws if accessed
+ * before `subscribe()` has run.
+ */
 export class WebSocketInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
 {
@@ -40,6 +46,12 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		this._insuranceFundStakeDataAccountSubscriber = subscriber;
 	}
 
+	/**
+	 * @param program Anchor program providing the connection and coder.
+	 * @param insuranceFundStakeAccountPublicKey Address of the `InsuranceFundStake` account to track.
+	 * @param resubTimeoutMs Resub watchdog timeout (ms) passed through as `ResubOpts.resubTimeoutMs` to the underlying `WebSocketAccountSubscriber`. Unlike other subscribers here, only this single option is exposed (not the full `ResubOpts` shape).
+	 * @param commitment Commitment for the underlying subscription; defaults to the provider's configured commitment.
+	 */
 	public constructor(
 		program: VelocityProgram,
 		insuranceFundStakeAccountPublicKey: PublicKey,
@@ -55,6 +67,11 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		this.commitment = commitment;
 	}
 
+	/**
+	 * Creates the underlying `WebSocketAccountSubscriber` and subscribes it. Idempotent: a no-op
+	 * (returns `true`) if already subscribed.
+	 * @param insuranceFundStakeAccount Optional pre-fetched account data to seed the subscriber with, skipping the initial RPC fetch.
+	 */
 	async subscribe(
 		insuranceFundStakeAccount?: InsuranceFundStake
 	): Promise<boolean> {
@@ -92,10 +109,12 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		return true;
 	}
 
+	/** Fetches the account once via the underlying `WebSocketAccountSubscriber`. */
 	async fetch(): Promise<void> {
 		await Promise.all([this.insuranceFundStakeDataAccountSubscriber.fetch()]);
 	}
 
+	/** Tears down the underlying WebSocket subscription. A no-op if not subscribed. */
 	async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -108,6 +127,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		this.isSubscribed = false;
 	}
 
+	/** Throws `NotSubscribedError` if `subscribe()` has not been called. */
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -116,6 +136,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		}
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. Returns undefined only if subscribed but no data has loaded yet. */
 	public getInsuranceFundStakeAccountAndSlot():
 		| DataAndSlot<InsuranceFundStake>
 		| undefined {
@@ -123,6 +144,12 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		return this.insuranceFundStakeDataAccountSubscriber.dataAndSlot;
 	}
 
+	/**
+	 * Applies an externally-obtained account update if `slot` is not older than the currently
+	 * cached slot.
+	 * @param insuranceFundStake Decoded account data to apply.
+	 * @param slot Slot the data was observed at.
+	 */
 	public updateData(
 		insuranceFundStake: InsuranceFundStake,
 		slot: number

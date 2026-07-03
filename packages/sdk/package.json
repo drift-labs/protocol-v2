@@ -1,6 +1,6 @@
 {
 	"name": "@velocity-exchange/sdk",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"module": "./lib/browser/index.js",
@@ -19,6 +19,7 @@
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
 		"test:bignum": "mocha -r ts-node/register tests/bn/**/*.ts",
 		"test:ci": "mocha -r ts-node/register tests/ci/**/*.ts",
+		"test:parity": "mocha -r ts-node/register 'tests/sdkParity/**/*.ts' 'tests/oracles/**/*.ts' 'tests/amm/**/*.ts' 'tests/builder/**/*.ts' 'tests/liquidation/**/*.ts' 'tests/exchangeStatus/**/*.ts' 'tests/spot/**/*.ts' 'tests/user/**/*.ts' tests/dlob/tickSizeStandardization.ts",
 		"test:dlob": "mocha -r ts-node/register tests/dlob/**/*.ts",
 		"test:events": "mocha -r ts-node/register tests/events/**/*.ts",
 		"test:velocitycore": "bun test tests/VelocityCore",

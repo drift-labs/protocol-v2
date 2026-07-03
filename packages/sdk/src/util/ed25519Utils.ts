@@ -36,12 +36,22 @@ const ED25519_INSTRUCTION_LAYOUT = BufferLayout.struct<
 ]);
 
 /**
- * Constructs a minimal Ed25519 verification instruction that references the data
- * inside the velocity custom instruction (e.g. postPythLazerOracleUpdate, placeSignedMsgTakerOrder).
+ * Constructs a minimal Ed25519 verification instruction that, instead of embedding its own copy
+ * of the signature/pubkey/message, points its offsets at data already present inside another
+ * instruction in the same transaction (e.g. `postPythLazerOracleUpdate`, `placeSignedMsgTakerOrder`).
+ * This lets the native ed25519 program verify a signature the velocity program also needs to read,
+ * without duplicating the signed payload in the transaction (which would blow the size limit for
+ * larger payloads like Lazer updates). The Solana runtime requires this ed25519 verify instruction
+ * to be a sibling instruction (not a CPI) executed before the instruction that relies on it.
  *
  * @param customInstructionIndex The index of the custom instruction in the transaction (e.g. if tx contains compute budget limit, compute budget price, ed25519 verify, custom ix, this would be 3).
  * @param messageOffset The offset within the custom instruction data where the signed message begins.
  * @param customInstructionData The entire instruction data array for the custom instruction.
+ * @param magicLen Length, in bytes, of a "magic"/tag prefix between `messageOffset` and the
+ * start of the 64-byte signature; defaults to `MAGIC_LEN` (4) if omitted.
+ * @returns A `TransactionInstruction` targeting `Ed25519Program` with no accounts, whose data
+ * encodes offsets (not copies) of the signature/pubkey/message living inside the referenced
+ * custom instruction.
  */
 export function createMinimalEd25519VerifyIx(
 	customInstructionIndex: number,

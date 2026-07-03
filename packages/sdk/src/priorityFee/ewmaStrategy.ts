@@ -1,6 +1,12 @@
 import { SolanaPriorityFeeResponse } from './solanaPriorityFeeMethod';
 import { PriorityFeeStrategy } from './types';
 
+/**
+ * `PriorityFeeStrategy` that computes an exponentially-weighted moving
+ * average of `prioritizationFee` over slots, so more recent samples are
+ * weighted more heavily and larger slot gaps decay the older sample's
+ * influence faster.
+ */
 class EwmaStrategy implements PriorityFeeStrategy {
 	private halfLife: number;
 
@@ -12,6 +18,10 @@ class EwmaStrategy implements PriorityFeeStrategy {
 	}
 
 	// samples provided in desc slot order
+	/**
+	 * @param samples Fee samples sorted descending by slot (as returned by `fetchSolanaPriorityFee`). Reversed internally to process oldest-first.
+	 * @returns `0` for an empty sample set; the single sample's fee if only one is provided; otherwise the EWMA, decayed per-step by `1 - exp(ln(0.5) / halfLife * slotGap)`.
+	 */
 	calculate(samples: SolanaPriorityFeeResponse[]): number {
 		if (samples.length === 0) {
 			return 0;

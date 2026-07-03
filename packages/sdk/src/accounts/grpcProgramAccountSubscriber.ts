@@ -11,6 +11,14 @@ import {
 	SubscribeUpdate,
 } from '../isomorphic/grpc';
 
+/**
+ * `ProgramAccountSubscriber` that streams every account owned by the program (optionally
+ * filtered by `memcmp`) via a gRPC Geyser plugin instead of `connection.onProgramAccountChange`.
+ * Extends `WebSocketProgramAccountSubscriber` to reuse its per-account buffering/decode/resub-
+ * timer logic — only the transport (`subscribe`/`unsubscribe`) is replaced. Construct via the
+ * static `create` factory, not the constructor directly, since establishing the gRPC client is
+ * asynchronous.
+ */
 export class grpcProgramAccountSubscriber<
 	T,
 > extends WebSocketProgramAccountSubscriber<T> {
@@ -51,6 +59,19 @@ export class grpcProgramAccountSubscriber<
 		this.commitmentLevel = commitmentLevel;
 	}
 
+	/**
+	 * Creates a gRPC client and constructs a `grpcProgramAccountSubscriber`. Forces zstd
+	 * compression and an adaptive HTTP/2 window on the channel (in addition to any caller-supplied
+	 * `channelOptions`), since program-wide account streams can be high-volume. Does not itself
+	 * start streaming — call `subscribe(onChange)` on the result.
+	 * @param grpcConfigs gRPC Geyser endpoint/token/commitment config (Yellowstone or LaserStream).
+	 * @param subscriptionName Human-readable name for logging.
+	 * @param accountDiscriminator Anchor account type name passed to `decodeBufferFn` for each update.
+	 * @param program Anchor program whose accounts to stream (filtered to `program.programId` as owner).
+	 * @param decodeBufferFn Decode function for each account's raw buffer.
+	 * @param options `filters.memcmp` filters narrowing which program accounts are streamed; empty streams every account owned by the program.
+	 * @param resubOpts Resubscription watchdog options; omit to disable the inactivity timer.
+	 */
 	public static async create<U>(
 		grpcConfigs: GrpcConfigs,
 		subscriptionName: string,
@@ -88,6 +109,13 @@ export class grpcProgramAccountSubscriber<
 		);
 	}
 
+	/**
+	 * Opens a gRPC subscribe stream filtered to accounts owned by `program.programId` (further
+	 * narrowed by the `filters` passed to `create`). Idempotent: a no-op if already subscribed or
+	 * mid-unsubscribe. Unlike `grpcAccountSubscriber`, does not perform an initial `fetch()` — the
+	 * caller must fetch any pre-existing matching accounts separately if needed.
+	 * @param onChange Invoked once per changed account with its pubkey, decoded data, the notification's `Context`, and the raw buffer.
+	 */
 	async subscribe(
 		onChange: (
 			accountId: PublicKey,
@@ -190,6 +218,11 @@ export class grpcProgramAccountSubscriber<
 		});
 	}
 
+	/**
+	 * Writes an empty subscribe request to clear the stream's filter and cancels any pending
+	 * resub timeout.
+	 * @param onResub Internal flag set to `true` when called as part of an automatic resubscribe cycle, which preserves `resubOpts.resubTimeoutMs` instead of clearing it. Callers should omit this.
+	 */
 	public async unsubscribe(onResub = false): Promise<void> {
 		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;

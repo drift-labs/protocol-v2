@@ -161,6 +161,15 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 	private resubscriptionTimeout?: ReturnType<typeof setTimeout>; // Timeout for delayed resubscription
 	private accountsWithMissedUpdates: Set<string> = new Set(); // Track which accounts had missed updates
 
+	/**
+	 * @param subscriptionName Human-readable name for logging.
+	 * @param accountDiscriminator Anchor account type name passed to `decodeBufferFn` for each update.
+	 * @param program Anchor program whose accounts to watch (filtered to `program.programId` as owner); its connection's RPC endpoint is reused to build the `gill` client.
+	 * @param decodeBufferFn Decode function for each account's raw buffer.
+	 * @param options `filters` narrowing which program accounts are watched; `commitment` for the WS subscription and RPC polls.
+	 * @param resubOpts Resubscription/polling options; defaults to `{ resubTimeoutMs: 30000, usePollingInsteadOfResub: true }` if omitted (stricter than the v1 `WebSocketProgramAccountSubscriber`, which defaults to no watchdog at all).
+	 * @param accountsToMonitor Initial set of accounts to apply the polling safeguard to; more can be added later via `addAccountToMonitor`.
+	 */
 	public constructor(
 		subscriptionName: string,
 		accountDiscriminator: string,
@@ -377,6 +386,13 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 		);
 	}
 
+	/**
+	 * Applies a raw notification (or polled response) for one account: decodes and stores it
+	 * (updating that account's entry in `bufferAndSlotMap` and invoking `onChange`) only if the
+	 * slot is not older than the cached one for that specific account and the buffer's bytes
+	 * actually changed. Also records the WS notification time and, if this account was in the
+	 * polling set, removes it from polling now that a fresh WS update arrived.
+	 */
 	handleRpcResponse(
 		context: { slot: bigint },
 		accountId: Address,
@@ -931,6 +947,10 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 		}
 	}
 
+	/**
+	 * Tears down all polling timeouts and aborts the WebSocket subscription.
+	 * @param onResub Internal flag set to `true` when called as part of an automatic resubscribe cycle, which preserves `resubOpts.resubTimeoutMs` instead of clearing it. Callers should omit this.
+	 */
 	unsubscribe(onResub = false): Promise<void> {
 		if (!onResub) {
 			this.resubOpts.resubTimeoutMs = undefined;
@@ -971,6 +991,7 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 	}
 
 	// Method to remove accounts from the polling list
+	/** Removes an account from the monitored set and clears any pending/active polling state for it. */
 	removeAccountFromMonitor(accountId: PublicKey): void {
 		const accountIdString = accountId.toBase58();
 		this.accountsToMonitor.delete(accountIdString);

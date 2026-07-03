@@ -1,12 +1,13 @@
 import { Commitment, Connection } from '@solana/web3.js';
 
+/** Configuration for `BlockhashSubscriber`. */
 export type BlockhashSubscriberConfig = {
-	/// rpcUrl to poll block hashes from, one of rpcUrl or Connection must provided
+	/** RPC URL to poll block hashes from; a `Connection` is constructed from it if `connection` is not provided. One of `rpcUrl`/`connection` must be supplied. */
 	rpcUrl?: string;
-	/// connection to poll block hashes from, one of rpcUrl or Connection must provided
+	/** Existing `Connection` to poll block hashes on, taking precedence over `rpcUrl` if both are given. One of `rpcUrl`/`connection` must be supplied. */
 	connection?: Connection;
-	/// commitment to poll block hashes with, default is 'confirmed'
+	/** Commitment level for both the blockhash and block-height polls; defaults to `'confirmed'`. */
 	commitment?: Commitment;
-	/// interval to poll block hashes, default is 1000 ms
+	/** Poll interval in milliseconds; defaults to `1000`. */
 	updateIntervalMs?: number;
 };

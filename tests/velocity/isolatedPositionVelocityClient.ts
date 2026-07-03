@@ -248,6 +248,57 @@ describe('velocity client', () => {
 		assert.ok(depositRecord.amount.eq(new BN(10000000)));
 	});
 
+	it('Withdraw all via oversized amount clamps to withdrawable balance', async () => {
+		// Re-Deposit USDC, assuming we have 0 balance here
+		await velocityClient.depositIntoIsolatedPerpPosition(
+			usdcAmount,
+			0,
+			userUSDCAccount.publicKey
+		);
+
+		// Request far more than the deposit; the SDK must clamp to the
+		// withdrawable balance instead of sending an oversized u64 on-chain
+		await velocityClient.withdrawFromIsolatedPerpPosition(
+			usdcAmount.muln(2),
+			0,
+			userUSDCAccount.publicKey
+		);
+
+		await velocityClient.fetchAccounts();
+		assert(velocityClient.getIsolatedPerpPositionTokenAmount(0).eq(ZERO));
+
+		const quoteSpotVault =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				velocityClient.getQuoteSpotMarketAccount().vault
+			);
+		assert.ok(new BN(Number(quoteSpotVault.amount)).eq(ZERO));
+
+		const userUSDCtoken =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userUSDCAccount.publicKey
+			);
+		assert.ok(new BN(Number(userUSDCtoken.amount)).eq(usdcAmount));
+	});
+
+	it('Withdraw throws client-side when nothing is withdrawable', async () => {
+		let thrownError: Error;
+		try {
+			await velocityClient.withdrawFromIsolatedPerpPosition(
+				usdcAmount,
+				0,
+				userUSDCAccount.publicKey
+			);
+			assert(false, 'Withdrawal should have thrown client-side');
+		} catch (e) {
+			thrownError = e;
+		}
+
+		assert.strictEqual(
+			thrownError.message,
+			'Isolated perp position in market 0 has no withdrawable collateral (deposit + claimable PnL = 0)'
+		);
+	});
+
 	it('Long from 0 position', async () => {
 		// Re-Deposit USDC, assuming we have 0 balance here
 		await velocityClient.depositIntoIsolatedPerpPosition(

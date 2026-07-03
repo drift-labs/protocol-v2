@@ -22,6 +22,12 @@ export function registerShow(parent: Command): void {
 			const state = client.getStateAccount();
 			console.log('cold admin:', state.coldAdmin.toBase58());
 			console.log('warm admin:', state.warmAdmin.toBase58());
+			console.log(
+				'pause admin:',
+				state.pauseAdmin.equals(PublicKey.default)
+					? '(unset)'
+					: state.pauseAdmin.toBase58()
+			);
 			for (const role of Object.values(HotRole)) {
 				const key = `hot${role.charAt(0).toUpperCase()}${role.slice(
 					1

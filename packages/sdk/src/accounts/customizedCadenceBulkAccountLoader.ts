@@ -3,6 +3,15 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * `BulkAccountLoader` variant where each account can be polled at its own cadence instead of a
+ * single shared `pollingFrequency`. Overrides the base class's single `setInterval` with a
+ * per-account `accountFrequencies` map: `handleAccountLoading()` only includes an account in a
+ * given tick if `Date.now() - lastPollingTime >= frequency` for that account, then delegates to
+ * the inherited chunked `loadChunk` for the actual `getMultipleAccounts` batch. The interval
+ * itself always runs at the fastest frequency across all registered accounts (see `startPolling`),
+ * so slower accounts simply get skipped on ticks that fire before they're due.
+ */
 export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 	private customIntervalId: NodeJS.Timeout | null;
 	private currentPollingFrequency: number | null;
@@ -10,6 +19,11 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 	private lastPollingTimes: Map<string, number>;
 	private defaultPollingFrequency: number;
 
+	/**
+	 * @param connection Connection used for the batched `getMultipleAccounts` polls.
+	 * @param commitment Commitment level applied to every poll.
+	 * @param defaultPollingFrequency Polling cadence in ms (see base `BulkAccountLoader`) used for any account added without an explicit `customPollingFrequency`, and as the floor when computing the shared interval in `startPolling`.
+	 */
 	constructor(
 		connection: Connection,
 		commitment: Commitment,
@@ -47,6 +61,7 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		return accountsToLoad;
 	}
 
+	/** Immediately runs one due-account loading pass, bypassing the interval timer. Unlike the base class's `load()`, this does not force-load every registered account — only those currently due per their own cadence. */
 	public async load(): Promise<void> {
 		return this.handleAccountLoading();
 	}
@@ -149,6 +164,14 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		return callbackId;
 	}
 
+	/**
+	 * Unregisters a callback previously returned by `addAccount`. Once an account has no
+	 * remaining callbacks, its cached buffer/slot and cadence bookkeeping (`accountFrequencies`,
+	 * `lastPollingTimes`) are dropped; if no accounts remain at all, polling stops entirely,
+	 * otherwise polling is restarted in case the removed account held the fastest cadence.
+	 * @param publicKey Account the callback was registered against.
+	 * @param callbackId Id returned by `addAccount`.
+	 */
 	public removeAccount(publicKey: PublicKey, callbackId: string): void {
 		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
 
@@ -172,11 +195,18 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		}
 	}
 
+	/** Returns the polling cadence in ms currently set for `publicKey` (custom or default), or `null` if the account isn't registered. */
 	public getAccountCadence(publicKey: PublicKey): number | null {
 		const key = publicKey.toBase58();
 		return this.accountFrequencies.get(key) || null;
 	}
 
+	/**
+	 * Starts the shared interval timer, ticking at the fastest cadence among all registered
+	 * accounts (or `defaultPollingFrequency` if none are registered). Each tick runs
+	 * `handleAccountLoading()`, which loads only the accounts due at that moment. A no-op if
+	 * already running; call `stopPolling()` first to pick up a new minimum frequency.
+	 */
 	public startPolling(): void {
 		if (this.customIntervalId) {
 			return;
@@ -196,6 +226,7 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		}, minFrequency);
 	}
 
+	/** Stops the shared interval timer (and the base class's, via `super.stopPolling()`) and clears `lastPollingTimes` so every account is treated as due again once polling restarts. */
 	public stopPolling(): void {
 		super.stopPolling();
 
@@ -207,6 +238,12 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		this.lastPollingTimes.clear();
 	}
 
+	/**
+	 * Clears all per-account cadence bookkeeping. Because `getAccountsToLoad()` only considers
+	 * accounts with an entry in `accountFrequencies`, this stops polling for every registered
+	 * account until a cadence is re-established via `setCustomPollingFrequency` or `addAccount`.
+	 * Registered accounts/callbacks themselves are untouched.
+	 */
 	public clearAccountFrequencies(): void {
 		this.accountFrequencies.clear();
 	}

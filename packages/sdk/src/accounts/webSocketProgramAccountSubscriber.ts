@@ -10,6 +10,18 @@ import {
 import { VelocityProgram } from '../config';
 import * as Buffer from 'buffer';
 
+/**
+ * Default `ProgramAccountSubscriber` implementation: tracks every account owned by the program
+ * (optionally narrowed by `options.filters`) via `connection.onProgramAccountChange`, decoding
+ * each notification with `decodeBufferFn`. Maintains a per-account (not single, unlike
+ * `WebSocketAccountSubscriber`) `bufferAndSlotMap`, since one program subscription covers many
+ * accounts; updates are applied per-account only when the notification's slot is not older than
+ * that account's last-seen slot and its buffer actually changed. If `resubOpts.resubTimeoutMs`
+ * is set, a watchdog timer resubscribes the whole program subscription whenever no notification
+ * (for *any* account) arrives within that window. This is the base class extended by
+ * `grpcProgramAccountSubscriber` and `LaserstreamProgramAccountSubscriber` for gRPC Geyser-backed
+ * tracking.
+ */
 export class WebSocketProgramAccountSubscriber<T>
 	implements ProgramAccountSubscriber<T>
 {
@@ -54,6 +66,14 @@ export class WebSocketProgramAccountSubscriber<T>
 
 	receivingData = false;
 
+	/**
+	 * @param subscriptionName Human-readable name for logging.
+	 * @param accountDiscriminator Anchor account type name passed to `decodeBufferFn` for each update.
+	 * @param program Anchor program whose accounts to watch (filtered to `program.programId` as owner).
+	 * @param decodeBufferFn Decode function for each account's raw buffer.
+	 * @param options `filters` narrowing which program accounts are watched (empty watches every account owned by the program); `commitment` for the subscription, defaulting to the provider's configured commitment.
+	 * @param resubOpts Resubscription watchdog options; omit to disable the inactivity timer.
+	 */
 	public constructor(
 		subscriptionName: string,
 		accountDiscriminator: string,
@@ -81,6 +101,12 @@ export class WebSocketProgramAccountSubscriber<T>
 		this.receivingData = false;
 	}
 
+	/**
+	 * Attaches the `onProgramAccountChange` WebSocket listener. Idempotent: a no-op if already
+	 * subscribed or mid-unsubscribe. Does not perform an initial fetch of matching accounts — the
+	 * caller must fetch any pre-existing accounts separately if needed.
+	 * @param onChange Invoked once per changed account with its pubkey, decoded data, the notification's `Context`, and the raw buffer.
+	 */
 	async subscribe(
 		onChange: (
 			accountId: PublicKey,
@@ -144,6 +170,12 @@ export class WebSocketProgramAccountSubscriber<T>
 		);
 	}
 
+	/**
+	 * Applies a raw notification for one account within the program subscription: decodes and
+	 * stores it (updating that account's entry in `bufferAndSlotMap` and invoking `onChange`) only
+	 * if the slot is not older than the cached one for that specific account and the buffer's
+	 * bytes actually changed (or this is the first observation of that account).
+	 */
 	handleRpcResponse(
 		context: Context,
 		keyedAccountInfo: KeyedAccountInfo
@@ -184,6 +216,10 @@ export class WebSocketProgramAccountSubscriber<T>
 		}
 	}
 
+	/**
+	 * Tears down the `onProgramAccountChange` listener and cancels any pending resub timeout.
+	 * @param onResub Internal flag set to `true` when called as part of an automatic resubscribe cycle, which preserves `resubOpts.resubTimeoutMs` instead of clearing it. Callers should omit this.
+	 */
 	unsubscribe(onResub = false): Promise<void> {
 		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;

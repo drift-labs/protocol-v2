@@ -9,6 +9,17 @@ const PROGRAM_LOG_START_INDEX = PROGRAM_LOG.length;
 const PROGRAM_DATA_START_INDEX = PROGRAM_DATA.length;
 const PROGRAM_INSTRUCTION_START_INDEX = PROGRAM_INSTRUCTION.length;
 
+/**
+ * Decodes Anchor events from a transaction's raw log lines. Walks the log
+ * lines tracking the CPI call stack so only `msg!`/`sol_log_data` lines
+ * logged while the Velocity program is the currently-executing program are
+ * treated as candidate events; lines after `'Log truncated'` are ignored
+ * (the RPC node cut off the log before printing exceeded 10KB).
+ * @param program Anchor `Program` whose IDL coder decodes the event discriminator/payload.
+ * @param logs Raw `logMessages` for one transaction.
+ * @param programId Program ID whose logs are decoded; defaults to the Velocity program.
+ * @returns Decoded Anchor `Event`s in log order (does not include `slot`/`txSig`/`txSigIndex` — callers such as `EventSubscriber` attach those).
+ */
 export function parseLogs(
 	program: Program,
 	logs: string[],
@@ -18,6 +29,7 @@ export function parseLogs(
 	return events;
 }
 
+/** Same as `parseLogs`, but also returns the raw log line each event was decoded from (parallel-indexed to `events`), for callers that need to keep the original log text. */
 export function parseLogsWithRaw(
 	program: Program,
 	logs: string[],
@@ -151,6 +163,17 @@ class ExecutionContext {
 	}
 }
 
+/**
+ * Extracts per-instruction compute-unit usage from a transaction's raw logs
+ * by matching `Program log: Instruction: <name>` and
+ * `Program <id> consumed N of M compute units` lines while `programId` is
+ * the currently-executing program. Unlike `parseLogs`, this is not decoding
+ * a real on-chain `#[event]` — `CuUsage` is a synthetic event shape for
+ * client-side profiling.
+ * @param logs Raw `logMessages` for one transaction.
+ * @param programId Program ID whose CU consumption is measured; defaults to the Velocity program.
+ * @returns One `Event<CuUsage>` per top-level instruction invoking that program, in log order. `cuUsage` is in compute units.
+ */
 export function parseLogsForCuUsage(
 	logs: string[],
 	programId = velocityProgramId

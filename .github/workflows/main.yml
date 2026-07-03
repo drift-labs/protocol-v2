@@ -318,6 +318,7 @@ jobs:
         working-directory: packages/sdk
         run: |
           bun run test
+          bun run test:parity
           bun run test:dlob
           bun run test:bignum
           bun run test:events
