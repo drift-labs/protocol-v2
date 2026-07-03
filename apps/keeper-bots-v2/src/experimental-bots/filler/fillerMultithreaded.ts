@@ -1517,6 +1517,7 @@ export class FillerMultithreaded {
 				takerUserPubKey,
 				takerUserSlot,
 				referrerInfo,
+				takerIsReferred,
 				marketType,
 				takerStatsPubKey,
 				isSignedMsg,
@@ -1628,7 +1629,11 @@ export class FillerMultithreaded {
 					// referrer param removed from velocity SDK; 5th arg is now
 					// fillerSubAccountId.
 					this.subaccount,
-					isSignedMsg
+					isSignedMsg,
+					undefined, // fillerAuthority
+					undefined, // hasBuilderFee (derived from order bitflags)
+					undefined, // takerEscrow (referred case signalled below)
+					takerIsReferred
 				);
 				fillIxs.push(fillIx);
 
@@ -1835,6 +1840,7 @@ export class FillerMultithreaded {
 			takerStatsPubKey,
 			isSignedMsg,
 			authority,
+			takerIsReferred,
 		} = await this.getNodeFillInfo(nodeToFill);
 
 		let removeLastIxPostSim = this.revertOnFailure && !isSignedMsg;
@@ -1913,7 +1919,11 @@ export class FillerMultithreaded {
 			// referrer param removed from velocity SDK; 5th arg is now
 			// fillerSubAccountId.
 			this.subaccount,
-			isSignedMsg
+			isSignedMsg,
+			undefined, // fillerAuthority
+			undefined, // hasBuilderFee (derived from order bitflags)
+			undefined, // takerEscrow (referred case signalled below)
+			takerIsReferred
 		);
 		fillIxs.push(fillIx);
 
@@ -2340,6 +2350,7 @@ export class FillerMultithreaded {
 		takerStatsPubKey: PublicKey;
 		takerUserSlot: number;
 		referrerInfo: ReferrerInfo | undefined;
+		takerIsReferred: boolean;
 		marketType: MarketType;
 		isSignedMsg: boolean | undefined;
 		authority: PublicKey;
@@ -2416,6 +2427,21 @@ export class FillerMultithreaded {
 			referrerInfo = undefined;
 		}
 
+		// The program's fill gate requires the taker's RevenueShareEscrow when the
+		// taker is referred (their escrow was initialized with a referrer) — the
+		// UserStats.referrerStatus BuilderReferral bit. ReferrerMap reads it from
+		// the same UserStats fetch it already does for referrerInfo.
+		let takerIsReferred = false;
+		try {
+			takerIsReferred = await this.referrerMap.mustGetIsBuilderReferral(
+				authority
+			);
+		} catch (e) {
+			logger.warn(
+				`getNodeFillInfo: Failed to get builder-referral status: ${e}`
+			);
+		}
+
 		return Promise.resolve({
 			makerInfos,
 			takerUserPubKey,
@@ -2426,6 +2452,7 @@ export class FillerMultithreaded {
 			),
 			takerUserSlot: this.slotSubscriber.getSlot(),
 			referrerInfo,
+			takerIsReferred,
 			marketType: nodeToFill.node.order!.marketType,
 			isSignedMsg: nodeToFill.node.isSignedMsg,
 			authority: new PublicKey(authority),

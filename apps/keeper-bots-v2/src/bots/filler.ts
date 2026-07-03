@@ -11,6 +11,7 @@ import {
 	NodeToFill,
 	UserMap,
 	UserStatsMap,
+	isBuilderReferral,
 	MarketType,
 	isOrderExpired,
 	BulkAccountLoader,
@@ -1011,6 +1012,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		takerUser: UserAccount;
 		takerUserSlot: number;
 		referrerInfo: ReferrerInfo | undefined;
+		takerIsReferred: boolean;
 		marketType: MarketType;
 	}> {
 		const makerInfos: Array<DataAndSlot<MakerInfo>> = [];
@@ -1065,9 +1067,17 @@ export class FillerBot extends TxThreaded implements Bot {
 		const takerUserAcct = await this.getUserAccountAndSlotFromMap(
 			takerUserPubKey
 		);
-		const referrerInfo = (
-			await this.userStatsMap!.mustGet(takerUserAcct.data.authority.toString())
-		).getReferrerInfo();
+		const takerStats = await this.userStatsMap!.mustGet(
+			takerUserAcct.data.authority.toString()
+		);
+		const referrerInfo = takerStats.getReferrerInfo();
+		// The program's fill gate requires the taker's RevenueShareEscrow when the
+		// taker is referred (their escrow was initialized with a referrer) — the
+		// UserStats.referrerStatus BuilderReferral bit, which is already loaded here.
+		const takerStatsAccount = takerStats.getAccount();
+		const takerIsReferred = takerStatsAccount
+			? isBuilderReferral(takerStatsAccount)
+			: false;
 
 		return Promise.resolve({
 			makerInfos,
@@ -1075,6 +1085,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			takerUser: takerUserAcct.data,
 			takerUserSlot: takerUserAcct.slot,
 			referrerInfo,
+			takerIsReferred,
 			marketType: nodeToFill.node.order!.marketType,
 		});
 	}
@@ -1461,6 +1472,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				takerUser,
 				takerUserPubKey,
 				takerUserSlot,
+				takerIsReferred,
 				marketType,
 			} = await this.getNodeFillInfo(nodeToFill);
 
@@ -1517,7 +1529,12 @@ export class FillerBot extends TxThreaded implements Bot {
 						makers.map((m) => m.data),
 						// referrer concept removed in velocity SDK; 5th arg is now
 						// fillerSubAccountId (number) — leave default.
-						undefined
+						undefined, // fillerSubAccountId
+						undefined, // isSignedMsg
+						undefined, // fillerAuthority
+						undefined, // hasBuilderFee (derived from order bitflags)
+						undefined, // takerEscrow (referred case signalled below)
+						takerIsReferred
 					)
 				);
 
@@ -1709,6 +1726,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				takerUserPubKey,
 				takerUserSlot,
 				referrerInfo,
+				takerIsReferred,
 				marketType,
 			} = await this.getNodeFillInfo(nodeToFill);
 
@@ -1750,7 +1768,12 @@ export class FillerBot extends TxThreaded implements Bot {
 				makerInfos.map((m) => m.data),
 				// referrer concept removed in velocity SDK; 5th arg is now
 				// fillerSubAccountId (number) — leave default.
-				undefined
+				undefined, // fillerSubAccountId
+				undefined, // isSignedMsg
+				undefined, // fillerAuthority
+				undefined, // hasBuilderFee (derived from order bitflags)
+				undefined, // takerEscrow (referred case signalled below)
+				takerIsReferred
 			);
 
 			if (!ix) {
@@ -2001,6 +2024,9 @@ export class FillerBot extends TxThreaded implements Bot {
 				})
 			);
 			let referrerInfo: ReferrerInfo | undefined;
+			// The taker of a triggered order can also be referred; the fill leg then
+			// requires their escrow (see getNodeFillInfo).
+			let takerIsReferred = false;
 			try {
 				const takerUserPubKey = nodeToTrigger.node.userAccount.toString();
 				const takerUserAcct = await this.getUserAccountAndSlotFromMap(
@@ -2010,6 +2036,10 @@ export class FillerBot extends TxThreaded implements Bot {
 					takerUserAcct.data.authority.toString()
 				);
 				referrerInfo = userStats.getReferrerInfo();
+				const userStatsAccount = userStats.getAccount();
+				takerIsReferred = userStatsAccount
+					? isBuilderReferral(userStatsAccount)
+					: false;
 				logger.info(
 					`[Filler - executeTriggerablePerpNodes] Got referrerInfo: ${referrerInfo}`
 				);
@@ -2030,7 +2060,12 @@ export class FillerBot extends TxThreaded implements Bot {
 					makerInfos,
 					// referrer concept removed in velocity SDK; 5th arg is now
 					// fillerSubAccountId (number) — leave default.
-					undefined
+					undefined, // fillerSubAccountId
+					undefined, // isSignedMsg
+					undefined, // fillerAuthority
+					undefined, // hasBuilderFee (derived from order bitflags)
+					undefined, // takerEscrow (referred case signalled below)
+					takerIsReferred
 				);
 				ixs.push(fillIx);
 

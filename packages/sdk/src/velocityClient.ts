@@ -4789,15 +4789,22 @@ export class VelocityClient {
 	private getTakerEscrowAccountMeta(
 		takerAuthority: PublicKey,
 		orderHasBuilder: boolean,
-		takerEscrow?: RevenueShareEscrowAccount
+		takerEscrow?: RevenueShareEscrowAccount,
+		takerIsReferred?: boolean
 	): AccountMeta | undefined {
 		if (takerEscrow && !takerEscrow.authority.equals(takerAuthority)) {
 			throw new Error(
 				'takerEscrow.authority does not match the taker user account authority'
 			);
 		}
-		const takerIsReferred = takerEscrow && escrowHasReferrer(takerEscrow);
-		if (!orderHasBuilder && !takerIsReferred) {
+		// A taker is "referred" when their RevenueShareEscrow was initialized with a
+		// referrer. Callers can signal this directly (`takerIsReferred`, e.g. from
+		// the taker's UserStats.referrerStatus BuilderReferral bit — exactly what the
+		// on-chain fill gate reads) or implicitly via a decoded escrow with a
+		// referrer. The escrow PDA is deterministic, so no escrow data is required.
+		const referred =
+			!!takerIsReferred || (!!takerEscrow && escrowHasReferrer(takerEscrow));
+		if (!orderHasBuilder && !referred) {
 			return undefined;
 		}
 		return {
@@ -5582,10 +5589,15 @@ export class VelocityClient {
 		fillerAuthority?: PublicKey,
 		hasBuilderFee?: boolean,
 		// The program rejects fills that omit the taker's RevenueShareEscrow when the
-		// order has a builder OR the taker is referred with an escrow. The builder case
-		// is detected from the order bitflags; pass the taker's decoded escrow (e.g.
-		// from a RevenueShareEscrowMap) so referred takers also get it attached.
-		takerEscrow?: RevenueShareEscrowAccount
+		// order has a builder OR the taker is referred. The builder case is detected
+		// from the order bitflags. For the referred case, prefer `takerIsReferred`
+		// (below) — passing a decoded `takerEscrow` still works but is not required.
+		takerEscrow?: RevenueShareEscrowAccount,
+		// Set when the taker is referred (their escrow was initialized with a
+		// referrer). This mirrors the on-chain gate, which reads the taker's
+		// UserStats.referrerStatus BuilderReferral bit — e.g. pass
+		// `isBuilderReferral(takerUserStats)`. No escrow account data is needed.
+		takerIsReferred?: boolean
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -5674,7 +5686,8 @@ export class VelocityClient {
 		const takerEscrowMeta = this.getTakerEscrowAccountMeta(
 			userAccount.authority,
 			withBuilder,
-			takerEscrow
+			takerEscrow,
+			takerIsReferred
 		);
 		if (takerEscrowMeta) {
 			remainingAccounts.push(takerEscrowMeta);
