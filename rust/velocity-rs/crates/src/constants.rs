@@ -454,116 +454,30 @@ macro_rules! generate_pyth_lazer_mappings {
 }
 
 generate_pyth_lazer_mappings! {
+    // Velocity's deployed perp markets, keyed by on-chain `marketIndex`. Kept in sync
+    // with the authoritative TS registry `packages/sdk/src/constants/perpMarkets.ts`
+    // (`MainnetPerpMarkets`). Devnet uses a subset of these same indices/feeds. Do NOT
+    // reintroduce the inherited Drift market table here — those indices don't exist
+    // on-chain and mis-map the crank's lazer subscriptions.
     const PYTH_LAZER_FEED_ID_TO_PERP_MARKET_MAINNET: [
-        (6, 0),     // SOL
-        (1, 1),     // BTC
-        (2, 2),     // ETH
-        (28, 3),    // APT
-        (9, 4),     // 1MBONK
-        (32, 5),    // POL
-        (37, 6),    // ARB
-        (13, 7),    // DOGE
-        (15, 8),    // BNB
-        (11, 9),    // SUI
-        (4, 10),    // 1MPEPE
-        (41, 11),   // OP
-        (34, 12),   // RENDER
-        (14, 13),   // XRP
-        (168, 14),  // HNT
-        (46, 15),   // INJ
-        (19, 16),   // LINK
-        (3, 18),    // PYTH
-        (48, 19),   // TIA
-        (91, 20),   // JTO
-        (51, 21),   // SEI
-        (18, 22),   // AVAX
-        (10, 23),   // WIF
-        (92, 24),   // JUP
-        (83, 25),   // DYM
-        (36, 26),   // TAO
-        (102, 27),  // W
-        (464, 28),  // KMNO
-        (99, 29),   // TNSR
-        (249, 30),  // DRIFT
-        (404, 31),  // CLOUD
-        (90, 32),   // IO
-        (130, 34),  // POPCAT
-        (12, 42),   // TON
-        (501, 44),  // MOTHER
-        (500, 45),  // MOODENG
-        (437, 53),  // GOAT
-        (77, 55),   // PNUT
-        (54, 56),   // RAY
-        (110, 59),  // HYPE
-        (26, 60),   // LTC
-        (93, 61),   // ME
-        (97, 62),   // PENGU
-        (171, 63),  // AI16Z
-        (203, 64),  // TRUMP
-        (145, 65),  // MELANIA
-        (308, 66),  // BERA
-        (306, 69),  // KAITO
-        (309, 70),  // IP
-        (182, 71),  // FARTCOIN
-        (16, 72),   // ADA
-        (163, 73),  // PAXG
-        // (1578, 75), // PUMP
-        (2310, 76), // ASTER
-        (2312, 77), // XPL
-        (2316, 78), // 2Z
-        (66, 79),   // ZEC
-        (199, 80),  // MNT
-        (1578, 81), // 1KPUMP
-        (2382, 82), // MET
-        (2396, 83), // 1KMON
+        (6, 0),   // SOL
+        (1, 1),   // BTC
+        (2, 2),   // ETH
+        (110, 3), // HYPE
     ];
     fn pyth_lazer_feed_id_to_perp_market_index;
     fn perp_market_index_to_pyth_lazer_feed_id;
 }
 
 generate_pyth_lazer_mappings! {
+    // Velocity's deployed spot markets, keyed by on-chain `marketIndex`. Kept in sync
+    // with the authoritative TS registry `packages/sdk/src/constants/spotMarkets.ts`
+    // (`MainnetSpotMarkets`). Devnet mirrors the same indices/feeds (index 0 is dUSDT).
+    // Do NOT reintroduce the inherited Drift spot table here — Velocity renumbered
+    // spot markets (index 0 is USDT, not USDC), so the old table mis-maps the crank.
     const PYTH_LAZER_FEED_ID_TO_SPOT_MARKET_MAINNET: [
-        (7, 0),    // USDC
-        (6, 1),    // SOL
-        (503, 2),  // mSOL
-        (103, 3),  // wBTC
-        (8, 5),    // USDT
-        (458, 6),  // jitoSOL
-        (3, 7),    // PYTH
-        (91, 9),   // JTO
-        (10, 10),  // WIF
-        (92, 11),  // JUP
-        (34, 12),  // RENDER
-        (102, 13), // W
-        (99, 14),  // TNSR
-        (249, 15), // DRIFT
-        (276, 18), // USDY
-        (459, 19), // JLP
-        (130, 20), // POPCAT
-        (404, 21), // CLOUD
-        (156, 22), // PYUSD
-        (204, 23), // USDe
-        (582, 24), // sUSDe
-        (384, 25), // BNSOL
-        (501, 26), // MOTHER
-        (611, 28), // USDS
-        (93, 30),  // ME
-        (97, 31),  // PENGU
-        (9, 32),   // BONK
-        // (7, 34),   // USDC-1
-        (203, 36), // TRUMP
-        (145, 37), // MELANIA
-        (367, 38), // AUSD
-        (182, 39), // FARTCOIN
-        (640, 45), // zBTC
-        (643, 46), // ZEUS
-        // (7, 47),   // USDC-4
-        // (8, 48),   // USDT-4
-        (240, 54), // EURC
-        (1578, 56), // PUMP
-        (2316, 59), // 2Z
-        (2382, 60), // MET
-        (2323, 61), // CASH
+        (8, 0), // USDT
+        (6, 1), // SOL
     ];
     fn pyth_lazer_feed_id_to_spot_market_index;
     fn spot_market_index_to_pyth_lazer_feed_id;
