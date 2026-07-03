@@ -2,7 +2,7 @@
   "address": "vELoC1audYbSYVRXn1vPaV8Axoa9oU6BYmNGZZBDZ1P",
   "metadata": {
     "name": "velocity",
-    "version": "2.162.0",
+    "version": "2.162.1",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
@@ -16011,6 +16011,11 @@
       "code": 6356,
       "name": "InvalidNativePerpMarketAccount",
       "msg": "Native dispatch: supplied market account is not a Velocity perp market"
+    },
+    {
+      "code": 6357,
+      "name": "IsolatedPositionDisabled",
+      "msg": "Isolated positions are not enabled in this build"
     }
   ],
   "types": [

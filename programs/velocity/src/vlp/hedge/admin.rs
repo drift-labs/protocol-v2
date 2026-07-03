@@ -2,12 +2,11 @@ use crate::auth::{check_hot, check_warm};
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
 use crate::ids::WHITELISTED_SWAP_PROGRAMS;
-use crate::instructions::optional_accounts::{get_token_mint, load_maps, AccountMaps};
+use crate::instructions::optional_accounts::get_token_mint;
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
 use crate::perp_market_valid;
 use crate::state::perp_market::PerpMarket;
-use crate::state::perp_market_map::MarketSet;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::HotRole;
 use crate::state::state::State;
@@ -900,100 +899,6 @@ pub fn handle_update_perp_market_lp_pool_status(
     Ok(())
 }
 
-pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
-    ctx: Context<'info, UpdateInitialAmmCacheInfo<'info>>,
-) -> Result<()> {
-    let amm_cache = &mut ctx.accounts.amm_cache;
-    let slot = Clock::get()?.slot;
-    let state = ctx.accounts.state.load()?;
-
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map: _,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &MarketSet::new(),
-        &MarketSet::new(),
-        Clock::get()?.slot,
-        None,
-    )?;
-
-    let validity = ctx.accounts.state.load()?.oracle_guard_rails.validity;
-    for (_, perp_market_loader) in perp_market_map.0 {
-        let perp_market = perp_market_loader.load()?;
-        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-        let mm_oracle_data = perp_market.get_mm_oracle_price_data(*oracle_data, slot, &validity)?;
-
-        amm_cache.update_perp_market_fields(&perp_market)?;
-        amm_cache.update_oracle_info(
-            slot,
-            perp_market.market_index,
-            &mm_oracle_data,
-            &perp_market,
-            &state.oracle_guard_rails,
-        )?;
-    }
-
-    Ok(())
-}
-
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
-pub struct OverrideAmmCacheParams {
-    pub quote_owed_from_lp_pool: Option<i64>,
-    pub last_settle_slot: Option<u64>,
-    pub last_fee_pool_token_amount: Option<u128>,
-    pub last_net_pnl_pool_token_amount: Option<i128>,
-    pub amm_position_scalar: Option<u8>,
-    pub amm_inventory_limit: Option<i64>,
-}
-
-pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
-    ctx: Context<'info, UpdateInitialAmmCacheInfo<'info>>,
-    market_index: u16,
-    override_params: OverrideAmmCacheParams,
-) -> Result<()> {
-    let amm_cache = &mut ctx.accounts.amm_cache;
-
-    let cache_entry = amm_cache.cache.get_mut(market_index as usize);
-    if cache_entry.is_none() {
-        msg!("No cache entry found for market index {}", market_index);
-        return Ok(());
-    }
-
-    let cache_entry = cache_entry.unwrap();
-    if let Some(quote_owed_from_lp_pool) = override_params.quote_owed_from_lp_pool {
-        cache_entry.quote_owed_from_lp_pool = quote_owed_from_lp_pool;
-    }
-    if let Some(last_settle_slot) = override_params.last_settle_slot {
-        cache_entry.last_settle_slot = last_settle_slot;
-    }
-    if let Some(last_fee_pool_token_amount) = override_params.last_fee_pool_token_amount {
-        cache_entry.last_fee_pool_token_amount = last_fee_pool_token_amount;
-    }
-    if let Some(last_net_pnl_pool_token_amount) = override_params.last_net_pnl_pool_token_amount {
-        cache_entry.last_net_pnl_pool_token_amount = last_net_pnl_pool_token_amount;
-    }
-
-    if let Some(amm_position_scalar) = override_params.amm_position_scalar {
-        cache_entry.amm_position_scalar = amm_position_scalar;
-    }
-
-    if let Some(amm_position_scalar) = override_params.amm_position_scalar {
-        cache_entry.amm_position_scalar = amm_position_scalar;
-    }
-
-    if let Some(amm_inventory_limit) = override_params.amm_inventory_limit {
-        if amm_inventory_limit < 0 {
-            msg!("amm_inventory_limit must be non-negative");
-            return Err(ErrorCode::DefaultError.into());
-        }
-        cache_entry.amm_inventory_limit = amm_inventory_limit;
-    }
-
-    Ok(())
-}
-
 #[derive(Accounts)]
 #[instruction(
     id: u8,
@@ -1362,38 +1267,4 @@ pub struct UpdatePerpMarketLpPoolStatus<'info> {
     #[account(mut,  seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump = amm_cache.bump,)]
     pub amm_cache: Box<Account<'info, AmmCache>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateInitialAmmCacheInfo<'info> {
-    #[account(mut)]
-    pub state: AccountLoader<'info, State>,
-    #[account(constraint = check_hot(&admin.key(), &state, HotRole::LpCache)?)]
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
-        bump = amm_cache.bump,
-    )]
-    pub amm_cache: Box<Account<'info, AmmCache>>,
-}
-
-#[derive(Accounts)]
-pub struct ResetAmmCache<'info> {
-    #[account(
-        mut,
-        constraint = check_hot(&admin.key(), &state, HotRole::LpCache)?
-    )]
-    pub admin: Signer<'info>,
-    pub state: AccountLoader<'info, State>,
-    #[account(
-        mut,
-        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
-        bump = amm_cache.bump,
-        realloc = AmmCache::space(state.load()?.number_of_markets as usize),
-        realloc::payer = admin,
-        realloc::zero = false,
-    )]
-    pub amm_cache: Box<Account<'info, AmmCache>>,
-    pub system_program: Program<'info, System>,
 }

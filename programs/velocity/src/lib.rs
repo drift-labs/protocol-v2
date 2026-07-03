@@ -188,6 +188,7 @@ pub mod velocity {
         handle_transfer_perp_position(ctx, market_index, amount)
     }
 
+    #[cfg(feature = "isolated-position")]
     pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
         ctx: Context<'info, DepositIsolatedPerpPosition<'info>>,
         spot_market_index: u16,
@@ -202,6 +203,7 @@ pub mod velocity {
         )
     }
 
+    #[cfg(feature = "isolated-position")]
     pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         ctx: Context<'info, TransferIsolatedPerpPositionDeposit<'info>>,
         spot_market_index: u16,
@@ -216,6 +218,7 @@ pub mod velocity {
         )
     }
 
+    #[cfg(feature = "isolated-position")]
     pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
         ctx: Context<'info, WithdrawIsolatedPerpPosition<'info>>,
         spot_market_index: u16,
@@ -952,6 +955,7 @@ pub mod velocity {
         handle_update_perp_market_expiry(ctx, expiry_ts)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_perp_market_lp_pool_paused_operations(
         ctx: Context<PauseAdminUpdatePerpMarket>,
         lp_paused_operations: u8,
@@ -959,6 +963,7 @@ pub mod velocity {
         handle_update_perp_market_lp_pool_paused_operations(ctx, lp_paused_operations)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_perp_market_lp_pool_status(
         ctx: Context<UpdatePerpMarketLpPoolStatus>,
         lp_status: u8,
@@ -966,6 +971,7 @@ pub mod velocity {
         handle_update_perp_market_lp_pool_status(ctx, lp_status)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_perp_market_lp_pool_fee_transfer_scalar(
         ctx: Context<HotAdminUpdatePerpMarketDlp>,
         optional_lp_fee_transfer_scalar: Option<u8>,
@@ -1083,6 +1089,7 @@ pub mod velocity {
         )
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_perp_market_lp_pool_id(
         ctx: Context<AdminUpdatePerpMarket>,
         lp_pool_id: u8,
@@ -1749,6 +1756,7 @@ pub mod velocity {
         handle_change_approved_builder(ctx, builder, max_fee_bps, add)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn initialize_lp_pool(
         ctx: Context<InitializeLpPool>,
         lp_pool_id: u8,
@@ -1767,6 +1775,7 @@ pub mod velocity {
         )
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_feature_bit_flags_settle_lp_pool(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,
@@ -1774,6 +1783,7 @@ pub mod velocity {
         handle_update_feature_bit_flags_settle_lp_pool(ctx, enable)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_feature_bit_flags_swap_lp_pool(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,
@@ -1781,6 +1791,7 @@ pub mod velocity {
         handle_update_feature_bit_flags_swap_lp_pool(ctx, enable)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_feature_bit_flags_mint_redeem_lp_pool(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,
@@ -1788,6 +1799,7 @@ pub mod velocity {
         handle_update_feature_bit_flags_mint_redeem_lp_pool(ctx, enable)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn initialize_constituent<'info>(
         ctx: Context<'info, InitializeConstituent<'info>>,
         spot_market_index: u16,
@@ -1828,6 +1840,7 @@ pub mod velocity {
         )
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_constituent_status<'info>(
         ctx: Context<'info, UpdateConstituentStatus<'info>>,
         new_status: u8,
@@ -1835,6 +1848,7 @@ pub mod velocity {
         handle_update_constituent_status(ctx, new_status)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_constituent_paused_operations<'info>(
         ctx: Context<'info, UpdateConstituentPausedOperations<'info>>,
         paused_operations: u8,
@@ -1842,6 +1856,7 @@ pub mod velocity {
         handle_update_constituent_paused_operations(ctx, paused_operations)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_constituent_params(
         ctx: Context<UpdateConstituentParams>,
         constituent_params: ConstituentParams,
@@ -1849,6 +1864,7 @@ pub mod velocity {
         handle_update_constituent_params(ctx, constituent_params)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_lp_pool_params(
         ctx: Context<UpdateLpPoolParams>,
         lp_pool_params: LpPoolParams,
@@ -1856,6 +1872,7 @@ pub mod velocity {
         handle_update_lp_pool_params(ctx, lp_pool_params)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn add_amm_constituent_mapping_data(
         ctx: Context<AddAmmConstituentMappingData>,
         amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
@@ -1863,6 +1880,7 @@ pub mod velocity {
         handle_add_amm_constituent_data(ctx, amm_constituent_mapping_data)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_amm_constituent_mapping_data(
         ctx: Context<UpdateAmmConstituentMappingData>,
         amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
@@ -1870,6 +1888,7 @@ pub mod velocity {
         handle_update_amm_constituent_mapping_data(ctx, amm_constituent_mapping_data)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn remove_amm_constituent_mapping_data<'c: 'info, 'info>(
         ctx: Context<'info, RemoveAmmConstituentMappingData<'info>>,
         perp_market_index: u16,
@@ -1878,6 +1897,7 @@ pub mod velocity {
         handle_remove_amm_constituent_mapping_data(ctx, perp_market_index, constituent_index)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_constituent_correlation_data(
         ctx: Context<UpdateConstituentCorrelation>,
         index1: u16,
@@ -1887,12 +1907,14 @@ pub mod velocity {
         handle_update_constituent_correlation_data(ctx, index1, index2, correlation)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_lp_constituent_target_base<'c: 'info, 'info>(
         ctx: Context<'info, UpdateConstituentTargetBase<'info>>,
     ) -> Result<()> {
         handle_update_constituent_target_base(ctx)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_lp_pool_aum<'c: 'info, 'info>(
         ctx: Context<'info, UpdateLPPoolAum<'info>>,
     ) -> Result<()> {
@@ -1913,6 +1935,7 @@ pub mod velocity {
         handle_override_amm_cache_info(ctx, market_index, override_params)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn lp_pool_swap<'c: 'info, 'info>(
         ctx: Context<'info, LPPoolSwap<'info>>,
         in_market_index: u16,
@@ -1929,6 +1952,7 @@ pub mod velocity {
         )
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn view_lp_pool_swap_fees<'c: 'info, 'info>(
         ctx: Context<'info, ViewLPPoolSwapFees<'info>>,
         in_market_index: u16,
@@ -1947,6 +1971,7 @@ pub mod velocity {
         )
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn lp_pool_add_liquidity<'c: 'info, 'info>(
         ctx: Context<'info, LPPoolAddLiquidity<'info>>,
         in_market_index: u16,
@@ -1956,6 +1981,7 @@ pub mod velocity {
         handle_lp_pool_add_liquidity(ctx, in_market_index, in_amount, min_mint_amount)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn lp_pool_remove_liquidity<'c: 'info, 'info>(
         ctx: Context<'info, LPPoolRemoveLiquidity<'info>>,
         in_market_index: u16,
@@ -1965,6 +1991,7 @@ pub mod velocity {
         handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
         ctx: Context<'info, ViewLPPoolAddLiquidityFees<'info>>,
         in_market_index: u16,
@@ -1973,6 +2000,7 @@ pub mod velocity {
         handle_view_lp_pool_add_liquidity_fees(ctx, in_market_index, in_amount)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
         ctx: Context<'info, ViewLPPoolRemoveLiquidityFees<'info>>,
         in_market_index: u16,
@@ -1981,6 +2009,7 @@ pub mod velocity {
         handle_view_lp_pool_remove_liquidity_fees(ctx, in_market_index, in_amount)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn begin_lp_swap<'c: 'info, 'info>(
         ctx: Context<'info, LPTakerSwap<'info>>,
         in_market_index: u16,
@@ -1990,6 +2019,7 @@ pub mod velocity {
         handle_begin_lp_swap(ctx, in_market_index, out_market_index, amount_in)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn end_lp_swap<'c: 'info, 'info>(
         ctx: Context<'info, LPTakerSwap<'info>>,
         _in_market_index: u16,
@@ -1998,12 +2028,14 @@ pub mod velocity {
         handle_end_lp_swap(ctx)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn update_constituent_oracle_info<'c: 'info, 'info>(
         ctx: Context<'info, UpdateConstituentOracleInfo<'info>>,
     ) -> Result<()> {
         handle_update_constituent_oracle_info(ctx)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn deposit_to_program_vault<'c: 'info, 'info>(
         ctx: Context<'info, DepositProgramVault<'info>>,
         amount: u64,
@@ -2011,6 +2043,7 @@ pub mod velocity {
         handle_deposit_to_program_vault(ctx, amount)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn withdraw_from_program_vault<'c: 'info, 'info>(
         ctx: Context<'info, WithdrawProgramVault<'info>>,
         amount: u64,
@@ -2018,6 +2051,7 @@ pub mod velocity {
         handle_withdraw_from_program_vault(ctx, amount)
     }
 
+    #[cfg(feature = "vlp-hedge")]
     pub fn settle_perp_to_lp_pool<'c: 'info, 'info>(
         ctx: Context<'info, SettleAmmPnlToLp<'info>>,
     ) -> Result<()> {

@@ -29,7 +29,7 @@ dlob_dbg = []
 ahash = "0.8.12"
 anchor-lang = { version = "1.0.0", features = ["derive"] }
 arc-swap = "1.7"
-program = { package = "velocity", path = "../../programs/velocity", default-features = false, features = ["velocity-rs", "mainnet-beta", "cpi"] }
+program = { package = "velocity", path = "../../programs/velocity", default-features = false, features = ["velocity-rs", "mainnet-beta", "cpi", "isolated-position", "vlp-hedge"] }
 arrayvec = "0.7.6"
 base64 = "0.22"
 bytemuck = "1.17"

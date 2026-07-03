@@ -614,6 +614,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
     }
 
+    #[cfg(feature = "isolated-position")]
     if let Some(isolated_position_deposit) =
         verified_message_and_signature.isolated_position_deposit
     {
@@ -629,6 +630,17 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             0,
             market_index,
             isolated_position_deposit.cast::<i64>()?,
+        )?;
+    }
+    #[cfg(not(feature = "isolated-position"))]
+    {
+        let _ = &taker_stats;
+        validate!(
+            verified_message_and_signature
+                .isolated_position_deposit
+                .is_none(),
+            ErrorCode::IsolatedPositionDisabled,
+            "signed msg isolated position deposit not enabled in this build"
         )?;
     }
 

@@ -41,6 +41,8 @@ bun run program:build:mainnet   # mainnet .so (default features: production gate
 
 `program:build` and `program:idl` use `--no-default-features --features no-entrypoint,anchor-test`. This is required even though `declare_id!` is now unconditional: default features include `mainnet-beta`, which compiles out devnet-only instructions (e.g. `force_wipe_accounts_devnet` — `wipe-devnet.ts` calls it via the SDK IDL) and switches `ids.rs` to mainnet constants. `program:idl` runs `anchor idl build` under `cargo test` with the host toolchain, which sidesteps the bundled-cargo issues described below.
 
+**Post-audit feature gates (`isolated-position`, `vlp-hedge`):** the instruction surface of isolated perp positions and the VLP hedge/LP-pool component is compiled out of mainnet builds (default features) pending audit. `anchor-test` implies both features, so `program:build`, `program:idl`, and all tests keep them; `build-devnet.sh` enables them explicitly, so devnet keeps them live. Only instructions are gated — all state (`PerpPosition.isolated_position_scaled_balance`, `PerpMarket.hedge_config`, LP-pool accounts) and interior logic stay compiled in every build so account layouts never diverge. To enable on mainnet: add the features to the mainnet build invocation and upgrade in place. When touching either subsystem, verify both flavors compile: `cargo check -p velocity` (gated) and `cargo check -p velocity --no-default-features --features no-entrypoint,anchor-test` (enabled).
+
 **SDK:**
 
 ```bash
