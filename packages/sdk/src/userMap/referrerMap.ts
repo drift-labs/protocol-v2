@@ -14,9 +14,12 @@ import {
 	getUserStatsIsReferredFilter,
 	getUserStatsIsReferredOrReferrerFilter,
 } from '../memcmp';
+import { isBuilderReferral } from '../math/builder';
 import bs58 from 'bs58';
 
 const DEFAULT_PUBLIC_KEY = PublicKey.default.toBase58();
+// Byte offset of `UserStats.referrer_status` (u8). Matches the memcmp filters.
+const REFERRER_STATUS_OFFSET = 188;
 
 export class ReferrerMap {
 	/**
@@ -28,6 +31,13 @@ export class ReferrerMap {
 	 * Will be undefined if the referrer is not in the map yet.
 	 */
 	private referrerReferrerInfoMap = new Map<string, ReferrerInfo>();
+	/**
+	 * map from authority pubkey to whether its escrow was initialized with a
+	 * referrer (the `BuilderReferral` status bit). Only populated by the lazy
+	 * full-account path (`addReferrer` / `mustGetIsBuilderReferral`) — the bulk
+	 * sync uses narrow data slices that don't cover `referrer_status`.
+	 */
+	private authorityBuilderReferralMap = new Map<string, boolean>();
 	private velocityClient: VelocityClient;
 	private parallelSync: boolean;
 
@@ -83,10 +93,39 @@ export class ReferrerMap {
 			}
 			const buffer = accountInfo.data;
 
+			this.authorityBuilderReferralMap.set(
+				authority,
+				isBuilderReferral({ referrerStatus: buffer[REFERRER_STATUS_OFFSET] })
+			);
+
 			const referrer = bs58.encode(buffer.subarray(40, 72));
 
 			this.addReferrer(authority, referrer);
 		}
+	}
+
+	/**
+	 * True when the authority's escrow was initialized with a referrer (the
+	 * `BuilderReferral` status bit). Returns `false` until the authority's
+	 * UserStats has been read via the lazy path; use {@link mustGetIsBuilderReferral}
+	 * to force a read.
+	 */
+	public isBuilderReferral(authorityPublicKey: string): boolean {
+		return this.authorityBuilderReferralMap.get(authorityPublicKey) ?? false;
+	}
+
+	/**
+	 * Like {@link isBuilderReferral} but reads the authority's UserStats from the
+	 * chain if the status hasn't been cached yet. Throws if the UserStats account
+	 * cannot be loaded (same as {@link addReferrer}).
+	 */
+	public async mustGetIsBuilderReferral(
+		authorityPublicKey: string
+	): Promise<boolean> {
+		if (!this.authorityBuilderReferralMap.has(authorityPublicKey)) {
+			await this.addReferrer(authorityPublicKey);
+		}
+		return this.isBuilderReferral(authorityPublicKey);
 	}
 
 	/**

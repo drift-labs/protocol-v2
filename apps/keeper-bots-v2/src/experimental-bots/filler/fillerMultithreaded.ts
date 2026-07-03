@@ -24,8 +24,6 @@ import {
 	QUOTE_PRECISION,
 	ReferrerInfo,
 	ReferrerMap,
-	RevenueShareEscrowAccount,
-	RevenueShareEscrowMap,
 	SignedMsgOrderParams,
 	SlotSubscriber,
 	TxSigAndSlot,
@@ -125,10 +123,6 @@ const MAX_ACCOUNTS_PER_TX = 64; // solana limit, track https://github.com/solana
 const MAX_POSITIONS_PER_USER = 8;
 export const SETTLE_POSITIVE_PNL_COOLDOWN_MS = 60_000;
 export const CONFIRM_TX_INTERVAL_MS = 5_000;
-// RevenueShareEscrowMap is loaded once via getProgramAccounts and has no live
-// subscription, so re-sync periodically to pick up escrows created after start
-// (a referred taker whose escrow we miss makes the fill revert).
-export const REVENUE_SHARE_ESCROW_SYNC_INTERVAL_MS = 60_000;
 const SIM_CU_ESTIMATE_MULTIPLIER = 3;
 const SLOTS_UNTIL_JITO_LEADER_TO_SEND = 4;
 export const TX_CONFIRMATION_BATCH_SIZE = 100;
@@ -180,7 +174,6 @@ export class FillerMultithreaded {
 	private fillTxId: number = 0;
 	private userMap: UserMap;
 	private referrerMap: ReferrerMap;
-	private revenueShareEscrowMap: RevenueShareEscrowMap;
 	private throttledNodes = new Map<string, number>();
 	private fillingNodes = new Map<string, number>();
 	private revertOnFailure?: boolean;
@@ -299,10 +292,6 @@ export class FillerMultithreaded {
 			skipInitialLoad: true,
 		});
 		this.referrerMap = new ReferrerMap(this.velocityClient, true);
-		this.revenueShareEscrowMap = new RevenueShareEscrowMap(
-			this.velocityClient,
-			true
-		);
 
 		this.blockhashSubscriber = new BlockhashSubscriber({
 			connection: velocityClient.connection,
@@ -451,7 +440,6 @@ export class FillerMultithreaded {
 
 		await this.userMap.subscribe();
 		await this.referrerMap.subscribe();
-		await this.revenueShareEscrowMap.subscribe();
 
 		this.lookupTableAccounts.push(
 			...(await this.velocityClient.fetchAllLookupTableAccounts())
@@ -698,13 +686,6 @@ export class FillerMultithreaded {
 		);
 		this.intervalIds.push(
 			setInterval(this.confirmPendingTxSigs.bind(this), CONFIRM_TX_INTERVAL_MS)
-		);
-		this.intervalIds.push(
-			setInterval(() => {
-				this.revenueShareEscrowMap.sync().catch((e) => {
-					logger.error(`Failed to sync revenueShareEscrowMap: ${e}`);
-				});
-			}, REVENUE_SHARE_ESCROW_SYNC_INTERVAL_MS)
 		);
 		if (this.bundleSender) {
 			this.intervalIds.push(
@@ -1536,7 +1517,7 @@ export class FillerMultithreaded {
 				takerUserPubKey,
 				takerUserSlot,
 				referrerInfo,
-				takerEscrow,
+				takerIsReferred,
 				marketType,
 				takerStatsPubKey,
 				isSignedMsg,
@@ -1651,7 +1632,8 @@ export class FillerMultithreaded {
 					isSignedMsg,
 					undefined, // fillerAuthority
 					undefined, // hasBuilderFee (derived from order bitflags)
-					takerEscrow
+					undefined, // takerEscrow (referred case signalled below)
+					takerIsReferred
 				);
 				fillIxs.push(fillIx);
 
@@ -1858,7 +1840,7 @@ export class FillerMultithreaded {
 			takerStatsPubKey,
 			isSignedMsg,
 			authority,
-			takerEscrow,
+			takerIsReferred,
 		} = await this.getNodeFillInfo(nodeToFill);
 
 		let removeLastIxPostSim = this.revertOnFailure && !isSignedMsg;
@@ -1940,7 +1922,8 @@ export class FillerMultithreaded {
 			isSignedMsg,
 			undefined, // fillerAuthority
 			undefined, // hasBuilderFee (derived from order bitflags)
-			takerEscrow
+			undefined, // takerEscrow (referred case signalled below)
+			takerIsReferred
 		);
 		fillIxs.push(fillIx);
 
@@ -2367,7 +2350,7 @@ export class FillerMultithreaded {
 		takerStatsPubKey: PublicKey;
 		takerUserSlot: number;
 		referrerInfo: ReferrerInfo | undefined;
-		takerEscrow: RevenueShareEscrowAccount | undefined;
+		takerIsReferred: boolean;
 		marketType: MarketType;
 		isSignedMsg: boolean | undefined;
 		authority: PublicKey;
@@ -2444,11 +2427,20 @@ export class FillerMultithreaded {
 			referrerInfo = undefined;
 		}
 
-		// The program rejects a fill that omits the taker's RevenueShareEscrow when
-		// the taker is referred (escrow initialized with a referrer). The map is
-		// preloaded and periodically synced so this is a cheap synchronous lookup;
-		// builder-code orders self-attach the escrow inside getFillPerpOrderIx.
-		const takerEscrow = this.revenueShareEscrowMap.get(authority);
+		// The program's fill gate requires the taker's RevenueShareEscrow when the
+		// taker is referred (their escrow was initialized with a referrer) — the
+		// UserStats.referrerStatus BuilderReferral bit. ReferrerMap reads it from
+		// the same UserStats fetch it already does for referrerInfo.
+		let takerIsReferred = false;
+		try {
+			takerIsReferred = await this.referrerMap.mustGetIsBuilderReferral(
+				authority
+			);
+		} catch (e) {
+			logger.warn(
+				`getNodeFillInfo: Failed to get builder-referral status: ${e}`
+			);
+		}
 
 		return Promise.resolve({
 			makerInfos,
@@ -2460,7 +2452,7 @@ export class FillerMultithreaded {
 			),
 			takerUserSlot: this.slotSubscriber.getSlot(),
 			referrerInfo,
-			takerEscrow,
+			takerIsReferred,
 			marketType: nodeToFill.node.order!.marketType,
 			isSignedMsg: nodeToFill.node.isSignedMsg,
 			authority: new PublicKey(authority),
