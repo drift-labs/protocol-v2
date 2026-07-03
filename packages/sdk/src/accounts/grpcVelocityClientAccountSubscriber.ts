@@ -11,9 +11,25 @@ import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import { getOracleId } from '../oracles/oracleId';
 
+/**
+ * `VelocityClientAccountSubscriber` variant of `WebSocketVelocityClientAccountSubscriber` that
+ * subscribes each per-account subscriber via `grpcAccountSubscriber.create` (gRPC Geyser stream)
+ * instead of `connection.onAccountChange`. Reuses the parent class's `setInitialData`/oracle-map/
+ * delisted-market logic verbatim; only the account-subscription creation is overridden.
+ */
 export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
+	/**
+	 * @param grpcConfigs gRPC Geyser endpoint/token/commitment config (Yellowstone or LaserStream).
+	 * @param program Anchor program used to derive PDAs, decode accounts, and resolve oracle clients.
+	 * @param perpMarketIndexes Perp market indexes to track, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param spotMarketIndexes Spot market indexes to track, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param oracleInfos Oracles to track up front, if `shouldFindAllMarketsAndOracles` is false.
+	 * @param shouldFindAllMarketsAndOracles If true, `subscribe()` first discovers every market/oracle from on-chain state.
+	 * @param delistedMarketSetting Behavior applied to delisted perp markets/oracles after subscribing.
+	 * @param resubOpts Resubscription watchdog options passed to every per-account subscriber.
+	 */
 	constructor(
 		grpcConfigs: GrpcConfigs,
 		program: VelocityProgram,
@@ -36,6 +52,13 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 		this.grpcConfigs = grpcConfigs;
 	}
 
+	/**
+	 * Subscribes the `State` account via gRPC, batch-seeds all market/oracle accounts via
+	 * `setInitialData()` (inherited RPC-based batch fetch), then subscribes every per-account gRPC
+	 * subscriber for perp markets, spot markets, and oracles. Applies `delistedMarketSetting`
+	 * afterward. Idempotent: a no-op if already subscribed, and concurrent calls while a subscribe
+	 * is in flight share the same result via `subscriptionPromise`.
+	 */
 	public async subscribe(): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
@@ -119,6 +142,11 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 		return true;
 	}
 
+	/**
+	 * Creates and subscribes a `grpcAccountSubscriber` for one spot market, seeding it from
+	 * `initialSpotMarketAccountData` if available.
+	 * @param marketIndex Spot market index to subscribe.
+	 */
 	override async subscribeToSpotMarketAccount(
 		marketIndex: number
 	): Promise<boolean> {
@@ -148,6 +176,13 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 		return true;
 	}
 
+	/**
+	 * Creates and subscribes a `grpcAccountSubscriber` for one perp market, seeding it from
+	 * `initialPerpMarketAccountData` if available. Unlike the parent class's WebSocket variant,
+	 * does not call `ensureAccountFetched` — the gRPC subscriber's own initial `fetch()` (inside
+	 * `subscribe`) is relied on directly.
+	 * @param marketIndex Perp market index to subscribe.
+	 */
 	async subscribeToPerpMarketAccount(marketIndex: number): Promise<boolean> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -175,6 +210,12 @@ export class grpcVelocityClientAccountSubscriber extends WebSocketVelocityClient
 		return true;
 	}
 
+	/**
+	 * Creates and subscribes a `grpcAccountSubscriber` for one oracle, decoding buffers with the
+	 * source-appropriate `OracleClient`. Seeds from `initialOraclePriceData` if available.
+	 * @param oracleInfo Oracle pubkey and source to subscribe.
+	 * @returns `false` if no `OracleClient` is registered for `oracleInfo.source`; otherwise `true`.
+	 */
 	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
 		const client = this.oracleClientCache.get(

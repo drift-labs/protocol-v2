@@ -358,13 +358,15 @@ export class JitMaker implements Bot {
 			perpMarketAccount.marketIndex,
 			slot,
 			MarketType.PERP,
-			mmOraclePriceData
+			mmOraclePriceData,
+			perpMarketAccount.orderTickSize
 		);
 		const bestDLOBAsk = dlob.getBestAsk(
 			perpMarketAccount.marketIndex,
 			slot,
 			MarketType.PERP,
-			mmOraclePriceData
+			mmOraclePriceData,
+			perpMarketAccount.orderTickSize
 		);
 
 		const [ammBid, ammAsk] = calculateBidAskPrice(

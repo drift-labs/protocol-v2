@@ -160,7 +160,8 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 						isVariant(marketArgs.marketType, 'perp')
 							? MarketType.PERP
 							: MarketType.SPOT,
-						oraclePriceData
+						oraclePriceData,
+						marketArgs.tickSize
 					);
 					const bestDlobAsk = dlob.getBestAsk(
 						marketArgs.marketIndex,
@@ -168,7 +169,8 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 						isVariant(marketArgs.marketType, 'perp')
 							? MarketType.PERP
 							: MarketType.SPOT,
-						oraclePriceData
+						oraclePriceData,
+						marketArgs.tickSize
 					);
 
 					const marketType = isVariant(marketArgs.marketType, 'perp')
@@ -262,7 +264,9 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 										const limitPrice = getLimitPrice(
 											indicativeBid,
 											oraclePriceData,
-											this.slotSource.getSlot()
+											this.slotSource.getSlot(),
+											undefined,
+											marketArgs.tickSize
 										);
 										if (bestBid && limitPrice.gt(bestBid)) {
 											indicativeBid = Object.assign({}, indicativeBid, {
@@ -297,7 +301,9 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 										const limitPrice = getLimitPrice(
 											indicativeAsk,
 											oraclePriceData,
-											this.slotSource.getSlot()
+											this.slotSource.getSlot(),
+											undefined,
+											marketArgs.tickSize
 										);
 										if (bestAsk && limitPrice.lt(bestAsk)) {
 											indicativeAsk = Object.assign({}, indicativeAsk, {
@@ -491,6 +497,7 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 					slot: slot,
 					oraclePriceData: oracleData,
 					numMakers: 4,
+					tickSize: marketArgs.tickSize,
 				})
 				.map((x) => x.toString());
 			const asks = this.dlob
@@ -503,6 +510,7 @@ export class DLOBSubscriberIO extends DLOBSubscriber {
 					slot,
 					oraclePriceData: oracleData,
 					numMakers: 4,
+					tickSize: marketArgs.tickSize,
 				})
 				.map((x) => x.toString());
 			this.redisClient.set(

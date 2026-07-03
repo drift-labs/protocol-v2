@@ -9,6 +9,16 @@ import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
 import { VelocityProgram } from '../config';
 import * as Buffer from 'buffer';
 
+/**
+ * Default `AccountSubscriber` implementation: tracks a single account via
+ * `connection.onAccountChange`, decoding each notification with either a supplied
+ * `decodeBuffer` function or the program's Anchor coder for `accountName`. Updates are applied
+ * only when the notification's slot is not older than the last-seen slot and the raw buffer
+ * actually changed, so `onChange` never fires twice for the same bytes. If `resubOpts.resubTimeoutMs`
+ * is set, a watchdog timer resubscribes to the WebSocket whenever no notification arrives within
+ * that window — see `ResubOpts` for tuning. This is the base class extended by
+ * `grpcAccountSubscriber` for gRPC Geyser-backed tracking.
+ */
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
 	bufferAndSlot?: BufferAndSlot;
@@ -38,6 +48,14 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	receivingData: boolean;
 
+	/**
+	 * @param accountName Anchor account type name (used for logging and, absent `decodeBuffer`, for decoding via the program coder).
+	 * @param program Anchor program providing the connection and coder.
+	 * @param accountPublicKey Address of the account to track.
+	 * @param decodeBuffer Optional custom decode function; defaults to `program.coder.accounts.decode(accountName, buffer)`.
+	 * @param resubOpts Resubscription watchdog options; omit to disable the inactivity timer.
+	 * @param commitment Commitment for both the initial fetch and the `onAccountChange` subscription; defaults to the provider's configured commitment.
+	 */
 	public constructor(
 		accountName: string,
 		program: VelocityProgram,
@@ -65,6 +83,12 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			commitment ?? (this.program.provider as AnchorProvider).opts.commitment;
 	}
 
+	/**
+	 * Seeds `dataAndSlot` with an initial `fetch()` (if not already set via `setData`) and then
+	 * attaches the `onAccountChange` WebSocket listener. Returning early (no-op) if already
+	 * subscribed or mid-unsubscribe.
+	 * @param onChange Invoked with the newly decoded account data on each accepted update.
+	 */
 	async subscribe(onChange: (data: T) => void): Promise<void> {
 		if (this.listenerId != null || this.isUnsubscribing) {
 			if (this.resubOpts?.logResubMessages) {
@@ -101,6 +125,12 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		}
 	}
 
+	/**
+	 * Seeds or overwrites `dataAndSlot` directly, bypassing RPC. A no-op if the currently cached
+	 * slot is already newer than `slot`.
+	 * @param data Decoded account data to store.
+	 * @param slot Slot the data was observed at; defaults to 0 (the seeded sentinel) if omitted.
+	 */
 	setData(data: T, slot?: number): void {
 		const newSlot = slot || 0;
 		if (this.dataAndSlot && this.dataAndSlot.slot > newSlot) {
@@ -155,6 +185,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		);
 	}
 
+	/** Fetches the account once via `getAccountInfoAndContext` and routes the result through `handleRpcResponse`, applying it if newer than the cached slot. */
 	async fetch(): Promise<void> {
 		const rpcResponse =
 			await this.program.provider.connection.getAccountInfoAndContext(
@@ -167,6 +198,11 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		);
 	}
 
+	/**
+	 * Applies a raw RPC/WS response: decodes and stores it (updating `bufferAndSlot`/`dataAndSlot`
+	 * and invoking `onChange`) only if the slot is not older than the cached one and the buffer's
+	 * bytes actually changed (or this is the first observation).
+	 */
 	handleRpcResponse(context: Context, accountInfo?: AccountInfo<Buffer>): void {
 		const newSlot = context.slot;
 		let newBuffer: Buffer | undefined = undefined;
@@ -209,6 +245,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		}
 	}
 
+	/** Decodes a raw account buffer using the constructor-supplied `decodeBufferFn`, or the program's Anchor coder for `accountName` if none was supplied. */
 	decodeBuffer(buffer: Buffer): T {
 		if (this.decodeBufferFn) {
 			return this.decodeBufferFn(buffer);
@@ -217,6 +254,10 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		}
 	}
 
+	/**
+	 * Tears down the WebSocket listener and cancels any pending resub timeout.
+	 * @param onResub Internal flag set to `true` when called as part of an automatic resubscribe cycle, which preserves `resubOpts.resubTimeoutMs` instead of clearing it. Callers should omit this.
+	 */
 	unsubscribe(onResub = false): Promise<void> {
 		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;

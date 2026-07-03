@@ -73,6 +73,7 @@ or reworked.
 | **`VelocityCore` SDK module**                    | #21            | Subscription-free instruction-building API (`packages/sdk/src/core/`, exported via `export * from './core'`). Static helpers for PDAs, account decoding, remaining-accounts construction, signed-msg helpers, and pure instruction builders for deposit / withdraw / orders / fill / trigger / settlement / perp liquidation / place-cancel-modify / funding-rate updates — without a subscribed `VelocityClient`. See §4.5.                                                                                                                                                                                                                                                                                                                                                                    |
 | **Vaults program + SDK**                         | #83, #85       | The drift-vaults program and its TS client are now first-party in this repo: the `vaults` program (`programs/vaults/`, ID `vAuLTsyrvSfZRuRB3XgvkPwNGgYSs9YRYymVebLKoxR`) and the `@velocity-exchange/vaults-sdk` package (`packages/vaults-sdk/`). Renames vs upstream drift-vaults: Rust crate/dir `drift_vaults` → `vaults`; the CPI dep on the core program resolves by its real crate name `velocity` (not the `drift` alias); SDK type `DriftVaults` → `Vaults`; IDL `drift_vaults.json` → `vaults.json` (generated from the program via `bun run program:idl:vaults`, never hand-edited). The program ID is unchanged.                                                                                                                                                                       |
 | **Fee redesign + AMM isolation**                 | #75            | Explicit per-fill three-way fee split (`FeeStructure.amm_fee_numerator` / `if_fee_numerator`; protocol = residual). Per-market `PerpMarket.fee_ledger: FeeLedger` tracks gross fees + pending carveouts. Protocol fees accrue to a withdrawable `protocol_fee_pool` (perp + spot) and exit via `withdraw_protocol_fees_perp/spot` (new `HotRole::FeeWithdraw` key; pays the ATA of `State.protocol_fee_recipient_perp` / `_spot` (separately configurable treasuries), created on demand). Streaming sweep (`sweep_perp_market_fees`, permissionless) materializes carveouts out of the pnl pool; emits `PerpMarketFeeSweepRecord`. The AMM's books contain only its own money — its configurable fee provision is clawed back in bankruptcy as the backstop of last resort. Liquidations gain a `protocol_liquidation_fee` cut (new `protocol_fee` field on liquidation records). New errors `InvalidProtocolFeeRecipient` (6353) / `InsufficientProtocolFees` (6354). Full design doc: [`FEES.md`](../FEES.md). |
+| **Bulk order margin enforcement (per risk-scope)** | #135         | `place_orders`/`place_scale_orders` now run the initial-margin check once per **risk scope** touched by the batch (cross-margin, plus each isolated market with a risk-increasing order), instead of a single end-of-batch check. Previously an early risk-increasing order's exposure wasn't accumulated into that check, and the check could be skipped altogether if the final order in the batch was a no-op — a batch could slip a risk-increasing order past a weaker or absent margin gate. Batches that previously succeeded may now be rejected with `InsufficientCollateral`. No SDK-side logic mirror exists; this is a program-only enforcement tightening. |
 
 ---
 
@@ -212,6 +213,13 @@ copies the referrer unconditionally, making the migration redundant.
   `placeAndTakePerpOrder` / `getPlaceAndTakePerpOrderIx`; #73 replaced that with the
   decoded `takerEscrow?` — callers passing a map must switch to the decoded escrow account.
   The settle-PnL builders keep their map-based `revenueShareEscrowMap` param.
+- **`PerpOperation` bit values**: 8 flags total, with `AMM_IMMEDIATE_FILL = 64` and
+  `SETTLE_REV_POOL = 128`. Code hardcoding these numeric values instead of referencing the
+  `PerpOperation` enum must update.
+- **`OrderBitFlag` gains `HasBuilder = 16` and `IsIsolatedPosition = 32`**, matching the full
+  6-bit on-chain flag set. Code reading `OrderRecord.order.bitFlags` /
+  `OrderActionRecord.bitFlags` can detect builder-fee and isolated-margin orders directly via
+  the shared enum instead of redefining local flag constants.
 - **Fee redesign** (#75):
   - `PerpMarketAccount`: `totalExchangeFee` / `totalLiquidationFee` moved into a new
     nested `feeLedger: FeeLedger` (with `pendingProtocolFee`, `pendingIfFee`,
@@ -289,6 +297,30 @@ These public exports were **added** (or restored) relative to the fork point:
   and `calculateMaxRemainingDeposit` (`math/spotMarket`).
 - `PriceUpdateAccount` is now re-exported from the package root (#97); previously it was only
   reachable via a subpath import.
+- `AdminClient.updatePauseAdmin` / `getUpdatePauseAdminIx` — cold-admin rotation of the
+  emergency `pause_admin` key (`StateAccount.pauseAdmin`), sitting alongside
+  `updateWarmAdmin` / `updateHotAdmin`.
+- `isIsolatedPositionBankrupt(user, marketIndex)` and `hasIsolatedMarginBankrupt(user)`
+  (`math/bankruptcy`) — mirror the isolated half of the program's bankruptcy routing
+  (`is_isolated_margin_bankrupt` + `has_isolated_margin_bankrupt`). Needed because
+  `User.isBankrupt()` reads only the account-level `UserStatus.BANKRUPT` bit, which is never
+  set for isolated-only bankruptcies, and `isUserBankrupt` (cross) deliberately skips isolated
+  positions. `isIsolatedPositionBankrupt` throws `InvalidPerpPosition` on a non-isolated index.
+- `calculatePerpIfFee` / `calculateSpotIfFee` (`math/liquidation`) — port the margin-shortage-aware
+  insurance-fund fee caps; feed their output (not the raw `if + protocol` sum) into the
+  covering-amount helpers. `calculateMaxPctToLiquidate` gained an `isIsolatedPosition` param
+  (returns 100% in one shot for isolated positions, per `IsolatedMarginLiquidatePerpMode`).
+- `User.calculateFeeForQuoteAmount` was **renamed to `User.calculatePerpTakerFee`** (the old
+  name is gone — update call sites). It also gained an optional trailing `builderInfo`
+  (`Pick<OrderParams, 'builderIdx' | 'builderFeeTenthBps'>`) arg; when present the builder fee
+  (`quoteAmount * builderFeeTenthBps / 100_000`) is added on top of the tiered fee.
+  `VelocityClient.getMarketFees` now also applies the **referee discount** to the taker fee
+  (previously omitted on this path) — referred users get a lower predicted fee.
+- `MMOraclePriceData` gained optional `isMMOracleEnabled` / `isMMOracleAsRecent` /
+  `isMMExchangeDiffBpsHigh` fields (populated by `getMMOracleDataForPerpMarket`).
+  `isFallbackAvailableLiquiditySource` now mirrors `amm_fill_gates_ok` fully — it additionally
+  suppresses AMM fallback on market drawdown and on MM-vs-exchange oracle volatility (>1% diff
+  while the MM oracle is enabled and as-recent).
 - Several types were added by the `types.ts` ↔ IDL reconciliation — see §4.7.
 
 ### 4.7 SDK type reconciliation (`types.ts` ↔ IDL)
@@ -319,6 +351,12 @@ accounts/events with the previous TS shapes should note:
 - **New exported types**: `PrelaunchOracleParams`, `PythLazerOracle`,
   `UpdatePerpMarketSummaryStatsParams`, `SignedMsgWsDelegatesAccount`, `PerpMarketFeeSweepRecord`,
   `ProtocolFeeWithdrawRecord`, `TransferFeeAndPnlPoolRecord`.
+- **Events wired into `EventSubscriber`**: `PerpMarketFeeSweepRecord`, `ProtocolFeeWithdrawRecord`,
+  `RevenueShareSettleRecord`, `TransferFeeAndPnlPoolRecord`, and `LPBorrowLendDepositRecord` are
+  now registered in `EventMap` / `VelocityEvent` / the default `eventTypes` list
+  (`events/types.ts`). All five have long been emitted on-chain with IDL entries and TS types,
+  but `parseEventsFromLogs` silently dropped any event not in that registration list — they are
+  now subscribable like any other record type.
 
 ---
 
@@ -359,6 +397,25 @@ accounts/events with the previous TS shapes should note:
   `Deprecated*` enum stub; the legacy Pyth pull variants (`PythPull`, `Pyth1KPull`,
   `Pyth1MPull`, `PythStableCoinPull`) keep their **original** names (not `Deprecated*`).
   All deprecated/removed sources return `InvalidOracle` if used.
+- **`OracleSource` Switchboard variants renamed to their deprecated keys** (`Switchboard` →
+  `DeprecatedSwitchboard`, `SwitchboardOnDemand` → `DeprecatedSwitchboardOnDemand`;
+  discriminants preserved). The SDK's `OracleSource` class mirrors this with
+  `DEPRECATED_SWITCHBOARD` / `DEPRECATED_SWITCHBOARD_ON_DEMAND` (Borsh keys
+  `deprecatedSwitchboard` / `deprecatedSwitchboardOnDemand`). Any code still matching on the
+  old `switchboard` / `switchboardOnDemand` keys will fail to decode these oracle sources.
+- **`LiquidationRecord.bankrupt` is now state-derived, not a constant** (#174):
+  the top-level `bankrupt` flag on `LiquidationRecord` (a sibling of the nested
+  `perpBankruptcy` / `spotBankruptcy` sub-records — those sub-records have no `bankrupt`
+  field of their own) now reflects whether the user still holds a bankrupting liability
+  **after** the resolve call completes, rather than always being `true`. Read it as
+  `record.bankrupt`, not `record.perpBankruptcy.bankrupt`. The wire type is unchanged
+  (still a `bool`), so this is invisible to type-checkers — indexers and downstream
+  consumers that assumed `bankrupt == true` on every emitted record must re-check the
+  field's value instead of treating its presence as the signal.
+- **Mainnet `initialize` requires a fixed signer** (#158): the one-time global `State`
+  creation now locks the `admin` account to `state_init_authority`
+  (`prpHJmuXnqdaz92tBVdwsqmqyhqPLuq5Km35a5QWco3`) on real mainnet builds only, to prevent
+  front-running of genesis; devnet/localnet and the integration-test build are unaffected.
 
 ---
 
@@ -412,6 +469,12 @@ accounts/events with the previous TS shapes should note:
 | #155 | Uniform `UserAccountSubscriber` "not subscribed" contract: gRPC-multi and WebSocket-program subscribers' `getUserAccountAndSlot()` now throw `NotSubscribedError` before `subscribe()` (matching WebSocket/polling), so `User.getUserAccount()` throws when not subscribed and returns `undefined` only when not found; `getUserAccount(AndSlot)OrThrow` message `User account not loaded` → `User account not found` (§4.4)                                                            |
 | #172 | Decouple solvency-repair from withdrawals: new `State.solvency_status` (1 B carved from padding, size unchanged) + `SolvencyStatus` bitflag; `resolve_perp_pnl_deficit`/`resolve_perp_bankruptcy`/`resolve_spot_bankruptcy` now gated by `solvency_repair_not_paused` instead of `WithdrawPaused`; new `update_solvency_status` instruction (cold-admin only); SDK `SolvencyStatus` enum, `StateAccount.solvencyStatus`, `solvencyRepairPaused()` helper, `AdminClient.updateSolvencyStatus` |
 | jit-proxy | Vendor the jit-proxy client into the monorepo as `@velocity-exchange/jit-proxy` (replacing `@drift-labs/jit-proxy`), ported to Anchor 1.0 and built against `@velocity-exchange/sdk`. Fixes a JIT-maker crash where the jitter read `perpMarketAccount.amm.minOrderSize` (removed on Velocity perps); the perp dust guard and synthetic `Order` (no `quoteAssetAmount`) now match Velocity's layout. Same `JitProxyClient`/`JitterSniper`/`JitterShotgun` API; constructor `driftClient` fields take a `VelocityClient` (§4.1) |
+| #134      | Fix `liquidate_spot_with_swap_begin`/`_end`: a stale fixed account-index/count guard (13 vs the actual 11) made every real call fail with `InvalidLiquidateSpotWithSwap`. The instruction was non-functional prior to this fix and is now operational; keepers that shelved this ix should re-verify their integration. SDK builder (`velocityClient.ts`) was already correct — no SDK change |
+| #135      | Bulk `place_orders`/`place_scale_orders` now enforce the initial-margin check once per risk scope touched by the batch (cross-margin, plus each isolated market with a risk-increasing order), rather than a single check after the last order — closing a gap where an early risk-increasing order's exposure wasn't accumulated into the check, and the check could be skipped entirely if the final order in the batch was a no-op. Batches that previously succeeded may now be rejected with `InsufficientCollateral` (§3) |
+| #137      | Direct `deposit()` now respects the per-market `SpotOperation::Deposit` pause bit (`MarketActionPaused`), independent of the pre-existing global deposit-pause and aggregate `max_token_deposits` cap checks. Deposits into a market with only the per-market deposit bit paused now revert |
+| #158      | Mainnet `initialize` (one-time global `State` creation) now requires a fixed admin signer (`state_init_authority` = `prpHJmuXnqdaz92tBVdwsqmqyhqPLuq5Km35a5QWco3`) to prevent front-running of genesis; devnet/localnet and the integration-test build are unaffected (§5) |
+| #174      | `LiquidationRecord.bankrupt` (the top-level flag, not a field of the nested `perpBankruptcy`/`spotBankruptcy` sub-records) now reflects whether the user still holds a bankrupting liability after the resolve call, instead of always being `true`. Wire type unchanged — consumers assuming `bankrupt == true` must update (§5) |
+| #182      | AMM JIT no longer participates in a DLOB match fill when a hard AMM-fill gate (pause / drawdown / MM-oracle volatility / oracle invalidity) is active; match fills can now be smaller or route entirely to the resting DLOB maker under those conditions |
 
 ---
 

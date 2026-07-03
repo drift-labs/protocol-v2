@@ -672,13 +672,16 @@ const main = async () => {
 				// Get oracle data for the market
 				const oracleData =
 					velocityClient.getMMOracleDataForPerpMarket(marketIndex);
+				const perpMarketAccount =
+					velocityClient.getPerpMarketAccountOrThrow(marketIndex);
 
-				// Get L3 orderbook to check TOB
+				// Get L3 orderbook to check TOB (tick-size standardized to match on-chain prices)
 				const l3OrderBook = dlob.getL3({
 					marketIndex,
 					marketType: { perp: {} },
 					slot,
 					oraclePriceData: oracleData,
+					tickSize: perpMarketAccount.orderTickSize,
 				});
 
 				const bestBidOrder = l3OrderBook.bids[0];

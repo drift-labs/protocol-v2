@@ -1,7 +1,10 @@
 import { Command } from 'commander';
 import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { MarketType } from '@velocity-exchange/sdk';
+import {
+	MarketType,
+	TransferFeeAndPnlPoolDirection,
+} from '@velocity-exchange/sdk';
 import { readGlobalOpts, withGlobalOptions } from '../lib/options';
 import { buildAdminClient, buildProvider } from '../lib/provider';
 import { reportDispatch, sendOrPropose } from '../lib/squads';
@@ -14,6 +17,19 @@ function parseMarketType(value: string): MarketType {
 			return MarketType.SPOT;
 		default:
 			throw new Error(`marketType must be "perp" or "spot", got "${value}"`);
+	}
+}
+
+function parseTransferDirection(value: string): TransferFeeAndPnlPoolDirection {
+	switch (value.toLowerCase()) {
+		case 'fee-to-pnl':
+			return TransferFeeAndPnlPoolDirection.FEE_TO_PNL_POOL;
+		case 'pnl-to-fee':
+			return TransferFeeAndPnlPoolDirection.PNL_TO_FEE_POOL;
+		default:
+			throw new Error(
+				`direction must be "fee-to-pnl" or "pnl-to-fee", got "${value}"`
+			);
 	}
 }
 
@@ -151,6 +167,49 @@ export function registerFees(parent: Command): void {
 			await client.unsubscribe();
 		}
 	});
+
+	withGlobalOptions(
+		fees
+			.command(
+				'transfer-fee-pnl <feePoolMarket> <pnlPoolMarket> <amount> <direction>'
+			)
+			.description(
+				'Transfer quote tokens between one perp market\'s protocol_fee_pool and another perp market\'s pnl_pool. <direction> is "fee-to-pnl" or "pnl-to-fee". <amount> in token base units.'
+			)
+	).action(
+		async (
+			feePoolMarket: string,
+			pnlPoolMarket: string,
+			amount: string,
+			direction: string,
+			_flags,
+			cmd: Command
+		) => {
+			const opts = readGlobalOpts(cmd);
+			const provider = buildProvider(opts);
+			const client = await buildAdminClient(opts);
+			try {
+				const ix = await client.getTransferFeeAndPnlPoolIx(
+					Number.parseInt(feePoolMarket, 10),
+					Number.parseInt(pnlPoolMarket, 10),
+					new BN(amount),
+					parseTransferDirection(direction)
+				);
+				const result = await sendOrPropose(
+					provider,
+					[ix],
+					opts.multisig ? new PublicKey(opts.multisig) : undefined,
+					'velocity-admin fees transfer-fee-pnl'
+				);
+				reportDispatch(
+					`perp-market[${feePoolMarket}].protocol_fee_pool ${direction} perp-market[${pnlPoolMarket}].pnl_pool: ${amount}`,
+					result
+				);
+			} finally {
+				await client.unsubscribe();
+			}
+		}
+	);
 
 	withGlobalOptions(
 		fees

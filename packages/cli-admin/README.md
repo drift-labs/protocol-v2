@@ -25,6 +25,7 @@ velocity-admin show config
 
 velocity-admin auth set-admin <pubkey>
 velocity-admin auth set-warm-admin <pubkey>
+velocity-admin auth set-pause-admin <pubkey>
 velocity-admin auth set-hot-admin <role> <pubkey>
 velocity-admin auth init-config [--initial-warm <pk>]
 
@@ -40,10 +41,11 @@ velocity-admin exchange set-status <bitfield>
 velocity-admin exchange set-solvency-status <bitfield>  # cold admin; gates solvency-repair ixs (1=solvencyRepairPaused)
 
 velocity-admin fees set-recipient <pubkey> <perp|spot>           # cold admin
-velocity-admin fees set-split <ammFeeNumerator> <ifFeeNumerator> # cold admin
+velocity-admin fees set-split <ammFeeNumerator> <ifFeeNumerator> # warm/cold admin
 velocity-admin fees withdraw-perp <market> <amount>  # FeeWithdraw hot key; pays the recipient's ATA (created if needed)
 velocity-admin fees withdraw-spot <market> <amount>  # FeeWithdraw hot key; pays the recipient's ATA (created if needed)
 velocity-admin fees sweep <market>                               # permissionless
+velocity-admin fees transfer-fee-pnl <feePoolMarket> <pnlPoolMarket> <amount> <fee-to-pnl|pnl-to-fee> # warm/cold admin
 
 velocity-admin user set-special-status <user> <flags>
 velocity-admin user admin-deposit <market> <amount> --user <pk> --user-token-account <pk>

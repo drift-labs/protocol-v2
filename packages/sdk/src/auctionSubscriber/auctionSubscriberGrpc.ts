@@ -9,6 +9,12 @@ import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramA
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
 
+/**
+ * Same as `AuctionSubscriber` (auction-eligible `User` accounts via
+ * `getUserWithAuctionFilter`) but sourced from a gRPC/Geyser stream
+ * (`grpcProgramAccountSubscriber`) instead of a websocket program-account
+ * subscription. Requires `grpcConfigs`.
+ */
 export class AuctionSubscriberGrpc {
 	private velocityClient: VelocityClient;
 	private opts: ConfirmOptions;
@@ -18,6 +24,13 @@ export class AuctionSubscriberGrpc {
 	eventEmitter: StrictEventEmitter<EventEmitter, AuctionSubscriberEvents>;
 	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 
+	/**
+	 * @param velocityClient Client whose `program` backs the subscription; also supplies default `opts` if `opts` is omitted.
+	 * @param opts Confirm options (commitment) for the subscription; defaults to `velocityClient.opts`.
+	 * @param grpcConfigs gRPC/Geyser endpoint config; required to call `subscribe()`.
+	 * @param resubTimeoutMs Max time with no update before resubscribing.
+	 * @param logResubMessages Whether to log resubscribe attempts.
+	 */
 	constructor({
 		velocityClient,
 		opts,
@@ -33,6 +46,11 @@ export class AuctionSubscriberGrpc {
 		this.grpcConfigs = grpcConfigs;
 	}
 
+	/**
+	 * Establishes the filtered gRPC subscription (idempotent) and emits
+	 * `onAccountUpdate` for each matching account update.
+	 * @throws If `grpcConfigs` was not provided at construction.
+	 */
 	public async subscribe() {
 		let subscriber = this.subscriber;
 		if (!subscriber) {
@@ -71,6 +89,7 @@ export class AuctionSubscriberGrpc {
 		);
 	}
 
+	/** Tears down the subscription. No-op if never subscribed. */
 	public async unsubscribe() {
 		if (!this.subscriber) {
 			return;

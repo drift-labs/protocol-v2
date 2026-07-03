@@ -8,6 +8,16 @@ import {
 } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 
+/**
+ * `LogProvider` backed by `connection.onLogs` — a raw Solana websocket log
+ * subscription for `address`. Delivers only new logs from the point of
+ * subscribe (no history) and does not attempt any batching; errored
+ * transactions (`logs.err !== null`) are dropped. If `resubTimeoutMs` is set,
+ * the provider watches for a gap with no log data and automatically
+ * unsubscribes/resubscribes, emitting `'reconnect'` on `eventEmitter` with
+ * the running attempt count each time — `EventSubscriber` uses that to fail
+ * over to `PollingLogProvider` after enough attempts.
+ */
 export class WebSocketLogProvider implements LogProvider {
 	private subscriptionId?: number;
 	private isUnsubscribing = false;
@@ -17,6 +27,12 @@ export class WebSocketLogProvider implements LogProvider {
 	private reconnectAttempts = 0;
 	eventEmitter?: EventEmitter;
 	private callback?: logProviderCallback;
+	/**
+	 * @param connection RPC connection to subscribe on.
+	 * @param address Account/program address to receive logs for.
+	 * @param commitment Commitment level for the log subscription.
+	 * @param resubTimeoutMs If set, resubscribe when no log data arrives for this many ms; also enables `eventEmitter`/`'reconnect'`. Left unset, the provider never auto-resubscribes and `eventEmitter` stays `undefined`.
+	 */
 	public constructor(
 		private connection: Connection,
 		private address: PublicKey,
@@ -28,10 +44,17 @@ export class WebSocketLogProvider implements LogProvider {
 		}
 	}
 
+	/** Establishes the `onLogs` subscription (retrying once after 2s if the websocket isn't ready yet). Always resolves `true`; `skipHistory` is accepted for `LogProvider` interface compatibility but has no effect here (this provider never delivers history). */
 	public async subscribe(callback: logProviderCallback): Promise<boolean> {
 		if (this.subscriptionId != null) {
 			return true;
 		}
+
+		// reset teardown flags for a fresh subscription cycle — a caller-initiated
+		// unsubscribe(true) leaves externalUnsubscribe set, which would otherwise
+		// permanently suppress the heartbeat-driven resubscribe watchdog here
+		this.isUnsubscribing = false;
+		this.externalUnsubscribe = false;
 
 		this.callback = callback;
 		try {
@@ -48,6 +71,7 @@ export class WebSocketLogProvider implements LogProvider {
 		return true;
 	}
 
+	/** Raw `connection.onLogs` registration used internally by `subscribe` (and to reconnect). Filters out errored transactions before invoking `callback`. */
 	public setSubscription(callback: logProviderCallback): void {
 		this.subscriptionId = this.connection.onLogs(
 			this.address,
@@ -74,6 +98,11 @@ export class WebSocketLogProvider implements LogProvider {
 		return this.subscriptionId != null;
 	}
 
+	/**
+	 * Removes the websocket log listener and clears the resub timeout.
+	 * @param external Whether this is a caller-initiated unsubscribe rather than an internal one during a reconnect cycle; controls whether the resub timeout is allowed to fire again afterward.
+	 * @returns `true` on success (including when already unsubscribed), `false` if `removeOnLogsListener` threw (logged to console).
+	 */
 	public async unsubscribe(external = false): Promise<boolean> {
 		this.isUnsubscribing = true;
 		this.externalUnsubscribe = external;

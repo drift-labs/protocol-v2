@@ -5,9 +5,16 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 
+/** Maximum serialized transaction size (bytes) Solana will accept over the wire — the 1232-byte MTU-derived limit shared by legacy and versioned transactions. */
 export const MAX_TX_BYTE_SIZE = 1232;
+/** 4-byte magic prefix identifying velocity's native (non-Anchor) entrypoint instructions, followed by a 1-byte opcode — see `createNativeInstructionDiscriminatorBuffer`. */
 export const NATIVE_INSTRUCTION_MAGIC_BYTES = [0xff, 0xff, 0xff, 0xff];
 
+/**
+ * Checks whether a transaction is a `VersionedTransaction` (v0+) rather than a legacy `Transaction`.
+ * @param tx - Transaction to check.
+ * @returns `true` if `tx` is versioned.
+ */
 export const isVersionedTransaction = (
 	tx: Transaction | VersionedTransaction
 ): boolean => {
@@ -18,6 +25,18 @@ export const isVersionedTransaction = (
 	return isVersionedTx;
 };
 
+/**
+ * Estimates the serialized wire size (bytes) a transaction built from `instructions` would have,
+ * without actually building/signing it — used to decide whether instructions still fit under
+ * `MAX_TX_BYTE_SIZE` before committing to a blockhash/signature. Accounts for account
+ * deduplication and, for versioned transactions, the byte savings from any accounts resolvable via
+ * `addressLookupTables`.
+ * @param instructions - Instructions the transaction would contain.
+ * @param versionedTransaction - Whether to size as a v0 `VersionedTransaction` (includes the
+ * version byte and lookup-table address/index overhead) or a legacy `Transaction`; defaults to `true`.
+ * @param addressLookupTables - Lookup tables to credit toward reducing the static account-keys list.
+ * @returns The estimated total transaction size in bytes.
+ */
 export const getSizeOfTransaction = (
 	instructions: TransactionInstruction[],
 	versionedTransaction = true,
@@ -97,6 +116,13 @@ function getSizeOfCompressedU16(n: number) {
 	return 1 + Number(n >= 128) + Number(n >= 16384);
 }
 
+/**
+ * Builds the 5-byte instruction-data prefix for velocity's native (non-Anchor) entrypoint:
+ * `NATIVE_INSTRUCTION_MAGIC_BYTES` (`[0xFF, 0xFF, 0xFF, 0xFF]`) followed by a 1-byte opcode. Used
+ * for high-frequency keeper instructions that bypass Anchor's instruction-dispatch overhead.
+ * @param discriminator - The native instruction's opcode byte.
+ * @returns The 5-byte discriminator buffer to prepend to the instruction's data.
+ */
 export function createNativeInstructionDiscriminatorBuffer(
 	discriminator: number
 ): Uint8Array {

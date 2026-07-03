@@ -25,7 +25,7 @@ One tiered taker fee; fixed carveouts off the top; the remainder split by two
 global percentages; builder fee added on top.
 
 ```
-taker_fee  = ceil(notional × fee_numerator / FEE_DENOMINATOR)   tiered by 30d volume + gov stake,
+taker_fee  = ceil(notional × fee_numerator / FEE_DENOMINATOR)   tiered by 30d volume only,
                                                                 ± per-market fee_adjustment
           − referee_discount          (reduces what the taker pays; never collected)
           − referrer_reward           (→ referrer, via RevenueShareEscrow)

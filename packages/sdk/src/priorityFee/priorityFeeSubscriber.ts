@@ -18,6 +18,17 @@ import {
 	VelocityMarketInfo,
 } from './velocityPriorityFeeMethod';
 
+/**
+ * PriorityFeeSubscriber — polls one of three sources (Solana RPC, Helius, or
+ * the Velocity-hosted priority fee cache — see `PriorityFeeMethod`) on an
+ * interval and exposes several aggregations over the resulting samples: a
+ * simple average, a max, and a caller-supplied `customStrategy`. All
+ * `get*StrategyResult` accessors return `0` until the first successful poll,
+ * and are clamped to `maxFeeMicroLamports` (if set) after applying
+ * `priorityFeeMultiplier`. All returned fee values are in micro-lamports per
+ * compute unit, the unit Solana's `ComputeBudgetProgram.setComputeUnitPrice`
+ * expects.
+ */
 export class PriorityFeeSubscriber {
 	connection?: Connection;
 	frequencyMs: number;
@@ -43,6 +54,10 @@ export class PriorityFeeSubscriber {
 	lastMaxStrategyResult = 0;
 	lastSlotSeen = 0;
 
+	/**
+	 * @param config See `PriorityFeeSubscriberConfig`. Required fields depend on `priorityFeeMethod` (default `SOLANA`): SOLANA needs `connection`; HELIUS needs `heliusRpcUrl` or a Helius `connection`; VELOCITY needs `velocityPriorityFeeEndpoint`.
+	 * @throws If `priorityFeeMethod` is `HELIUS` without a resolvable Helius RPC URL, or `SOLANA` without a `connection`.
+	 */
 	public constructor(config: PriorityFeeSubscriberConfig) {
 		this.connection = config.connection;
 		this.frequencyMs =
@@ -93,6 +108,7 @@ export class PriorityFeeSubscriber {
 		this.priorityFeeMultiplier = config.priorityFeeMultiplier ?? 1.0;
 	}
 
+	/** Starts polling at `frequencyMs` and performs one immediate `load()`. Idempotent while already subscribed. */
 	public async subscribe(): Promise<void> {
 		if (this.intervalId) {
 			return;
@@ -193,26 +209,36 @@ export class PriorityFeeSubscriber {
 		}
 	}
 
+	/** @returns The current clamp on returned fee values (micro-lamports/CU), or `undefined` if unclamped. */
 	public getMaxPriorityFee(): number | undefined {
 		return this.maxFeeMicroLamports;
 	}
 
+	/** Updates the clamp applied to all `get*StrategyResult`/`getHeliusPriorityFeeLevel` results. Pass `undefined` to remove the clamp. */
 	public updateMaxPriorityFee(newMaxFee: number | undefined) {
 		this.maxFeeMicroLamports = newMaxFee;
 	}
 
+	/** @returns The multiplier applied to strategy results before clamping; defaults to `1.0`. */
 	public getPriorityFeeMultiplier(): number {
 		return this.priorityFeeMultiplier ?? 1.0;
 	}
 
+	/** Updates the multiplier applied to `getCustomStrategyResult`/`getAvgStrategyResult`/`getMaxStrategyResult` before clamping. */
 	public updatePriorityFeeMultiplier(newPriorityFeeMultiplier: number) {
 		this.priorityFeeMultiplier = newPriorityFeeMultiplier;
 	}
 
+	/** Swaps the `PriorityFeeStrategy` used to compute `getCustomStrategyResult`; takes effect on the next `load()`. */
 	public updateCustomStrategy(newStrategy: PriorityFeeStrategy) {
 		this.customStrategy = newStrategy;
 	}
 
+	/**
+	 * Only meaningful with `priorityFeeMethod: HELIUS`.
+	 * @param level Helius percentile level to read; defaults to `MEDIUM`.
+	 * @returns That level's fee (micro-lamports/CU) from the most recent Helius sample, clamped to `maxFeeMicroLamports` if set, or `0` if no sample has been loaded yet.
+	 */
 	public getHeliusPriorityFeeLevel(
 		level: HeliusPriorityLevel = HeliusPriorityLevel.MEDIUM
 	): number {
@@ -225,6 +251,7 @@ export class PriorityFeeSubscriber {
 		return this.lastHeliusSample[level];
 	}
 
+	/** @returns The configured `customStrategy`'s result from the most recent poll (micro-lamports/CU), scaled by `priorityFeeMultiplier` and clamped to `maxFeeMicroLamports` if set. `0` before the first successful `load()`. */
 	public getCustomStrategyResult(): number {
 		const result =
 			this.lastCustomStrategyResult * this.getPriorityFeeMultiplier();
@@ -234,6 +261,7 @@ export class PriorityFeeSubscriber {
 		return result;
 	}
 
+	/** @returns The average-over-samples fee from the most recent poll (micro-lamports/CU) — for HELIUS this is the MEDIUM level, for VELOCITY the max MEDIUM level across configured markets — scaled by `priorityFeeMultiplier` and clamped to `maxFeeMicroLamports` if set. `0` before the first successful `load()`. */
 	public getAvgStrategyResult(): number {
 		const result = this.lastAvgStrategyResult * this.getPriorityFeeMultiplier();
 		if (this.maxFeeMicroLamports !== undefined) {
@@ -242,6 +270,7 @@ export class PriorityFeeSubscriber {
 		return result;
 	}
 
+	/** @returns The max-over-samples fee from the most recent poll (micro-lamports/CU) — for HELIUS this is the UNSAFE_MAX level, for VELOCITY the max UNSAFE_MAX level across configured markets — scaled by `priorityFeeMultiplier` and clamped to `maxFeeMicroLamports` if set. `0` before the first successful `load()`. */
 	public getMaxStrategyResult(): number {
 		const result = this.lastMaxStrategyResult * this.getPriorityFeeMultiplier();
 		if (this.maxFeeMicroLamports !== undefined) {
@@ -250,6 +279,13 @@ export class PriorityFeeSubscriber {
 		return result;
 	}
 
+	/**
+	 * Fetches one round of samples from the configured `priorityFeeMethod`
+	 * and recomputes `latestPriorityFee`/`lastAvgStrategyResult`/
+	 * `lastMaxStrategyResult`/`lastCustomStrategyResult`. Errors are caught
+	 * and logged, not thrown, so a transient failure just leaves the previous
+	 * values in place until the next poll.
+	 */
 	public async load(): Promise<void> {
 		try {
 			if (this.priorityFeeMethod === PriorityFeeMethod.SOLANA) {
@@ -272,6 +308,7 @@ export class PriorityFeeSubscriber {
 		}
 	}
 
+	/** Stops polling. */
 	public async unsubscribe(): Promise<void> {
 		if (this.intervalId) {
 			clearInterval(this.intervalId);
@@ -279,10 +316,12 @@ export class PriorityFeeSubscriber {
 		}
 	}
 
+	/** Replaces the set of write-locked addresses used for SOLANA/HELIUS fee sampling; takes effect on the next `load()`. */
 	public updateAddresses(addresses: PublicKey[]) {
 		this.addresses = addresses.map((k) => k.toBase58());
 	}
 
+	/** Replaces the set of markets queried when `priorityFeeMethod` is VELOCITY; takes effect on the next `load()`. */
 	public updateMarketTypeAndIndex(velocityMarkets: VelocityMarketInfo[]) {
 		this.velocityMarkets = velocityMarkets;
 	}

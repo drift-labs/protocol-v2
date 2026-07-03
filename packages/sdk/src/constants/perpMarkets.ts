@@ -2,27 +2,29 @@ import { PublicKey } from '@solana/web3.js';
 import { MarketStatus, OracleSource } from '../types';
 import { VelocityEnv } from '../config';
 
+/** Static off-chain metadata for one deployed perp market, keyed by `marketIndex`. This is a client-side registry (symbol/oracle wiring for UIs and SDK bootstrapping) — it is not decoded from chain and can drift from the live `PerpMarketAccount` if not kept in sync with deployments. */
 export type PerpMarketConfig = {
 	fullName?: string;
 	category?: string[];
 	symbol: string;
 	baseAssetSymbol: string;
 	marketIndex: number;
+	/** unix ms timestamp the market launched */
 	launchTs: number;
 	oracle: PublicKey;
 	oracleSource: OracleSource;
+	/** Pyth price-feed id (hex), for the legacy Pyth push/pull oracle path */
 	pythFeedId?: string;
+	/** Pyth Lazer feed id, for `OracleSource.PYTH_LAZER*` markets */
 	pythLazerId?: number;
+	/** current known on-chain status; omitted means `ACTIVE`. Kept here so tooling can filter out delisted markets without an RPC round-trip */
 	marketStatus?: MarketStatus;
 };
 
-// Reflects what is actually deployed on devnet (per on-chain enumeration of
-// State.numberOfMarkets). Update when devnet adds/changes a perp market.
-// BTC (1) + ETH (2) are (re)created by deploy-scripts/add-perp-market-devnet.ts.
-// Oracles are the velocity program's pyth_lazer PDAs:
-// findProgramAddress(["pyth_lazer", u32le(pythLazerId)], VELOCITY_DEVNET_PROGRAM_ID).
-// ETH-PERP uses lazer feed 2 (the real ETH price feed; feed 3114 is the
-// mm-oracle feed, not the price feed).
+/**
+ * Reflects what is actually deployed on devnet (per on-chain enumeration of
+ * `StateAccount.numberOfMarkets`). Update when devnet adds/changes a perp market.
+ */
 export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Solana',
@@ -118,6 +120,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 ];
 
+/** Perp market registries keyed by `VelocityEnv`, for looking up a deployment's markets without hardcoding the environment. */
 export const PerpMarkets: { [key in VelocityEnv]: PerpMarketConfig[] } = {
 	devnet: DevnetPerpMarkets,
 	'mainnet-beta': MainnetPerpMarkets,

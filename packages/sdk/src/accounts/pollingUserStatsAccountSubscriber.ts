@@ -11,6 +11,10 @@ import { PublicKey } from '@solana/web3.js';
 import { UserStatsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 
+/**
+ * `UserStatsAccountSubscriber` backed by a shared `BulkAccountLoader` instead of a dedicated
+ * WebSocket subscription, mirroring `PollingUserAccountSubscriber` for `UserStatsAccount`.
+ */
 export class PollingUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
@@ -25,6 +29,11 @@ export class PollingUserStatsAccountSubscriber
 
 	userStats?: DataAndSlot<UserStatsAccount>;
 
+	/**
+	 * @param program Anchor program used for the one-off `fetch()` fallback and account decoding.
+	 * @param userStatsAccountPublicKey Address of the `UserStatsAccount` to track.
+	 * @param accountLoader Shared `BulkAccountLoader` this subscriber registers its callback with.
+	 */
 	public constructor(
 		program: VelocityProgram,
 		userStatsAccountPublicKey: PublicKey,
@@ -37,6 +46,12 @@ export class PollingUserStatsAccountSubscriber
 		this.userStatsAccountPublicKey = userStatsAccountPublicKey;
 	}
 
+	/**
+	 * Registers this account with the shared `BulkAccountLoader` and, if no data has loaded yet
+	 * (from a prior fetch or the optional `userStatsAccount` seed), performs a one-off `fetch()`
+	 * so the subscriber has data before returning. Idempotent: a no-op if already subscribed.
+	 * @param userStatsAccount Optional pre-fetched account data to seed with (at slot 0) instead of an immediate fetch.
+	 */
 	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
@@ -60,6 +75,7 @@ export class PollingUserStatsAccountSubscriber
 		return true;
 	}
 
+	/** Registers this user stats account and an error callback with the `BulkAccountLoader`. A no-op if already registered. */
 	async addToAccountLoader(): Promise<void> {
 		if (this.callbackId !== undefined) {
 			return;
@@ -91,12 +107,14 @@ export class PollingUserStatsAccountSubscriber
 		});
 	}
 
+	/** Fetches via `fetch()` only if no data is cached yet; otherwise a no-op. */
 	async fetchIfUnloaded(): Promise<void> {
 		if (!this.doesAccountExist()) {
 			await this.fetch();
 		}
 	}
 
+	/** Fetches the account once directly via `program.account.userStats.fetchAndContext` (independent of the account loader's poll cycle), applying it only if the response's slot is newer than what's cached. Logs and swallows errors rather than throwing. */
 	async fetch(): Promise<void> {
 		try {
 			const dataAndContext = await (
@@ -120,10 +138,12 @@ export class PollingUserStatsAccountSubscriber
 		}
 	}
 
+	/** Type predicate: true once `userStats` has loaded, narrowing `this.userStats` to non-undefined. */
 	doesAccountExist(): this is { userStats: DataAndSlot<UserStatsAccount> } {
 		return this.userStats !== undefined;
 	}
 
+	/** Unregisters this account (and its error callback) from the `BulkAccountLoader`. A no-op if not subscribed. */
 	async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -141,6 +161,7 @@ export class PollingUserStatsAccountSubscriber
 		this.isSubscribed = false;
 	}
 
+	/** Throws `NotSubscribedError` if `subscribe()` has not been called. */
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -149,6 +170,7 @@ export class PollingUserStatsAccountSubscriber
 		}
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. Returns undefined only if subscribed but no data has loaded yet. */
 	public getUserStatsAccountAndSlot():
 		| DataAndSlot<UserStatsAccount>
 		| undefined {

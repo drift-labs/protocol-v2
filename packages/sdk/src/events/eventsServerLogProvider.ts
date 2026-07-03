@@ -13,6 +13,17 @@ if (typeof window !== 'undefined' && window.WebSocket) {
 const EVENT_SERVER_HEARTBEAT_INTERVAL_MS = 5000;
 const ALLOWED_MISSED_HEARTBEATS = 3;
 
+/**
+ * `LogProvider` backed by the Velocity-hosted events server: a websocket
+ * that pushes pre-parsed events per subscribed channel (event type),
+ * optionally filtered to one user account, instead of raw RPC logs. Expects
+ * a heartbeat message on channel `'heartbeat'` at least every
+ * `EVENT_SERVER_HEARTBEAT_INTERVAL_MS` (5s); if none arrives within 3 missed
+ * intervals it closes and resubscribes, emitting `'reconnect'` on
+ * `eventEmitter` with the attempt count. Each received event is repackaged
+ * as a synthetic 3-line log array (`invoke` / raw log / `success`) so it can
+ * be run back through the same `parseLogs` pipeline as RPC-sourced logs.
+ */
 export class EventsServerLogProvider implements LogProvider {
 	private ws?: WebSocket;
 	private callback?: logProviderCallback;
@@ -23,6 +34,11 @@ export class EventsServerLogProvider implements LogProvider {
 	private reconnectAttempts = 0;
 	eventEmitter: EventEmitter = new EventEmitter();
 
+	/**
+	 * @param url Websocket URL of the Velocity events server.
+	 * @param eventTypes Event type channels to subscribe to (one `subscribe` message sent per type on connect).
+	 * @param userAccount If provided, scopes the subscription server-side to events for this user account (base58 pubkey string).
+	 */
 	public constructor(
 		private readonly url: string,
 		private readonly eventTypes: EventType[],
@@ -33,12 +49,19 @@ export class EventsServerLogProvider implements LogProvider {
 		return this.ws !== undefined;
 	}
 
+	/** Opens the websocket and sends a `subscribe` message per configured event type once connected. `skipHistory` is accepted for `LogProvider` interface compatibility but has no effect (the server only ever pushes new events). Always resolves `true`; malformed inbound messages are caught and logged, not thrown. */
 	public async subscribe(callback: logProviderCallback): Promise<boolean> {
 		if (this.ws !== undefined) {
 			return true;
 		}
 		const ws = new WebSocketImpl(this.url);
 		this.ws = ws;
+
+		// reset teardown flags for a fresh subscription cycle — the `ws !== undefined`
+		// unsubscribe path (e.g. a heartbeat-timeout resubscribe) leaves isUnsubscribing
+		// set, which would otherwise disable the watchdog and reconnect on this new socket
+		this.isUnsubscribing = false;
+		this.externalUnsubscribe = false;
 
 		this.callback = callback;
 		ws.addEventListener('open', () => {
@@ -113,6 +136,11 @@ export class EventsServerLogProvider implements LogProvider {
 		return true;
 	}
 
+	/**
+	 * Closes the websocket and clears the heartbeat timeout.
+	 * @param external Whether this is a caller-initiated unsubscribe rather than an internal one during a reconnect cycle.
+	 * @returns Always resolves `true`.
+	 */
 	public async unsubscribe(external = false): Promise<boolean> {
 		this.isUnsubscribing = true;
 		this.externalUnsubscribe = external;

@@ -10,26 +10,36 @@ import { OracleSource } from '../types';
 import { BN } from '../isomorphic/anchor';
 import { VelocityEnv } from '../config';
 
+/** Static off-chain metadata for one deployed spot market, keyed by `marketIndex`. Client-side registry (symbol/oracle/mint/decimals wiring) — not decoded from chain, so it must be kept in sync with deployments. */
 export type SpotMarketConfig = {
 	symbol: string;
 	marketIndex: number;
+	/** the LP-pool "pool" this market belongs to (distinct spot markets can wrap the same mint under different pool ids, e.g. `SOL` vs `SOL-2`) */
 	poolId: number;
 	oracle: PublicKey;
 	mint: PublicKey;
 	oracleSource: OracleSource;
+	/** `10^precisionExp`; the token mint's precision as a `BN`, i.e. one whole token */
 	precision: BN;
+	/** the token mint's decimals */
 	precisionExp: BN;
+	/** unix ms timestamp the market launched */
 	launchTs?: number;
+	/** Pyth price-feed id (hex), for the legacy Pyth push/pull oracle path */
 	pythFeedId?: string;
+	/** Pyth Lazer feed id, for `OracleSource.PYTH_LAZER*` markets */
 	pythLazerId?: number;
 };
 
+/** The canonical wrapped-SOL mint address, shared across all `SOL`-symbol spot market configs. */
 export const WRAPPED_SOL_MINT = new PublicKey(
 	'So11111111111111111111111111111111111111112'
 );
 
-// Reflects what is actually deployed on devnet (per on-chain enumeration of
-// State.numberOfSpotMarkets). Update when devnet adds/changes a spot market.
+/**
+ * Reflects what is actually deployed on devnet (per on-chain enumeration of
+ * `StateAccount.numberOfSpotMarkets`). Update when devnet adds/changes a spot market.
+ */
 export const DevnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'dUSDT',
@@ -87,6 +97,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	},
 ];
 
+/** Spot market registries keyed by `VelocityEnv`, for looking up a deployment's markets without hardcoding the environment. */
 export const SpotMarkets: { [key in VelocityEnv]: SpotMarketConfig[] } = {
 	devnet: DevnetSpotMarkets,
 	'mainnet-beta': MainnetSpotMarkets,

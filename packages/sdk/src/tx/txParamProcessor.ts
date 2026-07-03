@@ -17,6 +17,10 @@ type TransactionBuildingProps = {
 
 /**
  * This class is responsible for running through a "processing" pipeline for a base transaction, to adjust the standard transaction parameters based on a given configuration.
+ *
+ * Currently the only pipeline step is simulation-based compute unit resolution: build the
+ * transaction with a max compute-unit budget, simulate it, and replace the compute-unit limit
+ * (and optionally the compute-unit price) with values derived from actual simulated usage.
  */
 export class TransactionParamProcessor {
 	private static async getComputeUnitsFromSim(
@@ -29,6 +33,24 @@ export class TransactionParamProcessor {
 		return undefined;
 	}
 
+	/**
+	 * Determines a compute-unit limit to use for a transaction by simulating it (or reusing a
+	 * pre-supplied simulation), applying `bufferMultiplier` to the actually-consumed units, and
+	 * clamping the result to at most `MAX_COMPUTE_UNITS` (1,400,000). Simulation runs with
+	 * `replaceRecentBlockhash: true` to avoid spurious `blockHashNotFound` failures from an
+	 * already-stale blockhash on the transaction being sized. Never throws: any error (including
+	 * a simulation error result) is caught and reported via the `success: false` return.
+	 * @param tx - Transaction to simulate (ignored if `simulatedTx` is supplied instead).
+	 * @param connection - RPC connection used to simulate, if `simulatedTx` isn't provided.
+	 * @param bufferMultiplier - Multiplier applied to the raw consumed compute units before
+	 * clamping (e.g. `1.2` for a 20% buffer) — mandatory to force callers to account for
+	 * simulated CU counts being an imperfect predictor of the real on-chain cost.
+	 * @param lowerBoundCu - If provided, the result is floored at `min(lowerBoundCu, MAX_COMPUTE_UNITS)`.
+	 * @param simulatedTx - A pre-computed simulation result to reuse instead of simulating `tx` again.
+	 * @returns `{ success: true, computeUnits }` with the buffered/clamped compute-unit limit on
+	 * success, or `{ success: false, computeUnits: undefined }` if simulation failed or returned no
+	 * `unitsConsumed`.
+	 */
 	public static async getTxSimComputeUnits(
 		tx: VersionedTransaction,
 		connection: Connection,
@@ -93,6 +115,31 @@ export class TransactionParamProcessor {
 		}
 	}
 
+	/**
+	 * Runs the configured processing steps against a base set of tx params and returns the
+	 * adjusted params. If `processConfig` is empty/absent, returns `baseTxParams` unchanged
+	 * without building or simulating anything.
+	 *
+	 * When `processConfig.useSimulatedComputeUnits` is set: rebuilds the transaction (via
+	 * `txBuilder`) with `computeUnits` forced to `MAX_COMPUTE_UNITS` so simulation isn't
+	 * constrained by an under-sized limit, simulates it, and — on success — replaces
+	 * `computeUnits` with the result of `getTxSimComputeUnits` (failure leaves the original
+	 * `baseTxParams.computeUnits` untouched, it does not throw).
+	 *
+	 * When additionally `processConfig.useSimulatedComputeUnitsForCUPriceCalculation` is set:
+	 * derives `computeUnitsPrice` from the simulated `computeUnits` via
+	 * `processConfig.getCUPriceFromComputeUnits`.
+	 * @param props.baseTxParams - Starting compute-unit limit/price to adjust.
+	 * @param props.processConfig - Which processing steps to run (see `ProcessingTxParams`).
+	 * @param props.processParams.connection - RPC connection used for simulation.
+	 * @param props.processParams.simulatedTx - Pre-computed simulation result to reuse instead of simulating again.
+	 * @param props.txBuilder - Builds a `VersionedTransaction` from a given `BaseTxParams`, used to
+	 * produce the transaction that gets simulated.
+	 * @returns The adjusted `BaseTxParams`.
+	 * @throws Error if `useSimulatedComputeUnitsForCUPriceCalculation` is set without
+	 * `useSimulatedComputeUnits`, without `getCUPriceFromComputeUnits`, or if the simulated compute
+	 * units are unavailable (simulation failed).
+	 */
 	static async process(props: {
 		baseTxParams: BaseTxParams;
 		processConfig: ProcessingTxParams;

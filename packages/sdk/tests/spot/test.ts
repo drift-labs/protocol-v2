@@ -6,6 +6,10 @@ import {
 	calculateSizePremiumLiabilityWeight,
 	calculateBorrowRate,
 	calculateDepositRate,
+	calculateWithdrawLimit,
+	getTokenValue,
+	getStrictTokenValue,
+	StrictOraclePrice,
 } from '../../src';
 import { mockSpotMarkets } from '../dlob/helpers';
 import * as _ from 'lodash';
@@ -222,5 +226,56 @@ describe('Spot Tests', () => {
 		const addBor1 = calculateBorrowRate(mockSpot, new BN(-1000 * 1e9));
 		// console.log(addBor1.toNumber());
 		assert(addBor1.eqn(20918)); // went up
+	});
+
+	function buildWithdrawLimitMarket(poolId: number) {
+		const mockSpot = _.cloneDeep(mockSpotMarkets[0]);
+		mockSpot.decimals = 9;
+		mockSpot.cumulativeDepositInterest = new BN(10).pow(new BN(10));
+		mockSpot.cumulativeBorrowInterest = new BN(10).pow(new BN(10));
+		mockSpot.depositBalance = new BN(100000);
+		mockSpot.borrowBalance = new BN(10000);
+		mockSpot.depositTokenTwap = new BN(70000);
+		mockSpot.borrowTokenTwap = new BN(10000);
+		mockSpot.lastTwapTs = new BN(0);
+		mockSpot.optimalUtilization = 900000;
+		mockSpot.utilizationTwap = new BN(0);
+		mockSpot.withdrawGuardThreshold = new BN(0);
+		mockSpot.maxTokenBorrowsFraction = 0;
+		mockSpot.poolId = poolId;
+		return mockSpot;
+	}
+
+	it('withdraw limit (main pool) uses lesserDepositAmount with /3, /5, /14', () => {
+		// depositTokenTwapLive works out to 85000 (< the 100000 raw deposit
+		// amount), so this pins both the divisors and that the twap-min'd
+		// amount -- not the raw deposit amount -- feeds the first max() term
+		const mockSpot = buildWithdrawLimitMarket(0);
+		const now = new BN(43200); // half of the 24h twap window since lastTwapTs
+
+		const result = calculateWithdrawLimit(mockSpot, now);
+		assert(result.maxBorrowAmount.eq(new BN(28333)));
+		assert(result.borrowLimit.eq(new BN(18333)));
+	});
+
+	it('withdraw limit (isolated pool) uses lesserDepositAmount with /2, /3, /20', () => {
+		const mockSpot = buildWithdrawLimitMarket(1);
+		const now = new BN(43200);
+
+		const result = calculateWithdrawLimit(mockSpot, now);
+		assert(result.maxBorrowAmount.eq(new BN(42500)));
+		assert(result.borrowLimit.eq(new BN(32500)));
+	});
+
+	it('getTokenValue floors (rounds toward -infinity) for a negative product', () => {
+		// -3 * 5 = -15; -15/10 truncates to -1 but floors to -2
+		const value = getTokenValue(new BN(-3), 1, { price: new BN(5) });
+		assert(value.eq(new BN(-2)));
+	});
+
+	it('getStrictTokenValue floors (rounds toward -infinity) for a negative product', () => {
+		const strictPrice = new StrictOraclePrice(new BN(5), new BN(5));
+		const value = getStrictTokenValue(new BN(-3), 1, strictPrice);
+		assert(value.eq(new BN(-2)));
 	});
 });

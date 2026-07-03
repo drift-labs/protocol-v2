@@ -14,6 +14,7 @@ import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
 import fetch from 'node-fetch';
 import { checkSameDate } from './utils';
 
+/** Response shape of SolBlaze's `bsol/stats` endpoint (bSOL conversion ratio + APY breakdown). */
 export type BSOL_STATS_API_RESPONSE = {
 	success: boolean;
 	stats?: {
@@ -31,6 +32,7 @@ export type BSOL_STATS_API_RESPONSE = {
 	};
 };
 
+/** Response shape of SolBlaze's Velocity-specific lending emissions endpoint. */
 export type BSOL_EMISSIONS_API_RESPONSE = {
 	success: boolean;
 	emissions?: {
@@ -38,14 +40,52 @@ export type BSOL_EMISSIONS_API_RESPONSE = {
 	};
 };
 
+/**
+ * Fetches bSOL conversion/APY stats from SolBlaze's public API.
+ *
+ * @return {Promise<Response>} The raw `fetch` response; caller must check `.status` and parse
+ *   JSON as `BSOL_STATS_API_RESPONSE`
+ */
 export async function fetchBSolMetrics() {
 	return await fetch('https://stake.solblaze.org/api/v1/stats');
 }
 
+/**
+ * Fetches bSOL lending-emissions data specific to Velocity from SolBlaze's public API.
+ *
+ * @return {Promise<Response>} The raw `fetch` response; caller must check `.status` and parse
+ *   JSON as `BSOL_EMISSIONS_API_RESPONSE`
+ */
 export async function fetchBSolVelocityEmissions() {
 	return await fetch('https://stake.solblaze.org/api/v1/velocity_emissions');
 }
 
+/**
+ * Dispatches to the correct "super-stake" (deposit SOL, swap to an LST, deposit the LST as
+ * leveraged collateral) instruction builder for a given LST spot market, routing by the SDK's
+ * hardcoded market-index constants: `2` (mSOL) uses Marinade-or-Jupiter (`findBestMSolSuperStakeIxs`),
+ * `6` (JitoSOL) and `8` (a generic LST, e.g. bSOL) both use Jupiter-only routing.
+ *
+ * @param {object} params
+ * @param {number} params.marketIndex - The LST spot market index; must be `2`, `6`, or `8`
+ * @param {BN} params.amount - SOL amount to stake, `LAMPORTS_PRECISION` (1e9)
+ * @param {JupiterClient} params.jupiterClient - Jupiter aggregator client for swap routing
+ * @param {VelocityClient} params.velocityClient - Velocity client (for market accounts + instruction building)
+ * @param {PublicKey} [params.userAccountPublicKey] - The target sub-account; defaults to the
+ *   client's active sub-account if omitted
+ * @param {number} [params.price] - Pre-fetched mSOL/SOL price (market index 2 only); fetched from
+ *   Marinade if omitted
+ * @param {boolean} [params.forceMarinade] - Force the direct Marinade stake path over a Jupiter
+ *   swap even if Jupiter would be cheaper (market index 2 only)
+ * @param {boolean} [params.onlyDirectRoutes] - Restrict Jupiter routing to direct swaps only
+ * @param {QuoteResponse} [params.jupiterQuote] - A pre-fetched Jupiter quote to reuse instead of
+ *   fetching a fresh one
+ * @return {Promise<{ ixs: TransactionInstruction[]; lookupTables: AddressLookupTableAccount[];
+ *   method: 'jupiter' | 'marinade'; price?: number }>} The instructions to submit, any address
+ *   lookup tables they require, which routing method was chosen, and (market index 2 only) the
+ *   price used for the routing decision
+ * @throws {Error} If `marketIndex` is not one of the supported LST markets
+ */
 export async function findBestSuperStakeIxs({
 	marketIndex,
 	amount,
@@ -108,6 +148,26 @@ export async function findBestSuperStakeIxs({
 	}
 }
 
+/**
+ * Chooses between staking SOL directly with Marinade (mint mSOL 1:1 at the protocol rate) or
+ * swapping SOL for mSOL via Jupiter, whichever is cheaper for the user, then returns the
+ * resulting deposit instructions. Marinade is chosen when its price is lower than (i.e. gives
+ * more mSOL per SOL than) the best Jupiter quote, when `forceMarinade` is set, or when a Jupiter
+ * quote couldn't be obtained.
+ *
+ * @param {object} params
+ * @param {BN} params.amount - SOL amount to stake, `LAMPORTS_PRECISION` (1e9)
+ * @param {JupiterClient} params.jupiterClient - Jupiter aggregator client
+ * @param {VelocityClient} params.velocityClient - Velocity client
+ * @param {number} [params.price] - Pre-fetched mSOL/SOL Marinade rate; fetched live if omitted
+ * @param {PublicKey} [params.userAccountPublicKey] - The target sub-account
+ * @param {boolean} [params.forceMarinade] - Force the Marinade path regardless of Jupiter pricing
+ * @param {boolean} [params.onlyDirectRoutes] - Restrict Jupiter routing to direct swaps only
+ * @param {QuoteResponse} [params.jupiterQuote] - A pre-fetched Jupiter quote to reuse
+ * @return {Promise<{ ixs: TransactionInstruction[]; lookupTables: AddressLookupTableAccount[];
+ *   method: 'jupiter' | 'marinade'; price: number }>} The chosen route's instructions, required
+ *   lookup tables, the method used, and the mSOL/SOL price used for the decision
+ */
 export async function findBestMSolSuperStakeIxs({
 	amount,
 	jupiterClient,
@@ -190,6 +250,20 @@ export async function findBestMSolSuperStakeIxs({
 	}
 }
 
+/**
+ * Builds instructions to super-stake into JitoSOL (spot market index `6`) by swapping SOL for
+ * JitoSOL via Jupiter. Thin wrapper around `findBestLstSuperStakeIxs`.
+ *
+ * @param {object} params
+ * @param {BN} params.amount - SOL amount to stake, `LAMPORTS_PRECISION` (1e9)
+ * @param {JupiterClient} params.jupiterClient - Jupiter aggregator client
+ * @param {VelocityClient} params.velocityClient - Velocity client
+ * @param {PublicKey} [params.userAccountPublicKey] - The target sub-account
+ * @param {boolean} [params.onlyDirectRoutes] - Restrict Jupiter routing to direct swaps only
+ * @param {QuoteResponse} [params.jupiterQuote] - A pre-fetched Jupiter quote to reuse
+ * @return {Promise<{ ixs: TransactionInstruction[]; lookupTables: AddressLookupTableAccount[];
+ *   method: 'jupiter' | 'marinade'; price?: number }>} Always resolves with `method: 'jupiter'`
+ */
 export async function findBestJitoSolSuperStakeIxs({
 	amount,
 	jupiterClient,
@@ -223,9 +297,22 @@ export async function findBestJitoSolSuperStakeIxs({
 }
 
 /**
- * Finds best swap instructions for a generic lstMint
+ * Builds instructions to super-stake into an arbitrary LST via a Jupiter swap from SOL. Unlike
+ * `findBestMSolSuperStakeIxs`, this does not compare against a direct-stake rate with the LST's
+ * own protocol — it always routes through Jupiter.
  *
- * Without doing any extra steps like checking if you can get a better rate by staking directly with that LST platform
+ * @param {object} params
+ * @param {BN} params.amount - SOL amount to stake, `LAMPORTS_PRECISION` (1e9)
+ * @param {PublicKey} params.lstMint - The target LST's mint (unused directly here; kept for
+ *   caller symmetry with `lstMarketIndex`)
+ * @param {number} params.lstMarketIndex - The target LST's spot market index
+ * @param {JupiterClient} params.jupiterClient - Jupiter aggregator client
+ * @param {VelocityClient} params.velocityClient - Velocity client
+ * @param {PublicKey} [params.userAccountPublicKey] - The target sub-account
+ * @param {boolean} [params.onlyDirectRoutes] - Restrict Jupiter routing to direct swaps only
+ * @param {QuoteResponse} [params.jupiterQuote] - A pre-fetched Jupiter quote to reuse
+ * @return {Promise<{ ixs: TransactionInstruction[]; lookupTables: AddressLookupTableAccount[];
+ *   method: 'jupiter' | 'marinade' }>} Always resolves with `method: 'jupiter'`
  */
 export async function findBestLstSuperStakeIxs({
 	amount,
@@ -266,6 +353,7 @@ export async function findBestLstSuperStakeIxs({
 	};
 }
 
+/** Response shape of Jito's `stake_pool_stats` endpoint: daily TVL, jitoSOL supply, and APY series. */
 export type JITO_SOL_METRICS_ENDPOINT_RESPONSE = {
 	tvl: {
 		// TVL in SOL, BN
@@ -299,6 +387,11 @@ const get30DAgo = () => {
 	return date;
 };
 
+/**
+ * Fetches daily jitoSOL TVL/supply/APY stats for the trailing 30 days from Jito's public API.
+ *
+ * @return {Promise<JITO_SOL_METRICS_ENDPOINT_RESPONSE>} The parsed JSON response
+ */
 export async function fetchJitoSolMetrics() {
 	const res = await fetch(
 		'https://kobe.mainnet.jito.network/api/v1/stake_pool_stats',
@@ -360,6 +453,22 @@ const getJitoSolHistoricalPriceMap = async (timestamps: number[]) => {
 	}
 };
 
+/**
+ * Estimates net SOL earned (or lost) from super-staking a given LST market over the user's full
+ * deposit history, by converting every historical SOL and LST deposit/withdrawal record to a SOL
+ * value at the LST/SOL ratio effective at that record's timestamp, then adding back the current
+ * SOL-value of the user's present SOL and LST balances. Requires third-party price history APIs
+ * per LST (Marinade for mSOL, Jito's stake pool stats for JitoSOL, SolBlaze's current-only rate
+ * for bSOL — bSOL therefore uses one flat ratio for all historical records, not a true history).
+ *
+ * @param {object} params
+ * @param {number} params.marketIndex - The LST spot market index (`2` mSOL, `6` JitoSOL, `8` bSOL)
+ * @param {User} params.user - The user account to read current SOL/LST balances from
+ * @param {DepositRecord[]} params.depositRecords - The user's historical deposit/withdraw records
+ *   across the SOL market (index `1`) and the LST market
+ * @return {Promise<BN>} Estimated net SOL earned, `LAMPORTS_PRECISION` (1e9); can be negative
+ * @throws {Error} If an LST/SOL ratio can't be resolved for a record's timestamp (or for "now")
+ */
 export async function calculateSolEarned({
 	marketIndex,
 	user,
@@ -463,7 +572,21 @@ export async function calculateSolEarned({
 	return solEarned;
 }
 
-// calculate estimated liquidation price (in LST/SOL) based on target amounts
+/**
+ * Estimates the LST/SOL price at which a super-staked (leveraged LST-collateral, SOL-borrow)
+ * position would hit maintenance margin and become liquidatable: the price where
+ * `lstMaintenanceAssetWeight * lstDepositAmount * price === solMaintenanceLiabilityWeight * solBorrowAmount`.
+ * All inputs are plain (unscaled) numbers, not `BN` — weights are expected as fractions (e.g.
+ * `0.8` for 80%, i.e. already divided by `SPOT_MARKET_WEIGHT_PRECISION`), and this is a
+ * float-precision estimate for UI display, not a program-exact calculation.
+ *
+ * @param {number} lstDepositAmount - LST collateral amount, in whole LST tokens
+ * @param {number} lstMaintenanceAssetWeight - The LST market's maintenance asset weight, as a fraction
+ * @param {number} solBorrowAmount - SOL borrow amount, in whole SOL
+ * @param {number} solMaintenanceLiabilityWeight - The SOL market's maintenance liability weight, as a fraction
+ * @param {number} lstPriceRatio - Current LST/SOL price ratio
+ * @return {number} Estimated liquidation LST/SOL price
+ */
 export function calculateEstimatedSuperStakeLiquidationPrice(
 	lstDepositAmount: number,
 	lstMaintenanceAssetWeight: number,

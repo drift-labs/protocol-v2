@@ -20,6 +20,13 @@ export class CachedBlockhashFetcher implements BlockhashFetcher {
 
 	private blockhashFetchingPromise: Promise<void> | null = null;
 
+	/**
+	 * @param connection - RPC connection to fetch the blockhash from.
+	 * @param blockhashCommitment - Commitment level to request the blockhash at.
+	 * @param retryCount - Maximum fetch attempts before giving up and throwing.
+	 * @param retrySleepTimeMs - Base backoff delay (ms) between retries; doubles each attempt (`retrySleepTimeMs * 2^i`).
+	 * @param staleCacheTimeMs - How long (ms) a cached blockhash is served before a refresh is triggered.
+	 */
 	constructor(
 		private connection: Connection,
 		private blockhashCommitment: Commitment,
@@ -56,6 +63,14 @@ export class CachedBlockhashFetcher implements BlockhashFetcher {
 		};
 	}
 
+	/**
+	 * Returns the cached blockhash, refreshing it first if the cache is older than
+	 * `staleCacheTimeMs`. Concurrent calls during a refresh all await the same in-flight fetch
+	 * rather than issuing duplicate RPC requests.
+	 * @returns The latest (possibly cached) blockhash and its expiry block height.
+	 * @throws If no cached value exists yet and the initial fetch fails after exhausting
+	 * `retryCount` retries.
+	 */
 	public async getLatestBlockhash(): Promise<
 		BlockhashWithExpiryBlockHeight | undefined
 	> {

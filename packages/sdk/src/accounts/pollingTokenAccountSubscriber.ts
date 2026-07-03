@@ -11,6 +11,11 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { Account } from '@solana/spl-token';
 import { parseTokenAccount } from '../token';
 
+/**
+ * Tracks an SPL token account's parsed balance/owner via a shared `BulkAccountLoader`. Used for
+ * things like a spot market's token vault or a user's wallet token account, where a dedicated
+ * WebSocket subscription per account is unnecessary.
+ */
 export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	isSubscribed: boolean;
 	eventEmitter: StrictEventEmitter<EventEmitter, TokenAccountEvents>;
@@ -22,6 +27,10 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 
 	tokenAccountAndSlot?: DataAndSlot<Account>;
 
+	/**
+	 * @param publicKey Address of the SPL token account to track.
+	 * @param accountLoader Shared `BulkAccountLoader` this subscriber registers its callback with.
+	 */
 	public constructor(publicKey: PublicKey, accountLoader: BulkAccountLoader) {
 		this.isSubscribed = false;
 		this.publicKey = publicKey;
@@ -29,6 +38,13 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		this.eventEmitter = new EventEmitter();
 	}
 
+	/**
+	 * Registers this account with the shared `BulkAccountLoader`, then polls up to 5 times
+	 * (once per `load()` cycle) until data has loaded, since the token account may not have been
+	 * fetched by the shared loader on the very first poll. `isSubscribed` is only set `true` if
+	 * data loaded within those retries.
+	 * @returns `true` if account data loaded within the retry budget, `false` otherwise.
+	 */
 	async subscribe(): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
@@ -51,6 +67,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		return subscriptionSucceeded;
 	}
 
+	/** Registers this account and an error callback with the `BulkAccountLoader`. A no-op if already registered. */
 	async addToAccountLoader(): Promise<void> {
 		if (this.callbackId) {
 			return;
@@ -72,6 +89,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		});
 	}
 
+	/** Forces the shared `BulkAccountLoader` to load, then reads and parses this account's buffer from it if present. Does not check slot ordering against the previously cached value (the loader itself already filters out stale/unchanged buffers before invoking callbacks). */
 	async fetch(): Promise<void> {
 		await this.accountLoader.load();
 		const bufferAndSlot = this.accountLoader.getBufferAndSlot(this.publicKey);
@@ -88,6 +106,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		};
 	}
 
+	/** Unregisters this account (and its error callback) from the `BulkAccountLoader`. A no-op if not subscribed. */
 	async unsubscribe(): Promise<void> {
 		if (!this.isSubscribed) {
 			return;
@@ -106,6 +125,7 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		this.isSubscribed = false;
 	}
 
+	/** Throws `NotSubscribedError` if `subscribe()` has not been called. */
 	assertIsSubscribed(): void {
 		if (!this.isSubscribed) {
 			throw new NotSubscribedError(
@@ -114,11 +134,13 @@ export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 		}
 	}
 
+	/** Throws `NotSubscribedError` if not subscribed. */
 	public getTokenAccountAndSlot(): DataAndSlot<Account> {
 		this.assertIsSubscribed();
 		return this.tokenAccountAndSlot!;
 	}
 
+	/** True once account data has been loaded, independent of `isSubscribed`. */
 	didSubscriptionSucceed(): boolean {
 		return !!this.tokenAccountAndSlot;
 	}

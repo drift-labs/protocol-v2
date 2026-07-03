@@ -51,6 +51,21 @@ export class TransactionConfirmationManager {
 		this.connection = connection;
 	}
 
+	/**
+	 * Waits for a transaction to reach `desiredConfirmationStatus` using a `connection.onSignature`
+	 * websocket subscription, racing it against a one-shot `getSignatureStatuses` check (in case
+	 * the transaction already confirmed before the subscription was established) and a timeout.
+	 * The websocket listener is always removed before returning/throwing.
+	 * @param txSig - Transaction signature to confirm.
+	 * @param timeout - Milliseconds to wait before giving up; defaults to 30000 (30s).
+	 * @param desiredConfirmationStatus - Confirmation level to wait for (`'processed'` <
+	 * `'confirmed'` < `'finalized'`); defaults to `DEFAULT_CONFIRMATION_OPTS.commitment` (`'confirmed'`).
+	 * @returns The RPC response once `txSig` reaches (or exceeds) `desiredConfirmationStatus`.
+	 * @throws Error via `throwTransactionError` if the one-shot status check finds the transaction
+	 * already failed on-chain; `TxSendError` (code `NOT_CONFIRMED_ERROR_CODE`) if neither the
+	 * one-shot check nor the websocket confirms it within `timeout` — in that case the transaction's
+	 * actual outcome is unknown, not necessarily failed.
+	 */
 	async confirmTransactionWebSocket(
 		txSig: string,
 		timeout = 30000,
@@ -157,6 +172,24 @@ export class TransactionConfirmationManager {
 		return response;
 	}
 
+	/**
+	 * Waits for a transaction to reach `desiredConfirmationStatus` by polling
+	 * `getSignatureStatuses` on a shared 100ms tick (see class doc) rather than a
+	 * per-transaction interval — this call registers `txSig` and starts the shared loop if it
+	 * isn't already running.
+	 * @param txSig - Transaction signature to confirm.
+	 * @param desiredConfirmationStatus - Confirmation level to wait for; defaults to
+	 * `DEFAULT_CONFIRMATION_OPTS.commitment` (`'confirmed'`).
+	 * @param timeout - Milliseconds to wait before rejecting; defaults to 30000 (30s).
+	 * @param pollInterval - How often (ms) to actually check this transaction's status against the
+	 * shared 100ms tick; must be at least 400 and a multiple of 100. Defaults to 1000 (1s).
+	 * @param searchTransactionHistory - Whether to also search already-purged ledger history for
+	 * this signature (passed to `getSignatureStatuses`); defaults to `false`. If any transaction
+	 * batched into the same poll round requests this, the whole batch's RPC call requests it.
+	 * @returns The `SignatureStatus` once `txSig` reaches (or exceeds) `desiredConfirmationStatus`.
+	 * @throws Error if `pollInterval` is invalid, if the poll times out, or if the transaction is
+	 * found to have failed on-chain (rejected with the resolved transaction error).
+	 */
 	async confirmTransactionPolling(
 		txSig: string,
 		desiredConfirmationStatus = DEFAULT_CONFIRMATION_OPTS.commitment as TransactionConfirmationStatus,

@@ -21,6 +21,12 @@ import { PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';
 
+/**
+ * In-memory cache of `UserStats` accounts (one per trading authority, shared
+ * across that authority's sub-accounts), keyed by authority pubkey. Backed by
+ * a shared `BulkAccountLoader` for the default sync strategy so many
+ * `UserStats` can be fetched/polled together instead of one subscription each.
+ */
 export class UserStatsMap {
 	/**
 	 * map from authority pubkey to UserStats
@@ -66,6 +72,7 @@ export class UserStatsMap {
 		);
 	}
 
+	/** Populates the map for `authorities` via `sync()` (no-op if the map already has entries). */
 	public async subscribe(authorities: PublicKey[]) {
 		if (this.size() > 0) {
 			return;
@@ -108,6 +115,7 @@ export class UserStatsMap {
 		this.userStatsMap.set(authority.toString(), userStat);
 	}
 
+	/** Ensures the `UserStats` entry exists for the authority behind `record.user` (looked up/created in `userMap` first), adding it if this map doesn't have it yet. */
 	public async updateWithOrderRecord(record: OrderRecord, userMap: UserMap) {
 		const user = await userMap.mustGet(record.user.toString());
 		if (!this.has(user.getUserAccountOrThrow().authority.toString())) {
@@ -119,6 +127,15 @@ export class UserStatsMap {
 		}
 	}
 
+	/**
+	 * Incrementally updates the map in response to a single program event,
+	 * ensuring a `UserStats` entry exists for every authority the event
+	 * references (deposit/funding/new-user/IF-stake records reference an
+	 * authority directly; order/liquidation/settle-pnl/order-action records
+	 * reference a `User` account and require `userMap` to resolve its authority).
+	 * Events whose required `userMap` is not supplied, or whose type isn't
+	 * recognized, are silently ignored.
+	 */
 	public async updateWithEventRecord(
 		record: WrappedEvent<any>,
 		userMap?: UserMap
@@ -181,10 +198,12 @@ export class UserStatsMap {
 		}
 	}
 
+	/** Returns true if `authorityPublicKey` has a `UserStats` cached in the map. */
 	public has(authorityPublicKey: string): boolean {
 		return this.userStatsMap.has(authorityPublicKey);
 	}
 
+	/** Returns the cached `UserStats` for `authorityPublicKey`, or `undefined` if not (yet) in the map. */
 	public get(authorityPublicKey: string): UserStats | undefined {
 		return this.userStatsMap.get(authorityPublicKey);
 	}
@@ -212,10 +231,12 @@ export class UserStatsMap {
 		return userStats;
 	}
 
+	/** Iterates all cached `UserStats` instances. */
 	public values(): IterableIterator<UserStats> {
 		return this.userStatsMap.values();
 	}
 
+	/** Number of authorities currently cached in the map. */
 	public size(): number {
 		return this.userStatsMap.size;
 	}
@@ -362,6 +383,7 @@ export class UserStatsMap {
 		}
 	}
 
+	/** Unsubscribes and removes every cached `UserStats` from the map. */
 	public async unsubscribe() {
 		for (const [key, userStats] of this.userStatsMap.entries()) {
 			await userStats.unsubscribe();

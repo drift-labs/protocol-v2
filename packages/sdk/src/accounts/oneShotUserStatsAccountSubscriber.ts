@@ -16,6 +16,13 @@ export class OneShotUserStatsAccountSubscriber
 	program: VelocityProgram;
 	commitment: Commitment;
 
+	/**
+	 * @param program Anchor program used for the one-off `fetchAndContext` call.
+	 * @param userStatsAccountPublicKey Address of the `UserStatsAccount` to fetch.
+	 * @param data Optional pre-fetched account data to seed with, skipping the RPC call entirely.
+	 * @param slot Slot `data` was observed at, if provided.
+	 * @param commitment Commitment for the fetch; defaults to `'confirmed'`.
+	 */
 	public constructor(
 		program: VelocityProgram,
 		userStatsAccountPublicKey: PublicKey,
@@ -28,6 +35,12 @@ export class OneShotUserStatsAccountSubscriber
 		this.commitment = commitment ?? 'confirmed';
 	}
 
+	/**
+	 * If `userStatsAccount` is supplied, seeds directly with no RPC call. Otherwise fetches once
+	 * via `fetchIfUnloaded()` if no data is cached yet. Always resolves `true` — there is no
+	 * persistent subscription to fail.
+	 * @param userStatsAccount Optional pre-fetched account data to seed with instead of fetching.
+	 */
 	async subscribe(userStatsAccount?: UserStatsAccount): Promise<boolean> {
 		if (userStatsAccount) {
 			this.userStats = {
@@ -44,12 +57,18 @@ export class OneShotUserStatsAccountSubscriber
 		return true;
 	}
 
+	/** Fetches via `fetch()` only if no data is cached yet; otherwise a no-op. */
 	async fetchIfUnloaded(): Promise<void> {
 		if (!this.userStats) {
 			await this.fetch();
 		}
 	}
 
+	/**
+	 * Fetches the account once via `program.account.userStats.fetchAndContext`, applying it only
+	 * if the response's slot is newer than what's cached. Logs and swallows errors (e.g. account
+	 * not yet initialized) rather than throwing.
+	 */
 	async fetch(): Promise<void> {
 		try {
 			const dataAndContext = await (

@@ -25,16 +25,20 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	PRICE_PRECISION,
 	PERCENTAGE_PRECISION,
-	FUNDING_RATE_PRECISION,
+	FUNDING_RATE_OFFSET_PERCENTAGE,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
 import { assert } from '../assert/assert';
 
 /**
- * Calculates market mark price
+ * Calculates the perp market's current mark (mid) price from its raw (non-spread) AMM reserves,
+ * after first repegging the AMM to the oracle price (`calculateUpdatedAMM`) if `mmOraclePriceData`
+ * is provided.
  *
- * @param market
- * @return markPrice : Precision PRICE_PRECISION
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {MMOraclePriceData} [mmOraclePriceData] - Current MM oracle price data; omit to price the
+ *   AMM's stored reserves as-is without repegging
+ * @return {BN} The mark price, PRICE_PRECISION (1e6)
  */
 export function calculateReservePrice(
 	market: PerpMarketAccount,
@@ -49,10 +53,15 @@ export function calculateReservePrice(
 }
 
 /**
- * Calculates market bid price
+ * Calculates the perp market's current bid price — the price a taker sells into — by repegging
+ * the AMM to the oracle price and pricing the short-side spread reserves.
  *
- * @param market
- * @return bidPrice : Precision PRICE_PRECISION
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {MMOraclePriceData} [mmOraclePriceData] - Current MM oracle price data, used both to
+ *   repeg the AMM and to compute the spread reserves
+ * @param {BN} [latestSlot] - Current slot, used for reference-price-offset smoothing in the
+ *   spread calculation
+ * @return {BN} The bid price, PRICE_PRECISION (1e6)
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
@@ -72,10 +81,15 @@ export function calculateBidPrice(
 }
 
 /**
- * Calculates market ask price
+ * Calculates the perp market's current ask price — the price a taker buys at — by repegging
+ * the AMM to the oracle price and pricing the long-side spread reserves.
  *
- * @param market
- * @return askPrice : Precision PRICE_PRECISION
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {MMOraclePriceData} [mmOraclePriceData] - Current MM oracle price data, used both to
+ *   repeg the AMM and to compute the spread reserves
+ * @param {BN} [latestSlot] - Current slot, used for reference-price-offset smoothing in the
+ *   spread calculation
+ * @return {BN} The ask price, PRICE_PRECISION (1e6)
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
@@ -94,6 +108,13 @@ export function calculateAskPrice(
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
 }
 
+/**
+ * Calculates the signed spread between a price and the oracle price.
+ *
+ * @param {BN} price - A price, PRICE_PRECISION (1e6)
+ * @param {OraclePriceData} oraclePriceData - Oracle price data, PRICE_PRECISION (1e6)
+ * @return {BN} `price - oraclePriceData.price`, PRICE_PRECISION (1e6)
+ */
 export function calculateOracleSpread(
 	price: BN,
 	oraclePriceData: OraclePriceData
@@ -101,6 +122,21 @@ export function calculateOracleSpread(
 	return price.sub(oraclePriceData.price);
 }
 
+/**
+ * Calculates the effective margin ratio for a perp position of a given size, applying the
+ * IMF size premium on top of the market's base initial/maintenance ratio. Returns 0 for markets
+ * in `'Settlement'` status (no margin is required once a market is settling out).
+ *
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {BN} size - The position's base asset amount (`abs()` semantics expected), BASE_PRECISION (1e9)
+ * @param {MarginCategory} marginCategory - `'Initial'`, `'Maintenance'`, or `'Fill'`; throws for any other value.
+ *   `'Fill'` uses `(marginRatioInitial + marginRatioMaintenance) / 2` (integer division), mirroring
+ *   `PerpMarket::get_margin_ratio`.
+ * @param {number} [customMarginRatio] - User's custom max margin ratio, `MARGIN_PRECISION` (1e4)
+ *   units; only applied for `'Initial'`, where the looser (higher) of the computed ratio and
+ *   this value is used
+ * @return {number} The margin ratio, scaled by `MARGIN_PRECISION` (1e4, i.e. 10000 = 100%)
+ */
 export function calculateMarketMarginRatio(
 	market: PerpMarketAccount,
 	size: BN,
@@ -113,6 +149,12 @@ export function calculateMarketMarginRatio(
 	switch (marginCategory) {
 		case 'Initial':
 			defaultMarginRatio = market.marginRatioInitial;
+			break;
+		case 'Fill':
+			// mirrors PerpMarket::get_margin_ratio's Fill branch: integer-divided average
+			defaultMarginRatio = Math.floor(
+				(market.marginRatioInitial + market.marginRatioMaintenance) / 2
+			);
 			break;
 		case 'Maintenance':
 			defaultMarginRatio = market.marginRatioMaintenance;
@@ -140,6 +182,33 @@ export function calculateMarketMarginRatio(
 	return marginRatio;
 }
 
+/**
+ * Calculates the asset weight applied to a perp position's unrealized (positive) PnL when it
+ * counts toward collateral, mirroring `PerpMarket::get_unrealized_asset_weight`'s
+ * `Initial`/`Maintenance` branches. Only call this for a positive `unrealizedPnl` — the on-chain
+ * equivalent always weights a negative unrealized PnL at `SPOT_MARKET_WEIGHT_PRECISION` (100%,
+ * i.e. it's not discounted since it's a liability, not an asset).
+ *
+ * `'Initial'` weighting applies two independent discounts: (1) if `calculateNetUserPnlImbalance`
+ * (net user PnL less the pnl pool and a fifth of the fee pool) exceeds `unrealizedPnlMaxImbalance`,
+ * the base weight is first scaled down by `unrealizedPnlMaxImbalance / netUnsettledPnl`; (2) the
+ * IMF size-discount (`calculateSizeDiscountAssetWeight`) is then applied to the position's own
+ * `unrealizedPnl` size. Two notes for exact parity with the on-chain `get_unrealized_asset_weight`:
+ * (a) the Rust gate compares the *raw* `calculate_net_user_pnl` (no pool subtraction) against
+ * `unrealized_pnl_max_imbalance`, whereas step (1) here nets out the pnl/fee pool first — a
+ * looser (more forgiving) trigger condition; (b) the Rust size-discount rescales `unrealized_pnl`
+ * by `AMM_TO_QUOTE_PRECISION_RATIO` (1e3) before step (2), whereas this passes `unrealizedPnl`
+ * (QUOTE_PRECISION, 1e6) directly — `calculateSizeDiscountAssetWeight`'s `size` parameter is
+ * otherwise documented as `AMM_RESERVE_PRECISION` (1e9) elsewhere in the SDK.
+ *
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {SpotMarketAccount} quoteSpotMarket - The market's quote spot market account
+ * @param {BN} unrealizedPnl - The position's unrealized PnL, expected positive, QUOTE_PRECISION (1e6)
+ * @param {MarginCategory} marginCategory - `'Initial'`, `'Maintenance'`, or `'Fill'` (Fill is weighted identically to Initial)
+ * @param {Pick<OraclePriceData, 'price'>} oraclePriceData - Oracle price, PRICE_PRECISION (1e6),
+ *   used only for the imbalance check's `calculateNetUserPnlImbalance` call
+ * @return {BN} The asset weight, scaled by `SPOT_MARKET_WEIGHT_PRECISION` (1e4, i.e. 10000 = 100%)
+ */
 export function calculateUnrealizedAssetWeight(
 	market: PerpMarketAccount,
 	quoteSpotMarket: SpotMarketAccount,
@@ -149,7 +218,10 @@ export function calculateUnrealizedAssetWeight(
 ): BN {
 	let assetWeight: BN;
 	switch (marginCategory) {
+		// mirrors get_unrealized_asset_weight: Fill is treated like Initial (same base
+		// weight, same imbalance + size-discount adjustments).
 		case 'Initial':
+		case 'Fill':
 			assetWeight = new BN(market.unrealizedPnlInitialAssetWeight);
 
 			if (market.unrealizedPnlMaxImbalance.gt(ZERO)) {
@@ -174,11 +246,21 @@ export function calculateUnrealizedAssetWeight(
 		case 'Maintenance':
 			assetWeight = new BN(market.unrealizedPnlMaintenanceAssetWeight);
 			break;
+		default:
+			throw new Error('Invalid margin category');
 	}
 
 	return assetWeight;
 }
 
+/**
+ * Calculates the perp market's pnl pool balance — the quote tokens on hand to pay out settled
+ * user profits before insurance fund draws are needed.
+ *
+ * @param {PerpMarketAccount} perpMarket - The perp market account
+ * @param {SpotMarketAccount} spotMarket - The market's quote spot market account
+ * @return {BN} The pnl pool token amount, scaled by `spotMarket.decimals` (quote decimals)
+ */
 export function calculateMarketAvailablePNL(
 	perpMarket: PerpMarketAccount,
 	spotMarket: SpotMarketAccount
@@ -190,6 +272,18 @@ export function calculateMarketAvailablePNL(
 	);
 }
 
+/**
+ * Calculates the maximum insurance the market could still draw to cover a PnL deficit: the
+ * remaining `quoteMaxInsurance` allocation not yet claimed, plus the AMM's own fee pool (which is
+ * drawn down before external insurance). `spotMarket` must be the quote spot market — asserts
+ * otherwise.
+ *
+ * @param {PerpMarketAccount} perpMarket - The perp market account
+ * @param {SpotMarketAccount} spotMarket - The quote spot market account (must have
+ *   `marketIndex === QUOTE_SPOT_MARKET_INDEX`)
+ * @return {BN} `quoteMaxInsurance - quoteSettledInsurance + ammFeePoolTokenAmount`, scaled by
+ *   quote decimals
+ */
 export function calculateMarketMaxAvailableInsurance(
 	perpMarket: PerpMarketAccount,
 	spotMarket: SpotMarketAccount
@@ -209,6 +303,18 @@ export function calculateMarketMaxAvailableInsurance(
 	return insuranceFundAllocation.add(ammFeePool);
 }
 
+/**
+ * Calculates the net unrealized + unsettled PnL owed to all users of a perp market at a given
+ * oracle price, mirroring `calculate_net_user_pnl`: the AMM's net counterparty position valued
+ * at `oraclePriceData.price`, plus the market's cost basis (`quoteAssetAmount +
+ * netUnsettledFundingPnl`). This is the quantity the pnl pool + insurance fund must be able to
+ * cover across all users.
+ *
+ * @param {PerpMarketAccount} perpMarket - The perp market account
+ * @param {Pick<OraclePriceData, 'price'>} oraclePriceData - Oracle price, PRICE_PRECISION (1e6)
+ *   (callers typically pass the live price or a TWAP depending on the check being performed)
+ * @return {BN} Net user PnL, QUOTE_PRECISION (1e6); positive means users are net owed
+ */
 export function calculateNetUserPnl(
 	perpMarket: PerpMarketAccount,
 	oraclePriceData: Pick<OraclePriceData, 'price'>
@@ -227,6 +333,20 @@ export function calculateNetUserPnl(
 	return netUserPnl;
 }
 
+/**
+ * Calculates how far `calculateNetUserPnl` exceeds the funds already on hand to pay it out (the
+ * pnl pool, plus by default a 20% slice of the AMM fee pool as a conservative haircut on funds
+ * not yet swept into the pnl pool). A positive result means the market is short of pnl-pool
+ * funds by that amount; a negative result means the pnl pool has surplus.
+ *
+ * @param {PerpMarketAccount} perpMarket - The perp market account
+ * @param {SpotMarketAccount} spotMarket - The market's quote spot market account
+ * @param {Pick<OraclePriceData, 'price'>} oraclePriceData - Oracle price, PRICE_PRECISION (1e6),
+ *   passed through to `calculateNetUserPnl`
+ * @param {boolean} [applyFeePoolDiscount] - When true (default), only 1/5 of the AMM fee pool
+ *   counts toward available funds; when false, the full fee pool counts
+ * @return {BN} `netUserPnl - (pnlPool + feePoolContribution)`, QUOTE_PRECISION (1e6)
+ */
 export function calculateNetUserPnlImbalance(
 	perpMarket: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
@@ -255,13 +375,24 @@ export function calculateNetUserPnlImbalance(
 }
 
 /**
- * Calculates trigger price for a perp market based on oracle price and current time
- * Implements the same logic as the Rust get_trigger_price function
+ * Calculates the price used to evaluate trigger (stop/take-profit) orders for a perp market,
+ * mirroring the Rust `get_trigger_price`. When `useMedianPrice` is true, the trigger price is the
+ * median of three candidates — the last fill price (or oracle price if there's been no fill), the
+ * oracle price adjusted by the implied funding basis, and the oracle price adjusted by the 5min
+ * mark/oracle TWAP basis — then clamped to within a contract-tier-dependent band around the raw
+ * oracle price (tier A/B: 20bps, tier C: 100bps, others: 250bps) via `clampTriggerPrice`. This
+ * resists a single manipulated print (last fill or a momentary oracle/mark divergence) from
+ * triggering orders it shouldn't. When `useMedianPrice` is false, the raw oracle price is used
+ * directly with no smoothing.
  *
- * @param market - The perp market account
- * @param oraclePrice - Current oracle price (precision: PRICE_PRECISION)
- * @param now - Current timestamp in seconds
- * @returns trigger price (precision: PRICE_PRECISION)
+ * @param {PerpMarketAccount} market - The perp market account
+ * @param {BN} oraclePrice - Current oracle price, PRICE_PRECISION (1e6); its absolute value is
+ *   used throughout
+ * @param {BN} now - Current unix timestamp, seconds; used to prorate the implied funding basis
+ *   over the time remaining until the next funding update
+ * @param {boolean} useMedianPrice - Whether to apply the median-of-three + clamp smoothing, or
+ *   use the raw oracle price directly
+ * @returns {BN} The trigger price, PRICE_PRECISION (1e6)
  */
 export function getTriggerPrice(
 	market: PerpMarketAccount,
@@ -312,7 +443,7 @@ function getLastFundingBasis(
 			.div(market.marketStats.lastFundingOracleTwap)
 			.muln(24);
 		const lastFundingRatePreAdj = lastFundingRate.sub(
-			FUNDING_RATE_PRECISION.div(new BN(3333)) // FUNDING_RATE_OFFSET_PERCENTAGE
+			FUNDING_RATE_OFFSET_PERCENTAGE
 		);
 		const timeLeftUntilFundingUpdate = BN.min(
 			BN.max(now.sub(market.lastFundingRateTs), ZERO),

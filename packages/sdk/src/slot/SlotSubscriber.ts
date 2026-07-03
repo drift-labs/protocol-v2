@@ -7,10 +7,18 @@ type SlotSubscriberConfig = {
 	resubTimeoutMs?: number;
 }; // for future customization
 
+/** Events emitted on `SlotSubscriber.eventEmitter`. */
 export interface SlotSubscriberEvents {
+	/** Fired whenever a new, strictly-greater slot is observed (including the initial slot fetched by `subscribe()`). */
 	newSlot: (newSlot: number) => void;
 }
 
+/**
+ * SlotSubscriber — tracks the current slot via `connection.onSlotChange`,
+ * with an optional stall-detection resubscribe. Slot updates that are not
+ * strictly greater than the currently tracked slot are ignored (protects
+ * against out-of-order delivery).
+ */
 export class SlotSubscriber {
 	currentSlot = 0;
 	subscriptionId?: number;
@@ -22,6 +30,10 @@ export class SlotSubscriber {
 	isUnsubscribing = false;
 	receivingData = false;
 
+	/**
+	 * @param connection RPC connection to subscribe on.
+	 * @param config.resubTimeoutMs If set to a positive value, resubscribe when no slot update arrives for this many ms; `0` (or unset) disables the resubscribe watchdog. Positive values below 1000ms log a warning (too aggressive) but are still honored.
+	 */
 	public constructor(
 		private connection: Connection,
 		config?: SlotSubscriberConfig
@@ -35,6 +47,7 @@ export class SlotSubscriber {
 		}
 	}
 
+	/** Fetches the current slot once via RPC, then subscribes to `onSlotChange` for live updates. Idempotent while already subscribed. */
 	public async subscribe(): Promise<void> {
 		if (this.subscriptionId != null) {
 			return;
@@ -85,10 +98,15 @@ export class SlotSubscriber {
 		}, this.resubTimeoutMs);
 	}
 
+	/** @returns The most recently observed slot, or `0` if `subscribe()` hasn't completed yet. */
 	public getSlot(): number {
 		return this.currentSlot;
 	}
 
+	/**
+	 * Removes the `onSlotChange` listener and cancels the resub timeout.
+	 * @param onResub Internal flag used when unsubscribing as part of an automatic resubscribe cycle; when `false` (a caller-initiated unsubscribe), also permanently disables future auto-resubscribe by clearing `resubTimeoutMs`.
+	 */
 	public async unsubscribe(onResub = false): Promise<void> {
 		if (!onResub) {
 			this.resubTimeoutMs = undefined;

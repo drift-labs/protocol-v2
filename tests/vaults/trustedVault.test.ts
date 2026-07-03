@@ -365,9 +365,13 @@ describe('TestTrustedVault', () => {
 		const vaultEquityAfterBorrow = await adminClient.calculateVaultEquity({
 			address: commonVaultKey,
 		});
-		// we repaid 10% less value, so expect vault equity to go down 10%
-		expect(vaultEquityAfterBorrow.toNumber()).to.deep.equal(
-			vaultEquityBefore.toNumber()
+		// Equity should be conserved across the borrow: the reduced net spot value
+		// (the SOL borrow leg) is offset by managerBorrowedValue. The borrow leg is
+		// negative and now floors toward -infinity to mirror the program's
+		// get_token_value/safe_div_floor, so up to 1 unit of rounding is expected.
+		expect(vaultEquityAfterBorrow.toNumber()).to.be.closeTo(
+			vaultEquityBefore.toNumber(),
+			1
 		);
 
 		// check vault records manager's borrow in deposit asset value
@@ -406,9 +410,12 @@ describe('TestTrustedVault', () => {
 			address: commonVaultKey,
 		});
 		// we repaid 10% less value
-		// expect final vault equity to go down by 10% of the borrowed value
-		expect(vaultEquityAfterRepay.toNumber()).to.deep.equal(
-			vaultEquityBefore.toNumber() - 5000 * 1e6 * 0.1
+		// expect final vault equity to go down by 10% of the borrowed value.
+		// Allow 1 unit: the residual borrow leg is valued with get_token_value's
+		// floor-toward-negative-infinity rounding (safe_div_floor) for negatives.
+		expect(vaultEquityAfterRepay.toNumber()).to.be.closeTo(
+			vaultEquityBefore.toNumber() - 5000 * 1e6 * 0.1,
+			1
 		);
 	});
 
@@ -514,9 +521,13 @@ describe('TestTrustedVault', () => {
 		const vaultEquityAfterBorrow = await adminClient.calculateVaultEquity({
 			address: commonVaultKey,
 		});
-		// we repaid 10% less value, so expect vault equity to go down 10%
-		expect(vaultEquityAfterBorrow.toNumber()).to.deep.equal(
-			vaultEquityBefore.toNumber()
+		// Equity should be conserved across the borrow: the reduced net spot value
+		// (the SOL borrow leg) is offset by managerBorrowedValue. The borrow leg is
+		// negative and now floors toward -infinity to mirror the program's
+		// get_token_value/safe_div_floor, so up to 1 unit of rounding is expected.
+		expect(vaultEquityAfterBorrow.toNumber()).to.be.closeTo(
+			vaultEquityBefore.toNumber(),
+			1
 		);
 
 		// check vault records manager's borrow in deposit asset value
@@ -537,9 +548,12 @@ describe('TestTrustedVault', () => {
 			address: commonVaultKey,
 		});
 		// we repaid 10% less value
-		// expect final vault equity to go down by 10% of the borrowed value
-		expect(vaultEquityAfterRepay.toNumber()).to.deep.equal(
-			vaultEquityBefore.toNumber() - 5000 * 1e6
+		// expect final vault equity to go down by 10% of the borrowed value.
+		// Allow 1 unit: the residual borrow leg is valued with get_token_value's
+		// floor-toward-negative-infinity rounding (safe_div_floor) for negatives.
+		expect(vaultEquityAfterRepay.toNumber()).to.be.closeTo(
+			vaultEquityBefore.toNumber() - 5000 * 1e6,
+			1
 		);
 	});
 });

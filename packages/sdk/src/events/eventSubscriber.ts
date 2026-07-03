@@ -1,11 +1,6 @@
-/**
- * EventSubscriber — streams and parses Velocity program events from transaction logs.
- *
- * Decodes all program events (OrderActionRecord, DepositRecord, LiquidationRecord,
- * FundingPaymentRecord, etc.) from `state/events.rs` into typed TypeScript objects.
- * Supports WebSocket and polling log providers; events are surfaced via an EventEmitter.
- * See `events/types.ts` for the full event type union and `events/parse.ts` for log parsing.
- */
+// EventSubscriber — see the class doc below for behavior. This module also
+// wires together the LogProvider implementations (websocket/polling/events-server);
+// see `events/types.ts` for the full event type union and `events/parse.ts` for log parsing.
 import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js';
 import { Program } from '../isomorphic/anchor';
 import {
@@ -34,9 +29,34 @@ import { getSortFn } from './sort';
 import { parseLogs } from './parse';
 import { EventsServerLogProvider } from './eventsServerLogProvider';
 
+/**
+ * EventSubscriber — streams and decodes Velocity program events from
+ * transaction logs (all records emitted via `emit!` from `state/events.rs`:
+ * `DepositRecord`, `OrderActionRecord`, `LiquidationRecord`,
+ * `FundingPaymentRecord`, etc. — see `EventMap` for the full set), via a
+ * pluggable `LogProvider` (websocket, polling, or the Velocity events server),
+ * and surfaces them both through per-type `EventList`s and a `'newEvent'`
+ * `eventEmitter`.
+ *
+ * Ordering and dedup: each decoded event is tagged with `slot` and a
+ * `txSigIndex` (its position among decoded events within the same
+ * transaction); the per-event-type `EventList`s use these to sort either by
+ * blockchain order (slot, then `txSigIndex`) or by client arrival order, per
+ * `EventSubscriptionOptions.orderBy`. Whole transactions are deduped by
+ * signature via an internal LRU (`TxEventCache`, sized by `options.maxTx`):
+ * a transaction already in the cache is skipped entirely on a subsequent
+ * delivery from the *same* log provider, which protects against a
+ * websocket/polling provider redelivering the same tx. Events pushed by the
+ * events-server provider bypass this cache (it dedups upstream and supplies
+ * an authoritative `txSigIndex`). Event names are also normalized from the
+ * `@coral-xyz/anchor` 0.32+ camelCase IDL form back to the PascalCase used by
+ * `EventType`/`EventMap` before being matched against the subscribed types.
+ */
 export class EventSubscriber {
 	private address: PublicKey;
 	private eventListMap: Map<EventType, EventList<EventType>>;
+	/** Case-insensitive lookup from decoded (camelCase) IDL event names to subscribed `EventType` keys. */
+	private eventTypeByLowercaseName = new Map<string, EventType>();
 	private txEventCache: TxEventCache;
 	private awaitTxPromises = new Map<string, Promise<void>>();
 	private awaitTxResolver = new Map<string, () => void>();
@@ -56,6 +76,11 @@ export class EventSubscriber {
 		return this._logProvider;
 	}
 
+	/**
+	 * @param connection RPC connection used by the polling/websocket log providers and by `fetchPreviousTx`.
+	 * @param program Anchor `Program` whose IDL coder decodes event logs (see `parse.ts`).
+	 * @param options Subscription options; merged over `DefaultEventSubscriptionOptions` so any field left unset uses the default.
+	 */
 	public constructor(
 		private connection: Connection,
 		private program: Program,
@@ -85,6 +110,7 @@ export class EventSubscriber {
 		return this.options.eventTypes;
 	}
 
+	/** The `LogProviderType` currently in use. May differ from the configured type after a fallback failover (see `updateFallbackProviderType`). */
 	get currentProviderType() {
 		return this._currentProviderType;
 	}
@@ -170,6 +196,7 @@ export class EventSubscriber {
 					orderDir
 				)
 			);
+			this.eventTypeByLowercaseName.set(eventType.toLowerCase(), eventType);
 		}
 	}
 
@@ -200,6 +227,19 @@ export class EventSubscriber {
 		this._currentProviderType = nextProviderType;
 	}
 
+	/**
+	 * Starts streaming events via the configured `LogProvider`. Idempotent —
+	 * returns `true` immediately if already subscribed. (Re)initializes the
+	 * per-event-type `EventList`s, so any events retained from a prior
+	 * subscribe/unsubscribe cycle are discarded. For streaming providers
+	 * (websocket, events-server), also wires up automatic failover: if the
+	 * provider emits more than `maxReconnectAttempts` (default `Infinity`,
+	 * i.e. never) reconnect attempts, the subscriber tears down and
+	 * reinitializes with the next provider in the fallback chain
+	 * (events-server → websocket → polling; polling has no further fallback).
+	 * Does not itself backfill history — call `fetchPreviousTx` for that.
+	 * @returns `true` once subscribed, or `false` if an error occurred while starting the subscription (logged to console, not thrown).
+	 */
 	public async subscribe(): Promise<boolean> {
 		try {
 			if (this.logProvider.isSubscribed()) {
@@ -319,6 +359,16 @@ export class EventSubscriber {
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
+	/**
+	 * Backfills historical events by walking transactions for `address` via
+	 * `getSignaturesForAddress`/`getTransaction`, newest-first, until either
+	 * `options.untilTx` is reached or `options.maxTx` transactions have been
+	 * fetched. Each fetched transaction is decoded and inserted into the
+	 * event lists exactly like a live update, so `newEvent` fires for
+	 * backfilled events too. No-ops if neither `untilTx` is set nor
+	 * `fetchMax` is true — the subscriber does not backfill by default.
+	 * @param fetchMax If true, backfill up to `maxTx` transactions even without an `untilTx` cutoff.
+	 */
 	public async fetchPreviousTx(fetchMax?: boolean): Promise<void> {
 		if (!this.options.untilTx && !fetchMax) {
 			return;
@@ -354,6 +404,13 @@ export class EventSubscriber {
 		}
 	}
 
+	/**
+	 * Stops the log provider and clears all in-memory state: the per-event-type
+	 * `EventList`s, the `TxEventCache`, and any pending `awaitTx` promises
+	 * (which are left unresolved/unrejected — callers awaiting a tx signature
+	 * across an unsubscribe will hang).
+	 * @returns Whatever the underlying `LogProvider.unsubscribe` returns.
+	 */
 	public async unsubscribe(): Promise<boolean> {
 		this.eventListMap.clear();
 		this.txEventCache.clear();
@@ -374,16 +431,16 @@ export class EventSubscriber {
 		const events = parseLogs(this.program, logs);
 		let runningEventIndex = 0;
 		for (const event of events) {
-			// @coral-xyz/anchor 0.32+ converts IDL names to camelCase; normalize
-			// back to PascalCase so EventType keys remain consistent.
-			const pascalName =
-				event.name.charAt(0).toUpperCase() + event.name.slice(1);
-			// @ts-ignore
-			const expectRecordType = this.eventListMap.has(pascalName);
-			if (expectRecordType) {
+			// @coral-xyz/anchor 0.32+ converts IDL names to camelCase; match
+			// case-insensitively so names with leading acronyms (LPSwapRecord →
+			// lpSwapRecord) still resolve to their PascalCase EventType keys.
+			const eventType = this.eventTypeByLowercaseName.get(
+				event.name.toLowerCase()
+			);
+			if (eventType) {
 				event.data.txSig = txSig;
 				event.data.slot = slot;
-				event.data.eventType = pascalName;
+				event.data.eventType = eventType;
 				event.data.txSigIndex =
 					txSigIndex !== undefined ? txSigIndex : runningEventIndex;
 				records.push(event.data);
@@ -393,6 +450,16 @@ export class EventSubscriber {
 		return records;
 	}
 
+	/**
+	 * Resolves once the subscriber has observed and decoded events for `txSig`
+	 * (immediately if it's already in the `TxEventCache`). Useful for waiting
+	 * on the events of a transaction the caller just sent, before reading them
+	 * via `getEventsByTx`. Never rejects; a transaction that never arrives
+	 * (e.g. it failed, or the subscriber isn't subscribed) leaves the returned
+	 * promise pending forever.
+	 * @param txSig Signature to wait for.
+	 * @returns A promise that resolves (with no value) once that transaction's events have been processed.
+	 */
 	public awaitTx(txSig: TransactionSignature): Promise<void> {
 		const existingPromise = this.awaitTxPromises.get(txSig);
 		if (existingPromise !== undefined) {
@@ -410,17 +477,26 @@ export class EventSubscriber {
 		return promise;
 	}
 
+	/**
+	 * Returns the live `EventList` for `eventType` — the ordered, size-bounded
+	 * (`maxEventsPerType`) linked list the subscriber inserts new events into.
+	 * Prefer this over `getEventsArray` to iterate without copying.
+	 * @param eventType Event type to look up; must be one of `options.eventTypes` (subscribed types).
+	 * @returns The `EventList` for that type, or `undefined` if `eventType` was never subscribed (list not yet populated by `subscribe()`).
+	 */
 	public getEventList<Type extends keyof EventMap>(
 		eventType: Type
-	): EventList<Type> {
-		return this.eventListMap.get(eventType) as EventList<Type>;
+	): EventList<Type> | undefined {
+		return this.eventListMap.get(eventType) as EventList<Type> | undefined;
 	}
 
 	/**
 	 * This requires the EventList be cast to an array, which requires reallocation of memory.
 	 * Would bias to using getEventList over getEvents
 	 *
-	 * @param eventType
+	 * @param eventType Event type to snapshot.
+	 * @returns All currently retained events of that type, in the `EventList`'s sort order (see `EventSubscriptionOptions.orderBy`/`orderDir`).
+	 * @throws If `eventType` has no `EventList` (i.e. it isn't in `options.eventTypes`).
 	 */
 	public getEventsArray<Type extends EventType>(
 		eventType: Type
@@ -434,6 +510,11 @@ export class EventSubscriber {
 		return eventList.toArray() as EventMap[Type][];
 	}
 
+	/**
+	 * Looks up the decoded events previously observed for a transaction.
+	 * @param txSig Transaction signature to look up.
+	 * @returns The wrapped events emitted by that transaction, or `undefined` if the transaction has aged out of the `TxEventCache` (bounded by `options.maxTx`) or was never observed.
+	 */
 	public getEventsByTx(txSig: TransactionSignature): WrappedEvents | undefined {
 		return this.txEventCache.get(txSig);
 	}

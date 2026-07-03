@@ -5,6 +5,14 @@ import { UserAccount } from '../types';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
 
+/**
+ * `UserMap`'s `'websocket'` subscription strategy: uses
+ * `WebSocketProgramAccountSubscriber` with the map's memcmp filters (base
+ * `User` filter, plus non-idle unless `includeIdle`, plus any
+ * `additionalFilters`) to receive push updates for every matching account,
+ * feeding them into `userMap.updateUserAccount`. Internal to `UserMap` — not
+ * part of the SDK's public exports.
+ */
 export class WebsocketSubscription {
 	private userMap: UserMap;
 	private commitment: Commitment;
@@ -42,6 +50,7 @@ export class WebsocketSubscription {
 		this.additionalFilters = additionalFilters;
 	}
 
+	/** Starts the websocket program-account subscription, then (unless `skipInitialLoad`) runs an initial full `userMap.sync()`. */
 	public async subscribe(): Promise<void> {
 		if (!this.subscriber) {
 			const filters = [getUserFilter()];

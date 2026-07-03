@@ -13,6 +13,15 @@ import {
 } from '../addresses/pda';
 import { VelocityProgram } from '../config';
 
+/**
+ * Fetches every `UserAccount` (sub-account) belonging to `authority`, from sub-account id `0`
+ * up to `limit - 1`, in a single batched `getMultipleAccountsInfo` RPC call.
+ * @param connection Connection used for the batched fetch.
+ * @param program Anchor program used to derive PDAs and decode account data.
+ * @param authority Wallet/authority pubkey whose sub-accounts to fetch.
+ * @param limit Number of sub-account ids to check, starting at 0. Defaults to 8.
+ * @returns One entry per sub-account id in order; `undefined` where no account exists at that id.
+ */
 export async function fetchUserAccounts(
 	connection: Connection,
 	program: VelocityProgram,
@@ -29,6 +38,15 @@ export async function fetchUserAccounts(
 	return fetchUserAccountsUsingKeys(connection, program, userAccountPublicKeys);
 }
 
+/**
+ * Fetches and decodes a specific list of `UserAccount` pubkeys in one batched
+ * `getMultipleAccountsInfo` RPC call. Unlike `fetchUserAccounts`, the caller supplies the exact
+ * addresses rather than deriving them by sub-account id.
+ * @param connection Connection used for the batched fetch.
+ * @param program Anchor program used to decode account data.
+ * @param userAccountPublicKeys Addresses to fetch, in order.
+ * @returns One entry per input pubkey, in the same order; `undefined` where no account exists at that address.
+ */
 export async function fetchUserAccountsUsingKeys(
 	connection: Connection,
 	program: VelocityProgram,
@@ -50,6 +68,13 @@ export async function fetchUserAccountsUsingKeys(
 	});
 }
 
+/**
+ * Fetches and decodes the `UserStatsAccount` for `authority`, if one exists.
+ * @param connection Connection used for the fetch.
+ * @param program Anchor program used to derive the PDA and decode account data.
+ * @param authority Wallet/authority pubkey the stats account belongs to.
+ * @returns The decoded account, or `undefined` if it hasn't been initialized on-chain.
+ */
 export async function fetchUserStatsAccount(
 	connection: Connection,
 	program: VelocityProgram,
@@ -72,6 +97,14 @@ export async function fetchUserStatsAccount(
 		: undefined;
 }
 
+/**
+ * Fetches and decodes the `RevenueShareAccount` for `authority` (tracks referral/builder revenue
+ * share balances), if one exists.
+ * @param connection Connection used for the fetch.
+ * @param program Anchor program used to derive the PDA and decode account data.
+ * @param authority Wallet/authority pubkey the revenue share account belongs to.
+ * @returns The decoded account, or `null` if it hasn't been initialized on-chain.
+ */
 export async function fetchRevenueShareAccount(
 	connection: Connection,
 	program: VelocityProgram,
@@ -91,6 +124,14 @@ export async function fetchRevenueShareAccount(
 	) as RevenueShareAccount;
 }
 
+/**
+ * Fetches and decodes the `RevenueShareEscrowAccount` for `authority` (holds escrowed
+ * revenue-share amounts pending distribution), if one exists.
+ * @param connection Connection used for the fetch.
+ * @param program Anchor program used to derive the PDA and decode account data.
+ * @param authority Wallet/authority pubkey the escrow account belongs to.
+ * @returns The decoded account, or `null` if it hasn't been initialized on-chain.
+ */
 export async function fetchRevenueShareEscrowAccount(
 	connection: Connection,
 	program: VelocityProgram,
@@ -115,11 +156,20 @@ export async function fetchRevenueShareEscrowAccount(
 	return escrowAccount;
 }
 
+/** Options accepted by `fetchAccount`/`fetchAccounts`. */
 export type FetchAccountOptions = {
+	/** Commitment level for the underlying `getAccountInfo`/`getMultipleAccountsInfo` call; defaults to the connection's configured commitment if omitted. */
 	commitment?: Parameters<Connection['getAccountInfo']>[1];
 };
 
-/** Raw account data buffer (no Anchor decode). */
+/**
+ * Fetches an account's raw data buffer without decoding it (no Anchor coder involved), for
+ * callers that only need the bytes.
+ * @param connection Connection used for the fetch.
+ * @param publicKey Account address to fetch.
+ * @param opts Optional commitment override.
+ * @returns The raw account data, or `null` if the account doesn't exist.
+ */
 export async function fetchAccount(
 	connection: Connection,
 	publicKey: PublicKey,
@@ -129,7 +179,14 @@ export async function fetchAccount(
 	return info?.data ?? null;
 }
 
-/** Batch variant of {@link fetchAccount}. */
+/**
+ * Batch variant of `fetchAccount` — fetches raw data buffers for multiple accounts in one
+ * `getMultipleAccountsInfo` call.
+ * @param connection Connection used for the fetch.
+ * @param publicKeys Account addresses to fetch, in order.
+ * @param opts Optional commitment override.
+ * @returns One entry per input pubkey, in the same order; `null` where the account doesn't exist.
+ */
 export async function fetchAccounts(
 	connection: Connection,
 	publicKeys: PublicKey[],

@@ -21,6 +21,12 @@ const DEFAULT_PUBLIC_KEY = PublicKey.default.toBase58();
 // Byte offset of `UserStats.referrer_status` (u8). Matches the memcmp filters.
 const REFERRER_STATUS_OFFSET = 188;
 
+/**
+ * In-memory cache mapping each trading authority to their referrer, built by
+ * scanning `UserStats` accounts with memcmp filters on the referrer-status
+ * byte (see `syncAll`/`syncReferrer`) rather than subscribing to every
+ * account's full data.
+ */
 export class ReferrerMap {
 	/**
 	 * map from authority pubkey to referrer pubkey.
@@ -45,7 +51,7 @@ export class ReferrerMap {
 	private fetchPromiseResolver: () => void = () => {};
 
 	/**
-	 * Creates a new UserStatsMap instance.
+	 * Creates a new ReferrerMap instance.
 	 *
 	 * @param {VelocityClient} velocityClient - The VelocityClient instance.
 	 */
@@ -55,7 +61,9 @@ export class ReferrerMap {
 	}
 
 	/**
-	 * Subscribe to all UserStats accounts.
+	 * Populates the map via a one-time `sync()` (no-op if already populated).
+	 * There is no live/push subscription here — call `sync()` again later to
+	 * pick up new referrers.
 	 */
 	public async subscribe() {
 		if (this.size() > 0) {
@@ -66,14 +74,23 @@ export class ReferrerMap {
 		await this.sync();
 	}
 
+	/** Returns true if `authorityPublicKey` has been synced into the map (has a known referrer, even if that referrer is "none"). */
 	public has(authorityPublicKey: string): boolean {
 		return this.authorityReferrerMap.has(authorityPublicKey);
 	}
 
+	/** Alias for `getReferrer`. */
 	public get(authorityPublicKey: string): ReferrerInfo | undefined {
 		return this.getReferrer(authorityPublicKey);
 	}
 
+	/**
+	 * Records `authority`'s referrer. If `referrer` is omitted, fetches the
+	 * authority's `UserStats` account directly via RPC and reads the referrer
+	 * pubkey out of its raw bytes (offset 40..72, immediately after the
+	 * discriminator + authority fields) rather than fully decoding the account.
+	 * @throws If `referrer` is omitted and no `UserStats` account exists on chain for `authority`.
+	 */
 	public async addReferrer(authority: string, referrer?: string) {
 		if (referrer) {
 			this.authorityReferrerMap.set(authority, referrer);
@@ -143,6 +160,12 @@ export class ReferrerMap {
 		return this.getReferrer(authorityPublicKey);
 	}
 
+	/**
+	 * Resolves `authorityPublicKey`'s referrer to a `ReferrerInfo` (the
+	 * referrer's `User` sub-account-0 and `UserStats` addresses), caching the
+	 * derived addresses per referrer pubkey.
+	 * @returns `undefined` if `authorityPublicKey` isn't in the map yet, or if it has no referrer (default/zero pubkey).
+	 */
 	public getReferrer(authorityPublicKey: string): ReferrerInfo | undefined {
 		const referrer = this.authorityReferrerMap.get(authorityPublicKey);
 		if (!referrer) {
@@ -175,16 +198,27 @@ export class ReferrerMap {
 		return referrerInfo;
 	}
 
+	/** Number of authorities synced into the map (referred or not). */
 	public size(): number {
 		return this.authorityReferrerMap.size;
 	}
 
+	/** Number of synced authorities that actually have a referrer set (excludes those with the default/zero pubkey). */
 	public numberOfReferred(): number {
 		return Array.from(this.authorityReferrerMap.values()).filter(
 			(referrer) => referrer !== DEFAULT_PUBLIC_KEY
 		).length;
 	}
 
+	/**
+	 * Fully (re)populates the map: `syncAll` seeds every `UserStats` authority
+	 * with a default ("no referrer") entry, then `syncReferrer` overwrites
+	 * entries for authorities matching the is-referred and
+	 * is-referred-or-referrer memcmp filters with their actual referrer. Runs
+	 * the three passes in parallel by default (`parallelSync`), or serially if
+	 * constructed with `parallelSync: false`. Concurrent calls share the same
+	 * in-flight promise.
+	 */
 	public async sync(): Promise<void> {
 		if (this.fetchPromise) {
 			return this.fetchPromise;
@@ -212,6 +246,12 @@ export class ReferrerMap {
 		}
 	}
 
+	/**
+	 * Fetches every `UserStats` account pubkey (via a `getUserStatsFilter`
+	 * memcmp filter, with a zero-length `dataSlice` so no account data is
+	 * transferred) and seeds a default ("no referrer") entry for any authority
+	 * not already present in the map.
+	 */
 	public async syncAll(): Promise<void> {
 		const rpcRequestArgs = [
 			this.velocityClient.program.programId.toBase58(),
@@ -252,6 +292,15 @@ export class ReferrerMap {
 		}
 	}
 
+	/**
+	 * Fetches `UserStats` accounts matching `referrerFilter` combined with the
+	 * base `UserStats` discriminator filter, with a `dataSlice` of exactly the
+	 * bytes needed (offset 0, length 72 — discriminator + authority + referrer)
+	 * to avoid transferring full account data. Decodes `authority`/`referrer`
+	 * directly from the byte offsets and unconditionally sets them in the map
+	 * (in batches of 1000, yielding to the event loop between batches).
+	 * @param referrerFilter A memcmp filter selecting which referrer-status accounts to sync, e.g. from `getUserStatsIsReferredFilter`/`getUserStatsIsReferredOrReferrerFilter`.
+	 */
 	async syncReferrer(referrerFilter: MemcmpFilter): Promise<void> {
 		const rpcRequestArgs = [
 			this.velocityClient.program.programId.toBase58(),
@@ -303,6 +352,7 @@ export class ReferrerMap {
 		}
 	}
 
+	/** Clears the in-memory maps. Does not tear down any RPC subscriptions (this class has none — `subscribe` only triggers a one-time sync). */
 	public async unsubscribe() {
 		this.authorityReferrerMap.clear();
 		this.referrerReferrerInfoMap.clear();

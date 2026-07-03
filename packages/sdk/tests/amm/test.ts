@@ -34,6 +34,9 @@ import {
 	getNewOracleConfPct,
 	MMOraclePriceData,
 	OraclePriceData,
+	calculateAmmReservesAfterSwap,
+	getSwapDirection,
+	PositionDirection,
 	// calculateReservePrice,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
@@ -2296,5 +2299,104 @@ describe('AMM Tests', () => {
 
 		assert(openAsks.eq(new BN(-9)));
 		assert(totalAskSize.eq(ZERO));
+	});
+
+	it('Reference Price Offset accounts for oracle twap slow floor term', () => {
+		// day-premium leg before averaging: 100000/1000*24 = 2400, then the
+		// program subtracts oracleTwapSlow.abs()/FUNDING_RATE_OFFSET_DENOMINATOR
+		// (500000/3333 = 150) => 2250. Without that term the average would be
+		// 1800 instead of 1750.
+		const reservePrice = PRICE_PRECISION;
+		const last24hAvgFundingRate = new BN(100000);
+		const liquidityFraction = new BN(2);
+		const oracleTwapFast = new BN(500000);
+		const markTwapFast = oracleTwapFast.add(new BN(1000));
+		const oracleTwapSlow = new BN(500000);
+		const markTwapSlow = oracleTwapSlow.add(new BN(2000));
+		const maxOffsetPct = 100000;
+
+		const referencePriceOffset = calculateReferencePriceOffset(
+			reservePrice,
+			last24hAvgFundingRate,
+			liquidityFraction,
+			oracleTwapFast,
+			markTwapFast,
+			oracleTwapSlow,
+			markTwapSlow,
+			maxOffsetPct
+		);
+
+		assert(referencePriceOffset.eq(new BN(1750)));
+	});
+
+	it('calculateUpdatedAMM is a passthrough when the repeg debit fails the affordability floor', () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const mockMarket1 = myMockPerpMarkets[0];
+		const mockAmm = mockMarket1.amm;
+
+		mockAmm.baseAssetReserve = new BN(1000).mul(BASE_PRECISION);
+		mockAmm.quoteAssetReserve = new BN(1000).mul(BASE_PRECISION);
+		mockAmm.sqrtK = new BN(1000).mul(BASE_PRECISION);
+		mockAmm.pegMultiplier = new BN(10).mul(PEG_PRECISION);
+		mockAmm.baseAssetAmountWithAmm = new BN(100).mul(BASE_PRECISION);
+		mockAmm.curveUpdateIntensity = 100;
+		mockAmm.maxSpread = 25000;
+		// tiny positive equity: any positive repeg cost blows through it
+		mockAmm.totalFeeMinusDistributions = new BN(10);
+		mockAmm.netRevenueSinceLastFunding = new BN(0);
+
+		const directionToClose = mockAmm.baseAssetAmountWithAmm.gt(ZERO)
+			? PositionDirection.SHORT
+			: PositionDirection.LONG;
+		const [terminalQuoteAssetReserve] = calculateAmmReservesAfterSwap(
+			mockAmm,
+			'base',
+			mockAmm.baseAssetAmountWithAmm.abs(),
+			getSwapDirection('base', directionToClose)
+		);
+		mockAmm.terminalQuoteAssetReserve = terminalQuoteAssetReserve;
+
+		// a 1% oracle move is well inside half of maxSpread (1.25%), so the
+		// optimal-peg/budget calc doesn't take the large-price-gap escape
+		// hatch that would otherwise clear checkLowerBound
+		const mmOraclePriceData: MMOraclePriceData = {
+			price: new BN(101).mul(PRICE_PRECISION).divn(10),
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
+
+		const updatedAmm = calculateUpdatedAMM(mockAmm, mmOraclePriceData);
+
+		assert(updatedAmm.pegMultiplier.eq(mockAmm.pegMultiplier));
+		assert(updatedAmm.baseAssetReserve.eq(mockAmm.baseAssetReserve));
+		assert(updatedAmm.quoteAssetReserve.eq(mockAmm.quoteAssetReserve));
+		assert(updatedAmm.sqrtK.eq(mockAmm.sqrtK));
+		assert(
+			updatedAmm.totalFeeMinusDistributions.eq(
+				mockAmm.totalFeeMinusDistributions
+			)
+		);
+	});
+
+	it('calculateUpdatedAMM is a passthrough when the oracle price is non-positive', () => {
+		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
+		const mockMarket1 = myMockPerpMarkets[0];
+		const mockAmm = mockMarket1.amm;
+		mockAmm.curveUpdateIntensity = 100;
+
+		const mmOraclePriceData: MMOraclePriceData = {
+			price: ZERO,
+			slot: new BN(0),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
+
+		const updatedAmm = calculateUpdatedAMM(mockAmm, mmOraclePriceData);
+		assert(updatedAmm.pegMultiplier.eq(mockAmm.pegMultiplier));
+		assert(updatedAmm.baseAssetReserve.eq(mockAmm.baseAssetReserve));
+		assert(updatedAmm.quoteAssetReserve.eq(mockAmm.quoteAssetReserve));
 	});
 });

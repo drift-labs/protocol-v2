@@ -10,7 +10,11 @@ import {
 } from './types';
 
 /**
- * takes advantage of /batchPriorityFees endpoint from Velocity hosted priority fee service
+ * PriorityFeeSubscriberMap — polls the Velocity-hosted `/batchPriorityFees`
+ * endpoint for a fixed set of markets and caches the latest per-market fee
+ * levels, keyed by market type and index. Unlike `PriorityFeeSubscriber`
+ * (single aggregated result across `PriorityFeeMethod.VELOCITY` markets),
+ * this exposes each market's fee levels independently via `getPriorityFees`.
  */
 export class PriorityFeeSubscriberMap {
 	frequencyMs: number;
@@ -20,6 +24,7 @@ export class PriorityFeeSubscriberMap {
 	velocityPriorityFeeEndpoint: string;
 	feesMap: Map<string, Map<number, VelocityPriorityFeeLevels>>; // marketType -> marketIndex -> priority fee
 
+	/** @param config `frequencyMs` defaults to `DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS` (10s); `velocityPriorityFeeEndpoint` is required. */
 	public constructor(config: PriorityFeeSubscriberMapConfig) {
 		this.frequencyMs =
 			config.frequencyMs ?? DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS;
@@ -40,6 +45,7 @@ export class PriorityFeeSubscriberMap {
 		});
 	}
 
+	/** Performs an immediate `load()` and then polls at `frequencyMs`. Idempotent while already subscribed. */
 	public async subscribe(): Promise<void> {
 		if (this.intervalId) {
 			return;
@@ -49,6 +55,7 @@ export class PriorityFeeSubscriberMap {
 		this.intervalId = setInterval(this.load.bind(this), this.frequencyMs);
 	}
 
+	/** Stops polling. */
 	public async unsubscribe(): Promise<void> {
 		if (this.intervalId) {
 			clearInterval(this.intervalId);
@@ -56,9 +63,15 @@ export class PriorityFeeSubscriberMap {
 		}
 	}
 
+	/**
+	 * Fetches one batch of per-market fee levels from
+	 * `/batchPriorityFees` for all `velocityMarkets` and merges the results
+	 * into `feesMap`. No-ops if no markets are configured. Errors are caught
+	 * and logged, not thrown — `feesMap` is left at its previous state.
+	 */
 	public async load(): Promise<void> {
 		try {
-			if (!this.velocityMarkets) {
+			if (!this.velocityMarkets || this.velocityMarkets.length === 0) {
 				return;
 			}
 			const fees = await fetchVelocityPriorityFee(
@@ -72,10 +85,16 @@ export class PriorityFeeSubscriberMap {
 		}
 	}
 
+	/** Replaces the set of markets to fetch fees for; takes effect on the next `load()`. */
 	public updateMarketTypeAndIndex(velocityMarkets: VelocityMarketInfo[]) {
 		this.velocityMarkets = velocityMarkets;
 	}
 
+	/**
+	 * @param marketType `'perp'` or `'spot'`.
+	 * @param marketIndex Market index within that market type.
+	 * @returns The most recently fetched fee-level set for that market, or `undefined` if never fetched (including before the first successful `load()`).
+	 */
 	public getPriorityFees(
 		marketType: string,
 		marketIndex: number
