@@ -767,6 +767,8 @@ pub enum ErrorCode {
     InvalidNativeStateAccount,
     #[msg("Native dispatch: supplied market account is not a Velocity perp market")]
     InvalidNativePerpMarketAccount,
+    #[msg("Isolated positions are not enabled in this build")]
+    IsolatedPositionDisabled,
 }
 
 #[macro_export]

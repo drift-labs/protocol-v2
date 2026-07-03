@@ -13,7 +13,7 @@ use anchor_lang::{
 use serde::{Deserialize, Serialize};
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
-pub const IDL_VERSION: &str = "2.162.0";
+pub const IDL_VERSION: &str = "2.162.1";
 use self::traits::ToAccountMetas;
 pub mod traits {
     use crate::solana_sdk::instruction::AccountMeta;
@@ -25344,6 +25344,8 @@ pub mod errors {
         InvalidNativeStateAccount,
         #[msg("Native dispatch: supplied market account is not a Velocity perp market")]
         InvalidNativePerpMarketAccount,
+        #[msg("Isolated positions are not enabled in this build")]
+        IsolatedPositionDisabled,
     }
 }
 pub mod events {

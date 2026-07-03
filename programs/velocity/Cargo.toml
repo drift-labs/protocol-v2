@@ -13,7 +13,11 @@ path = "src/lib.rs"
 no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta = []
-anchor-test = []
+# Post-audit features: compiled out of mainnet builds until audited.
+# Enable on mainnet by adding them to the mainnet build invocation and upgrading.
+isolated-position = []
+vlp-hedge = []
+anchor-test = ["isolated-position", "vlp-hedge"]
 anchor-debug = []
 default = ["mainnet-beta", "no-entrypoint"]
 velocity-rs = []

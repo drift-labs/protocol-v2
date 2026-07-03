@@ -1,5 +1,7 @@
 use std::convert::TryInto;
 
+use crate::state::state::LpPoolFeatureBitFlags;
+
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::{
@@ -67,10 +69,7 @@ use crate::{
         pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED},
         spot_market::{AssetTier, InsuranceFund, SpotBalanceType, SpotMarket, TokenProgramFlag},
         spot_market_map::get_writable_spot_market_set,
-        state::{
-            ExchangeStatus, FeeStructure, HotRole, LpPoolFeatureBitFlags, OracleGuardRails,
-            SolvencyStatus, State,
-        },
+        state::{ExchangeStatus, FeeStructure, HotRole, OracleGuardRails, SolvencyStatus, State},
         traits::Size,
         user::{MarketType, SpecialUserStatus, User, UserStats},
     },

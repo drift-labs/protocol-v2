@@ -2063,6 +2063,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     Ok(())
 }
 
+#[cfg(feature = "isolated-position")]
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
@@ -2137,6 +2138,7 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     Ok(())
 }
 
+#[cfg(feature = "isolated-position")]
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
     withdraw_not_paused(&ctx.accounts.state)
@@ -2197,6 +2199,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     Ok(())
 }
 
+#[cfg(feature = "isolated-position")]
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
@@ -4713,6 +4716,7 @@ pub struct CancelOrder<'info> {
     pub authority: Signer<'info>,
 }
 
+#[cfg(feature = "isolated-position")]
 #[derive(Accounts)]
 #[instruction(spot_market_index: u16,)]
 pub struct DepositIsolatedPerpPosition<'info> {
@@ -4743,6 +4747,7 @@ pub struct DepositIsolatedPerpPosition<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 }
 
+#[cfg(feature = "isolated-position")]
 #[derive(Accounts)]
 #[instruction(spot_market_index: u16,)]
 pub struct TransferIsolatedPerpPositionDeposit<'info> {
@@ -4765,6 +4770,7 @@ pub struct TransferIsolatedPerpPositionDeposit<'info> {
     pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
 
+#[cfg(feature = "isolated-position")]
 #[derive(Accounts)]
 #[instruction(spot_market_index: u16)]
 pub struct WithdrawIsolatedPerpPosition<'info> {

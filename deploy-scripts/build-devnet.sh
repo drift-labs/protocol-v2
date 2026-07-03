@@ -5,5 +5,6 @@ set -eu
 # --ignore-keys: velocity's declare_id!() is cfg-gated (mainnet-beta vs not), but
 # anchor's pre-build keypair sync only sees the mainnet-beta arm and trips on
 # devnet builds where target/deploy/velocity-keypair.json holds the devnet pubkey.
-anchor build --ignore-keys -p velocity -- --no-default-features --features no-entrypoint
+# isolated-position + vlp-hedge stay live on devnet; mainnet builds compile them out.
+anchor build --ignore-keys -p velocity -- --no-default-features --features no-entrypoint,isolated-position,vlp-hedge
 anchor build --ignore-keys -p token_faucet

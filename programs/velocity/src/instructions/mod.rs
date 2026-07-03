@@ -7,8 +7,11 @@
 //! `constraints.rs` = shared Anchor account constraint helpers.
 
 pub use crate::vlp::amm::admin::*;
+#[cfg(feature = "vlp-hedge")]
 pub use crate::vlp::hedge::admin::*;
+#[cfg(feature = "vlp-hedge")]
 pub use crate::vlp::hedge::instructions::*;
+#[cfg(feature = "vlp-hedge")]
 pub use crate::vlp::hedge::settle::*;
 
 pub use admin::*;
