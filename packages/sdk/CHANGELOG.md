@@ -1,5 +1,17 @@
 # @velocity-exchange/sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- [#205](https://github.com/velocity-exchange/velocity-v1/pull/205) [`9854dfa`](https://github.com/velocity-exchange/velocity-v1/commit/9854dfa1c915938fe08495568f262285ffb6c933) Thanks [@0xahzam](https://github.com/0xahzam)! - Add `user deposit`, `user withdraw`, and `if stake` commands to the admin CLI, usable directly or through a Squads V4 multisig (`--multisig` defaults the authority to the vault 0 PDA so the proposal executes with the vault as signer). SDK: `getWithdrawIx`, `getInitializeInsuranceFundStakeIx`, and `getAddInsuranceFundStakeIx` now accept an optional `overrides.authority`, matching `getDepositInstruction`, so instructions can be built for an authority other than the wallet (e.g. a multisig vault PDA).
+
+### Patch Changes
+
+- [`6d58632`](https://github.com/velocity-exchange/velocity-v1/commit/6d58632540814c739fc3848e4110c2a24547722b) Thanks [@ChesterSim](https://github.com/ChesterSim)! - Fix `OrderSubscriber.fetch()` leaving `mostRecentSlot` (and therefore `getSlot()`) stuck at `0` when a `getProgramAccounts` snapshot matches zero accounts (e.g. no users currently have open orders). The RPC response's slot is now stamped unconditionally, not only inside the per-account loop.
+
+- [#201](https://github.com/velocity-exchange/velocity-v1/pull/201) [`3042967`](https://github.com/velocity-exchange/velocity-v1/commit/304296799e8d5b8a6525cb18cfd8398637c00521) Thanks [@0xahzam](https://github.com/0xahzam)! - Add `IsolatedPositionDisabled` (6357) error to the IDL. Mainnet program builds now compile out the isolated-position and VLP hedge instruction surface pending audit (`isolated-position` / `vlp-hedge` cargo features); devnet and test builds keep both enabled.
+
 ## 0.4.0
 
 ### Minor Changes
