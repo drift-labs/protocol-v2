@@ -352,4 +352,25 @@ describe('BigNum Tests', () => {
 			new BN('123000000000').toString()
 		);
 	});
+
+	it('toFixed with zero precision has no trailing delimiter', () => {
+		// Previously returned '123.', '0.', '-5.' with a dangling decimal point.
+		expect(BigNum.from(123, 0).toFixed(0)).to.equal('123');
+		expect(BigNum.from(5, 1).toFixed(0)).to.equal('0'); // 0.5 truncates to 0
+		expect(BigNum.from(-5, 0).toFixed(0)).to.equal('-5');
+
+		// Non-zero precision is unaffected.
+		expect(BigNum.from(123, 0).toFixed(2)).to.equal('123.00');
+	});
+
+	it('toNotional honors a decimalOverride of zero', () => {
+		const val = BigNum.fromPrint('1234.56', new BN(6));
+
+		// decimalOverride of 0 should drop the fractional part entirely.
+		expect(val.toNotional(undefined, undefined, 0)).to.equal('$1,234');
+
+		// Default and non-zero overrides are unchanged.
+		expect(val.toNotional()).to.equal('$1,234.56');
+		expect(val.toNotional(undefined, undefined, 3)).to.equal('$1,234.560');
+	});
 });
