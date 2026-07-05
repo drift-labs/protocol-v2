@@ -6847,7 +6847,7 @@ dependencies = [
 
 [[package]]
 name = "velocity-rs"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ahash 0.8.12",
  "anchor-lang",
