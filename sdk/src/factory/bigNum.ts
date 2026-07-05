@@ -336,6 +336,12 @@ export class BigNum {
 
 		const [leftSide, rightSide] = printString.split(BigNum.delim);
 
+		// Zero precision means no fractional part; return the integer portion
+		// without a dangling decimal delimiter (e.g. '123' rather than '123.').
+		if (fixedPrecision <= 0) {
+			return leftSide;
+		}
+
 		const filledRightSide = [
 			...(rightSide ?? '').slice(0, fixedPrecision),
 			...Array(fixedPrecision).fill('0'),
@@ -525,7 +531,11 @@ export class BigNum {
 		const prefix = `${this.lt(BigNum.zero()) ? `-` : ``}$`;
 
 		const usingCustomPrecision =
-			true && (useTradePrecision || precisionOverride || decimalOverride);
+			useTradePrecision ||
+			precisionOverride ||
+			// A decimalOverride of 0 is meaningful (whole-number formatting), so
+			// test for presence rather than truthiness.
+			decimalOverride !== undefined;
 
 		let val = usingCustomPrecision
 			? this.prettyPrint(useTradePrecision, precisionOverride, decimalOverride)
