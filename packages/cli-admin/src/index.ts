@@ -4,6 +4,7 @@ import { registerAuth } from './commands/auth';
 import { registerCall } from './commands/call';
 import { registerExchange } from './commands/exchange';
 import { registerFees } from './commands/fees';
+import { registerInsuranceFund } from './commands/insuranceFund';
 import { registerMultisig } from './commands/multisig';
 import { registerPerpMarket } from './commands/perpMarket';
 import { registerProgram } from './commands/program';
@@ -38,6 +39,7 @@ registerExchange(program);
 registerFees(program);
 registerMultisig(program);
 registerUser(program);
+registerInsuranceFund(program);
 registerProgram(program);
 registerCall(program);
 
