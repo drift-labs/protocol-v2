@@ -162,6 +162,10 @@ export class OrderSubscriber {
 
 			const slot: number = rpcResponseAndContext.context.slot;
 
+			if (!this.mostRecentSlot || slot > this.mostRecentSlot) {
+				this.mostRecentSlot = slot;
+			}
+
 			for (const programAccount of rpcResponseAndContext.value) {
 				const key = programAccount.pubkey.toString();
 				this.tryUpdateUserAccount(
