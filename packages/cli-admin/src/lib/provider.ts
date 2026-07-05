@@ -42,10 +42,15 @@ export function buildProvider(opts: GlobalOpts): AnchorProvider {
  * `subscribe` should be `false` for ops where the State account doesn't yet
  * exist (e.g. `initialize`) or where we don't need cached state — this avoids
  * a network round-trip per command.
+ *
+ * `user` scopes the client to a user authority other than the signer (e.g. a
+ * Squads vault PDA): user/userStats PDAs derive from it and its sub-account is
+ * loaded on subscribe so ix builders that read positions (withdraw) work.
  */
 export async function buildAdminClient(
 	opts: GlobalOpts,
-	subscribe = true
+	subscribe = true,
+	user?: { authority: PublicKey; subAccountId?: number }
 ): Promise<AdminClient> {
 	const provider = buildProvider(opts);
 	const sdkConfig = initialize({ env: opts.env });
@@ -57,6 +62,9 @@ export async function buildAdminClient(
 		programID: programId,
 		env: opts.env,
 		opts: { commitment: 'confirmed', preflightCommitment: 'confirmed' },
+		authority: user?.authority,
+		activeSubAccountId: user?.subAccountId,
+		subAccountIds: user ? [user.subAccountId ?? 0] : undefined,
 		accountSubscription: subscribe
 			? {
 					type: 'polling',

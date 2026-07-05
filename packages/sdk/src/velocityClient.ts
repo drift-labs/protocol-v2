@@ -4762,7 +4762,10 @@ export class VelocityClient {
 		marketIndex: number,
 		userTokenAccount: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number
+		subAccountId?: number,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
@@ -4797,7 +4800,7 @@ export class VelocityClient {
 			user,
 			userStats: this.getUserStatsAccountPublicKey(),
 			userTokenAccount,
-			authority: this.wallet.publicKey,
+			authority: overrides?.authority ?? this.wallet.publicKey,
 			tokenProgram,
 			remainingAccounts,
 		});
@@ -12010,11 +12013,15 @@ export class VelocityClient {
 	 * @returns The instruction.
 	 */
 	public async getInitializeInsuranceFundStakeIx(
-		marketIndex: number
+		marketIndex: number,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
+		const authority = overrides?.authority ?? this.wallet.publicKey;
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey,
+			authority,
 			marketIndex
 		);
 
@@ -12023,10 +12030,10 @@ export class VelocityClient {
 			spotMarket: this.getSpotMarketAccountOrThrow(marketIndex).pubkey,
 			userStats: getUserStatsAccountPublicKey(
 				this.program.programId,
-				this.wallet.publicKey // only allow payer to initialize own insurance fund stake account
+				authority // only allow payer to initialize own insurance fund stake account
 			),
-			authority: this.wallet.publicKey,
-			payer: this.wallet.publicKey,
+			authority,
+			payer: authority,
 			rent: SYSVAR_RENT_PUBKEY,
 			systemProgram: SystemProgram.programId,
 			state: await this.getStatePublicKey(),
@@ -12055,12 +12062,16 @@ export class VelocityClient {
 	public async getAddInsuranceFundStakeIx(
 		marketIndex: number,
 		amount: BN,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
+		const authority = overrides?.authority ?? this.wallet.publicKey;
 		const spotMarket = this.getSpotMarketAccountOrThrow(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey,
+			authority,
 			marketIndex
 		);
 
@@ -12084,9 +12095,9 @@ export class VelocityClient {
 					insuranceFundStake: ifStakeAccountPublicKey,
 					userStats: getUserStatsAccountPublicKey(
 						this.program.programId,
-						this.wallet.publicKey // only allow payer to add to own insurance fund stake account
+						authority // only allow payer to add to own insurance fund stake account
 					),
-					authority: this.wallet.publicKey,
+					authority,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
 					velocitySigner: this.getSignerPublicKey(),
