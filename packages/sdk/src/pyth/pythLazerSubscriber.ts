@@ -183,6 +183,42 @@ export class PythLazerSubscriber {
 		// Reset allSubscribedIds to rebuild with only stable feeds
 		this.allSubscribedIds = [];
 
+		// addMessageListener is global to the client (fires for every message,
+		// not scoped to a subscription), and each message carries its own
+		// subscriptionId — so one listener serves all subscriptions. Registering
+		// it per chunk would run every message once per chunk.
+		this.pythLazerClient.addMessageListener((message) => {
+			this.receivingData = true;
+			clearTimeout(this.timeoutId);
+			switch (message.type) {
+				case 'json': {
+					if (message.value.type == 'streamUpdated') {
+						if (message.value.solana?.data) {
+							this.feedIdChunkToPriceMessage.set(
+								this.subscriptionIdsToFeedIdsHash.get(
+									message.value.subscriptionId
+								)!,
+								message.value.solana.data
+							);
+						}
+						if (message.value.parsed?.priceFeeds) {
+							for (const priceFeed of message.value.parsed.priceFeeds) {
+								const price =
+									Number(priceFeed.price!) *
+									Math.pow(10, Number(priceFeed.exponent!));
+								this.feedIdToPrice.set(priceFeed.priceFeedId, price);
+							}
+						}
+					}
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+			this.setTimeout();
+		});
+
 		let subscriptionId = 1;
 		for (const priceFeedArray of this.priceFeedArrays) {
 			const filteredFeedIds = this.filterStableFeeds(
@@ -227,39 +263,13 @@ export class PythLazerSubscriber {
 				}
 			}
 
-			this.pythLazerClient.addMessageListener((message) => {
-				this.receivingData = true;
-				clearTimeout(this.timeoutId);
-				switch (message.type) {
-					case 'json': {
-						if (message.value.type == 'streamUpdated') {
-							if (message.value.solana?.data) {
-								this.feedIdChunkToPriceMessage.set(
-									this.subscriptionIdsToFeedIdsHash.get(
-										message.value.subscriptionId
-									)!,
-									message.value.solana.data
-								);
-							}
-							if (message.value.parsed?.priceFeeds) {
-								for (const priceFeed of message.value.parsed.priceFeeds) {
-									const price =
-										Number(priceFeed.price!) *
-										Math.pow(10, Number(priceFeed.exponent!));
-									this.feedIdToPrice.set(priceFeed.priceFeedId, price);
-								}
-							}
-						}
-						break;
-					}
-					default: {
-						break;
-					}
-				}
-				this.setTimeout();
-			});
-
-			this.pythLazerClient.send({
+			// Use subscribe() (not send()): subscribe() registers the request in
+			// the pool's subscriptions map so ResilientWebSocket replays it on
+			// every socket reconnect. send() fires once and is never replayed, so
+			// after the first heartbeat-timeout reconnect the socket streams
+			// nothing — forcing the watchdog to tear down the whole client and
+			// reopen numConnections fresh sockets. subscribe() recovers in place.
+			this.pythLazerClient.subscribe({
 				type: 'subscribe',
 				subscriptionId,
 				priceFeedIds: filteredFeedIds,

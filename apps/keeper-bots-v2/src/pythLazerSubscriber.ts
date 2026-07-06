@@ -122,42 +122,47 @@ export class PythLazerSubscriber {
 			token: this.token,
 			logger: lazerLogger,
 		});
+		// addMessageListener is global to the client (fires for every message,
+		// not scoped to a subscription), and each message carries its own
+		// subscriptionId — so one listener serves all subscriptions. Registering
+		// it per chunk would run every message once per chunk.
+		this.pythLazerClient.addMessageListener((message) => {
+			this.receivingData = true;
+			clearTimeout(this.timeoutId);
+			switch (message.type) {
+				case 'json': {
+					if (message.value.type == 'streamUpdated') {
+						if (message.value.solana?.data) {
+							this.feedIdChunkToPriceMessage.set(
+								this.subscriptionIdsToFeedIdsHash.get(
+									message.value.subscriptionId
+								)!,
+								message.value.solana.data
+							);
+						}
+						if (message.value.parsed?.priceFeeds) {
+							for (const priceFeed of message.value.parsed.priceFeeds) {
+								const price =
+									Number(priceFeed.price!) *
+									Math.pow(10, Number(priceFeed.exponent!));
+								this.feedIdToPrice.set(priceFeed.priceFeedId, price);
+							}
+						}
+					}
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+			this.setTimeout();
+		});
+
 		let subscriptionId = 1;
 		for (const priceFeedIds of this.priceFeedArrays) {
 			const feedIdsHash = this.hash(priceFeedIds.priceFeedIds);
 			this.feedIdHashToFeedIds.set(feedIdsHash, priceFeedIds.priceFeedIds);
 			this.subscriptionIdsToFeedIdsHash.set(subscriptionId, feedIdsHash);
-			this.pythLazerClient.addMessageListener((message) => {
-				this.receivingData = true;
-				clearTimeout(this.timeoutId);
-				switch (message.type) {
-					case 'json': {
-						if (message.value.type == 'streamUpdated') {
-							if (message.value.solana?.data) {
-								this.feedIdChunkToPriceMessage.set(
-									this.subscriptionIdsToFeedIdsHash.get(
-										message.value.subscriptionId
-									)!,
-									message.value.solana.data
-								);
-							}
-							if (message.value.parsed?.priceFeeds) {
-								for (const priceFeed of message.value.parsed.priceFeeds) {
-									const price =
-										Number(priceFeed.price!) *
-										Math.pow(10, Number(priceFeed.exponent!));
-									this.feedIdToPrice.set(priceFeed.priceFeedId, price);
-								}
-							}
-						}
-						break;
-					}
-					default: {
-						break;
-					}
-				}
-				this.setTimeout();
-			});
 			// Use subscribe() (not send()): subscribe() registers the request with
 			// the pool so it is replayed on every socket (re)connect. send() fires
 			// once and is never replayed, so after the first 5s heartbeat reconnect
