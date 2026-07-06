@@ -1087,7 +1087,9 @@ impl ServerParams {
         let t0 = SystemTime::now();
 
         if let Some(delegate) = delegate_signer {
-            log::debug!(
+            // trace, not debug: the INFO order line already prints
+            // delegate_signer, so this would be per-order noise at sim=debug.
+            log::trace!(
                 target: "sim",
                 "{}: delegate signer for sim: {delegate}",
                 context.log_prefix
