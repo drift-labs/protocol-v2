@@ -64,7 +64,7 @@
 		"strict-event-emitter-types": "2.0.0",
 		"tweetnacl": "1.0.3",
 		"tweetnacl-util": "0.15.1",
-		"uuid": "8.3.2",
+		"uuid": "14.0.0",
 		"yargs": "17.7.2",
 		"zod": "4.0.17",
 		"zstddec": "0.1.0"
@@ -84,7 +84,7 @@
 		"chai": "4.5.0",
 		"crypto-browserify": "^3.12.1",
 		"encoding": "0.1.13",
-		"esbuild": "^0.27.1",
+		"esbuild": "^0.28.1",
 		"eslint": "8.57.0",
 		"eslint-config-prettier": "8.3.0",
 		"eslint-plugin-prettier": "3.4.0",
