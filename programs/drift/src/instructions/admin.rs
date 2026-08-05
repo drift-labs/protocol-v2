@@ -4964,6 +4964,23 @@ pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> R
 }
 
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
+    // Bind the kill-switch / feature-bit source to the canonical State PDA.
+    // Owner-only checks are not enough: any large Drift-owned account could spoof
+    // the enable bit at offset 982. Seeds match Initialize.state (`drift_state`).
+    assert!(
+        accounts.len() >= 4,
+        "mm oracle native path requires market, signer, clock, state"
+    );
+    let (expected_state, _) = Pubkey::find_program_address(&[b"drift_state"], &crate::ID);
+    assert!(
+        accounts[3].key == &expected_state && accounts[3].owner == &crate::ID,
+        "accounts[3] must be the drift_state PDA owned by this program"
+    );
+    assert!(
+        accounts[3].data_len() > 982,
+        "state account too short for feature_bit_flags"
+    );
+
     // Verify this ix is allowed
     let state = &accounts[3].data.borrow();
     assert!(state[982] & 1 > 0, "ix disabled by admin state");
