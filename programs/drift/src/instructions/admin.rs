@@ -5028,8 +5028,8 @@ pub fn handle_update_amm_spread_adjustment_native(
     data: &[u8],
 ) -> Result<()> {
     assert!(
-        !accounts.is_empty(),
-        "amm spread native path requires market account"
+        accounts.len() >= 2,
+        "amm spread native path requires market and signer accounts"
     );
     require_account_is_perp_market(&accounts[0]);
 
