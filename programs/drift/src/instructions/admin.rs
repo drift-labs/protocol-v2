@@ -10,6 +10,7 @@ use std::mem::size_of;
 use crate::controller;
 use crate::controller::token::{close_vault, initialize_immutable_owner, initialize_token_account};
 use crate::error::ErrorCode;
+use anchor_lang::Discriminator;
 use crate::get_then_update_id;
 use crate::ids::{admin_hot_wallet, amm_spread_adjust_wallet, mm_oracle_crank_wallet};
 use crate::instructions::constraints::*;
@@ -4963,7 +4964,31 @@ pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> R
     Ok(())
 }
 
+
+/// Native paths bypass Anchor account constraints — bind market writes to a real PerpMarket.
+fn require_account_is_perp_market(account: &AccountInfo) {
+    assert!(
+        account.owner == &crate::ID,
+        "perp market must be owned by this program"
+    );
+    assert!(
+        account.data_len() >= PerpMarket::SIZE,
+        "perp market account too short"
+    );
+    let data = account.data.borrow();
+    assert!(
+        data[..8] == PerpMarket::discriminator(),
+        "account must have PerpMarket discriminator"
+    );
+}
+
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
+    assert!(
+        accounts.len() >= 4,
+        "mm oracle native path requires market, signer, clock, state"
+    );
+    require_account_is_perp_market(&accounts[0]);
+
     // Verify this ix is allowed
     let state = &accounts[3].data.borrow();
     assert!(state[982] & 1 > 0, "ix disabled by admin state");
@@ -5002,6 +5027,12 @@ pub fn handle_update_amm_spread_adjustment_native(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> Result<()> {
+    assert!(
+        !accounts.is_empty(),
+        "amm spread native path requires market account"
+    );
+    require_account_is_perp_market(&accounts[0]);
+
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
     assert!(
