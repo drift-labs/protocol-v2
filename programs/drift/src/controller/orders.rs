@@ -4777,7 +4777,7 @@ fn fulfill_spot_order(
             context,
         )?;
 
-    // user hasnt recieved initial fuel or below global start time
+    // user hasnt received initial fuel or below global start time
     user_stats.update_fuel_bonus(
         user,
         taker_margin_calculation.fuel_deposits,
