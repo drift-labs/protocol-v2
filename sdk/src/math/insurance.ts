@@ -30,10 +30,9 @@ export function nextRevenuePoolSettleApr(
 	const revSettlePeriod =
 		spotMarket.insuranceFund.revenueSettlePeriod.toNumber() * 1000;
 
-	const settlesPerYear = 31536000000 / revSettlePeriod;
-
 	const projectedAnnualRev = revenuePoolBN
-		.muln(settlesPerYear)
+		.mul(new BN(31536000000))
+		.div(new BN(revSettlePeriod))
 		.divn(payoutRatioDenominator);
 
 	const delta = amount ?? ZERO;
