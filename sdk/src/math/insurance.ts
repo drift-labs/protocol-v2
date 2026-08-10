@@ -17,7 +17,7 @@ export function nextRevenuePoolSettleApr(
 		SpotBalanceType.DEPOSIT
 	);
 
-	const payoutRatio = 0.1;
+	const payoutRatioDenominator = 10;
 	const ratioForStakers =
 		spotMarket.insuranceFund.totalFactor > 0 &&
 		spotMarket.insuranceFund.userFactor > 0 &&
@@ -34,11 +34,13 @@ export function nextRevenuePoolSettleApr(
 
 	const projectedAnnualRev = revenuePoolBN
 		.muln(settlesPerYear)
-		.muln(payoutRatio);
+		.divn(payoutRatioDenominator);
 
-	const uncappedApr = vaultBalance.add(amount).eq(ZERO)
+	const delta = amount ?? ZERO;
+
+	const uncappedApr = vaultBalance.add(delta).eq(ZERO)
 		? 0
-		: projectedAnnualRev.muln(1000).div(vaultBalance.add(amount)).toNumber() *
+		: projectedAnnualRev.muln(1000).div(vaultBalance.add(delta)).toNumber() *
 		  100 *
 		  1000;
 	const cappedApr = Math.min(uncappedApr, MAX_APR.toNumber());
